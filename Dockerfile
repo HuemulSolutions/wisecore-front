@@ -4,6 +4,8 @@ FROM node:20-bullseye-slim AS build
 # Set the working directory
 WORKDIR /app
 
+ENV VITE_API_URL=https://wisecore-backend.1wb6lor29n3q.us-south.codeengine.appdomain.cloud
+
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
