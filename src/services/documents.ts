@@ -6,6 +6,7 @@ export async function getAllDocuments() {
     throw new Error('Error al obtener los documentos');
   }
   const data = await response.json();
+  console.log('Documents fetched:', data.data);
   return data.data;
 }
 

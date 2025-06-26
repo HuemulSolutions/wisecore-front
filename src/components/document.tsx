@@ -22,10 +22,15 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
       <Accordion type="single" collapsible onValueChange={val => setExpandedAccordion(val === "item-1")}> 
         <AccordionItem value="item-1">
           <div className="flex flex-col gap-2 p-4">
-            <h2 className="text-lg font-semibold mb-1">{doc.name}</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-semibold">{doc.name}</h2>
+              <Button variant="outline" size="sm" className="hover:cursor-pointer">
+                Ver detalles
+              </Button>
+            </div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                Template: {doc.template.name}
+                Template: {doc.template ? doc.template.name : "No template"}
               </span>
             </div>
             <div className="text-gray-600 text-sm">
@@ -42,7 +47,7 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
               )}
             </div>
           </div>
-          <AccordionTrigger className="px-4">Ejecuciones</AccordionTrigger>
+          <AccordionTrigger className="px-4 hover:cursor-pointer">Ejecuciones</AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
             {expandedAccordion && (
               <div>
@@ -58,10 +63,11 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
                         pending: { color: "text-gray-400", icon: <Clock className="w-4 h-4 mr-1" /> },
                         running: { color: "text-blue-500", icon: <Loader2 className="w-4 h-4 mr-1 animate-spin" /> },
                         completed: { color: "text-green-600", icon: <CheckCircle className="w-4 h-4 mr-1" /> },
+                        approved: { color: "text-green-600", icon: <CheckCircle className="w-4 h-4 mr-1" /> },
                         failed: { color: "text-red-500", icon: <XCircle className="w-4 h-4 mr-1" /> },
                       };
                       type StatusType = keyof typeof statusConfig;
-                      const status: StatusType = ["pending", "running", "completed", "failed"].includes(exe.status) ? exe.status : "pending";
+                      const status: StatusType = ["pending", "running", "completed", "approved", "failed"].includes(exe.status) ? exe.status : "pending";
                       const { color, icon } = statusConfig[status];
                       return (
                         <li key={exe.id} className="flex justify-between items-center text-xs bg-gray-50 rounded px-2 py-1">
