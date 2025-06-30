@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
-import AddTemplate from "./pages/add_template";
+import ConfigTemplate from "./pages/config_template";
 import Documents from "./pages/documents";
 import Generate from "./pages/generate";
 import SearchPage from "./pages/search";
@@ -17,7 +17,7 @@ export default function App() {
         <Route path="documents" element={<Documents />} />
         <Route path="generate" element={<Generate />} />
         <Route path="search" element={<SearchPage />} />
-        <Route path="addTemplate" element={<AddTemplate />} />
+        <Route path="configTemplate/:id" element={<ConfigTemplate />} />
 
       </Route>
     </Routes>

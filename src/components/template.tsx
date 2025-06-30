@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+
 interface TemplateItemProps {
   doc: {
     id: string;
@@ -6,9 +8,10 @@ interface TemplateItemProps {
 }
 
 const Template: React.FC<TemplateItemProps> = ({ doc }) => {
+  const navigate = useNavigate();
+
   const handleClick = () => {
-    // TODO: Implementar navegación
-    console.log('Clicked on document:', doc.id);
+    navigate(`/configTemplate/${doc.id}`);
   };
 
   return (
