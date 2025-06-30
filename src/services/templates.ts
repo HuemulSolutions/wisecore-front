@@ -37,3 +37,17 @@ export async function getTemplateById(templateId: string) {
     const data = await response.json();
     return data.data;
 }
+
+export async function deleteTemplate(templateId: string) {
+    const response = await fetch(`${backendUrl}/templates/${templateId}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al eliminar la plantilla');
+    }
+
+    const data = await response.json();
+    console.log('Template deleted:', data);
+    return data;
+}
