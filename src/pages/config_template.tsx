@@ -1,19 +1,38 @@
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTemplateById, deleteTemplate } from "@/services/templates";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { TemplateSection } from "@/components/template_section";
-import { Trash2 } from "lucide-react";
+import { AddSectionForm } from "@/components/add_template_section";
+import { Trash2, PlusCircle } from "lucide-react";
 
 export default function ConfigTemplate() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [isAddingSection, setIsAddingSection] = useState(false);
 
   const { data: template, isLoading, error } = useQuery({
     queryKey: ["template", id],
     queryFn: () => getTemplateById(id!),
     enabled: !!id, // Solo ejecutar si id está definido
+  });
+
+  const addSectionMutation = useMutation({
+    mutationFn: (sectionData: { name: string; template_id: number }) => 
+      // createTemplateSection(sectionData),
+      console.log("Adding section:", sectionData), // Simulación de creación
+    onSuccess: () => {
+      // 4. Al tener éxito, invalidar la query para refrescar los datos
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+      setIsAddingSection(false); // Ocultar el formulario
+    },
+    onError: (error) => {
+      console.error("Error creating section:", error);
+      // Aquí podrías mostrar una notificación de error al usuario
+    }
   });
 
   useEffect(() => {
@@ -51,9 +70,25 @@ export default function ConfigTemplate() {
         </Button>
       </div>
 
-        <Button type="button" variant="outline" className="hover:cursor-pointer">
+        {isAddingSection ? (
+        <AddSectionForm
+          templateId={template.id}
+          onSubmit={(values) => addSectionMutation.mutate(values)}
+          onCancel={() => setIsAddingSection(false)}
+          isPending={addSectionMutation.isPending}
+          existingSections={template.template_sections}
+        />
+      ) : (
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="hover:cursor-pointer" 
+          onClick={() => setIsAddingSection(true)}
+        >
+          <PlusCircle className="h-4 w-4 mr-2" />
           Add Section
         </Button>
+      )}
 
       <div className="space-y-4">
         {template.template_sections.map((section: any) => (
@@ -62,4 +97,4 @@ export default function ConfigTemplate() {
       </div>
     </div>
   );
-}
+} 
