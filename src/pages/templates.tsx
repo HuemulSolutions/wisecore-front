@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogTrigger,
@@ -21,6 +22,7 @@ export default function Templates() {
   // state para controlar el diálogo, el valor del input y errores
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // query para listar
@@ -31,7 +33,8 @@ export default function Templates() {
 
   // mutation para crear
   const mutation = useMutation({
-    mutationFn: addTemplate,
+    mutationFn: (newData: { name: string; description: string }) =>
+      addTemplate(newData),
     onSuccess: (created) => {
       // invalidamos cache y navegamos
       queryClient.invalidateQueries({ queryKey: ["templates"] });
@@ -51,7 +54,7 @@ export default function Templates() {
     if (!newName.trim()) return;
     // limpiamos errores previos antes de hacer la mutación
     setError(null);
-    mutation.mutate(newName);
+    mutation.mutate({ name: newName, description: newDescription });
     // NO cerramos el diálogo ni limpiamos el input aquí
   };
 
@@ -66,7 +69,7 @@ export default function Templates() {
         {/* Trigger para abrir diálogo */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon" aria-label="Agregar template" className="hover:cursor-pointer">
+            <Button size="icon" aria-label="Agregar template" className="hover:cursor-pointer">
               +
             </Button>
           </DialogTrigger>
@@ -79,12 +82,20 @@ export default function Templates() {
               </DialogDescription>
             </DialogHeader>
 
-            <input
+            <Input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Nombre del template"
               className="w-full border rounded px-2 py-1"
+            />
+
+            <Input
+              type="text"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="Descripción (opcional)"
+              className="w-full border rounded px-2 py-1 mt-2"
             />
 
             {/* Mostrar error si existe */}

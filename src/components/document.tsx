@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { useState } from "react";
 import { Clock, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface DocumentItemProps {
   doc: any;
@@ -12,6 +13,7 @@ interface DocumentItemProps {
 const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
   const [expandedText, setExpandedText] = useState(false);
   const [expandedAccordion, setExpandedAccordion] = useState(false);
+  const navigate = useNavigate();
   const isLong = doc.description.length > descLimit;
   const desc = expandedText ? doc.description : doc.description.slice(0, descLimit) + (isLong ? "..." : "");
 
@@ -24,7 +26,7 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
           <div className="flex flex-col gap-2 p-4">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-semibold">{doc.name}</h2>
-              <Button variant="outline" size="sm" className="hover:cursor-pointer">
+              <Button variant="outline" size="sm" className="hover:cursor-pointer" onClick={() => navigate(`/document/${doc.id}`)}>
                 Ver detalles
               </Button>
             </div>

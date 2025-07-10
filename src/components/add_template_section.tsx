@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea"
 
 interface Section {
   id: string;
@@ -76,7 +77,7 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
             <label htmlFor="section-prompt" className="block text-sm font-medium mb-1">
               Prompt
             </label>
-            <textarea
+            <Textarea
               id="section-prompt"
               placeholder="Enter the prompt for this section"
               value={prompt}
