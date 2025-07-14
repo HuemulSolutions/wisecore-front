@@ -113,9 +113,9 @@ export default function Documents() {
 
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nuevo Documento</DialogTitle>
+              <DialogTitle>New Document</DialogTitle>
               <DialogDescription>
-                Ingresa los detalles para tu nuevo documento.
+                Complete the fields below to create a new document.
               </DialogDescription>
             </DialogHeader>
 
@@ -123,7 +123,7 @@ export default function Documents() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre del documento"
+              placeholder="Name"
               className="w-full border rounded px-2 py-1"
             />
 
@@ -131,7 +131,7 @@ export default function Documents() {
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripción (opcional)"
+              placeholder="Description (opcional)"
               className="w-full border rounded px-2 py-1 mt-2"
             />
 
@@ -172,21 +172,21 @@ export default function Documents() {
                 }}
                 className="hover:cursor-pointer"
               >
-                Cancelar
+                Cancel
               </Button>
               <Button
                 onClick={handleAccept}
                 disabled={mutation.isPending}
                 className="hover:cursor-pointer"
               >
-                {mutation.isPending ? "Creando..." : "Aceptar"}
+                {mutation.isPending ? "Creating..." : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
         </div>
       </div>
-      <ul className="space-y-2">
+      <ul className="space-y-4">
         {documents?.map((doc: any) => {
           return <Document key={doc.id} doc={doc} />;
         })}

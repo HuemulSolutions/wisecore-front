@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTemplateById, deleteTemplate, createTemplateSection } from "@/services/templates";
+import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { TemplateSection } from "@/components/template_section";
@@ -72,7 +73,7 @@ export default function ConfigTemplate() {
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Name: {template.name}</h2>
             <p className="text-gray-600">Description: {template.description}</p>
-            <p className="text-gray-400 text-sm pt-3">Created At: {new Date(template.created_at).toLocaleDateString()}</p>
+            <p className="text-gray-400 text-sm pt-3">Created: {formatDate(template.created_at)}</p>
           </div>
           <Button 
             type="button"  

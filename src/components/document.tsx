@@ -20,7 +20,7 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
   const { data: executions, isLoading, isError } = useExecutionsByDocumentId(doc.id, expandedAccordion);
 
   return (
-    <li key={doc.id} className="p-0 bg-white rounded shadow">
+    <li key={doc.id} className="p-0 bg-white rounded-lg shadow">
       <Accordion type="single" collapsible onValueChange={val => setExpandedAccordion(val === "item-1")}> 
         <AccordionItem value="item-1">
           <div className="flex flex-col gap-2 p-4">

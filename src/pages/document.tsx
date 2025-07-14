@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { getDocumentById } from "@/services/documents";
+import { createExecution } from "@/services/executions";
+import { formatDate } from "@/services/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,10 +52,17 @@ export default function DocumentPage() {
     navigate(`/configDocument/${id}`);
   };
 
-  const handleRegenerateDocument = () => {
-    // Implementar lógica para regenerar el documento
-    console.log("Regenerate document");
+  const handleNewExecution = () => {
+    createExecution(id!)
+      .then((execution) => {
+        console.log("Execution created:", execution);
+        navigate(`/execution/${execution.id}`);
+      })
+      .catch((error) => {
+        console.error("Error creating execution:", error);
+      });
   };
+
 
   const handleViewDependencies = () => {
     // Implementar lógica para ver dependencias
@@ -62,7 +71,7 @@ export default function DocumentPage() {
 
   const handleExecutionClick = (executionId: number) => {
     // Navegar al detalle de la ejecución
-    navigate(`/executions/${executionId}`);
+    navigate(`/execution/${executionId}`);
   };
 
   const handleExportPDF = () => {
@@ -124,7 +133,7 @@ export default function DocumentPage() {
                 <p className="text-sm text-gray-600">Created</p>
                 <p className="font-medium">
                   {document.created_at
-                    ? new Date(document.created_at).toLocaleDateString()
+                    ? formatDate(document.created_at)
                     : "N/A"}
                 </p>
               </div>
@@ -132,7 +141,7 @@ export default function DocumentPage() {
                 <p className="text-sm text-gray-600">Last Modified</p>
                 <p className="font-medium">
                   {document.updated_at
-                    ? new Date(document.updated_at).toLocaleDateString()
+                    ? formatDate(document.updated_at)
                     : "N/A"}
                 </p>
               </div>
@@ -160,7 +169,7 @@ export default function DocumentPage() {
             <Button
               variant="outline"
               className="w-full justify-start hover:cursor-pointer"
-              onClick={handleRegenerateDocument}
+              onClick={handleNewExecution}
             >
               <FileCog className="h-4 w-4 mr-2" />
               New Execution
@@ -171,7 +180,7 @@ export default function DocumentPage() {
               onClick={handleViewDependencies}
             >
               <Network className="h-4 w-4 mr-2" />
-              View Dependencies
+              Manage Dependencies
             </Button>
             <Button
               variant="outline"
@@ -253,7 +262,7 @@ export default function DocumentPage() {
                     <div className="flex items-center gap-3">
                       <span className="font-medium">
                         Execution{" "}
-                        {new Date(execution.created_at).toLocaleString()}
+                        {formatDate(execution.created_at)}
                       </span>
                       <span
                         className={`px-2 py-1 text-xs rounded-full ${

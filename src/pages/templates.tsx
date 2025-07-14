@@ -76,9 +76,9 @@ export default function Templates() {
 
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nuevo Template</DialogTitle>
+              <DialogTitle>New Template</DialogTitle>
               <DialogDescription>
-                Ingresa el nombre para tu nuevo template.
+                Complete the fields below to create a new template.
               </DialogDescription>
             </DialogHeader>
 
@@ -86,7 +86,7 @@ export default function Templates() {
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Nombre del template"
+              placeholder="Name"
               className="w-full border rounded px-2 py-1"
             />
 
@@ -94,7 +94,7 @@ export default function Templates() {
               type="text"
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="Descripción (opcional)"
+              placeholder="Description (optional)"
               className="w-full border rounded px-2 py-1 mt-2"
             />
 
@@ -118,14 +118,14 @@ export default function Templates() {
                 Cancelar
               </Button>
               <Button onClick={handleAccept} disabled={mutation.isPending} className="hover:cursor-pointer">
-                {mutation.isPending ? "Creando..." : "Aceptar"}
+                {mutation.isPending ? "Creating..." : "Save"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-4">
         {data?.map((doc: any) => (
           <Template key={doc.id} doc={doc} />
         ))}
