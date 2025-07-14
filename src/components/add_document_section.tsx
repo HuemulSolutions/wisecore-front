@@ -11,14 +11,14 @@ interface Section {
 }
 
 interface AddSectionFormProps {
-  templateId: string;
-  onSubmit: (values: { name: string; prompt: string; dependencies: string[]; template_id: string }) => void;
+  documentId: string;
+  onSubmit: (values: { name: string; prompt: string; dependencies: string[]; document_id: string }) => void;
   onCancel: () => void;
   isPending: boolean;
   existingSections?: Section[];
 }
 
-export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {
+export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
@@ -31,7 +31,7 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
       name, 
       prompt, 
       dependencies: selectedDependencies, 
-      template_id: templateId 
+      document_id: documentId 
     });
   };
 

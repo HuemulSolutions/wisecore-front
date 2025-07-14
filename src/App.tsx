@@ -7,6 +7,7 @@ import Documents from "./pages/documents";
 import DocumentPage from "./pages/document";
 import Generate from "./pages/generate";
 import SearchPage from "./pages/search";
+import ConfigDocumentPage from "./pages/config_document";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="search" element={<SearchPage />} />
         <Route path="configTemplate/:id" element={<ConfigTemplate />} />
         <Route path="document/:id" element={<DocumentPage />} />
+        <Route path="configDocument/:id" element={<ConfigDocumentPage />} />
       </Route>
     </Routes>
   );

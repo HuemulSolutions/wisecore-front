@@ -47,8 +47,7 @@ export default function DocumentPage() {
   };
 
   const handleConfigureDocument = () => {
-    // Implementar lógica para configurar el documento
-    console.log("Configure document");
+    navigate(`/configDocument/${id}`);
   };
 
   const handleRegenerateDocument = () => {

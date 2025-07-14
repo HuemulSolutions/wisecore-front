@@ -26,6 +26,7 @@ export async function getDocumentSections(documentId: string) {
     throw new Error('Error al obtener las secciones del documento');
   }
   const data = await response.json();
+  console.log('Document sections fetched:', data.data);
   return data.data;
 }
 
