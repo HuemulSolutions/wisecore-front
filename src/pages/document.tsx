@@ -66,7 +66,7 @@ export default function DocumentPage() {
 
   const handleViewDependencies = () => {
     // Implementar lógica para ver dependencias
-    console.log("View dependencies");
+    navigate(`/docDepend/${id}`);
   };
 
   const handleExecutionClick = (executionId: number) => {
@@ -180,10 +180,9 @@ export default function DocumentPage() {
               onClick={handleViewDependencies}
             >
               <Network className="h-4 w-4 mr-2" />
-              Manage Dependencies
+              Dependencies and Context
             </Button>
             <Button
-              variant="outline"
               size="sm"
               className="w-full justify-start hover:cursor-pointer"
               onClick={handleDelete}

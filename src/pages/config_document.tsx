@@ -1,17 +1,15 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { DocumentSection } from "@/components/document_section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 import { getDocumentById, getDocumentSections } from "@/services/documents";
 import { Button } from "@/components/ui/button";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
 

@@ -9,6 +9,7 @@ import Generate from "./pages/generate";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
+import DocDependPage from "./pages/doc_depend";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="document/:id" element={<DocumentPage />} />
         <Route path="configDocument/:id" element={<ConfigDocumentPage />} />
         <Route path="execution/:id" element={<ExecutionPage />} />
+        <Route path="docDepend/:id" element={<DocDependPage />} />
       </Route>
     </Routes>
   );

@@ -30,6 +30,26 @@ export async function getDocumentSections(documentId: string) {
   return data.data;
 }
 
+export async function createDocumentSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string }) {
+    const response = await fetch(`${backendUrl}/document/sections/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sectionData),
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error creating section:', errorResponse);
+        throw new Error(errorResponse.detail.error || 'Unknown error');
+    }
+
+    const data = await response.json();
+    console.log('Section created:', data.data);
+    return data.data;
+}
+
 export async function createDocument(documentData: { name: string; description?: string; template_id?: string | null }) {
   const response = await fetch(`${backendUrl}/documents/`, {
     method: 'POST',
