@@ -5,7 +5,7 @@ import Templates from "./pages/templates";
 import ConfigTemplate from "./pages/template";
 import Documents from "./pages/documents";
 import DocumentPage from "./pages/document";
-import Generate from "./pages/generate";
+// import Generate from "./pages/generate";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
@@ -19,7 +19,7 @@ export default function App() {
         <Route path="home" element={<Home />} />
         <Route path="templates" element={<Templates />} />
         <Route path="documents" element={<Documents />} />
-        <Route path="generate" element={<Generate />} />
+        {/* <Route path="generate" element={<Generate />} /> */}
         <Route path="search" element={<SearchPage />} />
         <Route path="configTemplate/:id" element={<ConfigTemplate />} />
         <Route path="document/:id" element={<DocumentPage />} />

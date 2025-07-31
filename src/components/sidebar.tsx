@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, FileText, WandSparkles, Search, LayoutTemplate} from "lucide-react";
+import { Home, FileText, Search, LayoutTemplate} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import clsx from "classnames";
 
@@ -7,7 +7,6 @@ const navItems = [
   { to: "/home", label: "Home", icon: Home },
   { to: "/templates", label: "Templates", icon: LayoutTemplate }, // Assuming templates is a home-like section
   { to: "/documents", label: "Documents", icon: FileText },
-  { to: "/generate", label: "Generate", icon: WandSparkles },
   { to: "/search", label: "Search", icon: Search },
 ];
 

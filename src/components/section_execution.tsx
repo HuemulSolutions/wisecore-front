@@ -1,12 +1,15 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
+import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
 interface SectionExecutionProps {
     sectionExecution: {
         id: string;
         name: string;
         prompt: string;
+        output: string;
     }
+    // isGenerating?: boolean;
 
 }
 
@@ -39,6 +42,9 @@ export default function SectionExecution({ sectionExecution }: SectionExecutionP
                 )}
             </div>
             <Separator className="my-4" />
+            { sectionExecution.output && (
+                <Markdown>{sectionExecution.output.replace(/\\n/g, "\n")}</Markdown>
+            )}
         </div>
     );
 

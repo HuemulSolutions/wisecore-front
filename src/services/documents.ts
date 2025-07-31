@@ -31,7 +31,7 @@ export async function getDocumentSections(documentId: string) {
 }
 
 export async function createDocumentSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string }) {
-    const response = await fetch(`${backendUrl}/document/sections/`, {
+    const response = await fetch(`${backendUrl}/documents/sections/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

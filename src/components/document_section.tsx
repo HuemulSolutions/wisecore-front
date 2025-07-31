@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ChevronDown, ChevronUp, MoreVertical, Edit, Trash2 } from 'lucide-react';
 
 interface TemplateItem {
   name: string;
@@ -28,12 +29,31 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
 
   return (
     <Card className="w-full">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-1">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold">{item.name}</CardTitle>
-          <span className="text-sm text-muted-foreground bg-secondary px-2 py-1 rounded">
-            Orden: {item.order}
-          </span>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-lg font-semibold">{item.name}</CardTitle>
+            <span className="text-sm text-muted-foreground bg-secondary px-2 py-1 rounded w-fit">
+              Order: {item.order}
+            </span>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:cursor-pointer">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem className="hover:cursor-pointer">
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem className="hover:cursor-pointer text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="pt-0">

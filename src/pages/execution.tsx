@@ -7,18 +7,92 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, WandSparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getExecutionById } from "@/services/executions";
-import { useState } from "react";
+import { generateDocument } from "@/services/generate";
+import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [instructions, setInstructions] = useState("");
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [editableSections, setEditableSections] = useState<any[]>([]);
+    const currentSectionId = useRef<string | null>(null);
+
 
     const { data: execution, isLoading, error } = useQuery({
         queryKey: ["execution", id],
         queryFn: () => getExecutionById(id!),
         enabled: !!id, // Solo ejecutar si id está definido
     });
+
+     useEffect(() => {
+        if (execution?.sections) {
+            setEditableSections([...execution.sections]);
+        }
+    }, [execution]);
+
+    const handleSectionInfo = (sectionId: string) => {
+        console.log(`Generando sección: ${sectionId}`);
+        currentSectionId.current = sectionId;
+    };
+
+    const handleStreamError = (error: Event) => {
+        console.error('Error en el stream:', error);
+        setIsGenerating(false);
+        currentSectionId.current = null;
+        toast.error("Error al generar contenido. Por favor, inténtalo de nuevo.");
+    };
+
+    const handleStreamClose = () => {
+        console.log('Stream cerrado');
+        setIsGenerating(false);
+        currentSectionId.current = null;
+        console.log(editableSections)
+    };
+
+    const handleStreamData = (text: string) => {
+
+        setEditableSections(prevSections => 
+            prevSections.map(section => {
+                if (section.id === currentSectionId.current) {
+                    console.log(`Actualizando sección ${section.id} con texto: ${text}`);
+                    return {
+                        ...section,
+                        output: section.output + text
+                    };
+                }
+                return section;
+            })
+        );
+    };
+
+    const handleGenerate = async () => {
+        if (!execution?.document_id) return;
+        
+        setIsGenerating(true);
+        let currentSection: string | undefined = undefined;
+        
+        try {
+            await generateDocument({
+                documentId: execution.document_id,
+                executionId: id!,
+                userInstructions: instructions,
+                onData: handleStreamData,
+                onInfo: (sectionId: string) => {
+                    currentSection = sectionId;
+                    handleSectionInfo(sectionId);
+                },
+                onError: handleStreamError,
+                onClose: handleStreamClose
+            });
+        } catch (error) {
+            console.error('Error al iniciar la generación:', error);
+            setIsGenerating(false);
+            toast.error("Error al iniciar la generación. Por favor, inténtalo de nuevo.");
+            return;
+        }
+    };
 
 
     if (isLoading) return <div>Loading...</div>;
@@ -69,9 +143,9 @@ export default function ExecutionPage() {
                         </div>
                     </div>
                     <Separator className="my-4" />
-                    {execution.sections && execution.sections.length > 0 && (
+                    {editableSections && editableSections.length > 0 && (
                         <div className="space-y-1">
-                            {execution.sections.map((section: any) => (
+                            {editableSections.map((section: any) => (
                                 <SectionExecution
                                     key={section.id}
                                     sectionExecution={section}
@@ -83,10 +157,8 @@ export default function ExecutionPage() {
                     <div className="mt-4 flex justify-end">
                         <Button
                             className="hover:cursor-pointer"
-                            onClick={() => {
-                                // Aquí iría la lógica para enviar las instrucciones y ejecutar el proceso
-                                console.log("Instructions submitted:", instructions);
-                            }}
+                            disabled={isGenerating}
+                            onClick={handleGenerate}
                         >
                             <WandSparkles className="h-4 w-4 mr-2" />
                             Generate

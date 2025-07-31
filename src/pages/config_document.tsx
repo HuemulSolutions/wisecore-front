@@ -1,15 +1,17 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { DocumentSection } from "@/components/document_section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
-import { getDocumentById, getDocumentSections } from "@/services/documents";
+import { getDocumentById, getDocumentSections, createDocumentSection } from "@/services/documents";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
 
@@ -31,6 +33,20 @@ export default function ConfigDocumentPage() {
     queryKey: ["documentSections", id],
     queryFn: () => getDocumentSections(id!),
     enabled: !!id, // Solo ejecutar si id está definido
+  });
+
+    const addSectionMutation = useMutation({
+    mutationFn: (sectionData: { name: string; document_id: string, prompt: string, dependencies: string[] }) => 
+      createDocumentSection(sectionData),
+    onSuccess: () => {
+      // 4. Al tener éxito, invalidar la query para refrescar los datos
+      queryClient.invalidateQueries({ queryKey: ["documentSections", id] });
+      setIsAddingSection(false); // Ocultar el formulario
+    },
+    onError: (error) => {
+      console.error("Error creating section:", error);
+      toast.error("Error creating section: " + (error as Error).message);
+    }
   });
 
   if (isLoading || isSectionsLoading) return <div>Loading...</div>;
@@ -98,10 +114,7 @@ if (error || sectionsError) {
         <AddSectionForm
           documentId={document.id}
           //   onSubmit={(values) => addSectionMutation.mutate(values)}
-          onSubmit={(values) => {
-            console.log("Section added:", values);
-            setIsAddingSection(false);
-          }}
+          onSubmit={(values) => addSectionMutation.mutate(values)}
           onCancel={() => setIsAddingSection(false)}
           //   isPending={addSectionMutation.isPending}
           isPending={false}

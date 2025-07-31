@@ -140,16 +140,12 @@ export default function AddContext({ id }: { id: string }) {
               <p className="text-red-500">Error al cargar contextos: {error.message}</p>
             )}
 
-            {contexts && contexts.length > 0 ? (
+            {contexts && contexts.length > 0 && (
               <div className="space-y-4">
                 {contexts.map((contextItem: any, index: number) => (
                   <ContextDisplay key={index} item={contextItem} />
                 ))}
               </div>
-            ) : (
-              !isLoading && !error && (
-                <p className="text-gray-500">No hay contextos disponibles</p>
-              )
             )}
           </div>
         </CardContent>
