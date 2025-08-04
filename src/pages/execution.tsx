@@ -4,6 +4,12 @@ import ExecutionInfo from "@/components/execution_info";
 import SectionExecution from "@/components/section_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { 
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ArrowLeft, WandSparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getExecutionById } from "@/services/executions";
@@ -30,7 +36,7 @@ export default function ExecutionPage() {
      useEffect(() => {
         if (execution?.sections) {
             setEditableSections([...execution.sections]);
-            setInstructions(execution.instructions || "");
+            setInstructions(execution.instruction || "");
             setStatus(execution.status || null);
         }
     }, [execution]);
@@ -135,16 +141,31 @@ export default function ExecutionPage() {
                             <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-2">
                                 Execution Instructions: Enter specific instructions for this execution:
                             </label>
-                            <textarea
-                                id="instructions"
-                                value={instructions}
-                                onChange={(e) => setInstructions(e.target.value)}
-                                placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
-                                className="w-full min-h-[120px] p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
-                                rows={6}
-                                disabled={execution?.status !== "pending"}
-                                readOnly={execution?.status !== "pending"}
-                            />
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <textarea
+                                            id="instructions"
+                                            value={instructions}
+                                            onChange={(e) => setInstructions(e.target.value)}
+                                            placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
+                                            className={`w-full min-h-[120px] p-3 border rounded-md resize-vertical transition-colors ${
+                                                execution?.status !== "pending" 
+                                                    ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed" 
+                                                    : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            }`}
+                                            rows={6}
+                                            disabled={execution?.status !== "pending"}
+                                            readOnly={execution?.status !== "pending"}
+                                        />
+                                    </TooltipTrigger>
+                                    {execution?.status !== "pending" && (
+                                        <TooltipContent>
+                                            <p>Instructions cannot be edited after execution has started</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
                     <Separator className="my-4" />

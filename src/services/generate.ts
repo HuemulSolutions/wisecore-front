@@ -43,7 +43,7 @@ async function* fetchGeneration(documentId: string, executionId: string, userIns
     body: JSON.stringify({
         document_id: documentId,
         execution_id: executionId,
-        user_instructions: userInstructions
+        instructions: userInstructions
     }),
     onmessage: onMessage,
     onclose: onClose,
