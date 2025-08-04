@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { DocumentSection } from "@/components/document_section";
+import Section from "@/components/section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
 import { getDocumentById, getDocumentSections, createDocumentSection } from "@/services/documents";
@@ -135,7 +135,7 @@ if (error || sectionsError) {
       <div className="space-y-4">
         {sections && sections.length > 0 ? (
           sections.map((section: any) => (
-           <DocumentSection key={section.id} item={section} />
+           <Section key={section.id} item={section} />
           ))
         ) : (
           <div className="text-gray-500">No sections available.</div>

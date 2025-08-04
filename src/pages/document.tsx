@@ -25,6 +25,7 @@ export default function DocumentPage() {
     data: document,
     isLoading,
     error,
+    refetch
   } = useQuery({
     queryKey: ["document", id],
     queryFn: () => getDocumentById(id!),
@@ -32,9 +33,7 @@ export default function DocumentPage() {
   });
 
   const handleRefreshExecutions = () => {
-    // Refrescar la data del documento para obtener las ejecuciones actualizadas
-    // Esto activará una nueva llamada a la API
-    console.log("Refreshing executions");
+    refetch();
   };
 
   const handleDelete = async () => {
@@ -266,15 +265,19 @@ export default function DocumentPage() {
                       <span
                         className={`px-2 py-1 text-xs rounded-full ${
                           execution.status === "approved"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-green-100 text-green-800 border border-green-300"
+                            : execution.status === "completed"
+                            ? "bg-green-100 text-green-800 border border-green-300"
                             : execution.status === "failed"
-                            ? "bg-red-100 text-red-800"
+                            ? "bg-red-100 text-red-800 border border-red-300"
                             : execution.status === "running"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
+                            ? "bg-blue-100 text-blue-800 border border-blue-300"
+                            : execution.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+                            : "bg-gray-100 text-gray-800 border border-gray-300"
                         }`}
                       >
-                        {execution.status}
+                        {execution.status === "running" ? "Executing" : execution.status === "pending" ? "Pending" : execution.status}
                       </span>
                     </div>
                     {execution.status_message && (

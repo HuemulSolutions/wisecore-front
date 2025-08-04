@@ -18,9 +18,10 @@ export default function ExecutionPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [editableSections, setEditableSections] = useState<any[]>([]);
     const currentSectionId = useRef<string | null>(null);
+    const [status, setStatus] = useState<string | null>(null);
 
 
-    const { data: execution, isLoading, error } = useQuery({
+    const { data: execution, isLoading, error, refetch } = useQuery({
         queryKey: ["execution", id],
         queryFn: () => getExecutionById(id!),
         enabled: !!id, // Solo ejecutar si id está definido
@@ -29,6 +30,8 @@ export default function ExecutionPage() {
      useEffect(() => {
         if (execution?.sections) {
             setEditableSections([...execution.sections]);
+            setInstructions(execution.instructions || "");
+            setStatus(execution.status || null);
         }
     }, [execution]);
 
@@ -48,11 +51,10 @@ export default function ExecutionPage() {
         console.log('Stream cerrado');
         setIsGenerating(false);
         currentSectionId.current = null;
-        console.log(editableSections)
+        refetch();
     };
 
     const handleStreamData = (text: string) => {
-
         setEditableSections(prevSections => 
             prevSections.map(section => {
                 if (section.id === currentSectionId.current) {
@@ -71,6 +73,7 @@ export default function ExecutionPage() {
         if (!execution?.document_id) return;
         
         setIsGenerating(true);
+        setStatus("running");
         let currentSection: string | undefined = undefined;
         
         try {
@@ -118,7 +121,7 @@ export default function ExecutionPage() {
             </div>
 
             {/* Tarjeta de información de la ejecución */}
-            <ExecutionInfo execution={execution} />
+            <ExecutionInfo execution={execution} onRefresh={refetch} />
 
 
             {/* Tarjeta de instrucciones */}
@@ -139,6 +142,8 @@ export default function ExecutionPage() {
                                 placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
                                 className="w-full min-h-[120px] p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
                                 rows={6}
+                                disabled={execution?.status !== "pending"}
+                                readOnly={execution?.status !== "pending"}
                             />
                         </div>
                     </div>
@@ -154,16 +159,18 @@ export default function ExecutionPage() {
                         </div>
                     )}
 
-                    <div className="mt-4 flex justify-end">
-                        <Button
-                            className="hover:cursor-pointer"
-                            disabled={isGenerating}
-                            onClick={handleGenerate}
-                        >
-                            <WandSparkles className="h-4 w-4 mr-2" />
-                            Generate
-                        </Button>
-                    </div>
+                    {status === "pending" && (
+                        <div className="mt-4 flex justify-end">
+                            <Button
+                                className="hover:cursor-pointer"
+                                disabled={isGenerating}
+                                onClick={handleGenerate}
+                            >
+                                <WandSparkles className="h-4 w-4 mr-2" />
+                                Generate
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
 
             </Card>

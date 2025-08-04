@@ -1,7 +1,13 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Edit, Bot, Lock } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 interface SectionExecutionProps {
     sectionExecution: {
         id: string;
@@ -18,7 +24,31 @@ export default function SectionExecution({ sectionExecution }: SectionExecutionP
 
     return (
         <div className="p-4">
-            <h3 className="text-lg font-semibold">{sectionExecution.name.toUpperCase()}</h3>
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">{sectionExecution.name.toUpperCase()}</h3>
+                
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="p-1 rounded-md hover:bg-gray-100 hover:cursor-pointer">
+                            <MoreVertical className="h-4 w-4 text-gray-600" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="hover:cursor-pointer">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="hover:cursor-pointer">
+                            <Bot className="h-4 w-4 mr-2" />
+                            Ask AI to Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="hover:cursor-pointer">
+                            <Lock className="h-4 w-4 mr-2" />
+                            Lock
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
             
             <div className="mt-3">
                 <button

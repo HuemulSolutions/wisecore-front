@@ -1,10 +1,20 @@
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTemplateById, deleteTemplate, createTemplateSection } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { TemplateSection } from "@/components/template_section";
+import Section  from "@/components/section";
 import { AddSectionForm } from "@/components/add_template_section";
 import { Trash2, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -15,6 +25,7 @@ export default function ConfigTemplate() {
   const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: template, isLoading, error } = useQuery({
     queryKey: ["template", id],
@@ -52,11 +63,12 @@ export default function ConfigTemplate() {
   const handleDelete = async () => {
     try {
       await deleteTemplate(template.id);
-      // Aquí podrías redirigir o actualizar el estado de la lista de templates
-      console.log("Template deleted successfully");
+      toast.success("Template deleted successfully");
       navigate("/templates"); // Redirigir a la lista de templates
+      setShowDeleteDialog(false);
     } catch (deleteError) {
       console.error("Error deleting template:", deleteError);
+      toast.error("Error deleting template");
     }
   }
 
@@ -68,7 +80,7 @@ export default function ConfigTemplate() {
         <h1 className="text-2xl font-bold">Configure Template</h1>
       </div>
 
-      <div className="bg-slate-100 border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div className="border border-gray-400 rounded-lg p-6 shadow-sm">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Name: {template.name}</h2>
@@ -79,7 +91,7 @@ export default function ConfigTemplate() {
             type="button"  
             size="sm"
             className="hover:cursor-pointer ml-4" 
-            onClick={handleDelete}
+            onClick={() => setShowDeleteDialog(true)}
             title="Delete Template"
           >
             <Trash2 className="h-4 w-4 m-2" />
@@ -109,9 +121,29 @@ export default function ConfigTemplate() {
 
       <div className="space-y-4">
         {template.template_sections.map((section: any) => (
-          <TemplateSection key={section.id} item={section} />
+          <Section key={section.id} item={section} />
         ))}
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the template "{template.name}" and all its sections.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="hover:cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 hover:cursor-pointer"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 
