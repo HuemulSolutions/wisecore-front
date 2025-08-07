@@ -15,6 +15,8 @@ import {
   ChevronRight,
   FileCog,
   RefreshCw,
+  DiamondMinus,
+  File
 } from "lucide-react";
 
 export default function DocumentPage() {
@@ -86,6 +88,11 @@ export default function DocumentPage() {
   const handleExportPPT = () => {
     // Implementar lógica para exportar a PowerPoint
     console.log("Export to PowerPoint");
+  };
+
+  const handleExportMarkdown = () => {
+    // Implementar lógica para exportar a Markdown
+    console.log("Export to Markdown");
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -206,7 +213,7 @@ export default function DocumentPage() {
                   onClick={handleExportPDF}
                   disabled={true}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
+                  <File className="h-4 w-4 mr-2" />
                   Export to PDF
                 </Button>
                 <Button
@@ -228,6 +235,15 @@ export default function DocumentPage() {
                 >
                   <Presentation className="h-4 w-4 mr-2" />
                   Export to PowerPoint
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start hover:cursor-pointer"
+                  onClick={handleExportMarkdown}
+                >
+                  <DiamondMinus className="h-4 w-4 mr-2" />
+                  Export to Markdown
                 </Button>
               </div>
             </div>

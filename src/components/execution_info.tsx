@@ -3,8 +3,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network } from "lucide-react";
+import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
+import { exportExecutionToMarkdown } from '@/services/executions';
+import { useState } from 'react';
 
 
 export interface ExecutionInfoProps {
@@ -20,6 +22,20 @@ export interface ExecutionInfoProps {
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useNavigate();
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportToMarkdown = async () => {
+        try {
+            setIsExporting(true);
+            await exportExecutionToMarkdown(execution.id);
+        } catch (error) {
+            console.error('Error exporting execution to markdown:', error);
+            // You might want to show a toast notification here
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         const statusConfig = {
             pending: { variant: "outline", label: "Pending", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
@@ -75,6 +91,14 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                        className="hover:cursor-pointer"
+                                        onClick={handleExportToMarkdown}
+                                        disabled={isExporting}
+                                    >
+                                        <DiamondMinus className="h-4 w-4 mr-2" />
+                                        {isExporting ? 'Exporting...' : 'Export to Markdown'}
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer"
                                         onClick={() => navigate(`/document/${execution.document_id}/new-execution`)}
