@@ -12,7 +12,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getAllTemplates, addTemplate } from "@/services/templates";
+import { getAllOrganizations } from "@/services/organizations";
 import Template from "@/components/template";
 
 export default function Templates() {
@@ -23,6 +31,7 @@ export default function Templates() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // query para listar
@@ -31,9 +40,14 @@ export default function Templates() {
     queryFn: getAllTemplates,
   });
 
+  const { data: organizations } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: getAllOrganizations,
+  });
+
   // mutation para crear
   const mutation = useMutation({
-    mutationFn: (newData: { name: string; description: string }) =>
+    mutationFn: (newData: { name: string; description: string; organization_id: string }) =>
       addTemplate(newData),
     onSuccess: (created) => {
       // invalidamos cache y navegamos
@@ -41,6 +55,8 @@ export default function Templates() {
       navigate(`/configTemplate/${created.id}`);
       // limpiamos estado y cerramos diálogo solo en éxito
       setNewName("");
+      setNewDescription("");
+      setOrganizationId(null);
       setError(null);
       setIsDialogOpen(false);
     },
@@ -54,7 +70,11 @@ export default function Templates() {
     if (!newName.trim()) return;
     // limpiamos errores previos antes de hacer la mutación
     setError(null);
-    mutation.mutate({ name: newName, description: newDescription });
+    mutation.mutate({ 
+      name: newName, 
+      description: newDescription, 
+      organization_id: organizationId || ""
+    });
     // NO cerramos el diálogo ni limpiamos el input aquí
   };
 
@@ -98,6 +118,24 @@ export default function Templates() {
               className="w-full border rounded px-2 py-1 mt-2"
             />
 
+            <Select
+              onValueChange={(value) =>
+                setOrganizationId(value === "null" ? null : value)
+              }
+              value={organizationId || "null"}
+            >
+              <SelectTrigger className="w-full mt-2">
+                <SelectValue placeholder="Select organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {organizations?.map((org: any) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             {/* Mostrar error si existe */}
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
@@ -110,12 +148,14 @@ export default function Templates() {
                 variant="outline"
                 onClick={() => {
                   setNewName("");
+                  setNewDescription("");
+                  setOrganizationId(null);
                   setError(null);
                   setIsDialogOpen(false);
                 }}
                 className="hover:cursor-pointer"
               >
-                Cancelar
+                Cancel
               </Button>
               <Button onClick={handleAccept} disabled={mutation.isPending} className="hover:cursor-pointer">
                 {mutation.isPending ? "Creating..." : "Save"}

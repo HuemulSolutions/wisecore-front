@@ -1,7 +1,12 @@
 import { backendUrl } from "@/config";
 
-export async function getAllDocuments() {
-  const response = await fetch(`${backendUrl}/documents/`);
+export async function getAllDocuments(organizationId?: string) {
+  const url = new URL(`${backendUrl}/documents/`);
+  if (organizationId) {
+    url.searchParams.append('organization_id', organizationId);
+  }
+  
+  const response = await fetch(url.toString());
   if (!response.ok) {
     throw new Error('Error al obtener los documentos');
   }
@@ -18,6 +23,17 @@ export async function getDocumentById(documentId: string) {
   const data = await response.json();
   console.log('Document fetched:', data.data);
   return data.data;
+}
+
+export async function deleteDocument(documentId: string) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Error al eliminar el documento');
+  }
+  console.log('Document deleted:', documentId);
+  return true;
 }
 
 export async function getDocumentSections(documentId: string) {
@@ -50,7 +66,7 @@ export async function createDocumentSection(sectionData: { name: string; prompt:
     return data.data;
 }
 
-export async function createDocument(documentData: { name: string; description?: string; template_id?: string | null }) {
+export async function createDocument(documentData: { name: string; organization_id: string, description?: string; template_id?: string | null }) {
   const response = await fetch(`${backendUrl}/documents/`, {
     method: 'POST',
     headers: {

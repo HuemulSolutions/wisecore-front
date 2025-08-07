@@ -23,6 +23,7 @@ import {
 import { createDocument, getAllDocuments } from "@/services/documents";
 import Document from "@/components/document";
 import { getAllTemplates } from "@/services/templates";
+import { getAllOrganizations } from "@/services/organizations";
 
 export default function Documents() {
   const queryClient = useQueryClient();
@@ -32,6 +33,8 @@ export default function Documents() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [organizationFilter, setOrganizationFilter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -39,8 +42,8 @@ export default function Documents() {
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: ["documents"],
-    queryFn: getAllDocuments,
+    queryKey: ["documents", organizationFilter],
+    queryFn: () => getAllDocuments(organizationFilter || undefined),
   });
 
   const { data: templates } = useQuery({
@@ -48,9 +51,15 @@ export default function Documents() {
     queryFn: getAllTemplates,
   });
 
+  const { data: organizations } = useQuery({
+    queryKey: ["organizations"],
+    queryFn: getAllOrganizations,
+  });
+
   const mutation = useMutation({
     mutationFn: (newDocument: {
       name: string;
+      organization_id: string;
       description?: string;
       template_id?: string | null;
     }) => createDocument(newDocument),
@@ -60,6 +69,7 @@ export default function Documents() {
       setName("");
       setDescription("");
       setTemplateId(null);
+      setOrganizationId(null);
       setError(null);
       setIsDialogOpen(false);
     },
@@ -71,7 +81,12 @@ export default function Documents() {
   const handleAccept = () => {
     if (!name.trim()) return;
     setError(null);
-    mutation.mutate({ name, description, template_id: templateId });
+    mutation.mutate({ 
+      name, 
+      description, 
+      template_id: templateId, 
+      organization_id: organizationId || ""
+    });
   };
 
   if (isLoading) {
@@ -87,6 +102,24 @@ export default function Documents() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Documents</h1>
         <div className="flex items-center space-x-2">
+          <Select
+            onValueChange={(value) =>
+              setOrganizationFilter(value === "all" ? null : value)
+            }
+            value={organizationFilter || "all"}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by organization" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All organizations</SelectItem>
+              {organizations?.map((org: any) => (
+                <SelectItem key={org.id} value={org.id}>
+                  {org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             size="icon"
             aria-label="Importar documento"
@@ -137,12 +170,30 @@ export default function Documents() {
 
             <Select
               onValueChange={(value) =>
+                setOrganizationId(value === "null" ? null : value)
+              }
+              value={organizationId || "null"}
+            >
+              <SelectTrigger className="w-full mt-2">
+                <SelectValue placeholder="Select organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {organizations?.map((org: any) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              onValueChange={(value) =>
                 setTemplateId(value === "null" ? null : value)
               }
               value={templateId || "null"}
             >
               <SelectTrigger className="w-full mt-2">
-                <SelectValue placeholder="Seleccionar template (opcional)" />
+                <SelectValue placeholder="Select template (optional)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="null">No template</SelectItem>
@@ -167,6 +218,7 @@ export default function Documents() {
                   setName("");
                   setDescription("");
                   setTemplateId(null);
+                  setOrganizationId(null);
                   setError(null);
                   setIsDialogOpen(false);
                 }}

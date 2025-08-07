@@ -10,7 +10,7 @@ export async function getAllTemplates() {
     return data.data;
 }
 
-export async function addTemplate( { name, description }: { name: string, description?: string}) {
+export async function addTemplate( { name, description, organization_id }: { name: string, description?: string, organization_id: string}) {
     const response = await fetch(`${backendUrl}/templates/`, {
         method: 'POST',
         headers: {
@@ -19,6 +19,7 @@ export async function addTemplate( { name, description }: { name: string, descri
         body: JSON.stringify({
             name,
             description: description || null,
+            organization_id,
         }),
     });
 
@@ -72,5 +73,15 @@ export async function createTemplateSection(sectionData: { name: string; prompt:
 
     const data = await response.json();
     console.log('Section created:', data.data);
+    return data.data;
+}
+
+export async function exportTemplate(templateId: string) {
+    const response = await fetch(`${backendUrl}/templates/${templateId}/export`);
+    if (!response.ok) {
+        throw new Error('Error al exportar la plantilla');
+    }
+    const data = await response.json();
+    console.log('Template exported:', data.data);
     return data.data;
 }

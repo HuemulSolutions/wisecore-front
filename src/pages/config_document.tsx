@@ -41,6 +41,7 @@ export default function ConfigDocumentPage() {
     onSuccess: () => {
       // 4. Al tener éxito, invalidar la query para refrescar los datos
       queryClient.invalidateQueries({ queryKey: ["documentSections", id] });
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
       setIsAddingSection(false); // Ocultar el formulario
     },
     onError: (error) => {
@@ -135,7 +136,7 @@ if (error || sectionsError) {
       <div className="space-y-4">
         {sections && sections.length > 0 ? (
           sections.map((section: any) => (
-           <Section key={section.id} item={section} />
+           <Section key={section.id} item={section} existingSections={document.sections} />
           ))
         ) : (
           <div className="text-gray-500">No sections available.</div>

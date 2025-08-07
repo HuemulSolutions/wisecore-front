@@ -20,6 +20,8 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { useState } from "react";
 import { Clock, Loader2, CheckCircle, XCircle, MoreVertical, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteDocument } from "@/services/documents";
 
 interface DocumentItemProps {
   doc: any;
@@ -31,15 +33,26 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isLong = doc.description.length > descLimit;
   const desc = expandedText ? doc.description : doc.description.slice(0, descLimit) + (isLong ? "..." : "");
 
   const { data: executions, isLoading, isError } = useExecutionsByDocumentId(doc.id, expandedAccordion);
 
+  const deleteMutation = useMutation({
+    mutationFn: (documentId: string) => deleteDocument(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setDeleteDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      console.error('Error deleting document:', error);
+      // TODO: Show error notification to user
+    },
+  });
+
   const handleDelete = () => {
-    // TODO: Implementar lógica de eliminación
-    console.log('Eliminando documento:', doc.id);
-    setDeleteDialogOpen(false);
+    deleteMutation.mutate(doc.id);
   };
 
   return (
@@ -142,9 +155,10 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
             <AlertDialogCancel className="hover:cursor-pointer">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete} 
-              className="bg-red-600 hover:bg-red-700 hover:cursor-pointer"
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Delete
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,11 +1,11 @@
 import {Card, CardHeader, CardTitle, CardDescription, CardContent} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {FileText, Plus, X} from "lucide-react";
+import {FileText, Plus, Trash2} from "lucide-react";
 import {useState} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocumentDependencies, addDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
-import { getAllDocuments } from "@/services/documents";
+import { getAllDocuments, getDocumentById } from "@/services/documents";
 
 
 interface Dependency {
@@ -24,6 +24,12 @@ export default function AddDependency({ id }: { id: string }) {
     const [newDependency, setNewDependency] = useState('');
     const queryClient = useQueryClient();
 
+    const { data: document } = useQuery({
+        queryKey: ['document', id],
+        queryFn: () => getDocumentById(id),
+        enabled: !!id,
+    });
+
     const { data: dependencies = [], isLoading, error } = useQuery<Dependency[]>({
         queryKey: ['documentDependencies', id],
         queryFn: () => getDocumentDependencies(id!),
@@ -32,7 +38,8 @@ export default function AddDependency({ id }: { id: string }) {
 
     const { data: allDocuments = [] } = useQuery<Document[]>({
         queryKey: ['allDocuments'],
-        queryFn: getAllDocuments,
+        queryFn: () => getAllDocuments(document?.organization_id),
+        enabled: !!document?.organization_id,
     });
 
     const addDependencyMutation = useMutation({
@@ -124,10 +131,10 @@ export default function AddDependency({ id }: { id: string }) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="hover:cursor-pointer"
+                                    className="hover:cursor-pointer text-destructive hover:text-destructive"
                                     onClick={() => handleRemoveDependency(dependency.document_id)}
                                 >
-                                    <X className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
                         ))}

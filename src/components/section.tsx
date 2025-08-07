@@ -24,17 +24,20 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+import EditSection from "./edit_section";
 
 interface Item {
+  id: string;
   name: string;
   prompt: string;
   order: number;
   dependencies: string[];
 }
 
-export default function TemplateSection({ item }: { item: Item }) {
+export default function TemplateSection({ item, existingSections }: { item: Item, existingSections: object[] } ) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const maxPreviewLength = 100;
 
   const shouldShowExpandButton = item.prompt.length > maxPreviewLength;
@@ -48,6 +51,32 @@ export default function TemplateSection({ item }: { item: Item }) {
     console.log('Deleting item:', item.name);
     setShowDeleteDialog(false);
   };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = (updatedItem: Item) => {
+    // Aquí puedes agregar la lógica para guardar los cambios
+    console.log('Saving updated item:', updatedItem);
+    setIsEditing(false);
+  };
+
+  // Si está en modo edición, mostrar el componente EditSection
+  if (isEditing) {
+    return (
+      <EditSection
+        item={item}
+        onCancel={handleCancelEdit}
+        onSave={handleSaveEdit}
+        existingSections={existingSections as { id: string; name: string }[]}
+      />
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -70,7 +99,10 @@ export default function TemplateSection({ item }: { item: Item }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="hover:cursor-pointer">
+              <DropdownMenuItem 
+                className="hover:cursor-pointer"
+                onClick={handleEdit}
+              >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
@@ -131,18 +163,18 @@ export default function TemplateSection({ item }: { item: Item }) {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el template "{item.name}".
+              This action cannot be undone. This will permanently delete the template "{item.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="hover:cursor-pointer">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="hover:cursor-pointer">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700 hover:cursor-pointer"
             >
-              Eliminar
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

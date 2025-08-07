@@ -16,8 +16,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import Section  from "@/components/section";
 import { AddSectionForm } from "@/components/add_template_section";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, MoreVertical, Download } from "lucide-react";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ConfigTemplate() {
   const { id } = useParams<{ id: string }>();
@@ -72,6 +78,30 @@ export default function ConfigTemplate() {
     }
   }
 
+  const handleExport = () => {
+    const templateData = {
+      name: template.name,
+      description: template.description,
+      sections: template.template_sections.map((section: any) => ({
+        name: section.name,
+        prompt: section.prompt,
+        dependencies: section.dependencies
+      }))
+    };
+    
+    const dataStr = JSON.stringify(templateData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${template.name.replace(/\s+/g, '_')}_template.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Template exported successfully");
+  }
+
   console.log("Template data:", template);
 
   return (
@@ -87,15 +117,34 @@ export default function ConfigTemplate() {
             <p className="text-gray-600">Description: {template.description}</p>
             <p className="text-gray-400 text-sm pt-3">Created: {formatDate(template.created_at)}</p>
           </div>
-          <Button 
-            type="button"  
-            size="sm"
-            className="hover:cursor-pointer ml-4" 
-            onClick={() => setShowDeleteDialog(true)}
-            title="Delete Template"
-          >
-            <Trash2 className="h-4 w-4 m-2" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="hover:cursor-pointer ml-4" 
+                title="More options"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem 
+                className="hover:cursor-pointer" 
+                onClick={handleExport}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-red-600 hover:cursor-pointer" 
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -121,7 +170,7 @@ export default function ConfigTemplate() {
 
       <div className="space-y-4">
         {template.template_sections.map((section: any) => (
-          <Section key={section.id} item={section} />
+          <Section key={section.id} item={section} existingSections={template.template_sections} />
         ))}
       </div>
 

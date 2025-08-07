@@ -121,6 +121,12 @@ export default function DocumentPage() {
                 </p>
               </div>
               <div>
+                <p className="text-sm text-gray-600">Organization</p>
+                <p className="font-medium">
+                  {document.organization}
+                </p>
+              </div>
+              <div>
                 <p className="text-sm text-gray-600">Template</p>
                 <p className="font-medium">
                   {document.template_name

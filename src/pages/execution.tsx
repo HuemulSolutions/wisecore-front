@@ -80,7 +80,6 @@ export default function ExecutionPage() {
         
         setIsGenerating(true);
         setStatus("running");
-        let currentSection: string | undefined = undefined;
         
         try {
             await generateDocument({
@@ -89,7 +88,6 @@ export default function ExecutionPage() {
                 userInstructions: instructions,
                 onData: handleStreamData,
                 onInfo: (sectionId: string) => {
-                    currentSection = sectionId;
                     handleSectionInfo(sectionId);
                 },
                 onError: handleStreamError,
