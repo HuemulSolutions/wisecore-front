@@ -31,7 +31,7 @@ export default function Templates() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   // query para listar
@@ -56,26 +56,30 @@ export default function Templates() {
       // limpiamos estado y cerramos diálogo solo en éxito
       setNewName("");
       setNewDescription("");
-      setOrganizationId(null);
+      setOrganizationId(undefined);
       setError(null);
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      // solo manejamos el error, mantenemos el diálogo abierto
-      setError(error.message || "Ocurrió un error al crear el template");
+      setError(error.message || "An error occurred while creating the template");
     },
   });
 
   const handleAccept = () => {
-    if (!newName.trim()) return;
-    // limpiamos errores previos antes de hacer la mutación
+    if (!newName.trim()) {
+      setError("Name is required");
+      return;
+    }
+    if (!organizationId) {
+      setError("Organization is required");
+      return;
+    }
     setError(null);
-    mutation.mutate({ 
-      name: newName, 
-      description: newDescription, 
-      organization_id: organizationId || ""
+    mutation.mutate({
+      name: newName,
+      description: newDescription,
+      organization_id: organizationId,
     });
-    // NO cerramos el diálogo ni limpiamos el input aquí
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -119,10 +123,10 @@ export default function Templates() {
             />
 
             <Select
-              onValueChange={(value) =>
-                setOrganizationId(value === "null" ? null : value)
-              }
-              value={organizationId || "null"}
+              value={organizationId}
+              onValueChange={(value) => {
+                setOrganizationId(value);
+              }}
             >
               <SelectTrigger className="w-full mt-2">
                 <SelectValue placeholder="Select organization" />
@@ -149,7 +153,7 @@ export default function Templates() {
                 onClick={() => {
                   setNewName("");
                   setNewDescription("");
-                  setOrganizationId(null);
+                  setOrganizationId(undefined);
                   setError(null);
                   setIsDialogOpen(false);
                 }}
@@ -157,7 +161,7 @@ export default function Templates() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleAccept} disabled={mutation.isPending} className="hover:cursor-pointer">
+              <Button onClick={handleAccept} disabled={!newName.trim() || !organizationId || mutation.isPending} className="hover:cursor-pointer">
                 {mutation.isPending ? "Creating..." : "Save"}
               </Button>
             </DialogFooter>

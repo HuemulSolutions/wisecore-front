@@ -32,8 +32,8 @@ export default function Documents() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [templateId, setTemplateId] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(null); // optional
+  const [organizationId, setOrganizationId] = useState<string | undefined>(undefined); // required
   const [organizationFilter, setOrganizationFilter] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,23 +69,30 @@ export default function Documents() {
       setName("");
       setDescription("");
       setTemplateId(null);
-      setOrganizationId(null);
+      setOrganizationId(undefined);
       setError(null);
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      setError(error.message || "Ocurrió un error al crear el documento");
+      setError(error.message || "An error occurred while creating the document");
     },
   });
 
   const handleAccept = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setError("Name is required");
+      return;
+    }
+    if (!organizationId) {
+      setError("Organization is required");
+      return;
+    }
     setError(null);
-    mutation.mutate({ 
-      name, 
-      description, 
-      template_id: templateId, 
-      organization_id: organizationId || ""
+    mutation.mutate({
+      name,
+      description,
+      template_id: templateId,
+      organization_id: organizationId,
     });
   };
 
@@ -164,15 +171,13 @@ export default function Documents() {
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (opcional)"
+              placeholder="Description (optional)"
               className="w-full border rounded px-2 py-1 mt-2"
             />
 
             <Select
-              onValueChange={(value) =>
-                setOrganizationId(value === "null" ? null : value)
-              }
-              value={organizationId || "null"}
+              value={organizationId}
+              onValueChange={(value) => setOrganizationId(value)}
             >
               <SelectTrigger className="w-full mt-2">
                 <SelectValue placeholder="Select organization" />
@@ -218,7 +223,7 @@ export default function Documents() {
                   setName("");
                   setDescription("");
                   setTemplateId(null);
-                  setOrganizationId(null);
+                  setOrganizationId(undefined);
                   setError(null);
                   setIsDialogOpen(false);
                 }}
@@ -228,7 +233,7 @@ export default function Documents() {
               </Button>
               <Button
                 onClick={handleAccept}
-                disabled={mutation.isPending}
+                disabled={mutation.isPending || !name.trim() || !organizationId}
                 className="hover:cursor-pointer"
               >
                 {mutation.isPending ? "Creating..." : "Create"}
