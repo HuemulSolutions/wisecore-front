@@ -42,6 +42,25 @@ export async function createExecution(documentId: string) {
     return data.data;
 }
 
+export async function modifyContent(sectionId: string, content: string) {
+    console.log(`Modifying content for section ID: ${sectionId}`);
+    const response = await fetch(`${backendUrl}/execution/modify_content/${sectionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al modificar el contenido de la sección');
+    }
+
+    const data = await response.json();
+    console.log('Section content modified:', data.data);
+    return data.data;
+}
+
 export async function exportExecutionToMarkdown(executionId: string) {
     console.log(`Exporting execution to markdown for ID: ${executionId}`);
     const response = await fetch(`${backendUrl}/execution/export_markdown/${executionId}`);

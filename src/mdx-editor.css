@@ -1,0 +1,63 @@
+/* mdx-editor.css */
+
+/* Apunta solo al área editable del MDXEditor */
+.mdxeditor-content {
+  /* opcional: tipografía base similar a tu p:text-sm */
+  font-size: 0.875rem; /* text-sm */
+  line-height: 1.6;    /* leading-relaxed aprox */
+}
+
+/* Headings (mismo tamaño y márgenes que tu ReactMarkdown) */
+.mdxeditor-content :where(h1){ font-size:1.5rem; font-weight:700; margin:0 0 1rem; }      /* text-2xl, mb-4 */
+.mdxeditor-content :where(h2){ font-size:1.25rem; font-weight:700; margin:0 0 0.75rem; }  /* text-xl, mb-3 */
+.mdxeditor-content :where(h3){ font-size:1.125rem; font-weight:700; margin:0 0 0.5rem; }  /* text-lg, mb-2 */
+.mdxeditor-content :where(h4){ font-size:1rem; font-weight:700; margin:0 0 0.5rem; }      /* text-base, mb-2 */
+.mdxeditor-content :where(h5){ font-size:0.875rem; font-weight:700; margin:0 0 0.5rem; }  /* text-sm, mb-2 */
+.mdxeditor-content :where(h6){ font-size:0.75rem; font-weight:700; margin:0 0 0.5rem; }   /* text-xs, mb-2 */
+
+/* Párrafos */
+.mdxeditor-content :where(p){ font-size:0.875rem; line-height:1.625; margin:0.5rem 0; } /* text-sm leading-relaxed */
+
+/* Listas: devuelve bullets/números y sangría (como tus clases Tailwind) */
+.mdxeditor-content :where(ul){ list-style:disc; margin-left:1.5rem; margin-bottom:0.5rem; }   /* ml-6 mb-2 */
+.mdxeditor-content :where(ol){ list-style:decimal; margin-left:1.5rem; margin-bottom:0.5rem; }/* ml-6 mb-2 */
+.mdxeditor-content :where(li){ font-size:0.875rem; margin-bottom:0.25rem; }                   /* text-sm mb-1 */
+
+/* Citas */
+.mdxeditor-content :where(blockquote){
+  border-left:4px solid rgb(75 85 99); /* gray-600 */
+  padding-left:1rem; /* pl-4 */
+  font-style:italic;
+  margin:1rem 0;     /* my-4 */
+}
+
+/* Reglas horizontales */
+.mdxeditor-content :where(hr){
+  border:0;
+  border-top:1px solid rgb(229 231 235); /* gray-200 */
+  margin:1rem 0;
+}
+
+/* Código inline (no dentro de <pre>) */
+.mdxeditor-content :where(:not(pre) > code){
+  background: rgb(31 41 55); /* gray-800 */
+  color: white;
+  padding: 0.125rem 0.25rem; /* px-1 py-0.5 */
+  border-radius: 0.25rem;    /* rounded */
+  font-size: 0.875rem;       /* text-sm */
+}
+
+/* Bloques de código */
+.mdxeditor-content :where(pre){
+  background: rgb(31 41 55);     /* gray-800 */
+  color: white;
+  padding: 1rem;                 /* p-4 */
+  border-radius: 0.5rem;         /* rounded-lg */
+  margin: 1rem 0;                /* my-4 */
+  overflow-x: auto;
+  font-size: 0.875rem;           /* text-sm */
+}
+
+/* Evita que el preflight elimine bullets en listas anidadas */
+.mdxeditor-content :where(ul ul){ list-style: circle; }
+.mdxeditor-content :where(ul ul ul){ list-style: square; }

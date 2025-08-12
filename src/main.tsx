@@ -3,7 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/sonner"
-import './index.css'
+import './index.css'                       // Tailwind (globals)
+import '@mdxeditor/editor/style.css'       // CSS del MDXEditor
+import './mdx-editor.css'   
 import App from './App.tsx'
 
 const queryClient = new QueryClient();
