@@ -76,6 +76,25 @@ export async function createTemplateSection(sectionData: { name: string; prompt:
     return data.data;
 }
 
+
+export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
+    const response = await fetch(`${backendUrl}/templates/sections/${sectionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sectionData),
+    });
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error updating section:', errorResponse);
+        throw new Error(errorResponse.detail.error || 'Unknown error');
+    }
+    const data = await response.json();
+    console.log('Section updated:', data.data);
+    return data.data;
+}
+
 export async function exportTemplate(templateId: string) {
     const response = await fetch(`${backendUrl}/templates/${templateId}/export`);
     if (!response.ok) {

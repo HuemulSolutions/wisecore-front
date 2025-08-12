@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,14 +31,24 @@ interface Item {
   name: string;
   prompt: string;
   order: number;
-  dependencies: string[];
+  dependencies: {id: string; name: string }[];
 }
 
-export default function TemplateSection({ item, existingSections }: { item: Item, existingSections: object[] } ) {
+interface Props {
+  item: Item;
+  existingSections: object[];
+  onSave: (sectionId: string, sectionData: object) => void;
+}
+
+export default function Section({ item, existingSections, onSave }: Props ) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const maxPreviewLength = 100;
+
+  useEffect(() => {
+    console.log('Section Props:', { item, existingSections });
+  }, [item, existingSections]);
 
   const shouldShowExpandButton = item.prompt.length > maxPreviewLength;
   const displayText =
@@ -62,7 +72,13 @@ export default function TemplateSection({ item, existingSections }: { item: Item
 
   const handleSaveEdit = (updatedItem: Item) => {
     // Aquí puedes agregar la lógica para guardar los cambios
-    console.log('Saving updated item:', updatedItem);
+    const dependencies = updatedItem.dependencies.map(dep => dep.id);
+    onSave(item.id, {
+      name: updatedItem.name,
+      prompt: updatedItem.prompt,
+      order: updatedItem.order,
+      dependencies: dependencies
+    });
     setIsEditing(false);
   };
 
@@ -127,7 +143,7 @@ export default function TemplateSection({ item, existingSections }: { item: Item
                   key={index}
                   className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full"
                 >
-                  {dependency}
+                  {dependency.name}
                 </span>
               ))}
             </div>

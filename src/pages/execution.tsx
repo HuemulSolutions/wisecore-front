@@ -148,12 +148,12 @@ export default function ExecutionPage() {
                                             onChange={(e) => setInstructions(e.target.value)}
                                             placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
                                             className={`w-full min-h-[120px] p-3 border rounded-md resize-vertical transition-colors ${
-                                                execution?.status !== "pending" 
-                                                    ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed" 
+                                                execution?.status !== "pending" || isGenerating
+                                                    ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
                                                     : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             }`}
                                             rows={6}
-                                            disabled={execution?.status !== "pending"}
+                                            disabled={execution?.status !== "pending" || isGenerating}
                                             readOnly={execution?.status !== "pending"}
                                         />
                                     </TooltipTrigger>

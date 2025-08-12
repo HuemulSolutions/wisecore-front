@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection } from "@/services/templates";
+import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -43,13 +43,26 @@ export default function ConfigTemplate() {
     mutationFn: (sectionData: { name: string; template_id: string, prompt: string, dependencies: string[] }) => 
       createTemplateSection(sectionData),
     onSuccess: () => {
-      // 4. Al tener éxito, invalidar la query para refrescar los datos
       queryClient.invalidateQueries({ queryKey: ["template", id] });
-      setIsAddingSection(false); // Ocultar el formulario
+      setIsAddingSection(false);
     },
     onError: (error) => {
       console.error("Error creating section:", error);
       toast.error("Error creating section: " + (error as Error).message);
+    }
+  });
+
+  // Nueva mutation para actualizar sección
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
+      updateTemplateSection(sectionId, sectionData),
+    onSuccess: () => {
+      toast.success("Section updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating section:", error);
+      toast.error("Error updating section: " + (error as Error).message);
     }
   });
 
@@ -170,7 +183,11 @@ export default function ConfigTemplate() {
 
       <div className="space-y-4">
         {template.template_sections.map((section: any) => (
-          <Section key={section.id} item={section} existingSections={template.template_sections} />
+          <Section 
+          key={section.id} 
+          item={section} 
+          existingSections={template.template_sections}
+          onSave={(sectionId: string, sectionData: object) => updateSectionMutation.mutate({ sectionId, sectionData })} />
         ))}
       </div>
 
@@ -195,4 +212,4 @@ export default function ConfigTemplate() {
       </AlertDialog>
     </div>
   );
-} 
+}

@@ -4,7 +4,8 @@ import { useState } from "react";
 import Section from "@/components/section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
-import { getDocumentById, getDocumentSections, createDocumentSection } from "@/services/documents";
+import { getDocumentById } from "@/services/documents";
+import { createSection, updateSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -24,23 +25,11 @@ export default function ConfigDocumentPage() {
     queryFn: () => getDocumentById(id!),
     enabled: !!id, // Solo ejecutar si id está definido
   });
-
-  const {
-    data: sections,
-    isLoading: isSectionsLoading,
-    error: sectionsError,
-  } = useQuery({
-    queryKey: ["documentSections", id],
-    queryFn: () => getDocumentSections(id!),
-    enabled: !!id, // Solo ejecutar si id está definido
-  });
-
-    const addSectionMutation = useMutation({
+  const addSectionMutation = useMutation({
     mutationFn: (sectionData: { name: string; document_id: string, prompt: string, dependencies: string[] }) => 
-      createDocumentSection(sectionData),
+      createSection(sectionData),
     onSuccess: () => {
       // 4. Al tener éxito, invalidar la query para refrescar los datos
-      queryClient.invalidateQueries({ queryKey: ["documentSections", id] });
       queryClient.invalidateQueries({ queryKey: ["document", id] });
       setIsAddingSection(false); // Ocultar el formulario
     },
@@ -50,11 +39,26 @@ export default function ConfigDocumentPage() {
     }
   });
 
-  if (isLoading || isSectionsLoading) return <div>Loading...</div>;
-if (error || sectionsError) {
-    const errorMessage = error ? (error as Error).message : (sectionsError as Error).message;
-    return <div>Error: {errorMessage}</div>;
-}
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
+      updateSection(sectionId, sectionData),
+    onSuccess: () => {
+      toast.success("Section updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating section:", error);
+      toast.error("Error updating section: " + (error as Error).message);
+    }
+  });
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  if (error) {
+    console.error("Error fetching document:", error);
+    return <div>Error loading document.</div>;
+  }
 
   if (!document) {
     return <div>No document found with ID: {id}</div>;
@@ -134,9 +138,13 @@ if (error || sectionsError) {
       )}
 
       <div className="space-y-4">
-        {sections && sections.length > 0 ? (
-          sections.map((section: any) => (
-           <Section key={section.id} item={section} existingSections={document.sections} />
+        {document.sections && document.sections.length > 0 ? (
+          document.sections.map((section: any) => (
+           <Section 
+           key={section.id}
+           item={section}
+           existingSections={document.sections}
+           onSave={(sectionId: string, sectionData: object) => updateSectionMutation.mutate({sectionId, sectionData})} />
           ))
         ) : (
           <div className="text-gray-500">No sections available.</div>
