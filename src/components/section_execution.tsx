@@ -18,24 +18,23 @@ interface SectionExecutionProps {
         prompt: string;
         output: string;
     }
-    // isGenerating?: boolean;
+    onUpdate?: () => void;
 
 }
 
-export default function SectionExecution({ sectionExecution }: SectionExecutionProps) {
+export default function SectionExecution({ sectionExecution, onUpdate }: SectionExecutionProps) {
     const [isPromptOpen, setIsPromptOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [output, setOutput] = useState(sectionExecution.output);
 
     console.log('SectionExecution Props:', { sectionExecution });
 
     const handleSave = async (sectionId: string, newContent: string) => {
         try {
             setIsSaving(true);
-            const updated = await modifyContent(sectionId, newContent);
-            setOutput(updated?.content ?? newContent);
+            await modifyContent(sectionId, newContent);
             setIsEditing(false);
+            onUpdate?.();
         } catch (e) {
             console.error('Error saving content', e);
         } finally {

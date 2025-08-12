@@ -173,6 +173,7 @@ export default function ExecutionPage() {
                                 <SectionExecution
                                     key={section.id}
                                     sectionExecution={section}
+                                    onUpdate={refetch}
                                 />
                             ))}
                         </div>
