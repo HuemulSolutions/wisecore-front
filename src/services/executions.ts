@@ -42,6 +42,26 @@ export async function createExecution(documentId: string) {
     return data.data;
 }
 
+
+export async function updateLLM(executionId: string, llmId: string) {
+    console.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
+    const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ llm_id: llmId }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al actualizar el LLM de la ejecución');
+    }
+
+    const data = await response.json();
+    console.log('LLM updated for execution:', data.data);
+    return data.data;
+}
+
 export async function modifyContent(sectionId: string, content: string) {
     console.log(`Modifying content for section ID: ${sectionId}`);
     const response = await fetch(`${backendUrl}/execution/modify_content/${sectionId}`, {

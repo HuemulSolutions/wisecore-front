@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import ExecutionInfo from "@/components/execution_info";
 import SectionExecution from "@/components/section_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { 
     Tooltip,
     TooltipContent,
@@ -11,11 +10,19 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, WandSparkles } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { getExecutionById } from "@/services/executions";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getExecutionById, updateLLM } from "@/services/executions";
 import { generateDocument } from "@/services/generate";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { getLLMs } from "@/services/llms"; // nuevo import
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // shadcn/ui select
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
@@ -25,7 +32,18 @@ export default function ExecutionPage() {
     const [editableSections, setEditableSections] = useState<any[]>([]);
     const currentSectionId = useRef<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
+    const [selectedLLM, setSelectedLLM] = useState<string | null>(null); // nuevo estado
 
+    const updateLLMMutation = useMutation({
+        mutationFn: (llmId: string) => updateLLM(id!, llmId),
+        onSuccess: () => {
+            toast.success("Model updated");
+            refetch();
+        },
+        onError: () => {
+            toast.error("Failed to update model");
+        }
+    });
 
     const { data: execution, isLoading, error, refetch } = useQuery({
         queryKey: ["execution", id],
@@ -33,11 +51,17 @@ export default function ExecutionPage() {
         enabled: !!id, // Solo ejecutar si id está definido
     });
 
+    const { data: llms } = useQuery({
+        queryKey: ["llms"],
+        queryFn: getLLMs,
+    });
+
      useEffect(() => {
         if (execution?.sections) {
             setEditableSections([...execution.sections]);
             setInstructions(execution.instruction || "");
             setStatus(execution.status || null);
+            setSelectedLLM(execution.llm_id || null); // preseleccionar LLM
         }
     }, [execution]);
 
@@ -77,15 +101,15 @@ export default function ExecutionPage() {
 
     const handleGenerate = async () => {
         if (!execution?.document_id) return;
-        
+        // selectedLLM contiene el LLM elegido. Si se necesita enviar al backend, ajustar servicio generateDocument o crear endpoint aparte.
         setIsGenerating(true);
         setStatus("running");
-        
         try {
             await generateDocument({
                 documentId: execution.document_id,
                 executionId: id!,
                 userInstructions: instructions,
+                // llmId: selectedLLM, // habilitar si el servicio soporta este parámetro
                 onData: handleStreamData,
                 onInfo: (sectionId: string) => {
                     handleSectionInfo(sectionId);
@@ -166,21 +190,27 @@ export default function ExecutionPage() {
                             </TooltipProvider>
                         </div>
                     </div>
-                    <Separator className="my-4" />
-                    {editableSections && editableSections.length > 0 && (
-                        <div className="space-y-1">
-                            {editableSections.map((section: any) => (
-                                <SectionExecution
-                                    key={section.id}
-                                    sectionExecution={section}
-                                    onUpdate={refetch}
-                                />
-                            ))}
-                        </div>
-                    )}
-
                     {status === "pending" && (
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-4 flex justify-end gap-2 items-center flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <Select
+                                    value={selectedLLM ?? undefined}
+                                    onValueChange={(v) => {
+                                        setSelectedLLM(v);
+                                        updateLLMMutation.mutate(v);
+                                    }}
+                                    disabled={isGenerating || status !== "pending" || updateLLMMutation.isPending}
+                                >
+                                    <SelectTrigger className="w-[220px] hover:cursor-pointer">
+                                        <SelectValue placeholder={updateLLMMutation.isPending ? "Updating model..." : "Select model"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {llms?.map((m: any) => (
+                                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <Button
                                 className="hover:cursor-pointer"
                                 disabled={isGenerating}
@@ -192,7 +222,23 @@ export default function ExecutionPage() {
                         </div>
                     )}
                 </CardContent>
+            </Card>
 
+            {/* Tarjeta de secciones */}
+            <Card>
+                <CardContent>
+                    {editableSections && editableSections.length > 0 && (
+                        <div className="space-y-1">
+                            {editableSections.map((section: any) => (
+                                <SectionExecution
+                                    key={section.id}
+                                    sectionExecution={section}
+                                    onUpdate={refetch}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
             </Card>
 
         </div>
