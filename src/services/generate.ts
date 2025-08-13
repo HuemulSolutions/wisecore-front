@@ -12,7 +12,12 @@ interface GenerateStreamParams {
     onClose: () => void; // Callback para cuando la conexión se cierra
 }
 
-async function* fetchGeneration(documentId: string, executionId: string, userInstructions?: string): AsyncGenerator<any, void, unknown> {
+async function* fetchGeneration(
+  documentId: string,
+  executionId: string,
+  userInstructions?: string,
+  signal?: AbortSignal
+): AsyncGenerator<any, void, unknown> {
   const events: any[] = [];
   let closed = false;
   let resolveEvent: (() => void) | null = null;
@@ -47,8 +52,20 @@ async function* fetchGeneration(documentId: string, executionId: string, userIns
     }),
     onmessage: onMessage,
     onclose: onClose,
+    // Abort support and error propagation
+    signal,
+    onerror(err) {
+      console.error('SSE connection error:', err);
+      events.push({ event: 'error', data: (err as Error)?.message || 'Connection error' });
+      closed = true;
+      if (resolveEvent) {
+        resolveEvent();
+      }
+    }
   }).catch(err => {
     console.error('fetchEventSource error:', err);
+    // Propagate as an error event and close
+    events.push({ event: 'error', data: (err as Error)?.message || 'Connection error' });
     closed = true;
     if (resolveEvent) {
       resolveEvent();
@@ -77,8 +94,11 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
     }
     const { documentId, executionId, userInstructions,  onData, onInfo, onError, onClose } = params;
 
+    // Controller to allow cancelling the stream on error
+    const controller = new AbortController();
+
     try {
-        for await (const event of fetchGeneration(documentId, executionId, userInstructions)) {
+        for await (const event of fetchGeneration(documentId, executionId, userInstructions, controller.signal)) {
             console.log('Received event:', event);
             if (event.event === 'info') {
                 try {
@@ -93,6 +113,12 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
             } else if (event.event === 'content') {
                 console.log("Content: ", event.data);
                 onData(event.data);
+            } else if (event.event === 'error') {
+                console.error('Error SSE:', event.data);
+                // Notify UI and cancel the stream immediately
+                onError(new Event('error'));
+                controller.abort();
+                break;
             }
         }
         onClose();

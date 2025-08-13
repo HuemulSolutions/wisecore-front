@@ -149,7 +149,7 @@ export default function ExecutionPage() {
             </div>
 
             {/* Tarjeta de información de la ejecución */}
-            <ExecutionInfo execution={execution} onRefresh={refetch} />
+            <ExecutionInfo execution={execution} onRefresh={refetch} isGenerating={isGenerating} />
 
 
             {/* Tarjeta de instrucciones */}
@@ -190,7 +190,6 @@ export default function ExecutionPage() {
                             </TooltipProvider>
                         </div>
                     </div>
-                    {status === "pending" && (
                         <div className="mt-4 flex justify-end gap-2 items-center flex-wrap">
                             <div className="flex items-center gap-2">
                                 <Select
@@ -213,14 +212,13 @@ export default function ExecutionPage() {
                             </div>
                             <Button
                                 className="hover:cursor-pointer"
-                                disabled={isGenerating}
+                                disabled={isGenerating || status !== "pending"}
                                 onClick={handleGenerate}
                             >
                                 <WandSparkles className="h-4 w-4 mr-2" />
                                 Generate
                             </Button>
                         </div>
-                    )}
                 </CardContent>
             </Card>
 

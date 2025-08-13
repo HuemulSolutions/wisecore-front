@@ -16,7 +16,8 @@ import {
   FileCog,
   RefreshCw,
   DiamondMinus,
-  File
+  File,
+  ArrowLeft
 } from "lucide-react";
 
 export default function DocumentPage() {
@@ -105,7 +106,19 @@ export default function DocumentPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Manage Document</h1>
+        <div className="flex items-center gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hover:cursor-pointer"
+            onClick={() => navigate("/documents")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold">Manage Document</h1>
+        </div>
       </div>
 
       {/* Document Content */}

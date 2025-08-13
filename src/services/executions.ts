@@ -43,6 +43,20 @@ export async function createExecution(documentId: string) {
 }
 
 
+export async function deleteExecution(executionId: string) {
+    console.log(`Deleting execution with ID: ${executionId}`);
+    const response = await fetch(`${backendUrl}/execution/${executionId}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        throw new Error('Error al eliminar la ejecución');
+    }
+    const data = await response.json();
+    console.log('Execution deleted:', data);
+    return data;
+}
+
+
 export async function updateLLM(executionId: string, llmId: string) {
     console.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
     const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {

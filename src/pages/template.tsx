@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import Section  from "@/components/section";
 import { AddSectionForm } from "@/components/add_template_section";
-import { Trash2, PlusCircle, MoreVertical, Download } from "lucide-react";
+import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -120,7 +120,19 @@ export default function ConfigTemplate() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Configure Template</h1>
+        <div className="flex items-center gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hover:cursor-pointer"
+            onClick={() => navigate("/templates")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold">Configure Template</h1>
+        </div>
       </div>
 
       <div className="border border-gray-400 rounded-lg p-6 shadow-sm">
@@ -161,7 +173,7 @@ export default function ConfigTemplate() {
         </div>
       </div>
 
-        {isAddingSection ? (
+      {isAddingSection ? (
         <AddSectionForm
           templateId={template.id}
           onSubmit={(values) => addSectionMutation.mutate(values)}
