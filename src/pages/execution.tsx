@@ -232,6 +232,7 @@ export default function ExecutionPage() {
                                     key={section.id}
                                     sectionExecution={section}
                                     onUpdate={refetch}
+                                    readyToEdit={execution.status === "completed" && !isGenerating}
                                 />
                             ))}
                         </div>
