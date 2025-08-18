@@ -1,5 +1,6 @@
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
-    markdownShortcutPlugin
+    markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
+    BlockTypeSelect, tablePlugin, InsertTable
  } from '@mdxeditor/editor'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,21 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                 markdown={value}
                 onChange={setValue}
                 contentEditableClassName='mdxeditor-content min-h-[240px] prose dark:prose-invert focus:outline-none'
-                plugins={[headingsPlugin(), listsPlugin(), quotePlugin(), thematicBreakPlugin(), markdownShortcutPlugin()]}
+                plugins={[
+                    headingsPlugin(), listsPlugin(), quotePlugin(), tablePlugin(),
+                    thematicBreakPlugin(), markdownShortcutPlugin(),
+                    toolbarPlugin({
+                        toolbarContents() {
+                            return (
+                                <>  
+                                    <BlockTypeSelect />
+                                    <BoldItalicUnderlineToggles />
+                                    <InsertTable />
+                                    <UndoRedo />
+                                </>
+                            )
+                        },
+                    }), ]}
             />
             <div className='flex gap-2 justify-end pt-2 border-t'>
                 <Button variant='outline' className='hover:cursor-pointer flex items-center gap-1' onClick={handleCancel} aria-label='Cancel editing' disabled={isSaving}>
