@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea"
+import { Textarea } from "@/components/ui/textarea";
+import { Sparkles, Loader2 } from "lucide-react";
+import { redactPrompt } from "@/services/generate";
 
 interface Section {
   id: string;
@@ -23,6 +25,34 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
   const [prompt, setPrompt] = useState("");
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
   const [selectValue, setSelectValue] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGeneratePrompt = async () => {
+    if (!name.trim()) return;
+    
+    setIsGenerating(true);
+    setPrompt(""); // Clear existing prompt
+    
+    try {
+      await redactPrompt({
+        name: name.trim(),
+        onData: (text: string) => {
+          setPrompt(prev => prev + text);
+        },
+        onError: (error: Event) => {
+          console.error('Error generating prompt:', error);
+          setIsGenerating(false);
+        },
+        onClose: () => {
+          setIsGenerating(false);
+        }
+      });
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      setIsGenerating(false);
+    }
+  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,22 +98,38 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
               placeholder="Enter section name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              disabled={isPending}
               autoFocus
+              disabled={isPending}
             />
           </div>
           
           <div>
-            <label htmlFor="section-prompt" className="block text-sm font-medium mb-1">
-              Prompt
-            </label>
+            <div className="flex items-center justify-between pb-2">
+              <label htmlFor="section-prompt" className="block text-sm font-medium mb-1">
+                Prompt
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleGeneratePrompt}
+                disabled={!name.trim() || isGenerating}
+                className="hover:cursor-pointer"
+              >
+                {isGenerating ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-4 w-4" />
+                )}
+                Generate with AI
+              </Button>
+            </div>
             <Textarea
               id="section-prompt"
               placeholder="Enter the prompt for this section"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              disabled={isPending}
               rows={4}
+              disabled={isPending || isGenerating}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
             />
           </div>
@@ -94,7 +140,7 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
             </label>
             {availableSections.length > 0 ? (
               <Select value={selectValue} onValueChange={addDependency} disabled={isPending}>
-                <SelectTrigger>
+                <SelectTrigger className="hover:cursor-pointer">
                   <SelectValue placeholder="Select a section to add as dependency" />
                 </SelectTrigger>
                 <SelectContent>
@@ -137,11 +183,11 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
           </div>
         </CardContent>
         <CardFooter className="flex justify-end space-x-2 py-3">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isPending} className="hover:cursor-pointer">
+          <Button type="button" variant="ghost" onClick={onCancel} className="hover:cursor-pointer" disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending || !name.trim() || !prompt.trim()} className="hover:cursor-pointer">
-            {isPending ? "Adding..." : "Save"}
+          <Button type="submit" disabled={!name.trim() || !prompt.trim() || isPending} className="hover:cursor-pointer">
+            Save
           </Button>
         </CardFooter>
       </form>
