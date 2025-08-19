@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
-import { exportExecutionToMarkdown, deleteExecution } from '@/services/executions';
+import { exportExecutionToMarkdown, deleteExecution, createExecution } from '@/services/executions';
 import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -52,6 +52,16 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
         }
     };
 
+    const handleNewExecution = () => {
+        createExecution(execution.document_id!)
+          .then((execution) => {
+            console.log("Execution created:", execution);
+            navigate(`/execution/${execution.id}`);
+          })
+          .catch((error) => {
+            console.error("Error creating execution:", error);
+          });
+      };
     const getStatusBadge = (status: string) => {
         const statusConfig = {
             pending: { variant: "outline", label: "Pending", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
@@ -92,7 +102,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                 variant="outline"
                                 size="sm"
                                 className="hover:cursor-pointer"
-                                onClick={() => console.log('Dependencies and context')}
+                                onClick={() => navigate(`/docDepend/${execution.document_id}`)}
                             >
                                 <Network className="h-4 w-4 mr-2" />
                                 Dependencies and context
@@ -118,14 +128,14 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer"
-                                        onClick={() => navigate(`/document/${execution.document_id}/new-execution`)}
+                                        onClick={handleNewExecution}
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
                                         New execution
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer"
-                                        onClick={() => console.log('Configure document:', execution.document_id)}
+                                        onClick={() => navigate(`/configDocument/${execution.document_id}`)}
                                     >
                                         <Settings className="h-4 w-4 mr-2" />
                                         Configure document

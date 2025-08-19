@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
 import { getDocumentById } from "@/services/documents";
-import { createSection, updateSection, updateSectionsOrder } from "@/services/section";
+import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -18,6 +18,8 @@ export default function ConfigDocumentPage() {
   const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
+  // Estado local para orden optimista
+  const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -39,9 +41,8 @@ export default function ConfigDocumentPage() {
     mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
       createSection(sectionData),
     onSuccess: () => {
-      // 4. Al tener éxito, invalidar la query para refrescar los datos
       queryClient.invalidateQueries({ queryKey: ["document", id] });
-      setIsAddingSection(false); // Ocultar el formulario
+      setIsAddingSection(false);
     },
     onError: (error) => {
       console.error("Error creating section:", error);
@@ -62,6 +63,18 @@ export default function ConfigDocumentPage() {
     },
   });
 
+  const deleteSectionMutation = useMutation({
+    mutationFn: (sectionId: string) => deleteSection(sectionId),
+    onSuccess: () => {
+      toast.success("Section deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error deleting section:", error);
+      toast.error("Error deleting section: " + (error as Error).message);
+    },
+  });
+
   const reorderSectionsMutation = useMutation({
     mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
     onSuccess: () => {
@@ -73,6 +86,16 @@ export default function ConfigDocumentPage() {
       toast.error("Error updating sections order: " + (error as Error).message);
     },
   });
+
+  // Sincroniza estado local cuando cambien las secciones del documento
+  useEffect(() => {
+    if (document?.sections) {
+      const sorted = [...document.sections].sort(
+        (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+      );
+      setOrderedSections(sorted);
+    }
+  }, [document?.sections]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -89,28 +112,32 @@ export default function ConfigDocumentPage() {
   const handleDelete = async () => {
     try {
       // Aquí deberías implementar la lógica para eliminar el documento
-      // Por ejemplo, llamar a un servicio de API para eliminar el documento
       console.log("Document deleted successfully");
-      navigate("/documents"); // Redirigir a la lista de documentos
+      navigate("/documents");
     } catch (deleteError) {
       console.error("Error deleting document:", deleteError);
     }
   };
 
-  // Mantener el orden de UI como viene, pero calcular vista ordenada para DnD
-  const sections = [...(document.sections || [])].sort(
-    (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
-  );
-
+  // DnD: usa orderedSections para evitar "snap back"
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sections.findIndex((s: any) => s.id === active.id);
-    const newIndex = sections.findIndex((s: any) => s.id === over.id);
+
+    const oldIndex = orderedSections.findIndex((s: any) => s.id === active.id);
+    const newIndex = orderedSections.findIndex((s: any) => s.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(sections, oldIndex, newIndex);
+
+    const prev = [...orderedSections];
+    const reordered = arrayMove(orderedSections, oldIndex, newIndex);
+
+    // Optimista en UI
+    setOrderedSections(reordered);
+
     const payload = reordered.map((s: any, idx: number) => ({ section_id: s.id, order: idx + 1 }));
-    reorderSectionsMutation.mutate(payload);
+    reorderSectionsMutation.mutate(payload, {
+      onError: () => setOrderedSections(prev),
+    });
   };
 
   return (
@@ -156,10 +183,8 @@ export default function ConfigDocumentPage() {
       {isAddingSection ? (
         <AddSectionForm
           documentId={document.id}
-          //   onSubmit={(values) => addSectionMutation.mutate(values)}
           onSubmit={(values) => addSectionMutation.mutate(values)}
           onCancel={() => setIsAddingSection(false)}
-          //   isPending={addSectionMutation.isPending}
           isPending={false}
           existingSections={document.sections}
         />
@@ -176,10 +201,10 @@ export default function ConfigDocumentPage() {
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4">
-            {sections && sections.length > 0 ? (
-              sections.map((section: any) => (
+            {orderedSections && orderedSections.length > 0 ? (
+              orderedSections.map((section: any) => (
                 <SortableSection
                   key={section.id}
                   item={section}
@@ -187,6 +212,7 @@ export default function ConfigDocumentPage() {
                   onSave={(sectionId: string, sectionData: object) =>
                     updateSectionMutation.mutate({ sectionId, sectionData })
                   }
+                  onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
                 />
               ))
             ) : (

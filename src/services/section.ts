@@ -59,3 +59,18 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     console.log('Sections reordered:', data.data);
     return data.data;
 }
+
+export async function deleteSection(sectionId: string) {
+    const response = await fetch(`${backendUrl}/sections/${sectionId}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error deleting section:', errorResponse);
+        throw new Error(errorResponse.detail.error || 'Unknown error');
+    }
+
+    console.log('Section deleted:', sectionId);
+    return sectionId;
+}

@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder } from "@/services/templates";
+import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -36,6 +36,9 @@ export default function ConfigTemplate() {
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // Estado local para mantener el orden de secciones en UI (optimista)
+  const [orderedSections, setOrderedSections] = useState<any[]>([]);
+
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
@@ -61,7 +64,6 @@ export default function ConfigTemplate() {
     }
   });
 
-  // Nueva mutation para actualizar sección
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
       updateTemplateSection(sectionId, sectionData),
@@ -72,6 +74,19 @@ export default function ConfigTemplate() {
     onError: (error) => {
       console.error("Error updating section:", error);
       toast.error("Error updating section: " + (error as Error).message);
+    }
+  });
+
+  // Nueva mutation para eliminar sección (igual a la de update)
+  const deleteSectionMutation = useMutation({
+    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId),
+    onSuccess: () => {
+      toast.success("Section deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error deleting section:", error);
+      toast.error("Error deleting section: " + (error as Error).message);
     }
   });
 
@@ -93,6 +108,16 @@ export default function ConfigTemplate() {
       console.error("Error fetching template:", error);
     }
   }, [error]);
+
+  // Sincronizar orderedSections cuando cambie el template
+  useEffect(() => {
+    if (template?.template_sections) {
+      const sorted = [...template.template_sections].sort(
+        (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+      );
+      setOrderedSections(sorted);
+    }
+  }, [template?.template_sections]);
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
@@ -139,20 +164,25 @@ export default function ConfigTemplate() {
 
   console.log("Template data:", template);
 
-  // Keep UI order as returned, but compute a sorted view for DnD reference
-  const sections = [...template.template_sections].sort(
-    (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
-  );
-
+  // El orden visible lo maneja orderedSections (optimista)
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = sections.findIndex((s: any) => s.id === active.id);
-    const newIndex = sections.findIndex((s: any) => s.id === over.id);
+
+    const oldIndex = orderedSections.findIndex((s: any) => s.id === active.id);
+    const newIndex = orderedSections.findIndex((s: any) => s.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(sections, oldIndex, newIndex);
+
+    const prev = [...orderedSections];
+    const reordered = arrayMove(orderedSections, oldIndex, newIndex);
+
+    // Actualiza UI de forma optimista
+    setOrderedSections(reordered);
+
     const payload = reordered.map((s: any, idx: number) => ({ section_id: s.id, order: idx + 1 }));
-    reorderSectionsMutation.mutate(payload);
+    reorderSectionsMutation.mutate(payload, {
+      onError: () => setOrderedSections(prev),
+    });
   };
 
   return (
@@ -232,9 +262,9 @@ export default function ConfigTemplate() {
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4">
-            {sections.map((section: any) => (
+            {orderedSections.map((section: any) => (
               <SortableSection
                 key={section.id}
                 item={section}
@@ -242,6 +272,7 @@ export default function ConfigTemplate() {
                 onSave={(sectionId: string, sectionData: object) =>
                   updateSectionMutation.mutate({ sectionId, sectionData })
                 }
+                onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
               />
             ))}
           </div>

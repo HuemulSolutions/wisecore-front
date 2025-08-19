@@ -18,9 +18,10 @@ interface SortableSectionProps {
   item: SortableSectionItem;
   existingSections: object[];
   onSave: (sectionId: string, sectionData: object) => void;
+  onDelete: (sectionId: string) => void;
 }
 
-export default function SortableSection({ item, existingSections, onSave }: SortableSectionProps) {
+export default function SortableSection({ item, existingSections, onSave, onDelete }: SortableSectionProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const style: React.CSSProperties = {
@@ -47,7 +48,7 @@ export default function SortableSection({ item, existingSections, onSave }: Sort
       </div>
 
       {/* Actual content */}
-      <Section item={item as any} existingSections={existingSections} onSave={onSave} />
+      <Section item={item as any} existingSections={existingSections} onSave={onSave} onDelete={onDelete}/>
     </div>
   );
 }

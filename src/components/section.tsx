@@ -38,9 +38,10 @@ interface Props {
   item: Item;
   existingSections: object[];
   onSave: (sectionId: string, sectionData: object) => void;
+  onDelete: (sectionId: string) => void;
 }
 
-export default function Section({ item, existingSections, onSave }: Props ) {
+export default function Section({ item, existingSections, onSave, onDelete }: Props ) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -58,7 +59,7 @@ export default function Section({ item, existingSections, onSave }: Props ) {
 
   const handleDelete = () => {
     // Aquí puedes agregar la lógica para eliminar el item
-    console.log('Deleting item:', item.name);
+    onDelete(item.id);
     setShowDeleteDialog(false);
   };
 

@@ -95,6 +95,22 @@ export async function updateTemplateSection(sectionId: string, sectionData: { na
     return data.data;
 }
 
+export async function deleteTemplateSection(sectionId: string) {
+    const response = await fetch(`${backendUrl}/templates/sections/${sectionId}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error deleting section:', errorResponse);
+        throw new Error(errorResponse.detail.error || 'Unknown error');
+    }
+
+    const data = await response.json();
+    console.log('Section deleted:', data);
+    return data;
+}
+
 export async function exportTemplate(templateId: string) {
     const response = await fetch(`${backendUrl}/templates/${templateId}/export`);
     if (!response.ok) {
