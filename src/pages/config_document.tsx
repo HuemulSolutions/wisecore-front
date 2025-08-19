@@ -1,13 +1,16 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import Section from "@/components/section";
+import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
 import { getDocumentById } from "@/services/documents";
-import { createSection, updateSection } from "@/services/section";
+import { createSection, updateSection, updateSectionsOrder } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +18,12 @@ export default function ConfigDocumentPage() {
   const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const {
     data: document,
@@ -25,8 +34,9 @@ export default function ConfigDocumentPage() {
     queryFn: () => getDocumentById(id!),
     enabled: !!id, // Solo ejecutar si id está definido
   });
+
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: { name: string; document_id: string, prompt: string, dependencies: string[] }) => 
+    mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
       createSection(sectionData),
     onSuccess: () => {
       // 4. Al tener éxito, invalidar la query para refrescar los datos
@@ -36,7 +46,7 @@ export default function ConfigDocumentPage() {
     onError: (error) => {
       console.error("Error creating section:", error);
       toast.error("Error creating section: " + (error as Error).message);
-    }
+    },
   });
 
   const updateSectionMutation = useMutation({
@@ -49,7 +59,19 @@ export default function ConfigDocumentPage() {
     onError: (error) => {
       console.error("Error updating section:", error);
       toast.error("Error updating section: " + (error as Error).message);
-    }
+    },
+  });
+
+  const reorderSectionsMutation = useMutation({
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    onSuccess: () => {
+      toast.success("Sections order updated");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating sections order:", error);
+      toast.error("Error updating sections order: " + (error as Error).message);
+    },
   });
 
   if (isLoading) {
@@ -73,6 +95,22 @@ export default function ConfigDocumentPage() {
     } catch (deleteError) {
       console.error("Error deleting document:", deleteError);
     }
+  };
+
+  // Mantener el orden de UI como viene, pero calcular vista ordenada para DnD
+  const sections = [...(document.sections || [])].sort(
+    (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sections.findIndex((s: any) => s.id === active.id);
+    const newIndex = sections.findIndex((s: any) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(sections, oldIndex, newIndex);
+    const payload = reordered.map((s: any, idx: number) => ({ section_id: s.id, order: idx + 1 }));
+    reorderSectionsMutation.mutate(payload);
   };
 
   return (
@@ -137,19 +175,26 @@ export default function ConfigDocumentPage() {
         </Button>
       )}
 
-      <div className="space-y-4">
-        {document.sections && document.sections.length > 0 ? (
-          document.sections.map((section: any) => (
-           <Section 
-           key={section.id}
-           item={section}
-           existingSections={document.sections}
-           onSave={(sectionId: string, sectionData: object) => updateSectionMutation.mutate({sectionId, sectionData})} />
-          ))
-        ) : (
-          <div className="text-gray-500">No sections available.</div>
-        )}
-    </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {sections && sections.length > 0 ? (
+              sections.map((section: any) => (
+                <SortableSection
+                  key={section.id}
+                  item={section}
+                  existingSections={document.sections}
+                  onSave={(sectionId: string, sectionData: object) =>
+                    updateSectionMutation.mutate({ sectionId, sectionData })
+                  }
+                />
+              ))
+            ) : (
+              <div className="text-gray-500">No sections available.</div>
+            )}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }

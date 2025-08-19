@@ -104,3 +104,21 @@ export async function exportTemplate(templateId: string) {
     console.log('Template exported:', data.data);
     return data.data;
 }
+
+export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
+    const response = await fetch(`${backendUrl}/templates/sections/order`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_order: sections }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al actualizar el orden de las secciones');
+    }
+
+    const data = await response.json();
+    console.log('Sections order updated:', data.data);
+    return data.data;
+}

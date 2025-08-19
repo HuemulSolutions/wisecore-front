@@ -5,11 +5,11 @@ import Templates from "./pages/templates";
 import ConfigTemplate from "./pages/template";
 import Documents from "./pages/documents";
 import DocumentPage from "./pages/document";
-// import Generate from "./pages/generate";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
 import DocDependPage from "./pages/doc_depend";
+import Organizations from "./pages/organizations";
 
 export default function App() {
   return (
@@ -17,9 +17,9 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<Home />} />
+        <Route path="organizations" element={<Organizations />} />
         <Route path="templates" element={<Templates />} />
         <Route path="documents" element={<Documents />} />
-        {/* <Route path="generate" element={<Generate />} /> */}
         <Route path="search" element={<SearchPage />} />
         <Route path="configTemplate/:id" element={<ConfigTemplate />} />
         <Route path="document/:id" element={<DocumentPage />} />

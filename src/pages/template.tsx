@@ -10,11 +10,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection } from "@/services/templates";
+import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import Section  from "@/components/section";
+// import Section  from "@/components/section";
+import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_template_section";
 import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +25,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 export default function ConfigTemplate() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +36,11 @@ export default function ConfigTemplate() {
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const { data: template, isLoading, error } = useQuery({
     queryKey: ["template", id],
@@ -64,6 +73,19 @@ export default function ConfigTemplate() {
       console.error("Error updating section:", error);
       toast.error("Error updating section: " + (error as Error).message);
     }
+  });
+
+  // Mutation para reordenar secciones y persistir en backend
+  const reorderSectionsMutation = useMutation({
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    onSuccess: () => {
+      toast.success("Sections order updated");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating sections order:", error);
+      toast.error("Error updating sections order: " + (error as Error).message);
+    },
   });
 
   useEffect(() => {
@@ -116,6 +138,22 @@ export default function ConfigTemplate() {
   }
 
   console.log("Template data:", template);
+
+  // Keep UI order as returned, but compute a sorted view for DnD reference
+  const sections = [...template.template_sections].sort(
+    (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sections.findIndex((s: any) => s.id === active.id);
+    const newIndex = sections.findIndex((s: any) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(sections, oldIndex, newIndex);
+    const payload = reordered.map((s: any, idx: number) => ({ section_id: s.id, order: idx + 1 }));
+    reorderSectionsMutation.mutate(payload);
+  };
 
   return (
     <div className="space-y-4">
@@ -193,15 +231,22 @@ export default function ConfigTemplate() {
         </Button>
       )}
 
-      <div className="space-y-4">
-        {template.template_sections.map((section: any) => (
-          <Section 
-          key={section.id} 
-          item={section} 
-          existingSections={template.template_sections}
-          onSave={(sectionId: string, sectionData: object) => updateSectionMutation.mutate({ sectionId, sectionData })} />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {sections.map((section: any) => (
+              <SortableSection
+                key={section.id}
+                item={section}
+                existingSections={template.template_sections}
+                onSave={(sectionId: string, sectionData: object) =>
+                  updateSectionMutation.mutate({ sectionId, sectionData })
+                }
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>

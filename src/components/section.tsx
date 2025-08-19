@@ -22,7 +22,7 @@ import {
   ChevronUp,
   MoreVertical,
   Edit,
-  Trash2,
+  Trash2
 } from "lucide-react";
 import EditSection from "./edit_section";
 

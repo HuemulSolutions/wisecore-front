@@ -38,3 +38,24 @@ export async function updateSection(sectionId: string, sectionData: { name?: str
     console.log('Section updated:', data.data);
     return data.data;
 }
+
+
+export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
+    const response = await fetch(`${backendUrl}/sections/order`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ new_order: sections }),
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error updating sections order:', errorResponse);
+        throw new Error(errorResponse.detail.error || 'Unknown error');
+    }
+
+    const data = await response.json();
+    console.log('Sections reordered:', data.data);
+    return data.data;
+}
