@@ -32,7 +32,12 @@ export default function ExecutionPage() {
     const [editableSections, setEditableSections] = useState<any[]>([]);
     const currentSectionId = useRef<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
-    const [selectedLLM, setSelectedLLM] = useState<string | null>(null); // nuevo estado
+    const [selectedLLM, setSelectedLLM] = useState<string>("");
+    
+    // Refs for buffering and cancellation
+    const textBuffer = useRef<string>('');
+    const updateTimer = useRef<NodeJS.Timeout | null>(null);
+    const abortController = useRef<AbortController | null>(null);
 
     const updateLLMMutation = useMutation({
         mutationFn: (llmId: string) => updateLLM(id!, llmId),
@@ -61,9 +66,21 @@ export default function ExecutionPage() {
             setEditableSections([...execution.sections]);
             setInstructions(execution.instruction || "");
             setStatus(execution.status || null);
-            setSelectedLLM(execution.llm_id || null); // preseleccionar LLM
+            setSelectedLLM(execution.llm_id || "");
         }
     }, [execution]);
+
+    // Cleanup effect for timers and controllers
+    useEffect(() => {
+        return () => {
+            if (updateTimer.current) {
+                clearTimeout(updateTimer.current);
+            }
+            if (abortController.current) {
+                abortController.current.abort();
+            }
+        };
+    }, []);
 
     const handleSectionInfo = (sectionId: string) => {
         console.log(`Generando sección: ${sectionId}`);
@@ -71,45 +88,92 @@ export default function ExecutionPage() {
     };
 
     const handleStreamError = (error: Event) => {
-        console.error('Error en el stream:', error);
+        console.error('Stream error:', error);
         setIsGenerating(false);
         currentSectionId.current = null;
-        toast.error("Error al generar contenido. Por favor, inténtalo de nuevo.");
+        
+        // Clear any pending updates
+        if (updateTimer.current) {
+            clearTimeout(updateTimer.current);
+            updateTimer.current = null;
+        }
+        
+        toast.error("Error generating content. Please try again.");
     };
 
     const handleStreamClose = () => {
-        console.log('Stream cerrado');
+        console.log('Stream closed');
         setIsGenerating(false);
         currentSectionId.current = null;
+        
+        // Process any remaining buffered text
+        if (textBuffer.current && currentSectionId.current) {
+            const finalText = textBuffer.current;
+            textBuffer.current = '';
+            
+            setEditableSections(prevSections => {
+                const sectionIndex = prevSections.findIndex(s => s.id === currentSectionId.current);
+                if (sectionIndex === -1) return prevSections;
+                
+                const newSections = [...prevSections];
+                newSections[sectionIndex] = {
+                    ...newSections[sectionIndex],
+                    output: (newSections[sectionIndex].output || '') + finalText
+                };
+                return newSections;
+            });
+        }
+        
         refetch();
     };
 
     const handleStreamData = (text: string) => {
-        setEditableSections(prevSections => 
-            prevSections.map(section => {
-                if (section.id === currentSectionId.current) {
-                    console.log(`Actualizando sección ${section.id} con texto: ${text}`);
-                    return {
-                        ...section,
-                        output: section.output + text
-                    };
-                }
-                return section;
-            })
-        );
+        if (!currentSectionId.current) return;
+        
+        // Add to buffer
+        textBuffer.current += text;
+        
+        // Clear existing timer
+        if (updateTimer.current) {
+            clearTimeout(updateTimer.current);
+        }
+        
+        // Schedule update after 100ms to batch multiple chunks
+        updateTimer.current = setTimeout(() => {
+            const bufferedText = textBuffer.current;
+            textBuffer.current = '';
+            
+            if (!bufferedText || !currentSectionId.current) return;
+            
+            setEditableSections(prevSections => {
+                const sectionIndex = prevSections.findIndex(s => s.id === currentSectionId.current);
+                if (sectionIndex === -1) return prevSections;
+                
+                const newSections = [...prevSections];
+                newSections[sectionIndex] = {
+                    ...newSections[sectionIndex],
+                    output: (newSections[sectionIndex].output || '') + bufferedText
+                };
+                return newSections;
+            });
+        }, 100);
     };
 
     const handleGenerate = async () => {
         if (!execution?.document_id) return;
-        // selectedLLM contiene el LLM elegido. Si se necesita enviar al backend, ajustar servicio generateDocument o crear endpoint aparte.
+        
+        // Create new controller
+        abortController.current = new AbortController();
+        
         setIsGenerating(true);
         setStatus("running");
+        
         try {
             await generateDocument({
                 documentId: execution.document_id,
                 executionId: id!,
                 userInstructions: instructions,
-                // llmId: selectedLLM, // habilitar si el servicio soporta este parámetro
+                signal: abortController.current.signal,
                 onData: handleStreamData,
                 onInfo: (sectionId: string) => {
                     handleSectionInfo(sectionId);
@@ -118,11 +182,21 @@ export default function ExecutionPage() {
                 onClose: handleStreamClose
             });
         } catch (error) {
-            console.error('Error al iniciar la generación:', error);
+            console.error('Error starting generation:', error);
             setIsGenerating(false);
-            toast.error("Error al iniciar la generación. Por favor, inténtalo de nuevo.");
+            toast.error("Error starting generation. Please try again.");
             return;
         }
+    };
+
+    const handleCancelGeneration = () => {
+        if (abortController.current) {
+            abortController.current.abort();
+            abortController.current = null;
+        }
+        setIsGenerating(false);
+        setStatus("cancelled");
+        toast.info("Generation cancelled");
     };
 
 
@@ -193,7 +267,7 @@ export default function ExecutionPage() {
                         <div className="mt-4 flex justify-end gap-2 items-center flex-wrap">
                             <div className="flex items-center gap-2">
                                 <Select
-                                    value={selectedLLM ?? undefined}
+                                    value={selectedLLM}
                                     onValueChange={(v) => {
                                         setSelectedLLM(v);
                                         updateLLMMutation.mutate(v);
@@ -210,14 +284,24 @@ export default function ExecutionPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Button
-                                className="hover:cursor-pointer"
-                                disabled={isGenerating || status !== "pending"}
-                                onClick={handleGenerate}
-                            >
-                                <WandSparkles className="h-4 w-4 mr-2" />
-                                Generate
-                            </Button>
+                            {isGenerating ? (
+                                <Button
+                                    variant="outline"
+                                    className="hover:cursor-pointer"
+                                    onClick={handleCancelGeneration}
+                                >
+                                    Cancel
+                                </Button>
+                            ) : (
+                                <Button
+                                    className="hover:cursor-pointer"
+                                    disabled={isGenerating || status !== "pending"}
+                                    onClick={handleGenerate}
+                                >
+                                    <WandSparkles className="h-4 w-4 mr-2" />
+                                    Generate
+                                </Button>
+                            )}
                         </div>
                 </CardContent>
             </Card>
@@ -229,7 +313,7 @@ export default function ExecutionPage() {
                         <div className="space-y-1">
                             {editableSections.map((section: any) => (
                                 <SectionExecution
-                                    key={section.id}
+                                    key={section.id || section.section_execution_id}
                                     sectionExecution={section}
                                     onUpdate={refetch}
                                     readyToEdit={execution.status === "completed" && !isGenerating}

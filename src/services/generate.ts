@@ -16,14 +16,21 @@ async function* ssePostStream(
   const events: SSEEvent[] = [];
   let closed = false;
   let resolveEvent: (() => void) | null = null;
-  let eventPromise = new Promise<void>((resolve) => {
-    resolveEvent = resolve;
-  });
+  let eventPromise: Promise<void> | null = null;
+
+  function createEventPromise() {
+    return new Promise<void>((resolve) => {
+      resolveEvent = resolve;
+    });
+  }
+
+  eventPromise = createEventPromise();
 
   function push(e: SSEEvent) {
     events.push(e);
     if (resolveEvent) {
       resolveEvent();
+      eventPromise = createEventPromise();
     }
   }
 
@@ -63,14 +70,14 @@ async function* ssePostStream(
   });
 
   while (!closed || events.length > 0) {
-    if (events.length === 0) {
+    if (events.length === 0 && !closed) {
       await eventPromise;
-      eventPromise = new Promise<void>((resolve) => {
-        resolveEvent = resolve;
-      });
     }
-    while (events.length > 0) {
-      yield events.shift() as SSEEvent;
+    
+    // Process all available events at once to reduce iterations
+    const currentEvents = events.splice(0, events.length);
+    for (const event of currentEvents) {
+      yield event;
     }
   }
 }
@@ -80,10 +87,11 @@ interface GenerateStreamParams {
     documentId: string;
     executionId: string;
     userInstructions?: string;
-    onData: (text: string) => void; // Callback para procesar cada trozo de datos
-    onInfo: (sectionId: string) => void; // Callback para cuando se recibe info de una nueva sección
-    onError: (error: Event) => void; // Callback para errores
-    onClose: () => void; // Callback para cuando la conexión se cierra
+    signal?: AbortSignal;
+    onData: (text: string) => void;
+    onInfo: (sectionId: string) => void;
+    onError: (error: Event) => void;
+    onClose: () => void;
 }
 
 async function* fetchGeneration(
@@ -106,15 +114,12 @@ async function* fetchGeneration(
 
 export const generateDocument = async (params: GenerateStreamParams): Promise<void> => {
     if (!params) {
-        throw new TypeError("streamGeneratedText: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
+        throw new TypeError("generateDocument: parameter 'params' is undefined. You must pass an object with the required properties.");
     }
-    const { documentId, executionId, userInstructions,  onData, onInfo, onError, onClose } = params;
-
-    // Controller to allow cancelling the stream on error
-    const controller = new AbortController();
+    const { documentId, executionId, userInstructions, signal, onData, onInfo, onError, onClose } = params;
 
     try {
-        for await (const event of fetchGeneration(documentId, executionId, userInstructions, controller.signal)) {
+        for await (const event of fetchGeneration(documentId, executionId, userInstructions, signal)) {
             console.log('Received event:', event);
             if (event.event === 'info') {
                 try {
@@ -124,22 +129,20 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
                     console.log('Received section info:', sectionId);
                     onInfo(sectionId);
                 } catch {
-                    console.warn('Info SSE inválida:', event.data);
+                    console.warn('Invalid info SSE:', event.data);
                 }
             } else if (event.event === 'content') {
                 console.log("Content: ", event.data);
                 onData(event.data);
             } else if (event.event === 'error') {
-                console.error('Error SSE:', event.data);
-                // Notify UI and cancel the stream immediately
+                console.error('SSE Error:', event.data);
                 onError(new Event('error'));
-                controller.abort();
                 break;
             }
         }
         onClose();
     } catch (error) {
-        console.error('Error en la generación del documento:', error);
+        console.error('Error generating document:', error);
         onError(error as Event);
         onClose();
     }
