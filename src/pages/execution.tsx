@@ -84,6 +84,34 @@ export default function ExecutionPage() {
 
     const handleSectionInfo = (sectionId: string) => {
         console.log(`Generando sección: ${sectionId}`);
+        
+        // IMPORTANT: Process any pending text from the previous section
+        if (textBuffer.current && currentSectionId.current) {
+            const pendingText = textBuffer.current;
+            const previousSectionId = currentSectionId.current;
+            textBuffer.current = ''; // Clear the buffer
+            
+            // Cancel any pending timer
+            if (updateTimer.current) {
+                clearTimeout(updateTimer.current);
+                updateTimer.current = null;
+            }
+            
+            // Update the previous section with pending text
+            setEditableSections(prevSections => {
+                const sectionIndex = prevSections.findIndex(s => s.id === previousSectionId);
+                if (sectionIndex === -1) return prevSections;
+                
+                const newSections = [...prevSections];
+                newSections[sectionIndex] = {
+                    ...newSections[sectionIndex],
+                    output: (newSections[sectionIndex].output || '') + pendingText
+                };
+                return newSections;
+            });
+        }
+        
+        // Now change to the new section
         currentSectionId.current = sectionId;
     };
 
@@ -141,12 +169,13 @@ export default function ExecutionPage() {
         // Schedule update after 100ms to batch multiple chunks
         updateTimer.current = setTimeout(() => {
             const bufferedText = textBuffer.current;
+            const targetSectionId = currentSectionId.current; // Capture current ID to avoid race conditions
             textBuffer.current = '';
             
-            if (!bufferedText || !currentSectionId.current) return;
+            if (!bufferedText || !targetSectionId) return;
             
             setEditableSections(prevSections => {
-                const sectionIndex = prevSections.findIndex(s => s.id === currentSectionId.current);
+                const sectionIndex = prevSections.findIndex(s => s.id === targetSectionId);
                 if (sectionIndex === -1) return prevSections;
                 
                 const newSections = [...prevSections];
