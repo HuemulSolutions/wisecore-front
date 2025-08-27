@@ -9,9 +9,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowLeft, WandSparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, WandSparkles, Loader2, CircleCheck } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getExecutionById, updateLLM } from "@/services/executions";
+import { getExecutionById, updateLLM, approveExecution } from "@/services/executions";
 import { generateDocument } from "@/services/generate";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export default function ExecutionPage() {
     const currentSectionId = useRef<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [selectedLLM, setSelectedLLM] = useState<string>("");
+    const [isApproving, setIsApproving] = useState(false);
     
     // New ref to control if auto-generation has already started
     const hasAutoStarted = useRef<boolean>(false);
@@ -256,6 +257,22 @@ export default function ExecutionPage() {
         }
     };
 
+    const handleApprove = async () => {
+        if (!execution?.document_id) return;
+        
+        setIsApproving(true);
+        try {
+            await approveExecution(id!);
+            refetch();
+            toast.success("Execution approved successfully");
+        } catch (error) {
+            console.error('Error approving execution:', error);
+            toast.error("Error approving execution. Please try again.");
+        } finally {
+            setIsApproving(false);
+        }
+    };
+
 
     if (isLoading) return <div>Loading...</div>;
     if (error) {
@@ -343,14 +360,26 @@ export default function ExecutionPage() {
                             </div>
                             <Button
                                 className="hover:cursor-pointer"
-                                disabled={isGenerating || status !== "pending"}
-                                onClick={handleGenerate}
+                                disabled={isGenerating || (status !== "pending" && status !== "completed") || isApproving}
+                                onClick={status === "completed" ? handleApprove : handleGenerate}
                             >
                                 {isGenerating ? (
                                     <>
                                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                         Generating
                                     </>
+                                ) : status === "completed" ? (
+                                    isApproving ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Approving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CircleCheck className="h-4 w-4 mr-2" />
+                                            Approve
+                                        </>
+                                    )
                                 ) : (
                                     <>
                                         <WandSparkles className="h-4 w-4 mr-2" />

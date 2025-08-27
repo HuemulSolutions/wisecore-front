@@ -127,3 +127,17 @@ export async function exportExecutionToMarkdown(executionId: string) {
 }
 
 
+export async function approveExecution(executionId: string) {
+    console.log(`Approving execution with ID: ${executionId}`);
+    const response = await fetch(`${backendUrl}/execution/approve/${executionId}`, {
+        method: 'POST',
+    });
+    if (!response.ok) {
+        throw new Error('Error al aprobar la ejecución');
+    }
+    const data = await response.json();
+    console.log('Execution approved:', data.data);
+    return data.data;
+}
+
+
