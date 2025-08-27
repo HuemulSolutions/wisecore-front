@@ -9,7 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowLeft, WandSparkles } from "lucide-react";
+import { ArrowLeft, WandSparkles, Loader2 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getExecutionById, updateLLM } from "@/services/executions";
 import { generateDocument } from "@/services/generate";
@@ -34,6 +34,9 @@ export default function ExecutionPage() {
     const [status, setStatus] = useState<string | null>(null);
     const [selectedLLM, setSelectedLLM] = useState<string>("");
     
+    // New ref to control if auto-generation has already started
+    const hasAutoStarted = useRef<boolean>(false);
+    
     // Refs for buffering and cancellation
     const textBuffer = useRef<string>('');
     const updateTimer = useRef<NodeJS.Timeout | null>(null);
@@ -53,7 +56,9 @@ export default function ExecutionPage() {
     const { data: execution, isLoading, error, refetch } = useQuery({
         queryKey: ["execution", id],
         queryFn: () => getExecutionById(id!),
-        enabled: !!id, // Solo ejecutar si id está definido
+        enabled: !!id,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     const { data: llms } = useQuery({
@@ -67,8 +72,27 @@ export default function ExecutionPage() {
             setInstructions(execution.instruction || "");
             setStatus(execution.status || null);
             setSelectedLLM(execution.llm_id || "");
+            
+            // Detect if execution is in "running" state but we haven't started generation
+            // This can happen when navigating back to an execution in progress
+            if (execution.status === "running" && !isGenerating && !hasAutoStarted.current) {
+                console.log("Execution is already running, resuming generation monitoring...");
+                setIsGenerating(true);
+                hasAutoStarted.current = true;
+                
+                // Don't call handleGenerate here, just set state to show it's generating
+                // The generation is already happening on the backend
+            }
         }
-    }, [execution]);
+    }, [execution, isGenerating]);
+
+    // New useEffect to reset the flag when execution completes
+    useEffect(() => {
+        if (execution?.status === "completed" || execution?.status === "failed") {
+            hasAutoStarted.current = false;
+            setIsGenerating(false);
+        }
+    }, [execution?.status]);
 
     // Cleanup effect for timers and controllers
     useEffect(() => {
@@ -79,6 +103,8 @@ export default function ExecutionPage() {
             if (abortController.current) {
                 abortController.current.abort();
             }
+            // Reset the flag when component unmounts
+            hasAutoStarted.current = false;
         };
     }, []);
 
@@ -118,6 +144,7 @@ export default function ExecutionPage() {
     const handleStreamError = (error: Event) => {
         console.error('Stream error:', error);
         setIsGenerating(false);
+        hasAutoStarted.current = false;
         currentSectionId.current = null;
         
         // Clear any pending updates
@@ -132,6 +159,7 @@ export default function ExecutionPage() {
     const handleStreamClose = () => {
         console.log('Stream closed');
         setIsGenerating(false);
+        hasAutoStarted.current = false;
         currentSectionId.current = null;
         
         // Process any remaining buffered text
@@ -191,6 +219,15 @@ export default function ExecutionPage() {
     const handleGenerate = async () => {
         if (!execution?.document_id) return;
         
+        // Check if we're already generating
+        if (isGenerating) {
+            console.log("Generation already in progress, skipping...");
+            return;
+        }
+        
+        // Mark that we've started generation manually
+        hasAutoStarted.current = true;
+        
         // Create new controller
         abortController.current = new AbortController();
         
@@ -213,19 +250,10 @@ export default function ExecutionPage() {
         } catch (error) {
             console.error('Error starting generation:', error);
             setIsGenerating(false);
+            hasAutoStarted.current = false;
             toast.error("Error starting generation. Please try again.");
             return;
         }
-    };
-
-    const handleCancelGeneration = () => {
-        if (abortController.current) {
-            abortController.current.abort();
-            abortController.current = null;
-        }
-        setIsGenerating(false);
-        setStatus("cancelled");
-        toast.info("Generation cancelled");
     };
 
 
@@ -313,24 +341,23 @@ export default function ExecutionPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {isGenerating ? (
-                                <Button
-                                    variant="outline"
-                                    className="hover:cursor-pointer"
-                                    onClick={handleCancelGeneration}
-                                >
-                                    Cancel
-                                </Button>
-                            ) : (
-                                <Button
-                                    className="hover:cursor-pointer"
-                                    disabled={isGenerating || status !== "pending"}
-                                    onClick={handleGenerate}
-                                >
-                                    <WandSparkles className="h-4 w-4 mr-2" />
-                                    Generate
-                                </Button>
-                            )}
+                            <Button
+                                className="hover:cursor-pointer"
+                                disabled={isGenerating || status !== "pending"}
+                                onClick={handleGenerate}
+                            >
+                                {isGenerating ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Generating
+                                    </>
+                                ) : (
+                                    <>
+                                        <WandSparkles className="h-4 w-4 mr-2" />
+                                        Generate
+                                    </>
+                                )}
+                            </Button>
                         </div>
                 </CardContent>
             </Card>
