@@ -1,11 +1,14 @@
 import {Card, CardHeader, CardTitle, CardDescription, CardContent} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {FileText, Plus, Trash2} from "lucide-react";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {Checkbox} from "@/components/ui/checkbox";
+import {FileText, Trash2, Filter} from "lucide-react";
 import {useState} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocumentDependencies, addDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
 import { getAllDocuments, getDocumentById } from "@/services/documents";
+import { getAllDocumentTypes } from "@/services/document_type";
 
 
 interface Dependency {
@@ -20,8 +23,16 @@ interface Document {
     name: string;
 }
 
+interface DocumentType {
+    id: string;
+    name: string;
+    color: string;
+}
+
 export default function AddDependency({ id }: { id: string }) {
     const [newDependency, setNewDependency] = useState('');
+    const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
+    const [filterOpen, setFilterOpen] = useState(false);
     const queryClient = useQueryClient();
 
     const { data: document } = useQuery({
@@ -42,6 +53,11 @@ export default function AddDependency({ id }: { id: string }) {
         enabled: !!document?.organization_id,
     });
 
+    const { data: documentTypes = [] } = useQuery<DocumentType[]>({
+        queryKey: ['documentTypes'],
+        queryFn: getAllDocumentTypes,
+    });
+
     const addDependencyMutation = useMutation({
         mutationFn: (dependsOnDocumentId: string) => addDocumentDependency(id, dependsOnDocumentId),
         onSuccess: () => {
@@ -59,9 +75,9 @@ export default function AddDependency({ id }: { id: string }) {
         doc.id !== id && !dependencies.some(dep => dep.document_id === doc.id)
     );
 
-    const handleAddDependency = () => {
-        if (newDependency) {
-            addDependencyMutation.mutate(newDependency);
+    const handleSelectDocument = (documentId: string) => {
+        if (documentId) {
+            addDependencyMutation.mutate(documentId);
         }
     };
 
@@ -99,28 +115,67 @@ export default function AddDependency({ id }: { id: string }) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         
-                        {/* Select para agregar nueva dependencia */}
-                        <div className="flex items-center gap-2">
-                            <Select value={newDependency} onValueChange={setNewDependency}>
-                                <SelectTrigger className="flex-1">
-                                    <SelectValue placeholder="Select a document to add as dependency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableDocuments.map((doc) => (
-                                        <SelectItem key={doc.id} value={doc.id}>
-                                            {doc.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Button
-                                type="button"
-                                className="hover:cursor-pointer"
-                                onClick={handleAddDependency}
-                                disabled={!newDependency || addDependencyMutation.isPending}
-                            >
-                                <Plus className="h-4 w-4" />
-                            </Button>
+                        {/* Select para agregar nueva dependencia con filtro */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Add new dependency:</label>
+                            <div className="flex items-center gap-2">
+                                <Select value={newDependency} onValueChange={handleSelectDocument}>
+                                    <SelectTrigger className="flex-1">
+                                        <SelectValue placeholder="Select a document to add as dependency" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableDocuments.map((doc) => (
+                                            <SelectItem key={doc.id} value={doc.id}>
+                                                {doc.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="hover:cursor-pointer"
+                                            title="Filter by document type"
+                                        >
+                                            <Filter className="h-4 w-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-3">
+                                        <div className="space-y-3">
+                                            <h4 className="font-semibold text-sm">Document Types</h4>
+                                            <div className="space-y-2">
+                                                {documentTypes.map((type) => (
+                                                    <div key={type.id} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={type.id}
+                                                            checked={selectedDocumentTypes.includes(type.id)}
+                                                            onCheckedChange={(checked: boolean) => {
+                                                                if (checked) {
+                                                                    setSelectedDocumentTypes(prev => [...prev, type.id]);
+                                                                } else {
+                                                                    setSelectedDocumentTypes(prev => prev.filter(id => id !== type.id));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <label
+                                                            htmlFor={type.id}
+                                                            className="flex items-center space-x-2 text-sm font-medium cursor-pointer"
+                                                        >
+                                                            <div 
+                                                                className="w-3 h-3 rounded-full"
+                                                                style={{ backgroundColor: type.color }}
+                                                            />
+                                                            <span>{type.name}</span>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         </div>
 
                         {/* Lista de dependencias existentes */}

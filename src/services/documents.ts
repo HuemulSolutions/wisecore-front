@@ -1,9 +1,12 @@
 import { backendUrl } from "@/config";
 
-export async function getAllDocuments(organizationId?: string) {
+export async function getAllDocuments(organizationId?: string, documentTypeId?: string) {
   const url = new URL(`${backendUrl}/documents/`);
   if (organizationId) {
     url.searchParams.append('organization_id', organizationId);
+  }
+  if (documentTypeId) {
+    url.searchParams.append('document_type_id', documentTypeId);
   }
   
   const response = await fetch(url.toString());
@@ -46,7 +49,7 @@ export async function getDocumentSections(documentId: string) {
   return data.data;
 }
 
-export async function createDocument(documentData: { name: string; organization_id: string, description?: string; template_id?: string | null }) {
+export async function createDocument(documentData: { name: string; organization_id: string, description?: string; template_id?: string | null; document_type_id?: string }) {
   const response = await fetch(`${backendUrl}/documents/`, {
     method: 'POST',
     headers: {

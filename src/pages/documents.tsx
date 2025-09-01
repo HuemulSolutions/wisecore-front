@@ -1,18 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MonitorUp } from 'lucide-react';
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { MonitorUp, Filter } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -20,35 +9,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createDocument, getAllDocuments } from "@/services/documents";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { getAllDocuments } from "@/services/documents";
 import Document from "@/components/document";
-import { getAllTemplates } from "@/services/templates";
+import CreateDocument from "@/components/create_document";
 import { getAllOrganizations } from "@/services/organizations";
+import { getAllDocumentTypes } from "@/services/document_type";
 
 export default function Documents() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [templateId, setTemplateId] = useState<string | null>(null); // optional
-  const [organizationId, setOrganizationId] = useState<string | undefined>(undefined); // required
   const [organizationFilter, setOrganizationFilter] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<string | null>(null);
+  const [tempOrganizationFilter, setTempOrganizationFilter] = useState<string | null>(null);
+  const [tempDocumentTypeFilter, setTempDocumentTypeFilter] = useState<string | null>(null);
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
 
   const {
     data: documents,
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: ["documents", organizationFilter],
-    queryFn: () => getAllDocuments(organizationFilter || undefined),
-  });
-
-  const { data: templates } = useQuery({
-    queryKey: ["templates"],
-    queryFn: getAllTemplates,
+    queryKey: ["documents", organizationFilter, documentTypeFilter],
+    queryFn: () => getAllDocuments(organizationFilter || undefined, documentTypeFilter || undefined),
   });
 
   const { data: organizations } = useQuery({
@@ -56,44 +41,22 @@ export default function Documents() {
     queryFn: getAllOrganizations,
   });
 
-  const mutation = useMutation({
-    mutationFn: (newDocument: {
-      name: string;
-      organization_id: string;
-      description?: string;
-      template_id?: string | null;
-    }) => createDocument(newDocument),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-      navigate(`/document/${created.id}`);
-      setName("");
-      setDescription("");
-      setTemplateId(null);
-      setOrganizationId(undefined);
-      setError(null);
-      setIsDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      setError(error.message || "An error occurred while creating the document");
-    },
+  const { data: documentTypes } = useQuery({
+    queryKey: ["documentTypes"],
+    queryFn: getAllDocumentTypes,
   });
 
-  const handleAccept = () => {
-    if (!name.trim()) {
-      setError("Name is required");
-      return;
-    }
-    if (!organizationId) {
-      setError("Organization is required");
-      return;
-    }
-    setError(null);
-    mutation.mutate({
-      name,
-      description,
-      template_id: templateId,
-      organization_id: organizationId,
-    });
+  const handleApplyFilters = () => {
+    setOrganizationFilter(tempOrganizationFilter);
+    setDocumentTypeFilter(tempDocumentTypeFilter);
+    setIsFilterPopoverOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setOrganizationFilter(null);
+    setDocumentTypeFilter(null);
+    setTempOrganizationFilter(null);
+    setTempDocumentTypeFilter(null);
   };
 
   if (isLoading) {
@@ -109,138 +72,114 @@ export default function Documents() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Documents</h1>
         <div className="flex items-center space-x-2">
-          <Select
-            onValueChange={(value) =>
-              setOrganizationFilter(value === "all" ? null : value)
-            }
-            value={organizationFilter || "all"}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by organization" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All organizations</SelectItem>
-              {organizations?.map((org: any) => (
-                <SelectItem key={org.id} value={org.id}>
-                  {org.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Filter documents"
+                className="hover:cursor-pointer"
+                title="Filter documents"
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Filter Documents</h3>
+                
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-500">Organization</label>
+                  <Select
+                    onValueChange={(value) =>
+                      setTempOrganizationFilter(value === "all" ? null : value)
+                    }
+                    value={tempOrganizationFilter || "all"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select organization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All organizations</SelectItem>
+                      {organizations?.map((org: any) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-500">Document Type</label>
+                  <Select
+                    onValueChange={(value) =>
+                      setTempDocumentTypeFilter(value === "all" ? null : value)
+                    }
+                    value={tempDocumentTypeFilter || "all"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All document types</SelectItem>
+                      {documentTypes?.map((type: any) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          <div className="flex items-center space-x-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: type.color }}
+                            />
+                            <span>{type.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex space-x-2 pt-2">
+                  <Button
+                    onClick={handleApplyFilters}
+                    className="flex-1 hover:cursor-pointer"
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleClearFilters}
+                    className="flex-1 hover:cursor-pointer"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button
             size="icon"
-            aria-label="Importar documento"
+            aria-label="Import document"
             className="hover:cursor-pointer"
-            title="Importar documento"
+            title="Import document"
             onClick={() => {
-              // TODO: Implementar funcionalidad de importar
-              console.log("Importar documento");
+              // TODO: Implement import functionality
+              console.log("Import document");
             }}
           >
             <MonitorUp className="h-4 w-4" />
           </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
+          <CreateDocument
+            trigger={
               <Button
                 size="icon"
-                aria-label="Agregar documento"
+                aria-label="Add document"
                 className="hover:cursor-pointer"
-                title="Agregar documento"
+                title="Add document"
               >
                 +
               </Button>
-            </DialogTrigger>
-
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Document</DialogTitle>
-              <DialogDescription>
-                Complete the fields below to create a new document.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name"
-              className="w-full border rounded px-2 py-1"
-            />
-
-            <Input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)"
-              className="w-full border rounded px-2 py-1 mt-2"
-            />
-
-            <Select
-              value={organizationId}
-              onValueChange={(value) => setOrganizationId(value)}
-            >
-              <SelectTrigger className="w-full mt-2">
-                <SelectValue placeholder="Select organization" />
-              </SelectTrigger>
-              <SelectContent>
-                {organizations?.map((org: any) => (
-                  <SelectItem key={org.id} value={org.id}>
-                    {org.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              onValueChange={(value) =>
-                setTemplateId(value === "null" ? null : value)
-              }
-              value={templateId || "null"}
-            >
-              <SelectTrigger className="w-full mt-2">
-                <SelectValue placeholder="Select template (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="null">No template</SelectItem>
-                {templates?.map((template: any) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2 mt-2">
-                {error}
-              </div>
-            )}
-
-            <DialogFooter className="flex justify-end space-x-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setName("");
-                  setDescription("");
-                  setTemplateId(null);
-                  setOrganizationId(undefined);
-                  setError(null);
-                  setIsDialogOpen(false);
-                }}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAccept}
-                disabled={mutation.isPending || !name.trim() || !organizationId}
-                className="hover:cursor-pointer"
-              >
-                {mutation.isPending ? "Creating..." : "Create"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            }
+          />
         </div>
       </div>
       <ul className="space-y-4">

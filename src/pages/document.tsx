@@ -147,6 +147,20 @@ export default function DocumentPage() {
                 </p>
               </div>
               <div>
+                <p className="text-sm text-gray-600">Document Type</p>
+                {document.document_type ? (
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: document.document_type.color }}
+                    />
+                    {document.document_type.name}
+                  </span>
+                ) : (
+                  <p className="font-medium text-gray-500">No type</p>
+                )}
+              </div>
+              <div>
                 <p className="text-sm text-gray-600">Template</p>
                 <p className="font-medium">
                   {document.template_name
