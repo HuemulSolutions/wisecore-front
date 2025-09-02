@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, FileText, Search, LayoutTemplate, X, Building2 } from "lucide-react";
+import { Home, FileText, Search, LayoutTemplate, X, Building2, LibraryBig } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import clsx from "classnames";
@@ -9,8 +9,9 @@ const navItems = [
 	{ to: "/home", label: "Home", icon: Home },
   { to: "/organizations", label: "Organizations", icon: Building2 },
 	{ to: "/templates", label: "Templates", icon: LayoutTemplate },
-	{ to: "/documents", label: "Documents", icon: FileText },
+	{ to: "/documents", label: "Create Knowledge", icon: FileText },
 	{ to: "/search", label: "Search", icon: Search },
+	{ to: "/", label: "Library", icon: LibraryBig },
 ];
 
 export default function Sidebar({

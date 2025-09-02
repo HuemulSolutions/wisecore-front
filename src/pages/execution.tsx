@@ -10,19 +10,20 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, WandSparkles, Loader2, CircleCheck } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { getExecutionById, updateLLM, approveExecution } from "@/services/executions";
+import { TableOfContents } from "@/components/table-of-contents";
+import { getExecutionById, approveExecution } from "@/services/executions";
+import { getLLMs, updateLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { getLLMs } from "@/services/llms"; // nuevo import
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"; // shadcn/ui select
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
@@ -278,137 +279,158 @@ export default function ExecutionPage() {
     if (error) {
         return <div>Error: {(error as Error).message}</div>;
     }
+
+    const tocItems = [
+        { id: "execution-info", title: "Execution Info", level: 1 },
+        { id: "execution-config", title: "Execution Configuration", level: 1 },
+        ...(editableSections?.map(section => ({
+            id: section.id || section.section_execution_id,
+            title: section.name,
+            level: 2, // Assuming sections are level 2 for now
+        })) || [])
+    ];
+
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="hover:cursor-pointer"
-                        onClick={() => navigate(`/document/${execution.document_id}`)}
-                    >
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
-                    </Button>
-                    <h1 className="text-2xl font-bold">Generate content</h1>
-                </div>
-            </div>
-
-            {/* Tarjeta de información de la ejecución */}
-            <ExecutionInfo execution={execution} onRefresh={refetch} isGenerating={isGenerating} />
-
-
-            {/* Tarjeta de instrucciones */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Execution Configuration</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        <div>
-                            <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-2">
-                                Execution Instructions: Enter specific instructions for this execution:
-                            </label>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <textarea
-                                            id="instructions"
-                                            value={instructions}
-                                            onChange={(e) => setInstructions(e.target.value)}
-                                            placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
-                                            className={`w-full min-h-[120px] p-3 border rounded-md resize-vertical transition-colors ${
-                                                execution?.status !== "pending" || isGenerating
-                                                    ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
-                                                    : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            }`}
-                                            rows={6}
-                                            disabled={execution?.status !== "pending" || isGenerating}
-                                            readOnly={execution?.status !== "pending"}
-                                        />
-                                    </TooltipTrigger>
-                                    {execution?.status !== "pending" && (
-                                        <TooltipContent>
-                                            <p>Instructions cannot be edited after execution has started</p>
-                                        </TooltipContent>
-                                    )}
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
+        <div className="flex gap-8">
+            <div className="flex-1 space-y-4">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="hover:cursor-pointer"
+                            onClick={() => navigate(`/document/${execution.document_id}`)}
+                        >
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back
+                        </Button>
+                        <h1 className="text-2xl font-bold">Generate content</h1>
                     </div>
-                        <div className="mt-4 flex justify-end gap-2 items-center flex-wrap">
-                            <div className="flex items-center gap-2">
-                                <Select
-                                    value={selectedLLM}
-                                    onValueChange={(v) => {
-                                        setSelectedLLM(v);
-                                        updateLLMMutation.mutate(v);
-                                    }}
-                                    disabled={isGenerating || status !== "pending" || updateLLMMutation.isPending}
-                                >
-                                    <SelectTrigger className="w-[220px] hover:cursor-pointer">
-                                        <SelectValue placeholder={updateLLMMutation.isPending ? "Updating model..." : "Select model"} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {llms?.map((m: any) => (
-                                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                </div>
+
+                {/* Tarjeta de información de la ejecución */}
+                <div id="execution-info">
+                    <ExecutionInfo execution={execution} onRefresh={refetch} isGenerating={isGenerating} />
+                </div>
+
+
+                {/* Tarjeta de instrucciones */}
+                <div id="execution-config">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Execution Configuration</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                <div>
+                                    <label htmlFor="instructions" className="block text-sm font-medium text-gray-700 mb-2">
+                                        Execution Instructions: Enter specific instructions for this execution:
+                                    </label>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <textarea
+                                                    id="instructions"
+                                                    value={instructions}
+                                                    onChange={(e) => setInstructions(e.target.value)}
+                                                    placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
+                                                    className={`w-full min-h-[120px] p-3 border rounded-md resize-vertical transition-colors ${
+                                                        execution?.status !== "pending" || isGenerating
+                                                            ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                                                            : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    }`}
+                                                    rows={6}
+                                                    disabled={execution?.status !== "pending" || isGenerating}
+                                                    readOnly={execution?.status !== "pending"}
+                                                />
+                                            </TooltipTrigger>
+                                            {execution?.status !== "pending" && (
+                                                <TooltipContent>
+                                                    <p>Instructions cannot be edited after execution has started</p>
+                                                </TooltipContent>
+                                            )}
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                             </div>
-                            <Button
-                                className="hover:cursor-pointer"
-                                disabled={isGenerating || (status !== "pending" && status !== "completed") || isApproving}
-                                onClick={status === "completed" ? handleApprove : handleGenerate}
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Generating
-                                    </>
-                                ) : status === "completed" ? (
-                                    isApproving ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Approving...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CircleCheck className="h-4 w-4 mr-2" />
-                                            Approve
-                                        </>
-                                    )
-                                ) : (
-                                    <>
-                                        <WandSparkles className="h-4 w-4 mr-2" />
-                                        Generate
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                </CardContent>
-            </Card>
+                                <div className="mt-4 flex justify-end gap-2 items-center flex-wrap">
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={selectedLLM}
+                                            onValueChange={(v) => {
+                                                setSelectedLLM(v);
+                                                updateLLMMutation.mutate(v);
+                                            }}
+                                            disabled={isGenerating || status !== "pending" || updateLLMMutation.isPending}
+                                        >
+                                            <SelectTrigger className="w-[220px] hover:cursor-pointer">
+                                                <SelectValue placeholder={updateLLMMutation.isPending ? "Updating model..." : "Select model"} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {llms?.map((m: any) => (
+                                                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button
+                                        className="hover:cursor-pointer"
+                                        disabled={isGenerating || (status !== "pending" && status !== "completed") || isApproving}
+                                        onClick={status === "completed" ? handleApprove : handleGenerate}
+                                    >
+                                        {isGenerating ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Generating
+                                            </>
+                                        ) : status === "completed" ? (
+                                            isApproving ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                    Approving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CircleCheck className="h-4 w-4 mr-2" />
+                                                    Approve
+                                                </>
+                                            )
+                                        ) : (
+                                            <>
+                                                <WandSparkles className="h-4 w-4 mr-2" />
+                                                Generate
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
-            {/* Tarjeta de secciones */}
-            <Card>
-                <CardContent>
-                    {editableSections && editableSections.length > 0 && (
-                        <div className="space-y-1">
-                            {editableSections.map((section: any) => (
-                                <SectionExecution
-                                    key={section.id || section.section_execution_id}
-                                    sectionExecution={section}
-                                    onUpdate={refetch}
-                                    readyToEdit={execution.status === "completed" && !isGenerating}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                {/* Tarjeta de secciones */}
+                <Card>
+                    <CardContent>
+                        {editableSections && editableSections.length > 0 && (
+                            <div className="space-y-1">
+                                {editableSections.map((section: any) => (
+                                    <div key={section.id || section.section_execution_id} id={section.id || section.section_execution_id}>
+                                        <SectionExecution
+                                            sectionExecution={section}
+                                            onUpdate={refetch}
+                                            readyToEdit={execution.status === "completed" && !isGenerating}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
+            </div>
+            <div className="w-64 hidden lg:block">
+                <TableOfContents items={tocItems} />
+            </div>
         </div>
     );
 }

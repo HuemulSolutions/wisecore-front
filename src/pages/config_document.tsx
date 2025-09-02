@@ -102,11 +102,11 @@ export default function ConfigDocumentPage() {
   }
   if (error) {
     console.error("Error fetching document:", error);
-    return <div>Error loading document.</div>;
+    return <div>Error loading assset.</div>;
   }
 
   if (!document) {
-    return <div>No document found with ID: {id}</div>;
+    return <div>No asset found with ID: {id}</div>;
   }
 
   const handleDelete = async () => {

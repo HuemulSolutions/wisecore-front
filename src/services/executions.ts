@@ -127,6 +127,8 @@ export async function exportExecutionToMarkdown(executionId: string) {
 }
 
 
+
+
 export async function approveExecution(executionId: string) {
     console.log(`Approving execution with ID: ${executionId}`);
     const response = await fetch(`${backendUrl}/execution/approve/${executionId}`, {

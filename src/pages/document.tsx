@@ -117,7 +117,7 @@ export default function DocumentPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold">Manage Document</h1>
+          <h1 className="text-2xl font-bold">Manage Asset</h1>
         </div>
       </div>
 
@@ -126,7 +126,7 @@ export default function DocumentPage() {
         {/* Document Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Document Information</CardTitle>
+            <CardTitle>Asset Information</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -147,7 +147,7 @@ export default function DocumentPage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Document Type</p>
+                <p className="text-sm text-gray-600">Asset Type</p>
                 {document.document_type ? (
                   <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
                     <div 
@@ -203,7 +203,7 @@ export default function DocumentPage() {
               onClick={handleConfigureDocument}
             >
               <Settings className="h-4 w-4 mr-2" />
-              Configure Document
+              Configure Asset
             </Button>
             <Button
               variant="outline"
@@ -228,7 +228,7 @@ export default function DocumentPage() {
               title="Delete Document"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Document
+              Delete Asset
             </Button>
             <div className="border-t pt-3 mt-3">
               <p className="text-sm text-gray-600 mb-2">Export Options</p>

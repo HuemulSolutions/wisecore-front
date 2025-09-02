@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { MonitorUp, Filter } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -70,7 +70,7 @@ export default function Documents() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Documents</h1>
+        <h1 className="text-2xl font-semibold">Assets</h1>
         <div className="flex items-center space-x-2">
           <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
             <PopoverTrigger asChild>
@@ -86,7 +86,7 @@ export default function Documents() {
             </PopoverTrigger>
             <PopoverContent className="w-80" align="end">
               <div className="space-y-4">
-                <h3 className="text-sm font-medium">Filter Documents</h3>
+                <h3 className="text-sm font-medium">Filter Assets</h3>
                 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-500">Organization</label>
@@ -111,7 +111,7 @@ export default function Documents() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-500">Document Type</label>
+                  <label className="text-xs font-medium text-gray-500">Asset Type</label>
                   <Select
                     onValueChange={(value) =>
                       setTempDocumentTypeFilter(value === "all" ? null : value)
@@ -122,7 +122,7 @@ export default function Documents() {
                       <SelectValue placeholder="Select document type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All document types</SelectItem>
+                      <SelectItem value="all">All asset types</SelectItem>
                       {documentTypes?.map((type: any) => (
                         <SelectItem key={type.id} value={type.id}>
                           <div className="flex items-center space-x-2">
@@ -156,7 +156,7 @@ export default function Documents() {
               </div>
             </PopoverContent>
           </Popover>
-          <Button
+          {/* <Button
             size="icon"
             aria-label="Import document"
             className="hover:cursor-pointer"
@@ -167,11 +167,12 @@ export default function Documents() {
             }}
           >
             <MonitorUp className="h-4 w-4" />
-          </Button>
+          </Button> */}
           <CreateDocument
             trigger={
               <Button
                 size="icon"
+                variant="outline"
                 aria-label="Add document"
                 className="hover:cursor-pointer"
                 title="Add document"
