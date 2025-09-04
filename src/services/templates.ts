@@ -1,7 +1,11 @@
 import { backendUrl } from "@/config";
 
-export async function getAllTemplates() {
-    const response = await fetch(`${backendUrl}/templates/`);
+export async function getAllTemplates(organizationId: string) {
+    const response = await fetch(`${backendUrl}/templates/`, {
+        headers: {
+            'OrganizationId': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al obtener las plantillas');
     }

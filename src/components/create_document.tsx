@@ -21,9 +21,9 @@ import {
 } from "@/components/ui/select";
 import { createDocument } from "@/services/documents";
 import { getAllTemplates } from "@/services/templates";
-import { getAllOrganizations } from "@/services/organizations";
 import { getAllDocumentTypes } from "@/services/document_type";
 import CreateDocumentType from "./create_doc_type";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface CreateDocumentProps {
   trigger: React.ReactNode;
@@ -32,23 +32,19 @@ interface CreateDocumentProps {
 export default function CreateDocument({ trigger }: CreateDocumentProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { selectedOrganizationId } = useOrganization();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [templateId, setTemplateId] = useState<string | null>(null); // optional
-  const [organizationId, setOrganizationId] = useState<string | undefined>(undefined); // required
   const [documentTypeId, setDocumentTypeId] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   const { data: templates } = useQuery({
     queryKey: ["templates"],
-    queryFn: getAllTemplates,
-  });
-
-  const { data: organizations } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: getAllOrganizations,
+    queryFn: () => getAllTemplates(selectedOrganizationId!), // Fetch all templates
+    enabled: !!selectedOrganizationId, // Only run this query if an organization is selected
   });
 
   const { data: fetchedDocumentTypes } = useQuery({
@@ -59,11 +55,10 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
   const mutation = useMutation({
     mutationFn: (newDocument: {
       name: string;
-      organization_id: string;
       description?: string;
       template_id?: string | null;
       document_type_id?: string;
-    }) => createDocument(newDocument),
+    }) => createDocument(newDocument, selectedOrganizationId!),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       navigate(`/document/${created.id}`);
@@ -79,7 +74,6 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
     setName("");
     setDescription("");
     setTemplateId(null);
-    setOrganizationId(undefined);
     setDocumentTypeId(undefined);
     setError(null);
   };
@@ -89,16 +83,11 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
       setError("Name is required");
       return;
     }
-    if (!organizationId) {
-      setError("Organization is required");
-      return;
-    }
     setError(null);
     mutation.mutate({
       name,
       description,
       template_id: templateId,
-      organization_id: organizationId,
       document_type_id: documentTypeId,
     });
   };
@@ -143,22 +132,6 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
           placeholder="Description (optional)"
           className="w-full border rounded px-2 py-1 mt-2"
         />
-
-        <Select
-          value={organizationId}
-          onValueChange={(value) => setOrganizationId(value)}
-        >
-          <SelectTrigger className="w-full mt-2">
-            <SelectValue placeholder="Select organization" />
-          </SelectTrigger>
-          <SelectContent>
-            {organizations?.map((org: any) => (
-              <SelectItem key={org.id} value={org.id}>
-                {org.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
 
         <Select
           onValueChange={(value) =>
@@ -235,7 +208,7 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
           </Button>
           <Button
             onClick={handleAccept}
-            disabled={mutation.isPending || !name.trim() || !organizationId}
+            disabled={mutation.isPending || !name.trim() || !selectedOrganizationId}
             className="hover:cursor-pointer"
           >
             {mutation.isPending ? "Creating..." : "Create"}

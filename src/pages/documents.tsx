@@ -17,13 +17,12 @@ import {
 import { getAllDocuments } from "@/services/documents";
 import Document from "@/components/document";
 import CreateDocument from "@/components/create_document";
-import { getAllOrganizations } from "@/services/organizations";
 import { getAllDocumentTypes } from "@/services/document_type";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function Documents() {
-  const [organizationFilter, setOrganizationFilter] = useState<string | null>(null);
+  const { selectedOrganizationId } = useOrganization();
   const [documentTypeFilter, setDocumentTypeFilter] = useState<string | null>(null);
-  const [tempOrganizationFilter, setTempOrganizationFilter] = useState<string | null>(null);
   const [tempDocumentTypeFilter, setTempDocumentTypeFilter] = useState<string | null>(null);
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
 
@@ -32,13 +31,9 @@ export default function Documents() {
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: ["documents", organizationFilter, documentTypeFilter],
-    queryFn: () => getAllDocuments(organizationFilter || undefined, documentTypeFilter || undefined),
-  });
-
-  const { data: organizations } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: getAllOrganizations,
+    queryKey: ["documents", selectedOrganizationId, documentTypeFilter],
+    queryFn: () => getAllDocuments(selectedOrganizationId!, documentTypeFilter || undefined),
+    enabled: !!selectedOrganizationId, // Solo ejecutar si hay una organización seleccionada
   });
 
   const { data: documentTypes } = useQuery({
@@ -47,15 +42,12 @@ export default function Documents() {
   });
 
   const handleApplyFilters = () => {
-    setOrganizationFilter(tempOrganizationFilter);
     setDocumentTypeFilter(tempDocumentTypeFilter);
     setIsFilterPopoverOpen(false);
   };
 
   const handleClearFilters = () => {
-    setOrganizationFilter(null);
     setDocumentTypeFilter(null);
-    setTempOrganizationFilter(null);
     setTempDocumentTypeFilter(null);
   };
 
@@ -88,28 +80,6 @@ export default function Documents() {
               <div className="space-y-4">
                 <h3 className="text-sm font-medium">Filter Assets</h3>
                 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-500">Organization</label>
-                  <Select
-                    onValueChange={(value) =>
-                      setTempOrganizationFilter(value === "all" ? null : value)
-                    }
-                    value={tempOrganizationFilter || "all"}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select organization" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All organizations</SelectItem>
-                      {organizations?.map((org: any) => (
-                        <SelectItem key={org.id} value={org.id}>
-                          {org.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-500">Asset Type</label>
                   <Select

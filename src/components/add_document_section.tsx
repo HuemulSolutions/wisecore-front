@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea"
+import { Textarea } from "@/components/ui/textarea";
+import { Sparkles, Loader2 } from "lucide-react";
+import { redactPrompt } from "@/services/generate";
 
 interface Section {
   id: string;
@@ -23,6 +25,33 @@ export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, exis
   const [prompt, setPrompt] = useState("");
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
   const [selectValue, setSelectValue] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGeneratePrompt = async () => {
+    if (!name.trim()) return;
+    
+    setIsGenerating(true);
+    setPrompt(""); // Clear existing prompt
+    
+    try {
+      await redactPrompt({
+        name: name.trim(),
+        onData: (text: string) => {
+          setPrompt(prev => prev + text);
+        },
+        onError: (error: Event) => {
+          console.error('Error generating prompt:', error);
+          setIsGenerating(false);
+        },
+        onClose: () => {
+          setIsGenerating(false);
+        }
+      });
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      setIsGenerating(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,15 +103,31 @@ export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, exis
           </div>
           
           <div>
-            <label htmlFor="section-prompt" className="block text-sm font-medium mb-1">
-              Prompt
-            </label>
+            <div className="flex items-center justify-between pb-2">
+              <label htmlFor="section-prompt" className="block text-sm font-medium mb-1">
+                Prompt
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleGeneratePrompt}
+                disabled={!name.trim() || isGenerating}
+                className="hover:cursor-pointer"
+              >
+                {isGenerating ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-4 w-4" />
+                )}
+                Generate with AI
+              </Button>
+            </div>
             <Textarea
               id="section-prompt"
               placeholder="Enter the prompt for this section"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              disabled={isPending}
+              disabled={isPending || isGenerating}
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
             />

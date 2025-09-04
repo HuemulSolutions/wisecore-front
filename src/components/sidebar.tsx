@@ -1,17 +1,18 @@
 import { NavLink } from "react-router-dom";
-import { Home, FileText, Search, LayoutTemplate, X, Building2, LibraryBig } from "lucide-react";
+import { Home, FileText, Search, LayoutTemplate, X, LibraryBig } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { OrganizationSelector } from "./select_organization";
 import clsx from "classnames";
 import { useEffect } from "react";
 
 const navItems = [
 	{ to: "/home", label: "Home", icon: Home },
-  { to: "/organizations", label: "Organizations", icon: Building2 },
-	{ to: "/templates", label: "Templates", icon: LayoutTemplate },
-	{ to: "/documents", label: "Create Knowledge", icon: FileText },
+	{ to: "/library", label: "Library", icon: LibraryBig },
 	{ to: "/search", label: "Search", icon: Search },
-	{ to: "/", label: "Library", icon: LibraryBig },
+	{ to: "/documents", label: "Create Knowledge", icon: FileText },
+	{ to: "/templates", label: "Templates", icon: LayoutTemplate },
+	
 ];
 
 export default function Sidebar({
@@ -33,7 +34,7 @@ export default function Sidebar({
 	return (
 		<aside
 			className={clsx(
-				"fixed inset-y-0 left-0 z-40 w-64 border-r bg-background shadow-lg transition-transform duration-300 ease-in-out",
+				"fixed inset-y-0 left-0 z-40 w-64 border-r bg-background shadow-lg transition-transform duration-300 ease-in-out flex flex-col",
 				!isOpen && "-translate-x-full"
 			)}
 			aria-hidden={!isOpen}
@@ -54,7 +55,7 @@ export default function Sidebar({
 
 			<Separator />
 
-			<nav className="px-2 pt-4 space-y-1">
+			<nav className="px-2 pt-4 space-y-1 flex-1">
 				{navItems.map(({ to, label, icon: Icon }) => (
 					<NavLink
 						key={to}
@@ -72,6 +73,12 @@ export default function Sidebar({
 					</NavLink>
 				))}
 			</nav>
+
+			<Separator />
+
+			<div className="p-4">
+				<OrganizationSelector onClose={onClose} />
+			</div>
 		</aside>
 	);
 }

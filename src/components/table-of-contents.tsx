@@ -53,22 +53,21 @@ export function TableOfContents({ items }: TableOfContentsProps) {
 
     return (
         <div className="sticky top-1">
-            <p className="font-medium mb-2">Table of Contents</p>
-            <ul className="space-y-2">
+            <ul className="space-y-1">
                 {items.map((item) => (
                     <li key={item.id}>
                         <a
                             href={`#${item.id}`}
                             onClick={(e) => handleLinkClick(e, item.id)}
                             className={cn(
-                                "text-sm text-muted-foreground hover:text-foreground transition-colors",
+                                "block text-sm transition-colors hover:text-blue-600 hover:cursor-pointer py-1",
                                 {
-                                    "text-foreground font-medium": activeId === item.id,
+                                    "text-blue-600 font-medium": activeId === item.id,
+                                    "text-gray-600": activeId !== item.id,
                                 }
                             )}
-                            style={{ paddingLeft: `${(item.level - 1) * 1}rem` }}
+                            style={{ paddingLeft: `${(item.level - 1) * 0.75}rem` }}
                         >
-                            {item.level > 1 && '- '}
                             {item.title}
                         </a>
                     </li>

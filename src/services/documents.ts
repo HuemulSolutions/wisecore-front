@@ -1,15 +1,19 @@
 import { backendUrl } from "@/config";
 
-export async function getAllDocuments(organizationId?: string, documentTypeId?: string) {
+export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
   const url = new URL(`${backendUrl}/documents/`);
-  if (organizationId) {
-    url.searchParams.append('organization_id', organizationId);
-  }
   if (documentTypeId) {
     url.searchParams.append('document_type_id', documentTypeId);
   }
   
-  const response = await fetch(url.toString());
+  const headers: Record<string, string> = {};
+  if (organizationId) {
+    headers['OrganizationId'] = organizationId;
+  }
+  
+  const response = await fetch(url.toString(), {
+    headers,
+  });
   if (!response.ok) {
     throw new Error('Error al obtener los documentos');
   }
@@ -49,11 +53,13 @@ export async function getDocumentSections(documentId: string) {
   return data.data;
 }
 
-export async function createDocument(documentData: { name: string; organization_id: string, description?: string; template_id?: string | null; document_type_id?: string }) {
+export async function createDocument(documentData: { name: string; description?: string; 
+  template_id?: string | null; document_type_id?: string, folder_id?: string }, organizationId: string) {
   const response = await fetch(`${backendUrl}/documents/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'OrganizationId': organizationId,
     },
     body: JSON.stringify(documentData),
   });
@@ -64,6 +70,16 @@ export async function createDocument(documentData: { name: string; organization_
 
   const data = await response.json();
   console.log('Document created:', data.data);
+  return data.data;
+}
+
+export async function getDocumentContent(documentId: string) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}/content`);
+  if (!response.ok) {
+    throw new Error('Error al obtener el contenido del documento');
+  }
+  const data = await response.json();
+  console.log('Document content fetched:', data.data);
   return data.data;
 }
 

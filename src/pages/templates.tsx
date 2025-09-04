@@ -12,37 +12,26 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getAllTemplates, addTemplate } from "@/services/templates";
-import { getAllOrganizations } from "@/services/organizations";
+import { useOrganization } from "@/contexts/organization-context";
 import Template from "@/components/template";
 
 export default function Templates() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { selectedOrganizationId } = useOrganization();
 
   // state para controlar el diálogo, el valor del input y errores
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [organizationId, setOrganizationId] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   // query para listar
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ["templates"],
-    queryFn: getAllTemplates,
-  });
-
-  const { data: organizations } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: getAllOrganizations,
+    queryFn: () => getAllTemplates(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId,
   });
 
   // mutation para crear
@@ -56,7 +45,6 @@ export default function Templates() {
       // limpiamos estado y cerramos diálogo solo en éxito
       setNewName("");
       setNewDescription("");
-      setOrganizationId(undefined);
       setError(null);
       setIsDialogOpen(false);
     },
@@ -70,7 +58,7 @@ export default function Templates() {
       setError("Name is required");
       return;
     }
-    if (!organizationId) {
+    if (!selectedOrganizationId) {
       setError("Organization is required");
       return;
     }
@@ -78,7 +66,7 @@ export default function Templates() {
     mutation.mutate({
       name: newName,
       description: newDescription,
-      organization_id: organizationId,
+      organization_id: selectedOrganizationId,
     });
   };
 
@@ -93,7 +81,7 @@ export default function Templates() {
         {/* Trigger para abrir diálogo */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="icon" aria-label="Agregar template" className="hover:cursor-pointer">
+            <Button size="icon" variant="outline" aria-label="Agregar template" className="hover:cursor-pointer">
               +
             </Button>
           </DialogTrigger>
@@ -122,24 +110,6 @@ export default function Templates() {
               className="w-full border rounded px-2 py-1 mt-2"
             />
 
-            <Select
-              value={organizationId}
-              onValueChange={(value) => {
-                setOrganizationId(value);
-              }}
-            >
-              <SelectTrigger className="w-full mt-2">
-                <SelectValue placeholder="Select organization" />
-              </SelectTrigger>
-              <SelectContent>
-                {organizations?.map((org: any) => (
-                  <SelectItem key={org.id} value={org.id}>
-                    {org.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {/* Mostrar error si existe */}
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
@@ -153,7 +123,6 @@ export default function Templates() {
                 onClick={() => {
                   setNewName("");
                   setNewDescription("");
-                  setOrganizationId(undefined);
                   setError(null);
                   setIsDialogOpen(false);
                 }}
@@ -161,7 +130,7 @@ export default function Templates() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleAccept} disabled={!newName.trim() || !organizationId || mutation.isPending} className="hover:cursor-pointer">
+              <Button onClick={handleAccept} disabled={!newName.trim() || !selectedOrganizationId || mutation.isPending} className="hover:cursor-pointer">
                 {mutation.isPending ? "Creating..." : "Save"}
               </Button>
             </DialogFooter>

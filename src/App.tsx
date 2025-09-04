@@ -10,6 +10,7 @@ import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
 import DocDependPage from "./pages/doc_depend";
 import Organizations from "./pages/organizations";
+import Library from "./pages/library";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="templates" element={<Templates />} />
         <Route path="documents" element={<Documents />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="library" element={<Library />} />
         <Route path="configTemplate/:id" element={<ConfigTemplate />} />
         <Route path="document/:id" element={<DocumentPage />} />
         <Route path="configDocument/:id" element={<ConfigDocumentPage />} />

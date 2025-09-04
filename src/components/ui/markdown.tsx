@@ -3,10 +3,28 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw'; // permite interpretar <br> y HTML simple
 
-
 interface MarkdownProps {
   children: string;
 }
+
+// Function to generate ID from heading text (same as in library.tsx)
+const generateHeadingId = (text: string): string => {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+};
+
+// Function to extract text content from React children
+const extractTextFromChildren = (children: React.ReactNode): string => {
+  if (typeof children === 'string') {
+    return children;
+  }
+  if (Array.isArray(children)) {
+    return children.map(extractTextFromChildren).join('');
+  }
+  if (React.isValidElement(children) && (children.props as any).children) {
+    return extractTextFromChildren((children.props as any).children);
+  }
+  return children?.toString() || '';
+};
 
 const Markdown: React.FC<MarkdownProps> = ({ children }) => {
   return (
@@ -31,24 +49,36 @@ const Markdown: React.FC<MarkdownProps> = ({ children }) => {
           td: ({ children }) => (
             <td className="px-3 py-2 align-top border-r border-gray-200 last:border-0">{children}</td>
           ),
-          h1: ({ children }) => (
-            <h1 className="text-2xl font-bold mb-4">{children}</h1>
-          ),
-          h2: ({ children }) => (
-            <h2 className="text-xl font-bold mb-3">{children}</h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="text-lg font-bold mb-2">{children}</h3>
-          ),
-          h4: ({ children }) => (
-            <h4 className="text-base font-bold mb-2">{children}</h4>
-          ),
-          h5: ({ children }) => (
-            <h5 className="text-sm font-bold mb-2">{children}</h5>
-          ),
-          h6: ({ children }) => (
-            <h6 className="text-xs font-bold mb-2">{children}</h6>
-          ),
+          h1: ({ children }) => {
+            const text = extractTextFromChildren(children);
+            const id = generateHeadingId(text);
+            return <h1 id={id} className="text-2xl font-bold mb-4">{children}</h1>;
+          },
+          h2: ({ children }) => {
+            const text = extractTextFromChildren(children);
+            const id = generateHeadingId(text);
+            return <h2 id={id} className="text-xl font-bold mb-3">{children}</h2>;
+          },
+          h3: ({ children }) => {
+            const text = extractTextFromChildren(children);
+            const id = generateHeadingId(text);
+            return <h3 id={id} className="text-lg font-bold mb-2">{children}</h3>;
+          },
+          h4: ({ children }) => {
+            const text = extractTextFromChildren(children);
+            const id = generateHeadingId(text);
+            return <h4 id={id} className="text-base font-bold mb-2">{children}</h4>;
+          },
+          h5: ({ children }) => {
+            const text = extractTextFromChildren(children);
+            const id = generateHeadingId(text);
+            return <h5 id={id} className="text-sm font-bold mb-2">{children}</h5>;
+          },
+          h6: ({ children }) => {
+            const text = extractTextFromChildren(children);
+            const id = generateHeadingId(text);
+            return <h6 id={id} className="text-xs font-bold mb-2">{children}</h6>;
+          },
           p: ({ children }) => (
             <p className="text-sm leading-relaxed">{children}</p>
           ),
