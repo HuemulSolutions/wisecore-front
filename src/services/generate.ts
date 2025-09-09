@@ -165,6 +165,16 @@ interface RedactPromptParams {
     onClose: () => void;
 }
 
+interface ChatbotParams {
+    executionId: string;
+    message: string;
+    threadId?: string;
+    onData: (text: string) => void;
+    onThreadId: (threadId: string) => void;
+    onError: (error: Event) => void;
+    onClose: () => void;
+}
+
 async function* fetchFixSection(
   instructions: string,
   content: string,
@@ -185,6 +195,19 @@ async function* fetchRedactPrompt(
   return yield* ssePostStream(
     `${backendUrl}/generation/redact_section_prompt`,
     { name, content },
+    signal
+  );
+}
+
+async function* fetchChatbot(
+  executionId: string,
+  message: string,
+  threadId?: string,
+  signal?: AbortSignal
+): AsyncGenerator<SSEEvent, void, unknown> {
+  return yield* ssePostStream(
+    `${backendUrl}/generation/chatbot`,
+    { execution_id: executionId, message, thread_id: threadId },
     signal
   );
 }
@@ -246,6 +269,40 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
         onClose();
     } catch (error) {
         console.error('Error en la redacción del prompt:', error);
+        onError(error as Event);
+        onClose();
+    }
+}
+
+export const chatbot = async (params: ChatbotParams): Promise<void> => {
+    if (!params) {
+        throw new TypeError("chatbot: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
+    }
+    const { executionId, message, threadId, onData, onThreadId, onError, onClose } = params;
+
+    // Controller to allow cancelling the stream on error
+    const controller = new AbortController();
+
+    try {
+        for await (const event of fetchChatbot(executionId, message, threadId, controller.signal)) {
+            console.log('Received event:', event);
+            if (event.event === 'content') {
+                console.log("Content: ", event.data);
+                onData(event.data);
+            } else if (event.event === 'thread_id') {
+                console.log("Thread ID: ", event.data);
+                onThreadId(event.data);
+            } else if (event.event === 'error') {
+                console.error('Error SSE:', event.data);
+                // Notify UI and cancel the stream immediately
+                onError(new Event('error'));
+                controller.abort();
+                break;
+            }
+        }
+        onClose();
+    } catch (error) {
+        console.error('Error en el chatbot:', error);
         onError(error as Event);
         onClose();
     }

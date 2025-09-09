@@ -19,11 +19,11 @@ export async function addTemplate( { name, description, organization_id }: { nam
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'OrganizationId': organization_id,
         },
         body: JSON.stringify({
             name,
-            description: description || null,
-            organization_id,
+            description: description || null
         }),
     });
 

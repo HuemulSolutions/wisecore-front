@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, FileText, Search, LayoutTemplate, X, LibraryBig } from "lucide-react";
+import { Home, Search, LayoutTemplate, X, LibraryBig } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { OrganizationSelector } from "./select_organization";
@@ -10,7 +10,6 @@ const navItems = [
 	{ to: "/home", label: "Home", icon: Home },
 	{ to: "/library", label: "Library", icon: LibraryBig },
 	{ to: "/search", label: "Search", icon: Search },
-	{ to: "/documents", label: "Create Knowledge", icon: FileText },
 	{ to: "/templates", label: "Templates", icon: LayoutTemplate },
 	
 ];
