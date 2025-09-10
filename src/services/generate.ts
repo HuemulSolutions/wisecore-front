@@ -167,7 +167,7 @@ interface RedactPromptParams {
 
 interface ChatbotParams {
     executionId: string;
-    message: string;
+    user_message: string;
     threadId?: string;
     onData: (text: string) => void;
     onThreadId: (threadId: string) => void;
@@ -201,13 +201,13 @@ async function* fetchRedactPrompt(
 
 async function* fetchChatbot(
   executionId: string,
-  message: string,
+  user_message: string,
   threadId?: string,
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
   return yield* ssePostStream(
     `${backendUrl}/generation/chatbot`,
-    { execution_id: executionId, message, thread_id: threadId },
+    { execution_id: executionId, user_message, thread_id: threadId },
     signal
   );
 }
@@ -278,13 +278,13 @@ export const chatbot = async (params: ChatbotParams): Promise<void> => {
     if (!params) {
         throw new TypeError("chatbot: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
-    const { executionId, message, threadId, onData, onThreadId, onError, onClose } = params;
+    const { executionId, user_message, threadId, onData, onThreadId, onError, onClose } = params;
 
     // Controller to allow cancelling the stream on error
     const controller = new AbortController();
 
     try {
-        for await (const event of fetchChatbot(executionId, message, threadId, controller.signal)) {
+        for await (const event of fetchChatbot(executionId, user_message, threadId, controller.signal)) {
             console.log('Received event:', event);
             if (event.event === 'content') {
                 console.log("Content: ", event.data);

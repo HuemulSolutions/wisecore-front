@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import ExecutionInfo from "@/components/execution_info";
 import SectionExecution from "@/components/section_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import Chatbot from "@/components/chatbot/chatbot";
 import { 
     Tooltip,
     TooltipContent,
@@ -431,6 +432,7 @@ export default function ExecutionPage() {
             <div className="w-64 hidden lg:block">
                 <TableOfContents items={tocItems} />
             </div>
+            {/* <Chatbot executionId={id!} /> */}
         </div>
     );
 }

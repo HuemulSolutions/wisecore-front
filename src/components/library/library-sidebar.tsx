@@ -8,9 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import CreateFolder from "./create_folder";
+import CreateFolder from "../create_folder";
 import CreateDocumentLib from "./create_document_lib";
-import { LibrarySidebarItem } from "./library-sidebar-item";
+import { LibrarySidebarItem } from "../library/library-sidebar-item";
 
 // API response interface
 interface LibraryItem {

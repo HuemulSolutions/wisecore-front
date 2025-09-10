@@ -25,7 +25,7 @@ import { getAllDocumentTypes } from "@/services/document_type";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { toast } from "sonner";
-import CreateDocumentType from "./create_doc_type";
+import CreateDocumentType from "../create_doc_type";
 
 interface CreateDocumentLibProps {
   trigger: React.ReactNode;

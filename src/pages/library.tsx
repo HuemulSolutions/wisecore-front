@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { File, Loader2, MoreVertical, Settings, Download, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+// import Chatbot from "@/components/chatbot/chatbot";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,7 @@ import { getLibraryContent } from "@/services/library";
 import { getDocumentContent } from "@/services/documents";
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
-import { LibrarySidebar } from "@/components/library-sidebar";
+import { LibrarySidebar } from "@/components/library/library-sidebar";
 import { useOrganization } from "@/contexts/organization-context";
 
 // API response interface
@@ -52,10 +53,39 @@ function extractHeadings(markdown: string) {
 
 export default function Library() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const { selectedOrganizationId } = useOrganization();
+
+  // Handle navigation state to restore selected document and breadcrumb
+  useEffect(() => {
+    if (location.state?.selectedDocumentId && location.state?.selectedDocumentName) {
+      // Restore selected file
+      setSelectedFile({
+        id: location.state.selectedDocumentId,
+        name: location.state.selectedDocumentName,
+        type: location.state.selectedDocumentType || "document"
+      });
+      
+      // Restore breadcrumb if requested
+      if (location.state?.restoreBreadcrumb) {
+        const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
+        if (savedBreadcrumb) {
+          try {
+            const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
+            setBreadcrumb(parsedBreadcrumb);
+          } catch (error) {
+            console.error('Error parsing saved breadcrumb:', error);
+          }
+        }
+      }
+      
+      // Clear the state after using it
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   // Get current folder ID (last item in breadcrumb or undefined for root)
   const currentFolderId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].id : undefined;
@@ -85,6 +115,9 @@ export default function Library() {
   // Handle manage action
   const handleManage = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      // Save current state before navigating
+      sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
+      sessionStorage.setItem('library-selected-file', JSON.stringify(selectedFile));
       navigate(`/document/${selectedFile.id}`);
     }
   };
@@ -133,9 +166,10 @@ export default function Library() {
                   </div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex flex-col gap-2">
+                      
                       <h1 className="text-3xl font-bold text-gray-900">{selectedFile.name}</h1>
                       {documentContent?.document_type && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm font-medium text-gray-700 w-fit">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700 w-fit">
                           <div 
                             className="w-2 h-2 rounded-full" 
                             style={{ backgroundColor: documentContent.document_type.color }}
@@ -226,6 +260,10 @@ export default function Library() {
           )}
         </div>
       </div>
+      {/* { documentContent && documentContent.content && (
+        <Chatbot executionId={documentContent.execution_id} />
+      )
+        } */}
     </div>
   );
 }

@@ -39,6 +39,18 @@ export default function DocumentPage() {
     refetch();
   };
 
+  const handleBack = () => {
+    navigate("/library", { 
+      state: { 
+        selectedDocumentId: id,
+        selectedDocumentName: document?.name,
+        selectedDocumentType: "document",
+        // Try to get breadcrumb from previous navigation state
+        restoreBreadcrumb: true
+      } 
+    });
+  };
+
   const handleDelete = async () => {
     try {
       // Aquí deberías implementar la lógica para eliminar el documento
@@ -112,7 +124,7 @@ export default function DocumentPage() {
             variant="outline"
             size="sm"
             className="hover:cursor-pointer"
-            onClick={() => navigate("/documents")}
+            onClick={handleBack}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
