@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 // import ReactMarkdown from 'react-markdown';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import Markdown from './ui/markdown';
 
 interface ContextItem {
   id: string;
@@ -18,7 +19,6 @@ interface ContextDisplayProps {
 
 export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   item,
-  onEdit,
   onDelete
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -38,14 +38,14 @@ export const ContextDisplay: React.FC<ContextDisplayProps> = ({
           >
             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={() => onEdit?.(item.id)}
             className="hover:cursor-pointer"
           >
             <Edit className="h-4 w-4" />
-          </Button>
+          </Button> */}
           <Button
             variant="outline"
             size="sm"
@@ -59,7 +59,7 @@ export const ContextDisplay: React.FC<ContextDisplayProps> = ({
       {isExpanded && (
         <CardContent>
           <div className="prose prose-sm max-w-none dark:prose-invert">
-            <p>{item.content}</p>
+            <Markdown>{item.content}</Markdown>
           </div>
         </CardContent>
       )}

@@ -1,18 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MonitorUp } from 'lucide-react';
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Filter } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -20,58 +9,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createDocument, getAllDocuments } from "@/services/documents";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { getAllDocuments } from "@/services/documents";
 import Document from "@/components/document";
-import { getAllTemplates } from "@/services/templates";
+import CreateDocument from "@/components/create_document";
+import { getAllDocumentTypes } from "@/services/document_type";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function Documents() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [templateId, setTemplateId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { selectedOrganizationId } = useOrganization();
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<string | null>(null);
+  const [tempDocumentTypeFilter, setTempDocumentTypeFilter] = useState<string | null>(null);
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
 
   const {
     data: documents,
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: ["documents"],
-    queryFn: getAllDocuments,
+    queryKey: ["documents", selectedOrganizationId, documentTypeFilter],
+    queryFn: () => getAllDocuments(selectedOrganizationId!, documentTypeFilter || undefined),
+    enabled: !!selectedOrganizationId, // Solo ejecutar si hay una organización seleccionada
   });
 
-  const { data: templates } = useQuery({
-    queryKey: ["templates"],
-    queryFn: getAllTemplates,
+  const { data: documentTypes } = useQuery({
+    queryKey: ["documentTypes"],
+    queryFn: getAllDocumentTypes,
   });
 
-  const mutation = useMutation({
-    mutationFn: (newDocument: {
-      name: string;
-      description?: string;
-      template_id?: string | null;
-    }) => createDocument(newDocument),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-      navigate(`/document/${created.id}`);
-      setName("");
-      setDescription("");
-      setTemplateId(null);
-      setError(null);
-      setIsDialogOpen(false);
-    },
-    onError: (error: Error) => {
-      setError(error.message || "Ocurrió un error al crear el documento");
-    },
-  });
+  const handleApplyFilters = () => {
+    setDocumentTypeFilter(tempDocumentTypeFilter);
+    setIsFilterPopoverOpen(false);
+  };
 
-  const handleAccept = () => {
-    if (!name.trim()) return;
-    setError(null);
-    mutation.mutate({ name, description, template_id: templateId });
+  const handleClearFilters = () => {
+    setDocumentTypeFilter(null);
+    setTempDocumentTypeFilter(null);
   };
 
   if (isLoading) {
@@ -85,105 +62,95 @@ export default function Documents() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Documents</h1>
+        <h1 className="text-2xl font-semibold">Assets</h1>
         <div className="flex items-center space-x-2">
-          <Button
+          <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Filter documents"
+                className="hover:cursor-pointer"
+                title="Filter documents"
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Filter Assets</h3>
+                
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-500">Asset Type</label>
+                  <Select
+                    onValueChange={(value) =>
+                      setTempDocumentTypeFilter(value === "all" ? null : value)
+                    }
+                    value={tempDocumentTypeFilter || "all"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All asset types</SelectItem>
+                      {documentTypes?.map((type: any) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          <div className="flex items-center space-x-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: type.color }}
+                            />
+                            <span>{type.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex space-x-2 pt-2">
+                  <Button
+                    onClick={handleApplyFilters}
+                    className="flex-1 hover:cursor-pointer"
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleClearFilters}
+                    className="flex-1 hover:cursor-pointer"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          {/* <Button
             size="icon"
-            aria-label="Importar documento"
+            aria-label="Import document"
             className="hover:cursor-pointer"
-            title="Importar documento"
+            title="Import document"
             onClick={() => {
-              // TODO: Implementar funcionalidad de importar
-              console.log("Importar documento");
+              // TODO: Implement import functionality
+              console.log("Import document");
             }}
           >
             <MonitorUp className="h-4 w-4" />
-          </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
+          </Button> */}
+          <CreateDocument
+            trigger={
               <Button
                 size="icon"
-                aria-label="Agregar documento"
+                variant="outline"
+                aria-label="Add document"
                 className="hover:cursor-pointer"
-                title="Agregar documento"
+                title="Add document"
               >
                 +
               </Button>
-            </DialogTrigger>
-
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Document</DialogTitle>
-              <DialogDescription>
-                Complete the fields below to create a new document.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name"
-              className="w-full border rounded px-2 py-1"
-            />
-
-            <Input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (opcional)"
-              className="w-full border rounded px-2 py-1 mt-2"
-            />
-
-            <Select
-              onValueChange={(value) =>
-                setTemplateId(value === "null" ? null : value)
-              }
-              value={templateId || "null"}
-            >
-              <SelectTrigger className="w-full mt-2">
-                <SelectValue placeholder="Seleccionar template (opcional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="null">No template</SelectItem>
-                {templates?.map((template: any) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2 mt-2">
-                {error}
-              </div>
-            )}
-
-            <DialogFooter className="flex justify-end space-x-2 mt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setName("");
-                  setDescription("");
-                  setTemplateId(null);
-                  setError(null);
-                  setIsDialogOpen(false);
-                }}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAccept}
-                disabled={mutation.isPending}
-                className="hover:cursor-pointer"
-              >
-                {mutation.isPending ? "Creating..." : "Create"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            }
+          />
         </div>
       </div>
       <ul className="space-y-4">

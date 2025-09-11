@@ -20,9 +20,19 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { useState } from "react";
 import { Clock, Loader2, CheckCircle, XCircle, MoreVertical, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteDocument } from "@/services/documents";
+
+interface Document {
+  id: string;
+  name: string;
+  description: string;
+  template: { id: string; name: string } | null;
+  document_type: { id: string; name: string; color: string } | null;
+}
 
 interface DocumentItemProps {
-  doc: any;
+  doc: Document;
   descLimit?: number;
 }
 
@@ -31,15 +41,26 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isLong = doc.description.length > descLimit;
   const desc = expandedText ? doc.description : doc.description.slice(0, descLimit) + (isLong ? "..." : "");
 
   const { data: executions, isLoading, isError } = useExecutionsByDocumentId(doc.id, expandedAccordion);
 
+  const deleteMutation = useMutation({
+    mutationFn: (documentId: string) => deleteDocument(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setDeleteDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      console.error('Error deleting document:', error);
+      // TODO: Show error notification to user
+    },
+  });
+
   const handleDelete = () => {
-    // TODO: Implementar lógica de eliminación
-    console.log('Eliminando documento:', doc.id);
-    setDeleteDialogOpen(false);
+    deleteMutation.mutate(doc.id);
   };
 
   return (
@@ -71,11 +92,22 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                 Template: {doc.template ? doc.template.name : "No template"}
               </span>
             </div>
+            {doc.document_type && (
+              <div className="mt-2 mb-1">
+                <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: doc.document_type.color }}
+                  />
+                  {doc.document_type.name}
+                </span>
+              </div>
+            )}
             <div className="text-gray-600 text-sm">
               {desc}
               {isLong && (
@@ -89,8 +121,9 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
                 </Button>
               )}
             </div>
+            
           </div>
-          <AccordionTrigger className="px-4 hover:cursor-pointer">Ejecuciones</AccordionTrigger>
+          <AccordionTrigger className="px-4 hover:cursor-pointer">Executions</AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
             {expandedAccordion && (
               <div>
@@ -142,9 +175,10 @@ const Document: React.FC<DocumentItemProps> = ({ doc, descLimit = 80 }) => {
             <AlertDialogCancel className="hover:cursor-pointer">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete} 
-              className="bg-red-600 hover:bg-red-700 hover:cursor-pointer"
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Delete
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -13,11 +13,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getAllTemplates, addTemplate } from "@/services/templates";
+import { useOrganization } from "@/contexts/organization-context";
 import Template from "@/components/template";
 
 export default function Templates() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { selectedOrganizationId } = useOrganization();
 
   // state para controlar el diálogo, el valor del input y errores
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -28,12 +30,13 @@ export default function Templates() {
   // query para listar
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ["templates"],
-    queryFn: getAllTemplates,
+    queryFn: () => getAllTemplates(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId,
   });
 
   // mutation para crear
   const mutation = useMutation({
-    mutationFn: (newData: { name: string; description: string }) =>
+    mutationFn: (newData: { name: string; description: string; organization_id: string }) =>
       addTemplate(newData),
     onSuccess: (created) => {
       // invalidamos cache y navegamos
@@ -41,21 +44,30 @@ export default function Templates() {
       navigate(`/configTemplate/${created.id}`);
       // limpiamos estado y cerramos diálogo solo en éxito
       setNewName("");
+      setNewDescription("");
       setError(null);
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      // solo manejamos el error, mantenemos el diálogo abierto
-      setError(error.message || "Ocurrió un error al crear el template");
+      setError(error.message || "An error occurred while creating the template");
     },
   });
 
   const handleAccept = () => {
-    if (!newName.trim()) return;
-    // limpiamos errores previos antes de hacer la mutación
+    if (!newName.trim()) {
+      setError("Name is required");
+      return;
+    }
+    if (!selectedOrganizationId) {
+      setError("Organization is required");
+      return;
+    }
     setError(null);
-    mutation.mutate({ name: newName, description: newDescription });
-    // NO cerramos el diálogo ni limpiamos el input aquí
+    mutation.mutate({
+      name: newName,
+      description: newDescription,
+      organization_id: selectedOrganizationId,
+    });
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -69,7 +81,7 @@ export default function Templates() {
         {/* Trigger para abrir diálogo */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="icon" aria-label="Agregar template" className="hover:cursor-pointer">
+            <Button size="icon" variant="outline" aria-label="Agregar template" className="hover:cursor-pointer">
               +
             </Button>
           </DialogTrigger>
@@ -110,14 +122,15 @@ export default function Templates() {
                 variant="outline"
                 onClick={() => {
                   setNewName("");
+                  setNewDescription("");
                   setError(null);
                   setIsDialogOpen(false);
                 }}
                 className="hover:cursor-pointer"
               >
-                Cancelar
+                Cancel
               </Button>
-              <Button onClick={handleAccept} disabled={mutation.isPending} className="hover:cursor-pointer">
+              <Button onClick={handleAccept} disabled={!newName.trim() || !selectedOrganizationId || mutation.isPending} className="hover:cursor-pointer">
                 {mutation.isPending ? "Creating..." : "Save"}
               </Button>
             </DialogFooter>

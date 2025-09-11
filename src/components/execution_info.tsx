@@ -3,8 +3,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network } from "lucide-react";
+import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
+import { exportExecutionToMarkdown, deleteExecution, createExecution } from '@/services/executions';
+import { useState } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 
 export interface ExecutionInfoProps {
@@ -16,10 +19,49 @@ export interface ExecutionInfoProps {
         updated_at: string;
     };
     onRefresh?: () => void;
+    isGenerating: boolean;
 }
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useNavigate();
+    const [isExporting, setIsExporting] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleExportToMarkdown = async () => {
+        try {
+            setIsExporting(true);
+            await exportExecutionToMarkdown(execution.id);
+        } catch (error) {
+            console.error('Error exporting execution to markdown:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        try {
+            setIsDeleting(true);
+            await deleteExecution(execution.id);
+            navigate(`/document/${execution.document_id}`);
+        } catch (error) {
+            console.error('Error deleting execution:', error);
+        } finally {
+            setIsDeleting(false);
+            setIsDeleteOpen(false);
+        }
+    };
+
+    const handleNewExecution = () => {
+        createExecution(execution.document_id!)
+          .then((execution) => {
+            console.log("Execution created:", execution);
+            navigate(`/execution/${execution.id}`);
+          })
+          .catch((error) => {
+            console.error("Error creating execution:", error);
+          });
+      };
     const getStatusBadge = (status: string) => {
         const statusConfig = {
             pending: { variant: "outline", label: "Pending", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
@@ -41,7 +83,8 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     };
 
     return (
-        <Card>
+        <>
+            <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                         <span>Execution Information</span>
@@ -59,7 +102,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                 variant="outline"
                                 size="sm"
                                 className="hover:cursor-pointer"
-                                onClick={() => console.log('Dependencies and context')} // Placeholder for dependencies logic
+                                onClick={() => navigate(`/docDepend/${execution.document_id}`)}
                             >
                                 <Network className="h-4 w-4 mr-2" />
                                 Dependencies and context
@@ -77,28 +120,33 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer"
-                                        onClick={() => navigate(`/document/${execution.document_id}/new-execution`)}
+                                        onClick={handleExportToMarkdown}
+                                        disabled={isExporting}
+                                    >
+                                        <DiamondMinus className="h-4 w-4 mr-2" />
+                                        {isExporting ? 'Exporting...' : 'Export to Markdown'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                        className="hover:cursor-pointer"
+                                        onClick={handleNewExecution}
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
                                         New execution
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer"
-                                        onClick={() => console.log('Configure document:', execution.document_id)}
+                                        onClick={() => navigate(`/configDocument/${execution.document_id}`)}
                                     >
                                         <Settings className="h-4 w-4 mr-2" />
                                         Configure document
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer text-red-600"
-                                        onClick={() => {
-                                            if (confirm('Are you sure you want to delete this execution?')) {
-                                                console.log('Delete execution:', execution.id);
-                                            }
-                                        }}
+                                        onClick={() => setIsDeleteOpen(true)}
+                                        disabled={isDeleting}
                                     >
                                         <Trash2 className="h-4 w-4 mr-2" />
-                                        Delete
+                                        {isDeleting ? 'Deleting...' : 'Delete'}
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -122,6 +170,26 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                     </div>
                 </CardContent>
             </Card>
+
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete execution</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the execution.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="hover:cursor-pointer" disabled={isDeleting}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction className="hover:cursor-pointer" onClick={handleConfirmDelete} disabled={isDeleting}>
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 
 }

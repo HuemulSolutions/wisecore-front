@@ -15,6 +15,9 @@ import {
   ChevronRight,
   FileCog,
   RefreshCw,
+  DiamondMinus,
+  File,
+  ArrowLeft
 } from "lucide-react";
 
 export default function DocumentPage() {
@@ -34,6 +37,18 @@ export default function DocumentPage() {
 
   const handleRefreshExecutions = () => {
     refetch();
+  };
+
+  const handleBack = () => {
+    navigate("/library", { 
+      state: { 
+        selectedDocumentId: id,
+        selectedDocumentName: document?.name,
+        selectedDocumentType: "document",
+        // Try to get breadcrumb from previous navigation state
+        restoreBreadcrumb: true
+      } 
+    });
   };
 
   const handleDelete = async () => {
@@ -88,6 +103,11 @@ export default function DocumentPage() {
     console.log("Export to PowerPoint");
   };
 
+  const handleExportMarkdown = () => {
+    // Implementar lógica para exportar a Markdown
+    console.log("Export to Markdown");
+  };
+
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
   if (!document) {
@@ -98,7 +118,19 @@ export default function DocumentPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Manage Document</h1>
+        <div className="flex items-center gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hover:cursor-pointer"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold">Manage Asset</h1>
+        </div>
       </div>
 
       {/* Document Content */}
@@ -106,7 +138,7 @@ export default function DocumentPage() {
         {/* Document Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Document Information</CardTitle>
+            <CardTitle>Asset Information</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -119,6 +151,26 @@ export default function DocumentPage() {
                 <p className="font-medium">
                   {document.description || "No description"}
                 </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Organization</p>
+                <p className="font-medium">
+                  {document.organization}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Asset Type</p>
+                {document.document_type ? (
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: document.document_type.color }}
+                    />
+                    {document.document_type.name}
+                  </span>
+                ) : (
+                  <p className="font-medium text-gray-500">No type</p>
+                )}
               </div>
               <div>
                 <p className="text-sm text-gray-600">Template</p>
@@ -163,7 +215,7 @@ export default function DocumentPage() {
               onClick={handleConfigureDocument}
             >
               <Settings className="h-4 w-4 mr-2" />
-              Configure Document
+              Configure Asset
             </Button>
             <Button
               variant="outline"
@@ -188,7 +240,7 @@ export default function DocumentPage() {
               title="Delete Document"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Document
+              Delete Asset
             </Button>
             <div className="border-t pt-3 mt-3">
               <p className="text-sm text-gray-600 mb-2">Export Options</p>
@@ -200,7 +252,7 @@ export default function DocumentPage() {
                   onClick={handleExportPDF}
                   disabled={true}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
+                  <File className="h-4 w-4 mr-2" />
                   Export to PDF
                 </Button>
                 <Button
@@ -222,6 +274,15 @@ export default function DocumentPage() {
                 >
                   <Presentation className="h-4 w-4 mr-2" />
                   Export to PowerPoint
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start hover:cursor-pointer"
+                  onClick={handleExportMarkdown}
+                >
+                  <DiamondMinus className="h-4 w-4 mr-2" />
+                  Export to Markdown
                 </Button>
               </div>
             </div>

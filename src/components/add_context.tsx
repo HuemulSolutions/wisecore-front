@@ -12,20 +12,65 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { getContext } from "@/services/context";
+import { getContext, addTextContext, addDocumentContext, deleteContext } from "@/services/context";
 import { ContextDisplay } from "./context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export default function AddContext({ id }: { id: string }) {
   const [context, setContext] = useState("");
   const [contextName, setContextName] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  
+  const queryClient = useQueryClient();
 
   // Obtener la lista de contextos del documento
   const { data: contexts, isLoading, error } = useQuery({
     queryKey: ['contexts', id],
     queryFn: () => getContext(id),
     enabled: !!id
+  });
+
+  // Mutación para añadir contexto de texto
+  const addTextMutation = useMutation({
+    mutationFn: ({ name, content }: { name: string; content: string }) => 
+      addTextContext(id, name, content),
+    onSuccess: () => {
+      toast.success("Text context added successfully");
+      setContext("");
+      setContextName("");
+      queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+    },
+    onError: (error: Error) => {
+      toast.error("Error adding text context: " + error.message);
+    }
+  });
+
+  // Mutación para añadir contexto de documento
+  const addDocumentMutation = useMutation({
+    mutationFn: (file: File) => addDocumentContext(id, file),
+    onSuccess: () => {
+      toast.success("Document context added successfully");
+      setUploadedFile(null);
+      const fileInput = document.getElementById("file") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
+      queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+    },
+    onError: (error: Error) => {
+      toast.error("Error adding document context: " + error.message);
+    }
+  });
+
+  // Mutación para eliminar contexto
+  const deleteContextMutation = useMutation({
+    mutationFn: (contextId: string) => deleteContext(id, contextId),
+    onSuccess: () => {
+      toast.success("Context deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+    },
+    onError: (error: Error) => {
+      toast.error("Error deleting context: " + error.message);
+    }
   });
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +82,26 @@ export default function AddContext({ id }: { id: string }) {
 
   const handleRemoveFile = () => {
     setUploadedFile(null);
+  };
+
+  const handleAddTextContext = () => {
+    if (!contextName.trim() || !context.trim()) {
+      toast.error("Please fill in both name and content fields");
+      return;
+    }
+    addTextMutation.mutate({ name: contextName, content: context });
+  };
+
+  const handleAddDocumentContext = () => {
+    if (!uploadedFile) {
+      toast.error("Please select a file first");
+      return;
+    }
+    addDocumentMutation.mutate(uploadedFile);
+  };
+
+  const handleDeleteContext = (contextId: string) => {
+    deleteContextMutation.mutate(contextId);
   };
 
   return (
@@ -76,10 +141,11 @@ export default function AddContext({ id }: { id: string }) {
               <Button
                 type="button"
                 className="w-full hover:cursor-pointer"
-                onClick={() => console.log("Text context added:", context)}
+                onClick={handleAddTextContext}
+                disabled={addTextMutation.isPending}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Context
+                {addTextMutation.isPending ? "Adding..." : "Add Context"}
               </Button>
             </TabsContent>
             <TabsContent value="document" className="space-y-2">
@@ -120,12 +186,11 @@ export default function AddContext({ id }: { id: string }) {
               <Button
                 type="button"
                 className="w-full hover:cursor-pointer"
-                onClick={() =>
-                  console.log("Document context added:", uploadedFile)
-                }
+                onClick={handleAddDocumentContext}
+                disabled={addDocumentMutation.isPending}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Context
+                {addDocumentMutation.isPending ? "Adding..." : "Add Context"}
               </Button>
             </TabsContent>
           </Tabs>
@@ -143,7 +208,11 @@ export default function AddContext({ id }: { id: string }) {
             {contexts && contexts.length > 0 && (
               <div className="space-y-4">
                 {contexts.map((contextItem: any, index: number) => (
-                  <ContextDisplay key={index} item={contextItem} />
+                  <ContextDisplay 
+                    key={index} 
+                    item={contextItem} 
+                    onDelete={handleDeleteContext}
+                  />
                 ))}
               </div>
             )}

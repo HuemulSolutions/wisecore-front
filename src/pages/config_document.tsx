@@ -1,12 +1,16 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import Section from "@/components/section";
+import { useState, useEffect } from "react";
+import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_document_section";
 import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
-import { getDocumentById, getDocumentSections, createDocumentSection } from "@/services/documents";
+import { getDocumentById } from "@/services/documents";
+import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +18,14 @@ export default function ConfigDocumentPage() {
   const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
+  // Estado local para orden optimista
+  const [orderedSections, setOrderedSections] = useState<any[]>([]);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const {
     data: document,
@@ -25,49 +37,107 @@ export default function ConfigDocumentPage() {
     enabled: !!id, // Solo ejecutar si id está definido
   });
 
-  const {
-    data: sections,
-    isLoading: isSectionsLoading,
-    error: sectionsError,
-  } = useQuery({
-    queryKey: ["documentSections", id],
-    queryFn: () => getDocumentSections(id!),
-    enabled: !!id, // Solo ejecutar si id está definido
-  });
-
-    const addSectionMutation = useMutation({
-    mutationFn: (sectionData: { name: string; document_id: string, prompt: string, dependencies: string[] }) => 
-      createDocumentSection(sectionData),
+  const addSectionMutation = useMutation({
+    mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
+      createSection(sectionData),
     onSuccess: () => {
-      // 4. Al tener éxito, invalidar la query para refrescar los datos
-      queryClient.invalidateQueries({ queryKey: ["documentSections", id] });
-      setIsAddingSection(false); // Ocultar el formulario
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+      setIsAddingSection(false);
     },
     onError: (error) => {
       console.error("Error creating section:", error);
       toast.error("Error creating section: " + (error as Error).message);
-    }
+    },
   });
 
-  if (isLoading || isSectionsLoading) return <div>Loading...</div>;
-if (error || sectionsError) {
-    const errorMessage = error ? (error as Error).message : (sectionsError as Error).message;
-    return <div>Error: {errorMessage}</div>;
-}
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
+      updateSection(sectionId, sectionData),
+    onSuccess: () => {
+      toast.success("Section updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating section:", error);
+      toast.error("Error updating section: " + (error as Error).message);
+    },
+  });
+
+  const deleteSectionMutation = useMutation({
+    mutationFn: (sectionId: string) => deleteSection(sectionId),
+    onSuccess: () => {
+      toast.success("Section deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error deleting section:", error);
+      toast.error("Error deleting section: " + (error as Error).message);
+    },
+  });
+
+  const reorderSectionsMutation = useMutation({
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    onSuccess: () => {
+      toast.success("Sections order updated");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating sections order:", error);
+      toast.error("Error updating sections order: " + (error as Error).message);
+    },
+  });
+
+  // Sincroniza estado local cuando cambien las secciones del documento
+  useEffect(() => {
+    if (document?.sections) {
+      const sorted = [...document.sections].sort(
+        (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+      );
+      setOrderedSections(sorted);
+    }
+  }, [document?.sections]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  if (error) {
+    console.error("Error fetching document:", error);
+    return <div>Error loading assset.</div>;
+  }
 
   if (!document) {
-    return <div>No document found with ID: {id}</div>;
+    return <div>No asset found with ID: {id}</div>;
   }
 
   const handleDelete = async () => {
     try {
       // Aquí deberías implementar la lógica para eliminar el documento
-      // Por ejemplo, llamar a un servicio de API para eliminar el documento
       console.log("Document deleted successfully");
-      navigate("/documents"); // Redirigir a la lista de documentos
+      navigate("/documents");
     } catch (deleteError) {
       console.error("Error deleting document:", deleteError);
     }
+  };
+
+  // DnD: usa orderedSections para evitar "snap back"
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orderedSections.findIndex((s: any) => s.id === active.id);
+    const newIndex = orderedSections.findIndex((s: any) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const prev = [...orderedSections];
+    const reordered = arrayMove(orderedSections, oldIndex, newIndex);
+
+    // Optimista en UI
+    setOrderedSections(reordered);
+
+    const payload = reordered.map((s: any, idx: number) => ({ section_id: s.id, order: idx + 1 }));
+    reorderSectionsMutation.mutate(payload, {
+      onError: () => setOrderedSections(prev),
+    });
   };
 
   return (
@@ -113,10 +183,8 @@ if (error || sectionsError) {
       {isAddingSection ? (
         <AddSectionForm
           documentId={document.id}
-          //   onSubmit={(values) => addSectionMutation.mutate(values)}
           onSubmit={(values) => addSectionMutation.mutate(values)}
           onCancel={() => setIsAddingSection(false)}
-          //   isPending={addSectionMutation.isPending}
           isPending={false}
           existingSections={document.sections}
         />
@@ -132,15 +200,27 @@ if (error || sectionsError) {
         </Button>
       )}
 
-      <div className="space-y-4">
-        {sections && sections.length > 0 ? (
-          sections.map((section: any) => (
-           <Section key={section.id} item={section} />
-          ))
-        ) : (
-          <div className="text-gray-500">No sections available.</div>
-        )}
-    </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {orderedSections && orderedSections.length > 0 ? (
+              orderedSections.map((section: any) => (
+                <SortableSection
+                  key={section.id}
+                  item={section}
+                  existingSections={document.sections}
+                  onSave={(sectionId: string, sectionData: object) =>
+                    updateSectionMutation.mutate({ sectionId, sectionData })
+                  }
+                  onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
+                />
+              ))
+            ) : (
+              <div className="text-gray-500">No sections available.</div>
+            )}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }

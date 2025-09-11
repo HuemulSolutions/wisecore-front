@@ -10,14 +10,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection } from "@/services/templates";
+import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import Section  from "@/components/section";
+// import Section  from "@/components/section";
+import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_template_section";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 export default function ConfigTemplate() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +36,14 @@ export default function ConfigTemplate() {
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // Estado local para mantener el orden de secciones en UI (optimista)
+  const [orderedSections, setOrderedSections] = useState<any[]>([]);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const { data: template, isLoading, error } = useQuery({
     queryKey: ["template", id],
@@ -37,9 +55,8 @@ export default function ConfigTemplate() {
     mutationFn: (sectionData: { name: string; template_id: string, prompt: string, dependencies: string[] }) => 
       createTemplateSection(sectionData),
     onSuccess: () => {
-      // 4. Al tener éxito, invalidar la query para refrescar los datos
       queryClient.invalidateQueries({ queryKey: ["template", id] });
-      setIsAddingSection(false); // Ocultar el formulario
+      setIsAddingSection(false);
     },
     onError: (error) => {
       console.error("Error creating section:", error);
@@ -47,11 +64,60 @@ export default function ConfigTemplate() {
     }
   });
 
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
+      updateTemplateSection(sectionId, sectionData),
+    onSuccess: () => {
+      toast.success("Section updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating section:", error);
+      toast.error("Error updating section: " + (error as Error).message);
+    }
+  });
+
+  // Nueva mutation para eliminar sección (igual a la de update)
+  const deleteSectionMutation = useMutation({
+    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId),
+    onSuccess: () => {
+      toast.success("Section deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error deleting section:", error);
+      toast.error("Error deleting section: " + (error as Error).message);
+    }
+  });
+
+  // Mutation para reordenar secciones y persistir en backend
+  const reorderSectionsMutation = useMutation({
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    onSuccess: () => {
+      toast.success("Sections order updated");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error updating sections order:", error);
+      toast.error("Error updating sections order: " + (error as Error).message);
+    },
+  });
+
   useEffect(() => {
     if (error) {
       console.error("Error fetching template:", error);
     }
   }, [error]);
+
+  // Sincronizar orderedSections cuando cambie el template
+  useEffect(() => {
+    if (template?.template_sections) {
+      const sorted = [...template.template_sections].sort(
+        (a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)
+      );
+      setOrderedSections(sorted);
+    }
+  }, [template?.template_sections]);
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {(error as Error).message}</div>;
@@ -72,12 +138,69 @@ export default function ConfigTemplate() {
     }
   }
 
+  const handleExport = () => {
+    const templateData = {
+      name: template.name,
+      description: template.description,
+      sections: template.template_sections.map((section: any) => ({
+        name: section.name,
+        prompt: section.prompt,
+        dependencies: section.dependencies
+      }))
+    };
+    
+    const dataStr = JSON.stringify(templateData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${template.name.replace(/\s+/g, '_')}_template.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Template exported successfully");
+  }
+
   console.log("Template data:", template);
+
+  // El orden visible lo maneja orderedSections (optimista)
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orderedSections.findIndex((s: any) => s.id === active.id);
+    const newIndex = orderedSections.findIndex((s: any) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const prev = [...orderedSections];
+    const reordered = arrayMove(orderedSections, oldIndex, newIndex);
+
+    // Actualiza UI de forma optimista
+    setOrderedSections(reordered);
+
+    const payload = reordered.map((s: any, idx: number) => ({ section_id: s.id, order: idx + 1 }));
+    reorderSectionsMutation.mutate(payload, {
+      onError: () => setOrderedSections(prev),
+    });
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Configure Template</h1>
+        <div className="flex items-center gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hover:cursor-pointer"
+            onClick={() => navigate("/templates")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold">Configure Template</h1>
+        </div>
       </div>
 
       <div className="border border-gray-400 rounded-lg p-6 shadow-sm">
@@ -87,19 +210,38 @@ export default function ConfigTemplate() {
             <p className="text-gray-600">Description: {template.description}</p>
             <p className="text-gray-400 text-sm pt-3">Created: {formatDate(template.created_at)}</p>
           </div>
-          <Button 
-            type="button"  
-            size="sm"
-            className="hover:cursor-pointer ml-4" 
-            onClick={() => setShowDeleteDialog(true)}
-            title="Delete Template"
-          >
-            <Trash2 className="h-4 w-4 m-2" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="hover:cursor-pointer ml-4" 
+                title="More options"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem 
+                className="hover:cursor-pointer" 
+                onClick={handleExport}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="text-red-600 hover:cursor-pointer" 
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-        {isAddingSection ? (
+      {isAddingSection ? (
         <AddSectionForm
           templateId={template.id}
           onSubmit={(values) => addSectionMutation.mutate(values)}
@@ -119,11 +261,23 @@ export default function ConfigTemplate() {
         </Button>
       )}
 
-      <div className="space-y-4">
-        {template.template_sections.map((section: any) => (
-          <Section key={section.id} item={section} />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-4">
+            {orderedSections.map((section: any) => (
+              <SortableSection
+                key={section.id}
+                item={section}
+                existingSections={template.template_sections}
+                onSave={(sectionId: string, sectionData: object) =>
+                  updateSectionMutation.mutate({ sectionId, sectionData })
+                }
+                onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
@@ -146,4 +300,4 @@ export default function ConfigTemplate() {
       </AlertDialog>
     </div>
   );
-} 
+}

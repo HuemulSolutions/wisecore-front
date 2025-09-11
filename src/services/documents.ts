@@ -1,7 +1,19 @@
 import { backendUrl } from "@/config";
 
-export async function getAllDocuments() {
-  const response = await fetch(`${backendUrl}/documents/`);
+export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
+  const url = new URL(`${backendUrl}/documents/`);
+  if (documentTypeId) {
+    url.searchParams.append('document_type_id', documentTypeId);
+  }
+  
+  const headers: Record<string, string> = {};
+  if (organizationId) {
+    headers['OrganizationId'] = organizationId;
+  }
+  
+  const response = await fetch(url.toString(), {
+    headers,
+  });
   if (!response.ok) {
     throw new Error('Error al obtener los documentos');
   }
@@ -20,6 +32,17 @@ export async function getDocumentById(documentId: string) {
   return data.data;
 }
 
+export async function deleteDocument(documentId: string) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Error al eliminar el documento');
+  }
+  console.log('Document deleted:', documentId);
+  return true;
+}
+
 export async function getDocumentSections(documentId: string) {
   const response = await fetch(`${backendUrl}/documents/${documentId}/sections`);
   if (!response.ok) {
@@ -30,31 +53,13 @@ export async function getDocumentSections(documentId: string) {
   return data.data;
 }
 
-export async function createDocumentSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string }) {
-    const response = await fetch(`${backendUrl}/documents/sections/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sectionData),
-    });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error creating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
-    const data = await response.json();
-    console.log('Section created:', data.data);
-    return data.data;
-}
-
-export async function createDocument(documentData: { name: string; description?: string; template_id?: string | null }) {
+export async function createDocument(documentData: { name: string; description?: string; 
+  template_id?: string | null; document_type_id?: string, folder_id?: string }, organizationId: string) {
   const response = await fetch(`${backendUrl}/documents/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'OrganizationId': organizationId,
     },
     body: JSON.stringify(documentData),
   });
@@ -65,6 +70,16 @@ export async function createDocument(documentData: { name: string; description?:
 
   const data = await response.json();
   console.log('Document created:', data.data);
+  return data.data;
+}
+
+export async function getDocumentContent(documentId: string) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}/content`);
+  if (!response.ok) {
+    throw new Error('Error al obtener el contenido del documento');
+  }
+  const data = await response.json();
+  console.log('Document content fetched:', data.data);
   return data.data;
 }
 

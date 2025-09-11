@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,20 +22,34 @@ import {
   ChevronUp,
   MoreVertical,
   Edit,
-  Trash2,
+  Trash2
 } from "lucide-react";
+import EditSection from "./edit_section";
 
 interface Item {
+  id: string;
   name: string;
   prompt: string;
   order: number;
-  dependencies: string[];
+  dependencies: {id: string; name: string }[];
 }
 
-export default function TemplateSection({ item }: { item: Item }) {
+interface Props {
+  item: Item;
+  existingSections: object[];
+  onSave: (sectionId: string, sectionData: object) => void;
+  onDelete: (sectionId: string) => void;
+}
+
+export default function Section({ item, existingSections, onSave, onDelete }: Props ) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const maxPreviewLength = 100;
+
+  useEffect(() => {
+    console.log('Section Props:', { item, existingSections });
+  }, [item, existingSections]);
 
   const shouldShowExpandButton = item.prompt.length > maxPreviewLength;
   const displayText =
@@ -45,9 +59,41 @@ export default function TemplateSection({ item }: { item: Item }) {
 
   const handleDelete = () => {
     // Aquí puedes agregar la lógica para eliminar el item
-    console.log('Deleting item:', item.name);
+    onDelete(item.id);
     setShowDeleteDialog(false);
   };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = (updatedItem: Item) => {
+    // Aquí puedes agregar la lógica para guardar los cambios
+    const dependencies = updatedItem.dependencies.map(dep => dep.id);
+    onSave(item.id, {
+      name: updatedItem.name,
+      prompt: updatedItem.prompt,
+      order: updatedItem.order,
+      dependencies: dependencies
+    });
+    setIsEditing(false);
+  };
+
+  // Si está en modo edición, mostrar el componente EditSection
+  if (isEditing) {
+    return (
+      <EditSection
+        item={item}
+        onCancel={handleCancelEdit}
+        onSave={handleSaveEdit}
+        existingSections={existingSections as { id: string; name: string }[]}
+      />
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -70,7 +116,10 @@ export default function TemplateSection({ item }: { item: Item }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="hover:cursor-pointer">
+              <DropdownMenuItem 
+                className="hover:cursor-pointer"
+                onClick={handleEdit}
+              >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
@@ -95,7 +144,7 @@ export default function TemplateSection({ item }: { item: Item }) {
                   key={index}
                   className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full"
                 >
-                  {dependency}
+                  {dependency.name}
                 </span>
               ))}
             </div>
@@ -131,18 +180,18 @@ export default function TemplateSection({ item }: { item: Item }) {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el template "{item.name}".
+              This action cannot be undone. This will permanently delete the template "{item.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="hover:cursor-pointer">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="hover:cursor-pointer">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700 hover:cursor-pointer"
             >
-              Eliminar
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

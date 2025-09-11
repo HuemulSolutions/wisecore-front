@@ -41,3 +41,105 @@ export async function createExecution(documentId: string) {
     console.log('Execution created:', data.data);
     return data.data;
 }
+
+
+export async function deleteExecution(executionId: string) {
+    console.log(`Deleting execution with ID: ${executionId}`);
+    const response = await fetch(`${backendUrl}/execution/${executionId}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        throw new Error('Error al eliminar la ejecución');
+    }
+    const data = await response.json();
+    console.log('Execution deleted:', data);
+    return data;
+}
+
+
+export async function updateLLM(executionId: string, llmId: string) {
+    console.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
+    const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ llm_id: llmId }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al actualizar el LLM de la ejecución');
+    }
+
+    const data = await response.json();
+    console.log('LLM updated for execution:', data.data);
+    return data.data;
+}
+
+export async function modifyContent(sectionId: string, content: string) {
+    console.log(`Modifying content for section ID: ${sectionId}`);
+    const response = await fetch(`${backendUrl}/execution/modify_content/${sectionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al modificar el contenido de la sección');
+    }
+
+    const data = await response.json();
+    console.log('Section content modified:', data.data);
+    return data.data;
+}
+
+export async function exportExecutionToMarkdown(executionId: string) {
+    console.log(`Exporting execution to markdown for ID: ${executionId}`);
+    const response = await fetch(`${backendUrl}/execution/export_markdown/${executionId}`);
+    
+    if (!response.ok) {
+        throw new Error('Error al exportar la ejecución a markdown');
+    }
+
+    // Obtener el contenido del archivo y el nombre del archivo desde los headers
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filename = contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] || `execution_${executionId}.md`;
+    
+    // Crear el enlace de descarga
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    
+    // Disparar la descarga
+    document.body.appendChild(link);
+    link.click();
+    
+    // Limpiar
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    console.log(`Execution exported successfully as: ${filename}`);
+    return { filename, success: true };
+}
+
+
+
+
+export async function approveExecution(executionId: string) {
+    console.log(`Approving execution with ID: ${executionId}`);
+    const response = await fetch(`${backendUrl}/execution/approve/${executionId}`, {
+        method: 'POST',
+    });
+    if (!response.ok) {
+        throw new Error('Error al aprobar la ejecución');
+    }
+    const data = await response.json();
+    console.log('Execution approved:', data.data);
+    return data.data;
+}
+
+
