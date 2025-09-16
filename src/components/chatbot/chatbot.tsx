@@ -1,6 +1,6 @@
 // src/components/Chatbot.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Plus } from "lucide-react";
+import { MessageCircle, X, Send, Plus, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./bubble";
 import type { Message } from "./bubble";
@@ -12,6 +12,7 @@ interface ChatbotProps {
 
 export default function Chatbot({ executionId }: ChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -133,7 +134,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
         <Button
           onClick={() => setIsOpen(!isOpen)}
           size="lg"
-          className="h-14 w-14 rounded-full bg-primary hover:bg-secondary, hover:cursor-pointer text-white shadow-lg transition-all duration-300 transform hover:scale-105"
+          className="h-14 w-14 rounded-full bg-primary hover:bg-secondary hover:cursor-pointer text-white shadow-lg transition-all duration-300 transform hover:scale-105"
         >
           {isOpen ? (
             <X className="w-6 h-6" />
@@ -145,21 +146,37 @@ export default function Chatbot({ executionId }: ChatbotProps) {
 
       {/* Ventana de chat */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-130 h-150 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col">
+        <div
+          className={`fixed bottom-24 right-6 z-50 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-500 ease-in-out ${
+            isExpanded
+              ? 'w-[min(100vw-4rem,1100px)] h-[min(100vh-6rem,900px)]'
+              : 'w-[520px] h-[600px]'
+          }`}
+        >
           {/* Header */}
           <div className="bg-primary text-white p-4 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <MessageCircle className="w-5 h-5" />
               <h3 className="font-semibold">Wisecore AI</h3>
             </div>
-            <Button
-              onClick={handleClearConversation}
-              size="sm"
-              variant="ghost"
-              className="text-white hover:text-gray-200 hover:bg-primary/20 hover:cursor-pointer h-8 w-8 p-0"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                onClick={() => setIsExpanded(!isExpanded)}
+                size="sm"
+                variant="ghost"
+                className="text-white hover:text-gray-200 hover:bg-primary/20 hover:cursor-pointer h-8 w-8 p-0"
+              >
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </Button>
+              <Button
+                onClick={handleClearConversation}
+                size="sm"
+                variant="ghost"
+                className="text-white hover:text-gray-200 hover:bg-primary/20 hover:cursor-pointer h-8 w-8 p-0"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Mensajes */}
@@ -173,7 +190,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
             <div ref={endRef} />
           </div>
 
-          {/* Input */}
+            {/* Input */}
           <div className="border-t border-gray-200 p-4">
             <div className="flex items-end space-x-2">
               <textarea
@@ -191,8 +208,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "auto";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 128) + "px";
+                  target.style.height = Math.min(target.scrollHeight, 128) + "px";
                 }}
               />
               <Button
