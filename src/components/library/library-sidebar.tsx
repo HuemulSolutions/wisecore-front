@@ -1,7 +1,14 @@
 import { useState } from "react";
-import { Folder, ChevronLeft, Search, Home, Loader2, Plus, FileText } from "lucide-react";
+import { Folder, ChevronLeft, Search, Home, Loader2, Plus, FileText, Network } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +51,7 @@ export function LibrarySidebar({
   onRefresh
 }: LibrarySidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
 
   // Get current folder ID for parent folder parameter
   const getCurrentFolderId = (): string | undefined => {
@@ -94,111 +102,147 @@ export function LibrarySidebar({
     setSelectedFile(createdDocument);
   };
 
+  const handleGraphNavigation = () => {
+    // Save current state to sessionStorage
+    sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
+    if (selectedFile) {
+      sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
+    }
+    
+    // Navigate to graph page
+    navigate('/graph', {
+      state: {
+        fromLibrary: true,
+        breadcrumb: breadcrumb,
+        selectedFile: selectedFile
+      }
+    });
+  };
+
   return (
-    <div className="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
-      {/* Sidebar Header */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center gap-2 mb-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleHomeClick}
-            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-100"
-            disabled={breadcrumb.length === 0}
-          >
-            <Home className="h-4 w-4" />
-          </Button>
-          {breadcrumb.length > 0 && (
+    <TooltipProvider>
+      <div className="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+        {/* Sidebar Header */}
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center gap-2 mb-3">
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleBackClick}
+              onClick={handleHomeClick}
               className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-100"
+              disabled={breadcrumb.length === 0}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <Home className="h-4 w-4" />
             </Button>
-          )}
-          <h2 className="text-sm font-medium text-gray-900">{getCurrentFolderName()}</h2>
-        </div>
-        
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-8 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* File/Folder List */}
-      <div className="flex-1 overflow-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            <span className="ml-2 text-sm text-gray-500">Loading...</span>
-          </div>
-        ) : (
-          <div className="py-2">
-            {getFilteredItems().map((item) => (
-              <LibrarySidebarItem
-                key={item.id}
-                item={item}
-                isSelected={selectedFile?.id === item.id}
-                onClick={() => item.type === "folder" ? handleFolderClick(item) : handleFileClick(item)}
-                onRefresh={onRefresh}
-                setSelectedFile={setSelectedFile}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Create Button */}
-      <div className="relative">
-        <div className="absolute bottom-4 right-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {breadcrumb.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-gray-100 rounded-full shadow-sm border border-gray-200 bg-white"
+                onClick={handleBackClick}
+                className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-100"
               >
-                <Plus className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <CreateFolder
-                trigger={
-                  <DropdownMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <Folder className="h-4 w-4 mr-2" />
-                    Folder
-                  </DropdownMenuItem>
-                }
-                parentFolder={getCurrentFolderId()}
-              />
-              <CreateDocumentLib
-                trigger={
-                  <DropdownMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Asset
-                  </DropdownMenuItem>
-                }
-                folderId={getCurrentFolderId()}
-                onDocumentCreated={handleDocumentCreated}
-              />
-              
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+            <h2 className="text-sm font-medium text-gray-900">{getCurrentFolderName()}</h2>
+          </div>
+          
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-8 text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* File/Folder List */}
+        <div className="flex-1 overflow-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <span className="ml-2 text-sm text-gray-500">Loading...</span>
+            </div>
+          ) : (
+            <div className="py-2">
+              {getFilteredItems().map((item) => (
+                <LibrarySidebarItem
+                  key={item.id}
+                  item={item}
+                  isSelected={selectedFile?.id === item.id}
+                  onClick={() => item.type === "folder" ? handleFolderClick(item) : handleFileClick(item)}
+                  onRefresh={onRefresh}
+                  setSelectedFile={setSelectedFile}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Create Button */}
+        <div className="relative">
+          <div className="absolute bottom-4 left-4">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGraphNavigation}
+                  className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-100 rounded-full shadow-sm border border-gray-200 bg-white"
+                >
+                  <Network className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Asset relationships</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <div className="absolute bottom-4 right-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-gray-100 rounded-full shadow-sm border border-gray-200 bg-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <CreateFolder
+                  trigger={
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <Folder className="h-4 w-4 mr-2" />
+                      Folder
+                    </DropdownMenuItem>
+                  }
+                  parentFolder={getCurrentFolderId()}
+                />
+                <CreateDocumentLib
+                  trigger={
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Asset
+                    </DropdownMenuItem>
+                  }
+                  folderId={getCurrentFolderId()}
+                  onDocumentCreated={handleDocumentCreated}
+                />
+                
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

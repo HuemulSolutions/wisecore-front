@@ -11,7 +11,6 @@ const navItems = [
 	{ to: "/library", label: "Library", icon: LibraryBig },
 	{ to: "/search", label: "Search", icon: Search },
 	{ to: "/templates", label: "Templates", icon: LayoutTemplate },
-	{ to: "/graph", label: "Network Graph", icon: Network },
 	
 ];
 
