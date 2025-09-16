@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Home, Search, LayoutTemplate, X, LibraryBig, Network } from "lucide-react";
+import { Home, Search, LayoutTemplate, X, LibraryBig } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { OrganizationSelector } from "./select_organization";
