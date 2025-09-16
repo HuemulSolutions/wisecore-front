@@ -22,20 +22,20 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [name, setName] = useState("");
-  const [selectedColor, setSelectedColor] = useState("#93C5FD");
+  const [selectedColor, setSelectedColor] = useState("#3B82F6");
   const [error, setError] = useState<string | null>(null);
 
   const predefinedColors = [
-    "#D1D5DB",
-    "#93C5FD",
-    "#FCA5A5",
-    "#86EFAC",
-    "#FDE68A",
-    "#C4B5FD",
-    "#FDBA74",
-    "#F9A8D4",
-    "#7DD3FC",
-    "#BEF264",
+    "#6B7280",
+    "#3B82F6",
+    "#EF4444",
+    "#22C55E",
+    "#EAB308",
+    "#8B5CF6",
+    "#F97316",
+    "#EC4899",
+    "#06B6D4",
+    "#84CC16",
   ];
 
   const mutation = useMutation({
@@ -54,7 +54,7 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
 
   const resetForm = () => {
     setName("");
-    setSelectedColor("#93C5FD");
+    setSelectedColor("#3B82F6");
     setError(null);
   };
 

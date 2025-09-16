@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { getDocumentById } from "@/services/documents";
-import { createExecution } from "@/services/executions";
+import { createExecution, exportExecutionToWord } from "@/services/executions";
 import { formatDate } from "@/services/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -93,9 +93,19 @@ export default function DocumentPage() {
     console.log("Export to PDF");
   };
 
-  const handleExportWord = () => {
-    // Implementar lógica para exportar a Word
-    console.log("Export to Word");
+  const handleExportWord = async () => {
+    try {
+      const lastExecution = document.executions?.[0]; // Get the most recent execution
+      if (!lastExecution) {
+        console.error("No executions found for this document");
+        return;
+      }
+      
+      await exportExecutionToWord(lastExecution.id.toString());
+      console.log("Word export completed successfully");
+    } catch (error) {
+      console.error("Error exporting to Word:", error);
+    }
   };
 
   const handleExportPPT = () => {
@@ -260,7 +270,7 @@ export default function DocumentPage() {
                   size="sm"
                   className="w-full justify-start hover:cursor-pointer"
                   onClick={handleExportWord}
-                  disabled={true}
+                  disabled={!document.executions || document.executions.length === 0}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   Export to Word
