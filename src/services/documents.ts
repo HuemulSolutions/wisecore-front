@@ -73,11 +73,22 @@ export async function createDocument(documentData: { name: string; description?:
   return data.data;
 }
 
-export async function getDocumentContent(documentId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}/content`);
+export async function getDocumentContent(documentId: string, executionId?: string) {
+  const url = new URL(`${backendUrl}/documents/content`);
+  url.searchParams.append('document_id', documentId);
+  if (executionId) {
+    url.searchParams.append('execution_id', executionId);
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
   if (!response.ok) {
     throw new Error('Error al obtener el contenido del documento');
-  }
+  } 
   const data = await response.json();
   console.log('Document content fetched:', data.data);
   return data.data;

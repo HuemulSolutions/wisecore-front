@@ -147,6 +147,8 @@ export function LibrarySidebar({
                 item={item}
                 isSelected={selectedFile?.id === item.id}
                 onClick={() => item.type === "folder" ? handleFolderClick(item) : handleFileClick(item)}
+                onRefresh={onRefresh}
+                setSelectedFile={setSelectedFile}
               />
             ))}
           </div>

@@ -37,3 +37,19 @@ export async function createFolder(name: string, organizationId?: string, parent
     console.log('Folder created:', data.data);
     return data.data;
 }
+
+
+export async function deleteFolder(folderId: string) {
+    const response = await fetch(`${backendUrl}/library/${folderId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Error deleting folder');
+    }
+    const data = await response.json();
+    console.log('Folder deleted:', folderId, data?.data);
+    return data?.data;
+}
