@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { File } from "lucide-react"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,41 @@ export default function Library() {
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const { selectedOrganizationId } = useOrganization();
+  const hasRestoredRef = useRef(false);
+
+  // Restaurar estado al montar (independiente de location.state)
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
+    const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
+    if (savedBreadcrumb) {
+      try {
+        const parsed = JSON.parse(savedBreadcrumb);
+        if (Array.isArray(parsed) && parsed.length > 0) setBreadcrumb(parsed);
+      } catch {}
+    }
+    if (savedSelectedFile) {
+      try {
+        const parsedFile = JSON.parse(savedSelectedFile);
+        if (parsedFile?.id) setSelectedFile(parsedFile);
+      } catch {}
+    }
+    hasRestoredRef.current = true;
+  }, []);
+
+  // Persistir breadcrumb en cada cambio
+  useEffect(() => {
+    sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
+  }, [breadcrumb]);
+
+  // Persistir / limpiar archivo seleccionado
+  useEffect(() => {
+    if (selectedFile) {
+      sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
+    } else {
+      sessionStorage.removeItem('library-selectedFile');
+    }
+  }, [selectedFile]);
 
   // Handle navigation state to restore selected document and breadcrumb
   useEffect(() => {
@@ -49,6 +84,33 @@ export default function Library() {
           } catch (error) {
             console.error('Error parsing saved breadcrumb:', error);
           }
+        }
+      }
+      
+      // Clear the state after using it
+      navigate(location.pathname, { replace: true });
+    }
+    
+    // Handle returning from graph page
+    if (location.state?.fromLibrary) {
+      const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
+      const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
+      
+      if (savedBreadcrumb) {
+        try {
+          const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
+          setBreadcrumb(parsedBreadcrumb);
+        } catch (error) {
+          console.error('Error parsing saved breadcrumb:', error);
+        }
+      }
+      
+      if (savedSelectedFile) {
+        try {
+          const parsedSelectedFile = JSON.parse(savedSelectedFile);
+          setSelectedFile(parsedSelectedFile);
+        } catch (error) {
+          console.error('Error parsing saved selected file:', error);
         }
       }
       
