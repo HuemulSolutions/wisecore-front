@@ -21,7 +21,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
     const handleSave = () => dirty && !isSaving && onSave(sectionId, value)
     const handleCancel = () => !isSaving && onCancel()
     return (
-        <div className='flex flex-col gap-4 border rounded-md p-4 bg-background shadow-sm'>
+        <div >
             <MDXEditor
                 markdown={value}
                 onChange={setValue}
@@ -42,7 +42,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                         },
                     }), ]}
             />
-            <div className='flex gap-2 justify-end pt-2 border-t'>
+            <div className='flex gap-2 justify-end p-2 border-t'>
                 <Button variant='outline' className='hover:cursor-pointer flex items-center gap-1' onClick={handleCancel} aria-label='Cancel editing' disabled={isSaving}>
                     <X className='h-4 w-4' /> Cancel
                 </Button>

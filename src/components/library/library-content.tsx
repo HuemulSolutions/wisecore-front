@@ -35,6 +35,7 @@ import { exportExecutionToMarkdown, exportExecutionToWord } from "@/services/exe
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
+import SectionExecution from "./library_section";
 
 // API response interface
 interface LibraryItem {
@@ -48,6 +49,12 @@ interface BreadcrumbItem {
   name: string;
 }
 
+// Interface for content sections
+interface ContentSection {
+  id: string;
+  content: string;
+}
+
 interface LibraryContentProps {
   selectedFile: LibraryItem | null;
   breadcrumb: BreadcrumbItem[];
@@ -58,7 +65,40 @@ interface LibraryContentProps {
   onRefresh: () => void;
 }
 
-// Function to extract headings from markdown content for table of contents
+// Function to extract headings from multiple content sections for table of contents
+function extractHeadingsFromSections(sections: ContentSection[]) {
+  const headings: Array<{
+    id: string;
+    title: string;
+    level: number;
+    sectionId: string;
+    sectionIndex: number;
+  }> = [];
+  
+  sections.forEach((section, sectionIndex) => {
+    const headingRegex = /^(#{1,6})\s+(.*)$/gm;
+    let match;
+
+    while ((match = headingRegex.exec(section.content)) !== null) {
+      const level = match[1].length;
+      const title = match[2].trim();
+      // Generate the same ID as the Markdown component
+      const id = `section-${sectionIndex}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+      
+      headings.push({
+        id,
+        title,
+        level,
+        sectionId: section.id,
+        sectionIndex,
+      });
+    }
+  });
+
+  return headings;
+}
+
+// Legacy function for backward compatibility
 function extractHeadings(markdown: string) {
   const headingRegex = /^(#{1,6})\s+(.*)$/gm;
   const headings = [];
@@ -112,7 +152,18 @@ export function LibraryContent({
   // Extract headings for table of contents
   const tocItems = useMemo(() => {
     if (!documentContent?.content) return [];
-    return extractHeadings(documentContent.content);
+    
+    // Check if content is in new format (array of sections)
+    if (Array.isArray(documentContent.content)) {
+      return extractHeadingsFromSections(documentContent.content);
+    }
+    
+    // Fallback for old format (single string)
+    if (typeof documentContent.content === 'string') {
+      return extractHeadings(documentContent.content);
+    }
+    
+    return [];
   }, [documentContent?.content]);
 
   // Handle manage action
@@ -294,7 +345,30 @@ export function LibraryContent({
               </div>
             ) : documentContent?.content ? (
               <div className="prose prose-gray max-w-none">
-                <Markdown>{documentContent.content}</Markdown>
+                {Array.isArray(documentContent.content) ? (
+                  // New format: array of sections
+                  <>
+                    {documentContent.content.map((section: ContentSection, index: number) => (
+                      <div key={section.id} id={`section-${index}`}>
+                        <SectionExecution 
+                          sectionExecution={{
+                            id: section.id,
+                            output: section.content
+                          }}
+                          onUpdate={() => {
+                            // Refresh document content when section is updated
+                            refetchDocumentContent();
+                          }}
+                          readyToEdit={true}
+                          sectionIndex={index}
+                        />
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  // Legacy format: single string content
+                  <Markdown>{documentContent.content}</Markdown>
+                )}
               </div>
             ) : (
               <div className="text-center py-8">
@@ -327,9 +401,9 @@ export function LibraryContent({
         </div>
       )}
 
-      { documentContent && documentContent.content && (
+      {documentContent && documentContent.content && (
         <Chatbot executionId={documentContent.execution_id} />
-      ) }
+      )}
 
       {/* Delete Confirmation AlertDialog (reemplaza Dialog) */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

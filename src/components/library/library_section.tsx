@@ -1,8 +1,8 @@
-import { ChevronDown, ChevronRight, MoreVertical, Edit, Bot, Lock, Send } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Send, Copy } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
-import Editor from './editor';
+import Editor from '../editor';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,21 +13,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { modifyContent } from '@/services/executions';
 import { fixSection } from '@/services/generate';
+import { toast } from 'sonner';
 
 interface SectionExecutionProps {
     sectionExecution: {
         id: string;
-        section_execution_id?: string;
-        name?: string;
-        prompt: string;
         output: string;
     }
     onUpdate?: () => void;
     readyToEdit: boolean;
+    sectionIndex?: number; // Add section index for generating unique IDs
 }
 
-export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit }: SectionExecutionProps) {
-    const [isPromptOpen, setIsPromptOpen] = useState(false);
+export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit, sectionIndex }: SectionExecutionProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
@@ -51,12 +49,22 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         }
     };
 
+    const handleCopy = async () => {
+        try {
+            const contentToCopy = displayedContent;
+            await navigator.clipboard.writeText(contentToCopy);
+            toast.success('Content copied to clipboard!');
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+            toast.error('Failed to copy content to clipboard');
+        }
+    };
+
     const displayedContent = (aiPreview ?? sectionExecution.output.replace(/\\n/g, "\n"));
 
     return (
-        <div className="p-4">
-            <div className="flex items-center justify-between">
-                {sectionExecution.name && <h3 className="text-lg font-semibold">{sectionExecution.name.toUpperCase()}</h3>}
+        <div className="p-2">
+            <div className="flex items-center justify-end">
                 {readyToEdit && (
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -65,6 +73,13 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                            className='hover:cursor-pointer'
+                            onClick={handleCopy}
+                        >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy
+                        </DropdownMenuItem>
                         {!isEditing && !isAiEditing && (
                             <DropdownMenuItem
                                 className='hover:cursor-pointer'
@@ -83,37 +98,11 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 Ask AI to Edit
                             </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem className="hover:cursor-pointer">
-                            <Lock className="h-4 w-4 mr-2" />
-                            Lock
-                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
                 )}
                 
-            </div>
-            
-            <div className="mt-3 pb-3">
-                <button
-                    onClick={() => setIsPromptOpen(!isPromptOpen)}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 hover:cursor-pointer"
-                >
-                    {isPromptOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                    ) : (
-                        <ChevronRight className="h-4 w-4" />
-                    )}
-                    Prompt
-                </button>
-                
-                {isPromptOpen && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded-md border">
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {sectionExecution.prompt}
-                        </pre>
-                    </div>
-                )}
             </div>
             
             {isAiEditing && (
@@ -180,7 +169,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                     <div className="flex gap-2">
                         <Button
                             size="sm"
-                            onClick={() => handleSave(sectionExecution.section_execution_id || sectionExecution.id, aiPreview)}
+                            onClick={() => handleSave(sectionExecution.id, aiPreview)}
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
@@ -208,7 +197,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 isEditing ? (
                     <div className="border rounded-md">
                         <Editor
-                            sectionId={sectionExecution.section_execution_id || sectionExecution.id}
+                            sectionId={sectionExecution.id}
                             content={sectionExecution.output.replace(/\\n/g, "\n")}
                             onSave={handleSave}
                             onCancel={() => setIsEditing(false)}
@@ -216,10 +205,10 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                         />
                     </div>
                 ) : (
-                    <Markdown>{displayedContent}</Markdown>
+                    <Markdown sectionIndex={sectionIndex}>{displayedContent}</Markdown>
                 )
             }
-            <Separator className="my-4" />
+            <Separator className="my-2" />
         </div>
     );
 

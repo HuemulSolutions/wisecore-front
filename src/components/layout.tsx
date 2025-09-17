@@ -39,7 +39,7 @@ export default function Layout() {
             Wisecore
           </Link>
         </header>
-        <main className="flex-1 overflow-auto p-6 bg-muted/50">
+        <main className="flex-1 overflow-auto p-3 bg-muted/50">
           <Outlet />
         </main>
       </div>
