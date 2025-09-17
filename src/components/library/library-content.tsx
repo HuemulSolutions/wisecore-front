@@ -239,7 +239,7 @@ export function LibraryContent({
   return (
     <div className="flex h-full">
       {/* Document Content */}
-      <div className="flex-1 p-8 max-w-none overflow-auto">
+      <div className="flex-1 py-8 px-4 max-w-none overflow-auto">
         <div className="mb-8">
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
             <span>{breadcrumb.map(item => item.name).join(' > ')}</span>
