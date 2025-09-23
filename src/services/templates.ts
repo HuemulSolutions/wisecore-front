@@ -142,3 +142,17 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     console.log('Sections order updated:', data.data);
     return data.data;
 }
+
+export async function generateTemplateSections(templateId: string) {
+    const response = await fetch(`${backendUrl}/templates/${templateId}/generate`, {
+        method: 'POST',
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al generar las secciones de la plantilla');
+    }
+
+    const data = await response.json();
+    console.log('Template sections generated:', data.data);
+    return data.data;
+}

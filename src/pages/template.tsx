@@ -10,14 +10,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection } from "@/services/templates";
+import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection, generateTemplateSections } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 // import Section  from "@/components/section";
 import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_template_section";
-import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft } from "lucide-react";
+import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -103,6 +103,19 @@ export default function ConfigTemplate() {
     },
   });
 
+  // Mutation para generar secciones con AI
+  const generateSectionsMutation = useMutation({
+    mutationFn: (templateId: string) => generateTemplateSections(templateId),
+    onSuccess: () => {
+      toast.success("Sections generated successfully with AI");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+    },
+    onError: (error) => {
+      console.error("Error generating sections with AI:", error);
+      toast.error("Error generating sections with AI: " + (error as Error).message);
+    }
+  });
+
   useEffect(() => {
     if (error) {
       console.error("Error fetching template:", error);
@@ -185,6 +198,11 @@ export default function ConfigTemplate() {
     });
   };
 
+  const handleGenerateWithAI = async () => {
+    if (!template?.id) return;
+    generateSectionsMutation.mutate(template.id);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-6">
@@ -250,15 +268,29 @@ export default function ConfigTemplate() {
           existingSections={template.template_sections}
         />
       ) : (
-        <Button 
-          type="button" 
-          variant="outline" 
-          className="hover:cursor-pointer" 
-          onClick={() => setIsAddingSection(true)}
-        >
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add Section
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="hover:cursor-pointer" 
+            onClick={() => setIsAddingSection(true)}
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Add Section
+          </Button>
+          {(!template.template_sections || template.template_sections.length === 0) && (
+            <Button
+              type="button"
+              variant="outline"
+              className="hover:cursor-pointer"
+              onClick={handleGenerateWithAI}
+              disabled={generateSectionsMutation.isPending}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {generateSectionsMutation.isPending ? "Generating..." : "Generate sections with AI"}
+            </Button>
+          )}
+        </div>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

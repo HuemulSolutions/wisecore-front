@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_document_section";
-import { Trash2, PlusCircle, ArrowLeft } from "lucide-react";
-import { getDocumentById } from "@/services/documents";
+import { PlusCircle, ArrowLeft, Sparkles } from "lucide-react";
+import { getDocumentById, generateDocumentStructure } from "@/services/documents";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -87,6 +87,19 @@ export default function ConfigDocumentPage() {
     },
   });
 
+  // Mutation para generar secciones con AI
+  const generateSectionsMutation = useMutation({
+    mutationFn: (documentId: string) => generateDocumentStructure(documentId),
+    onSuccess: () => {
+      toast.success("Sections generated successfully with AI");
+      queryClient.invalidateQueries({ queryKey: ["document", id] });
+    },
+    onError: (error) => {
+      console.error("Error generating sections with AI:", error);
+      toast.error("Error generating sections with AI: " + (error as Error).message);
+    }
+  });
+
   // Sincroniza estado local cuando cambien las secciones del documento
   useEffect(() => {
     if (document?.sections) {
@@ -109,14 +122,9 @@ export default function ConfigDocumentPage() {
     return <div>No asset found with ID: {id}</div>;
   }
 
-  const handleDelete = async () => {
-    try {
-      // Aquí deberías implementar la lógica para eliminar el documento
-      console.log("Document deleted successfully");
-      navigate("/documents");
-    } catch (deleteError) {
-      console.error("Error deleting document:", deleteError);
-    }
+  const handleGenerateWithAI = async () => {
+    if (!document?.id) return;
+    generateSectionsMutation.mutate(document.id);
   };
 
   // DnD: usa orderedSections para evitar "snap back"
@@ -169,15 +177,6 @@ export default function ConfigDocumentPage() {
               Created At: {new Date(document.created_at).toLocaleDateString()}
             </p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            className="hover:cursor-pointer ml-4"
-            onClick={handleDelete}
-            title="Delete Template"
-          >
-            <Trash2 className="h-4 w-4 m-2" />
-          </Button>
         </div>
       </div>
       {isAddingSection ? (
@@ -189,22 +188,35 @@ export default function ConfigDocumentPage() {
           existingSections={document.sections}
         />
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="hover:cursor-pointer"
-          onClick={() => setIsAddingSection(true)}
-        >
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add Section
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="hover:cursor-pointer"
+            onClick={() => setIsAddingSection(true)}
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Add Section
+          </Button>
+          {(!document.sections || document.sections.length === 0) && (
+            <Button
+              type="button"
+              variant="outline"
+              className="hover:cursor-pointer"
+              onClick={handleGenerateWithAI}
+              disabled={generateSectionsMutation.isPending}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {generateSectionsMutation.isPending ? "Generating..." : "Generate sections with AI"}
+            </Button>
+          )}
+        </div>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4">
-            {orderedSections && orderedSections.length > 0 ? (
-              orderedSections.map((section: any) => (
+            {orderedSections.map((section: any) => (
                 <SortableSection
                   key={section.id}
                   item={section}
@@ -214,10 +226,7 @@ export default function ConfigDocumentPage() {
                   }
                   onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
                 />
-              ))
-            ) : (
-              <div className="text-gray-500">No sections available.</div>
-            )}
+              ))}
           </div>
         </SortableContext>
       </DndContext>

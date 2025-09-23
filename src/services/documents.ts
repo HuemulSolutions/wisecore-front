@@ -94,3 +94,21 @@ export async function getDocumentContent(documentId: string, executionId?: strin
   return data.data;
 }
 
+
+export async function generateDocumentStructure(documentId: string) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al generar la estructura del documento');
+  }
+
+  const data = await response.json();
+  console.log('Document structure generation initiated:', data);
+  return data;
+}
+

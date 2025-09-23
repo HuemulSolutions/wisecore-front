@@ -8,7 +8,7 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative h-screen overflow-hidden">
+    <div className="relative h-screen w-screen overflow-hidden">
       {/* Sidebar overlay */}
       <Sidebar isOpen={open} onClose={() => setOpen(false)} />
       {open && (
@@ -19,7 +19,7 @@ export default function Layout() {
         />
       )}
 
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full w-full overflow-x-hidden">
         <header className="h-14 shrink-0 border-b flex items-center px-4 gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <Button
             variant="ghost"
@@ -39,7 +39,7 @@ export default function Layout() {
             Wisecore
           </Link>
         </header>
-        <main className="flex-1 overflow-auto p-3 bg-muted/50">
+        <main className="flex-1 overflow-auto p-3 bg-muted/50 min-h-0">
           <Outlet />
         </main>
       </div>
