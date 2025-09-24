@@ -24,8 +24,8 @@ import { createDocument } from "@/services/documents";
 import { getAllDocumentTypes } from "@/services/document_type";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
-import { toast } from "sonner";
 import CreateDocumentType from "../create_doc_type";
+import { AlertCircle } from "lucide-react";
 
 interface CreateDocumentLibProps {
   trigger: React.ReactNode;
@@ -40,11 +40,13 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [documentTypeId, setDocumentTypeId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { selectedOrganizationId } = useOrganization();
 
   const { data: fetchedDocumentTypes } = useQuery({
     queryKey: ["documentTypes"],
-    queryFn: getAllDocumentTypes,
+    queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId,
   });
 
   const { data: templates } = useQuery({
@@ -55,24 +57,25 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (!name.trim()) {
-      toast.error("Document name is required");
+      setError("Document name is required");
       return;
     }
 
     if (!description.trim()) {
-      toast.error("Description is required");
+      setError("Description is required");
       return;
     }
 
     if (!documentTypeId) {
-      toast.error("Asset type is required");
+      setError("Asset type is required");
       return;
     }
 
     if (!selectedOrganizationId) {
-      toast.error("No organization selected");
+      setError("No organization selected");
       return;
     }
 
@@ -89,12 +92,12 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
 
       const createdDocument = await createDocument(documentData, selectedOrganizationId);
       
-      toast.success("Asset created successfully");
       setOpen(false);
       setName("");
       setDescription("");
       setTemplateId(null);
       setDocumentTypeId(undefined);
+      setError(null);
       
       // Notify parent component that a document was created
       if (onDocumentCreated && createdDocument) {
@@ -104,9 +107,9 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
           type: "document"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating asset:", error);
-      toast.error("Error creating asset");
+      setError(error.message || "Error creating asset");
     } finally {
       setIsLoading(false);
     }
@@ -119,6 +122,7 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
       setDescription("");
       setTemplateId(null);
       setDocumentTypeId(undefined);
+      setError(null);
     }
   };
 
@@ -142,6 +146,12 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="name">Name *</Label>
               <Input

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useOrganization } from "@/contexts/organization-context";
 import {
   Dialog,
   DialogTrigger,
@@ -24,6 +25,7 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#3B82F6");
   const [error, setError] = useState<string | null>(null);
+  const { selectedOrganizationId } = useOrganization();
 
   const predefinedColors = [
     "#6B7280",
@@ -40,7 +42,7 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
 
   const mutation = useMutation({
     mutationFn: (documentTypeData: { name: string; color: string }) => 
-      createDocumentType(documentTypeData),
+      createDocumentType(documentTypeData, selectedOrganizationId!),
     onSuccess: (createdDocumentType) => {
       queryClient.invalidateQueries({ queryKey: ["documentTypes"] });
       onDocumentTypeCreated?.(createdDocumentType);

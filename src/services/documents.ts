@@ -65,7 +65,9 @@ export async function createDocument(documentData: { name: string; description?:
   });
 
   if (!response.ok) {
-    throw new Error('Error al crear el documento');
+    const errorResponse = await response.json();
+    console.error('Error creating document:', errorResponse);
+    throw new Error(errorResponse.error || 'Unknown error');
   }
 
   const data = await response.json();

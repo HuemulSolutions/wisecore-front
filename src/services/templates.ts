@@ -28,7 +28,9 @@ export async function addTemplate( { name, description, organization_id }: { nam
     });
 
     if (!response.ok) {
-        throw new Error('Error al crear la plantilla');
+        const errorResponse = await response.json();
+        console.error('Error creating template:', errorResponse);
+        throw new Error(errorResponse.error || 'Error al crear la plantilla');
     }
 
     const data = await response.json();
