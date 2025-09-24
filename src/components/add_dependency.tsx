@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocumentDependencies, addDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
 import { getAllDocuments, getDocumentById } from "@/services/documents";
 import { getAllDocumentTypes } from "@/services/document_type";
+import { useOrganization } from "@/contexts/organization-context";
 
 
 interface Dependency {
@@ -34,6 +35,7 @@ export default function AddDependency({ id }: { id: string }) {
     const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
     const [filterOpen, setFilterOpen] = useState(false);
     const queryClient = useQueryClient();
+    const { selectedOrganizationId } = useOrganization();
 
     const { data: document } = useQuery({
         queryKey: ['document', id],
@@ -54,8 +56,9 @@ export default function AddDependency({ id }: { id: string }) {
     });
 
     const { data: documentTypes = [] } = useQuery<DocumentType[]>({
-        queryKey: ['documentTypes'],
-        queryFn: getAllDocumentTypes,
+        queryKey: ['documentTypes', selectedOrganizationId],
+        queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
+        enabled: !!selectedOrganizationId,
     });
 
     const addDependencyMutation = useMutation({
