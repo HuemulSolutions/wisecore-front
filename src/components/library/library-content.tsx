@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { File, Loader2, MoreVertical, Settings, Download, Trash2 } from "lucide-react";
+import { File, Loader2, MoreVertical, Settings, Download, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Chatbot from "../chatbot/chatbot";
 import {
@@ -35,6 +35,8 @@ import { exportExecutionToMarkdown, exportExecutionToWord } from "@/services/exe
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
+// (Se elimina el uso directo de Dialog para el editor, se usará un componente separado)
+import EditDocumentDialog from "@/components/edit_document_dialog";
 import SectionExecution from "./library_section";
 
 // API response interface
@@ -131,6 +133,7 @@ export function LibraryContent({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Fetch document content when a document is selected
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
@@ -224,6 +227,13 @@ export function LibraryContent({
     }
   };
 
+  // Open edit dialog and prefill values
+  const openEditDialog = () => {
+    if (!selectedFile || selectedFile.type !== 'document') return;
+    // Apertura diferida para que primero se cierre el dropdown y no dispare outside click sobre el dialog recién montado
+    setTimeout(() => setIsEditDialogOpen(true), 0);
+  };
+
   if (!selectedFile) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400 bg-gray-50">
@@ -271,6 +281,10 @@ export function LibraryContent({
                 <DropdownMenuItem className="hover:cursor-pointer" onClick={handleManage}>
                   <Settings className="mr-2 h-4 w-4" />
                   Manage
+                </DropdownMenuItem>
+                <DropdownMenuItem className="hover:cursor-pointer" onClick={openEditDialog}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="hover:cursor-pointer">
@@ -427,6 +441,21 @@ export function LibraryContent({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditDocumentDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        documentId={selectedFile?.id || ''}
+        currentName={selectedFile?.name || ''}
+        currentDescription={documentContent?.description}
+        onUpdated={(newName) => {
+          if (selectedFile) {
+            setSelectedFile({ ...selectedFile, name: newName });
+          }
+          // Opcional: refresh sin forzar re-render grande
+          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+        }}
+      />
     </div>
   );
 }
