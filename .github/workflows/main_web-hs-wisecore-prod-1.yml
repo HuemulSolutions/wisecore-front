@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
+    env:
+        VITE_API_URL: ${{ vars.VITE_API_URL_PROD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -52,4 +54,5 @@ jobs:
           app-name: 'web-hs-wisecore-prod-1'
           slot-name: 'Production'
           package: .
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_AEA3DC28C9CC4054881C05E29133561A }}
