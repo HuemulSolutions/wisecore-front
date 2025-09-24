@@ -112,8 +112,11 @@ export default function Templates() {
 
             {/* Mostrar error si existe */}
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-                {error}
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3 mt-2">
+                <div className="flex items-center">
+                  <span className="font-medium">Error:</span>
+                  <span className="ml-2">{error}</span>
+                </div>
               </div>
             )}
 

@@ -123,7 +123,7 @@ export function LibrarySidebarItem({
                     style={{ color: item.document_type?.color || "#6b7280" }}
                   />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p style={{ color: item.document_type?.color || "#6b7280" }}>
                     {item.document_type?.name || "Document"}
                   </p>
@@ -137,7 +137,7 @@ export function LibrarySidebarItem({
                   isSelected ? "text-blue-900 font-medium" : "text-gray-700"
                 )}>{item.name}</span>
               </TooltipTrigger>
-              <TooltipContent>
+              <TooltipContent side="right">
                 <p>{item.name}</p>
               </TooltipContent>
             </Tooltip>

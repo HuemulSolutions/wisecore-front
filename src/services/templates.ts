@@ -28,7 +28,9 @@ export async function addTemplate( { name, description, organization_id }: { nam
     });
 
     if (!response.ok) {
-        throw new Error('Error al crear la plantilla');
+        const errorResponse = await response.json();
+        console.error('Error creating template:', errorResponse);
+        throw new Error(errorResponse.error || 'Error al crear la plantilla');
     }
 
     const data = await response.json();
@@ -140,5 +142,19 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
 
     const data = await response.json();
     console.log('Sections order updated:', data.data);
+    return data.data;
+}
+
+export async function generateTemplateSections(templateId: string) {
+    const response = await fetch(`${backendUrl}/templates/${templateId}/generate`, {
+        method: 'POST',
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al generar las secciones de la plantilla');
+    }
+
+    const data = await response.json();
+    console.log('Template sections generated:', data.data);
     return data.data;
 }

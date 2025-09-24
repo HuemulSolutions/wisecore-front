@@ -65,7 +65,9 @@ export async function createDocument(documentData: { name: string; description?:
   });
 
   if (!response.ok) {
-    throw new Error('Error al crear el documento');
+    const errorResponse = await response.json();
+    console.error('Error creating document:', errorResponse);
+    throw new Error(errorResponse.error || 'Unknown error');
   }
 
   const data = await response.json();
@@ -92,5 +94,23 @@ export async function getDocumentContent(documentId: string, executionId?: strin
   const data = await response.json();
   console.log('Document content fetched:', data.data);
   return data.data;
+}
+
+
+export async function generateDocumentStructure(documentId: string) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al generar la estructura del documento');
+  }
+
+  const data = await response.json();
+  console.log('Document structure generation initiated:', data);
+  return data;
 }
 

@@ -48,8 +48,9 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
   });
 
   const { data: fetchedDocumentTypes } = useQuery({
-    queryKey: ["documentTypes"],
-    queryFn: getAllDocumentTypes,
+    queryKey: ["documentTypes", selectedOrganizationId],
+    queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId,
   });
 
   const mutation = useMutation({

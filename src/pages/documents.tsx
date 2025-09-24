@@ -37,8 +37,9 @@ export default function Documents() {
   });
 
   const { data: documentTypes } = useQuery({
-    queryKey: ["documentTypes"],
-    queryFn: getAllDocumentTypes,
+    queryKey: ["documentTypes", selectedOrganizationId],
+    queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId,
   });
 
   const handleApplyFilters = () => {

@@ -14,37 +14,100 @@ interface TableOfContentsProps {
 export function TableOfContents({ items }: TableOfContentsProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
     const observer = useRef<IntersectionObserver | null>(null);
+    const isUserScrolling = useRef(false);
+    const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (observer.current) {
             observer.current.disconnect();
         }
 
+        // Track user scrolling to avoid conflicts
+        const handleScroll = () => {
+            if (!isUserScrolling.current) {
+                isUserScrolling.current = true;
+                if (scrollTimeout.current) {
+                    clearTimeout(scrollTimeout.current);
+                }
+                scrollTimeout.current = setTimeout(() => {
+                    isUserScrolling.current = false;
+                }, 150);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
         observer.current = new IntersectionObserver(
             (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        setActiveId(entry.target.id);
-                    }
-                });
+                // Only update if user is not actively scrolling via click
+                if (isUserScrolling.current) return;
+
+                // Find all intersecting entries and their positions
+                const intersectingEntries = entries
+                    .filter(entry => entry.isIntersecting)
+                    .map(entry => ({
+                        id: entry.target.id,
+                        ratio: entry.intersectionRatio,
+                        top: entry.boundingClientRect.top
+                    }))
+                    .sort((a, b) => a.top - b.top); // Sort by position from top
+
+                // Select the first (topmost) intersecting element with decent visibility
+                const topEntry = intersectingEntries.find(entry => entry.ratio > 0.1);
+                
+                if (topEntry) {
+                    setActiveId(topEntry.id);
+                }
             },
-            { rootMargin: "-50% 0px -50% 0px" } // Set active when element is in the middle of the screen
+            { 
+                rootMargin: "-10% 0px -60% 0px", // Top margin smaller, bottom margin larger
+                threshold: [0.1, 0.5] // Simplified thresholds
+            }
         );
 
-        const elements = items.map(item => document.getElementById(item.id)).filter(Boolean);
-        elements.forEach(el => observer.current!.observe(el!));
+        // Create a timeout to ensure DOM is ready
+        const timeoutId = setTimeout(() => {
+            const elements = items.map(item => document.getElementById(item.id)).filter(Boolean);
+            elements.forEach(el => {
+                if (el && observer.current) {
+                    observer.current.observe(el);
+                }
+            });
+        }, 100);
 
-        return () => observer.current?.disconnect();
+        return () => {
+            clearTimeout(timeoutId);
+            if (scrollTimeout.current) {
+                clearTimeout(scrollTimeout.current);
+            }
+            window.removeEventListener('scroll', handleScroll);
+            observer.current?.disconnect();
+        };
     }, [items]);
 
     const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
         e.preventDefault();
-        document.getElementById(id)?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
-        // Manually set active id on click for instant feedback
-        setActiveId(id);
+        const element = document.getElementById(id);
+        if (element) {
+            // Immediately set as active and prevent observer updates
+            setActiveId(id);
+            isUserScrolling.current = true;
+            
+            element.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+            
+            // Reset scrolling flag after animation completes
+            if (scrollTimeout.current) {
+                clearTimeout(scrollTimeout.current);
+            }
+            scrollTimeout.current = setTimeout(() => {
+                isUserScrolling.current = false;
+            }, 1000); // Longer timeout for smooth scroll animation
+        } else {
+            console.warn(`Element with id "${id}" not found`);
+        }
     };
 
     if (!items.length) {
