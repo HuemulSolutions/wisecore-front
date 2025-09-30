@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
+    markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
+    BlockTypeSelect, tablePlugin, InsertTable
+ } from '@mdxeditor/editor';
+import type { MDXEditorMethods } from '@mdxeditor/editor';
 
 interface Item {
   id: string;
@@ -32,6 +36,7 @@ export default function EditSection({ item, onCancel, onSave, existingSections =
     dependencies: [...item.dependencies]
   });
   const [selectValue, setSelectValue] = useState<string>("");
+  const editorRef = useRef<MDXEditorMethods>(null);
 
   const handleInputChange = (field: keyof Item, value: string | number) => {
     setFormData(prev => ({
@@ -87,14 +92,36 @@ export default function EditSection({ item, onCancel, onSave, existingSections =
         {/* Prompt Field */}
         <div className="space-y-2">
           <Label htmlFor="prompt">Prompt</Label>
-          <Textarea
-            id="prompt"
-            value={formData.prompt}
-            onChange={(e) => handleInputChange('prompt', e.target.value)}
-            placeholder="Enter section prompt"
-            rows={4}
-            className="resize-vertical"
-          />
+          <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+            <MDXEditor
+              ref={editorRef}
+              markdown={formData.prompt}
+              onChange={(value) => handleInputChange('prompt', value)}
+              contentEditableClassName='mdxeditor-content min-h-[120px] prose dark:prose-invert focus:outline-none p-3'
+              placeholder="Enter the prompt for this section"
+              spellCheck={false}
+              plugins={[
+                headingsPlugin(), 
+                listsPlugin(), 
+                quotePlugin(), 
+                tablePlugin(),
+                thematicBreakPlugin(), 
+                markdownShortcutPlugin(),
+                toolbarPlugin({
+                  toolbarContents() {
+                    return (
+                      <>  
+                        <BlockTypeSelect />
+                        <BoldItalicUnderlineToggles />
+                        <InsertTable />
+                        <UndoRedo />
+                      </>
+                    )
+                  },
+                }),
+              ]}
+            />
+          </div>
         </div>
 
         {/* Dependencies Field */}
