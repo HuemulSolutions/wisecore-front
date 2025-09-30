@@ -3,16 +3,16 @@ import { Button } from "@/components/ui/button";
 import ExecutionInfo from "@/components/execution_info";
 import SectionExecution from "@/components/section_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// import Chatbot from "@/components/chatbot/chatbot";
+import Chatbot from "@/components/chatbot/chatbot";
 import { 
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowLeft, WandSparkles, Loader2, CircleCheck } from "lucide-react";
+import { ArrowLeft, WandSparkles, Loader2, CircleCheck, CircleX } from "lucide-react";
 import { TableOfContents } from "@/components/table-of-contents";
-import { getExecutionById, approveExecution } from "@/services/executions";
+import { getExecutionById, approveExecution, disapproveExecution } from "@/services/executions";
 import { getLLMs, updateLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -275,6 +275,21 @@ export default function ExecutionPage() {
         }
     };
 
+    const handleDisapprove = async () => {
+        if (!execution?.document_id) return;
+        
+        setIsApproving(true);
+        try {
+            await disapproveExecution(id!);
+            refetch();
+            toast.success("Execution disapproved successfully");
+        } catch (error) {
+            console.error('Error disapproving execution:', error);
+            toast.error("Error disapproving execution. Please try again.");
+        } finally {
+            setIsApproving(false);
+        }
+    };
 
     if (isLoading) return <div>Loading...</div>;
     if (error) {
@@ -377,8 +392,8 @@ export default function ExecutionPage() {
                                     </div>
                                     <Button
                                         className="hover:cursor-pointer"
-                                        disabled={isGenerating || (status !== "pending" && status !== "completed") || isApproving}
-                                        onClick={status === "completed" ? handleApprove : handleGenerate}
+                                        disabled={isGenerating || (status !== "pending" && status !== "completed" && status !== "approved") || isApproving}
+                                        onClick={status === "completed" ? handleApprove : status === "approved" ? handleDisapprove : handleGenerate}
                                     >
                                         {isGenerating ? (
                                             <>
@@ -397,6 +412,18 @@ export default function ExecutionPage() {
                                                     Approve
                                                 </>
                                             )
+                                        ) : status === "approved" ? (
+                                            isApproving ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                    Disapproving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CircleX className="h-4 w-4 mr-2" />
+                                                    Disapprove
+                                                </>
+                                            )
                                         ) : (
                                             <>
                                                 <WandSparkles className="h-4 w-4 mr-2" />
@@ -409,7 +436,6 @@ export default function ExecutionPage() {
                     </Card>
                 </div>
 
-                {/* Tarjeta de secciones */}
                 <Card>
                     <CardContent>
                         {editableSections && editableSections.length > 0 && (
@@ -432,7 +458,7 @@ export default function ExecutionPage() {
             <div className="w-64 hidden lg:block">
                 <TableOfContents items={tocItems} />
             </div>
-            {/* <Chatbot executionId={id!} /> */}
+            <Chatbot executionId={id!} />
         </div>
     );
 }

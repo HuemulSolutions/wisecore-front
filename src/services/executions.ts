@@ -170,4 +170,17 @@ export async function approveExecution(executionId: string) {
     return data.data;
 }
 
+export async function disapproveExecution(executionId: string) {
+    console.log(`Disapproving execution with ID: ${executionId}`);
+    const response = await fetch(`${backendUrl}/execution/disapprove/${executionId}`, {
+        method: 'POST',
+    });
+    if (!response.ok) {
+        throw new Error('Error al desaprobar la ejecución');
+    }
+    const data = await response.json();
+    console.log('Execution disapproved:', data.data);
+    return data.data;
+}
+
 

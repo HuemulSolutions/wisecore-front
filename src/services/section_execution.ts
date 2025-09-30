@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 
 
 export async function deleteSectionExec(sectionExecId: string) {
-    const response = await fetch(`${backendUrl}/section_execution/${sectionExecId}`, {
+    const response = await fetch(`${backendUrl}/section_executions/${sectionExecId}`, {
         method: 'DELETE',
     });
 
