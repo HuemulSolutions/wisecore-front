@@ -114,3 +114,28 @@ export async function generateDocumentStructure(documentId: string) {
   return data;
 }
 
+export async function updateDocument(
+  documentId: string, 
+  documentData: { name?: string; description?: string }, 
+  organizationId: string
+) {
+  const response = await fetch(`${backendUrl}/documents/${documentId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'OrganizationId': organizationId,
+    },
+    body: JSON.stringify(documentData),
+  });
+
+  if (!response.ok) {
+    const errorResponse = await response.json();
+    console.error('Error updating document:', errorResponse);
+    throw new Error(errorResponse.error || 'Error al actualizar el documento');
+  }
+
+  const data = await response.json();
+  console.log('Document updated:', data.data);
+  return data.data;
+}
+

@@ -1,4 +1,4 @@
-import { MoreVertical, Edit, Bot, Send, Copy } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Send, Copy, Trash2 } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
@@ -11,8 +11,19 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogCancel,
+    AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { modifyContent } from '@/services/executions';
 import { fixSection } from '@/services/generate';
+import { deleteSectionExec } from '@/services/section_execution';
 import { toast } from 'sonner';
 
 interface SectionExecutionProps {
@@ -32,6 +43,8 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isSaving, setIsSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
     const [isAiProcessing, setIsAiProcessing] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     console.log('SectionExecution Props:', { sectionExecution });
 
@@ -57,6 +70,21 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         } catch (error) {
             console.error('Error copying to clipboard:', error);
             toast.error('Failed to copy content to clipboard');
+        }
+    };
+
+    const handleDelete = async () => {
+        try {
+            setIsDeleting(true);
+            await deleteSectionExec(sectionExecution.id);
+            toast.success('Section deleted successfully!');
+            setIsDeleteDialogOpen(false);
+            onUpdate?.();
+        } catch (error) {
+            console.error('Error deleting section:', error);
+            toast.error('Failed to delete section. Please try again.');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -96,6 +124,15 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                             >
                                 <Bot className="h-4 w-4 mr-2" />
                                 Ask AI to Edit
+                            </DropdownMenuItem>
+                        )}
+                        {!isEditing && !isAiEditing && (
+                            <DropdownMenuItem 
+                                className="text-red-600 hover:cursor-pointer"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
                             </DropdownMenuItem>
                         )}
                     </DropdownMenuContent>
@@ -209,6 +246,33 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 )
             }
             <Separator className="my-2" />
+        
+        {/* Delete Confirmation AlertDialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogContent className="sm:max-w-[425px]">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Section</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to delete this section? This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-2">
+                    <AlertDialogCancel 
+                        className="hover:cursor-pointer" 
+                        disabled={isDeleting}
+                    >
+                        Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        className="hover:cursor-pointer bg-red-600 text-white hover:bg-red-700"
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
         </div>
     );
 

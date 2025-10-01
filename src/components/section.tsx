@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Markdown from "./ui/markdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -150,8 +151,10 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
             </div>
           )}
           <div className="text-sm text-gray-700 leading-relaxed">
-            <strong>Prompt:</strong> {displayText}
+            <strong>Prompt:</strong> 
+            <Markdown>{displayText}</Markdown>
           </div>
+          
           {shouldShowExpandButton && (
             <Button
               variant="ghost"

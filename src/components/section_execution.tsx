@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, MoreVertical, Edit, Bot, Lock, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreVertical, Edit, Bot, Lock, Send, Trash2 } from 'lucide-react';
 import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
@@ -11,8 +11,20 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { modifyContent } from '@/services/executions';
 import { fixSection } from '@/services/generate';
+import { deleteSectionExec } from '@/services/section_execution';
+import { toast } from 'sonner';
 
 interface SectionExecutionProps {
     sectionExecution: {
@@ -34,6 +46,8 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isSaving, setIsSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
     const [isAiProcessing, setIsAiProcessing] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     console.log('SectionExecution Props:', { sectionExecution });
 
@@ -51,14 +65,62 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         }
     };
 
+    const handleDelete = async () => {
+        try {
+            setIsDeleting(true);
+            const sectionId = sectionExecution.section_execution_id || sectionExecution.id;
+            await deleteSectionExec(sectionId);
+            toast.success("Section deleted successfully");
+            onUpdate?.();
+        } catch (error) {
+            console.error('Error deleting section:', error);
+            toast.error("Error deleting section. Please try again.");
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteDialog(false);
+        }
+    };
+
     const displayedContent = (aiPreview ?? sectionExecution.output.replace(/\\n/g, "\n"));
 
     return (
-        <div className="p-4">
-            <div className="flex items-center justify-between">
-                {sectionExecution.name && <h3 className="text-lg font-semibold">{sectionExecution.name.toUpperCase()}</h3>}
-                {readyToEdit && (
-                    <DropdownMenu>
+        <>
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Section</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this section? This action cannot be undone.
+                            {sectionExecution.name && (
+                                <span className="block mt-2 font-medium">
+                                    Section: {sectionExecution.name}
+                                </span>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel 
+                            disabled={isDeleting}
+                            className="hover:cursor-pointer"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 hover:cursor-pointer"
+                        >
+                            {isDeleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <div className="p-4">
+                <div className="flex items-center justify-between">
+                    {sectionExecution.name && <h3 className="text-lg font-semibold">{sectionExecution.name.toUpperCase()}</h3>}
+                    {readyToEdit && (
+                        <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button className="p-1 rounded-md hover:bg-gray-100 hover:cursor-pointer">
                             <MoreVertical className="h-4 w-4 text-gray-600" />
@@ -86,6 +148,13 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                         <DropdownMenuItem className="hover:cursor-pointer">
                             <Lock className="h-4 w-4 mr-2" />
                             Lock
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                            className="hover:cursor-pointer text-red-600 hover:text-red-700"
+                            onClick={() => setShowDeleteDialog(true)}
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -220,7 +289,8 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 )
             }
             <Separator className="my-4" />
-        </div>
+            </div>
+        </>
     );
 
 }

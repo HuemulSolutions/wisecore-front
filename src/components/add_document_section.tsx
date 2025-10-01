@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
+    markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
+    BlockTypeSelect, tablePlugin, InsertTable
+ } from '@mdxeditor/editor';
+import type { MDXEditorMethods } from '@mdxeditor/editor';
 import { Sparkles, Loader2 } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 
@@ -26,18 +30,25 @@ export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, exis
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
   const [selectValue, setSelectValue] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const editorRef = useRef<MDXEditorMethods>(null);
 
   const handleGeneratePrompt = async () => {
     if (!name.trim()) return;
     
     setIsGenerating(true);
-    setPrompt(""); // Clear existing prompt
+    setPrompt(""); // Clear existing prompt state
+    editorRef.current?.setMarkdown(""); // Clear editor content
     
     try {
+      let accumulatedText = "";
       await redactPrompt({
         name: name.trim(),
         onData: (text: string) => {
-          setPrompt(prev => prev + text);
+          accumulatedText += text;
+          // Convert \n to actual line breaks for markdown
+          const formattedText = accumulatedText.replace(/\\n/g, '\n');
+          setPrompt(formattedText); // Update state for validation
+          editorRef.current?.setMarkdown(formattedText); // Update editor
         },
         onError: (error: Event) => {
           console.error('Error generating prompt:', error);
@@ -111,7 +122,7 @@ export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, exis
                 type="button"
                 size="sm"
                 onClick={handleGeneratePrompt}
-                disabled={!name.trim() || isGenerating}
+                disabled={!name.trim() || isGenerating || !!prompt.trim()}
                 className="hover:cursor-pointer"
               >
                 {isGenerating ? (
@@ -122,15 +133,37 @@ export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, exis
                 Generate with AI
               </Button>
             </div>
-            <Textarea
-              id="section-prompt"
-              placeholder="Enter the prompt for this section"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              disabled={isPending || isGenerating}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
-            />
+            <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+              <MDXEditor
+                ref={editorRef}
+                markdown={prompt}
+                onChange={setPrompt}
+                contentEditableClassName='mdxeditor-content min-h-[120px] prose dark:prose-invert focus:outline-none p-3'
+                readOnly={isPending || isGenerating}
+                placeholder="Enter the prompt for this section"
+                spellCheck={false}
+                plugins={[
+                  headingsPlugin(), 
+                  listsPlugin(), 
+                  quotePlugin(), 
+                  tablePlugin(),
+                  thematicBreakPlugin(), 
+                  markdownShortcutPlugin(),
+                  toolbarPlugin({
+                    toolbarContents() {
+                      return (
+                        <>  
+                          <BlockTypeSelect />
+                          <BoldItalicUnderlineToggles />
+                          <InsertTable />
+                          <UndoRedo />
+                        </>
+                      )
+                    },
+                  }),
+                ]}
+              />
+            </div>
           </div>
 
           <div>

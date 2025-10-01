@@ -1,4 +1,4 @@
-import { Folder, FileTextIcon, Trash2, Settings } from "lucide-react";
+import { Folder, FileTextIcon, Trash2, Settings, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -27,6 +27,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import EditDocumentDialog from "@/components/edit_document_dialog";
 
 interface LibraryItem {
   id: string;
@@ -62,6 +63,7 @@ export function LibrarySidebarItem({
 }: LibrarySidebarItemProps) {
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const handleDelete = () => {
     // Usar mismo diálogo para documentos y carpetas
@@ -100,6 +102,12 @@ export function LibrarySidebarItem({
       // For folders, use the existing onManage callback if provided
       onManage?.();
     }
+  };
+
+  const handleEdit = () => {
+    if (item.type !== 'document') return;
+    // Apertura diferida para evitar que el cierre del context menu cierre el dialog
+    setTimeout(() => setIsEditDialogOpen(true), 0);
   };
 
   return (
@@ -151,6 +159,10 @@ export function LibrarySidebarItem({
             </ContextMenuItem>
           ) : (
             <>
+              <ContextMenuItem onClick={handleEdit} className="hover:cursor-pointer">
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </ContextMenuItem>
               <ContextMenuItem onClick={handleManage} className="hover:cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
                 Manage
@@ -186,6 +198,24 @@ export function LibrarySidebarItem({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {item.type === 'document' && (
+        <EditDocumentDialog
+          open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            documentId={item.id}
+            currentName={item.name}
+            // No tenemos descripción aquí; el dialog la obtendrá si falta
+            onUpdated={(newName) => {
+              // Refrescar lista para reflejar nombre actualizado
+              onRefresh?.();
+              // Actualizar selección si este item está seleccionado
+              if (isSelected && setSelectedFile) {
+                setSelectedFile({ ...item, name: newName });
+              }
+            }}
+        />
+      )}
     </TooltipProvider>
   );
 }

@@ -18,7 +18,6 @@ export default function ConfigDocumentPage() {
   const queryClient = useQueryClient();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
-  // Estado local para orden optimista
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
   const sensors = useSensors(

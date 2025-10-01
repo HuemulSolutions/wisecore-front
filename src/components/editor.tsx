@@ -25,6 +25,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
             <MDXEditor
                 markdown={value}
                 onChange={setValue}
+                spellCheck={false}
                 contentEditableClassName='mdxeditor-content min-h-[240px] prose dark:prose-invert focus:outline-none'
                 plugins={[
                     headingsPlugin(), listsPlugin(), quotePlugin(), tablePlugin(),
