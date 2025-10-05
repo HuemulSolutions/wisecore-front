@@ -5,7 +5,7 @@ FROM node:20-bullseye-slim AS build
 WORKDIR /app
 
 # ENV VITE_API_URL=https://wisecore-backend.1wb6lor29n3q.us-south.codeengine.appdomain.cloud
-ENV VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=http://localhost:8080
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
@@ -32,7 +32,7 @@ WORKDIR /app
 COPY --from=build /app/dist ./dist
 
 # Expose the port that the app will run on
-EXPOSE 8080
+EXPOSE 3000
 
 # Command to run the HTTP server
-CMD ["serve", "-s", "dist", "-l", "8080"]
+CMD ["serve", "-s", "dist", "-l", "3000"]
