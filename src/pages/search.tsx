@@ -7,6 +7,7 @@ import { search } from "@/services/search";
 import SearchResult from "@/components/search_result";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface SearchResultData {
   content: string;
@@ -20,14 +21,15 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState(searchParams.get("mode") || "normal");
   const [query, setQuery] = useState(searchParams.get("q") || "");
+  const { selectedOrganizationId } = useOrganization();
   
   // Get initial search query from URL
   const initialSearchQuery = searchParams.get("q") || "";
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
 
   const { data: searchResults, isLoading, error } = useQuery<SearchResultData[]>({
-    queryKey: ['search', searchQuery],
-    queryFn: () => search(searchQuery),
+    queryKey: ['search', searchQuery, selectedOrganizationId],
+    queryFn: () => search(searchQuery, selectedOrganizationId!),
     enabled: !!searchQuery && searchQuery.trim().length > 0,
   });
 
