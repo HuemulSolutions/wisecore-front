@@ -16,7 +16,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "¡Hola! ¿En qué puedo ayudarte hoy?",
+      text: "Hi! How can I assist you today?",
       sender: "bot",
       timestamp: new Date(),
     },
@@ -35,7 +35,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
     setMessages([
       {
         id: "1",
-        text: "¡Hola! ¿En qué puedo ayudarte hoy?",
+        text: "Hi! How can I assist you today?",
         sender: "bot",
         timestamp: new Date(),
       },
@@ -112,7 +112,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
     setMessages([
       {
         id: "1",
-        text: "¡Hola! ¿En qué puedo ayudarte hoy?",
+        text: "Hi! How can I assist you today?",
         sender: "bot",
         timestamp: new Date(),
       },
@@ -197,7 +197,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Escribe tu mensaje..."
+                placeholder="Write your message..."
                 disabled={isLoading}
                 rows={1}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none overflow-hidden min-h-[38px] max-h-32"
