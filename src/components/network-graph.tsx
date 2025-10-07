@@ -472,7 +472,39 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
             transformOrigin: "0 0",
           }}
         >
-          <svg className="absolute inset-0 w-full h-full z-0" style={{ pointerEvents: "none" }}>
+          <svg className="absolute inset-0 w-full h-full z-20" style={{ pointerEvents: "none" }}>
+            {/* Define arrowhead markers */}
+            <defs>
+              {/* Simple arrowhead */}
+              <marker
+                id="arrowhead"
+                markerWidth="8"
+                markerHeight="6"
+                refX="7"
+                refY="3"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 8 3, 0 6"
+                  fill="#9CA3AF"
+                />
+              </marker>
+
+              {/* Dependency arrowhead */}
+              <marker
+                id="arrowhead-dependency"
+                markerWidth="10"
+                markerHeight="8"
+                refX="9"
+                refY="4"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 4, 0 8"
+                  fill="#374151"
+                />
+              </marker>
+            </defs>
             {connections.map((connection, index) => {
               const fromNode = nodes.find((n) => n.id === connection.from)
               const toNode = nodes.find((n) => n.id === connection.to)
@@ -481,23 +513,43 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
 
               const isDependency = connection.type === "dependency"
 
+              // Calculate the direction vector from source to target
+              const dx = toNode.x - fromNode.x
+              const dy = toNode.y - fromNode.y
+              const length = Math.sqrt(dx * dx + dy * dy)
+              
+              // Normalize the direction vector
+              const normalizedDx = dx / length
+              const normalizedDy = dy / length
+              
+              // Card dimensions (approximate)
+              const cardWidth = 280
+              const cardHeight = 80
+              
+              // Calculate connection points at the edges of the cards
+              const fromX = fromNode.x + (normalizedDx * cardWidth / 2)
+              const fromY = fromNode.y + (normalizedDy * cardHeight / 2)
+              const toX = toNode.x - (normalizedDx * cardWidth / 2)
+              const toY = toNode.y - (normalizedDy * cardHeight / 2)
+
               return (
                 <g key={index}>
                   <line
-                    x1={fromNode.x}
-                    y1={fromNode.y}
-                    x2={toNode.x}
-                    y2={toNode.y}
-                    stroke="#9CA3AF"
-                    strokeWidth={isDependency ? "3" : "2"}
-                    strokeDasharray={isDependency ? "5,5" : "none"}
-                    opacity={isDependency ? "0.8" : "0.6"}
+                    x1={fromX}
+                    y1={fromY}
+                    x2={toX}
+                    y2={toY}
+                    stroke={isDependency ? "#374151" : "#9CA3AF"}
+                    strokeWidth={isDependency ? "2" : "1.5"}
+                    strokeDasharray={isDependency ? "5,3" : "none"}
+                    opacity="0.8"
+                    markerEnd={isDependency ? "url(#arrowhead-dependency)" : "url(#arrowhead)"}
                   />
                   {isDependency && (
                     <text
-                      x={(fromNode.x + toNode.x) / 2}
-                      y={(fromNode.y + toNode.y) / 2 - 10}
-                      fill="#000"
+                      x={(fromX + toX) / 2}
+                      y={(fromY + toY) / 2 - 8}
+                      fill="#374151"
                       fontSize="10"
                       textAnchor="middle"
                       className="select-none"
@@ -517,7 +569,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
                 <Tooltip key={node.id} open={isDropdownOpen ? false : undefined}>
                   <TooltipTrigger asChild>
                     <div
-                      className="absolute z-30 transform -translate-x-1/2 -translate-y-1/2"
+                      className="absolute z-10 transform -translate-x-1/2 -translate-y-1/2"
                       style={{ left: node.x, top: node.y }}
                     >
                       <Card
