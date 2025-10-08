@@ -23,6 +23,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.local
+          file: Dockerfile.local  # Cambia 'file' por 'dockerfile'
           push: true
           tags: matiasbarrerahuemul/wisecore-frontend:latest
