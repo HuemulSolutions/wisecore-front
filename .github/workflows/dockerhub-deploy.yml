@@ -25,4 +25,4 @@ jobs:
           context: .
           file: ./Dockerfile.orch
           push: true
-          tags: matiasbarrerahuemul/wisecore-frontend:latest
+          tags: huemulsolutions/wisecore-front:latest
