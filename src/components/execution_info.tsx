@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
-import { exportExecutionToMarkdown, deleteExecution, createExecution } from '@/services/executions';
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionCustomWord, deleteExecution, createExecution } from '@/services/executions';
 import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -25,6 +25,8 @@ export interface ExecutionInfoProps {
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useNavigate();
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportingWord, setIsExportingWord] = useState(false);
+    const [isExportingCustomWord, setIsExportingCustomWord] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -36,6 +38,28 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             console.error('Error exporting execution to markdown:', error);
         } finally {
             setIsExporting(false);
+        }
+    };
+
+    const handleExportToWord = async () => {
+        try {
+            setIsExportingWord(true);
+            await exportExecutionToWord(execution.id);
+        } catch (error) {
+            console.error('Error exporting execution to Word:', error);
+        } finally {
+            setIsExportingWord(false);
+        }
+    };
+
+    const handleExportToCustomWord = async () => {
+        try {
+            setIsExportingCustomWord(true);
+            await exportExecutionCustomWord(execution.id);
+        } catch (error) {
+            console.error('Error exporting execution to custom Word:', error);
+        } finally {
+            setIsExportingCustomWord(false);
         }
     };
 
@@ -125,6 +149,22 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                     >
                                         <DiamondMinus className="h-4 w-4 mr-2" />
                                         {isExporting ? 'Exporting...' : 'Export to Markdown'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                        className="hover:cursor-pointer"
+                                        onClick={handleExportToWord}
+                                        disabled={isExportingWord}
+                                    >
+                                        <DiamondMinus className="h-4 w-4 mr-2" />
+                                        {isExportingWord ? 'Exporting...' : 'Export to Word'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                        className="hover:cursor-pointer"
+                                        onClick={handleExportToCustomWord}
+                                        disabled={isExportingCustomWord}
+                                    >
+                                        <DiamondMinus className="h-4 w-4 mr-2" />
+                                        {isExportingCustomWord ? 'Exporting...' : 'Export to Custom Word'}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer"
