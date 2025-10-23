@@ -367,6 +367,26 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
     return generateConnections()
   }, [nodes, documents, allDependencies, allSections])
 
+  // Calculate SVG bounds based on nodes positions
+  const svgBounds = useMemo(() => {
+    if (nodes.length === 0) {
+      return { left: 0, top: 0, width: 1000, height: 1000 }
+    }
+    
+    const padding = 500
+    const minX = Math.min(...nodes.map(n => n.x))
+    const maxX = Math.max(...nodes.map(n => n.x))
+    const minY = Math.min(...nodes.map(n => n.y))
+    const maxY = Math.max(...nodes.map(n => n.y))
+    
+    return {
+      left: minX - padding,
+      top: minY - padding,
+      width: maxX - minX + (padding * 2),
+      height: maxY - minY + (padding * 2)
+    }
+  }, [nodes])
+
   const handleMenuAction = (action: string, nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId)
     if (!node) return
@@ -472,7 +492,16 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
             transformOrigin: "0 0",
           }}
         >
-          <svg className="absolute inset-0 w-full h-full z-20" style={{ pointerEvents: "none" }}>
+          <svg 
+            className="absolute z-20" 
+            style={{ 
+              pointerEvents: "none",
+              left: svgBounds.left,
+              top: svgBounds.top,
+              width: svgBounds.width,
+              height: svgBounds.height,
+            }}
+          >
             {/* Define arrowhead markers */}
             <defs>
               {/* Simple arrowhead */}
@@ -526,11 +555,15 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
               const cardWidth = 280
               const cardHeight = 80
               
-              // Calculate connection points at the edges of the cards
-              const fromX = fromNode.x + (normalizedDx * cardWidth / 2)
-              const fromY = fromNode.y + (normalizedDy * cardHeight / 2)
-              const toX = toNode.x - (normalizedDx * cardWidth / 2)
-              const toY = toNode.y - (normalizedDy * cardHeight / 2)
+              // Calculate SVG offset
+              const svgOffsetX = svgBounds.left
+              const svgOffsetY = svgBounds.top
+              
+              // Calculate connection points at the edges of the cards, relative to SVG
+              const fromX = fromNode.x + (normalizedDx * cardWidth / 2) - svgOffsetX
+              const fromY = fromNode.y + (normalizedDy * cardHeight / 2) - svgOffsetY
+              const toX = toNode.x - (normalizedDx * cardWidth / 2) - svgOffsetX
+              const toY = toNode.y - (normalizedDy * cardHeight / 2) - svgOffsetY
 
               return (
                 <g key={index}>
