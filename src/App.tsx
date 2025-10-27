@@ -3,7 +3,6 @@ import Layout from "./components/layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
 import ConfigTemplate from "./pages/template";
-import Documents from "./pages/documents";
 import DocumentPage from "./pages/document";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
@@ -21,7 +20,6 @@ export default function App() {
         <Route path="home" element={<Home />} />
         <Route path="organizations" element={<Organizations />} />
         <Route path="templates" element={<Templates />} />
-        <Route path="documents" element={<Documents />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="library" element={<Library />} />
         <Route path="graph" element={<Graph />} />

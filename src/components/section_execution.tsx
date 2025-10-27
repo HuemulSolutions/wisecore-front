@@ -65,6 +65,22 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         }
     };
 
+    function openDeleteDialog() {
+        setShowDeleteDialog(true);
+    }
+
+    function closeDeleteDialog() {
+        setShowDeleteDialog(false);
+    }
+
+    const handleDeleteDialogChange = (open: boolean) => {
+        if (open) {
+            openDeleteDialog();
+        } else {
+            closeDeleteDialog();
+        }
+    };
+
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
@@ -77,7 +93,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             toast.error("Error deleting section. Please try again.");
         } finally {
             setIsDeleting(false);
-            setShowDeleteDialog(false);
+            closeDeleteDialog();
         }
     };
 
@@ -85,7 +101,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
 
     return (
         <>
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialog open={showDeleteDialog} onOpenChange={handleDeleteDialogChange}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Section</AlertDialogTitle>
@@ -151,7 +167,10 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                             className="hover:cursor-pointer text-red-600 hover:text-red-700"
-                            onClick={() => setShowDeleteDialog(true)}
+                            onSelect={() => {
+                                // Defer apertura hasta que el dropdown cierre por completo
+                                setTimeout(() => openDeleteDialog(), 0);
+                            }}
                         >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete

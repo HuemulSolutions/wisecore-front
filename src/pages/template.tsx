@@ -14,7 +14,6 @@ import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateS
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-// import Section  from "@/components/section";
 import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_template_section";
 import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft, Sparkles, Pencil } from "lucide-react";
@@ -26,6 +25,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -136,8 +136,7 @@ export default function ConfigTemplate() {
     onSuccess: () => {
       toast.success("Template updated successfully");
       queryClient.invalidateQueries({ queryKey: ["template", id] });
-      setIsEditDialogOpen(false);
-      setEditError(null);
+      closeEditDialog();
     },
     onError: (error) => {
       const message = (error as Error).message || "Unknown error";
@@ -177,15 +176,36 @@ export default function ConfigTemplate() {
     return <div>No template found with ID: {id}</div>;
   }
 
-  const handleEditDialogChange = (open: boolean) => {
-    setIsEditDialogOpen(open);
+  function resetEditDialogFields() {
     if (template) {
       setEditedName(template.name ?? "");
       setEditedDescription(template.description ?? "");
+    } else {
+      setEditedName("");
+      setEditedDescription("");
     }
     setEditError(null);
+  }
+
+  function openEditDialog() {
     updateTemplateMutation.reset();
-  };
+    resetEditDialogFields();
+    setIsEditDialogOpen(true);
+  }
+
+  function closeEditDialog() {
+    updateTemplateMutation.reset();
+    resetEditDialogFields();
+    setIsEditDialogOpen(false);
+  }
+
+  function handleEditDialogChange(open: boolean) {
+    if (open) {
+      openEditDialog();
+    } else {
+      closeEditDialog();
+    }
+  }
 
   const handleEditSubmit = () => {
     if (!template?.id) return;
@@ -211,7 +231,7 @@ export default function ConfigTemplate() {
     }
 
     if (Object.keys(payload).length === 0) {
-      handleEditDialogChange(false);
+      closeEditDialog();
       return;
     }
 
@@ -219,12 +239,28 @@ export default function ConfigTemplate() {
     updateTemplateMutation.mutate({ templateId: template.id, data: payload });
   };
 
+  function openDeleteDialog() {
+    setShowDeleteDialog(true);
+  }
+
+  function closeDeleteDialog() {
+    setShowDeleteDialog(false);
+  }
+
+  function handleDeleteDialogChange(open: boolean) {
+    if (open) {
+      openDeleteDialog();
+    } else {
+      closeDeleteDialog();
+    }
+  }
+
   const handleDelete = async () => {
     try {
       await deleteTemplate(template.id);
       toast.success("Template deleted successfully");
       navigate("/templates"); // Redirigir a la lista de templates
-      setShowDeleteDialog(false);
+      closeDeleteDialog();
     } catch (deleteError) {
       console.error("Error deleting template:", deleteError);
       toast.error("Error deleting template");
@@ -322,7 +358,10 @@ export default function ConfigTemplate() {
             <DropdownMenuContent>
               <DropdownMenuItem 
                 className="hover:cursor-pointer"
-                onClick={() => handleEditDialogChange(true)}
+                onSelect={() => {
+                  // Defer dialog opening so the dropdown can finish closing without trapping focus
+                  setTimeout(() => openEditDialog(), 0);
+                }}
               >
                 <Pencil className="h-4 w-4 mr-2" />
                 Edit details
@@ -336,7 +375,10 @@ export default function ConfigTemplate() {
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="text-red-600 hover:cursor-pointer" 
-                onClick={() => setShowDeleteDialog(true)}
+                onSelect={() => {
+                  // Defer apertura para que el dropdown termine de cerrar sin dejar capas activas
+                  setTimeout(() => openDeleteDialog(), 0);
+                }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
@@ -428,13 +470,14 @@ export default function ConfigTemplate() {
             )}
           </div>
           <DialogFooter className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => handleEditDialogChange(false)}
-              className="hover:cursor-pointer"
-            >
-              Cancel
-            </Button>
+            <DialogClose asChild>
+              <Button
+                variant="outline"
+                className="hover:cursor-pointer"
+              >
+                Cancel
+              </Button>
+            </DialogClose>
             <Button
               onClick={handleEditSubmit}
               disabled={updateTemplateMutation.isPending}
@@ -446,7 +489,7 @@ export default function ConfigTemplate() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>

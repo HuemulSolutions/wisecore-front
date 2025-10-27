@@ -73,12 +73,28 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         }
     };
 
+    function openDeleteDialog() {
+        setIsDeleteDialogOpen(true);
+    }
+
+    function closeDeleteDialog() {
+        setIsDeleteDialogOpen(false);
+    }
+
+    const handleDeleteDialogChange = (open: boolean) => {
+        if (open) {
+            openDeleteDialog();
+        } else {
+            closeDeleteDialog();
+        }
+    };
+
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
             await deleteSectionExec(sectionExecution.id);
             toast.success('Section deleted successfully!');
-            setIsDeleteDialogOpen(false);
+            closeDeleteDialog();
             onUpdate?.();
         } catch (error) {
             console.error('Error deleting section:', error);
@@ -129,7 +145,10 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                         {!isEditing && !isAiEditing && (
                             <DropdownMenuItem 
                                 className="text-red-600 hover:cursor-pointer"
-                                onClick={() => setIsDeleteDialogOpen(true)}
+                                onSelect={() => {
+                                    // Sincroniza apertura al ciclo de cierre del dropdown
+                                    setTimeout(() => openDeleteDialog(), 0);
+                                }}
                             >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
@@ -248,7 +267,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             <Separator className="my-2" />
         
         {/* Delete Confirmation AlertDialog */}
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
             <AlertDialogContent className="sm:max-w-[425px]">
                 <AlertDialogHeader>
                     <AlertDialogTitle>Delete Section</AlertDialogTitle>

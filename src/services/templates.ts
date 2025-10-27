@@ -62,6 +62,44 @@ export async function deleteTemplate(templateId: string) {
     return data;
 }
 
+export async function updateTemplate(templateId: string, updateData: { name?: string; description?: string | null }) {
+    const payload: Record<string, string | null> = {};
+
+    if (updateData.name !== undefined) {
+        payload.name = updateData.name;
+    }
+
+    if (updateData.description !== undefined) {
+        payload.description = updateData.description;
+    }
+
+    const response = await fetch(`${backendUrl}/templates/${templateId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorMessage = 'Error al actualizar la plantilla';
+
+        try {
+            const errorResponse = await response.json();
+            console.error('Error updating template:', errorResponse);
+            errorMessage = errorResponse.error || errorMessage;
+        } catch (parseError) {
+            console.error('Error parsing update template error response:', parseError);
+        }
+
+        throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('Template updated:', data.data);
+    return data.data;
+}
+
 export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string }) {
     const response = await fetch(`${backendUrl}/templates/sections/`, {
         method: 'POST',
