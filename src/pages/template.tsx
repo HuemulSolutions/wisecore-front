@@ -10,15 +10,25 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection, generateTemplateSections } from "@/services/templates";
+import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection, generateTemplateSections, updateTemplate } from "@/services/templates";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 // import Section  from "@/components/section";
 import SortableSection from "@/components/sortable_section";
 import { AddSectionForm } from "@/components/add_template_section";
-import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft, Sparkles } from "lucide-react";
+import { Trash2, PlusCircle, MoreVertical, Download, ArrowLeft, Sparkles, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +46,10 @@ export default function ConfigTemplate() {
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [editedDescription, setEditedDescription] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
   // Estado local para mantener el orden de secciones en UI (optimista)
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
@@ -116,11 +130,35 @@ export default function ConfigTemplate() {
     }
   });
 
+  const updateTemplateMutation = useMutation({
+    mutationFn: ({ templateId, data }: { templateId: string; data: { name?: string; description?: string | null } }) =>
+      updateTemplate(templateId, data),
+    onSuccess: () => {
+      toast.success("Template updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["template", id] });
+      setIsEditDialogOpen(false);
+      setEditError(null);
+    },
+    onError: (error) => {
+      const message = (error as Error).message || "Unknown error";
+      console.error("Error updating template:", error);
+      setEditError(message);
+      toast.error("Error updating template: " + message);
+    }
+  });
+
   useEffect(() => {
     if (error) {
       console.error("Error fetching template:", error);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (template) {
+      setEditedName(template.name ?? "");
+      setEditedDescription(template.description ?? "");
+    }
+  }, [template]);
 
   // Sincronizar orderedSections cuando cambie el template
   useEffect(() => {
@@ -138,6 +176,48 @@ export default function ConfigTemplate() {
   if (!template) {
     return <div>No template found with ID: {id}</div>;
   }
+
+  const handleEditDialogChange = (open: boolean) => {
+    setIsEditDialogOpen(open);
+    if (template) {
+      setEditedName(template.name ?? "");
+      setEditedDescription(template.description ?? "");
+    }
+    setEditError(null);
+    updateTemplateMutation.reset();
+  };
+
+  const handleEditSubmit = () => {
+    if (!template?.id) return;
+
+    const trimmedName = editedName.trim();
+    if (!trimmedName) {
+      setEditError("Name is required");
+      return;
+    }
+
+    const normalizedDescription = editedDescription.trim().length > 0 ? editedDescription : null;
+    const templateDescription = template.description ?? "";
+    const nextDescription = normalizedDescription ?? "";
+
+    const payload: { name?: string; description?: string | null } = {};
+
+    if (trimmedName !== template.name) {
+      payload.name = trimmedName;
+    }
+
+    if (nextDescription !== templateDescription) {
+      payload.description = normalizedDescription;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      handleEditDialogChange(false);
+      return;
+    }
+
+    setEditError(null);
+    updateTemplateMutation.mutate({ templateId: template.id, data: payload });
+  };
 
   const handleDelete = async () => {
     try {
@@ -241,6 +321,13 @@ export default function ConfigTemplate() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem 
+                className="hover:cursor-pointer"
+                onClick={() => handleEditDialogChange(true)}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit details
+              </DropdownMenuItem>
+              <DropdownMenuItem 
                 className="hover:cursor-pointer" 
                 onClick={handleExport}
               >
@@ -310,6 +397,54 @@ export default function ConfigTemplate() {
           </div>
         </SortableContext>
       </DndContext>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit template details</DialogTitle>
+            <DialogDescription>
+              Update the name and description to keep the template information accurate.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <Input
+                value={editedName}
+                onChange={(event) => setEditedName(event.target.value)}
+                placeholder="Template name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <Textarea
+                value={editedDescription}
+                onChange={(event) => setEditedDescription(event.target.value)}
+                placeholder="Template description (optional)"
+              />
+            </div>
+            {editError && (
+              <p className="text-sm text-red-600">{editError}</p>
+            )}
+          </div>
+          <DialogFooter className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => handleEditDialogChange(false)}
+              className="hover:cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditSubmit}
+              disabled={updateTemplateMutation.isPending}
+              className="hover:cursor-pointer"
+            >
+              {updateTemplateMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
