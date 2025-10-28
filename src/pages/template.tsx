@@ -10,7 +10,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTemplateById, deleteTemplate, createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection, generateTemplateSections, updateTemplate } from "@/services/templates";
+import { getTemplateById, deleteTemplate, generateTemplateSections, updateTemplate } from "@/services/templates";
+import { createTemplateSection, updateTemplateSection, updateSectionsOrder, deleteTemplateSection } from "@/services/template_section";
 import { formatDate } from "@/services/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
