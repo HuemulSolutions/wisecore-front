@@ -201,6 +201,22 @@ export function LibraryContent({
     }
   };
 
+  function openDeleteDialog() {
+    setIsDeleteDialogOpen(true);
+  }
+
+  function closeDeleteDialog() {
+    setIsDeleteDialogOpen(false);
+  }
+
+  const handleDeleteDialogChange = (open: boolean) => {
+    if (open) {
+      openDeleteDialog();
+    } else {
+      closeDeleteDialog();
+    }
+  };
+
   // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     if (selectedFile) {
@@ -219,7 +235,7 @@ export function LibraryContent({
         queryClient.invalidateQueries({ queryKey: ['library'] });
         queryClient.invalidateQueries({ queryKey: ['document-content'] });
         
-        setIsDeleteDialogOpen(false);
+        closeDeleteDialog();
       } catch (error) {
         console.error('Error deleting document:', error);
         toast.error('Failed to delete document. Please try again.');
@@ -302,7 +318,10 @@ export function LibraryContent({
                 </DropdownMenuSub>
                 <DropdownMenuItem 
                   className="text-red-600 hover:cursor-pointer" 
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onSelect={() => {
+                    // Defer apertura para evitar que el dropdown deje capas activas al cerrarse
+                    setTimeout(() => openDeleteDialog(), 0);
+                  }}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
@@ -420,7 +439,7 @@ export function LibraryContent({
       )}
 
       {/* Delete Confirmation AlertDialog (reemplaza Dialog) */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document</AlertDialogTitle>
@@ -429,7 +448,7 @@ export function LibraryContent({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="hover:cursor-pointer" onClick={() => setIsDeleteDialogOpen(false)}>
+            <AlertDialogCancel className="hover:cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction

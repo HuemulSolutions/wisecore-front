@@ -58,10 +58,26 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
       ? item.prompt
       : `${item.prompt.substring(0, maxPreviewLength)}...`;
 
+  function openDeleteDialog() {
+    setShowDeleteDialog(true);
+  }
+
+  function closeDeleteDialog() {
+    setShowDeleteDialog(false);
+  }
+
+  const handleDeleteDialogChange = (open: boolean) => {
+    if (open) {
+      openDeleteDialog();
+    } else {
+      closeDeleteDialog();
+    }
+  };
+
   const handleDelete = () => {
     // Aquí puedes agregar la lógica para eliminar el item
     onDelete(item.id);
-    setShowDeleteDialog(false);
+    closeDeleteDialog();
   };
 
   const handleEdit = () => {
@@ -126,7 +142,10 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="hover:cursor-pointer text-red-600"
-                onClick={() => setShowDeleteDialog(true)}
+                onSelect={() => {
+                  // Defer apertura para que el dropdown termine su ciclo y no deje capas bloqueadas
+                  setTimeout(() => openDeleteDialog(), 0);
+                }}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -180,12 +199,12 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
         </div>
       </CardContent>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the template "{item.name}".
+              This action cannot be undone. This will permanently delete the element "{item.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

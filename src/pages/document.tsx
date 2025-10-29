@@ -1,10 +1,16 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { getDocumentById } from "@/services/documents";
-import { createExecution, exportExecutionToWord } from "@/services/executions";
+import { getDocumentById, uploadDocxTemplate } from "@/services/documents";
+import { createExecution, exportExecutionToWord, exportExecutionToMarkdown, exportExecutionCustomWord } from "@/services/executions";
 import { formatDate } from "@/services/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Trash2,
   Settings,
@@ -17,12 +23,20 @@ import {
   RefreshCw,
   DiamondMinus,
   File,
-  ArrowLeft
+  ArrowLeft,
+  FileUp,
+  FileSliders,
+  Download,
+  ChevronDown
 } from "lucide-react";
+import { useState, useRef } from "react";
+import { toast } from "sonner";
 
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     data: document,
@@ -113,9 +127,73 @@ export default function DocumentPage() {
     console.log("Export to PowerPoint");
   };
 
-  const handleExportMarkdown = () => {
-    // Implementar lógica para exportar a Markdown
-    console.log("Export to Markdown");
+  const handleExportMarkdown = async () => {
+    try {
+      const lastExecution = document.executions?.[0]; // Get the most recent execution
+      if (!lastExecution) {
+        console.error("No executions found for this document");
+        return;
+      }
+      
+      await exportExecutionToMarkdown(lastExecution.id.toString());
+      console.log("Markdown export completed successfully");
+    } catch (error) {
+      console.error("Error exporting to Markdown:", error);
+    }
+  };
+
+  const handleUploadTemplate = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      toast.error('Please select a DOCX file');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    try {
+      setIsUploadingTemplate(true);
+      await uploadDocxTemplate(id!, file);
+      console.log('Template uploaded successfully');
+      await refetch();
+      toast.success('Template uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading template:', error);
+      toast.error('Error uploading template. Please try again.');
+    } finally {
+      setIsUploadingTemplate(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    // Implement logic to download current template
+    console.log("Download current template");
+  };
+
+  const handleExportCustomWord = async () => {
+    try {
+      const lastExecution = document.executions?.[0]; // Get the most recent execution
+      if (!lastExecution) {
+        console.error("No executions found for this document");
+        return;
+      }
+      
+      await exportExecutionCustomWord(lastExecution.id.toString());
+      console.log("Custom Word export completed successfully");
+    } catch (error) {
+      console.error("Error exporting to custom Word:", error);
+    }
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -142,6 +220,15 @@ export default function DocumentPage() {
           <h1 className="text-2xl font-bold">Manage Asset</h1>
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".docx"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
 
       {/* Document Content */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -273,8 +360,56 @@ export default function DocumentPage() {
                   disabled={!document.executions || document.executions.length === 0}
                 >
                   <FileText className="h-4 w-4 mr-2" />
-                  Export to Word
+                  Export to basic Word
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between hover:cursor-pointer"
+                      disabled={!document.executions || document.executions.length === 0}
+                    >
+                      <div className="flex items-center">
+                        <FileSliders className="h-4 w-4 mr-2" />
+                        Custom Word
+                      </div>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuItem 
+                      onClick={handleUploadTemplate}
+                      disabled={isUploadingTemplate}
+                      className="hover:cursor-pointer"
+                    >
+                      <FileUp className="h-4 w-4 mr-2" />
+                      {isUploadingTemplate 
+                        ? 'Uploading...' 
+                        : document.docx_template 
+                          ? 'Replace template'
+                          : 'Upload template'
+                      }
+                    </DropdownMenuItem>
+                    {document.docx_template && (
+                      <DropdownMenuItem 
+                        onClick={handleDownloadTemplate}
+                        className="hover:cursor-pointer"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download current template
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem 
+                      onClick={handleExportCustomWord}
+                      disabled={!document.docx_template}
+                      className="hover:cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export with template
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="outline"
                   size="sm"
@@ -290,6 +425,7 @@ export default function DocumentPage() {
                   size="sm"
                   className="w-full justify-start hover:cursor-pointer"
                   onClick={handleExportMarkdown}
+                  disabled={!document.executions || document.executions.length === 0}
                 >
                   <DiamondMinus className="h-4 w-4 mr-2" />
                   Export to Markdown
