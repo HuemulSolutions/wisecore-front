@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 
 
 export async function search(query: string, organizationId: string) {
-    const response = await fetch(`${backendUrl}/chunks/search?query=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${backendUrl}/search/?query=${encodeURIComponent(query)}`, {
         headers: {
             'OrganizationId': organizationId,
         },
