@@ -1,7 +1,7 @@
 import { backendUrl } from "@/config";
 
 export async function getContext(documentId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}/context`);
+  const response = await fetch(`${backendUrl}/context/${documentId}`);
   if (!response.ok) {
     throw new Error('Error al obtener el contexto del documento');
   }
@@ -11,7 +11,7 @@ export async function getContext(documentId: string) {
 }
 
 export async function addTextContext(documentId: string, name: string, content: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}/add_context_text`, {
+  const response = await fetch(`${backendUrl}/context/${documentId}/text`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -35,7 +35,7 @@ export async function addDocumentContext(documentId: string, file: File) {
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await fetch(`${backendUrl}/documents/${documentId}/add_context_file`, {
+  const response = await fetch(`${backendUrl}/context/${documentId}/file`, {
     method: 'POST',
     body: formData,
   });
@@ -49,8 +49,8 @@ export async function addDocumentContext(documentId: string, file: File) {
   return data.data;
 }
 
-export async function deleteContext(documentId: string, contextId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}/context/${contextId}`, {
+export async function deleteContext(contextId: string) {
+  const response = await fetch(`${backendUrl}/context/${contextId}`, {
     method: 'DELETE',
   });
   

@@ -76,25 +76,6 @@ export async function updateLLM(executionId: string, llmId: string) {
     return data.data;
 }
 
-export async function modifyContent(sectionId: string, content: string) {
-    console.log(`Modifying content for section ID: ${sectionId}`);
-    const response = await fetch(`${backendUrl}/execution/modify_content/${sectionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: content }),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al modificar el contenido de la sección');
-    }
-
-    const data = await response.json();
-    console.log('Section content modified:', data.data);
-    return data.data;
-}
-
 async function exportExecutionFile(executionId: string, exportType: 'markdown' | 'word' | 'custom_word') {
     const endpoints = {
         markdown: 'export_markdown',

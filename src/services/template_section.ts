@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 
 
 export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string }) {
-    const response = await fetch(`${backendUrl}/template_sections/`, {
+    const response = await fetch(`${backendUrl}/template_section/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ export async function createTemplateSection(sectionData: { name: string; prompt:
 }
 
 export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
-    const response = await fetch(`${backendUrl}/template_sections/${sectionId}`, {
+    const response = await fetch(`${backendUrl}/template_section/${sectionId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export async function updateTemplateSection(sectionId: string, sectionData: { na
 }
 
 export async function deleteTemplateSection(sectionId: string) {
-    const response = await fetch(`${backendUrl}/template_sections/${sectionId}`, {
+    const response = await fetch(`${backendUrl}/template_section/${sectionId}`, {
         method: 'DELETE',
     });
 
@@ -57,7 +57,7 @@ export async function deleteTemplateSection(sectionId: string) {
 
 
 export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
-    const response = await fetch(`${backendUrl}/template_sections/order`, {
+    const response = await fetch(`${backendUrl}/template_section/order`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',

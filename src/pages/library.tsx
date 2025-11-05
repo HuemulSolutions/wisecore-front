@@ -20,6 +20,15 @@ interface BreadcrumbItem {
   name: string;
 }
 
+type LibraryNavigationState = {
+  selectedDocumentId?: string;
+  selectedDocumentName?: string;
+  selectedDocumentType?: "document" | "folder";
+  restoreBreadcrumb?: boolean;
+  breadcrumb?: BreadcrumbItem[];
+  fromLibrary?: boolean;
+};
+
 export default function Library() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,16 +75,20 @@ export default function Library() {
 
   // Handle navigation state to restore selected document and breadcrumb
   useEffect(() => {
-    if (location.state?.selectedDocumentId && location.state?.selectedDocumentName) {
+    const navigationState = location.state as LibraryNavigationState | undefined;
+
+    if (navigationState?.selectedDocumentId && navigationState?.selectedDocumentName) {
       // Restore selected file
       setSelectedFile({
-        id: location.state.selectedDocumentId,
-        name: location.state.selectedDocumentName,
-        type: location.state.selectedDocumentType || "document"
+        id: navigationState.selectedDocumentId,
+        name: navigationState.selectedDocumentName,
+        type: navigationState.selectedDocumentType || "document"
       });
       
       // Restore breadcrumb if requested
-      if (location.state?.restoreBreadcrumb) {
+      if (navigationState?.breadcrumb && navigationState.breadcrumb.length > 0) {
+        setBreadcrumb(navigationState.breadcrumb);
+      } else if (navigationState?.restoreBreadcrumb) {
         const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
         if (savedBreadcrumb) {
           try {
@@ -92,7 +105,7 @@ export default function Library() {
     }
     
     // Handle returning from graph page
-    if (location.state?.fromLibrary) {
+    if (navigationState?.fromLibrary) {
       const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
       const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
       
