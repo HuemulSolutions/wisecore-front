@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 
 export async function getLibraryContent(organizationId: string, folderId?: string) {
     const folderPath = folderId || 'root';
-    const url = `${backendUrl}/library/${folderPath}`;
+    const url = `${backendUrl}/folder/${folderPath}`;
     const response = await fetch(url, {
         headers: {
             'OrganizationId': organizationId,
@@ -18,7 +18,7 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
 
 
 export async function createFolder(name: string, organizationId?: string, parentId?: string) {
-    const response = await fetch(`${backendUrl}/library/create_folder`, {
+    const response = await fetch(`${backendUrl}/folder/create_folder`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export async function createFolder(name: string, organizationId?: string, parent
 
 
 export async function deleteFolder(folderId: string) {
-    const response = await fetch(`${backendUrl}/library/${folderId}`, {
+    const response = await fetch(`${backendUrl}/folder/${folderId}`, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',

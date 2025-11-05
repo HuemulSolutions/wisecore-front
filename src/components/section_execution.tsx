@@ -21,9 +21,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { modifyContent } from '@/services/executions';
 import { fixSection } from '@/services/generate';
-import { deleteSectionExec } from '@/services/section_execution';
+import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { toast } from 'sonner';
 
 interface SectionExecutionProps {

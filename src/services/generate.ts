@@ -206,7 +206,7 @@ async function* fetchChatbot(
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
   return yield* ssePostStream(
-    `${backendUrl}/generation/chatbot`,
+    `${backendUrl}/chatbot`,
     { execution_id: executionId, user_message, thread_id: threadId },
     signal
   );
