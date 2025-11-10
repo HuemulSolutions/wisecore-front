@@ -17,9 +17,10 @@ import { useOrganization } from "@/contexts/organization-context";
 interface CreateFolderProps {
   trigger: React.ReactNode;
   parentFolder?: string;
+  onFolderCreated?: () => void;
 }
 
-export default function CreateFolder({ trigger, parentFolder }: CreateFolderProps) {
+export default function CreateFolder({ trigger, parentFolder, onFolderCreated }: CreateFolderProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
 
@@ -34,7 +35,9 @@ export default function CreateFolder({ trigger, parentFolder }: CreateFolderProp
       parentId?: string;
     }) => createFolder(newFolder.name, newFolder.organizationId, newFolder.parentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["library"] });
+      // Invalidar queries más específicamente
+      queryClient.invalidateQueries({ queryKey: ["library", selectedOrganizationId] });
+      onFolderCreated?.(); // Llamar callback del componente padre
       resetForm();
       setIsDialogOpen(false);
     },
