@@ -4,7 +4,7 @@ FROM node:20-bullseye-slim AS build
 # Set the working directory
 WORKDIR /app
 
-ENV VITE_API_URL=http://localhost:8080
+ENV VITE_API_URL=http://localhost:8080/api/v1
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
