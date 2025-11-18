@@ -126,6 +126,32 @@ export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {
     return data.data || data;
 }
 
+export async function updateLLMModel(llmId: string, llm: Partial<CreateLLMRequest>): Promise<LLM> {
+    const response = await fetch(`${backendUrl}/llms/${llmId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(llm),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al actualizar el LLM');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+export async function deleteLLM(llmId: string): Promise<void> {
+    const response = await fetch(`${backendUrl}/llms/${llmId}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al eliminar el LLM');
+    }
+}
+
 export async function setDefaultLLM(llmId: string): Promise<void> {
     const response = await fetch(`${backendUrl}/llms/set-default`, {
         method: 'PATCH',
@@ -150,7 +176,7 @@ export async function getDefaultLLM(): Promise<LLM> {
 }
 
 // Legacy function for backward compatibility
-export async function updateLLM(executionId: string, llmId: string) {
+export async function updateExecutionLLM(executionId: string, llmId: string) {
     const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {
         method: 'PUT',
         headers: {
