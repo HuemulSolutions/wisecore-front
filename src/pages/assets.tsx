@@ -67,7 +67,7 @@ export default function Assets() {
 
   // Parse URL path to get folder path and selected file
   const parseUrlPath = async () => {
-    const path = location.pathname.replace('/assets', '').replace(/^\/+|\/+$/g, '');
+    const path = location.pathname.replace('/asset', '').replace(/^\/+|\/+$/g, '');
     console.log('Parsing URL path:', location.pathname, '-> cleaned path:', path);
     
     if (!path) return { folderPath: [], selectedFileId: null };
@@ -138,7 +138,7 @@ export default function Assets() {
 
   // Build URL path from breadcrumb and selected file
   const buildUrlPath = (breadcrumb: BreadcrumbItem[], selectedFileId?: string) => {
-    let path = '/assets';
+    let path = '/asset';
     
     if (breadcrumb.length > 0) {
       const folderPath = breadcrumb.map(item => encodeURIComponent(item.id)).join('/');
@@ -161,7 +161,7 @@ export default function Assets() {
   const { selectedOrganizationId } = useOrganization();
   const hasRestoredRef = useRef(false);
 
-  // Cerrar app sidebar automáticamente en móvil cuando se accede a Assets
+  // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
   useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
@@ -366,13 +366,13 @@ export default function Assets() {
             } else {
               console.warn('No valid hierarchy found, redirecting to root');
               // If we can't load the hierarchy, redirect to root
-              navigate('/assets', { replace: true });
+              navigate('/asset', { replace: true });
               return;
             }
           } catch (error) {
             console.error('Error loading folder hierarchy from URL:', error);
             // Redirect to root on error
-            navigate('/assets', { replace: true });
+            navigate('/asset', { replace: true });
             return;
           }
         }
@@ -417,7 +417,7 @@ export default function Assets() {
       } catch (error) {
         console.error('Error initializing from URL:', error);
         // Redirect to root on any error
-        navigate('/assets', { replace: true });
+        navigate('/asset', { replace: true });
       }
     };
     
@@ -425,7 +425,7 @@ export default function Assets() {
     const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
     const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
     
-    if (location.pathname !== '/assets') {
+    if (location.pathname !== '/asset') {
       // URL has path, use URL
       initializeFromUrl();
     } else if (savedBreadcrumb) {
@@ -620,7 +620,7 @@ export default function Assets() {
       console.log(`🎯 Final complete path:`, completePath);
       
       // Build the URL
-      let shareUrl = `${window.location.origin}/assets`;
+      let shareUrl = `${window.location.origin}/asset`;
       if (completePath.length > 0) {
         shareUrl += '/' + completePath.join('/');
       }
@@ -631,7 +631,7 @@ export default function Assets() {
         console.log(`🔄 Complete path from component:`, completePath);
         
         // Build the complete URL directly from the full path
-        const completeUrl = `/assets/${completePath.join('/')}`;
+        const completeUrl = `/asset/${completePath.join('/')}`;
         console.log(`🔄 Auto-corrected browser URL (URL only):`, completeUrl);
         
         // Only update the browser URL, DO NOT change breadcrumb or navigation state
@@ -683,7 +683,7 @@ export default function Assets() {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         position="left"
         toggleAriaLabel={isSidebarOpen ? "Cerrar sidebar" : "Abrir sidebar"}
-        mobileTitle="Assets Navigator"
+        mobileTitle="Asset Navigator"
         customToggleIcon={<FolderTree className="h-4 w-4" />}
         customToggleIconMobile={<FolderTree className="h-5 w-5" />}
         showToggleButton={!isMobile} // Hide toggle button on mobile, use external one
@@ -768,10 +768,10 @@ export default function Assets() {
                   <span className="hover:cursor-pointer text-primary hover:underline" onClick={() => {
                     setBreadcrumb([]);
                     setSelectedFile(null);
-                    // Navigate to root assets
-                    navigate('/assets', { replace: true });
+                    // Navigate to root asset
+                    navigate('/asset', { replace: true });
                   }}>
-                    Assets
+                    Asset
                   </span>
                   {breadcrumb.map((item, index) => (
                     <span key={item.id}>

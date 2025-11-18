@@ -791,7 +791,7 @@ export function AssetContent({
             title="Welcome to Assets"
             subtitle="Let's get you started with your document workflow"
             onComplete={() => {
-              toast.success("Workflow completed! You can now start working with your assets.");
+              toast.success("Workflow completed! You can now start working with your asset.");
             }}
           />
 
@@ -837,7 +837,7 @@ export function AssetContent({
                   </Tooltip>
                 </TooltipProvider>
                 <span className="text-sm font-medium text-gray-900">
-                  {selectedFile ? selectedFile.name : 'Assets'}
+                  {selectedFile ? selectedFile.name : 'Asset'}
                 </span>
               </div>
               

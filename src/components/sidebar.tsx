@@ -9,7 +9,7 @@ import { useEffect } from "react";
 const navItems = [
 	{ to: "/home", label: "Home", icon: Home },
 	{ to: "/library", label: "Library", icon: LibraryBig },
-	{ to: "/assets", label: "Assets", icon: BookText  },
+	{ to: "/asset", label: "Assets", icon: BookText  },
 	{ to: "/search", label: "Search", icon: Search },
 	{ to: "/templates", label: "Templates", icon: LayoutTemplate },
 	
