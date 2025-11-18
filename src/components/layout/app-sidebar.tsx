@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+// import { NavUser } from "@/components/nav-user" // Hidden - user information disabled
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { getAllOrganizations, addOrganization } from "@/services/organizations"
@@ -50,11 +50,11 @@ const navigationItems = [
 ]
 
 // Mock user data - replace with real user context when available
-const currentUser = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  avatar: undefined // URL to avatar image
-}
+// const currentUser = {
+//   name: "John Doe",
+//   email: "john.doe@example.com",
+//   avatar: undefined // URL to avatar image
+// } // Hidden - user information disabled
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setOpenMobile } = useSidebar()
@@ -130,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navigationItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={currentUser} />
+        {/* NavUser removed - user information hidden */}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
