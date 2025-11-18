@@ -29,7 +29,7 @@ const navigationItems = [
   },
   {
     title: "Assets",
-    url: "/assets", 
+    url: "/asset", 
     icon: BookText,
   },
   {

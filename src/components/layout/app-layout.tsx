@@ -18,7 +18,7 @@ export default function AppLayout() {
   const getPageName = (pathname: string): string => {
     const routes: { [key: string]: string } = {
       '/home': 'Home',
-      '/assets': 'Assets',
+      '/asset': 'Assets',
       '/editor': 'Editor',
       '/search': 'Search',
       '/templates': 'Templates',
@@ -28,7 +28,7 @@ export default function AppLayout() {
     }
     
     // Handle dynamic routes
-    if (pathname.startsWith('/assets/')) return 'Assets'
+    if (pathname.startsWith('/asset/')) return 'Asset'
     if (pathname.startsWith('/document/')) return 'Document'
     if (pathname.startsWith('/configTemplate/')) return 'Template Configuration'
     if (pathname.startsWith('/configDocument/')) return 'Document Configuration'

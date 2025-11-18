@@ -34,7 +34,7 @@ export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating,
             setIsDeleting(true);
             await deleteExecution(execution.id);
             onExecutionDeleted?.();
-            navigate('/assets');
+            navigate('/asset');
         } catch (error) {
             console.error('Error deleting execution:', error);
         } finally {
