@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, LibraryBig, BookText, Settings } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -26,11 +26,6 @@ const navigationItems = [
     title: "Home",
     url: "/home",
     icon: Home,
-  },
-  {
-    title: "Library", 
-    url: "/library",
-    icon: LibraryBig,
   },
   {
     title: "Assets",

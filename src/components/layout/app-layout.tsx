@@ -17,7 +17,6 @@ export default function AppLayout() {
   const getPageName = (pathname: string): string => {
     const routes: { [key: string]: string } = {
       '/home': 'Home',
-      '/library': 'Library',
       '/assets': 'Assets',
       '/editor': 'Editor',
       '/search': 'Search',
