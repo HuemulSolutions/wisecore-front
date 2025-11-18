@@ -12,6 +12,7 @@ import Organizations from "./pages/organizations";
 import Library from "./pages/library";
 import Assets from "./pages/assets";
 import Graph from "./pages/graph";
+import ModelsPage from "./pages/models";
 
 export default function App() {
   return (
@@ -21,10 +22,12 @@ export default function App() {
         <Route path="home" element={<Home />} />
         <Route path="organizations" element={<Organizations />} />
         <Route path="templates" element={<Templates />} />
+        <Route path="templates/:id" element={<Templates />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="library" element={<Library />} />
-        <Route path="assets*" element={<Assets />} />
+        <Route path="assets/*" element={<Assets />} />
         <Route path="graph" element={<Graph />} />
+        <Route path="models" element={<ModelsPage />} />
         <Route path="configTemplate/:id" element={<ConfigTemplate />} />
         <Route path="document/:id" element={<DocumentPage />} />
         <Route path="configDocument/:id" element={<ConfigDocumentPage />} />

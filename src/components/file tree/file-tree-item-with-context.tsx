@@ -155,7 +155,7 @@ interface FileTreeItemWithContextProps {
   onChildrenLoaded?: (folderId: string, children: FileNode[]) => void
   onRefresh?: () => void
   onDocumentCreated?: (document: { id: string; name: string; type: "document" }) => void
-  onShare?: (item: FileNode, fullPath: string[]) => void
+  onShare?: (item: FileNode, fullPath: string[], isAutomatic?: boolean) => void
   currentPath?: string[]
 }
 
@@ -301,6 +301,18 @@ export function FileTreeItemWithContext({
         }
       }
       setIsExpanded(!isExpanded)
+    } else {
+      // Si es un archivo, automáticamente generar la URL correcta
+      try {
+        const completePath = [...currentPath, item.id];
+        console.log('Auto-generating correct URL for selected file:', item.name);
+        console.log('Complete path:', completePath);
+        
+        // Call onShare with isAutomatic = true to update browser URL
+        onShare?.(item, completePath, true);
+      } catch (error) {
+        console.error('Error auto-generating URL:', error);
+      }
     }
   }
 
@@ -338,7 +350,8 @@ export function FileTreeItemWithContext({
       console.log('Complete path for sharing:', completePath);
       
       // Call the onShare callback which handles the URL generation and clipboard
-      onShare?.(item, completePath);
+      // Pass false for isAutomatic since this is a manual share action
+      onShare?.(item, completePath, false);
       
     } catch (error) {
       console.error('Error sharing item:', error);
@@ -417,7 +430,7 @@ export function FileTreeItemWithContext({
             )}
 
             {/* Nombre del archivo/carpeta */}
-            <span className="truncate text-sm font-medium flex-1">{item.name}</span>
+            <span className="truncate text-sm flex-1 text-gray-600">{item.name}</span>
             
             {/* Botón de más opciones */}
             <DropdownMenu>

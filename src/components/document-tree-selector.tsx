@@ -43,16 +43,18 @@ interface TreeNode extends Document {
 interface DocumentTreeSelectorProps {
     documentTypes: DocumentType[];
     selectedDocumentTypes: string[];
-    onDocumentSelect: (documentId: string) => void;
+    onDocumentSelect: (document: { id: string; name: string; type: "document" }) => void;
     onFilterChange: (selectedTypes: string[]) => void;
     placeholder?: string;
     disabled?: boolean;
     excludeDocumentIds?: string[]; // Documents to exclude from selection
+    showContainer?: boolean; // Whether to show border and background
+    customPadding?: string; // Custom padding classes
 }
 
 interface TreeItemProps {
     node: TreeNode;
-    onSelect: (documentId: string) => void;
+    onSelect: (document: { id: string; name: string; type: "document" }) => void;
     searchTerm: string;
     excludeDocumentIds: string[];
     onLoadChildren: (folderId: string) => Promise<TreeNode[]>;
@@ -107,7 +109,7 @@ function TreeItem({
 
     const handleSelect = () => {
         if (isDocument && !isExcluded) {
-            onSelect(node.id);
+            onSelect({ id: node.id, name: node.name, type: "document" });
         }
     };
 
@@ -115,11 +117,11 @@ function TreeItem({
         <div className="w-full">
             <div
                 className={cn(
-                    "flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors group",
-                    isDocument && !isExcluded && "cursor-pointer hover:bg-blue-50 hover:border-blue-200 border border-transparent",
+                    "flex items-center gap-2 px-2 py-1.5 rounded-md transition-all duration-200 group",
+                    isDocument && !isExcluded && "cursor-pointer hover:bg-gray-100 hover:shadow-sm",
                     isDocument && isExcluded && "opacity-50 cursor-not-allowed",
-                    isFolder && "cursor-default",
-                    isHovered && isDocument && !isExcluded && "bg-blue-50 border-blue-200"
+                    isFolder && "cursor-default hover:bg-gray-50",
+                    isHovered && isDocument && !isExcluded && "bg-[#4464f7]/10 text-[#4464f7] border-l-2 border-[#4464f7]"
                 )}
                 style={{ paddingLeft: `${level * 16 + 8}px` }}
                 onMouseEnter={() => setIsHovered(true)}
@@ -131,7 +133,7 @@ function TreeItem({
                     <button
                         onClick={handleToggleExpand}
                         className={cn(
-                            "flex-shrink-0 p-0.5 hover:bg-gray-200 rounded transition-transform",
+                            "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
                             node.isExpanded && "rotate-90"
                         )}
                     >
@@ -148,43 +150,30 @@ function TreeItem({
 
                 {/* Icon */}
                 {isFolder ? (
-                    <Folder className="w-4 h-4 flex-shrink-0 text-orange-600" />
+                    <Folder className="w-4 h-4 flex-shrink-0" />
                 ) : (
-                    <FileText className="w-4 h-4 flex-shrink-0 text-blue-600" />
+                    <FileText 
+                        className="w-4 h-4 flex-shrink-0" 
+                        style={{ 
+                            color: node.document_type?.color || '#2563eb' // Use document type color or default blue
+                        }}
+                    />
                 )}
 
-                {/* Name and Type */}
+                {/* Name */}
                 <div className="flex-1 min-w-0 flex items-center gap-2">
                     <span className={cn(
-                        "text-sm font-medium truncate",
+                        "text-sm flex-1 truncate",
                         isDocument && !isExcluded ? "text-gray-900" : "text-gray-600"
                     )}>
                         {highlightSearchTerm(node.name, searchTerm)}
                     </span>
-                    {isDocument && node.document_type && (
-                        <Badge 
-                            variant="outline" 
-                            className="text-xs flex-shrink-0"
-                            style={{ 
-                                borderColor: node.document_type.color,
-                                color: node.document_type.color,
-                                backgroundColor: `${node.document_type.color}10`
-                            }}
-                        >
-                            {node.document_type.name}
-                        </Badge>
-                    )}
-                    {isExcluded && (
-                        <Badge variant="outline" className="text-xs flex-shrink-0 bg-gray-100 text-gray-500 border-gray-300">
-                            Excluded
-                        </Badge>
-                    )}
                 </div>
 
                 {/* Hover indicator for selectable documents */}
                 {isDocument && !isExcluded && (
                     <div className={cn(
-                        "w-2 h-2 rounded-full bg-blue-600 opacity-0 transition-opacity",
+                        "w-2 h-2 rounded-full bg-[#4464f7] opacity-0 transition-opacity",
                         isHovered && "opacity-100"
                     )} />
                 )}
@@ -215,9 +204,11 @@ export function DocumentTreeSelector({
     selectedDocumentTypes,
     onDocumentSelect,
     onFilterChange,
-    placeholder = "Search and select a document...",
+    placeholder = "Search documents...",
     disabled = false,
-    excludeDocumentIds = []
+    excludeDocumentIds = [],
+    showContainer = true,
+    customPadding = "p-4"
 }: DocumentTreeSelectorProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterOpen, setFilterOpen] = useState(false);
@@ -421,7 +412,7 @@ export function DocumentTreeSelector({
     }
 
     return (
-        <div className="space-y-3">
+        <div className="flex flex-col h-full space-y-3">
             {/* Search and Filter Header */}
             <div className="flex items-center gap-2">
                 {/* Search Input */}
@@ -464,7 +455,7 @@ export function DocumentTreeSelector({
                     <PopoverContent className="w-64 p-3">
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-sm">Filter by Type</h4>
+                                <h4 className="text-sm">Filter by Type</h4>
                                 {selectedDocumentTypes.length > 0 && (
                                     <Button
                                         size="sm"
@@ -530,10 +521,13 @@ export function DocumentTreeSelector({
             )}
 
             {/* Document Tree */}
-            <div className="border border-gray-200 rounded-lg bg-white">
-                <div className="max-h-80 overflow-y-auto">
+            <div className={cn(
+                "flex-1 flex flex-col",
+                showContainer && "border border-gray-200 rounded-lg bg-white"
+            )}>
+                <div className="flex-1 overflow-y-auto">
                     {filteredNodes.length === 0 ? (
-                        <div className="p-6 text-center">
+                        <div className={cn("text-center", customPadding === "p-2" ? "p-4" : "p-6")}>
                             <Folder className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-sm text-gray-500">
                                 {searchTerm || selectedDocumentTypes.length > 0 
@@ -555,7 +549,7 @@ export function DocumentTreeSelector({
                             )}
                         </div>
                     ) : (
-                        <div className="p-2 space-y-1">
+                        <div className={cn(customPadding, "space-y-0.5")}>
                             {filteredNodes.map((node) => (
                                 <TreeItem
                                     key={node.id}

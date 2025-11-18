@@ -94,7 +94,7 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
 
   return (
     <Card>
-      <form onSubmit={handleSubmit}>
+      <form id="add-template-section-form" onSubmit={handleSubmit}>
         <CardHeader>
           <CardTitle>Add New Section</CardTitle>
         </CardHeader>

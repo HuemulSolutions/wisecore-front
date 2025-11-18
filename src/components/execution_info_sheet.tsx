@@ -2,9 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus, Play, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { RefreshCw, MoreVertical, Plus, Trash2, Play, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { formatDate } from '@/services/utils';
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionCustomWord, deleteExecution, createExecution } from '@/services/executions';
+import { deleteExecution } from '@/services/executions';
 import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -20,54 +20,21 @@ export interface ExecutionInfoSheetProps {
     };
     onRefresh?: () => void;
     isGenerating: boolean;
+    onNewExecution?: () => void;
+    onExecutionDeleted?: () => void;
 }
 
-export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating }: ExecutionInfoSheetProps) {
+export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating, onNewExecution, onExecutionDeleted }: ExecutionInfoSheetProps) {
     const navigate = useNavigate();
-    const [isExporting, setIsExporting] = useState(false);
-    const [isExportingWord, setIsExportingWord] = useState(false);
-    const [isExportingCustomWord, setIsExportingCustomWord] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleExportToMarkdown = async () => {
-        try {
-            setIsExporting(true);
-            await exportExecutionToMarkdown(execution.id);
-        } catch (error) {
-            console.error('Error exporting execution to markdown:', error);
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const handleExportToWord = async () => {
-        try {
-            setIsExportingWord(true);
-            await exportExecutionToWord(execution.id);
-        } catch (error) {
-            console.error('Error exporting execution to Word:', error);
-        } finally {
-            setIsExportingWord(false);
-        }
-    };
-
-    const handleExportToCustomWord = async () => {
-        try {
-            setIsExportingCustomWord(true);
-            await exportExecutionCustomWord(execution.id);
-        } catch (error) {
-            console.error('Error exporting execution to custom Word:', error);
-        } finally {
-            setIsExportingCustomWord(false);
-        }
-    };
 
     const handleConfirmDelete = async () => {
         try {
             setIsDeleting(true);
             await deleteExecution(execution.id);
-            navigate(`/document/${execution.document_id}`);
+            onExecutionDeleted?.();
+            navigate('/assets');
         } catch (error) {
             console.error('Error deleting execution:', error);
         } finally {
@@ -77,14 +44,7 @@ export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating 
     };
 
     const handleNewExecution = () => {
-        createExecution(execution.document_id!)
-          .then((execution) => {
-            console.log("Execution created:", execution);
-            navigate(`/execution/${execution.id}`);
-          })
-          .catch((error) => {
-            console.error("Error creating execution:", error);
-          });
+        onNewExecution?.();
     };
 
     const getStatusInfo = (status: string) => {
@@ -171,48 +131,10 @@ export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating 
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem 
                                     className="hover:cursor-pointer"
-                                    onClick={() => navigate(`/docDepend/${execution.document_id}`)}
-                                >
-                                    <Network className="h-4 w-4 mr-2" />
-                                    Dependencies & Context
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    className="hover:cursor-pointer"
-                                    onClick={handleExportToMarkdown}
-                                    disabled={isExporting}
-                                >
-                                    <DiamondMinus className="h-4 w-4 mr-2" />
-                                    {isExporting ? 'Exporting...' : 'Export Markdown'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    className="hover:cursor-pointer"
-                                    onClick={handleExportToWord}
-                                    disabled={isExportingWord}
-                                >
-                                    <DiamondMinus className="h-4 w-4 mr-2" />
-                                    {isExportingWord ? 'Exporting...' : 'Export Word'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    className="hover:cursor-pointer"
-                                    onClick={handleExportToCustomWord}
-                                    disabled={isExportingCustomWord}
-                                >
-                                    <DiamondMinus className="h-4 w-4 mr-2" />
-                                    {isExportingCustomWord ? 'Exporting...' : 'Export Custom Word'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    className="hover:cursor-pointer"
                                     onClick={handleNewExecution}
                                 >
                                     <Plus className="h-4 w-4 mr-2" />
                                     New Execution
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    className="hover:cursor-pointer"
-                                    onClick={() => navigate(`/configDocument/${execution.document_id}`)}
-                                >
-                                    <Settings className="h-4 w-4 mr-2" />
-                                    Configure Document
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                     className="hover:cursor-pointer text-red-600"

@@ -1,16 +1,155 @@
 import { backendUrl } from "@/config";
 
+// Types
+export interface LLMProvider {
+  id: string;
+  name: string;
+  key: string;
+  endpoint: string;
+  deployment: string;
+}
 
-export async function getLLMs() {
+export interface CreateLLMProviderRequest {
+  name: string;
+  key: string;
+  endpoint: string;
+  deployment: string;
+}
+
+export interface LLM {
+  id: string;
+  name: string;
+  internal_name: string;
+  provider_id: string;
+  is_default?: boolean;
+}
+
+export interface CreateLLMRequest {
+  name: string;
+  internal_name: string;
+  provider_id: string;
+}
+
+// LLM Provider Services
+export async function getSupportedProviders() {
+    const response = await fetch(`${backendUrl}/llm_provider/supported`);
+    if (!response.ok) {
+        throw new Error('Error al obtener los proveedores soportados');
+    }
+    return response.json();
+}
+
+export async function getAllProviders(): Promise<LLMProvider[]> {
+    const response = await fetch(`${backendUrl}/llm_provider/`);
+    if (!response.ok) {
+        throw new Error('Error al obtener los proveedores');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+export async function createProvider(provider: CreateLLMProviderRequest): Promise<LLMProvider> {
+    const response = await fetch(`${backendUrl}/llm_provider/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(provider),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al crear el proveedor');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+export async function getProvider(providerId: string): Promise<LLMProvider> {
+    const response = await fetch(`${backendUrl}/llm_provider/${providerId}`);
+    if (!response.ok) {
+        throw new Error('Error al obtener el proveedor');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+export async function updateProvider(providerId: string, provider: Partial<CreateLLMProviderRequest>): Promise<LLMProvider> {
+    const response = await fetch(`${backendUrl}/llm_provider/${providerId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(provider),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al actualizar el proveedor');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+export async function deleteProvider(providerId: string): Promise<void> {
+    const response = await fetch(`${backendUrl}/llm_provider/${providerId}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al eliminar el proveedor');
+    }
+}
+
+// LLM Services
+export async function getLLMs(): Promise<LLM[]> {
     const response = await fetch(`${backendUrl}/llms/`);
     if (!response.ok) {
         throw new Error('Error al obtener los LLMs');
     }
     const data = await response.json();
     console.log('LLMs fetched:', data.data);
-    return data.data;
+    return data.data || data;
 }
 
+export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {
+    const response = await fetch(`${backendUrl}/llms/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(llm),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al crear el LLM');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+export async function setDefaultLLM(llmId: string): Promise<void> {
+    const response = await fetch(`${backendUrl}/llms/set-default`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ llm_id: llmId }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error al establecer el LLM por defecto');
+    }
+}
+
+export async function getDefaultLLM(): Promise<LLM> {
+    const response = await fetch(`${backendUrl}/llms/default`);
+    if (!response.ok) {
+        throw new Error('Error al obtener el LLM por defecto');
+    }
+    const data = await response.json();
+    return data.data || data;
+}
+
+// Legacy function for backward compatibility
 export async function updateLLM(executionId: string, llmId: string) {
     const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {
         method: 'PUT',

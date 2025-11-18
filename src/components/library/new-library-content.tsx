@@ -1,10 +1,18 @@
 import { useMemo, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw, FolderTree, PlusCircle, Layers, FileIcon, Zap } from "lucide-react";
+import { ActionStepper } from "@/components/action-stepper";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
+import { ExecutionStatusBanner } from "@/components/execution-status-banner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import Chatbot from "../chatbot/chatbot";
-import { ExecuteSheet, SectionSheet, DependenciesSheet, ContextSheet } from "../sheets";
+import { ExecuteSheet, SectionSheet, DependenciesSheet, ContextSheet, TemplateConfigSheet } from "../sheets";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import {
   DropdownMenu,
@@ -22,16 +30,28 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/documents";
 import { exportExecutionToMarkdown, exportExecutionToWord } from "@/services/executions";
+import { createSection, updateSectionsOrder } from "@/services/section";
+import { addTemplate, getTemplateById } from "@/services/templates";
+import { useOrganization } from "@/contexts/organization-context";
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/edit_document_dialog";
+import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import CreateDocumentLib from "@/components/library/create_document_lib";
 import SectionExecution from "./library_section";
+import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 
 // API response interface
 interface LibraryItem {
@@ -60,6 +80,8 @@ interface LibraryContentProps {
   setSelectedFile: (file: LibraryItem | null) => void;
   onRefresh: () => void;
   currentFolderId?: string;
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
 // Function to extract headings from multiple content sections for table of contents
@@ -116,27 +138,193 @@ function extractHeadings(markdown: string) {
   return headings;
 }
 
+// Section Separator Component with hover add button
+function SectionSeparator({ 
+  onAddSection, 
+  index, 
+  isLastSection = false,
+  isMobile = false
+}: { 
+  onAddSection: (afterIndex?: number) => void;
+  index?: number;
+  isLastSection?: boolean;
+  isMobile?: boolean;
+}) {
+  return (
+    <div className="group relative flex items-center justify-center my-4 px-4">
+      {/* Divider line */}
+      <div className="absolute inset-0 flex items-center">
+        <div className="w-full border-t border-gray-200 group-hover:border-gray-300 transition-colors duration-200" />
+      </div>
+      
+      {/* Add section button - appears on hover on desktop, always visible on mobile */}
+      <div className="relative bg-white px-6">
+        <Button
+          onClick={() => onAddSection(index)}
+          variant="ghost"
+          size="sm"
+          className={`
+            h-8 w-8 p-0 rounded-full 
+            ${isMobile 
+              ? 'opacity-100' 
+              : 'opacity-0 group-hover:opacity-100'
+            }
+            transition-all duration-300 ease-in-out
+            hover:bg-[#4464f7] hover:text-white
+            text-gray-400 hover:cursor-pointer
+            border border-gray-200 bg-white
+            shadow-sm hover:shadow-lg
+            transform hover:scale-110 active:scale-95
+          `}
+          title={`Add section ${isLastSection ? 'at the end' : index !== undefined && index >= 0 ? `after section ${index + 1}` : 'at the beginning'}`}
+        >
+          <PlusCircle className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function AssetContent({ 
   selectedFile, 
-  breadcrumb, 
   selectedExecutionId, 
   setSelectedExecutionId, 
   refetchDocumentContent,
   setSelectedFile,
   onRefresh,
-  currentFolderId
+  currentFolderId,
+  onToggleSidebar
 }: LibraryContentProps) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const { selectedOrganizationId } = useOrganization();
+
+  // Mutation for direct section creation
+  const addSectionMutation = useMutation({
+    mutationFn: async (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[]; order?: number }) => {
+      // First create the section
+      const { order, ...createData } = sectionData;
+      const newSection = await createSection(createData);
+      
+      // If order is specified, reorder sections
+      if (order !== undefined) {
+        const existingSections = [...(fullDocument?.sections || [])].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+        let sectionsWithOrder: { section_id: string; order: number }[] = [];
+        
+        if (order === -1) {
+          // Insert at beginning
+          sectionsWithOrder.push({ section_id: newSection.id, order: 1 });
+          existingSections.forEach((s: any, index: number) => {
+            sectionsWithOrder.push({ section_id: s.id, order: index + 2 });
+          });
+        } else if (existingSections.length > 0) {
+          // Insert after specific position
+          existingSections.forEach((s: any, index: number) => {
+            if (index <= order) {
+              // Sections before and at the insertion point keep their order
+              sectionsWithOrder.push({ section_id: s.id, order: index + 1 });
+            } else {
+              // Sections after the insertion point are shifted by 1
+              sectionsWithOrder.push({ section_id: s.id, order: index + 2 });
+            }
+          });
+          
+          // Insert new section at the correct position
+          sectionsWithOrder.push({ section_id: newSection.id, order: order + 2 });
+        } else {
+          // No existing sections, just add the new one
+          sectionsWithOrder.push({ section_id: newSection.id, order: 1 });
+        }
+        
+        // Sort by order to ensure correct sequence
+        sectionsWithOrder.sort((a, b) => a.order - b.order);
+        
+        // Update the order
+        await updateSectionsOrder(sectionsWithOrder);
+      }
+      
+      return newSection;
+    },
+    onSuccess: () => {
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['library'] });
+      
+      setIsDirectSectionDialogOpen(false);
+      setSectionInsertPosition(undefined);
+      toast.success("Section created successfully");
+      
+      // Force refetch of document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error("Error creating section:", error);
+      toast.error("Error creating section: " + error.message);
+    },
+  });
+
+  // Mutation for template creation
+  const createTemplateMutation = useMutation({
+    mutationFn: async (templateData: { name: string; description?: string }) => {
+      return await addTemplate({
+        name: templateData.name,
+        description: templateData.description,
+        organization_id: selectedOrganizationId!
+      });
+    },
+    onSuccess: (template) => {
+      setCreatedTemplate(template);
+      setIsCreateTemplateSheetOpen(false);
+      toast.success("Template created successfully");
+      
+      // Open template configuration sheet instead of navigating
+      setTimeout(() => {
+        setIsTemplateConfigSheetOpen(true);
+      }, 300);
+    },
+    onError: (error: Error) => {
+      console.error("Error creating template:", error);
+      toast.error("Error creating template: " + error.message);
+    },
+  });
 
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
+  const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(false);
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
+  
+  // State for tracking current execution for polling
+  const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
+  
+  // Direct section creation state
+  const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
+  const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
+  
+  // Template creation states
+  const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
+  const [createdTemplate, setCreatedTemplate] = useState<{ id: string; name: string } | null>(null);
+  const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
+  
+  // Clear created template when component unmounts or selectedFile changes
+  useEffect(() => {
+    if (createdTemplate && selectedFile) {
+      setCreatedTemplate(null);
+    }
+  }, [selectedFile, createdTemplate]);
+
+  // Clear current execution ID when selectedFile changes to prevent showing banner for wrong file
+  useEffect(() => {
+    setCurrentExecutionId(null);
+  }, [selectedFile?.id]);
+
+
 
   // Handle document creation
   const handleDocumentCreated = (createdDocument: { id: string; name: string; type: "document" }) => {
@@ -144,10 +332,7 @@ export function AssetContent({
     setSelectedFile(createdDocument);
   };
 
-  // Handle template creation
-  const handleCreateTemplate = () => {
-    navigate('/templates');
-  };
+
 
   // Handle add section
   const handleAddSection = () => {
@@ -156,9 +341,41 @@ export function AssetContent({
     }
   };
 
+  // Handle add section at specific position
+  const handleAddSectionAtPosition = (afterIndex?: number) => {
+    if (selectedFile && selectedFile.type === 'document') {
+      console.log(`Adding section after index: ${afterIndex}`);
+      setSectionInsertPosition(afterIndex);
+      setIsDirectSectionDialogOpen(true);
+    }
+  };
+
+  // Handle direct section creation submission
+  const handleDirectSectionSubmit = (values: { name: string; document_id: string; prompt: string; dependencies: string[] }) => {
+    let order: number | undefined = undefined;
+    
+    // Calculate order based on position
+    if (sectionInsertPosition !== undefined) {
+      if (sectionInsertPosition === -1) {
+        // Insert at beginning (before first section)
+        order = -1;
+      } else if (sectionInsertPosition >= 0) {
+        // Insert after specific index (sectionInsertPosition is 0-based section index)
+        order = sectionInsertPosition;
+      }
+    }
+    
+    console.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
+    addSectionMutation.mutate({ ...values, order });
+  };
+
   // Handle create new execution
   const handleCreateExecution = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      if (hasExecutionInProcess) {
+        toast.error('There\'s already an execution running. Please wait for it to complete before creating a new one.');
+        return;
+      }
       setIsExecuteSheetOpen(true);
     }
   };
@@ -177,6 +394,57 @@ export function AssetContent({
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id,
   });
 
+  // Fetch full template details for configuration
+  const { data: fullTemplate } = useQuery({
+    queryKey: ['template', createdTemplate?.id],
+    queryFn: () => getTemplateById(createdTemplate!.id),
+    enabled: !!createdTemplate?.id,
+  });
+
+  // Fetch executions for the document to check for running executions
+  const { data: documentExecutions } = useExecutionsByDocumentId(
+    selectedFile?.id || '',
+    selectedFile?.type === 'document' && !!selectedFile?.id
+  );
+
+  // Check if there's any execution in process
+  const hasExecutionInProcess = useMemo(() => {
+    if (!documentExecutions) return false;
+    return documentExecutions.some((execution: any) => 
+      ['running', 'queued'].includes(execution.status)
+    );
+  }, [documentExecutions]);
+
+  // Check if there's a pending execution that can be resumed
+  const hasPendingExecution = useMemo(() => {
+    if (!documentExecutions) return false;
+    return documentExecutions.some((execution: any) => 
+      execution.status === 'pending'
+    );
+  }, [documentExecutions]);
+
+  // Check if there's a new pending execution (never executed)
+  const hasNewPendingExecution = useMemo(() => {
+    if (!documentExecutions) return false;
+    const pendingExecution = documentExecutions.find((execution: any) => 
+      execution.status === 'pending'
+    );
+    if (!pendingExecution) return false;
+    // Check if any section has generated content (output)
+    return !pendingExecution.sections?.some((section: any) => 
+      section.output && section.output.trim().length > 0
+    );
+  }, [documentExecutions]);
+
+  // Get the active execution ID (running or pending) from document executions
+  const activeExecutionId = useMemo(() => {
+    if (!documentExecutions) return null;
+    const activeExecution = documentExecutions.find((execution: any) => 
+      ['running', 'pending'].includes(execution.status)
+    );
+    return activeExecution?.id || null;
+  }, [documentExecutions]);
+
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
     if (selectedFile?.type === 'document' && documentContent?.executions?.length > 0) {
@@ -186,6 +454,100 @@ export function AssetContent({
       }
     }
   }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
+
+  // Memoized ActionStepper steps that update based on document state
+  const actionStepperSteps = useMemo(() => [
+    {
+      id: 1,
+      title: fullDocument?.sections?.length > 0 ? "✓ Sections Added" : "Add Sections",
+      description: fullDocument?.sections?.length > 0 
+        ? `Great! You have ${fullDocument.sections.length} section${fullDocument.sections.length !== 1 ? 's' : ''} ready. You can add more or proceed to the next steps.`
+        : "Start by adding sections to structure your document. You can create them manually or generate them with AI.",
+      action: () => {
+        // Action handled by actionButton
+      },
+      icon: <Plus className="h-5 w-5" />,
+      actionButton: (
+        <Button
+          onClick={() => setIsSectionSheetOpen(true)}
+          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {fullDocument?.sections?.length > 0 ? "Add More Sections" : "Add Sections"}
+        </Button>
+      )
+    },
+    {
+      id: 2,
+      title: "Add Dependencies (Optional)",
+      description: "Enhance your document by adding dependencies. This connects your asset with other documents and provides richer context for content generation.",
+      action: () => {
+        // Action handled by actionButton or skip
+      },
+      icon: <Layers className="h-5 w-5" />,
+      actionButton: (
+        <Button
+          onClick={() => setIsDependenciesSheetOpen(true)}
+          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
+        >
+          <Layers className="h-4 w-4 mr-2" />
+          Add Dependencies
+        </Button>
+      )
+    },
+    {
+      id: 3,
+      title: "Add Context (Optional)",
+      description: "Provide additional context information that will help in generating more accurate and relevant content for your document.",
+      action: () => {
+        // Action handled by actionButton or skip
+      },
+      icon: <FileText className="h-5 w-5" />,
+      actionButton: (
+        <Button
+          onClick={() => setIsContextSheetOpen(true)}
+          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          Add Context
+        </Button>
+      )
+    },
+    {
+      id: 4,
+      title: "Generate Execution",
+      description: hasExecutionInProcess
+        ? "There's already an execution running. Please wait for it to complete before creating a new one."
+        : hasNewPendingExecution
+          ? "Great! You have a ready execution. Click to configure and start generating content."
+          : hasPendingExecution
+            ? "You have a pending execution ready to continue. Click to resume and generate content."
+            : fullDocument?.sections?.length > 0 
+              ? "Now you're ready to generate content! Run an execution to create the actual document content based on your sections, dependencies, and context."
+              : "Once you add sections, you'll be able to generate content by running an execution.",
+      action: () => {
+        // Action handled by actionButton or skip
+      },
+      icon: <Zap className="h-5 w-5" />,
+      actionButton: fullDocument?.sections?.length > 0 && !hasExecutionInProcess ? (
+        <Button
+          onClick={() => setIsExecuteSheetOpen(true)}
+          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
+        >
+          <Zap className="h-4 w-4 mr-2" />
+          {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Execution"}
+        </Button>
+      ) : hasExecutionInProcess ? (
+        <Button
+          disabled
+          className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
+        >
+          <Zap className="h-4 w-4 mr-2" />
+          Execution Running
+        </Button>
+      ) : undefined
+    }
+  ], [fullDocument?.sections, hasExecutionInProcess, hasPendingExecution, hasNewPendingExecution, setIsSectionSheetOpen, setIsExecuteSheetOpen, setIsDependenciesSheetOpen, setIsContextSheetOpen]);
 
   // Extract headings for table of contents
   const tocItems = useMemo(() => {
@@ -275,80 +637,447 @@ export function AssetContent({
     setTimeout(() => setIsEditDialogOpen(true), 0);
   };
 
+  // Create Template Sheet Component
+  const CreateTemplateSheet = () => {
+    const [formData, setFormData] = useState({ name: '', description: '' });
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (formData.name.trim()) {
+        createTemplateMutation.mutate({
+          name: formData.name.trim(),
+          description: formData.description.trim() || undefined
+        });
+      }
+    };
+
+    return (
+      <Dialog open={isCreateTemplateSheetOpen} onOpenChange={setIsCreateTemplateSheetOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCode className="h-5 w-5 text-[#4464f7]" />
+              Create New Template
+            </DialogTitle>
+            <DialogDescription>
+              Create a reusable template that can be used to generate documents with predefined sections.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Template Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent"
+                  placeholder="Enter template name..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent"
+                  placeholder="Describe what this template is for..."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreateTemplateSheetOpen(false)}
+                disabled={createTemplateMutation.isPending}
+                className="hover:cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createTemplateMutation.isPending || !formData.name.trim()}
+                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+              >
+                {createTemplateMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <FileCode className="mr-2 h-4 w-4" />
+                    Create Template
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Define stepper steps
+  const stepperSteps = [
+    {
+      id: 1,
+      title: "Choose Your Path",
+      description: "Decide whether to create a reusable template first or go directly to creating an asset.",
+      action: () => {
+        // This step just shows the choice, action happens in buttons below
+      },
+      icon: <Layers className="h-5 w-5" />
+    },
+    {
+      id: 2,
+      title: "Create Template (Optional)",
+      description: "Create a template with predefined sections that can be reused for multiple documents.",
+      action: () => {
+        // Action for next step button - just proceed to next step
+      },
+      icon: <FileCode className="h-5 w-5" />,
+      actionButton: (
+        <Button
+          onClick={() => setIsCreateTemplateSheetOpen(true)}
+          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
+        >
+          <FileCode className="h-4 w-4 mr-2" />
+          Create Template Now
+        </Button>
+      )
+    },
+    {
+      id: 3,
+      title: "Create Asset",
+      description: "Create a new document asset, either from a template or from scratch.",
+      action: () => {
+        // Action for next step button - complete workflow
+      },
+      icon: <FileIcon className="h-5 w-5" />,
+      actionButton: (
+        <CreateDocumentLib
+          trigger={
+            <Button 
+              className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Create Asset Now
+            </Button>
+          }
+          folderId={currentFolderId}
+          onDocumentCreated={handleDocumentCreated}
+        />
+      )
+    }
+  ];
+
   if (!selectedFile) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-400 bg-white">
-        <div className="text-center">
-          <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
-          <p className="text-lg font-medium text-gray-500">Select a file to view its content</p>
-          <p className="text-sm text-gray-400 mt-1 mb-6">Choose a file from the sidebar to get started</p>
-          
-          <div className="flex gap-3 justify-center">
-            <CreateDocumentLib
-              trigger={
-                <Button 
-                  variant="outline" 
-                  className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Create New Asset
-                </Button>
-              }
-              folderId={currentFolderId}
-              onDocumentCreated={handleDocumentCreated}
-            />
-            
-            <Button 
-              variant="outline" 
-              onClick={handleCreateTemplate}
-              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
-            >
-              <FileCode className="h-4 w-4 mr-2" />
-              Create New Template
-            </Button>
-          </div>
+      <>
+        <div className="h-full bg-white flex items-center justify-center">
+          <ActionStepper
+            steps={stepperSteps}
+            title="Welcome to Assets"
+            subtitle="Let's get you started with your document workflow"
+            onComplete={() => {
+              toast.success("Workflow completed! You can now start working with your assets.");
+            }}
+          />
+
         </div>
-      </div>
+
+        {/* Template Creation Sheet */}
+        <CreateTemplateSheet />
+        
+        {/* Template Configuration Sheet */}
+        <TemplateConfigSheet
+          template={fullTemplate}
+          isOpen={isTemplateConfigSheetOpen}
+          onOpenChange={setIsTemplateConfigSheetOpen}
+        />
+      </>
     );
   }
 
   return (
     <div className="flex h-full bg-gray-50">
       {/* Document Content */}
-      <div className="flex-1 flex flex-col max-w-none overflow-auto">
-        {/* Header Section */}
-        <div className="bg-white border-b border-gray-200 shadow-sm py-4 px-7 sticky top-0 z-10">
-          <div className="space-y-6">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>{breadcrumb.map(item => item.name).join(' > ')}</span>
-            </div>
-            
-            {/* Title and Type Section */}
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold text-gray-900">{selectedFile.name}</h1>
-              {documentContent?.document_type && (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                  <div 
-                    className="w-2.5 h-2.5 rounded-full" 
-                    style={{ backgroundColor: documentContent.document_type.color }}
-                  />
-                  {documentContent.document_type.name}
-                </div>
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header with Toggle */}
+        {isMobile && (
+          <div className="bg-white border-b border-gray-200 shadow-sm py-1.5 px-4 z-20 flex-shrink-0" data-mobile-header>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={onToggleSidebar}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                      >
+                        <FolderTree className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Show file tree</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <span className="text-sm font-medium text-gray-900">
+                  {selectedFile ? selectedFile.name : 'Assets'}
+                </span>
+              </div>
+              
+              {/* Table of Contents Toggle - Mobile */}
+              {selectedFile?.type === 'document' && documentContent?.content && tocItems.length > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                      >
+                        <List className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
             
+            {/* Mobile Action Buttons - Icon Only */}
+            <div className="flex items-center justify-center gap-1.5 px-3 py-1.5">
+              <ExecuteSheet
+                selectedFile={selectedFile}
+                fullDocument={fullDocument}
+                isOpen={isExecuteSheetOpen}
+                onOpenChange={setIsExecuteSheetOpen}
+                onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
+                onExecutionComplete={() => {
+                  // Refresh document content when execution completes
+                  queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                  queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+                  
+                  // Reset execution ID to load the latest execution automatically
+                  setSelectedExecutionId(null);
+                  
+                  // Refetch document content to get the latest execution
+                  setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                  }, 500);
+                }}
+                onExecutionCreated={(executionId) => {
+                  setCurrentExecutionId(executionId);
+                  // Invalidate executions query to update the list
+                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+                }}
+                isMobile={isMobile}
+                disabled={hasExecutionInProcess}
+                disabledReason="There's already an execution running. Please wait for it to complete."
+              />
+              
+              <SectionSheet
+                selectedFile={selectedFile}
+                fullDocument={fullDocument}
+                isOpen={isSectionSheetOpen}
+                onOpenChange={setIsSectionSheetOpen}
+                isMobile={isMobile}
+              />
+              
+              <DependenciesSheet
+                selectedFile={selectedFile}
+                isOpen={isDependenciesSheetOpen}
+                onOpenChange={setIsDependenciesSheetOpen}
+                isMobile={isMobile}
+              />
+              
+              <ContextSheet
+                selectedFile={selectedFile}
+                isOpen={isContextSheetOpen}
+                onOpenChange={setIsContextSheetOpen}
+                isMobile={isMobile}
+              />
+              
+              {/* Secondary Action Buttons */}
+              {/* Execution Dropdown - only show for documents with executions */}
+              {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
+                      title="Switch Execution"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {documentContent.executions
+                      .sort((a: { created_at: string }, b: { created_at: string }) => 
+                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                      )
+                      .map((execution: { id: string; created_at: string }, index: number) => {
+                        const date = new Date(execution.created_at);
+                        const isToday = date.toDateString() === new Date().toDateString();
+                        const timeStr = date.toLocaleTimeString('es-ES', { 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          hour12: false 
+                        });
+                        const dateStr = isToday ? 'Today' : date.toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        });
+                        const isSelected = selectedExecutionId === execution.id;
+                        
+                        return (
+                          <DropdownMenuItem 
+                            key={execution.id} 
+                            className="hover:cursor-pointer flex items-center justify-between"
+                            onClick={() => {
+                              setSelectedExecutionId(execution.id);
+                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
+                              <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
+                                {dateStr} {timeStr}
+                              </span>
+                            </div>
+                            {index === 0 && <span className="text-xs text-green-600">Latest</span>}
+                            {isSelected && <span className="text-xs text-[#4464f7]">Active</span>}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              
+              {/* Edit Button */}
+              <Button
+                onClick={openEditDialog}
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                title="Edit Document"
+              >
+                <Edit3 className="h-4 w-4" />
+              </Button>
+              
+              {/* Export Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                    title="Export Options"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export as Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                    <FileCode className="mr-2 h-4 w-4" />
+                    Export as Word
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              {/* Delete Button */}
+              <Button
+                onClick={() => setTimeout(() => openDeleteDialog(), 0)}
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors rounded-full"
+                title="Delete Document"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        
+        {/* Header Section */}
+        {!isMobile && (
+        <div className="bg-white border-b border-gray-200 shadow-sm p-4 md:px-7 z-10 flex-shrink-0" data-desktop-header>
+          <div className="space-y-3 md:space-y-4">
+            {/* Title and Type Section */}
+            {!isMobile && (
+              <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
+                <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0 flex-1">{selectedFile.name}</h1>
+                {documentContent?.document_type && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full" 
+                      style={{ backgroundColor: documentContent.document_type.color }}
+                    />
+                    {documentContent.document_type.name}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            
             {/* Action Buttons Section */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-2 flex-wrap">
               {/* Primary Actions Group */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg">
-                <ExecuteSheet
-                  selectedFile={selectedFile}
-                  fullDocument={fullDocument}
-                  isOpen={isExecuteSheetOpen}
-                  onOpenChange={setIsExecuteSheetOpen}
-                  onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
-                />
+              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
+              <ExecuteSheet
+                selectedFile={selectedFile}
+                fullDocument={fullDocument}
+                isOpen={isExecuteSheetOpen}
+                onOpenChange={setIsExecuteSheetOpen}
+                onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
+                onExecutionComplete={() => {
+                  // Refresh document content when execution completes
+                  queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                  queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+                  
+                  // Reset execution ID to load the latest execution automatically
+                  setSelectedExecutionId(null);
+                  
+                  // Refetch document content to get the latest execution
+                  setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                  }, 500);
+                }}
+                onExecutionCreated={(executionId) => {
+                  setCurrentExecutionId(executionId);
+                  // Invalidate executions query to update the list
+                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+                }}
+                disabled={hasExecutionInProcess}
+                disabledReason="There's already an execution running. Please wait for it to complete."
+              />
                 
                 <SectionSheet
                   selectedFile={selectedFile}
@@ -371,7 +1100,7 @@ export function AssetContent({
               </div>
               
               {/* Secondary Actions Group */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg">
+              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
                 {/* Execution Dropdown - only show for documents with executions */}
                 {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
                   <DropdownMenu>
@@ -411,7 +1140,7 @@ export function AssetContent({
                               className="hover:cursor-pointer flex items-center justify-between"
                               onClick={() => {
                                 setSelectedExecutionId(execution.id);
-                                refetchDocumentContent();
+                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
                               }}
                             >
                               <div className="flex items-center gap-2">
@@ -471,39 +1200,99 @@ export function AssetContent({
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
+                
+                {/* Table of Contents Toggle */}
+                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && (
+                  <Button
+                    onClick={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                    title={isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
+            
           </div>
         </div>
+        )}
 
-        {/* Content Section */}
-        <div className="flex-1 bg-white">
-          <div className="py-8 px-6">
+        {/* Content Section - Now with its own scroll */}
+        <div className="flex-1 bg-white min-w-0 overflow-auto" style={{ scrollPaddingTop: '100px' }}>
+          <div className="py-4 md:py-5 px-4 md:px-6">
             {selectedFile.type === 'document' ? (
               <>
+                {/* Execution Status Banner - Show for active executions */}
+                <ExecutionStatusBanner
+                  executionId={currentExecutionId || activeExecutionId}
+                  onExecutionComplete={() => {
+                    // Clear the current execution ID and refresh content
+                    setCurrentExecutionId(null);
+                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                  }}
+                  className="mb-4"
+                />
+                
                 {isLoadingContent ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                     <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                   </div>
+                ) : (!documentContent?.executions || documentContent.executions.length === 0) || (!documentContent?.content) ? (
+                  // Show ActionStepper when document has no executions
+                  <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)]">
+                    <ActionStepper
+                      steps={actionStepperSteps}
+                      title={`Setup ${selectedFile.name}`}
+                      subtitle={fullDocument?.sections?.length > 0 
+                        ? "Your document is ready! Follow the remaining steps to enhance it further."
+                        : "Let's configure your document step by step"
+                      }
+                      onComplete={() => {
+                        toast.success("Document setup completed! You can now generate content and work with your asset.");
+                      }}
+                    />
+                  </div>
                 ) : documentContent?.content ? (
-                  <div className="prose prose-gray max-w-none">
+                  <div className="prose prose-gray max-w-full prose-sm md:prose-base">
                     {Array.isArray(documentContent.content) ? (
-                      // New format: array of sections
+                      // New format: array of sections with separators
                       <>
+                        {/* Add section button at the beginning */}
+                        <SectionSeparator 
+                          onAddSection={() => handleAddSectionAtPosition(-1)} 
+                          index={-1}
+                          isMobile={isMobile}
+                        />
+                        
                         {documentContent.content.map((section: ContentSection, index: number) => (
-                          <div key={section.id} id={`section-${index}`}>
-                            <SectionExecution 
-                              sectionExecution={{
-                                id: section.id,
-                                output: section.content
-                              }}
-                              onUpdate={() => {
-                                // Refresh document content when section is updated
-                                refetchDocumentContent();
-                              }}
-                              readyToEdit={true}
-                              sectionIndex={index}
+                          <div key={section.id}>
+                            <div id={`section-${index}`}>
+                              <SectionExecution 
+                                sectionExecution={{
+                                  id: section.id,
+                                  output: section.content
+                                }}
+                                onUpdate={() => {
+                                  // Refresh document content when section is updated
+                                  queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                                }}
+                                readyToEdit={true}
+                                sectionIndex={index}
+                              />
+                            </div>
+                            
+                            {/* Add separator after each section */}
+                            <SectionSeparator 
+                              onAddSection={handleAddSectionAtPosition} 
+                              index={index}
+                              isLastSection={index === documentContent.content.length - 1}
+                              isMobile={isMobile}
                             />
                           </div>
                         ))}
@@ -567,6 +1356,9 @@ export function AssetContent({
           onToggle={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
           position="right"
           toggleAriaLabel={isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}
+          showToggleButton={!isMobile} // Only show internal button on mobile
+          customToggleIcon={<List className="h-4 w-4" />}
+          customToggleIconMobile={<List className="h-5 w-5" />}
           header={
             <div className="p-4">
               <div className="flex items-center gap-2">
@@ -585,6 +1377,66 @@ export function AssetContent({
       {documentContent && documentContent.content && (
         <Chatbot executionId={documentContent.execution_id} />
       )}
+
+      {/* Direct Section Creation Dialog */}
+      <Dialog open={isDirectSectionDialogOpen} onOpenChange={setIsDirectSectionDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-[#4464f7]" />
+              Add New Section
+            </DialogTitle>
+            <DialogDescription>
+              {sectionInsertPosition === -1 
+                ? "Create a new section at the beginning of the document."
+                : sectionInsertPosition !== undefined && sectionInsertPosition >= 0
+                ? `Create a new section after section ${sectionInsertPosition + 1}.`
+                : "Create a new section for your document."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto px-6">
+            <AddSectionFormSheet
+              documentId={selectedFile?.id || ''}
+              onSubmit={handleDirectSectionSubmit}
+              isPending={addSectionMutation.isPending}
+              existingSections={fullDocument?.sections || []}
+            />
+          </div>
+          
+          {/* Dialog Actions */}
+          <div className="flex items-center justify-end gap-3 px-6 pb-6 pt-4 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDirectSectionDialogOpen(false)}
+              disabled={addSectionMutation.isPending}
+              className="hover:cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="add-section-form"
+              disabled={addSectionMutation.isPending}
+              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+            >
+              {addSectionMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create Section
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation AlertDialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
@@ -626,3 +1478,4 @@ export function AssetContent({
     </div>
   );
 }
+

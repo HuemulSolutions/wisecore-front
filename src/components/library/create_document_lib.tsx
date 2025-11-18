@@ -5,14 +5,10 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -25,7 +21,7 @@ import { getAllDocumentTypes } from "@/services/document_type";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import CreateDocumentType from "../create_doc_type";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, FileText } from "lucide-react";
 
 interface CreateDocumentLibProps {
   trigger: React.ReactNode;
@@ -137,105 +133,123 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create Asset</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#4464f7]" />
+              Create New Asset
+            </DialogTitle>
             <DialogDescription>
-              Create a new asset in the library.
+              Create a new document asset with optional templates and custom configurations.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="space-y-6">
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
                 <AlertCircle className="h-4 w-4" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Asset name"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Asset description"
-                required
-                rows={3}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="template">Template</Label>
-              <Select
-                onValueChange={(value) =>
-                  setTemplateId(value === "null" ? null : value)
-                }
-                value={templateId || "null"}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select template (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">No template</SelectItem>
-                  {templates?.map((template: any) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="documentType">Asset Type *</Label>
-              <Select
-                value={documentTypeId}
-                onValueChange={(value) => setDocumentTypeId(value)}
-                required
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select asset type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Display existing document types from API */}
-                  {fetchedDocumentTypes?.map((type: any) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      <div className="flex items-center space-x-2">
-                        <div 
-                          className="w-4 h-4 rounded-full border"
-                          style={{ backgroundColor: type.color }}
-                        />
-                        <span>{type.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                  <div className="px-2 py-1">
-                    <CreateDocumentType 
-                      trigger={
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="w-full justify-start text-blue-600 hover:text-blue-700 hover:cursor-pointer"
-                        >
-                          + Create new asset type
-                        </Button>
-                      }
-                      onDocumentTypeCreated={handleCreateDocumentType}
-                    />
-                  </div>
-                </SelectContent>
-              </Select>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Asset Name *
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent"
+                  placeholder="Enter asset name..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Description *
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent"
+                  placeholder="Describe what this asset is for..."
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Template
+                </label>
+                <Select
+                  onValueChange={(value) =>
+                    setTemplateId(value === "null" ? null : value)
+                  }
+                  value={templateId || "null"}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select template (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="null">No template</SelectItem>
+                    {templates?.map((template: any) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Asset Type *
+                </label>
+                <Select
+                  value={documentTypeId}
+                  onValueChange={(value) => setDocumentTypeId(value)}
+                  required
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select asset type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Display existing document types from API */}
+                    {fetchedDocumentTypes?.map((type: any) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        <div className="flex items-center space-x-2">
+                          <div 
+                            className="w-4 h-4 rounded-full border"
+                            style={{ backgroundColor: type.color }}
+                          />
+                          <span>{type.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <div className="px-2 py-1">
+                      <CreateDocumentType 
+                        trigger={
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full justify-start text-blue-600 hover:text-blue-700 hover:cursor-pointer"
+                          >
+                            + Create new asset type
+                          </Button>
+                        }
+                        onDocumentTypeCreated={handleCreateDocumentType}
+                      />
+                    </div>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
             <Button
               type="button"
               variant="outline"
@@ -245,10 +259,24 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="hover:cursor-pointer">
-              {isLoading ? "Creating..." : "Create Asset"}
+            <Button 
+              type="submit" 
+              disabled={isLoading || !name.trim() || !description.trim() || !documentTypeId} 
+              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Create Asset
+                </>
+              )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

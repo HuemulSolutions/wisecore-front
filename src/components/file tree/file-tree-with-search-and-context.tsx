@@ -17,7 +17,7 @@ interface FileTreeWithSearchAndContextProps {
   searchPlaceholder?: string
   onRefresh?: () => void
   onDocumentCreated?: (document: { id: string; name: string; type: "document" }) => void
-  onShare?: (item: FileNode, fullPath: string[]) => void
+  onShare?: (item: FileNode, fullPath: string[], isAutomatic?: boolean) => void
 }
 
 export function FileTreeWithSearchAndContext({
@@ -45,7 +45,7 @@ export function FileTreeWithSearchAndContext({
   }
 
   return (
-    <div className={`w-full ${showSearch ? 'space-y-4' : ''}`}>
+    <div className={`w-full ${showSearch ? 'space-y-3' : ''}`}>
       {showSearch && (
         <>
           <FileSearch
