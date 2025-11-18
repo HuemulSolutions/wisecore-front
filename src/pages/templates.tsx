@@ -286,7 +286,6 @@ export default function Templates() {
                         </Button>
                         <Button 
                           type="submit"
-                          onClick={handleCreateTemplate} 
                           disabled={!newName.trim() || !selectedOrganizationId || createTemplateMutation.isPending} 
                           className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                         >
@@ -411,6 +410,10 @@ export default function Templates() {
           <TemplateContent
             selectedTemplate={selectedTemplate}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
+            onTemplateDeleted={() => {
+              setSelectedTemplate(null);
+              navigate('/templates', { replace: true });
+            }}
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />

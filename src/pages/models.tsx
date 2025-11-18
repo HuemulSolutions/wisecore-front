@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Eye, EyeOff, Edit, Trash2, ChevronUp, ChevronDown, CheckCircle, Circle, Settings } from 'lucide-react'
+import { Plus, Edit, Trash2, ChevronUp, ChevronDown, CheckCircle, Circle, Settings, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 import {
   Collapsible,
@@ -17,6 +17,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -34,8 +50,12 @@ import {
   getLLMs,
   createProvider,
   updateProvider,
+  deleteProvider,
   createLLM,
+  updateLLMModel,
+  deleteLLM,
   setDefaultLLM,
+
   type LLMProvider,
   type LLM,
   type CreateLLMProviderRequest,
@@ -44,13 +64,18 @@ import {
 
 export default function ModelsPage() {
   const queryClient = useQueryClient()
+  const isMobile = useIsMobile()
   const [openProviders, setOpenProviders] = useState<string[]>([])
-  const [showApiKeys, setShowApiKeys] = useState<string[]>([])
+  // Removed unused showApiKeys state
   const [editingProvider, setEditingProvider] = useState<(LLMProvider & { isConfigured?: boolean; isSupported?: boolean }) | null>(null)
 
   const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
   const [isCreateModelOpen, setIsCreateModelOpen] = useState(false)
   const [selectedProviderId, setSelectedProviderId] = useState<string>('')
+  const [editingModel, setEditingModel] = useState<LLM | null>(null)
+  const [deletingProvider, setDeletingProvider] = useState<(LLMProvider & { isConfigured?: boolean; isSupported?: boolean }) | null>(null)
+  const [deletingModel, setDeletingModel] = useState<LLM | null>(null)
+  const [openDropdowns, setOpenDropdowns] = useState<{[key: string]: boolean}>({})
 
   // Queries with optimized caching
   const { data: supportedProviders = [], isLoading: loadingSupportedProviders } = useQuery({
@@ -123,6 +148,30 @@ export default function ModelsPage() {
     },
   })
 
+  const updateLLMMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateLLMRequest> }) =>
+      updateLLMModel(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['llms'] })
+      setEditingModel(null)
+      toast.success('Model updated successfully')
+    },
+    onError: (error) => {
+      toast.error(`Error updating model: ${error.message}`)
+    },
+  })
+
+  const deleteLLMMutation = useMutation({
+    mutationFn: deleteLLM,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['llms'] })
+      toast.success('Model deleted successfully')
+    },
+    onError: (error) => {
+      toast.error(`Error deleting model: ${error.message}`)
+    },
+  })
+
   const setDefaultMutation = useMutation({
     mutationFn: setDefaultLLM,
     onSuccess: () => {
@@ -131,6 +180,18 @@ export default function ModelsPage() {
     },
     onError: (error) => {
       toast.error(`Error setting default model: ${error.message}`)
+    },
+  })
+
+  const deleteProviderMutation = useMutation({
+    mutationFn: deleteProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['providers'] })
+      queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
+      toast.success('Provider deleted successfully')
+    },
+    onError: (error) => {
+      toast.error(`Error deleting provider: ${error.message}`)
     },
   })
 
@@ -153,9 +214,13 @@ export default function ModelsPage() {
           const providerData = providerObj.data[key]
           
           return {
-            name: providerData.display || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            name: providerData.display,
             id: key,
             originalKey: key,
+            display: providerData.display,
+            api_key: providerData.api_key,
+            endpoint: providerData.endpoint,
+            deployment: providerData.deployment,
             ...providerData
           }
         })
@@ -174,8 +239,8 @@ export default function ModelsPage() {
     }
     
     return supportedList.map((supported: any) => {
-      // Handle both string and object formats for supported providers
-      const supportedName = typeof supported === 'string' ? supported : supported.name || supported.id || supported
+      // Use display name from supported providers or fallback to processed name
+      const supportedName = supported.display || (typeof supported === 'string' ? supported : supported.name || supported.id || supported)
       const supportedKey = supported.originalKey || supported.id || supportedName.toLowerCase().replace(/\s+/g, '_')
       
       const configured = configuredList.find((config: LLMProvider) => 
@@ -183,7 +248,21 @@ export default function ModelsPage() {
         config.name.toLowerCase().replace(/\s+/g, '_') === supportedKey
       )
       
-      return configured || {
+      if (configured) {
+        // If configured, merge with supported data but use display name
+        return {
+          ...configured,
+          name: supportedName, // Always use the display name from supported providers
+          display: supported.display,
+          // Preserve field configuration from supported provider
+          api_key: supported.api_key,
+          endpoint_required: supported.endpoint,
+          deployment_required: supported.deployment,
+          isConfigured: true
+        }
+      }
+      
+      return {
         id: `supported-${supportedKey}`,
         name: supportedName,
         key: '',
@@ -191,7 +270,12 @@ export default function ModelsPage() {
         deployment: '',
         originalKey: supportedKey,
         isSupported: true,
-        isConfigured: false
+        isConfigured: false,
+        // Preserve field configuration from supported provider
+        api_key: supported.api_key,
+        endpoint_required: supported.endpoint,
+        deployment_required: supported.deployment,
+        display: supported.display
       }
     })
   }, [supportedProviders, configuredProviders])
@@ -226,22 +310,6 @@ export default function ModelsPage() {
   }, [supportedProviders])
 
   // Helper functions
-  const toggleProvider = (providerId: string) => {
-    setOpenProviders(prev =>
-      prev.includes(providerId)
-        ? prev.filter(id => id !== providerId)
-        : [...prev, providerId]
-    )
-  }
-
-  const toggleApiKey = (providerId: string) => {
-    setShowApiKeys(prev =>
-      prev.includes(providerId)
-        ? prev.filter(id => id !== providerId)
-        : [...prev, providerId]
-    )
-  }
-
   const getProviderModels = (providerId: string) => {
     return llms.filter(llm => llm.provider_id === providerId)
   }
@@ -270,11 +338,22 @@ export default function ModelsPage() {
     event.preventDefault()
     if (!editingProvider) return
     const formData = new FormData(event.currentTarget)
-    const data: CreateLLMProviderRequest = {
+    
+    // Build data object dynamically based on required fields
+    const requiredFields = getRequiredFields(editingProvider)
+    const data: any = {
       name: formData.get('name') as string,
-      key: formData.get('key') as string,
-      endpoint: formData.get('endpoint') as string,
-      deployment: formData.get('deployment') as string,
+    }
+    
+    // Only include fields that are required for this provider
+    if (requiredFields.api_key) {
+      data.key = formData.get('key') as string
+    }
+    if (requiredFields.endpoint) {
+      data.endpoint = formData.get('endpoint') as string
+    }
+    if (requiredFields.deployment) {
+      data.deployment = formData.get('deployment') as string
     }
     
     // Check if this is a new provider (unconfigured) or updating existing
@@ -298,9 +377,69 @@ export default function ModelsPage() {
     createLLMMutation.mutate(data)
   }
 
+  const handleUpdateModel = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingModel) return
+    const formData = new FormData(event.currentTarget)
+    const data: Partial<CreateLLMRequest> = {
+      name: formData.get('displayName') as string,
+      internal_name: formData.get('technicalName') as string,
+    }
+    updateLLMMutation.mutate({ id: editingModel.id, data })
+  }
+
+  const handleEditModel = (model: LLM) => {
+    setEditingModel(model)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+  }
+
+  const handleDeleteModel = (model: LLM) => {
+    setDeletingModel(model)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+  }
+
+  const confirmDeleteModel = () => {
+    if (deletingModel) {
+      deleteLLMMutation.mutate(deletingModel.id)
+      setDeletingModel(null)
+    }
+  }
+
   const handleDefaultChange = (llmId: string, isDefault: boolean) => {
     if (isDefault) {
       setDefaultMutation.mutate(llmId)
+    }
+  }
+
+  // Helper function to get required fields for a provider
+  const getRequiredFields = (provider: any) => {
+    return {
+      api_key: provider.api_key === true,
+      endpoint: provider.endpoint_required === true || provider.endpoint === true,
+      deployment: provider.deployment_required === true || provider.deployment === true
+    }
+  }
+
+  // Handle provider edit
+  const handleEditProvider = (provider: any) => {
+    setEditingProvider(provider)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
+  }
+
+  // Handle provider delete
+  const handleDeleteProvider = (provider: any) => {
+    setDeletingProvider(provider)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
+  }
+
+  const confirmDeleteProvider = () => {
+    if (deletingProvider) {
+      deleteProviderMutation.mutate(deletingProvider.id)
+      setDeletingProvider(null)
     }
   }
 
@@ -329,7 +468,7 @@ export default function ModelsPage() {
   }
 
   return (
-    <div className="space-y-6 bg-gray-50 min-h-screen p-6">
+    <div className="space-y-6 min-h-screen p-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Configuration</h1>
@@ -343,23 +482,30 @@ export default function ModelsPage() {
         {allProviders.map((provider: any) => {
           const status = getProviderStatus(provider)
           const isOpen = openProviders.includes(provider.id)
-          const showKey = showApiKeys.includes(provider.id)
           const models = getProviderModels(provider.id)
 
           return (
             <div key={provider.id} className="border border-gray-200 rounded-lg bg-white">
-              <Collapsible>
-                <CollapsibleTrigger
-                  className="flex w-full items-center justify-between p-4 text-left hover:bg-gray-50"
-                  onClick={() => toggleProvider(provider.id)}
-                >
-                  <div className="flex items-center gap-3">
+              <Collapsible 
+                open={isOpen} 
+                onOpenChange={(open) => {
+                  if (open) {
+                    setOpenProviders(prev => [...prev, provider.id])
+                  } else {
+                    setOpenProviders(prev => prev.filter(id => id !== provider.id))
+                  }
+                }}
+              >
+                <div className="flex w-full items-center p-4">
+                  <CollapsibleTrigger
+                    className="flex items-center gap-3 text-left hover:bg-gray-50 rounded-lg p-2 flex-1"
+                  >
                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                       <span className="text-lg font-semibold text-gray-700">
                         {provider.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">{provider.name}</h3>
                       <div className="flex items-center gap-2 text-sm mt-1">
                         {status.configured ? (
@@ -379,9 +525,87 @@ export default function ModelsPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
-                  {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-                </CollapsibleTrigger>
+                  </CollapsibleTrigger>
+                  
+                  {/* Action buttons */}
+                  {status.configured && (
+                    <div className="flex items-center gap-1 mr-2">
+                      {isMobile ? (
+                        <DropdownMenu 
+                          open={openDropdowns[`provider-${provider.id}`] || false}
+                          onOpenChange={(open) => 
+                            setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: open }))
+                          }
+                        >
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
+                            >
+                              <MoreVertical className="h-4 w-4 text-gray-600" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEditProvider(provider)}
+                              className="hover:cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4 mr-2 text-blue-600" />
+                              Edit Provider
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteProvider(provider)}
+                              className="hover:cursor-pointer text-red-600"
+                              disabled={deleteProviderMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditProvider(provider)
+                            }}
+                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteProvider(provider)
+                            }}
+                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
+                            disabled={deleteProviderMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Chevron button */}
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
+                    >
+                      {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
                 
                 {isOpen && (
                   <CollapsibleContent className="px-6 pb-6 bg-gray-50 border-t border-gray-100">
@@ -431,59 +655,67 @@ export default function ModelsPage() {
                                     </TableCell>
                                     <TableCell>
                                       <div className="flex gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-100"
-                                          disabled
-                                        >
-                                          <Edit className="h-4 w-4 text-gray-500" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                                        >
-                                          <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
+                                        {isMobile ? (
+                                          <DropdownMenu 
+                                            open={openDropdowns[`model-${model.id}`] || false}
+                                            onOpenChange={(open) => 
+                                              setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: open }))
+                                            }
+                                          >
+                                            <DropdownMenuTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
+                                              >
+                                                <MoreVertical className="h-4 w-4 text-gray-600" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem
+                                                onClick={() => handleEditModel(model)}
+                                                className="hover:cursor-pointer"
+                                              >
+                                                <Edit className="h-4 w-4 mr-2 text-blue-600" />
+                                                Edit Model
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={() => handleDeleteModel(model)}
+                                                className="hover:cursor-pointer text-red-600"
+                                                disabled={deleteLLMMutation.isPending}
+                                              >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        ) : (
+                                          <>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleEditModel(model)}
+                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
+                                            >
+                                              <Edit className="h-4 w-4 text-blue-600" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleDeleteModel(model)}
+                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
+                                              disabled={deleteLLMMutation.isPending}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                          </>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
                             </Table>
-                          </div>
-                        </div>
-
-                        {/* Provider Settings */}
-                        <div className="border-t border-gray-200 pt-4">
-                          <h4 className="font-semibold text-gray-900 mb-4">Provider Settings</h4>
-                          <div className="space-y-4">
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">API Key</Label>
-                              <div className="flex gap-2 mt-2">
-                                <Input
-                                  type={showKey ? 'text' : 'password'}
-                                  value={provider.key}
-                                  readOnly
-                                  className="flex-1 bg-gray-50 border-gray-200"
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => toggleApiKey(provider.id)}
-                                  className="hover:cursor-pointer border-gray-200 hover:bg-gray-50"
-                                >
-                                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => setEditingProvider(provider)}
-                              className="hover:cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              Save Provider
-                            </Button>
                           </div>
                         </div>
                       </>
@@ -554,6 +786,7 @@ export default function ModelsPage() {
                     required 
                   />
                 </div>
+                {/* Show API Key field only if required by provider */}
                 <div>
                   <label className="text-sm font-medium text-gray-900 block mb-2">
                     API Key *
@@ -567,28 +800,27 @@ export default function ModelsPage() {
                     required 
                   />
                 </div>
+                {/* Note: This is the generic create form - specific provider forms are handled in edit dialog */}
                 <div>
                   <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Endpoint *
+                    Endpoint
                   </label>
                   <Input 
                     id="endpoint" 
                     name="endpoint" 
-                    placeholder="https://api.openai.com/v1" 
+                    placeholder="https://api.example.com/v1" 
                     className="w-full"
-                    required 
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Deployment *
+                    Deployment
                   </label>
                   <Input 
                     id="deployment" 
                     name="deployment" 
                     placeholder="Enter deployment name..." 
                     className="w-full"
-                    required 
                   />
                 </div>
               </div>
@@ -656,46 +888,65 @@ export default function ModelsPage() {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 block mb-2">
-                      API Key *
-                    </label>
-                    <Input
-                      id="edit-key"
-                      name="key"
-                      type="password"
-                      defaultValue={editingProvider.key}
-                      placeholder="Enter your API key..."
-                      className="w-full"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 block mb-2">
-                      Endpoint *
-                    </label>
-                    <Input
-                      id="edit-endpoint"
-                      name="endpoint"
-                      defaultValue={editingProvider.endpoint}
-                      placeholder="https://api.example.com/v1"
-                      className="w-full"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 block mb-2">
-                      Deployment *
-                    </label>
-                    <Input
-                      id="edit-deployment"
-                      name="deployment"
-                      defaultValue={editingProvider.deployment}
-                      placeholder="Enter deployment name..."
-                      className="w-full"
-                      required
-                    />
-                  </div>
+                  {/* Show API Key field only if required by provider */}
+                  {getRequiredFields(editingProvider).api_key && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 block mb-2">
+                        API Key *
+                      </label>
+                      <Input
+                        id="edit-key"
+                        name="key"
+                        type="password"
+                        defaultValue={editingProvider.key}
+                        placeholder="Enter your API key..."
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  )}
+                  {/* Show Endpoint field only if required by provider */}
+                  {getRequiredFields(editingProvider).endpoint && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 block mb-2">
+                        Endpoint *
+                      </label>
+                      <Input
+                        id="edit-endpoint"
+                        name="endpoint"
+                        defaultValue={editingProvider.endpoint}
+                        placeholder="https://api.example.com/v1"
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  )}
+                  {/* Show Deployment field only if required by provider */}
+                  {getRequiredFields(editingProvider).deployment && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 block mb-2">
+                        Deployment *
+                      </label>
+                      <Input
+                        id="edit-deployment"
+                        name="deployment"
+                        defaultValue={editingProvider.deployment}
+                        placeholder="Enter deployment name..."
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  )}
+                  {/* Hidden fields for non-required fields to ensure form data consistency */}
+                  {!getRequiredFields(editingProvider).api_key && (
+                    <input type="hidden" name="key" value="" />
+                  )}
+                  {!getRequiredFields(editingProvider).endpoint && (
+                    <input type="hidden" name="endpoint" value="" />
+                  )}
+                  {!getRequiredFields(editingProvider).deployment && (
+                    <input type="hidden" name="deployment" value="" />
+                  )}
                 </div>
               </div>
               
@@ -718,7 +969,7 @@ export default function ModelsPage() {
                     ? 'Saving...' 
                     : (editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('supported-'))
                       ? 'Configure Provider'
-                      : 'Save Changes'
+                      : 'Update Provider'
                   }
                 </Button>
               </div>
@@ -792,6 +1043,127 @@ export default function ModelsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Model Dialog */}
+      <Dialog open={!!editingModel} onOpenChange={() => setEditingModel(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-[#4464f7]" />
+              Edit Model - {editingModel?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Update the configuration for your AI model.
+            </DialogDescription>
+          </DialogHeader>
+          {editingModel && (
+            <form onSubmit={handleUpdateModel}>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-900 block mb-2">
+                      Display Name *
+                    </label>
+                    <Input 
+                      id="edit-displayName" 
+                      name="displayName" 
+                      defaultValue={editingModel.name}
+                      placeholder="e.g. GPT-4 Turbo" 
+                      className="w-full"
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-900 block mb-2">
+                      Technical Name *
+                    </label>
+                    <Input
+                      id="edit-technicalName"
+                      name="technicalName"
+                      defaultValue={editingModel.internal_name}
+                      placeholder="e.g., gpt-4-turbo-preview"
+                      className="w-full"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Use the exact model name as specified by the provider's API documentation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditingModel(null)}
+                  disabled={updateLLMMutation.isPending}
+                  className="hover:cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateLLMMutation.isPending}
+                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                >
+                  {updateLLMMutation.isPending ? 'Updating...' : 'Update Model'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Provider Confirmation Dialog */}
+      <AlertDialog open={!!deletingProvider} onOpenChange={() => setDeletingProvider(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Provider</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the <strong>{deletingProvider?.name}</strong> provider? 
+              This will remove all configuration but keep it available for future setup.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingProvider(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteProvider}
+              className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 focus:ring-2 focus:ring-offset-2"
+              disabled={deleteProviderMutation.isPending}
+            >
+              {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Model Confirmation Dialog */}
+      <AlertDialog open={!!deletingModel} onOpenChange={() => setDeletingModel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Model</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the model <strong>"{deletingModel?.name}"</strong>? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingModel(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteModel}
+              className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 focus:ring-2 focus:ring-offset-2"
+              disabled={deleteLLMMutation.isPending}
+            >
+              {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

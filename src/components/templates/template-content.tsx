@@ -48,6 +48,7 @@ interface TemplateItem {
 interface TemplateContentProps {
   selectedTemplate: TemplateItem | null;
   onRefresh: () => void;
+  onTemplateDeleted?: () => void;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -55,6 +56,7 @@ interface TemplateContentProps {
 export function TemplateContent({ 
   selectedTemplate, 
   onRefresh,
+  onTemplateDeleted,
   onToggleSidebar
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
@@ -115,6 +117,7 @@ export function TemplateContent({
     onSuccess: () => {
       toast.success("Template deleted successfully");
       onRefresh();
+      onTemplateDeleted?.();
     },
     onError: (error: Error) => {
       toast.error("Error deleting template: " + error.message);

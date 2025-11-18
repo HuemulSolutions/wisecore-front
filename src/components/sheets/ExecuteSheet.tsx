@@ -40,7 +40,7 @@ import {
   disapproveExecution, 
   createExecution 
 } from "@/services/executions";
-import { getLLMs, updateLLM } from "@/services/llms";
+import { getLLMs, updateExecutionLLM } from "@/services/llms";
 import { generateDocumentWorker } from "@/services/generate";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
@@ -125,7 +125,7 @@ export function ExecuteSheet({
 
   // Mutation para actualizar LLM
   const updateLLMMutation = useMutation({
-    mutationFn: (llmId: string) => updateLLM(currentExecutionId!, llmId),
+    mutationFn: (llmId: string) => updateExecutionLLM(currentExecutionId!, llmId),
     onSuccess: () => {
       toast.success("Model updated");
       refetchExecution();
