@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { File, Plus, Network, Folder as FolderIcon, FileText, Search, MoreHorizontal } from "lucide-react"; 
+import { File, Plus, Network, Folder as FolderIcon, FileText, Search, MoreHorizontal, FolderTree } from "lucide-react"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLibraryContent } from "@/services/library";
 import { getDocumentContent } from "@/services/documents";
 import { FileTreeWithSearchAndContext } from "@/components/file tree/file-tree-with-search-and-context";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useSidebar } from "@/components/ui/sidebar";
 
 import { useOrganization } from "@/contexts/organization-context";
 import { Button } from "@/components/ui/button";
@@ -86,27 +88,25 @@ export default function Assets() {
     // Try two approaches: first check if last segment is a file, then try direct folder access
     
     // Approach 1: Check if last segment is a file by loading parent folder
-    if (segments.length > 1) {
-      try {
-        const parentFolderId = parentFolderPath.length > 0 ? parentFolderPath[parentFolderPath.length - 1] : undefined;
-        console.log('Checking parent folder ID for file detection:', parentFolderId);
-        
-        const parentContent = await getLibraryContent(selectedOrganizationId!, parentFolderId);
-        const items = parentContent?.content || [];
-        console.log('Parent folder items count:', items.length);
-        
-        const foundFile = items.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
-        
-        if (foundFile) {
-          console.log('✓ Last segment is a file:', foundFile.name);
-          return { 
-            folderPath: parentFolderPath, 
-            selectedFileId: possibleFileId 
-          };
-        }
-      } catch (error) {
-        console.log('Parent folder check failed, will try folder approach:', error instanceof Error ? error.message : 'Unknown error');
+    try {
+      const parentFolderId = parentFolderPath.length > 0 ? parentFolderPath[parentFolderPath.length - 1] : undefined;
+      console.log('Checking parent folder ID for file detection:', parentFolderId);
+      
+      const parentContent = await getLibraryContent(selectedOrganizationId!, parentFolderId);
+      const items = parentContent?.content || [];
+      console.log('Parent folder items count:', items.length);
+      
+      const foundFile = items.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
+      
+      if (foundFile) {
+        console.log('✓ Last segment is a file:', foundFile.name);
+        return { 
+          folderPath: parentFolderPath, 
+          selectedFileId: possibleFileId 
+        };
       }
+    } catch (error) {
+      console.log('Parent folder check failed, will try folder approach:', error instanceof Error ? error.message : 'Unknown error');
     }
     
     // Approach 2: Try to access the full path as folders
@@ -154,11 +154,19 @@ export default function Assets() {
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobile); // Closed by default on mobile
   const [searchTerm, setSearchTerm] = useState("");
-  const [treeKey, setTreeKey] = useState(0); // Key para forzar re-render del tree
   const { selectedOrganizationId } = useOrganization();
   const hasRestoredRef = useRef(false);
+
+  // Cerrar app sidebar automáticamente en móvil cuando se accede a Assets
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, setOpenMobile]);
 
   // Convert LibraryItem to FileNode
   const convertToFileNodes = (items: LibraryItem[]): FileNode[] => {
@@ -180,26 +188,11 @@ export default function Assets() {
     );
   };
 
-  // Create items with back button when in subfolder
-  const getTreeItems = (): FileNode[] => {
-    const filteredItems = getFilteredItems();
-    const fileNodes = convertToFileNodes(filteredItems);
-    
-    // If we're in a subfolder, add a back button
-    if (breadcrumb.length > 0) {
-      const backNode: FileNode = {
-        id: '__back__',
-        name: '← Back',
-        type: 'folder',
-        icon: 'back'
-      };
-      return [backNode, ...fileNodes];
-    }
-    
-    return fileNodes;
-  };
 
-  // Handle file/folder selection from tree
+
+
+
+  // Handle file/folder selection from tree  
   const handleTreeSelect = (item: FileNode) => {
     // Handle special back button
     if (item.id === '__back__') {
@@ -222,9 +215,7 @@ export default function Assets() {
       };
       setSelectedFile(selectedDoc);
       
-      // Update URL with selected file
-      const newUrl = buildUrlPath(breadcrumb, item.id);
-      navigate(newUrl, { replace: true });
+      console.log('🔍 File selected, will get correct path from tree component');
     }
     // For folders, we let the FileTree handle expansion internally
     // The onDoubleClick will handle navigation
@@ -580,18 +571,36 @@ export default function Assets() {
 
   const currentItems = libraryData?.content || [];
 
+  // Create items with back button when in subfolder (memoized to avoid unnecessary re-renders)
+  const treeItems = useMemo((): FileNode[] => {
+    const filteredItems = getFilteredItems();
+    const fileNodes = convertToFileNodes(filteredItems);
+    
+    // If we're in a subfolder, add a back button
+    if (breadcrumb.length > 0) {
+      const backNode: FileNode = {
+        id: '__back__',
+        name: '← Back',
+        type: 'folder',
+        icon: 'back'
+      };
+      return [backNode, ...fileNodes];
+    }
+    
+    return fileNodes;
+  }, [currentItems, searchTerm, breadcrumb]);
+
   // Handle refresh library content
   const handleRefresh = () => {
     // Invalidar todas las queries relacionadas con la library de esta organización
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
-    // Forzar re-render del tree para actualizar carpetas expandidas
-    setTreeKey(prev => prev + 1);
+    // No forzamos re-render del tree para mantener estado de expansión
   };
 
   // Handle sharing - generate URL based on current breadcrumb and item path
-  const handleShare = async (item: FileNode, fullPath: string[]) => {
+  const handleShare = async (item: FileNode, fullPath: string[], isAutomatic = false) => {
     try {
-      console.log(`🔗 Sharing item: "${item.name}" (${item.type})`);
+      console.log(`🔗 Sharing item: "${item.name}" (${item.type}) - ${isAutomatic ? 'AUTO' : 'MANUAL'}`);
       console.log(`📁 Current breadcrumb:`, breadcrumb.map(b => `${b.name}(${b.id})`));
       console.log(`🛤️  Item full path from component:`, fullPath);
       
@@ -616,22 +625,43 @@ export default function Assets() {
         shareUrl += '/' + completePath.join('/');
       }
       
-      // Copy to clipboard
-      await navigator.clipboard.writeText(shareUrl);
+      // For automatic calls (file selection), only update browser URL without changing navigation
+      if (isAutomatic && item.type === 'file' && completePath.length > 0) {
+        console.log(`🔄 Auto-updating ONLY browser URL for selected file: ${item.name}`);
+        console.log(`🔄 Complete path from component:`, completePath);
+        
+        // Build the complete URL directly from the full path
+        const completeUrl = `/assets/${completePath.join('/')}`;
+        console.log(`🔄 Auto-corrected browser URL (URL only):`, completeUrl);
+        
+        // Only update the browser URL, DO NOT change breadcrumb or navigation state
+        navigate(completeUrl, { replace: true });
+      }
       
-      console.log(`✅ URL generated: ${shareUrl}`);
-      console.log(`📋 Copied to clipboard successfully`);
-      
-      // Show success message
-      const { toast } = await import("sonner");
-      toast.success(`Link for "${item.name}" copied to clipboard!`);
+      // Only copy to clipboard and show toast for manual shares
+      if (!isAutomatic) {
+        // Copy to clipboard
+        await navigator.clipboard.writeText(shareUrl);
+        
+        console.log(`✅ URL generated: ${shareUrl}`);
+        console.log(`📋 Copied to clipboard successfully`);
+        
+        // Show success message
+        const { toast } = await import("sonner");
+        toast.success(`Link for "${item.name}" copied to clipboard!`);
+      } else {
+        console.log(`✅ URL auto-generated: ${shareUrl}`);
+      }
       
     } catch (error) {
       console.error('❌ Error in share handler:', error);
-      const { toast } = await import("sonner");
-      toast.error('Failed to copy link to clipboard');
+      if (!isAutomatic) {
+        const { toast } = await import("sonner");
+        toast.error('Failed to copy link to clipboard');
+      }
     }
   };
+
 
   if (error) {
     return (
@@ -653,11 +683,15 @@ export default function Assets() {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         position="left"
         toggleAriaLabel={isSidebarOpen ? "Cerrar sidebar" : "Abrir sidebar"}
+        mobileTitle="Assets Navigator"
+        customToggleIcon={<FolderTree className="h-4 w-4" />}
+        customToggleIconMobile={<FolderTree className="h-5 w-5" />}
+        showToggleButton={!isMobile} // Hide toggle button on mobile, use external one
         header={
           <>
             <div className="p-4">
               {/* Action Buttons */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-start gap-2 md:justify-between mb-4">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -775,8 +809,7 @@ export default function Assets() {
               ) : (
                 <>
                   <FileTreeWithSearchAndContext
-                    key={treeKey}
-                    items={getTreeItems()}
+                    items={treeItems}
                     onSelect={handleTreeSelect}
                     onDoubleClick={handleTreeDoubleClick}
                     showSearch={false}
@@ -785,7 +818,10 @@ export default function Assets() {
                     selectedId={selectedFile?.id}
                     onRefresh={handleRefresh}
                     onDocumentCreated={handleDocumentCreated}
-                    onShare={handleShare}
+                    onShare={(item, fullPath, isAutoShare) => {
+                      // Use the isAutoShare flag passed from the component
+                      handleShare(item, fullPath, Boolean(isAutoShare));
+                    }}
                     onDrop={(_draggedItem, _targetFolder) => {
                       // La lógica de drop ya está implementada en FileTreeWithContext
                       // Solo necesitamos pasar la función para habilitar el drag and drop
@@ -793,7 +829,7 @@ export default function Assets() {
                   />
                   
                   {/* Message for empty area */}
-                  {getTreeItems().length === 0 && (
+                  {treeItems.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       <p className="text-sm mb-2">No items in this folder</p>
                       <p className="text-xs">Right-click to create new items</p>
@@ -840,8 +876,8 @@ export default function Assets() {
       </CollapsibleSidebar>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
-        <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 flex min-w-0">
+        <div className="flex-1 overflow-auto bg-white min-w-0">
           <AssetContent
             selectedFile={selectedFile}
             breadcrumb={breadcrumb}
@@ -851,6 +887,8 @@ export default function Assets() {
             setSelectedFile={setSelectedFile}
             onRefresh={handleRefresh}
             currentFolderId={currentFolderId}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
         </div>
       </div>
