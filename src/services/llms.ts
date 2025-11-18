@@ -4,9 +4,29 @@ import { backendUrl } from "@/config";
 export interface LLMProvider {
   id: string;
   name: string;
-  key: string;
-  endpoint: string;
-  deployment: string;
+  display_name: string;
+  key?: string;
+  endpoint?: string;
+  deployment?: string;
+}
+
+export interface SupportedProvider {
+  display: string;
+  api_key: boolean;
+  endpoint: boolean;
+  deployment: boolean;
+}
+
+export interface SupportedProvidersResponse {
+  data: Record<string, SupportedProvider>;
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface ConfiguredProvidersResponse {
+  data: LLMProvider[];
+  transaction_id: string;
+  timestamp: string;
 }
 
 export interface CreateLLMProviderRequest {
@@ -31,7 +51,7 @@ export interface CreateLLMRequest {
 }
 
 // LLM Provider Services
-export async function getSupportedProviders() {
+export async function getSupportedProviders(): Promise<SupportedProvidersResponse> {
     const response = await fetch(`${backendUrl}/llm_provider/supported`);
     if (!response.ok) {
         throw new Error('Error al obtener los proveedores soportados');
@@ -39,13 +59,12 @@ export async function getSupportedProviders() {
     return response.json();
 }
 
-export async function getAllProviders(): Promise<LLMProvider[]> {
+export async function getAllProviders(): Promise<ConfiguredProvidersResponse> {
     const response = await fetch(`${backendUrl}/llm_provider/`);
     if (!response.ok) {
         throw new Error('Error al obtener los proveedores');
     }
-    const data = await response.json();
-    return data.data || data;
+    return response.json();
 }
 
 export async function createProvider(provider: CreateLLMProviderRequest): Promise<LLMProvider> {
