@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, ChevronUp, ChevronDown, CheckCircle, Circle, Settings } from 'lucide-react'
+import { Plus, Edit, Trash2, ChevronUp, ChevronDown, CheckCircle, Circle, Settings, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 import {
   Collapsible,
@@ -26,6 +27,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -57,6 +64,7 @@ import {
 
 export default function ModelsPage() {
   const queryClient = useQueryClient()
+  const isMobile = useIsMobile()
   const [openProviders, setOpenProviders] = useState<string[]>([])
   // Removed unused showApiKeys state
   const [editingProvider, setEditingProvider] = useState<(LLMProvider & { isConfigured?: boolean; isSupported?: boolean }) | null>(null)
@@ -67,6 +75,7 @@ export default function ModelsPage() {
   const [editingModel, setEditingModel] = useState<LLM | null>(null)
   const [deletingProvider, setDeletingProvider] = useState<(LLMProvider & { isConfigured?: boolean; isSupported?: boolean }) | null>(null)
   const [deletingModel, setDeletingModel] = useState<LLM | null>(null)
+  const [openDropdowns, setOpenDropdowns] = useState<{[key: string]: boolean}>({})
 
   // Queries with optimized caching
   const { data: supportedProviders = [], isLoading: loadingSupportedProviders } = useQuery({
@@ -301,15 +310,6 @@ export default function ModelsPage() {
   }, [supportedProviders])
 
   // Helper functions
-  const toggleProvider = (providerId: string) => {
-    setOpenProviders(prev =>
-      prev.includes(providerId)
-        ? prev.filter(id => id !== providerId)
-        : [...prev, providerId]
-    )
-  }
-
-
   const getProviderModels = (providerId: string) => {
     return llms.filter(llm => llm.provider_id === providerId)
   }
@@ -390,10 +390,14 @@ export default function ModelsPage() {
 
   const handleEditModel = (model: LLM) => {
     setEditingModel(model)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
   }
 
   const handleDeleteModel = (model: LLM) => {
     setDeletingModel(model)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
   }
 
   const confirmDeleteModel = () => {
@@ -421,11 +425,15 @@ export default function ModelsPage() {
   // Handle provider edit
   const handleEditProvider = (provider: any) => {
     setEditingProvider(provider)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
   }
 
   // Handle provider delete
   const handleDeleteProvider = (provider: any) => {
     setDeletingProvider(provider)
+    // Close dropdown after opening dialog
+    setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
   }
 
   const confirmDeleteProvider = () => {
@@ -478,11 +486,19 @@ export default function ModelsPage() {
 
           return (
             <div key={provider.id} className="border border-gray-200 rounded-lg bg-white">
-              <Collapsible>
-                <div className="flex w-full items-center justify-between p-4">
+              <Collapsible 
+                open={isOpen} 
+                onOpenChange={(open) => {
+                  if (open) {
+                    setOpenProviders(prev => [...prev, provider.id])
+                  } else {
+                    setOpenProviders(prev => prev.filter(id => id !== provider.id))
+                  }
+                }}
+              >
+                <div className="flex w-full items-center p-4">
                   <CollapsibleTrigger
                     className="flex items-center gap-3 text-left hover:bg-gray-50 rounded-lg p-2 flex-1"
-                    onClick={() => toggleProvider(provider.id)}
                   >
                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                       <span className="text-lg font-semibold text-gray-700">
@@ -509,37 +525,86 @@ export default function ModelsPage() {
                         </span>
                       </div>
                     </div>
-                    {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
                   </CollapsibleTrigger>
                   
                   {/* Action buttons */}
                   {status.configured && (
-                    <div className="flex items-center gap-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleEditProvider(provider)
-                        }}
-                        className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
-                      >
-                        <Edit className="h-4 w-4 text-blue-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteProvider(provider)
-                        }}
-                        className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                        disabled={deleteProviderMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                    <div className="flex items-center gap-1 mr-2">
+                      {isMobile ? (
+                        <DropdownMenu 
+                          open={openDropdowns[`provider-${provider.id}`] || false}
+                          onOpenChange={(open) => 
+                            setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: open }))
+                          }
+                        >
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
+                            >
+                              <MoreVertical className="h-4 w-4 text-gray-600" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEditProvider(provider)}
+                              className="hover:cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4 mr-2 text-blue-600" />
+                              Edit Provider
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteProvider(provider)}
+                              className="hover:cursor-pointer text-red-600"
+                              disabled={deleteProviderMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditProvider(provider)
+                            }}
+                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteProvider(provider)
+                            }}
+                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
+                            disabled={deleteProviderMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   )}
+
+                  {/* Chevron button */}
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
+                    >
+                      {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                    </Button>
+                  </CollapsibleTrigger>
                 </div>
                 
                 {isOpen && (
@@ -590,23 +655,61 @@ export default function ModelsPage() {
                                     </TableCell>
                                     <TableCell>
                                       <div className="flex gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditModel(model)}
-                                          className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
-                                        >
-                                          <Edit className="h-4 w-4 text-blue-600" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleDeleteModel(model)}
-                                          className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                                          disabled={deleteLLMMutation.isPending}
-                                        >
-                                          <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
+                                        {isMobile ? (
+                                          <DropdownMenu 
+                                            open={openDropdowns[`model-${model.id}`] || false}
+                                            onOpenChange={(open) => 
+                                              setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: open }))
+                                            }
+                                          >
+                                            <DropdownMenuTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
+                                              >
+                                                <MoreVertical className="h-4 w-4 text-gray-600" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem
+                                                onClick={() => handleEditModel(model)}
+                                                className="hover:cursor-pointer"
+                                              >
+                                                <Edit className="h-4 w-4 mr-2 text-blue-600" />
+                                                Edit Model
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={() => handleDeleteModel(model)}
+                                                className="hover:cursor-pointer text-red-600"
+                                                disabled={deleteLLMMutation.isPending}
+                                              >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        ) : (
+                                          <>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleEditModel(model)}
+                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
+                                            >
+                                              <Edit className="h-4 w-4 text-blue-600" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleDeleteModel(model)}
+                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
+                                              disabled={deleteLLMMutation.isPending}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                          </>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
