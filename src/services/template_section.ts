@@ -1,5 +1,7 @@
 import { backendUrl } from "@/config";
 
+// Las secciones ahora vienen incluidas cuando obtenemos el template por ID
+// No necesitamos un endpoint separado para obtener las secciones
 
 export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string }) {
     const response = await fetch(`${backendUrl}/template_section/`, {
@@ -72,4 +74,8 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     const data = await response.json();
     console.log('Sections order updated:', data.data);
     return data.data;
+}
+
+export async function updateTemplateSectionsOrder(sectionsOrder: { section_id: string; order: number }[]) {
+  return updateSectionsOrder(sectionsOrder);
 }
