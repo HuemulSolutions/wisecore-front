@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, List, PlusCircle } from "lucide-react";
+import { Plus, List, PlusCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,6 +13,7 @@ import {
 import SortableSectionSheet from "@/components/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
+import { generateDocumentStructure } from "@/services/documents";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -26,13 +27,15 @@ interface SectionSheetProps {
   fullDocument?: any;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  isMobile?: boolean;
 }
 
 export function SectionSheet({
   selectedFile,
   fullDocument,
   isOpen,
-  onOpenChange
+  onOpenChange,
+  isMobile = false
 }: SectionSheetProps) {
   const queryClient = useQueryClient();
   const [isAddingSection, setIsAddingSection] = useState(false);
@@ -135,19 +138,25 @@ export function SectionSheet({
     });
   };
 
-  // Mutation para generar secciones con AI - funcionalidad no disponible por ahora
-  // const generateSectionsMutation = useMutation({
-  //   mutationFn: (documentId: string) => generateDocumentStructure(documentId),
-  //   onSuccess: () => {
-  //     toast.success("Sections generated successfully with AI");
-  //     queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-  //     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-  //   },
-  //   onError: (error) => {
-  //     console.error("Error generating sections with AI:", error);
-  //     toast.error("Error generating sections with AI: " + (error as Error).message);
-  //   }
-  // });
+  // Mutation para generar secciones con AI
+  const generateSectionsMutation = useMutation({
+    mutationFn: (documentId: string) => generateDocumentStructure(documentId),
+    onSuccess: () => {
+      toast.success("Sections generated successfully with AI");
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    },
+    onError: (error) => {
+      console.error("Error generating sections with AI:", error);
+      toast.error("Error generating sections with AI: " + (error as Error).message);
+    }
+  });
+
+  // Función para generar secciones con IA
+  const handleGenerateWithAI = async () => {
+    if (!selectedFile?.id) return;
+    generateSectionsMutation.mutate(selectedFile.id);
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -155,43 +164,61 @@ export function SectionSheet({
         <Button
           size="sm"
           variant="ghost"
-          className="h-8 px-3 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+          className={isMobile 
+            ? "h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full" 
+            : "h-8 px-3 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+          }
           title="Add Section"
         >
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Section
+          <Plus className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
+          {!isMobile && "Section"}
         </Button>
       </SheetTrigger>
       
-      <SheetContent side="right" className="sm:max-w-[800px] p-0">
+      <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0">
         <div className="flex flex-col h-full">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
+          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <SheetTitle className="flex items-center gap-2 text-lg font-semibold">
+                <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                   <Plus className="h-4 w-4" />
                   Manage Document Sections
                 </SheetTitle>
-                <SheetDescription className="text-sm text-gray-500 mt-1">
+                <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
                   Add, edit, and organize sections to structure your document content.
                 </SheetDescription>
               </div>
-              <div className="flex items-center h-full gap-2">
+              <div className="flex items-center h-full gap-2 ml-4">
                 <Button
                   type="button"
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                  size="sm"
+                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
                   onClick={() => setIsAddingSection(true)}
                   disabled={isAddingSection}
                   style={{ alignSelf: 'center' }}
                 >
-                  <PlusCircle className="h-4 w-4 mr-2" />
+                  <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
                   Add Section
                 </Button>
+                {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="hover:cursor-pointer h-8"
+                    onClick={handleGenerateWithAI}
+                    disabled={generateSectionsMutation.isPending}
+                    style={{ alignSelf: 'center' }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    {generateSectionsMutation.isPending ? "Generating..." : "Generate with AI"}
+                  </Button>
+                )}
               </div>
             </div>
           </SheetHeader>
           
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
             <div className="space-y-6">
               {/* Document Info */}
               <div className="p-4 bg-gray-50 rounded-lg border">
@@ -265,7 +292,7 @@ export function SectionSheet({
               )}
 
               {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
-                <div className="p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
+                <div className="p-4 sm:p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
                   <List className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                   <h3 className="text-sm font-medium text-gray-700 mb-1">No Sections Yet</h3>
                   <p className="text-xs text-gray-500">
