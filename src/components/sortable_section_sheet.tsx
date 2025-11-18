@@ -98,10 +98,10 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <Card className={`w-full ${isDragging ? 'shadow-lg' : ''}`}>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1">
+      <Card className={`w-full min-w-0 overflow-hidden ${isDragging ? 'shadow-lg' : ''}`}>
+        <CardHeader className="pb-2 px-3 sm:px-6">
+          <div className="flex items-center justify-between min-w-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               {/* Drag handle */}
               <Button
                 variant="ghost"
@@ -114,7 +114,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                 <GripVertical className="h-4 w-4" />
               </Button>
               
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <CardTitle className="text-sm font-medium text-gray-900 truncate">
                   {item.order}. {item.name}
                 </CardTitle>
@@ -199,8 +199,8 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
             previewText += contentPreview;
             
             return (
-              <div className="mt-2">
-                <div className="text-xs text-gray-600 line-clamp-3 leading-relaxed">
+              <div className="mt-2 px-3 sm:px-0">
+                <div className="text-xs text-gray-600 line-clamp-3 leading-relaxed break-words overflow-hidden">
                   {mainHeader && (
                     <span className="font-medium text-gray-800">Prompt</span>
                   )}
@@ -213,20 +213,20 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
           {/* Dependencies preview cuando está colapsado */}
           {!isExpanded && item.dependencies && item.dependencies.length > 0 && (
-            <div className="mt-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 font-medium">Depends on:</span>
-                <div className="flex flex-wrap gap-1">
+            <div className="mt-2 px-3 sm:px-0">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-xs text-gray-500 font-medium flex-shrink-0">Depends on:</span>
+                <div className="flex flex-wrap gap-1 min-w-0">
                   {item.dependencies.slice(0, 2).map((dep) => (
                     <span
                       key={dep.id}
-                      className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 border-blue-200"
+                      className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 border-blue-200 truncate max-w-full"
                     >
                       {dep.name}
                     </span>
                   ))}
                   {item.dependencies.length > 2 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600 flex-shrink-0">
                       +{item.dependencies.length - 2} more
                     </span>
                   )}
@@ -238,7 +238,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
         {/* Contenido expandido */}
         {isExpanded && (
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 px-3 sm:px-6">
             {isEditing ? (
               <EditSectionSheet
                 item={item}
@@ -247,7 +247,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                 existingSections={existingSections as any}
               />
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0">
                 {/* Prompt */}
                 {item.prompt && (() => {
                   // Decodificar caracteres especiales y convertir bullets a markdown
@@ -258,10 +258,10 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                     .replace(/\t/g, '  '); // Convertir tabs a espacios
                   
                   return (
-                    <div>
+                    <div className="min-w-0">
                       <h4 className="text-xs font-medium text-gray-700 mb-2">Prompt:</h4>
-                      <div className="bg-gray-50 rounded-md p-4 border">
-                        <div className="prose prose-sm max-w-none prose-gray prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-li:my-1">
+                      <div className="bg-gray-50 rounded-md p-2 sm:p-4 border overflow-hidden">
+                        <div className="prose prose-sm max-w-none prose-gray prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-li:text-gray-700 prose-li:my-1 break-words overflow-x-auto">
                           <Markdown>{decodedPrompt}</Markdown>
                         </div>
                       </div>
@@ -271,13 +271,13 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
                 {/* Dependencies */}
                 {item.dependencies && item.dependencies.length > 0 && (
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="text-xs font-medium text-gray-700 mb-2">Dependencies:</h4>
                     <div className="flex flex-wrap gap-2">
                       {item.dependencies.map((dep) => (
                         <span
                           key={dep.id}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 truncate max-w-full"
                         >
                           {dep.name}
                         </span>
