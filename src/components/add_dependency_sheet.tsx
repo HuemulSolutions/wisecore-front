@@ -86,9 +86,9 @@ export default function AddDependencySheet({ id }: { id: string }) {
         },
     });
 
-    const handleSelectDocument = (documentId: string) => {
-        if (documentId) {
-            addDependencyMutation.mutate(documentId);
+    const handleSelectDocument = (document: { id: string; name: string; type: "document" }) => {
+        if (document.id) {
+            addDependencyMutation.mutate(document.id);
         }
     };
 
@@ -145,6 +145,8 @@ export default function AddDependencySheet({ id }: { id: string }) {
                             placeholder="Search and select a document to add as dependency..."
                             disabled={addDependencyMutation.isPending}
                             excludeDocumentIds={[id, ...dependencies.map(dep => dep.document_id)]}
+                            showContainer={true}
+                            customPadding="p-4"
                         />
                         
                         {addDependencyMutation.isPending && (
