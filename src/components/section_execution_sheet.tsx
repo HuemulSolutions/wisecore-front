@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Editor from './editor';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -38,24 +37,7 @@ interface SectionExecutionSheetProps {
     readyToEdit: boolean;
 }
 
-// Function to detect section type from content
-const detectSectionType = (prompt: string, output: string): string => {
-    const content = (prompt + ' ' + output).toLowerCase();
-    
-    if (content.includes('```') || content.includes('code') || content.includes('function') || content.includes('import') || content.includes('const ') || content.includes('let ') || content.includes('var ')) {
-        return 'code';
-    } else if (content.includes('api') || content.includes('endpoint') || content.includes('request') || content.includes('response')) {
-        return 'api';
-    } else if (content.includes('introduction') || content.includes('overview') || content.includes('summary')) {
-        return 'intro';
-    } else if (content.includes('conclusion') || content.includes('summary') || content.includes('final')) {
-        return 'conclusion';
-    } else if (content.includes('requirement') || content.includes('specification') || content.includes('must') || content.includes('should')) {
-        return 'requirements';
-    } else {
-        return 'text';
-    }
-};
+
 
 // Function to get preview content
 const getPreviewContent = (content: string, maxLength: number = 150): string => {
@@ -145,25 +127,7 @@ export default function SectionExecutionSheet({ sectionExecution, onUpdate, read
     };
 
     const displayedContent = (aiPreview ?? sectionExecution.output.replace(/\\n/g, "\n"));
-    
-    // Detect section type
-    const sectionType = detectSectionType(sectionExecution.prompt, sectionExecution.output);
     const previewContent = getPreviewContent(displayedContent);
-    
-    // Get section type info
-    const getSectionTypeInfo = (type: string) => {
-        const typeMap: Record<string, { icon: string; label: string; color: string }> = {
-            'code': { icon: '🔧', label: 'Code', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-            'api': { icon: '🌐', label: 'API', color: 'bg-green-100 text-green-800 border-green-200' },
-            'intro': { icon: '📝', label: 'Introduction', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-            'conclusion': { icon: '🎯', label: 'Conclusion', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-            'requirements': { icon: '📋', label: 'Requirements', color: 'bg-red-100 text-red-800 border-red-200' },
-            'text': { icon: '📄', label: 'Content', color: 'bg-gray-100 text-gray-800 border-gray-200' }
-        };
-        return typeMap[type] || typeMap['text'];
-    };
-
-    const typeInfo = getSectionTypeInfo(sectionType);
 
     return (
         <>
@@ -210,10 +174,6 @@ export default function SectionExecutionSheet({ sectionExecution, onUpdate, read
                                 </h3>
                             )}
                         </div>
-                        <Badge variant="outline" className={`text-xs ${typeInfo.color} border`}>
-                            <span className="mr-1">{typeInfo.icon}</span>
-                            {typeInfo.label}
-                        </Badge>
                     </div>
                     
                     <div className="flex items-center gap-2">
