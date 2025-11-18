@@ -67,18 +67,30 @@ export default function ModelsPage() {
   const isMobile = useIsMobile()
   const [openProviders, setOpenProviders] = useState<string[]>([])
   // Removed unused showApiKeys state
-  const [editingProvider, setEditingProvider] = useState<(LLMProvider & { isConfigured?: boolean; isSupported?: boolean }) | null>(null)
+  const [editingProvider, setEditingProvider] = useState<(LLMProvider & { 
+    isConfigured?: boolean; 
+    isSupported?: boolean; 
+    display_name?: string;
+    api_key_required?: boolean;
+    endpoint_required?: boolean;
+    deployment_required?: boolean;
+    providerKey?: string;
+  }) | null>(null)
 
-  const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
+  // isCreateProviderOpen removed - providers are configured from supported providers list
   const [isCreateModelOpen, setIsCreateModelOpen] = useState(false)
   const [selectedProviderId, setSelectedProviderId] = useState<string>('')
   const [editingModel, setEditingModel] = useState<LLM | null>(null)
-  const [deletingProvider, setDeletingProvider] = useState<(LLMProvider & { isConfigured?: boolean; isSupported?: boolean }) | null>(null)
+  const [deletingProvider, setDeletingProvider] = useState<(LLMProvider & { 
+    isConfigured?: boolean; 
+    isSupported?: boolean; 
+    display_name?: string;
+  }) | null>(null)
   const [deletingModel, setDeletingModel] = useState<LLM | null>(null)
   const [openDropdowns, setOpenDropdowns] = useState<{[key: string]: boolean}>({})
 
   // Queries with optimized caching
-  const { data: supportedProviders = [], isLoading: loadingSupportedProviders } = useQuery({
+  const { data: supportedProvidersResponse, isLoading: loadingSupportedProviders } = useQuery({
     queryKey: ['supportedProviders'],
     queryFn: getSupportedProviders,
     staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh
@@ -87,7 +99,7 @@ export default function ModelsPage() {
     refetchOnMount: false, // Don't refetch on component mount if data exists
   })
 
-  const { data: configuredProviders = [], isLoading: loadingConfiguredProviders } = useQuery({
+  const { data: configuredProvidersResponse, isLoading: loadingConfiguredProviders } = useQuery({
     queryKey: ['providers'],
     queryFn: getAllProviders,
     staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh
@@ -111,12 +123,11 @@ export default function ModelsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['providers'] })
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
-      setIsCreateProviderOpen(false)
       setEditingProvider(null)
-      toast.success('Provider created successfully')
+      toast.success('Provider configured successfully')
     },
     onError: (error) => {
-      toast.error(`Error creating provider: ${error.message}`)
+      toast.error(`Error configuring provider: ${error.message}`)
     },
   })
 
@@ -197,88 +208,72 @@ export default function ModelsPage() {
 
   // Combine supported and configured providers
   const allProviders = React.useMemo(() => {
-    if (!supportedProviders || !configuredProviders) return []
+    if (!supportedProvidersResponse?.data) return []
     
-    // Handle different possible response structures
-    let supportedList: any[] = []
-    if (Array.isArray(supportedProviders)) {
-      supportedList = supportedProviders
-    } else if (supportedProviders && typeof supportedProviders === 'object') {
-      const providerObj = supportedProviders as any
-      if (providerObj.data && Array.isArray(providerObj.data)) {
-        supportedList = providerObj.data
-      } else if (providerObj.data && typeof providerObj.data === 'object') {
-        // Handle case where data is an object with provider keys
-        // e.g., { data: { azure_openai: {...}, openai: {...}, anthropic: {...} } }
-        supportedList = Object.keys(providerObj.data).map(key => {
-          const providerData = providerObj.data[key]
-          
-          return {
-            name: providerData.display,
-            id: key,
-            originalKey: key,
-            display: providerData.display,
-            api_key: providerData.api_key,
-            endpoint: providerData.endpoint,
-            deployment: providerData.deployment,
-            ...providerData
-          }
-        })
-      } else if (Array.isArray(providerObj.providers)) {
-        supportedList = providerObj.providers
-      } else if (Array.isArray(providerObj.supported)) {
-        supportedList = providerObj.supported
-      }
-    }
+    const supportedProviders = supportedProvidersResponse.data
+    const configuredProviders = configuredProvidersResponse?.data || []
     
-    const configuredList = Array.isArray(configuredProviders) ? configuredProviders : []
+    console.log('🔍 Supported providers:', supportedProviders)
+    console.log('🔍 Configured providers:', configuredProviders)
     
-    if (!Array.isArray(supportedList)) {
-      console.warn('Supported providers is not an array:', supportedProviders)
-      return configuredList
-    }
+    // Create a lookup map of configured providers by name
+    const configuredMap = new Map<string, LLMProvider>()
+    configuredProviders.forEach((config: LLMProvider) => {
+      configuredMap.set(config.name, config)
+    })
     
-    return supportedList.map((supported: any) => {
-      // Use display name from supported providers or fallback to processed name
-      const supportedName = supported.display || (typeof supported === 'string' ? supported : supported.name || supported.id || supported)
-      const supportedKey = supported.originalKey || supported.id || supportedName.toLowerCase().replace(/\s+/g, '_')
+    console.log('🔍 Configured map:', configuredMap)
+    
+    // Convert supported providers object to array with combined data
+    return Object.entries(supportedProviders).map(([providerKey, supportedData]) => {
+      // Check if this provider exists in configured providers
+      const configuredProvider = configuredMap.get(providerKey)
+      const isConfigured = !!configuredProvider
       
-      const configured = configuredList.find((config: LLMProvider) => 
-        config.name.toLowerCase() === supportedName.toLowerCase() ||
-        config.name.toLowerCase().replace(/\s+/g, '_') === supportedKey
-      )
+      console.log(`🔍 Checking provider ${providerKey}:`, { 
+        isConfigured,
+        configuredProvider 
+      })
       
-      if (configured) {
-        // If configured, merge with supported data but use display name
-        return {
-          ...configured,
-          name: supportedName, // Always use the display name from supported providers
-          display: supported.display,
-          // Preserve field configuration from supported provider
-          api_key: supported.api_key,
-          endpoint_required: supported.endpoint,
-          deployment_required: supported.deployment,
-          isConfigured: true
+      if (isConfigured && configuredProvider) {
+        // Provider is configured - use configured provider data and merge with supported requirements
+        const result = {
+          id: configuredProvider.id,
+          name: providerKey, // Use the provider key from supported (e.g., 'openai', 'azure_openai')
+          display_name: configuredProvider.display_name || supportedData.display,
+          key: configuredProvider.key || '',
+          endpoint: configuredProvider.endpoint || '',
+          deployment: configuredProvider.deployment || '',
+          // Requirements from supported endpoint (for editing forms)
+          api_key_required: supportedData.api_key,
+          endpoint_required: supportedData.endpoint,
+          deployment_required: supportedData.deployment,
+          isConfigured: true,
+          providerKey
         }
-      }
-      
-      return {
-        id: `supported-${supportedKey}`,
-        name: supportedName,
-        key: '',
-        endpoint: '',
-        deployment: '',
-        originalKey: supportedKey,
-        isSupported: true,
-        isConfigured: false,
-        // Preserve field configuration from supported provider
-        api_key: supported.api_key,
-        endpoint_required: supported.endpoint,
-        deployment_required: supported.deployment,
-        display: supported.display
+        console.log(`✅ Provider ${providerKey} is CONFIGURED:`, result)
+        return result
+      } else {
+        // Provider is supported but not configured yet
+        const result = {
+          id: `unconfigured-${providerKey}`,
+          name: providerKey,
+          display_name: supportedData.display,
+          key: '',
+          endpoint: '',
+          deployment: '',
+          // Requirements from supported endpoint
+          api_key_required: supportedData.api_key,
+          endpoint_required: supportedData.endpoint,
+          deployment_required: supportedData.deployment,
+          isConfigured: false,
+          providerKey
+        }
+        console.log(`❌ Provider ${providerKey} is NOT configured:`, result)
+        return result
       }
     })
-  }, [supportedProviders, configuredProviders])
+  }, [supportedProvidersResponse, configuredProvidersResponse])
 
   // Ref to track last logged transaction ID and component mount count
   const lastLoggedId = React.useRef<string | undefined>(undefined)
@@ -296,18 +291,26 @@ export default function ModelsPage() {
 
   // Debug logging - only when data changes (reduced for StrictMode)
   React.useEffect(() => {
-    if (supportedProviders && Object.keys(supportedProviders).length > 0) {
-      // Only log once per unique transaction_id to avoid StrictMode duplicates
-      const transactionId = (supportedProviders as any)?.transaction_id
+    if (supportedProvidersResponse?.data && Object.keys(supportedProvidersResponse.data).length > 0) {
+      const transactionId = supportedProvidersResponse.transaction_id
       
       if (transactionId && transactionId !== lastLoggedId.current) {
-        console.log(`✅ Supported providers fetched (mount ${mountCount.current}):`, supportedProviders)
+        console.log(`✅ Supported providers fetched:`, supportedProvidersResponse)
         lastLoggedId.current = transactionId
-      } else if (transactionId) {
-        console.log(`📋 Using cached supported providers data (mount ${mountCount.current})`)
       }
     }
-  }, [supportedProviders])
+  }, [supportedProvidersResponse])
+
+  // Debug final providers combination
+  React.useEffect(() => {
+    if (allProviders.length > 0) {
+      console.log('🎯 Final allProviders:', allProviders)
+      // Log summary of configured vs unconfigured
+      const configured = allProviders.filter(p => p.isConfigured).length
+      const unconfigured = allProviders.filter(p => !p.isConfigured).length
+      console.log(`📊 Providers summary: ${configured} configured, ${unconfigured} unconfigured`)
+    }
+  }, [allProviders])
 
   // Helper functions
   const getProviderModels = (providerId: string) => {
@@ -317,22 +320,12 @@ export default function ModelsPage() {
   const getProviderStatus = (provider: any) => {
     const models = getProviderModels(provider.id)
     return {
-      configured: provider.isConfigured !== false && (provider.key || models.length > 0),
+      configured: provider.isConfigured === true, // Simplificamos: si isConfigured es true, está configurado
       modelCount: models.length
     }
   }
 
-  const handleCreateProvider = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const data: CreateLLMProviderRequest = {
-      name: formData.get('name') as string,
-      key: formData.get('key') as string,
-      endpoint: formData.get('endpoint') as string,
-      deployment: formData.get('deployment') as string,
-    }
-    createProviderMutation.mutate(data)
-  }
+  // handleCreateProvider removed - providers are configured from supported providers list
 
   const handleUpdateProvider = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -341,8 +334,15 @@ export default function ModelsPage() {
     
     // Build data object dynamically based on required fields
     const requiredFields = getRequiredFields(editingProvider)
+    const providerKey = (editingProvider as any).providerKey || editingProvider.name
+    
+    console.log('📤 Sending provider data:')
+    console.log('  - Provider key (name):', providerKey)
+    console.log('  - Display name:', editingProvider.display_name)
+    console.log('  - Required fields:', requiredFields)
+    
     const data: any = {
-      name: formData.get('name') as string,
+      name: providerKey, // Use the provider key automatically (e.g., 'openai', 'azure_openai')
     }
     
     // Only include fields that are required for this provider
@@ -357,7 +357,7 @@ export default function ModelsPage() {
     }
     
     // Check if this is a new provider (unconfigured) or updating existing
-    if (editingProvider.isConfigured === false || editingProvider.id.startsWith('supported-')) {
+    if (editingProvider.isConfigured === false || editingProvider.id.startsWith('unconfigured-')) {
       // Create new provider
       createProviderMutation.mutate(data)
     } else {
@@ -416,15 +416,21 @@ export default function ModelsPage() {
   // Helper function to get required fields for a provider
   const getRequiredFields = (provider: any) => {
     return {
-      api_key: provider.api_key === true,
-      endpoint: provider.endpoint_required === true || provider.endpoint === true,
-      deployment: provider.deployment_required === true || provider.deployment === true
+      api_key: provider.api_key_required === true,
+      endpoint: provider.endpoint_required === true,
+      deployment: provider.deployment_required === true
     }
   }
 
   // Handle provider edit
   const handleEditProvider = (provider: any) => {
-    setEditingProvider(provider)
+    console.log('📝 Editing provider:', provider)
+    console.log('📝 Provider name (key):', provider.name)
+    console.log('📝 Provider display_name:', provider.display_name)
+    setEditingProvider({
+      ...provider,
+      providerKey: provider.name // Ensure we have the correct provider key
+    })
     // Close dropdown after opening dialog
     setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
   }
@@ -502,11 +508,11 @@ export default function ModelsPage() {
                   >
                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                       <span className="text-lg font-semibold text-gray-700">
-                        {provider.name.charAt(0).toUpperCase()}
+                        {(provider.display_name || provider.name).charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{provider.name}</h3>
+                      <h3 className="font-semibold text-gray-900">{provider.display_name || provider.name}</h3>
                       <div className="flex items-center gap-2 text-sm mt-1">
                         {status.configured ? (
                           <>
@@ -527,8 +533,8 @@ export default function ModelsPage() {
                     </div>
                   </CollapsibleTrigger>
                   
-                  {/* Action buttons */}
-                  {status.configured && (
+                  {/* Action buttons - solo mostrar para proveedores configurados */}
+                  {provider.isConfigured && (
                     <div className="flex items-center gap-1 mr-2">
                       {isMobile ? (
                         <DropdownMenu 
@@ -609,7 +615,7 @@ export default function ModelsPage() {
                 
                 {isOpen && (
                   <CollapsibleContent className="px-6 pb-6 bg-gray-50 border-t border-gray-100">
-                    {status.configured ? (
+                    {provider.isConfigured ? (
                       <>
                         {/* Models Section */}
                         <div className="mb-6">
@@ -726,10 +732,10 @@ export default function ModelsPage() {
                           <div className="mb-4">
                             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
                               <span className="text-2xl font-bold text-gray-400">
-                                {provider.name.charAt(0).toUpperCase()}
+                                {(provider.display_name || provider.name).charAt(0).toUpperCase()}
                               </span>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{provider.name}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{provider.display_name || provider.name}</h3>
                             <p className="text-gray-500 mb-6">
                               Configure this provider to start using its models
                             </p>
@@ -740,7 +746,8 @@ export default function ModelsPage() {
                                 ...provider,
                                 key: '',
                                 endpoint: '',
-                                deployment: ''
+                                deployment: '',
+                                providerKey: provider.name // This should be the key like 'openai', 'azure_openai', etc.
                               })
                             }}
                             className="hover:cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
@@ -758,117 +765,29 @@ export default function ModelsPage() {
         })}
       </div>
 
-      {/* Create Provider Dialog */}
-      <Dialog open={isCreateProviderOpen} onOpenChange={setIsCreateProviderOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <form onSubmit={handleCreateProvider}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-[#4464f7]" />
-                Add Provider
-              </DialogTitle>
-              <DialogDescription>
-                Create a new LLM provider configuration to enable AI model access.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Provider Name *
-                  </label>
-                  <Input 
-                    id="name" 
-                    name="name" 
-                    placeholder="e.g., OpenAI, Azure OpenAI..." 
-                    className="w-full"
-                    required 
-                  />
-                </div>
-                {/* Show API Key field only if required by provider */}
-                <div>
-                  <label className="text-sm font-medium text-gray-900 block mb-2">
-                    API Key *
-                  </label>
-                  <Input 
-                    id="key" 
-                    name="key" 
-                    type="password" 
-                    placeholder="Enter your API key..." 
-                    className="w-full"
-                    required 
-                  />
-                </div>
-                {/* Note: This is the generic create form - specific provider forms are handled in edit dialog */}
-                <div>
-                  <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Endpoint
-                  </label>
-                  <Input 
-                    id="endpoint" 
-                    name="endpoint" 
-                    placeholder="https://api.example.com/v1" 
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Deployment
-                  </label>
-                  <Input 
-                    id="deployment" 
-                    name="deployment" 
-                    placeholder="Enter deployment name..." 
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsCreateProviderOpen(false)}
-                disabled={createProviderMutation.isPending}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createProviderMutation.isPending}
-                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-              >
-                {createProviderMutation.isPending ? 'Creating...' : 'Create Provider'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Create Provider Dialog - Removed: Providers are configured from supported providers list */}
 
       {/* Edit Provider Dialog */}
       <Dialog open={!!editingProvider} onOpenChange={() => setEditingProvider(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('supported-') ? (
+              {editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('unconfigured-') ? (
                 <>
                   <Settings className="h-5 w-5 text-[#4464f7]" />
-                  Configure Provider - {editingProvider?.name}
+                  Configure Provider - {editingProvider?.display_name || editingProvider?.name}
                 </>
               ) : (
                 <>
                   <Edit className="h-5 w-5 text-[#4464f7]" />
-                  Edit Provider - {editingProvider?.name}
+                  Edit Provider - {editingProvider?.display_name || editingProvider?.name}
                 </>
               )}
             </DialogTitle>
             <DialogDescription>
-              {editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('supported-') 
-                ? `Set up your ${editingProvider?.name} provider configuration with your API credentials.`
-                : `Update the configuration settings for your ${editingProvider?.name} provider.`
+              {editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('unconfigured-') 
+                ? `Set up your ${editingProvider?.display_name || editingProvider?.name} provider configuration with your API credentials.`
+                : `Update the configuration settings for your ${editingProvider?.display_name || editingProvider?.name} provider.`
               }
             </DialogDescription>
           </DialogHeader>
@@ -876,18 +795,6 @@ export default function ModelsPage() {
             <form onSubmit={handleUpdateProvider}>
               <div className="space-y-6">
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 block mb-2">
-                      Provider Name *
-                    </label>
-                    <Input
-                      id="edit-name"
-                      name="name"
-                      defaultValue={editingProvider.name}
-                      className="w-full"
-                      required
-                    />
-                  </div>
                   {/* Show API Key field only if required by provider */}
                   {getRequiredFields(editingProvider).api_key && (
                     <div>
@@ -969,7 +876,7 @@ export default function ModelsPage() {
                     ? 'Saving...' 
                     : (editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('supported-'))
                       ? 'Configure Provider'
-                      : 'Update Provider'
+                      : 'Update Configuration'
                   }
                 </Button>
               </div>
@@ -983,10 +890,10 @@ export default function ModelsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Plus className="h-5 w-5 text-[#4464f7]" />
-                Add Model to {allProviders.find((p: any) => p.id === selectedProviderId)?.name}
+                Add Model to {allProviders.find((p: any) => p.id === selectedProviderId)?.display_name || allProviders.find((p: any) => p.id === selectedProviderId)?.name}
               </DialogTitle>
               <DialogDescription>
-                Add a new AI model to your {allProviders.find((p: any) => p.id === selectedProviderId)?.name} provider configuration.
+                Add a new AI model to your {allProviders.find((p: any) => p.id === selectedProviderId)?.display_name || allProviders.find((p: any) => p.id === selectedProviderId)?.name} provider configuration.
               </DialogDescription>
             </DialogHeader>
             
