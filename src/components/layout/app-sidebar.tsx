@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, LibraryBig, BookText, Settings } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+// import { NavUser } from "@/components/nav-user" // Hidden - user information disabled
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { getAllOrganizations, addOrganization } from "@/services/organizations"
@@ -26,11 +26,6 @@ const navigationItems = [
     title: "Home",
     url: "/home",
     icon: Home,
-  },
-  {
-    title: "Library", 
-    url: "/library",
-    icon: LibraryBig,
   },
   {
     title: "Assets",
@@ -55,11 +50,11 @@ const navigationItems = [
 ]
 
 // Mock user data - replace with real user context when available
-const currentUser = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  avatar: undefined // URL to avatar image
-}
+// const currentUser = {
+//   name: "John Doe",
+//   email: "john.doe@example.com",
+//   avatar: undefined // URL to avatar image
+// } // Hidden - user information disabled
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setOpenMobile } = useSidebar()
@@ -135,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navigationItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={currentUser} />
+        {/* NavUser removed - user information hidden */}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

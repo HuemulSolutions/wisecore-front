@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "./app-sidebar"
 import { ChevronRight } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import packageInfo from "../../../package.json"
 import {
   Tooltip,
   TooltipContent,
@@ -17,7 +18,6 @@ export default function AppLayout() {
   const getPageName = (pathname: string): string => {
     const routes: { [key: string]: string } = {
       '/home': 'Home',
-      '/library': 'Library',
       '/assets': 'Assets',
       '/editor': 'Editor',
       '/search': 'Search',
@@ -46,7 +46,7 @@ export default function AppLayout() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-sidebar-border">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-sidebar-border">
             <div className="flex items-center gap-2 px-4">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -79,6 +79,20 @@ export default function AppLayout() {
                   </>
                 )}
               </nav>
+            </div>
+            
+            {/* Version indicator */}
+            <div className="flex items-center px-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="bg-muted/50 text-muted-foreground text-xs font-mono px-2 py-1 rounded-md border">
+                    v{packageInfo.version}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Application Version</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
