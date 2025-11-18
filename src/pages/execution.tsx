@@ -13,7 +13,7 @@ import {
 import { ArrowLeft, WandSparkles, Loader2, CircleCheck, CircleX } from "lucide-react";
 import { TableOfContents } from "@/components/table-of-contents";
 import { getExecutionById, approveExecution, disapproveExecution } from "@/services/executions";
-import { getLLMs, updateLLM } from "@/services/llms";
+import { getLLMs, updateExecutionLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
@@ -46,7 +46,7 @@ export default function ExecutionPage() {
     const abortController = useRef<AbortController | null>(null);
 
     const updateLLMMutation = useMutation({
-        mutationFn: (llmId: string) => updateLLM(id!, llmId),
+        mutationFn: (llmId: string) => updateExecutionLLM(id!, llmId),
         onSuccess: () => {
             toast.success("Model updated");
             refetch();
