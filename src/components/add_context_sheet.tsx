@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, 
@@ -39,6 +39,7 @@ export default function AddContextSheet({ id }: { id: string }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("text");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const queryClient = useQueryClient();
 
@@ -72,6 +73,9 @@ export default function AddContextSheet({ id }: { id: string }) {
       toast.success("Document context added successfully");
       setUploadedFile(null);
       setContextName("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
     },
     onError: (error: Error) => {
@@ -113,6 +117,19 @@ export default function AddContextSheet({ id }: { id: string }) {
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
+    }
+  };
+
+  const handleClearFile = () => {
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileInputClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -227,48 +244,68 @@ export default function AddContextSheet({ id }: { id: string }) {
               <TabsContent value="document" className="space-y-4">
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="doc-name" className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                      Context Name
-                    </Label>
-                    <Input
-                      id="doc-name"
-                      placeholder="Enter context name"
-                      value={contextName}
-                      onChange={(e) => setContextName(e.target.value)}
-                      disabled={addDocumentMutation.isPending}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="doc-file" className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                    <Label className="text-xs font-medium text-gray-600 uppercase tracking-wide">
                       Select Document
                     </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="doc-file"
-                        type="file"
-                        onChange={handleFileChange}
+                    
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileChange}
+                      disabled={addDocumentMutation.isPending}
+                      accept=".txt,.md,.pdf,.doc,.docx"
+                      className="hidden"
+                    />
+                    
+                    {/* File selector UI */}
+                    {!uploadedFile ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleFileInputClick}
                         disabled={addDocumentMutation.isPending}
-                        accept=".txt,.md,.pdf,.doc,.docx"
-                      />
-                      {uploadedFile && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setUploadedFile(null)}
-                          className="hover:cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    {uploadedFile && (
-                      <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 rounded border">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm text-blue-800">{uploadedFile.name}</span>
-                        <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
-                          {(uploadedFile.size / 1024).toFixed(1)} KB
-                        </Badge>
+                        className="w-full h-10 justify-start text-left font-normal hover:cursor-pointer border-dashed border-2"
+                      >
+                        <Upload className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="text-gray-500">Choose a document file...</span>
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        {/* Selected file display */}
+                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-blue-600" />
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-blue-900">{uploadedFile.name}</span>
+                              <span className="text-xs text-blue-600">{(uploadedFile.size / 1024).toFixed(1)} KB</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleFileInputClick}
+                              disabled={addDocumentMutation.isPending}
+                              className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-100 hover:cursor-pointer"
+                              title="Change file"
+                            >
+                              Change
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleClearFile}
+                              disabled={addDocumentMutation.isPending}
+                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                              title="Remove file"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -320,17 +357,18 @@ export default function AddContextSheet({ id }: { id: string }) {
             ) : (
               <div className="space-y-3">
                 {contexts.map((ctx: any) => (
-                  <div key={ctx.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="flex items-center gap-2">
-                        {ctx.type === 'text' ? (
-                          <Type className="h-4 w-4 text-gray-600" />
-                        ) : (
-                          <FileText className="h-4 w-4 text-gray-600" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                  <div key={ctx.id} className="border border-gray-200 rounded-lg bg-white hover:border-gray-300 transition-colors">
+                    {/* Context Header */}
+                    <div className="flex items-center justify-between p-3 border-b border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {ctx.type === 'text' ? (
+                            <Type className="h-4 w-4 text-gray-600" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-gray-600" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">{ctx.name}</span>
                           <Badge 
                             variant="outline" 
@@ -343,28 +381,31 @@ export default function AddContextSheet({ id }: { id: string }) {
                             {ctx.type === 'text' ? 'Text' : 'Document'}
                           </Badge>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          <ContextDisplay 
-                            item={{
-                              id: ctx.id,
-                              name: ctx.name,
-                              content: ctx.content || 'No content available'
-                            }} 
-                          />
-                        </div>
                       </div>
+                      
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteContext(ctx.id)}
+                        disabled={deleteContextMutation.isPending}
+                        className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                        title="Delete Context"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                     
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteContext(ctx.id)}
-                      disabled={deleteContextMutation.isPending}
-                      className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                      title="Delete Context"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    {/* Context Content */}
+                    <div className="p-0">
+                      <ContextDisplay 
+                        item={{
+                          id: ctx.id,
+                          name: ctx.name,
+                          content: ctx.content || 'No content available'
+                        }}
+                        hideHeader={true}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
