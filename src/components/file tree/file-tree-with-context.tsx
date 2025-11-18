@@ -13,7 +13,7 @@ interface FileTreeWithContextProps {
   onLoadChildren?: (folderId: string) => Promise<FileNode[]>
   onRefresh?: () => void
   onDocumentCreated?: (document: { id: string; name: string; type: "document" }) => void
-  onShare?: (item: FileNode, fullPath: string[]) => void
+  onShare?: (item: FileNode, fullPath: string[], isAutomatic?: boolean) => void
 }
 
 export function FileTreeWithContext({ 
@@ -146,7 +146,7 @@ export function FileTreeWithContext({
   }
 
   return (
-    <div className="w-full space-y-1">
+    <div className="w-full space-y-0.5">
       {items.map((item) => (
         <FileTreeItemWithContext
           key={item.id}

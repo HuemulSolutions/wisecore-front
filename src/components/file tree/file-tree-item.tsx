@@ -105,10 +105,10 @@ export function FileTreeItem({
         onClick={() => onSelect(item)}
         onDoubleClick={() => onDoubleClick?.(item)}
         className={cn(
-          "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors",
-          "hover:bg-accent/50",
-          isSelected && "bg-accent text-accent-foreground",
-          isDragOver && "bg-primary/20 border-2 border-dashed border-primary",
+          "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all duration-200",
+          "hover:bg-gray-100 hover:shadow-sm",
+          isSelected && "bg-[#4464f7]/10 text-[#4464f7] border-l-2 border-[#4464f7]",
+          isDragOver && "bg-[#4464f7]/20 border-2 border-dashed border-[#4464f7]",
           "group",
         )}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
@@ -149,7 +149,7 @@ export function FileTreeItem({
         )}
 
         {/* Nombre del archivo/carpeta */}
-        <span className="truncate text-sm font-medium flex-1">{item.name}</span>
+        <span className="truncate text-sm flex-1">{item.name}</span>
       </div>
 
       {/* Items hijos si la carpeta está expandida */}
