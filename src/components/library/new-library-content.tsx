@@ -355,7 +355,7 @@ export function AssetContent({
   };
 
   // Handle direct section creation submission
-  const handleDirectSectionSubmit = (values: { name: string; document_id: string; prompt: string; dependencies: string[] }) => {
+  const handleDirectSectionSubmit = (values: { name: string; prompt: string; dependencies: string[]; document_id?: string; template_id?: string; type?: string }) => {
     let order: number | undefined = undefined;
     
     // Calculate order based on position
@@ -370,7 +370,15 @@ export function AssetContent({
     }
     
     console.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
-    addSectionMutation.mutate({ ...values, order });
+    // Ensure we have the required fields for document sections
+    const sectionData = {
+      name: values.name,
+      document_id: values.document_id || selectedFile?.id || '',
+      prompt: values.prompt,
+      dependencies: values.dependencies,
+      order
+    };
+    addSectionMutation.mutate(sectionData);
   };
 
   // Handle create new execution
