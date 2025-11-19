@@ -44,7 +44,7 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
     mutationFn: (documentTypeData: { name: string; color: string }) => 
       createDocumentType(documentTypeData, selectedOrganizationId!),
     onSuccess: (createdDocumentType) => {
-      queryClient.invalidateQueries({ queryKey: ["documentTypes"] });
+      queryClient.invalidateQueries({ queryKey: ["documentTypes", selectedOrganizationId] });
       onDocumentTypeCreated?.(createdDocumentType);
       resetForm();
       setIsDialogOpen(false);

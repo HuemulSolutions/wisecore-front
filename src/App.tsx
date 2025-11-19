@@ -25,7 +25,7 @@ export default function App() {
         <Route path="templates/:id" element={<Templates />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="asset" element={<Assets />} />
-        <Route path="asset/:id" element={<Assets />} />
+        <Route path="asset/*" element={<Assets />} />
         <Route path="graph" element={<Graph />} />
         <Route path="models" element={<ModelsPage />} />
         <Route path="configTemplate/:id" element={<ConfigTemplate />} />

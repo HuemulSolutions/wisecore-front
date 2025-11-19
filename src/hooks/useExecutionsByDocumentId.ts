@@ -23,7 +23,7 @@ export function useExecutionsByDocumentId(documentId: string, enabled: boolean) 
         return false; // Stop polling on error
       }
     },
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     staleTime: 1000, // Consider data stale after 1 second
     retry: (failureCount) => {

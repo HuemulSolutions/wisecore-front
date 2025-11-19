@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
@@ -280,6 +280,9 @@ export function AssetContent({
       setIsCreateTemplateSheetOpen(false);
       toast.success("Template created successfully");
       
+      // Invalidate templates query to refresh the template list in CreateDocumentLib
+      queryClient.invalidateQueries({ queryKey: ['templates', selectedOrganizationId] });
+      
       // Open template configuration sheet instead of navigating
       setTimeout(() => {
         setIsTemplateConfigSheetOpen(true);
@@ -385,6 +388,8 @@ export function AssetContent({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id,
+    refetchOnWindowFocus: true,
+    staleTime: 30000, // Consider data stale after 30 seconds
   });
 
   // Fetch full document details for sections management
@@ -454,6 +459,97 @@ export function AssetContent({
       }
     }
   }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
+
+  // Track previous executions state to detect newly completed executions
+  const previousExecutionsRef = useRef<any[]>([]);
+  
+  // Detect completed executions and refresh content automatically
+  useEffect(() => {
+    if (!selectedFile?.id || !documentExecutions) return;
+    
+    // Check for newly completed executions by comparing with previous state
+    const previousExecutions = previousExecutionsRef.current;
+    if (previousExecutions.length > 0) {
+      const newlyCompleted = documentExecutions.filter((execution: any) => {
+        const previousExecution = previousExecutions.find((prev: any) => prev.id === execution.id);
+        return previousExecution && 
+               previousExecution.status !== 'completed' && 
+               execution.status === 'completed';
+      });
+      
+      // If there are newly completed executions, show notification and update selection
+      if (newlyCompleted.length > 0) {
+        const latestCompleted = newlyCompleted.sort((a: any, b: any) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )[0];
+        
+        console.log('Detected newly completed execution:', latestCompleted.id);
+        toast.success(`Document generation completed! Click here to view results.`, {
+          duration: 5000,
+          action: {
+            label: 'View',
+            onClick: () => {
+              setSelectedExecutionId(latestCompleted.id);
+              // Invalidate content to ensure fresh data
+              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+            }
+          }
+        });
+        
+        // Auto-update to the latest completed execution if no execution is currently selected
+        // or if the current selection is still running
+        const currentSelectedExecution = documentExecutions.find((exec: any) => exec.id === selectedExecutionId);
+        if (!selectedExecutionId || 
+            (currentSelectedExecution && ['running', 'pending'].includes(currentSelectedExecution.status))) {
+          setSelectedExecutionId(latestCompleted.id);
+        }
+      }
+    }
+    
+    // Find the most recent completed execution for initial load
+    const completedExecutions = documentExecutions.filter((execution: any) => 
+      execution.status === 'completed'
+    );
+    
+    if (completedExecutions.length > 0) {
+      // Sort by updated_at to get the most recent
+      const mostRecentCompleted = completedExecutions.sort((a: any, b: any) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )[0];
+      
+      // If we don't have a selected execution ID, use the most recent completed one
+      if (!selectedExecutionId) {
+        console.log('Auto-selecting most recent completed execution:', mostRecentCompleted.id);
+        setSelectedExecutionId(mostRecentCompleted.id);
+      }
+    }
+    
+    // Update the ref for next comparison
+    previousExecutionsRef.current = documentExecutions;
+  }, [selectedFile?.id, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]);
+
+  // Handle window focus to refresh data when user returns
+  const lastFocusTimeRef = useRef<number>(Date.now());
+  
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      const now = Date.now();
+      const timeSinceLastFocus = now - lastFocusTimeRef.current;
+      
+      // If more than 2 minutes have passed since last focus, refresh all data
+      if (timeSinceLastFocus > 120000 && selectedFile?.id) {
+        console.log('Window refocused after long time, refreshing data...');
+        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile.id] });
+        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile.id] });
+        queryClient.invalidateQueries({ queryKey: ['document', selectedFile.id] });
+      }
+      
+      lastFocusTimeRef.current = now;
+    };
+    
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [selectedFile?.id, queryClient]);
 
 
 

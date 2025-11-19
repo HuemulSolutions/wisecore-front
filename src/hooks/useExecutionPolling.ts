@@ -41,8 +41,8 @@ export function useExecutionPolling({
         return false; // Stop polling on error
       }
     },
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: (failureCount) => {
       // Only retry up to 3 times
       if (failureCount >= 3) {
@@ -51,7 +51,8 @@ export function useExecutionPolling({
       }
       return true;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 2000, // Consider data stale after 2 seconds to ensure fresh data
   });
 
   // Handle status changes in useEffect
