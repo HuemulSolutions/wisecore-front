@@ -262,7 +262,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             )}
 
             {aiPreview !== null && !isAiProcessing && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between">
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
                     <span className="text-sm text-amber-800">Vista previa de edición por IA lista. ¿Guardar cambios?</span>
                     <div className="flex gap-2">
                         <Button
@@ -286,7 +286,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 </div>
             )}
             {aiPreview !== null && isAiProcessing && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 relative z-30 shadow-lg">
                     Generando propuesta con IA...
                 </div>
             )}
