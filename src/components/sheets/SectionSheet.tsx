@@ -258,7 +258,17 @@ export function SectionSheet({
                   <div className="p-4">
                     <AddSectionFormSheet
                       documentId={selectedFile!.id}
-                      onSubmit={(values: { name: string; document_id: string; prompt: string; dependencies: string[] }) => addSectionMutation.mutate(values)}
+                      onSubmit={(values) => {
+                        // Ensure we have the required fields for document sections
+                        const sectionData = {
+                          name: values.name,
+                          document_id: values.document_id || selectedFile!.id,
+                          prompt: values.prompt,
+                          dependencies: values.dependencies,
+                          type: values.type || "text"
+                        };
+                        addSectionMutation.mutate(sectionData);
+                      }}
                       isPending={addSectionMutation.isPending}
                       existingSections={fullDocument?.sections || []}
                     />
