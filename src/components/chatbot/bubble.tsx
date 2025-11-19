@@ -19,10 +19,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`px-3 py-2 rounded-lg text-sm ${
+        className={`px-4 py-3 rounded-2xl text-sm shadow-sm ${
           isUser 
-            ? 'bg-primary text-white max-w-[75%]' 
-            : 'bg-gray-100 text-gray-800 max-w-[85%]'
+            ? 'bg-[#4464f7] text-white max-w-[75%]' 
+            : 'bg-white border border-gray-100 text-gray-800 max-w-[85%]'
         }`}
       >
         {message.text ? (
@@ -33,7 +33,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           '…'
         ) : null}
         {message.isStreaming && (
-          <span className="inline-block w-1 h-4 bg-gray-400 ml-1 animate-pulse" />
+          <span className="inline-block w-1 h-4 bg-[#4464f7] ml-1 animate-pulse rounded-full" />
         )}
       </div>
     </div>
