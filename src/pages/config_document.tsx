@@ -8,6 +8,7 @@ import { getDocumentById, generateDocumentStructure } from "@/services/documents
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { formatDate } from "@/services/utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -173,7 +174,7 @@ export default function ConfigDocumentPage() {
             </h2>
             <p className="text-gray-600">Description: {document.description}</p>
             <p className="text-gray-400 text-sm pt-3">
-              Created At: {new Date(document.created_at).toLocaleDateString()}
+              Created At: {formatDate(document.created_at)}
             </p>
           </div>
         </div>

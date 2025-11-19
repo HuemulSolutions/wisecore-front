@@ -676,7 +676,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex h-screen bg-gray-50">
       {/* File Tree Sidebar */}
       <CollapsibleSidebar
         isOpen={isSidebarOpen}
@@ -689,7 +689,7 @@ export default function Assets() {
         showToggleButton={!isMobile} // Hide toggle button on mobile, use external one
         header={
           <>
-            <div className="p-4">
+            <div className="p-4 flex-shrink-0">
               {/* Action Buttons */}
               <div className="flex items-center justify-start gap-2 md:justify-between mb-4">
                 <Tooltip>
@@ -762,7 +762,7 @@ export default function Assets() {
 
             {/* Breadcrumb display */}
             {breadcrumb.length > 0 && (
-              <div className="px-4 py-2 bg-muted/50">
+              <div className="px-4 py-2 bg-muted/50 flex-shrink-0">
                 <div className="text-xs font-medium text-muted-foreground mb-1">Current Location</div>
                 <div className="text-sm">
                   <span className="hover:cursor-pointer text-primary hover:underline" onClick={() => {
@@ -876,7 +876,7 @@ export default function Assets() {
       </CollapsibleSidebar>
 
       {/* Main Content */}
-      <div className="flex-1 flex min-w-0">
+      <div className="flex-1 flex min-w-0 h-full">
         <div className="flex-1 overflow-auto bg-white min-w-0">
           <AssetContent
             selectedFile={selectedFile}
