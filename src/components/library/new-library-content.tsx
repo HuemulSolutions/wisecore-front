@@ -869,8 +869,8 @@ export function AssetContent({
                   <DropdownMenuTrigger asChild>
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-8 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs border-[#4464f7]"
+                      variant="ghost"
+                      className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                       title="Switch Version"
                     >
                       <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
@@ -973,7 +973,7 @@ export function AssetContent({
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
                 <div className="flex flex-col gap-2 flex-1">
                   <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
-                  {selectedExecutionInfo && (
+                  {/* {selectedExecutionInfo && (
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <span>Version:</span>
                       <span className="font-medium">{selectedExecutionInfo.formattedDate}</span>
@@ -983,7 +983,7 @@ export function AssetContent({
                         </span>
                       )}
                     </div>
-                  )}
+                  )} */}
                 </div>
                 {documentContent?.document_type && (
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
@@ -1059,8 +1059,8 @@ export function AssetContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-8 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs border-[#4464f7]"
+                        variant="ghost"
+                        className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
                         <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
@@ -1146,19 +1146,6 @@ export function AssetContent({
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-                
-                {/* Table of Contents Toggle */}
-                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && (
-                  <Button
-                    onClick={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                    title={isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}
-                  >
-                    <List className="h-3.5 w-3.5" />
-                  </Button>
-                )}
               </div>
             </div>
             
