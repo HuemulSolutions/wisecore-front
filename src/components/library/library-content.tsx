@@ -152,6 +152,34 @@ export function LibraryContent({
     }
   }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
 
+  // Get selected execution details for displaying version info
+  const selectedExecutionInfo = useMemo(() => {
+    if (!documentContent?.executions || !selectedExecutionId) return null;
+    const selectedExecution = documentContent.executions.find((execution: any) => 
+      execution.id === selectedExecutionId
+    );
+    if (!selectedExecution) return null;
+    
+    const date = new Date(selectedExecution.created_at);
+    const isToday = date.toDateString() === new Date().toDateString();
+    const timeStr = date.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+    const dateStr = isToday ? 'Today' : date.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    return {
+      ...selectedExecution,
+      formattedDate: `${dateStr} ${timeStr}`,
+      isLatest: documentContent.executions[0]?.id === selectedExecution.id
+    };
+  }, [documentContent?.executions, selectedExecutionId]);
+
   // Extract headings for table of contents
   const tocItems = useMemo(() => {
     if (!documentContent?.content) return [];
@@ -273,15 +301,28 @@ export function LibraryContent({
           <div className="flex items-center justify-between mb-4">
             <div className="flex flex-col gap-2">
               <h1 className="text-3xl font-bold text-gray-900">{selectedFile.name}</h1>
-              {documentContent?.document_type && (
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700 w-fit">
-                  <div 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: documentContent.document_type.color }}
-                  />
-                  {documentContent.document_type.name}
-                </div>
-              )}
+              <div className="flex flex-col gap-2">
+                {documentContent?.document_type && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700 w-fit">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: documentContent.document_type.color }}
+                    />
+                    {documentContent.document_type.name}
+                  </div>
+                )}
+                {selectedExecutionInfo && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <span>Version:</span>
+                    <span className="font-medium">{selectedExecutionInfo.formattedDate}</span>
+                    {selectedExecutionInfo.isLatest && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                        Latest
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -334,7 +375,7 @@ export function LibraryContent({
           {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
             <div className="flex items-center justify-between py-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-700">Execution:</span>
+                <span className="text-sm font-medium text-gray-700">Version:</span>
                 <Select 
                   value={selectedExecutionId || ""} 
                   onValueChange={(value) => {
@@ -343,8 +384,8 @@ export function LibraryContent({
                     refetchDocumentContent();
                   }}
                 >
-                  <SelectTrigger className="w-[250px] h-9 hover:cursor-pointer">
-                    <SelectValue placeholder="Select execution" />
+                  <SelectTrigger className="w-[280px] h-9 hover:cursor-pointer border-[#4464f7] text-[#4464f7]">
+                    <SelectValue placeholder="Select version" />
                   </SelectTrigger>
                   <SelectContent>
                     {documentContent.executions.map((execution: { id: string; created_at: string }) => (

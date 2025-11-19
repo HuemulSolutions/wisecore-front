@@ -45,8 +45,8 @@ export default function AppLayout() {
     <TooltipProvider>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-sidebar-border">
+        <SidebarInset className="flex flex-col h-screen overflow-hidden">
+          <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear group-has-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-sidebar-border bg-background">
             <div className="flex items-center gap-2 px-4">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -95,10 +95,8 @@ export default function AppLayout() {
               </Tooltip>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            <div className="min-h-[100vh] flex-1 rounded-xl md:min-h-min">
-              <Outlet />
-            </div>
+          <div className="flex-1 overflow-hidden">
+            <Outlet />
           </div>
         </SidebarInset>
       </SidebarProvider>
