@@ -254,6 +254,7 @@ export function AssetContent({
       
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
+      setIsDirectSectionFormValid(false);
       toast.success("Section created successfully");
       
       // Force refetch of document content
@@ -310,6 +311,7 @@ export function AssetContent({
   // Direct section creation state
   const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
+  const [isDirectSectionFormValid, setIsDirectSectionFormValid] = useState(false);
   
   // Template creation states
   const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
@@ -351,6 +353,7 @@ export function AssetContent({
       console.log(`Adding section after index: ${afterIndex}`);
       setSectionInsertPosition(afterIndex);
       setIsDirectSectionDialogOpen(true);
+      setIsDirectSectionFormValid(false);
     }
   };
 
@@ -1378,6 +1381,7 @@ export function AssetContent({
               onSubmit={handleDirectSectionSubmit}
               isPending={addSectionMutation.isPending}
               existingSections={fullDocument?.sections || []}
+              onValidationChange={setIsDirectSectionFormValid}
             />
           </div>
           
@@ -1386,7 +1390,10 @@ export function AssetContent({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsDirectSectionDialogOpen(false)}
+              onClick={() => {
+                setIsDirectSectionDialogOpen(false);
+                setIsDirectSectionFormValid(false);
+              }}
               disabled={addSectionMutation.isPending}
               className="hover:cursor-pointer"
             >
@@ -1395,7 +1402,7 @@ export function AssetContent({
             <Button
               type="submit"
               form="add-section-form"
-              disabled={addSectionMutation.isPending}
+              disabled={addSectionMutation.isPending || !isDirectSectionFormValid}
               className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
             >
               {addSectionMutation.isPending ? (

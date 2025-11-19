@@ -411,7 +411,7 @@ export function TemplateContent({
                         form="add-section-form"
                         className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
                         size="sm"
-                        disabled={!isFormValid || addSectionMutation.isPending}
+                        disabled={addSectionMutation.isPending || !isFormValid}
                       >
                         {addSectionMutation.isPending ? "Adding..." : "Save Section"}
                       </Button>

@@ -40,6 +40,7 @@ export function SectionSheet({
   const queryClient = useQueryClient();
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
+  const [isFormValid, setIsFormValid] = useState(false);
 
   // Configurar sensores para drag & drop
   const mouseSensor = useSensor(MouseSensor, {
@@ -69,6 +70,7 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       setIsAddingSection(false);
+      setIsFormValid(false);
       toast.success("Section created successfully");
     },
     onError: (error) => {
@@ -193,7 +195,10 @@ export function SectionSheet({
                   type="button"
                   size="sm"
                   className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
-                  onClick={() => setIsAddingSection(true)}
+                  onClick={() => {
+                    setIsAddingSection(true);
+                    setIsFormValid(false);
+                  }}
                   disabled={isAddingSection}
                   style={{ alignSelf: 'center' }}
                 >
@@ -237,7 +242,10 @@ export function SectionSheet({
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
-                        onClick={() => setIsAddingSection(false)}
+                        onClick={() => {
+                          setIsAddingSection(false);
+                          setIsFormValid(false);
+                        }}
                         className="hover:cursor-pointer text-sm h-8"
                         size="sm"
                         disabled={addSectionMutation.isPending}
@@ -249,7 +257,7 @@ export function SectionSheet({
                         type="submit"
                         className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
                         size="sm"
-                        disabled={addSectionMutation.isPending}
+                        disabled={addSectionMutation.isPending || !isFormValid}
                       >
                         {addSectionMutation.isPending ? "Adding..." : "Save Section"}
                       </Button>
@@ -271,6 +279,7 @@ export function SectionSheet({
                       }}
                       isPending={addSectionMutation.isPending}
                       existingSections={fullDocument?.sections || []}
+                      onValidationChange={setIsFormValid}
                     />
                   </div>
                 </div>

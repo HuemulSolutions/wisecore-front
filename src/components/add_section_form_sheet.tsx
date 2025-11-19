@@ -101,7 +101,7 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
   );
 
   // Notificar cambios en la validación
-  const isFormValid = name.trim().length > 0 && prompt.trim().length > 0;
+  const isFormValid = name.trim().length > 0 && prompt.trim().length > 0 && !isGenerating;
   useEffect(() => {
     onValidationChange?.(isFormValid);
   }, [isFormValid, onValidationChange]);
