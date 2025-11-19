@@ -297,7 +297,7 @@ export function AssetContent({
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(false);
+  const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -1311,7 +1311,6 @@ export function AssetContent({
           header={
             <div className="p-4">
               <div className="flex items-center gap-2">
-                <List className="h-4 w-4 text-gray-600" />
                 <h3 className="text-sm font-semibold text-gray-900">Table of Contents</h3>
               </div>
             </div>
