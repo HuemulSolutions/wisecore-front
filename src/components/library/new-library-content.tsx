@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw, FolderTree, PlusCircle, Layers, FileIcon, Zap } from "lucide-react";
-import { ActionStepper } from "@/components/action-stepper";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
+import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { ExecutionStatusBanner } from "@/components/execution-status-banner";
@@ -455,99 +455,7 @@ export function AssetContent({
     }
   }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
 
-  // Memoized ActionStepper steps that update based on document state
-  const actionStepperSteps = useMemo(() => [
-    {
-      id: 1,
-      title: fullDocument?.sections?.length > 0 ? "✓ Sections Added" : "Add Sections",
-      description: fullDocument?.sections?.length > 0 
-        ? `Great! You have ${fullDocument.sections.length} section${fullDocument.sections.length !== 1 ? 's' : ''} ready. You can add more or proceed to the next steps.`
-        : "Start by adding sections to structure your document. You can create them manually or generate them with AI.",
-      action: () => {
-        // Action handled by actionButton
-      },
-      icon: <Plus className="h-5 w-5" />,
-      actionButton: (
-        <Button
-          onClick={() => setIsSectionSheetOpen(true)}
-          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {fullDocument?.sections?.length > 0 ? "Add More Sections" : "Add Sections"}
-        </Button>
-      )
-    },
-    {
-      id: 2,
-      title: "Add Dependencies (Optional)",
-      description: "Enhance your document by adding dependencies. This connects your asset with other documents and provides richer context for content generation.",
-      action: () => {
-        // Action handled by actionButton or skip
-      },
-      icon: <Layers className="h-5 w-5" />,
-      actionButton: (
-        <Button
-          onClick={() => setIsDependenciesSheetOpen(true)}
-          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
-        >
-          <Layers className="h-4 w-4 mr-2" />
-          Add Dependencies
-        </Button>
-      )
-    },
-    {
-      id: 3,
-      title: "Add Context (Optional)",
-      description: "Provide additional context information that will help in generating more accurate and relevant content for your document.",
-      action: () => {
-        // Action handled by actionButton or skip
-      },
-      icon: <FileText className="h-5 w-5" />,
-      actionButton: (
-        <Button
-          onClick={() => setIsContextSheetOpen(true)}
-          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
-        >
-          <FileText className="h-4 w-4 mr-2" />
-          Add Context
-        </Button>
-      )
-    },
-    {
-      id: 4,
-      title: "Generate Execution",
-      description: hasExecutionInProcess
-        ? "There's already an execution running. Please wait for it to complete before creating a new one."
-        : hasNewPendingExecution
-          ? "Great! You have a ready execution. Click to configure and start generating content."
-          : hasPendingExecution
-            ? "You have a pending execution ready to continue. Click to resume and generate content."
-            : fullDocument?.sections?.length > 0 
-              ? "Now you're ready to generate content! Run an execution to create the actual document content based on your sections, dependencies, and context."
-              : "Once you add sections, you'll be able to generate content by running an execution.",
-      action: () => {
-        // Action handled by actionButton or skip
-      },
-      icon: <Zap className="h-5 w-5" />,
-      actionButton: fullDocument?.sections?.length > 0 && !hasExecutionInProcess ? (
-        <Button
-          onClick={() => setIsExecuteSheetOpen(true)}
-          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
-        >
-          <Zap className="h-4 w-4 mr-2" />
-          {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Execution"}
-        </Button>
-      ) : hasExecutionInProcess ? (
-        <Button
-          disabled
-          className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
-        >
-          <Zap className="h-4 w-4 mr-2" />
-          Execution Running
-        </Button>
-      ) : undefined
-    }
-  ], [fullDocument?.sections, hasExecutionInProcess, hasPendingExecution, hasNewPendingExecution, setIsSectionSheetOpen, setIsExecuteSheetOpen, setIsDependenciesSheetOpen, setIsContextSheetOpen]);
+
 
   // Extract headings for table of contents
   const tocItems = useMemo(() => {
@@ -728,73 +636,43 @@ export function AssetContent({
     );
   };
 
-  // Define stepper steps
-  const stepperSteps = [
-    {
-      id: 1,
-      title: "Choose Your Path",
-      description: "Decide whether to create a reusable template first or go directly to creating an asset.",
-      action: () => {
-        // This step just shows the choice, action happens in buttons below
-      },
-      icon: <Layers className="h-5 w-5" />
-    },
-    {
-      id: 2,
-      title: "Create Template (Optional)",
-      description: "Create a template with predefined sections that can be reused for multiple documents.",
-      action: () => {
-        // Action for next step button - just proceed to next step
-      },
-      icon: <FileCode className="h-5 w-5" />,
-      actionButton: (
-        <Button
-          onClick={() => setIsCreateTemplateSheetOpen(true)}
-          className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
-        >
-          <FileCode className="h-4 w-4 mr-2" />
-          Create Template Now
-        </Button>
-      )
-    },
-    {
-      id: 3,
-      title: "Create Asset",
-      description: "Create a new document asset, either from a template or from scratch.",
-      action: () => {
-        // Action for next step button - complete workflow
-      },
-      icon: <FileIcon className="h-5 w-5" />,
-      actionButton: (
-        <CreateDocumentLib
-          trigger={
-            <Button 
-              className="w-full bg-gradient-to-r from-[#4464f7] to-blue-600 hover:from-[#3451e6] hover:to-blue-700 text-white hover:cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 font-semibold"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Create Asset Now
-            </Button>
-          }
-          folderId={currentFolderId}
-          onDocumentCreated={handleDocumentCreated}
-        />
-      )
-    }
-  ];
+
 
   if (!selectedFile) {
     return (
       <>
-        <div className="h-full bg-white flex items-center justify-center">
-          <ActionStepper
-            steps={stepperSteps}
-            title="Welcome to Assets"
-            subtitle="Let's get you started with your document workflow"
-            onComplete={() => {
-              toast.success("Workflow completed! You can now start working with your asset.");
-            }}
-          />
-
+        <div className="h-full bg-white flex items-center justify-center p-4">
+          <Empty>
+            <div className="p-8 text-center">
+              <EmptyIcon>
+                <FileIcon className="h-12 w-12" />
+              </EmptyIcon>
+              <EmptyTitle>Welcome to Assets</EmptyTitle>
+              <EmptyDescription>
+                Create your first document or select an existing one to get started with your document workflow.
+              </EmptyDescription>
+              <EmptyActions>
+                <Button
+                  onClick={() => setIsCreateTemplateSheetOpen(true)}
+                  variant="outline"
+                  className="hover:cursor-pointer"
+                >
+                  <FileCode className="h-4 w-4 mr-2" />
+                  Create Template
+                </Button>
+                <CreateDocumentLib
+                  trigger={
+                    <Button className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Create Asset
+                    </Button>
+                  }
+                  folderId={currentFolderId}
+                  onDocumentCreated={handleDocumentCreated}
+                />
+              </EmptyActions>
+            </div>
+          </Empty>
         </div>
 
         {/* Template Creation Sheet */}
@@ -1244,19 +1122,55 @@ export function AssetContent({
                     <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                   </div>
                 ) : (!documentContent?.executions || documentContent.executions.length === 0) || (!documentContent?.content) ? (
-                  // Show ActionStepper when document has no executions
-                  <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)]">
-                    <ActionStepper
-                      steps={actionStepperSteps}
-                      title={`Setup ${selectedFile.name}`}
-                      subtitle={fullDocument?.sections?.length > 0 
-                        ? "Your document is ready! Follow the remaining steps to enhance it further."
-                        : "Let's configure your document step by step"
-                      }
-                      onComplete={() => {
-                        toast.success("Document setup completed! You can now generate content and work with your asset.");
-                      }}
-                    />
+                  // Show Empty when document has no executions
+                  <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
+                    <Empty className="max-w-2xl">
+                      <div className="p-8 text-center">
+                        <EmptyIcon>
+                          <Zap className="h-12 w-12" />
+                        </EmptyIcon>
+                        <EmptyTitle>Setup {selectedFile.name}</EmptyTitle>
+                        <EmptyDescription>
+                          {fullDocument?.sections?.length > 0 
+                            ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
+                            : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
+                          }
+                        </EmptyDescription>
+                        <EmptyActions>
+                          {fullDocument?.sections?.length === 0 ? (
+                            <Button
+                              onClick={() => setIsSectionSheetOpen(true)}
+                              className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Sections
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={() => setIsExecuteSheetOpen(true)}
+                                disabled={hasExecutionInProcess}
+                                className={hasExecutionInProcess 
+                                  ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                  : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                }
+                              >
+                                <Zap className="h-4 w-4 mr-2" />
+                                {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                              </Button>
+                              <Button
+                                onClick={() => setIsSectionSheetOpen(true)}
+                                variant="outline"
+                                className="hover:cursor-pointer"
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add More Sections
+                              </Button>
+                            </>
+                          )}
+                        </EmptyActions>
+                      </div>
+                    </Empty>
                   </div>
                 ) : documentContent?.content ? (
                   <div className="prose prose-gray max-w-full prose-sm md:prose-base">
