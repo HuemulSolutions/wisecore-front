@@ -37,7 +37,6 @@ export function formatTime(date: Date, options?: Intl.DateTimeFormatOptions): st
  * Format a date and time together according to user's locale
  */
 export function formatDateTime(date: Date, dateOptions?: Intl.DateTimeFormatOptions, timeOptions?: Intl.DateTimeFormatOptions): string {
-  const locale = getUserLocale();
   const isToday = date.toDateString() === new Date().toDateString();
   
   const timeStr = formatTime(date, timeOptions);
