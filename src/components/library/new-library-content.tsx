@@ -280,6 +280,9 @@ export function AssetContent({
       setIsCreateTemplateSheetOpen(false);
       toast.success("Template created successfully");
       
+      // Invalidate templates query to refresh the template list in CreateDocumentLib
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      
       // Open template configuration sheet instead of navigating
       setTimeout(() => {
         setIsTemplateConfigSheetOpen(true);
