@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -448,6 +448,34 @@ export function AssetContent({
     return activeExecution?.id || null;
   }, [documentExecutions]);
 
+  // Get selected execution details for displaying version info
+  const selectedExecutionInfo = useMemo(() => {
+    if (!documentExecutions || !selectedExecutionId) return null;
+    const selectedExecution = documentExecutions.find((execution: any) => 
+      execution.id === selectedExecutionId
+    );
+    if (!selectedExecution) return null;
+    
+    const date = new Date(selectedExecution.created_at);
+    const isToday = date.toDateString() === new Date().toDateString();
+    const timeStr = date.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+    const dateStr = isToday ? 'Today' : date.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    return {
+      ...selectedExecution,
+      formattedDate: `${dateStr} ${timeStr}`,
+      isLatest: documentExecutions[0]?.id === selectedExecution.id
+    };
+  }, [documentExecutions, selectedExecutionId]);
+
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
     if (selectedFile?.type === 'document' && documentContent?.executions?.length > 0) {
@@ -749,9 +777,22 @@ export function AssetContent({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <span className="text-sm font-medium text-gray-900">
-                  {selectedFile ? selectedFile.name : 'Asset'}
-                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-gray-900">
+                    {selectedFile ? selectedFile.name : 'Asset'}
+                  </span>
+                  {selectedExecutionInfo && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <span>v:</span>
+                      <span className="font-medium text-xs">{selectedExecutionInfo.formattedDate}</span>
+                      {selectedExecutionInfo.isLatest && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
               {/* Table of Contents Toggle - Mobile */}
@@ -837,14 +878,18 @@ export function AssetContent({
                   <DropdownMenuTrigger asChild>
                     <Button
                       size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
-                      title="Switch Execution"
+                      variant="outline"
+                      className="h-8 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs border-[#4464f7]"
+                      title="Switch Version"
                     >
-                      <RotateCcw className="h-4 w-4" />
+                      <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end" className="w-64">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="text-xs font-medium text-gray-900">Document Versions</p>
+                      <p className="text-xs text-gray-500">Select a version to view</p>
+                    </div>
                     {documentContent.executions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
                         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -945,7 +990,20 @@ export function AssetContent({
             {/* Title and Type Section */}
             {!isMobile && (
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
-                <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0 flex-1">{selectedFile.name}</h1>
+                <div className="flex flex-col gap-2 flex-1">
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
+                  {selectedExecutionInfo && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span>Version:</span>
+                      <span className="font-medium">{selectedExecutionInfo.formattedDate}</span>
+                      {selectedExecutionInfo.isLatest && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {documentContent?.document_type && (
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
                     <div 
@@ -1020,14 +1078,18 @@ export function AssetContent({
                     <DropdownMenuTrigger asChild>
                       <Button
                         size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors"
-                        title="Switch Execution"
+                        variant="outline"
+                        className="h-8 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs border-[#4464f7]"
+                        title="Switch Version"
                       >
-                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuContent align="end" className="w-64">
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-xs font-medium text-gray-900">Document Versions</p>
+                        <p className="text-xs text-gray-500">Select a version to view</p>
+                      </div>
                       {documentContent.executions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
                           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
