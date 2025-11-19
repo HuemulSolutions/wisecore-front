@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,13 +17,15 @@ interface Section {
 }
 
 interface AddSectionFormSheetProps {
-  documentId: string;
-  onSubmit: (values: { name: string; prompt: string; dependencies: string[]; document_id: string }) => void;
+  documentId?: string;
+  templateId?: string;
+  onSubmit: (values: { name: string; prompt: string; dependencies: string[]; document_id?: string; template_id?: string; type?: string }) => void;
   isPending: boolean;
   existingSections?: Section[];
+  onValidationChange?: (isValid: boolean) => void;
 }
 
-export function AddSectionFormSheet({ documentId, onSubmit, isPending, existingSections = [] }: AddSectionFormSheetProps) {
+export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPending, existingSections = [], onValidationChange }: AddSectionFormSheetProps) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
@@ -77,17 +79,32 @@ export function AddSectionFormSheet({ documentId, onSubmit, isPending, existingS
     
     if (!name.trim() || !prompt.trim()) return;
     
-    onSubmit({
+    const submitData: any = {
       name: name.trim(),
       prompt: prompt.trim(),
       dependencies: selectedDependencies,
-      document_id: documentId
-    });
+    };
+
+    if (templateId) {
+      submitData.template_id = templateId;
+      submitData.type = "text";
+    } else if (documentId) {
+      submitData.document_id = documentId;
+      submitData.type = "text"; // También agregar type para secciones de documento
+    }
+    
+    onSubmit(submitData);
   };
 
   const availableSections = existingSections.filter(
     section => !selectedDependencies.includes(section.id)
   );
+
+  // Notificar cambios en la validación
+  const isFormValid = name.trim().length > 0 && prompt.trim().length > 0;
+  useEffect(() => {
+    onValidationChange?.(isFormValid);
+  }, [isFormValid, onValidationChange]);
 
   return (
     <form id="add-section-form" onSubmit={handleSubmit} className="space-y-4">
