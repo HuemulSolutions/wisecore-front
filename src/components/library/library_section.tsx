@@ -1,10 +1,15 @@
 import { MoreVertical, Edit, Bot, Send, Copy, Trash2 } from 'lucide-react';
-import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
 import Editor from '../editor';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,9 +26,8 @@ import {
     AlertDialogCancel,
     AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { modifyContent } from '@/services/executions';
 import { fixSection } from '@/services/generate';
-import { deleteSectionExec } from '@/services/section_execution';
+import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { toast } from 'sonner';
 
 interface SectionExecutionProps {
@@ -45,6 +49,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isAiProcessing, setIsAiProcessing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const isMobile = useIsMobile();
 
     console.log('SectionExecution Props:', { sectionExecution });
 
@@ -107,58 +112,137 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const displayedContent = (aiPreview ?? sectionExecution.output.replace(/\\n/g, "\n"));
 
     return (
-        <div className="p-2">
-            <div className="flex items-center justify-end">
-                {readyToEdit && (
-                    <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded-md hover:bg-gray-100 hover:cursor-pointer">
-                            <MoreVertical className="h-4 w-4 text-gray-600" />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                            className='hover:cursor-pointer'
-                            onClick={handleCopy}
-                        >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy
-                        </DropdownMenuItem>
-                        {!isEditing && !isAiEditing && (
-                            <DropdownMenuItem
-                                className='hover:cursor-pointer'
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                            </DropdownMenuItem>
-                        )}
-                        {!isEditing && !isAiEditing && (
-                            <DropdownMenuItem 
-                                className="hover:cursor-pointer"
-                                onClick={() => setIsAiEditing(true)}
-                            >
-                                <Bot className="h-4 w-4 mr-2" />
-                                Ask AI to Edit
-                            </DropdownMenuItem>
-                        )}
-                        {!isEditing && !isAiEditing && (
-                            <DropdownMenuItem 
-                                className="text-red-600 hover:cursor-pointer"
-                                onSelect={() => {
-                                    // Sincroniza apertura al ciclo de cierre del dropdown
-                                    setTimeout(() => openDeleteDialog(), 0);
-                                }}
-                            >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                            </DropdownMenuItem>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+        <div className="p-2 relative">
+            {/* Action Buttons - Positioned absolutely in top right */}
+            <div className="absolute top-2 right-2 z-10">
+                {readyToEdit && !isEditing && (
+                    <>
+                        {/* Desktop: Direct Action Buttons */}
+                        {!isMobile && (
+                            <div className="flex items-center gap-1">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                            onClick={handleCopy}
+                                        >
+                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Copy content</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
+                                {!isEditing && !isAiEditing && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                                onClick={() => setIsEditing(true)}
+                                            >
+                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Edit section</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+
+                                {!isEditing && !isAiEditing && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
+                                                onClick={() => setIsAiEditing(true)}
+                                            >
+                                                <Bot className="h-3.5 w-3.5 text-blue-600" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Ask AI to edit</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+
+                                {!isEditing && !isAiEditing && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
+                                                onClick={() => openDeleteDialog()}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Delete section</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Mobile: Dropdown Menu */}
+                        {isMobile && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="p-1 rounded-md hover:bg-gray-100 hover:cursor-pointer">
+                                        <MoreVertical className="h-4 w-4 text-gray-600" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        className='hover:cursor-pointer'
+                                        onClick={handleCopy}
+                                    >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        Copy
+                                    </DropdownMenuItem>
+                                    {!isEditing && !isAiEditing && (
+                                        <DropdownMenuItem
+                                            className='hover:cursor-pointer'
+                                            onClick={() => setIsEditing(true)}
+                                        >
+                                            <Edit className="h-4 w-4 mr-2" />
+                                            Edit
+                                        </DropdownMenuItem>
+                                    )}
+                                    {!isEditing && !isAiEditing && (
+                                        <DropdownMenuItem 
+                                            className="hover:cursor-pointer"
+                                            onClick={() => setIsAiEditing(true)}
+                                        >
+                                            <Bot className="h-4 w-4 mr-2" />
+                                            Ask AI to Edit
+                                        </DropdownMenuItem>
+                                    )}
+                                    {!isEditing && !isAiEditing && (
+                                        <DropdownMenuItem 
+                                            className="text-red-600 hover:cursor-pointer"
+                                            onSelect={() => {
+                                                // Sincroniza apertura al ciclo de cierre del dropdown
+                                                setTimeout(() => openDeleteDialog(), 0);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </>
                 )}
-                
             </div>
             
             {isAiEditing && (
@@ -220,12 +304,12 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             )}
 
             {aiPreview !== null && !isAiProcessing && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between">
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
                     <span className="text-sm text-amber-800">Vista previa de edición por IA lista. ¿Guardar cambios?</span>
                     <div className="flex gap-2">
                         <Button
                             size="sm"
-                            onClick={() => handleSave(sectionExecution.id, aiPreview)}
+                            onClick={() => handleSave(sectionExecution.id, aiPreview || '')}
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
@@ -244,27 +328,31 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 </div>
             )}
             {aiPreview !== null && isAiProcessing && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 relative z-30 shadow-lg">
                     Generando propuesta con IA...
                 </div>
             )}
             
-            {
-                isEditing ? (
-                    <div className="border rounded-md">
-                        <Editor
-                            sectionId={sectionExecution.id}
-                            content={sectionExecution.output.replace(/\\n/g, "\n")}
-                            onSave={handleSave}
-                            onCancel={() => setIsEditing(false)}
-                            isSaving={isSaving}
-                        />
+            {/* Content area - conditional padding based on editing state */}
+            {isEditing ? (
+                /* Editor takes full width when editing */
+                <div className="pt-8">
+                    <Editor
+                        sectionId={sectionExecution.id}
+                        content={sectionExecution.output.replace(/\\n/g, "\n")}
+                        onSave={handleSave}
+                        onCancel={() => setIsEditing(false)}
+                        isSaving={isSaving}
+                    />
+                </div>
+            ) : (
+                /* Content with padding for floating buttons when not editing */
+                <div className="pt-8 pr-12">
+                    <div className="relative">
+                        <Markdown sectionIndex={sectionIndex}>{displayedContent}</Markdown>
                     </div>
-                ) : (
-                    <Markdown sectionIndex={sectionIndex}>{displayedContent}</Markdown>
-                )
-            }
-            <Separator className="my-2" />
+                </div>
+            )}
         
         {/* Delete Confirmation AlertDialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>

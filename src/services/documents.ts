@@ -139,26 +139,30 @@ export async function updateDocument(
   return data.data;
 }
 
-export async function uploadDocxTemplate(documentId: string, file: File) {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${backendUrl}/documents/${documentId}/docx_template`, {
-    method: 'POST',
-
-    body: formData,
+export async function moveDocument(documentId: string, newParentId?: string) {
+  console.log('Moving document:', documentId, 'to parent:', newParentId);
+  
+  const response = await fetch(`${backendUrl}/documents/${documentId}/move`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      parent_folder_id: newParentId,
+    }),
   });
 
   if (!response.ok) {
     const errorResponse = await response.json();
-    console.error('Error uploading DOCX template:', errorResponse);
-    throw new Error(errorResponse.error || 'Error al subir la plantilla DOCX');
+    console.error('Error moving document:', errorResponse);
+    throw new Error(errorResponse.error || 'Error al mover el documento');
   }
 
   const data = await response.json();
-  console.log('DOCX template uploaded:', data.data);
+  console.log('Document moved:', data.data);
   return data.data;
 }
+
 
 
 

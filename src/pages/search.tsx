@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";
 import SearchResult from "@/components/search_result";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, FileText, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/contexts/organization-context";
 
@@ -69,84 +69,123 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold mb-6">Search</h1>
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search..."
-          value={query}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <Select value={mode} onValueChange={setMode}>
-          <SelectTrigger className="w-32 hover:cursor-pointer">
-            <SelectValue placeholder="Mode" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="deep">Deep</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={handleSearch} className="hover:cursor-pointer" disabled={!query.trim()}>
-          {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Search
-        </Button>
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Search</h1>
+          <p className="text-gray-600">Search through your organization's documents and content</p>
+        </div>
+
+        {/* Search Form */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <Input
+                placeholder="Enter your search query..."
+                value={query}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={mode} onValueChange={setMode}>
+                <SelectTrigger className="w-32 hover:cursor-pointer">
+                  <SelectValue placeholder="Mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="deep">Deep</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={handleSearch} 
+                className="bg-[#4464f7] hover:bg-[#3451e6] text-white hover:cursor-pointer px-6" 
+                disabled={!query.trim()}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4 mr-2" />
+                )}
+                Search
+              </Button>
+              {searchQuery && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleClearSearch} 
+                  className="hover:cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Search Results */}
         {searchQuery && (
-          <Button 
-            variant="outline" 
-            onClick={handleClearSearch} 
-            className="hover:cursor-pointer"
-          >
-            Clear
-          </Button>
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                Search results for: <span className="text-[#4464f7]">"</span><span className="text-gray-700">{searchQuery}</span><span className="text-[#4464f7]">"</span>
+              </h2>
+              <p className="text-sm text-gray-500">Search mode: {mode}</p>
+            </div>
+            
+            {isLoading && (
+              <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin mr-3 text-[#4464f7]" />
+                  <span className="text-gray-600">Searching through your documents...</span>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-red-800">
+                  <span className="text-sm font-medium">Search Error</span>
+                </div>
+                <p className="text-sm text-red-600 mt-1">Error performing search. Please try again.</p>
+              </div>
+            )}
+
+            {searchResults && searchResults.length === 0 && !isLoading && (
+              <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm text-center">
+                <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No results found</h3>
+                <p className="text-gray-500">Try adjusting your search query or using different keywords.</p>
+              </div>
+            )}
+
+            {searchResults && searchResults.length > 0 && (
+              <div className="space-y-4">
+                {/* <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <FileText className="h-4 w-4" />
+                    <span>Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+                  </div>
+                </div> */}
+                <div className="space-y-4">
+                  {searchResults.map((result, index) => (
+                    <SearchResult
+                      key={`${result.execution_id}-${result.document_id}-${index}`}
+                      content={result.content}
+                      execution_id={result.execution_id}
+                      document_id={result.document_id}
+                      document_name={result.document_name}
+                      section_execution_name={result.section_execution_name}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Search Results */}
-      {searchQuery && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            Search results for: "{searchQuery}"
-          </h2>
-          
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              <span>Searching...</span>
-            </div>
-          )}
-
-          {error && (
-            <div className="text-red-500 py-4">
-              Error performing search. Please try again.
-            </div>
-          )}
-
-          {searchResults && searchResults.length === 0 && !isLoading && (
-            <div className="text-muted-foreground py-8 text-center">
-              No results found for your search.
-            </div>
-          )}
-
-          {searchResults && searchResults.length > 0 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
-              </p>
-              {searchResults.map((result, index) => (
-                <SearchResult
-                  key={`${result.execution_id}-${result.document_id}-${index}`}
-                  content={result.content}
-                  execution_id={result.execution_id}
-                  document_id={result.document_id}
-                  document_name={result.document_name}
-                  section_execution_name={result.section_execution_name}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

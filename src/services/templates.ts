@@ -100,60 +100,6 @@ export async function updateTemplate(templateId: string, updateData: { name?: st
     return data.data;
 }
 
-export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string }) {
-    const response = await fetch(`${backendUrl}/templates/sections/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sectionData),
-    });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error creating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
-    const data = await response.json();
-    console.log('Section created:', data.data);
-    return data.data;
-}
-
-
-export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
-    const response = await fetch(`${backendUrl}/templates/sections/${sectionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sectionData),
-    });
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error updating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-    const data = await response.json();
-    console.log('Section updated:', data.data);
-    return data.data;
-}
-
-export async function deleteTemplateSection(sectionId: string) {
-    const response = await fetch(`${backendUrl}/templates/sections/${sectionId}`, {
-        method: 'DELETE',
-    });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error deleting section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
-    const data = await response.json();
-    console.log('Section deleted:', data);
-    return data;
-}
 
 export async function exportTemplate(templateId: string) {
     const response = await fetch(`${backendUrl}/templates/${templateId}/export`);
@@ -162,24 +108,6 @@ export async function exportTemplate(templateId: string) {
     }
     const data = await response.json();
     console.log('Template exported:', data.data);
-    return data.data;
-}
-
-export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
-    const response = await fetch(`${backendUrl}/templates/sections/order`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ new_order: sections }),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al actualizar el orden de las secciones');
-    }
-
-    const data = await response.json();
-    console.log('Sections order updated:', data.data);
     return data.data;
 }
 

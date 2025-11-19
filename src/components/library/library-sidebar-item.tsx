@@ -96,7 +96,7 @@ export function LibrarySidebarItem({
       if (breadcrumb) {
         sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
       }
-      sessionStorage.setItem('library-selected-file', JSON.stringify(item));
+      sessionStorage.setItem('library-selectedFile', JSON.stringify(item));
       navigate(`/document/${item.id}`);
     } else {
       // For folders, use the existing onManage callback if provided

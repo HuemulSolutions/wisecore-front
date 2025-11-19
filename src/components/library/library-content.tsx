@@ -174,7 +174,7 @@ export function LibraryContent({
     if (selectedFile && selectedFile.type === 'document') {
       // Save current state before navigating
       sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
-      sessionStorage.setItem('library-selected-file', JSON.stringify(selectedFile));
+      sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
       navigate(`/document/${selectedFile.id}`);
     }
   };

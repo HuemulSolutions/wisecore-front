@@ -21,7 +21,29 @@ export async function getExecutionById(executionId: string) {
     const data = await response.json();
     console.log('Execution fetched:', data.data);
     return data.data;
+}
 
+export async function getExecutionStatus(executionId: string) {
+    console.log(`Fetching execution status with ID: ${executionId}`);
+    try {
+        const response = await fetch(`${backendUrl}/execution/status/${executionId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Execution status fetched:', data);
+        return data.data || data; // Handle both data.data and direct data response
+    } catch (error) {
+        console.error('Error fetching execution status:', error);
+        throw new Error('Error al obtener el estado de la ejecución');
+    }
 }
 
 export async function createExecution(documentId: string) {
@@ -73,25 +95,6 @@ export async function updateLLM(executionId: string, llmId: string) {
 
     const data = await response.json();
     console.log('LLM updated for execution:', data.data);
-    return data.data;
-}
-
-export async function modifyContent(sectionId: string, content: string) {
-    console.log(`Modifying content for section ID: ${sectionId}`);
-    const response = await fetch(`${backendUrl}/execution/modify_content/${sectionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: content }),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al modificar el contenido de la sección');
-    }
-
-    const data = await response.json();
-    console.log('Section content modified:', data.data);
     return data.data;
 }
 

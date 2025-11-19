@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { getDocumentById, uploadDocxTemplate } from "@/services/documents";
+import { getDocumentById, deleteDocument } from "@/services/documents";
+import { uploadDocxTemplate } from "@/services/docx_template";
 import { createExecution, exportExecutionToWord, exportExecutionToMarkdown, exportExecutionCustomWord } from "@/services/executions";
 import { formatDate } from "@/services/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -54,25 +55,57 @@ export default function DocumentPage() {
   };
 
   const handleBack = () => {
+    let storedBreadcrumb: Array<{ id: string; name: string }> | null = null;
+    const breadcrumbString = sessionStorage.getItem("library-breadcrumb");
+
+    if (breadcrumbString) {
+      try {
+        const parsed = JSON.parse(breadcrumbString);
+        if (Array.isArray(parsed)) {
+          storedBreadcrumb = parsed;
+        }
+      } catch (parseError) {
+        console.error("Error parsing stored breadcrumb:", parseError);
+      }
+    }
+
+    if (id) {
+      const selectedFileData = {
+        id,
+        name: document?.name ?? "",
+        type: "document" as const,
+      };
+      sessionStorage.setItem("library-selectedFile", JSON.stringify(selectedFileData));
+    }
+
+    const shouldRestoreBreadcrumb = !!storedBreadcrumb && storedBreadcrumb.length > 0;
+
     navigate("/library", { 
       state: { 
         selectedDocumentId: id,
         selectedDocumentName: document?.name,
         selectedDocumentType: "document",
-        // Try to get breadcrumb from previous navigation state
-        restoreBreadcrumb: true
+        restoreBreadcrumb: shouldRestoreBreadcrumb,
+        breadcrumb: shouldRestoreBreadcrumb ? storedBreadcrumb : undefined,
       } 
     });
   };
 
   const handleDelete = async () => {
+    if (!id) {
+      toast.error("Missing asset identifier");
+      return;
+    }
+
     try {
-      // Aquí deberías implementar la lógica para eliminar el documento
-      // Por ejemplo, llamar a un servicio de API para eliminar el documento
-      console.log("Document deleted successfully");
-      navigate("/documents"); // Redirect to the documents list
+      await deleteDocument(id);
+      toast.success("Asset deleted successfully");
+      sessionStorage.removeItem("library-selectedFile");
+      sessionStorage.removeItem("library-selected-file");
+      navigate("/library");
     } catch (deleteError) {
       console.error("Error deleting document:", deleteError);
+      toast.error("Failed to delete asset. Please try again.");
     }
   };
 

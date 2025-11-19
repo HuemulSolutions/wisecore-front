@@ -63,7 +63,7 @@ export default function AddContext({ id }: { id: string }) {
 
   // Mutación para eliminar contexto
   const deleteContextMutation = useMutation({
-    mutationFn: (contextId: string) => deleteContext(id, contextId),
+    mutationFn: (contextId: string) => deleteContext(contextId),
     onSuccess: () => {
       toast.success("Context deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });

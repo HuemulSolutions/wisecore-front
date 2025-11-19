@@ -9,17 +9,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { createFolder } from "@/services/library";
 import { useOrganization } from "@/contexts/organization-context";
+import { AlertCircle, FolderPlus } from "lucide-react";
 
 interface CreateFolderProps {
   trigger: React.ReactNode;
   parentFolder?: string;
+  onFolderCreated?: () => void;
 }
 
-export default function CreateFolder({ trigger, parentFolder }: CreateFolderProps) {
+export default function CreateFolder({ trigger, parentFolder, onFolderCreated }: CreateFolderProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
 
@@ -34,7 +35,9 @@ export default function CreateFolder({ trigger, parentFolder }: CreateFolderProp
       parentId?: string;
     }) => createFolder(newFolder.name, newFolder.organizationId, newFolder.parentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["library"] });
+      // Invalidar queries más específicamente
+      queryClient.invalidateQueries({ queryKey: ["library", selectedOrganizationId] });
+      onFolderCreated?.(); // Llamar callback del componente padre
       resetForm();
       setIsDialogOpen(false);
     },
@@ -75,45 +78,70 @@ export default function CreateFolder({ trigger, parentFolder }: CreateFolderProp
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New Folder</DialogTitle>
-          <DialogDescription>
-            Complete the fields below to create a new folder.
-          </DialogDescription>
-        </DialogHeader>
-
-        <Input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Folder name"
-          className="w-full border rounded px-2 py-1"
-        />
-
-        {error && (
-          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2 mt-2">
-            {error}
+      <DialogContent className="sm:max-w-[500px]">
+        <form onSubmit={(e) => { e.preventDefault(); handleAccept(); }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="h-5 w-5 text-[#4464f7]" />
+              New Folder
+            </DialogTitle>
+            <DialogDescription>
+              Complete the fields below to create a new folder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-2">
+                  Folder Name *
+                </label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter folder name..."
+                  className="w-full"
+                  required
+                />
+              </div>
+            </div>
           </div>
-        )}
-
-        <DialogFooter className="flex justify-end space-x-2 mt-4">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            className="hover:cursor-pointer"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleAccept}
-            disabled={mutation.isPending || !name.trim() || !selectedOrganizationId}
-            className="hover:cursor-pointer"
-          >
-            {mutation.isPending ? "Creating..." : "Create"}
-          </Button>
-        </DialogFooter>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={mutation.isPending}
+              className="hover:cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || !name.trim() || !selectedOrganizationId}
+              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+            >
+              {mutation.isPending ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  Create Folder
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

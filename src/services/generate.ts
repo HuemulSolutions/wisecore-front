@@ -112,6 +112,46 @@ async function* fetchGeneration(
 }
 
 
+// New interface for the worker-based generation
+interface GenerateWorkerParams {
+    documentId: string;
+    executionId: string;
+    instructions?: string;
+}
+
+// New function for worker-based generation (no streaming)
+export const generateDocumentWorker = async (params: GenerateWorkerParams): Promise<void> => {
+    if (!params) {
+        throw new TypeError("generateDocumentWorker: parameter 'params' is undefined. You must pass an object with the required properties.");
+    }
+    const { documentId, executionId, instructions } = params;
+
+    try {
+        const response = await fetch(`${backendUrl}/generation/generate_worker`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                document_id: documentId,
+                execution_id: executionId,
+                instructions: instructions || '',
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Generation started successfully:', result);
+    } catch (error) {
+        console.error('Error starting generation:', error);
+        throw error;
+    }
+}
+
+// Legacy streaming function (kept for backward compatibility)
 export const generateDocument = async (params: GenerateStreamParams): Promise<void> => {
     if (!params) {
         throw new TypeError("generateDocument: parameter 'params' is undefined. You must pass an object with the required properties.");
@@ -206,7 +246,7 @@ async function* fetchChatbot(
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
   return yield* ssePostStream(
-    `${backendUrl}/generation/chatbot`,
+    `${backendUrl}/chatbot`,
     { execution_id: executionId, user_message, thread_id: threadId },
     signal
   );
