@@ -35,6 +35,7 @@ import { exportExecutionToMarkdown, exportExecutionToWord } from "@/services/exe
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
+import { formatDateTime } from "@/lib/utils";
 // (Se elimina el uso directo de Dialog para el editor, se usará un componente separado)
 import EditDocumentDialog from "@/components/edit_document_dialog";
 import SectionExecution from "./library_section";
@@ -161,22 +162,12 @@ export function LibraryContent({
     if (!selectedExecution) return null;
     
     const date = new Date(selectedExecution.created_at);
-    const isToday = date.toDateString() === new Date().toDateString();
-    const timeStr = date.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-    const dateStr = isToday ? 'Today' : date.toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const formattedDate = formatDateTime(date);
     
     return {
       ...selectedExecution,
-      formattedDate: `${dateStr} ${timeStr}`,
-      isLatest: documentContent.executions[0]?.id === selectedExecution.id
+      formattedDate,
+      isLatest: documentContent?.executions?.[0]?.id === selectedExecution.id
     };
   }, [documentContent?.executions, selectedExecutionId]);
 
@@ -397,7 +388,7 @@ export function LibraryContent({
                         <div className="flex items-center justify-between w-full">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-gray-500">
-                              {new Date(execution.created_at).toLocaleString()}
+                              {formatDateTime(new Date(execution.created_at))}
                             </span>
                           </div>
                         </div>

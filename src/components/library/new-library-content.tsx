@@ -52,6 +52,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import CreateDocumentLib from "@/components/library/create_document_lib";
 import SectionExecution from "./library_section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
+import { formatDateTime } from "@/lib/utils";
 
 // API response interface
 interface LibraryItem {
@@ -457,21 +458,11 @@ export function AssetContent({
     if (!selectedExecution) return null;
     
     const date = new Date(selectedExecution.created_at);
-    const isToday = date.toDateString() === new Date().toDateString();
-    const timeStr = date.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-    const dateStr = isToday ? 'Today' : date.toLocaleDateString('en-US', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const formattedDate = formatDateTime(date);
     
     return {
       ...selectedExecution,
-      formattedDate: `${dateStr} ${timeStr}`,
+      formattedDate,
       isLatest: documentExecutions[0]?.id === selectedExecution.id
     };
   }, [documentExecutions, selectedExecutionId]);
@@ -896,17 +887,7 @@ export function AssetContent({
                       )
                       .map((execution: { id: string; created_at: string }, index: number) => {
                         const date = new Date(execution.created_at);
-                        const isToday = date.toDateString() === new Date().toDateString();
-                        const timeStr = date.toLocaleTimeString('es-ES', { 
-                          hour: '2-digit', 
-                          minute: '2-digit',
-                          hour12: false 
-                        });
-                        const dateStr = isToday ? 'Today' : date.toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        });
+                        const formattedDate = formatDateTime(date);
                         const isSelected = selectedExecutionId === execution.id;
                         
                         return (
@@ -921,7 +902,7 @@ export function AssetContent({
                             <div className="flex items-center gap-2">
                               {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
                               <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
-                                {dateStr} {timeStr}
+                                {formattedDate}
                               </span>
                             </div>
                             {index === 0 && <span className="text-xs text-green-600">Latest</span>}
@@ -1096,17 +1077,7 @@ export function AssetContent({
                         )
                         .map((execution: { id: string; created_at: string }, index: number) => {
                           const date = new Date(execution.created_at);
-                          const isToday = date.toDateString() === new Date().toDateString();
-                          const timeStr = date.toLocaleTimeString('es-ES', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: false 
-                          });
-                          const dateStr = isToday ? 'Today' : date.toLocaleDateString('es-ES', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric'
-                          });
+                          const formattedDate = formatDateTime(date);
                           const isSelected = selectedExecutionId === execution.id;
                           
                           return (
@@ -1121,7 +1092,7 @@ export function AssetContent({
                               <div className="flex items-center gap-2">
                                 {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
                                 <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
-                                  {dateStr} {timeStr}
+                                  {formattedDate}
                                 </span>
                               </div>
                               {index === 0 && <span className="text-xs text-green-600">Latest</span>}
