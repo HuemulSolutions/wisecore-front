@@ -69,6 +69,7 @@ export function TemplateContent({
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
+  const [isFormValid, setIsFormValid] = useState(false);
 
   // Configurar sensores para drag & drop
   const mouseSensor = useSensor(MouseSensor, {
@@ -131,6 +132,7 @@ export function TemplateContent({
       toast.success("Section created successfully");
       queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
       setIsAddingSectionOpen(false);
+      setIsFormValid(false);
     },
     onError: (error: Error) => {
       toast.error("Error creating section: " + error.message);
@@ -298,7 +300,10 @@ export function TemplateContent({
                 {/* Primary Actions Group */}
                 <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
                   <Button
-                    onClick={() => setIsAddingSectionOpen(true)}
+                    onClick={() => {
+                      setIsAddingSectionOpen(true);
+                      setIsFormValid(false);
+                    }}
                     size="sm"
                     variant="ghost"
                     className="h-8 px-3 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
@@ -391,7 +396,10 @@ export function TemplateContent({
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
                         variant="outline"
-                        onClick={() => setIsAddingSectionOpen(false)}
+                        onClick={() => {
+                          setIsAddingSectionOpen(false);
+                          setIsFormValid(false);
+                        }}
                         className="hover:cursor-pointer text-sm h-8"
                         size="sm"
                         disabled={addSectionMutation.isPending}
@@ -400,9 +408,10 @@ export function TemplateContent({
                       </Button>
                       <Button
                         type="submit"
+                        form="add-section-form"
                         className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
                         size="sm"
-                        disabled={addSectionMutation.isPending}
+                        disabled={!isFormValid || addSectionMutation.isPending}
                       >
                         {addSectionMutation.isPending ? "Adding..." : "Save Section"}
                       </Button>
@@ -410,13 +419,11 @@ export function TemplateContent({
                   </div>
                   <div className="p-2 sm:p-4">
                     <AddSectionFormSheet
-                      documentId={selectedTemplate.id}
-                      onSubmit={(values: any) => addSectionMutation.mutate({ 
-                        ...values, 
-                        template_id: selectedTemplate.id 
-                      })}
+                      templateId={selectedTemplate.id}
+                      onSubmit={(values: any) => addSectionMutation.mutate(values)}
                       isPending={addSectionMutation.isPending}
                       existingSections={orderedSections}
+                      onValidationChange={setIsFormValid}
                     />
                   </div>
                 </div>
