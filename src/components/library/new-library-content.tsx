@@ -759,7 +759,7 @@ export function AssetContent({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header with Toggle */}
         {isMobile && (
-          <div className="bg-white border-b border-gray-200 shadow-sm py-1.5 px-4 z-20 flex-shrink-0" data-mobile-header>
+          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 flex-shrink-0" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <TooltipProvider>
@@ -995,7 +995,7 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && (
-        <div className="bg-white border-b border-gray-200 shadow-sm p-4 md:px-7 z-10 flex-shrink-0" data-desktop-header>
+        <div className="bg-white border-b border-gray-200 shadow-sm py-4 px-5 md:px-6 z-10 flex-shrink-0" data-desktop-header>
           <div className="space-y-3 md:space-y-4">
             {/* Title and Type Section */}
             {!isMobile && (
@@ -1016,7 +1016,7 @@ export function AssetContent({
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {documentContent?.document_type && (
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
                       <div 
                         className="w-2 h-2 rounded-full" 
                         style={{ backgroundColor: documentContent.document_type.color }}
@@ -1025,7 +1025,7 @@ export function AssetContent({
                     </div>
                   )}
                   {fullDocument?.template_name && (
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
                       <FileCode className="w-2 h-2" />
                       {fullDocument.template_name}
                     </div>
@@ -1038,7 +1038,7 @@ export function AssetContent({
             {/* Action Buttons Section */}
             <div className="flex items-start gap-2 flex-wrap">
               {/* Primary Actions Group */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
               <ExecuteSheet
                 selectedFile={selectedFile}
                 fullDocument={fullDocument}
@@ -1089,7 +1089,7 @@ export function AssetContent({
               </div>
               
               {/* Secondary Actions Group */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
                 {/* Execution Dropdown - only show for documents with executions */}
                 {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
                   <DropdownMenu>
@@ -1097,7 +1097,7 @@ export function AssetContent({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                        className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
                         <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
@@ -1145,7 +1145,7 @@ export function AssetContent({
                   onClick={openEditDialog}
                   size="sm"
                   variant="ghost"
-                  className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                  className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                   title="Edit Document"
                 >
                   <Edit3 className="h-3.5 w-3.5" />
@@ -1156,7 +1156,7 @@ export function AssetContent({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                      className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                       title="Export Options"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -1178,7 +1178,7 @@ export function AssetContent({
                   onClick={() => setTimeout(() => openDeleteDialog(), 0)}
                   size="sm"
                   variant="ghost"
-                  className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
+                  className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
                   title="Delete Document"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
