@@ -40,13 +40,13 @@ export default function CreateDocumentLib({ trigger, folderId, onDocumentCreated
   const { selectedOrganizationId } = useOrganization();
 
   const { data: fetchedDocumentTypes } = useQuery({
-    queryKey: ["documentTypes"],
+    queryKey: ["documentTypes", selectedOrganizationId],
     queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
     enabled: !!selectedOrganizationId,
   });
 
   const { data: templates } = useQuery({
-    queryKey: ["templates"],
+    queryKey: ["templates", selectedOrganizationId],
     queryFn: () => getAllTemplates(selectedOrganizationId!), // Fetch templates for the selected organization
     enabled: !!selectedOrganizationId, // Only run this query if an organization is selected
   });

@@ -281,7 +281,7 @@ export function AssetContent({
       toast.success("Template created successfully");
       
       // Invalidate templates query to refresh the template list in CreateDocumentLib
-      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      queryClient.invalidateQueries({ queryKey: ['templates', selectedOrganizationId] });
       
       // Open template configuration sheet instead of navigating
       setTimeout(() => {

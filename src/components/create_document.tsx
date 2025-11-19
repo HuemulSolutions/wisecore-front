@@ -42,7 +42,7 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
   const [error, setError] = useState<string | null>(null);
 
   const { data: templates } = useQuery({
-    queryKey: ["templates"],
+    queryKey: ["templates", selectedOrganizationId],
     queryFn: () => getAllTemplates(selectedOrganizationId!), // Fetch all templates
     enabled: !!selectedOrganizationId, // Only run this query if an organization is selected
   });
