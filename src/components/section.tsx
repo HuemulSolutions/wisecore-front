@@ -88,9 +88,11 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
     setIsEditing(false);
   };
 
-  const handleSaveEdit = (updatedItem: Item) => {
+  const handleSaveEdit = (updatedItem: { id: string; name: string; prompt: string; order: number; dependencies: string[] }) => {
     // Aquí puedes agregar la lógica para guardar los cambios
-    const dependencies = updatedItem.dependencies.map(dep => dep.id);
+    // Las dependencies ya vienen como array de strings desde EditSection
+    const dependencies = updatedItem.dependencies || [];
+    
     onSave(item.id, {
       name: updatedItem.name,
       prompt: updatedItem.prompt,
