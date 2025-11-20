@@ -17,6 +17,14 @@ interface Item {
   dependencies: { id: string; name: string }[];
 }
 
+interface ItemForBackend {
+  id: string;
+  name: string;
+  prompt: string;
+  order: number;
+  dependencies: string[];
+}
+
 interface Section {
   id: string;
   name: string;
@@ -25,7 +33,7 @@ interface Section {
 interface EditSectionSheetProps {
   item: Item;
   onCancel: () => void;
-  onSave: (updatedItem: Item) => void;
+  onSave: (updatedItem: ItemForBackend) => void;
   existingSections?: Section[];
 }
 
@@ -68,7 +76,12 @@ export default function EditSectionSheet({ item, onCancel, onSave, existingSecti
 
   const handleSave = () => {
     // order se mantiene sin edición
-    onSave(formData);
+    // Enviar dependencies como array de strings (solo IDs) para compatibilidad con el backend
+    const updatedItem: ItemForBackend = {
+      ...formData,
+      dependencies: formData.dependencies.map(dep => dep.id)
+    };
+    onSave(updatedItem);
   };
 
   return (
