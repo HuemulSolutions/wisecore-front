@@ -1,5 +1,5 @@
-import { useMemo, useEffect, useState, useRef } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, RotateCcw, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
+import { useMemo, useEffect, useState } from "react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -52,6 +52,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import CreateDocumentLib from "@/components/library/create_document_lib";
 import SectionExecution from "./library_section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
+import { formatDateTime } from "@/lib/utils";
 
 // API response interface
 interface LibraryItem {
@@ -253,6 +254,7 @@ export function AssetContent({
       
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
+      setIsDirectSectionFormValid(false);
       toast.success("Section created successfully");
       
       // Force refetch of document content
@@ -281,7 +283,7 @@ export function AssetContent({
       toast.success("Template created successfully");
       
       // Invalidate templates query to refresh the template list in CreateDocumentLib
-      queryClient.invalidateQueries({ queryKey: ['templates', selectedOrganizationId] });
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
       
       // Open template configuration sheet instead of navigating
       setTimeout(() => {
@@ -297,7 +299,7 @@ export function AssetContent({
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(false);
+  const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -309,6 +311,7 @@ export function AssetContent({
   // Direct section creation state
   const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
+  const [isDirectSectionFormValid, setIsDirectSectionFormValid] = useState(false);
   
   // Template creation states
   const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
@@ -350,11 +353,12 @@ export function AssetContent({
       console.log(`Adding section after index: ${afterIndex}`);
       setSectionInsertPosition(afterIndex);
       setIsDirectSectionDialogOpen(true);
+      setIsDirectSectionFormValid(false);
     }
   };
 
   // Handle direct section creation submission
-  const handleDirectSectionSubmit = (values: { name: string; document_id: string; prompt: string; dependencies: string[] }) => {
+  const handleDirectSectionSubmit = (values: { name: string; prompt: string; dependencies: string[]; document_id?: string; template_id?: string; type?: string }) => {
     let order: number | undefined = undefined;
     
     // Calculate order based on position
@@ -369,7 +373,15 @@ export function AssetContent({
     }
     
     console.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
-    addSectionMutation.mutate({ ...values, order });
+    // Ensure we have the required fields for document sections
+    const sectionData = {
+      name: values.name,
+      document_id: values.document_id || selectedFile?.id || '',
+      prompt: values.prompt,
+      dependencies: values.dependencies,
+      order
+    };
+    addSectionMutation.mutate(sectionData);
   };
 
   // Handle create new execution
@@ -388,8 +400,6 @@ export function AssetContent({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id,
-    refetchOnWindowFocus: true,
-    staleTime: 30000, // Consider data stale after 30 seconds
   });
 
   // Fetch full document details for sections management
@@ -450,106 +460,65 @@ export function AssetContent({
     return activeExecution?.id || null;
   }, [documentExecutions]);
 
+  // Get selected execution details for displaying version info
+  const selectedExecutionInfo = useMemo(() => {
+    if (!documentExecutions || !selectedExecutionId) return null;
+    const selectedExecution = documentExecutions.find((execution: any) => 
+      execution.id === selectedExecutionId
+    );
+    if (!selectedExecution) return null;
+    
+    const date = new Date(selectedExecution.created_at);
+    const formattedDate = formatDateTime(date);
+    
+    return {
+      ...selectedExecution,
+      formattedDate,
+      isLatest: documentExecutions[0]?.id === selectedExecution.id
+    };
+  }, [documentExecutions, selectedExecutionId]);
+
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
     if (selectedFile?.type === 'document' && documentContent?.executions?.length > 0) {
-      // Si no hay ejecución seleccionada, usar la ejecución actual del documento
+      // Si no hay ejecución seleccionada, usar la ejecución más reciente (primera en la lista)
       if (!selectedExecutionId) {
-        setSelectedExecutionId(documentContent.execution_id);
+        const mostRecentExecution = documentContent.executions[0];
+        setSelectedExecutionId(mostRecentExecution.id);
       }
     }
   }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
 
-  // Track previous executions state to detect newly completed executions
-  const previousExecutionsRef = useRef<any[]>([]);
-  
-  // Detect completed executions and refresh content automatically
+  // Auto-update to latest execution when returning to a document with completed executions
   useEffect(() => {
-    if (!selectedFile?.id || !documentExecutions) return;
-    
-    // Check for newly completed executions by comparing with previous state
-    const previousExecutions = previousExecutionsRef.current;
-    if (previousExecutions.length > 0) {
-      const newlyCompleted = documentExecutions.filter((execution: any) => {
-        const previousExecution = previousExecutions.find((prev: any) => prev.id === execution.id);
-        return previousExecution && 
-               previousExecution.status !== 'completed' && 
-               execution.status === 'completed';
-      });
+    if (selectedFile?.type === 'document' && 
+        documentContent?.executions?.length > 0 && 
+        documentExecutions?.length > 0 && 
+        selectedExecutionId) {
       
-      // If there are newly completed executions, show notification and update selection
-      if (newlyCompleted.length > 0) {
-        const latestCompleted = newlyCompleted.sort((a: any, b: any) => 
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        )[0];
+      // Check if currently selected execution exists and get its status
+      const currentSelectedExecution = documentExecutions.find((exec: any) => exec.id === selectedExecutionId);
+      const mostRecentExecution = documentExecutions[0]; // Executions are ordered by creation date desc
+      
+      // If we have a more recent execution than the currently selected one, auto-switch to it
+      // This handles the case when user navigates away during execution and comes back after it's completed
+      if (mostRecentExecution && 
+          selectedExecutionId !== mostRecentExecution.id && 
+          currentSelectedExecution && 
+          ['completed', 'approved', 'failed'].includes(mostRecentExecution.status) &&
+          new Date(mostRecentExecution.created_at) > new Date(currentSelectedExecution.created_at)) {
         
-        console.log('Detected newly completed execution:', latestCompleted.id);
-        toast.success(`Document generation completed! Click here to view results.`, {
-          duration: 5000,
-          action: {
-            label: 'View',
-            onClick: () => {
-              setSelectedExecutionId(latestCompleted.id);
-              // Invalidate content to ensure fresh data
-              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-            }
-          }
-        });
+        console.log(`Auto-switching to latest completed execution: ${mostRecentExecution.id}`);
+        setSelectedExecutionId(mostRecentExecution.id);
         
-        // Auto-update to the latest completed execution if no execution is currently selected
-        // or if the current selection is still running
-        const currentSelectedExecution = documentExecutions.find((exec: any) => exec.id === selectedExecutionId);
-        if (!selectedExecutionId || 
-            (currentSelectedExecution && ['running', 'pending'].includes(currentSelectedExecution.status))) {
-          setSelectedExecutionId(latestCompleted.id);
-        }
+        // Force refresh of document content with the new execution
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, mostRecentExecution.id] });
+          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+        }, 100);
       }
     }
-    
-    // Find the most recent completed execution for initial load
-    const completedExecutions = documentExecutions.filter((execution: any) => 
-      execution.status === 'completed'
-    );
-    
-    if (completedExecutions.length > 0) {
-      // Sort by updated_at to get the most recent
-      const mostRecentCompleted = completedExecutions.sort((a: any, b: any) => 
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      )[0];
-      
-      // If we don't have a selected execution ID, use the most recent completed one
-      if (!selectedExecutionId) {
-        console.log('Auto-selecting most recent completed execution:', mostRecentCompleted.id);
-        setSelectedExecutionId(mostRecentCompleted.id);
-      }
-    }
-    
-    // Update the ref for next comparison
-    previousExecutionsRef.current = documentExecutions;
-  }, [selectedFile?.id, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]);
-
-  // Handle window focus to refresh data when user returns
-  const lastFocusTimeRef = useRef<number>(Date.now());
-  
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      const now = Date.now();
-      const timeSinceLastFocus = now - lastFocusTimeRef.current;
-      
-      // If more than 2 minutes have passed since last focus, refresh all data
-      if (timeSinceLastFocus > 120000 && selectedFile?.id) {
-        console.log('Window refocused after long time, refreshing data...');
-        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile.id] });
-        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile.id] });
-        queryClient.invalidateQueries({ queryKey: ['document', selectedFile.id] });
-      }
-      
-      lastFocusTimeRef.current = now;
-    };
-    
-    window.addEventListener('focus', handleWindowFocus);
-    return () => window.removeEventListener('focus', handleWindowFocus);
-  }, [selectedFile?.id, queryClient]);
+  }, [selectedFile, documentContent, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]);
 
 
 
@@ -790,7 +759,7 @@ export function AssetContent({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header with Toggle */}
         {isMobile && (
-          <div className="bg-white border-b border-gray-200 shadow-sm py-1.5 px-4 z-20 flex-shrink-0" data-mobile-header>
+          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 flex-shrink-0" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <TooltipProvider>
@@ -810,9 +779,40 @@ export function AssetContent({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <span className="text-sm font-medium text-gray-900">
-                  {selectedFile ? selectedFile.name : 'Asset'}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-900">
+                    {selectedFile ? selectedFile.name : 'Asset'}
+                  </span>
+                  {selectedExecutionInfo && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <span>v:</span>
+                      <span className="font-medium text-xs">{selectedExecutionInfo.formattedDate}</span>
+                      {selectedExecutionInfo.isLatest && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {/* Document Type and Template badges for mobile */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {documentContent?.document_type && (
+                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                        <div 
+                          className="w-1.5 h-1.5 rounded-full" 
+                          style={{ backgroundColor: documentContent.document_type.color }}
+                        />
+                        {documentContent.document_type.name}
+                      </div>
+                    )}
+                    {fullDocument?.template_name && (
+                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
+                        <FileCode className="w-1.5 h-1.5" />
+                        {fullDocument.template_name}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
               {/* Table of Contents Toggle - Mobile */}
@@ -899,30 +899,24 @@ export function AssetContent({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
-                      title="Switch Execution"
+                      className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                      title="Switch Version"
                     >
-                      <RotateCcw className="h-4 w-4" />
+                      <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end" className="w-64">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="text-xs font-medium text-gray-900">Document Versions</p>
+                      <p className="text-xs text-gray-500">Select a version to view</p>
+                    </div>
                     {documentContent.executions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
                         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                       )
                       .map((execution: { id: string; created_at: string }, index: number) => {
                         const date = new Date(execution.created_at);
-                        const isToday = date.toDateString() === new Date().toDateString();
-                        const timeStr = date.toLocaleTimeString('es-ES', { 
-                          hour: '2-digit', 
-                          minute: '2-digit',
-                          hour12: false 
-                        });
-                        const dateStr = isToday ? 'Today' : date.toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        });
+                        const formattedDate = formatDateTime(date);
                         const isSelected = selectedExecutionId === execution.id;
                         
                         return (
@@ -937,7 +931,7 @@ export function AssetContent({
                             <div className="flex items-center gap-2">
                               {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
                               <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
-                                {dateStr} {timeStr}
+                                {formattedDate}
                               </span>
                             </div>
                             {index === 0 && <span className="text-xs text-green-600">Latest</span>}
@@ -1001,21 +995,42 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && (
-        <div className="bg-white border-b border-gray-200 shadow-sm p-4 md:px-7 z-10 flex-shrink-0" data-desktop-header>
+        <div className="bg-white border-b border-gray-200 shadow-sm py-4 px-5 md:px-6 z-10 flex-shrink-0" data-desktop-header>
           <div className="space-y-3 md:space-y-4">
             {/* Title and Type Section */}
             {!isMobile && (
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
-                <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0 flex-1">{selectedFile.name}</h1>
-                {documentContent?.document_type && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full" 
-                      style={{ backgroundColor: documentContent.document_type.color }}
-                    />
-                    {documentContent.document_type.name}
-                  </div>
-                )}
+                <div className="flex flex-col gap-2 flex-1">
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
+                  {/* {selectedExecutionInfo && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span>Version:</span>
+                      <span className="font-medium">{selectedExecutionInfo.formattedDate}</span>
+                      {selectedExecutionInfo.isLatest && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                  )} */}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {documentContent?.document_type && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                      <div 
+                        className="w-2 h-2 rounded-full" 
+                        style={{ backgroundColor: documentContent.document_type.color }}
+                      />
+                      {documentContent.document_type.name}
+                    </div>
+                  )}
+                  {fullDocument?.template_name && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
+                      <FileCode className="w-2 h-2" />
+                      {fullDocument.template_name}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             
@@ -1023,7 +1038,7 @@ export function AssetContent({
             {/* Action Buttons Section */}
             <div className="flex items-start gap-2 flex-wrap">
               {/* Primary Actions Group */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
               <ExecuteSheet
                 selectedFile={selectedFile}
                 fullDocument={fullDocument}
@@ -1074,7 +1089,7 @@ export function AssetContent({
               </div>
               
               {/* Secondary Actions Group */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
                 {/* Execution Dropdown - only show for documents with executions */}
                 {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
                   <DropdownMenu>
@@ -1082,30 +1097,24 @@ export function AssetContent({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors"
-                        title="Switch Execution"
+                        className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                        title="Switch Version"
                       >
-                        <RotateCcw className="h-3.5 w-3.5" />
+                        <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuContent align="end" className="w-64">
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-xs font-medium text-gray-900">Document Versions</p>
+                        <p className="text-xs text-gray-500">Select a version to view</p>
+                      </div>
                       {documentContent.executions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
                           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                         )
                         .map((execution: { id: string; created_at: string }, index: number) => {
                           const date = new Date(execution.created_at);
-                          const isToday = date.toDateString() === new Date().toDateString();
-                          const timeStr = date.toLocaleTimeString('es-ES', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: false 
-                          });
-                          const dateStr = isToday ? 'Today' : date.toLocaleDateString('es-ES', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric'
-                          });
+                          const formattedDate = formatDateTime(date);
                           const isSelected = selectedExecutionId === execution.id;
                           
                           return (
@@ -1120,7 +1129,7 @@ export function AssetContent({
                               <div className="flex items-center gap-2">
                                 {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
                                 <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
-                                  {dateStr} {timeStr}
+                                  {formattedDate}
                                 </span>
                               </div>
                               {index === 0 && <span className="text-xs text-green-600">Latest</span>}
@@ -1136,7 +1145,7 @@ export function AssetContent({
                   onClick={openEditDialog}
                   size="sm"
                   variant="ghost"
-                  className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                  className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                   title="Edit Document"
                 >
                   <Edit3 className="h-3.5 w-3.5" />
@@ -1147,7 +1156,7 @@ export function AssetContent({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                      className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                       title="Export Options"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -1169,24 +1178,11 @@ export function AssetContent({
                   onClick={() => setTimeout(() => openDeleteDialog(), 0)}
                   size="sm"
                   variant="ghost"
-                  className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
+                  className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
                   title="Delete Document"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-                
-                {/* Table of Contents Toggle */}
-                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && (
-                  <Button
-                    onClick={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                    title={isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}
-                  >
-                    <List className="h-3.5 w-3.5" />
-                  </Button>
-                )}
               </div>
             </div>
             
@@ -1372,7 +1368,6 @@ export function AssetContent({
           header={
             <div className="p-4">
               <div className="flex items-center gap-2">
-                <List className="h-4 w-4 text-gray-600" />
                 <h3 className="text-sm font-semibold text-gray-900">Table of Contents</h3>
               </div>
             </div>
@@ -1412,6 +1407,7 @@ export function AssetContent({
               onSubmit={handleDirectSectionSubmit}
               isPending={addSectionMutation.isPending}
               existingSections={fullDocument?.sections || []}
+              onValidationChange={setIsDirectSectionFormValid}
             />
           </div>
           
@@ -1420,7 +1416,10 @@ export function AssetContent({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsDirectSectionDialogOpen(false)}
+              onClick={() => {
+                setIsDirectSectionDialogOpen(false);
+                setIsDirectSectionFormValid(false);
+              }}
               disabled={addSectionMutation.isPending}
               className="hover:cursor-pointer"
             >
@@ -1429,7 +1428,7 @@ export function AssetContent({
             <Button
               type="submit"
               form="add-section-form"
-              disabled={addSectionMutation.isPending}
+              disabled={addSectionMutation.isPending || !isDirectSectionFormValid}
               className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
             >
               {addSectionMutation.isPending ? (

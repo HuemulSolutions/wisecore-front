@@ -134,7 +134,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
         <Button
           onClick={() => setIsOpen(!isOpen)}
           size="lg"
-          className="h-14 w-14 rounded-full bg-primary hover:bg-secondary hover:cursor-pointer text-white shadow-lg transition-all duration-300 transform hover:scale-105"
+          className="h-14 w-14 rounded-full bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
         >
           {isOpen ? (
             <X className="w-6 h-6" />
@@ -147,24 +147,24 @@ export default function Chatbot({ executionId }: ChatbotProps) {
       {/* Ventana de chat */}
       {isOpen && (
         <div
-          className={`fixed bottom-24 right-6 z-50 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-500 ease-in-out ${
+          className={`fixed bottom-24 right-6 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden transition-all duration-500 ease-in-out ${
             isExpanded
               ? 'w-[min(100vw-4rem,1100px)] h-[min(100vh-6rem,900px)]'
               : 'w-[520px] h-[600px]'
           }`}
         >
           {/* Header */}
-          <div className="bg-primary text-white p-4 rounded-t-lg flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="bg-[#4464f7] text-white px-5 py-4 rounded-t-xl flex items-center justify-between">
+            <div className="flex items-center space-x-3">
               <MessageCircle className="w-5 h-5" />
-              <h3 className="font-semibold">Wisecore AI</h3>
+              <h3 className="font-semibold text-base">Wisecore AI</h3>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <Button
                 onClick={() => setIsExpanded(!isExpanded)}
                 size="sm"
                 variant="ghost"
-                className="text-white hover:text-gray-200 hover:bg-primary/20 hover:cursor-pointer h-8 w-8 p-0"
+                className="text-white hover:text-white hover:bg-white/20 hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors"
               >
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </Button>
@@ -172,7 +172,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
                 onClick={handleClearConversation}
                 size="sm"
                 variant="ghost"
-                className="text-white hover:text-gray-200 hover:bg-primary/20 hover:cursor-pointer h-8 w-8 p-0"
+                className="text-white hover:text-white hover:bg-white/20 hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors"
               >
                 <Plus className="w-4 h-4" />
               </Button>
@@ -181,7 +181,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
 
           {/* Mensajes */}
           <div
-            className="flex-1 overflow-y-auto p-4 space-y-3"
+            className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50/50"
             aria-live="polite"
           >
             {messages.map((msg) => (
@@ -191,8 +191,8 @@ export default function Chatbot({ executionId }: ChatbotProps) {
           </div>
 
             {/* Input */}
-          <div className="border-t border-gray-200 p-4">
-            <div className="flex items-end space-x-2">
+          <div className="border-t border-gray-100 bg-white px-5 py-4">
+            <div className="flex items-end space-x-3">
               <textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -200,7 +200,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
                 placeholder="Write your message..."
                 disabled={isLoading}
                 rows={1}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm resize-none overflow-hidden min-h-[38px] max-h-32"
+                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent text-sm resize-none overflow-hidden min-h-[44px] max-h-32 bg-gray-50 hover:bg-white transition-colors"
                 style={{
                   height: "auto",
                   minHeight: "38px",
@@ -215,7 +215,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isLoading}
                 size="sm"
-                className="bg-primary hover:bg-secondary hover:cursor-pointer text-white px-3 py-2 disabled:opacity-50 flex-shrink-0"
+                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-white px-4 py-3 disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 rounded-xl h-[44px] min-w-[44px] transition-all"
               >
                 <Send className="w-4 h-4" />
               </Button>

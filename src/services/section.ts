@@ -1,12 +1,15 @@
 import { backendUrl } from "@/config";
 
-export async function createSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string }) {
+export async function createSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string; type?: string }) {
     const response = await fetch(`${backendUrl}/sections/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(sectionData),
+        body: JSON.stringify({
+            ...sectionData,
+            type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
+        }),
     });
 
     if (!response.ok) {

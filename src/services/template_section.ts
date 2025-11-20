@@ -3,13 +3,16 @@ import { backendUrl } from "@/config";
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
 // No necesitamos un endpoint separado para obtener las secciones
 
-export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string }) {
+export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string; type?: string }) {
     const response = await fetch(`${backendUrl}/template_section/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(sectionData),
+        body: JSON.stringify({
+            ...sectionData,
+            type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
+        }),
     });
 
     if (!response.ok) {
