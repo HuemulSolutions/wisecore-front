@@ -482,15 +482,18 @@ export function AssetContent({
   useEffect(() => {
     if (selectedFile?.type === 'document' && documentContent?.executions?.length > 0) {
       // Si no hay ejecución seleccionada, usar la ejecución más reciente (primera en la lista)
+      // Only initialize if there's no selected execution AND documentContent just loaded
       if (!selectedExecutionId) {
         const mostRecentExecution = documentContent.executions[0];
         setSelectedExecutionId(mostRecentExecution.id);
       }
     }
-  }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
+  }, [selectedFile?.id, documentContent?.executions?.length]); // Removed selectedExecutionId to avoid conflicts
 
   // Auto-update to latest execution when returning to a document with completed executions
-  useEffect(() => {
+  // This is disabled to avoid interfering with manual user selections
+  // Users can manually select any version they want from the dropdown
+  /* useEffect(() => {
     if (selectedFile?.type === 'document' && 
         documentContent?.executions?.length > 0 && 
         documentExecutions?.length > 0 && 
@@ -518,7 +521,7 @@ export function AssetContent({
         }, 100);
       }
     }
-  }, [selectedFile, documentContent, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]);
+  }, [selectedFile, documentContent, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]); */
 
 
 
@@ -925,7 +928,9 @@ export function AssetContent({
                             className="hover:cursor-pointer flex items-center justify-between"
                             onClick={() => {
                               setSelectedExecutionId(execution.id);
-                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              // Invalidate all document-content queries and refetch with new execution ID
+                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                             }}
                           >
                             <div className="flex items-center gap-2">
@@ -1123,7 +1128,9 @@ export function AssetContent({
                               className="hover:cursor-pointer flex items-center justify-between"
                               onClick={() => {
                                 setSelectedExecutionId(execution.id);
-                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                                // Invalidate all document-content queries and refetch with new execution ID
+                                queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                               }}
                             >
                               <div className="flex items-center gap-2">
