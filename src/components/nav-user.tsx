@@ -7,6 +7,7 @@ import {
   Settings,
   User,
 } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
 
 import {
   Avatar,
@@ -29,16 +30,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar?: string
-  }
-}) {
+export function NavUser() {
   const { isMobile } = useSidebar()
+  const { user, logout } = useAuth()
+
+  // If no user, return null
+  if (!user) return null
 
   // Generate initials from user name
   const getUserInitials = (name: string): string => {
@@ -62,8 +59,7 @@ export function NavUser({
   }
 
   const handleSignOut = () => {
-    console.log('Sign out user')
-    // TODO: Implement sign out logic
+    logout()
   }
 
   return (
@@ -76,13 +72,13 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src="" alt={user.username} />
                 <AvatarFallback className="rounded-lg bg-blue-100 text-blue-700 font-semibold text-xs">
-                  {getUserInitials(user.name)}
+                  {getUserInitials(user.username)}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium">{user.username}</span>
                 <span className="truncate text-xs text-muted-foreground">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -97,18 +93,18 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src="" alt={user.username} />
                   <AvatarFallback className="rounded-lg bg-blue-100 text-blue-700 font-semibold text-xs">
-                    {getUserInitials(user.name)}
+                    {getUserInitials(user.username)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{user.username}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {/* <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem className="hover:cursor-pointer" onClick={handleProfileClick}>
                 <User className="h-4 w-4 mr-2" />
@@ -123,7 +119,7 @@ export function NavUser({
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator /> */}
             <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign out
