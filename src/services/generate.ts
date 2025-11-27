@@ -1,4 +1,5 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type { EventSourceMessage } from "@microsoft/fetch-event-source";
 
@@ -45,9 +46,15 @@ async function* ssePostStream(
     }
   }
 
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = httpClient.getAuthToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   fetchEventSource(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
     onmessage: onMessage,
     onclose: onClose,
@@ -117,6 +124,8 @@ interface GenerateWorkerParams {
     documentId: string;
     executionId: string;
     instructions?: string;
+    startSectionId?: string;
+    singleSectionMode?: boolean;
 }
 
 // New function for worker-based generation (no streaming)
@@ -124,20 +133,26 @@ export const generateDocumentWorker = async (params: GenerateWorkerParams): Prom
     if (!params) {
         throw new TypeError("generateDocumentWorker: parameter 'params' is undefined. You must pass an object with the required properties.");
     }
-    const { documentId, executionId, instructions } = params;
+    const { documentId, executionId, instructions, startSectionId, singleSectionMode } = params;
+
+    // Construct payload based on the execution mode
+    const payload: Record<string, unknown> = {
+        document_id: documentId,
+        execution_id: executionId,
+        instructions: instructions || '',
+    };
+
+    // Add optional parameters for different execution modes
+    if (startSectionId) {
+        payload.start_section_id = startSectionId;
+    }
+
+    if (singleSectionMode !== undefined) {
+        payload.single_section_mode = singleSectionMode;
+    }
 
     try {
-        const response = await fetch(`${backendUrl}/generation/generate_worker`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                document_id: documentId,
-                execution_id: executionId,
-                instructions: instructions || '',
-            }),
-        });
+        const response = await httpClient.post(`${backendUrl}/generation/generate_worker`, payload);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -150,6 +165,82 @@ export const generateDocumentWorker = async (params: GenerateWorkerParams): Prom
         throw error;
     }
 }
+
+// Convenience functions for different generation modes
+
+/**
+ * Mode 1: Execute entire document
+ * Requires: document_id, execution_id
+ * Optional: instructions
+ */
+export const generateEntireDocument = async (
+    documentId: string,
+    executionId: string,
+    instructions?: string
+): Promise<void> => {
+    return generateDocumentWorker({
+        documentId,
+        executionId,
+        instructions,
+    });
+};
+
+/**
+ * Mode 2: Execute from a specific section onwards
+ * Requires: document_id, execution_id, start_section_id
+ * Optional: instructions
+ */
+export const generateFromSection = async (
+    documentId: string,
+    executionId: string,
+    startSectionId: string,
+    instructions?: string
+): Promise<void> => {
+    return generateDocumentWorker({
+        documentId,
+        executionId,
+        startSectionId,
+        instructions,
+    });
+};
+
+/**
+ * Mode 3: Execute only a specific section
+ * Requires: document_id, execution_id, start_section_id, single_section_mode = true
+ * Optional: instructions
+ */
+export const generateSingleSection = async (
+    documentId: string,
+    executionId: string,
+    startSectionId: string,
+    instructions?: string
+): Promise<void> => {
+    return generateDocumentWorker({
+        documentId,
+        executionId,
+        startSectionId,
+        singleSectionMode: true,
+        instructions,
+    });
+};
+
+/**
+ * Mode 4: Execute first section only
+ * Requires: document_id, execution_id, single_section_mode = true
+ * Optional: instructions
+ */
+export const generateFirstSection = async (
+    documentId: string,
+    executionId: string,
+    instructions?: string
+): Promise<void> => {
+    return generateDocumentWorker({
+        documentId,
+        executionId,
+        singleSectionMode: true,
+        instructions,
+    });
+};
 
 // Legacy streaming function (kept for backward compatibility)
 export const generateDocument = async (params: GenerateStreamParams): Promise<void> => {

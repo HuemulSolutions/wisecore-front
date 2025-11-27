@@ -1,9 +1,10 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 
 export async function getExecutionsByDocumentId(documentId: string) {
     console.log(`Fetching executions for document ID: ${documentId}`);
-    const response = await fetch(`${backendUrl}/documents/${documentId}/executions`);
+    const response = await httpClient.get(`${backendUrl}/documents/${documentId}/executions`);
     if (!response.ok) {
         throw new Error('Error al obtener las ejecuciones del documento');
     }
@@ -14,7 +15,7 @@ export async function getExecutionsByDocumentId(documentId: string) {
 
 export async function getExecutionById(executionId: string) {
     console.log(`Fetching execution with ID: ${executionId}`);
-    const response = await fetch(`${backendUrl}/execution/${executionId}`);
+    const response = await httpClient.get(`${backendUrl}/execution/${executionId}`);
     if (!response.ok) {
         throw new Error('Error al obtener la ejecución');
     }
@@ -26,12 +27,7 @@ export async function getExecutionById(executionId: string) {
 export async function getExecutionStatus(executionId: string) {
     console.log(`Fetching execution status with ID: ${executionId}`);
     try {
-        const response = await fetch(`${backendUrl}/execution/status/${executionId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        const response = await httpClient.get(`${backendUrl}/execution/status/${executionId}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -48,12 +44,7 @@ export async function getExecutionStatus(executionId: string) {
 
 export async function createExecution(documentId: string) {
     console.log(`Creating execution for document ID: ${documentId}`);
-    const response = await fetch(`${backendUrl}/execution/${documentId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    const response = await httpClient.post(`${backendUrl}/execution/${documentId}`);
 
     if (!response.ok) {
         throw new Error('Error al crear la ejecución del documento');
@@ -67,9 +58,7 @@ export async function createExecution(documentId: string) {
 
 export async function deleteExecution(executionId: string) {
     console.log(`Deleting execution with ID: ${executionId}`);
-    const response = await fetch(`${backendUrl}/execution/${executionId}`, {
-        method: 'DELETE',
-    });
+    const response = await httpClient.delete(`${backendUrl}/execution/${executionId}`);
     if (!response.ok) {
         throw new Error('Error al eliminar la ejecución');
     }
@@ -81,13 +70,7 @@ export async function deleteExecution(executionId: string) {
 
 export async function updateLLM(executionId: string, llmId: string) {
     console.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
-    const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ llm_id: llmId }),
-    });
+    const response = await httpClient.put(`${backendUrl}/execution/update_llm/${executionId}`, { llm_id: llmId });
 
     if (!response.ok) {
         throw new Error('Error al actualizar el LLM de la ejecución');
@@ -112,7 +95,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     };
     
     console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
-    const response = await fetch(`${backendUrl}/execution/${endpoints[exportType]}/${executionId}`);
+    const response = await httpClient.get(`${backendUrl}/execution/${endpoints[exportType]}/${executionId}`);
     
     if (!response.ok) {
         throw new Error(`Error al exportar la ejecución a ${exportType}`);
@@ -155,9 +138,7 @@ export async function exportExecutionCustomWord(executionId: string) {
 
 export async function approveExecution(executionId: string) {
     console.log(`Approving execution with ID: ${executionId}`);
-    const response = await fetch(`${backendUrl}/execution/approve/${executionId}`, {
-        method: 'POST',
-    });
+    const response = await httpClient.post(`${backendUrl}/execution/approve/${executionId}`);
     if (!response.ok) {
         throw new Error('Error al aprobar la ejecución');
     }
@@ -168,9 +149,7 @@ export async function approveExecution(executionId: string) {
 
 export async function disapproveExecution(executionId: string) {
     console.log(`Disapproving execution with ID: ${executionId}`);
-    const response = await fetch(`${backendUrl}/execution/disapprove/${executionId}`, {
-        method: 'POST',
-    });
+    const response = await httpClient.post(`${backendUrl}/execution/disapprove/${executionId}`);
     if (!response.ok) {
         throw new Error('Error al desaprobar la ejecución');
     }

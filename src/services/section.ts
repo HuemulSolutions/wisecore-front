@@ -1,15 +1,10 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 export async function createSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string; type?: string }) {
-    const response = await fetch(`${backendUrl}/sections/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            ...sectionData,
-            type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
-        }),
+    const response = await httpClient.post(`${backendUrl}/sections/`, {
+        ...sectionData,
+        type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
     });
 
     if (!response.ok) {
@@ -24,13 +19,7 @@ export async function createSection(sectionData: { name: string; prompt: string;
 }
 
 export async function updateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
-    const response = await fetch(`${backendUrl}/sections/${sectionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sectionData),
-    });
+    const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData);
 
     if (!response.ok) {
         const errorResponse = await response.json();
@@ -44,13 +33,7 @@ export async function updateSection(sectionId: string, sectionData: { name?: str
 
 
 export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
-    const response = await fetch(`${backendUrl}/sections/order`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ new_order: sections }),
-    });
+    const response = await httpClient.put(`${backendUrl}/sections/order`, { new_order: sections });
 
     if (!response.ok) {
         const errorResponse = await response.json();
@@ -64,9 +47,7 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
 }
 
 export async function deleteSection(sectionId: string) {
-    const response = await fetch(`${backendUrl}/sections/${sectionId}`, {
-        method: 'DELETE',
-    });
+    const response = await httpClient.delete(`${backendUrl}/sections/${sectionId}`);
 
     if (!response.ok) {
         const errorResponse = await response.json();
