@@ -1,11 +1,11 @@
 "use client"
 
 import {
-  Bell,
+  // Bell,
   ChevronsUpDown,
   LogOut,
-  Settings,
-  User,
+  // Settings,
+  // User,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -17,10 +17,10 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
+  // DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
+  // DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -47,16 +47,16 @@ export function NavUser() {
       .slice(0, 2)
   }
 
-  // User actions
-  const handleProfileClick = () => {
-    console.log('Navigate to profile')
-    // TODO: Navigate to profile page
-  }
+  // // User actions
+  // const handleProfileClick = () => {
+  //   console.log('Navigate to profile')
+  //   // TODO: Navigate to profile page
+  // }
 
-  const handleSettingsClick = () => {
-    console.log('Navigate to settings')
-    // TODO: Navigate to settings page
-  }
+  // const handleSettingsClick = () => {
+  //   console.log('Navigate to settings')
+  //   // TODO: Navigate to settings page
+  // }
 
   const handleSignOut = () => {
     logout()
