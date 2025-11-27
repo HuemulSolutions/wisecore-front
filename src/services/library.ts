@@ -1,9 +1,10 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 export async function getLibraryContent(organizationId: string, folderId?: string) {
     const folderPath = folderId || 'root';
     const url = `${backendUrl}/folder/${folderPath}`;
-    const response = await fetch(url, {
+    const response = await httpClient.get(url, {
         headers: {
             'OrganizationId': organizationId,
         },
@@ -18,17 +19,11 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
 
 
 export async function createFolder(name: string, organizationId?: string, parentId?: string) {
-    const response = await fetch(`${backendUrl}/folder/create_folder`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            name,
-            type: 'folder',
-            organization_id: organizationId,
-            parent_folder_id: parentId || null,
-        }),
+    const response = await httpClient.post(`${backendUrl}/folder/create_folder`, {
+        name,
+        type: 'folder',
+        organization_id: organizationId,
+        parent_folder_id: parentId || null,
     });
     if (!response.ok) {
         throw new Error('Error creating folder');
@@ -40,14 +35,8 @@ export async function createFolder(name: string, organizationId?: string, parent
 
 
 export async function editFolder(folderId: string, name: string) {
-    const response = await fetch(`${backendUrl}/folder/${folderId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            name,
-        }),
+    const response = await httpClient.put(`${backendUrl}/folder/${folderId}`, {
+        name,
     });
     if (!response.ok) {
         throw new Error('Error editing folder');
@@ -58,12 +47,7 @@ export async function editFolder(folderId: string, name: string) {
 }
 
 export async function deleteFolder(folderId: string) {
-    const response = await fetch(`${backendUrl}/folder/${folderId}`, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    const response = await httpClient.delete(`${backendUrl}/folder/${folderId}`);
     if (!response.ok) {
         throw new Error('Error deleting folder');
     }
@@ -73,14 +57,8 @@ export async function deleteFolder(folderId: string) {
 }
 
 export async function moveFolder(folderId: string, newParentId?: string) {
-    const response = await fetch(`${backendUrl}/folder/${folderId}/move`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            parent_folder_id: newParentId || null,
-        }),
+    const response = await httpClient.put(`${backendUrl}/folder/${folderId}/move`, {
+        parent_folder_id: newParentId || null,
     });
     if (!response.ok) {
         throw new Error('Error moving folder');

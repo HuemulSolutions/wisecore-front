@@ -17,9 +17,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
 export function TeamSwitcher({
@@ -135,42 +134,53 @@ export function TeamSwitcher({
                   <div className="font-medium text-muted-foreground">Add Organization</div>
                 </DropdownMenuItem>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle>Create New Organization</DialogTitle>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-[#4464f7]" />
+                    Create New Organization
+                  </DialogTitle>
+                  <DialogDescription>
+                    Create a new organization to manage your documents and templates.
+                  </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="org-name">Organization Name</Label>
-                    <Input
-                      id="org-name"
-                      value={newOrgName}
-                      onChange={(e) => setNewOrgName(e.target.value)}
-                      placeholder="Enter organization name"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleCreateOrganization()
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setIsDialogOpen(false)}
-                      className="hover:cursor-pointer"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleCreateOrganization}
-                      disabled={!newOrgName.trim() || isCreating}
-                      className="hover:cursor-pointer"
-                    >
-                      {isCreating ? 'Creating...' : 'Create'}
-                    </Button>
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="org-name" className="text-sm font-medium text-gray-900 block mb-2">
+                        Organization Name *
+                      </label>
+                      <Input
+                        id="org-name"
+                        value={newOrgName}
+                        onChange={(e) => setNewOrgName(e.target.value)}
+                        placeholder="Enter organization name"
+                        className="w-full"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCreateOrganization()
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
+                <DialogFooter className="flex justify-end space-x-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsDialogOpen(false)}
+                    className="hover:cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleCreateOrganization}
+                    disabled={!newOrgName.trim() || isCreating}
+                    className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                  >
+                    {isCreating ? 'Creating...' : 'Create'}
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </DropdownMenuContent>

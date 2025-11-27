@@ -1,4 +1,5 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
   const url = new URL(`${backendUrl}/documents/`);
@@ -11,7 +12,7 @@ export async function getAllDocuments(organizationId: string, documentTypeId?: s
     headers['OrganizationId'] = organizationId;
   }
   
-  const response = await fetch(url.toString(), {
+  const response = await httpClient.get(url.toString(), {
     headers,
   });
   if (!response.ok) {
@@ -23,7 +24,7 @@ export async function getAllDocuments(organizationId: string, documentTypeId?: s
 }
 
 export async function getDocumentById(documentId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}`);
+  const response = await httpClient.get(`${backendUrl}/documents/${documentId}`);
   if (!response.ok) {
     throw new Error('Error al obtener el documento');
   }
@@ -33,9 +34,7 @@ export async function getDocumentById(documentId: string) {
 }
 
 export async function deleteDocument(documentId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}`, {
-    method: 'DELETE',
-  });
+  const response = await httpClient.delete(`${backendUrl}/documents/${documentId}`);
   if (!response.ok) {
     throw new Error('Error al eliminar el documento');
   }
@@ -44,7 +43,7 @@ export async function deleteDocument(documentId: string) {
 }
 
 export async function getDocumentSections(documentId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}/sections`);
+  const response = await httpClient.get(`${backendUrl}/documents/${documentId}/sections`);
   if (!response.ok) {
     throw new Error('Error al obtener las secciones del documento');
   }
@@ -55,13 +54,10 @@ export async function getDocumentSections(documentId: string) {
 
 export async function createDocument(documentData: { name: string; description?: string; 
   template_id?: string | null; document_type_id?: string, folder_id?: string }, organizationId: string) {
-  const response = await fetch(`${backendUrl}/documents/`, {
-    method: 'POST',
+  const response = await httpClient.post(`${backendUrl}/documents/`, documentData, {
     headers: {
-      'Content-Type': 'application/json',
       'OrganizationId': organizationId,
     },
-    body: JSON.stringify(documentData),
   });
 
   if (!response.ok) {
@@ -82,12 +78,7 @@ export async function getDocumentContent(documentId: string, executionId?: strin
     url.searchParams.append('execution_id', executionId);
   }
 
-  const response = await fetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const response = await httpClient.get(url.toString());
   if (!response.ok) {
     throw new Error('Error al obtener el contenido del documento');
   } 
@@ -98,12 +89,7 @@ export async function getDocumentContent(documentId: string, executionId?: strin
 
 
 export async function generateDocumentStructure(documentId: string) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}/generate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const response = await httpClient.post(`${backendUrl}/documents/${documentId}/generate`);
 
   if (!response.ok) {
     throw new Error('Error al generar la estructura del documento');
@@ -119,13 +105,10 @@ export async function updateDocument(
   documentData: { name?: string; description?: string }, 
   organizationId: string
 ) {
-  const response = await fetch(`${backendUrl}/documents/${documentId}`, {
-    method: 'PUT',
+  const response = await httpClient.put(`${backendUrl}/documents/${documentId}`, documentData, {
     headers: {
-      'Content-Type': 'application/json',
       'OrganizationId': organizationId,
     },
-    body: JSON.stringify(documentData),
   });
 
   if (!response.ok) {
@@ -142,14 +125,8 @@ export async function updateDocument(
 export async function moveDocument(documentId: string, newParentId?: string) {
   console.log('Moving document:', documentId, 'to parent:', newParentId);
   
-  const response = await fetch(`${backendUrl}/documents/${documentId}/move`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      parent_folder_id: newParentId,
-    }),
+  const response = await httpClient.put(`${backendUrl}/documents/${documentId}/move`, {
+    parent_folder_id: newParentId,
   });
 
   if (!response.ok) {

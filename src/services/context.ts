@@ -1,7 +1,8 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 export async function getContext(documentId: string) {
-  const response = await fetch(`${backendUrl}/context/${documentId}`);
+  const response = await httpClient.get(`${backendUrl}/context/${documentId}`);
   if (!response.ok) {
     throw new Error('Error al obtener el contexto del documento');
   }
@@ -11,15 +12,9 @@ export async function getContext(documentId: string) {
 }
 
 export async function addTextContext(documentId: string, name: string, content: string) {
-  const response = await fetch(`${backendUrl}/context/${documentId}/text`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name,
-      content,
-    }),
+  const response = await httpClient.post(`${backendUrl}/context/${documentId}/text`, {
+    name,
+    content,
   });
   
   if (!response.ok) {
@@ -35,7 +30,7 @@ export async function addDocumentContext(documentId: string, file: File) {
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await fetch(`${backendUrl}/context/${documentId}/file`, {
+  const response = await httpClient.fetch(`${backendUrl}/context/${documentId}/file`, {
     method: 'POST',
     body: formData,
   });
@@ -50,9 +45,7 @@ export async function addDocumentContext(documentId: string, file: File) {
 }
 
 export async function deleteContext(contextId: string) {
-  const response = await fetch(`${backendUrl}/context/${contextId}`, {
-    method: 'DELETE',
-  });
+  const response = await httpClient.delete(`${backendUrl}/context/${contextId}`);
   
   if (!response.ok) {
     throw new Error('Error deleting context');

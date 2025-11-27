@@ -1,4 +1,4 @@
-import { MoreVertical, Edit, Bot, Send, Copy, Trash2 } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Send, Copy, Trash2, Play, FastForward } from 'lucide-react';
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
 import Editor from '../editor';
@@ -26,7 +26,7 @@ import {
     AlertDialogCancel,
     AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { fixSection } from '@/services/generate';
+import { fixSection, generateSingleSection, generateFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { toast } from 'sonner';
 
@@ -34,13 +34,25 @@ interface SectionExecutionProps {
     sectionExecution: {
         id: string;
         output: string;
+        section_id?: string;
     }
     onUpdate?: () => void;
     readyToEdit: boolean;
-    sectionIndex?: number; // Add section index for generating unique IDs
+    sectionIndex?: number;
+    documentId?: string;
+    executionId?: string;
+    onExecutionStart?: (executionId?: string) => void;
 }
 
-export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit, sectionIndex }: SectionExecutionProps) {
+export default function SectionExecution({ 
+    sectionExecution, 
+    onUpdate, 
+    readyToEdit, 
+    sectionIndex, 
+    documentId, 
+    executionId, 
+    onExecutionStart 
+}: SectionExecutionProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
@@ -49,9 +61,15 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isAiProcessing, setIsAiProcessing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isExecuting, setIsExecuting] = useState(false);
     const isMobile = useIsMobile();
 
-    console.log('SectionExecution Props:', { sectionExecution });
+    console.log('SectionExecution Props:', { 
+        sectionExecution, 
+        documentId, 
+        executionId,
+        section_id: sectionExecution.section_id 
+    });
 
     const handleSave = async (sectionId: string, newContent: string) => {
         try {
@@ -75,6 +93,46 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         } catch (error) {
             console.error('Error copying to clipboard:', error);
             toast.error('Failed to copy content to clipboard');
+        }
+    };
+
+    const handleExecuteSection = async () => {
+        if (!documentId || !executionId || !sectionExecution.section_id) {
+            toast.error('Missing required information for section execution');
+            return;
+        }
+
+        try {
+            setIsExecuting(true);
+            onExecutionStart?.(executionId); // Pass executionId to show banner
+            await generateSingleSection(documentId, executionId, sectionExecution.section_id);
+            toast.success('Section execution started successfully');
+            onUpdate?.();
+        } catch (error) {
+            console.error('Error executing section:', error);
+            toast.error('Failed to execute section. Please try again.');
+        } finally {
+            setIsExecuting(false);
+        }
+    };
+
+    const handleExecuteFromSection = async () => {
+        if (!documentId || !executionId || !sectionExecution.section_id) {
+            toast.error('Missing required information for section execution');
+            return;
+        }
+
+        try {
+            setIsExecuting(true);
+            onExecutionStart?.(executionId); // Pass executionId to show banner
+            await generateFromSection(documentId, executionId, sectionExecution.section_id);
+            toast.success('Execution from this section started successfully');
+            onUpdate?.();
+        } catch (error) {
+            console.error('Error executing from section:', error);
+            toast.error('Failed to execute from section. Please try again.');
+        } finally {
+            setIsExecuting(false);
         }
     };
 
@@ -135,6 +193,44 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                         <p>Copy content</p>
                                     </TooltipContent>
                                 </Tooltip>
+
+                                {documentId && executionId && sectionExecution.section_id && (
+                                    <>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
+                                                    onClick={handleExecuteSection}
+                                                    disabled={isExecuting}
+                                                >
+                                                    <Play className="h-3.5 w-3.5 text-green-600" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Execute this section</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
+                                                    onClick={handleExecuteFromSection}
+                                                    disabled={isExecuting}
+                                                >
+                                                    <FastForward className="h-3.5 w-3.5 text-purple-600" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Execute from this section</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </>
+                                )}
 
                                 {!isEditing && !isAiEditing && (
                                     <Tooltip>
@@ -208,6 +304,26 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                         <Copy className="h-4 w-4 mr-2" />
                                         Copy
                                     </DropdownMenuItem>
+                                    {documentId && executionId && sectionExecution.section_id && (
+                                        <>
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onClick={handleExecuteSection}
+                                                disabled={isExecuting}
+                                            >
+                                                <Play className="h-4 w-4 mr-2" />
+                                                Execute Section
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onClick={handleExecuteFromSection}
+                                                disabled={isExecuting}
+                                            >
+                                                <FastForward className="h-4 w-4 mr-2" />
+                                                Execute From Section
+                                            </DropdownMenuItem>
+                                        </>
+                                    )}
                                     {!isEditing && !isAiEditing && (
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'

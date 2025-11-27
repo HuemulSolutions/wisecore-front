@@ -1,18 +1,13 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
 // No necesitamos un endpoint separado para obtener las secciones
 
 export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string; type?: string }) {
-    const response = await fetch(`${backendUrl}/template_section/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            ...sectionData,
-            type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
-        }),
+    const response = await httpClient.post(`${backendUrl}/template_section/`, {
+        ...sectionData,
+        type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
     });
 
     if (!response.ok) {
@@ -27,13 +22,7 @@ export async function createTemplateSection(sectionData: { name: string; prompt:
 }
 
 export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
-    const response = await fetch(`${backendUrl}/template_section/${sectionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sectionData),
-    });
+    const response = await httpClient.put(`${backendUrl}/template_section/${sectionId}`, sectionData);
     if (!response.ok) {
         const errorResponse = await response.json();
         console.error('Error updating section:', errorResponse);
@@ -45,9 +34,7 @@ export async function updateTemplateSection(sectionId: string, sectionData: { na
 }
 
 export async function deleteTemplateSection(sectionId: string) {
-    const response = await fetch(`${backendUrl}/template_section/${sectionId}`, {
-        method: 'DELETE',
-    });
+    const response = await httpClient.delete(`${backendUrl}/template_section/${sectionId}`);
 
     if (!response.ok) {
         const errorResponse = await response.json();
@@ -62,13 +49,7 @@ export async function deleteTemplateSection(sectionId: string) {
 
 
 export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
-    const response = await fetch(`${backendUrl}/template_section/order`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ new_order: sections }),
-    });
+    const response = await httpClient.put(`${backendUrl}/template_section/order`, { new_order: sections });
 
     if (!response.ok) {
         throw new Error('Error al actualizar el orden de las secciones');

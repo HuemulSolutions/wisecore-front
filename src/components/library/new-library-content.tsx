@@ -308,6 +308,9 @@ export function AssetContent({
   // State for tracking current execution for polling
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   
+  // Estado para tracking de ejecuciones de secciones individuales
+  const [sectionExecutionId, setSectionExecutionId] = useState<string | null>(null);
+  
   // Direct section creation state
   const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
@@ -328,6 +331,7 @@ export function AssetContent({
   // Clear current execution ID when selectedFile changes to prevent showing banner for wrong file
   useEffect(() => {
     setCurrentExecutionId(null);
+    setSectionExecutionId(null);
   }, [selectedFile?.id]);
 
 
@@ -482,15 +486,18 @@ export function AssetContent({
   useEffect(() => {
     if (selectedFile?.type === 'document' && documentContent?.executions?.length > 0) {
       // Si no hay ejecución seleccionada, usar la ejecución más reciente (primera en la lista)
+      // Only initialize if there's no selected execution AND documentContent just loaded
       if (!selectedExecutionId) {
         const mostRecentExecution = documentContent.executions[0];
         setSelectedExecutionId(mostRecentExecution.id);
       }
     }
-  }, [selectedFile, documentContent, selectedExecutionId, setSelectedExecutionId]);
+  }, [selectedFile?.id, documentContent?.executions?.length]); // Removed selectedExecutionId to avoid conflicts
 
   // Auto-update to latest execution when returning to a document with completed executions
-  useEffect(() => {
+  // This is disabled to avoid interfering with manual user selections
+  // Users can manually select any version they want from the dropdown
+  /* useEffect(() => {
     if (selectedFile?.type === 'document' && 
         documentContent?.executions?.length > 0 && 
         documentExecutions?.length > 0 && 
@@ -518,7 +525,7 @@ export function AssetContent({
         }, 100);
       }
     }
-  }, [selectedFile, documentContent, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]);
+  }, [selectedFile, documentContent, documentExecutions, selectedExecutionId, setSelectedExecutionId, queryClient]); */
 
 
 
@@ -925,7 +932,9 @@ export function AssetContent({
                             className="hover:cursor-pointer flex items-center justify-between"
                             onClick={() => {
                               setSelectedExecutionId(execution.id);
-                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              // Invalidate all document-content queries and refetch with new execution ID
+                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                             }}
                           >
                             <div className="flex items-center gap-2">
@@ -1123,7 +1132,9 @@ export function AssetContent({
                               className="hover:cursor-pointer flex items-center justify-between"
                               onClick={() => {
                                 setSelectedExecutionId(execution.id);
-                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                                // Invalidate all document-content queries and refetch with new execution ID
+                                queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                               }}
                             >
                               <div className="flex items-center gap-2">
@@ -1208,6 +1219,20 @@ export function AssetContent({
                   className="mb-4"
                 />
                 
+                {/* Section Execution Status Banner - for individual section executions */}
+                {sectionExecutionId && sectionExecutionId !== (currentExecutionId || activeExecutionId) && (
+                  <ExecutionStatusBanner
+                    executionId={sectionExecutionId}
+                    onExecutionComplete={() => {
+                      setSectionExecutionId(null);
+                      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+                      refetchDocumentContent();
+                    }}
+                    className="mb-4"
+                  />
+                )}
+                
                 {isLoadingContent ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -1276,32 +1301,56 @@ export function AssetContent({
                           isMobile={isMobile}
                         />
                         
-                        {documentContent.content.map((section: ContentSection, index: number) => (
-                          <div key={section.id}>
-                            <div id={`section-${index}`}>
-                              <SectionExecution 
-                                sectionExecution={{
-                                  id: section.id,
-                                  output: section.content
-                                }}
-                                onUpdate={() => {
-                                  // Refresh document content when section is updated
-                                  queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                }}
-                                readyToEdit={true}
-                                sectionIndex={index}
+                        {documentContent.content.map((section: ContentSection, index: number) => {
+                          // Find the corresponding section in fullDocument to get the real section_id
+                          // Using index-based mapping as sections should be in the same order
+                          const correspondingSection = fullDocument?.sections?.[index];
+                          const realSectionId = correspondingSection?.id;
+                          
+                          // Debug logging to verify mapping
+                          console.log(`Section ${index}: execution_id=${section.id}, section_id=${realSectionId}`, {
+                            section_execution: section,
+                            document_section: correspondingSection
+                          });
+                          
+                          return (
+                            <div key={section.id}>
+                              <div id={`section-${index}`}>
+                                <SectionExecution 
+                                  sectionExecution={{
+                                    id: section.id, // This is the section_execution_id
+                                    output: section.content,
+                                    section_id: realSectionId // This is the real section_id from the document structure
+                                  }}
+                                  onUpdate={() => {
+                                    // Refresh document content when section is updated
+                                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                                    refetchDocumentContent();
+                                  }}
+                                  readyToEdit={true}
+                                  sectionIndex={index}
+                                  documentId={selectedFile?.id}
+                                  executionId={selectedExecutionId || undefined}
+                                  onExecutionStart={(executionIdForSection) => {
+                                    // Set section execution for polling banner
+                                    if (executionIdForSection) {
+                                      setSectionExecutionId(executionIdForSection);
+                                      console.log('Section execution started:', executionIdForSection);
+                                    }
+                                  }}
+                                />
+                              </div>
+                              
+                              {/* Add separator after each section */}
+                              <SectionSeparator 
+                                onAddSection={handleAddSectionAtPosition} 
+                                index={index}
+                                isLastSection={index === documentContent.content.length - 1}
+                                isMobile={isMobile}
                               />
                             </div>
-                            
-                            {/* Add separator after each section */}
-                            <SectionSeparator 
-                              onAddSection={handleAddSectionAtPosition} 
-                              index={index}
-                              isLastSection={index === documentContent.content.length - 1}
-                              isMobile={isMobile}
-                            />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </>
                     ) : (
                       // Legacy format: single string content

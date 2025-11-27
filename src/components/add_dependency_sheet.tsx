@@ -143,18 +143,18 @@ export default function AddDependencySheet({ id }: { id: string }) {
                             onDocumentSelect={handleSelectDocument}
                             onFilterChange={setSelectedDocumentTypes}
                             placeholder="Search and select a document to add as dependency..."
-                            disabled={addDependencyMutation.isPending}
+                            // disabled={addDependencyMutation.isPending}
                             excludeDocumentIds={[id, ...dependencies.map(dep => dep.document_id)]}
                             showContainer={true}
                             customPadding="p-4"
                         />
                         
-                        {addDependencyMutation.isPending && (
+                        {/* {addDependencyMutation.isPending && (
                             <div className="flex items-center gap-2 text-sm text-blue-600 mt-3 p-3 bg-blue-50 rounded-lg">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Adding dependency...
                             </div>
-                        )}
+                        )} */}
                     </div>
                 </div>
 

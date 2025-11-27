@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
     markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
-    BlockTypeSelect, tablePlugin, InsertTable
+    BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
+    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage, 
+    CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
  } from '@mdxeditor/editor';
 import type { MDXEditorMethods } from '@mdxeditor/editor';
 
@@ -119,15 +121,58 @@ export default function EditSection({ item, onCancel, onSave, existingSections =
                 quotePlugin(), 
                 tablePlugin(),
                 thematicBreakPlugin(), 
+                linkPlugin(),
+                linkDialogPlugin(),
+                imagePlugin({
+                  imageUploadHandler: async () => {
+                    return Promise.resolve('https://via.placeholder.com/400x300');
+                  }
+                }),
+                codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
+                codeMirrorPlugin({ codeBlockLanguages: { 
+                  js: 'JavaScript', 
+                  jsx: 'JavaScript (React)', 
+                  ts: 'TypeScript', 
+                  tsx: 'TypeScript (React)', 
+                  css: 'CSS', 
+                  html: 'HTML', 
+                  json: 'JSON',
+                  bash: 'Bash',
+                  sh: 'Shell',
+                  yaml: 'YAML',
+                  yml: 'YAML',
+                  xml: 'XML',
+                  sql: 'SQL',
+                  python: 'Python',
+                  go: 'Go',
+                  rust: 'Rust',
+                  java: 'Java',
+                  c: 'C',
+                  cpp: 'C++',
+                  php: 'PHP',
+                  ruby: 'Ruby',
+                  '': 'Plain text'
+                }}),
                 markdownShortcutPlugin(),
                 toolbarPlugin({
                   toolbarContents() {
                     return (
                       <>  
-                        <BlockTypeSelect />
-                        <BoldItalicUnderlineToggles />
-                        <InsertTable />
                         <UndoRedo />
+                        <Separator />
+                        <BoldItalicUnderlineToggles />
+                        <CodeToggle />
+                        <Separator />
+                        <ListsToggle />
+                        <Separator />
+                        <BlockTypeSelect />
+                        <Separator />
+                        <CreateLink />
+                        <InsertImage />
+                        <Separator />
+                        <InsertTable />
+                        <InsertCodeBlock />
+                        <InsertThematicBreak />
                       </>
                     )
                   },

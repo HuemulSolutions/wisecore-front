@@ -1,10 +1,11 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 
 export async function getAllDocumentTypes(organizationId: string) {
-    const url = new URL(`${backendUrl}/document_types/`);
+    const url = `${backendUrl}/document_types/`;
 
-    const response = await fetch(url.toString(), {
+    const response = await httpClient.get(url, {
         headers: {
             'OrganizationId': organizationId,
         },
@@ -18,13 +19,10 @@ export async function getAllDocumentTypes(organizationId: string) {
 }
 
 export async function createDocumentType(documentTypeData: { name: string; color: string }, organizationId: string) {
-    const response = await fetch(`${backendUrl}/document_types/`, {
-        method: 'POST',
+    const response = await httpClient.post(`${backendUrl}/document_types/`, documentTypeData, {
         headers: {
-            'Content-Type': 'application/json',
             'OrganizationId': organizationId,
         },
-        body: JSON.stringify(documentTypeData),
     });
 
     if (!response.ok) {
