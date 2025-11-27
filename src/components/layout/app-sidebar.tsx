@@ -14,7 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { NavMain } from "@/components/nav-main"
-// import { NavUser } from "@/components/nav-user" // Hidden - user information disabled
+import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { getAllOrganizations, addOrganization } from "@/services/organizations"
@@ -130,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navigationItems} />
       </SidebarContent>
       <SidebarFooter>
-        {/* NavUser removed - user information hidden */}
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
