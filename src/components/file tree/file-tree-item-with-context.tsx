@@ -324,18 +324,20 @@ export function FileTreeItemWithContext({
   }
 
   const handleDeleteFolder = () => {
-    setTimeout(() => setIsDeleteDialogOpen(true), 10);
+    setIsDeleteDialogOpen(true);
   };
+
 
   const handleDeleteConfirm = async () => {
     try {
       await deleteFolder(item.id);
       toast.success(`Folder "${item.name}" deleted successfully`);
       onRefresh?.();
-      setIsDeleteDialogOpen(false);
     } catch (error) {
       console.error('Error deleting folder:', error);
       toast.error(`Failed to delete folder. Please try again.`);
+    } finally {
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -491,10 +493,9 @@ export function FileTreeItemWithContext({
                       onFolderEdited={onRefresh}
                     />
                     <DropdownMenuItem 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setTimeout(handleDeleteFolder, 10);
-                      }} 
+                      onSelect={() => {
+                        handleDeleteFolder();
+                      }}
                       className="hover:cursor-pointer text-red-600 focus:text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -631,18 +632,20 @@ export function FileTreeItemWithContext({
 
       {/* Delete Confirmation Dialog - only for folders */}
       {isFolder && (
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!open) setIsDeleteDialogOpen(false); }}>
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent className="sm:max-w-[425px]">
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Folder</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete "{item.name}"? 
                 <br />
-                <strong className="text-red-600">All files and subfolders will be permanently deleted and this action cannot be undone.</strong>
+                <strong className="text-red-600">
+                  All files and subfolders will be permanently deleted and this action cannot be undone.
+                </strong>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="hover:cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setIsDeleteDialogOpen(false)}>
+              <AlertDialogCancel className="hover:cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
