@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { authService } from "@/services/auth"
+import packageJson from "../../../package.json"
 
 interface LoginFormProps extends React.ComponentProps<"div"> {
   onSwitchToSignup?: () => void
@@ -102,6 +103,9 @@ export function LoginForm({
           Privacy Policy
         </a>.
       </FieldDescription>
+      <div className="text-center text-xs text-gray-400">
+        Version {packageJson.version}
+      </div>
     </div>
   )
 }

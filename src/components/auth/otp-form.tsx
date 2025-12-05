@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/input-otp"
 import { authService } from "@/services/auth"
 import { useAuth } from "@/contexts/auth-context"
+import packageJson from "../../../package.json"
 
 interface OTPFormProps extends React.ComponentProps<"div"> {
   email: string
@@ -173,6 +174,9 @@ export function OTPForm({
           Privacy Policy
         </a>.
       </FieldDescription>
+      <div className="text-center text-xs text-gray-400">
+        Version {packageJson.version}
+      </div>
     </div>
   )
 }
