@@ -5,7 +5,10 @@ import { httpClient } from '@/lib/http-client';
 export interface User {
   id: string;
   email: string;
-  username: string;
+  name: string;
+  last_name: string;
+  status: string;
+  auth_type_id: string;
 }
 
 export interface AuthContextType {

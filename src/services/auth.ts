@@ -13,7 +13,8 @@ export interface VerifyCodeRequest {
 }
 
 export interface CreateUserRequest {
-  username: string;
+  name: string;
+  last_name: string;
   email: string;
   code: string;
 }
@@ -28,9 +29,17 @@ class AuthService {
 
   async requestCode(request: RequestCodeRequest): Promise<void> {
     console.log('AuthService: Requesting code to', `${this.baseUrl}/codes`, 'with purpose:', request.purpose);
-    const response = await httpClient.post(`${this.baseUrl}/codes`, {
-      email: request.email.toLowerCase(),
-      purpose: request.purpose,
+    
+    // Make request without auth token for public endpoint
+    const response = await fetch(`${this.baseUrl}/codes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: request.email.toLowerCase(),
+        purpose: request.purpose,
+      }),
     });
 
     if (!response.ok) {
@@ -44,9 +53,17 @@ class AuthService {
       email: request.email.toLowerCase(), 
       code: request.code 
     });
-    const response = await httpClient.post(`${this.baseUrl}/codes/verify`, {
-      email: request.email.toLowerCase(),
-      code: request.code,
+    
+    // Make request without auth token for public endpoint
+    const response = await fetch(`${this.baseUrl}/codes/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: request.email.toLowerCase(),
+        code: request.code,
+      }),
     });
 
     if (!response.ok) {
@@ -71,14 +88,24 @@ class AuthService {
 
   async createUser(request: CreateUserRequest): Promise<AuthResponse> {
     console.log('AuthService: Creating user to', `${this.baseUrl}/users`, 'with data:', { 
-      username: request.username, 
+      name: request.name, 
+      last_name: request.last_name,
       email: request.email.toLowerCase(), 
       code: request.code 
     });
-    const response = await httpClient.post(`${this.baseUrl}/users`, {
-      username: request.username,
-      email: request.email.toLowerCase(),
-      code: request.code,
+    
+    // Make request without auth token for public endpoint
+    const response = await fetch(`${this.baseUrl}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: request.name,
+        last_name: request.last_name,
+        email: request.email.toLowerCase(),
+        code: request.code,
+      }),
     });
 
     if (!response.ok) {
