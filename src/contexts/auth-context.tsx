@@ -9,6 +9,7 @@ export interface User {
   last_name: string;
   status: string;
   auth_type_id: string;
+  birthdate?: string;
 }
 
 export interface AuthContextType {
@@ -18,6 +19,7 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,6 +85,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     httpClient.setAuthToken(null);
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -90,6 +97,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isLoading,
     login,
     logout,
+    updateUser,
   };
 
   return (

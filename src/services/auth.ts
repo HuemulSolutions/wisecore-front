@@ -19,6 +19,12 @@ export interface CreateUserRequest {
   code: string;
 }
 
+export interface UpdateUserRequest {
+  name: string;
+  last_name: string;
+  birthdate?: string;
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
@@ -126,6 +132,23 @@ class AuthService {
       token: responseData.data.token,
       user: responseData.data.user
     };
+  }
+
+  async updateUser(userId: string, request: UpdateUserRequest): Promise<User> {
+    console.log('AuthService: Updating user', userId, 'with data:', request);
+    
+    const response = await httpClient.put(`${backendUrl}/users/${userId}`, request);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to update user');
+    }
+
+    const responseData = await response.json();
+    console.log('Raw updateUser response:', responseData);
+    
+    // Return the updated user data
+    return responseData.data || responseData;
   }
 }
 

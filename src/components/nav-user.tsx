@@ -5,8 +5,9 @@ import {
   ChevronsUpDown,
   LogOut,
   // Settings,
-  // User,
+  User,
 } from "lucide-react"
+import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 
 import {
@@ -17,10 +18,10 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  // DropdownMenuGroup,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  // DropdownMenuSeparator,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -29,10 +30,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { UpdateProfileDialog } from "@/components/update-profile-dialog"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
   const { user, logout } = useAuth()
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false)
 
   // If no user, return null
   if (!user) return null
@@ -57,6 +60,13 @@ export function NavUser() {
 
   const handleSignOut = () => {
     logout()
+  }
+
+  const handleUpdateProfile = () => {
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => {
+      setProfileDialogOpen(true)
+    }, 0)
   }
 
   return (
@@ -101,22 +111,17 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
-            {/* <DropdownMenuSeparator />
+            <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem className="hover:cursor-pointer" onClick={handleProfileClick}>
+              <DropdownMenuItem 
+                className="hover:cursor-pointer" 
+                onSelect={handleUpdateProfile}
+              >
                 <User className="h-4 w-4 mr-2" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem className="hover:cursor-pointer" onClick={handleSettingsClick}>
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem className="hover:cursor-pointer">
-                <Bell className="h-4 w-4 mr-2" />
-                Notifications
+                Update Profile
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator /> */}
+            <DropdownMenuSeparator />
             <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign out
@@ -124,6 +129,10 @@ export function NavUser() {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+      <UpdateProfileDialog 
+        open={profileDialogOpen} 
+        onOpenChange={setProfileDialogOpen} 
+      />
     </SidebarMenu>
   )
 }
