@@ -19,10 +19,12 @@ import {
 } from "@/components/ui/input-otp"
 import { authService } from "@/services/auth"
 import { useAuth } from "@/contexts/auth-context"
+import packageJson from "../../../package.json"
 
 interface OTPFormProps extends React.ComponentProps<"div"> {
   email: string
-  username?: string
+  name?: string
+  lastName?: string
   purpose: "login" | "signup"
   onBack?: () => void
   onSuccess?: () => void
@@ -31,7 +33,8 @@ interface OTPFormProps extends React.ComponentProps<"div"> {
 export function OTPForm({
   className,
   email,
-  username,
+  name,
+  lastName,
   purpose,
   onBack,
   onSuccess,
@@ -45,8 +48,8 @@ export function OTPForm({
       if (purpose === "login") {
         return authService.verifyCode({ email, code: otpCode })
       } else {
-        if (!username) throw new Error("Username is required for signup")
-        return authService.createUser({ email, username, code: otpCode })
+        if (!name || !lastName) throw new Error("Name and last name are required for signup")
+        return authService.createUser({ email, name, last_name: lastName, code: otpCode })
       }
     },
     onSuccess: (data) => {
@@ -173,6 +176,9 @@ export function OTPForm({
           Privacy Policy
         </a>.
       </FieldDescription>
+      <div className="text-center text-xs text-gray-400">
+        Version {packageJson.version}
+      </div>
     </div>
   )
 }

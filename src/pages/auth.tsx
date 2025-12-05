@@ -10,7 +10,8 @@ type AuthStep = 'login' | 'signup' | 'otp'
 export function AuthPage() {
   const [step, setStep] = useState<AuthStep>('login')
   const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
+  const [name, setName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [purpose, setPurpose] = useState<'login' | 'signup'>('login')
   
   const { isAuthenticated } = useAuth()
@@ -23,10 +24,13 @@ export function AuthPage() {
     }
   }, [isAuthenticated, navigate])
 
-  const handleCodeRequested = (userEmail: string, userUsername?: string) => {
+  const handleCodeRequested = (userEmail: string, userName?: string, userLastName?: string) => {
     setEmail(userEmail)
-    if (userUsername) {
-      setUsername(userUsername)
+    if (userName) {
+      setName(userName)
+    }
+    if (userLastName) {
+      setLastName(userLastName)
     }
     setStep('otp')
   }
@@ -65,16 +69,14 @@ export function AuthPage() {
         {step === 'signup' && (
           <SignupForm
             onSwitchToLogin={handleSwitchToLogin}
-            onCodeRequested={(email, username) => {
-              setPurpose('signup')
-              handleCodeRequested(email, username)
-            }}
+            onSuccess={handleAuthSuccess}
           />
         )}
         {step === 'otp' && (
           <OTPForm
             email={email}
-            username={username}
+            name={name}
+            lastName={lastName}
             purpose={purpose}
             onBack={handleBackToForm}
             onSuccess={handleAuthSuccess}

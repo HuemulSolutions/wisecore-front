@@ -13,9 +13,16 @@ export interface VerifyCodeRequest {
 }
 
 export interface CreateUserRequest {
-  username: string;
+  name: string;
+  last_name: string;
   email: string;
   code: string;
+}
+
+export interface UpdateUserRequest {
+  name: string;
+  last_name: string;
+  birthdate?: string;
 }
 
 export interface AuthResponse {
@@ -28,9 +35,17 @@ class AuthService {
 
   async requestCode(request: RequestCodeRequest): Promise<void> {
     console.log('AuthService: Requesting code to', `${this.baseUrl}/codes`, 'with purpose:', request.purpose);
-    const response = await httpClient.post(`${this.baseUrl}/codes`, {
-      email: request.email.toLowerCase(),
-      purpose: request.purpose,
+    
+    // Make request without auth token for public endpoint
+    const response = await fetch(`${this.baseUrl}/codes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: request.email.toLowerCase(),
+        purpose: request.purpose,
+      }),
     });
 
     if (!response.ok) {
@@ -44,9 +59,17 @@ class AuthService {
       email: request.email.toLowerCase(), 
       code: request.code 
     });
-    const response = await httpClient.post(`${this.baseUrl}/codes/verify`, {
-      email: request.email.toLowerCase(),
-      code: request.code,
+    
+    // Make request without auth token for public endpoint
+    const response = await fetch(`${this.baseUrl}/codes/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: request.email.toLowerCase(),
+        code: request.code,
+      }),
     });
 
     if (!response.ok) {
@@ -71,14 +94,24 @@ class AuthService {
 
   async createUser(request: CreateUserRequest): Promise<AuthResponse> {
     console.log('AuthService: Creating user to', `${this.baseUrl}/users`, 'with data:', { 
-      username: request.username, 
+      name: request.name, 
+      last_name: request.last_name,
       email: request.email.toLowerCase(), 
       code: request.code 
     });
-    const response = await httpClient.post(`${this.baseUrl}/users`, {
-      username: request.username,
-      email: request.email.toLowerCase(),
-      code: request.code,
+    
+    // Make request without auth token for public endpoint
+    const response = await fetch(`${this.baseUrl}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: request.name,
+        last_name: request.last_name,
+        email: request.email.toLowerCase(),
+        code: request.code,
+      }),
     });
 
     if (!response.ok) {
@@ -99,6 +132,23 @@ class AuthService {
       token: responseData.data.token,
       user: responseData.data.user
     };
+  }
+
+  async updateUser(userId: string, request: UpdateUserRequest): Promise<User> {
+    console.log('AuthService: Updating user', userId, 'with data:', request);
+    
+    const response = await httpClient.put(`${backendUrl}/users/${userId}`, request);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to update user');
+    }
+
+    const responseData = await response.json();
+    console.log('Raw updateUser response:', responseData);
+    
+    // Return the updated user data
+    return responseData.data || responseData;
   }
 }
 
