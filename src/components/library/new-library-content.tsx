@@ -3,6 +3,8 @@ import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, 
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
+import { createSectionExecution } from "@/services/section_execution";
+import { AddSectionExecutionForm } from "@/components/add-section-execution-form";
 import { ExecutionStatusBanner } from "@/components/execution-status-banner";
 import {
   Tooltip,
@@ -296,6 +298,36 @@ export function AssetContent({
     },
   });
 
+  // Mutation for section execution creation
+  const createSectionExecutionMutation = useMutation({
+    mutationFn: async (sectionData: { name: string; output: string; after_from?: string }) => {
+      if (!selectedExecutionId) {
+        throw new Error('No execution ID available');
+      }
+      return await createSectionExecution(selectedExecutionId, sectionData);
+    },
+    onSuccess: () => {
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      
+      setIsSectionExecutionDialogOpen(false);
+      setAfterFromSectionId(null);
+      setIsSectionExecutionFormValid(false);
+      toast.success("Section added successfully");
+      
+      // Force refetch of document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error("Error creating section execution:", error);
+      toast.error("Error creating section: " + error.message);
+    },
+  });
+
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -315,6 +347,11 @@ export function AssetContent({
   const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
   const [isDirectSectionFormValid, setIsDirectSectionFormValid] = useState(false);
+  
+  // Section execution creation state
+  const [isSectionExecutionDialogOpen, setIsSectionExecutionDialogOpen] = useState(false);
+  const [afterFromSectionId, setAfterFromSectionId] = useState<string | null>(null);
+  const [isSectionExecutionFormValid, setIsSectionExecutionFormValid] = useState(false);
   
   // Template creation states
   const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
@@ -354,10 +391,33 @@ export function AssetContent({
   // Handle add section at specific position
   const handleAddSectionAtPosition = (afterIndex?: number) => {
     if (selectedFile && selectedFile.type === 'document') {
-      console.log(`Adding section after index: ${afterIndex}`);
-      setSectionInsertPosition(afterIndex);
-      setIsDirectSectionDialogOpen(true);
-      setIsDirectSectionFormValid(false);
+      // Si hay contenido de documento (execution exists), crear section_execution
+      if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
+        console.log(`Adding section execution after index: ${afterIndex}`);
+        
+        // Determinar el after_from ID basado en el índice
+        let afterFromId: string | null = null;
+        if (afterIndex === -1) {
+          // Insert at beginning - no pasar after_from para que se agregue al principio
+          afterFromId = null;
+        } else if (afterIndex !== undefined && afterIndex >= 0 && afterIndex < documentContent.content.length) {
+          // Insert after specific section
+          afterFromId = documentContent.content[afterIndex].id;
+        } else {
+          // Default to last section
+          afterFromId = documentContent.content[documentContent.content.length - 1]?.id || null;
+        }
+        
+        setAfterFromSectionId(afterFromId);
+        setIsSectionExecutionDialogOpen(true);
+        setIsSectionExecutionFormValid(false);
+      } else {
+        // Si no hay execution, crear sección normal
+        console.log(`Adding section after index: ${afterIndex}`);
+        setSectionInsertPosition(afterIndex);
+        setIsDirectSectionDialogOpen(true);
+        setIsDirectSectionFormValid(false);
+      }
     }
   };
 
@@ -386,6 +446,11 @@ export function AssetContent({
       order
     };
     addSectionMutation.mutate(sectionData);
+  };
+
+  // Handle section execution creation submission
+  const handleSectionExecutionSubmit = (values: { name: string; output: string; after_from?: string }) => {
+    createSectionExecutionMutation.mutate(values);
   };
 
   // Handle create new execution
@@ -1489,6 +1554,68 @@ export function AssetContent({
                 <>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Create Section
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Section Execution Creation Dialog */}
+      <Dialog open={isSectionExecutionDialogOpen} onOpenChange={setIsSectionExecutionDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-[#4464f7]" />
+              Add Section Content
+            </DialogTitle>
+            <DialogDescription>
+              {afterFromSectionId 
+                ? "Add new content after the selected section in this execution."
+                : "Add new content at the beginning of this execution."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto px-6">
+            <AddSectionExecutionForm
+              afterFromId={afterFromSectionId || undefined}
+              onSubmit={handleSectionExecutionSubmit}
+              isPending={createSectionExecutionMutation.isPending}
+              onValidationChange={setIsSectionExecutionFormValid}
+            />
+          </div>
+          
+          {/* Dialog Actions */}
+          <div className="flex items-center justify-end gap-3 px-6 pb-6 pt-4 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsSectionExecutionDialogOpen(false);
+                setAfterFromSectionId(null);
+                setIsSectionExecutionFormValid(false);
+              }}
+              disabled={createSectionExecutionMutation.isPending}
+              className="hover:cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="add-section-execution-form"
+              disabled={createSectionExecutionMutation.isPending || !isSectionExecutionFormValid}
+              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+            >
+              {createSectionExecutionMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Section
                 </>
               )}
             </Button>

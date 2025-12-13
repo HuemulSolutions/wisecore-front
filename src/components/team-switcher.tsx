@@ -135,9 +135,9 @@ export function TeamSwitcher({
                 </DropdownMenuItem>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
+                <DialogHeader className="space-y-3">
                   <DialogTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5 text-[#4464f7]" />
+                    <Plus className="h-5 w-5 text-primary" />
                     Create New Organization
                   </DialogTitle>
                   <DialogDescription>
@@ -145,27 +145,25 @@ export function TeamSwitcher({
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="org-name" className="text-sm font-medium text-gray-900 block mb-2">
-                        Organization Name *
-                      </label>
-                      <Input
-                        id="org-name"
-                        value={newOrgName}
-                        onChange={(e) => setNewOrgName(e.target.value)}
-                        placeholder="Enter organization name"
-                        className="w-full"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleCreateOrganization()
-                          }
-                        }}
-                      />
-                    </div>
+                  <div className="grid gap-4">
+                    <label htmlFor="org-name" className="text-sm font-medium text-gray-900">
+                      Organization Name *
+                    </label>
+                    <Input
+                      id="org-name"
+                      value={newOrgName}
+                      onChange={(e) => setNewOrgName(e.target.value)}
+                      placeholder="Enter organization name"
+                      className="w-full"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCreateOrganization()
+                        }
+                      }}
+                    />
                   </div>
                 </div>
-                <DialogFooter className="flex justify-end space-x-2">
+                <DialogFooter className="gap-3">
                   <Button 
                     variant="outline" 
                     onClick={() => setIsDialogOpen(false)}

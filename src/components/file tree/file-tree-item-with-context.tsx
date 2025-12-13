@@ -35,8 +35,8 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import CreateFolder from "@/components/create_folder"
-import CreateDocumentLib from "@/components/library/create_document_lib"
+import { CreateFolderDialog } from "@/components/create_folder"
+import { CreateAssetDialog } from "@/components/create-asset-dialog"
 import EditFolder from "@/components/edit_folder"
 import { deleteFolder } from "@/services/library"
 import { toast } from "sonner"
@@ -178,6 +178,9 @@ export function FileTreeItemWithContext({
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
 
   const isFolder = item.type === "folder"
   
@@ -449,49 +452,34 @@ export function FileTreeItemWithContext({
               <DropdownMenuContent align="end" className="w-48">
                 {isFolder && (
                   <>
-                    <CreateFolder
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <FolderPlus className="h-4 w-4 mr-2" />
-                          New Folder
-                        </DropdownMenuItem>
-                      }
-                      parentFolder={item.id}
-                      onFolderCreated={onRefresh}
-                    />
-                    <CreateDocumentLib
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          New Asset
-                        </DropdownMenuItem>
-                      }
-                      folderId={item.id}
-                      onDocumentCreated={handleDocumentCreatedLocal}
-                    />
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={() => {
+                        setTimeout(() => setFolderDialogOpen(true), 0)
+                      }}
+                    >
+                      <FolderPlus className="h-4 w-4 mr-2" />
+                      New Folder
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={() => {
+                        setTimeout(() => setAssetDialogOpen(true), 0)
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      New Asset
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <EditFolder
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => {
-                            e.preventDefault();
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Folder
-                        </DropdownMenuItem>
-                      }
-                      folderId={item.id}
-                      currentName={item.name}
-                      onFolderEdited={onRefresh}
-                    />
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={() => {
+                        setTimeout(() => setEditFolderDialogOpen(true), 0)
+                      }}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Folder
+                    </DropdownMenuItem>
                     <DropdownMenuItem 
                       onSelect={() => {
                         handleDeleteFolder();
@@ -536,49 +524,34 @@ export function FileTreeItemWithContext({
         <ContextMenuContent>
           {isFolder && (
             <>
-              <CreateFolder
-                trigger={
-                  <ContextMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <FolderPlus className="h-4 w-4 mr-2" />
-                    New Folder
-                  </ContextMenuItem>
-                }
-                parentFolder={item.id}
-                onFolderCreated={onRefresh}
-              />
-              <CreateDocumentLib
-                trigger={
-                  <ContextMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    New Asset
-                  </ContextMenuItem>
-                }
-                folderId={item.id}
-                onDocumentCreated={handleDocumentCreatedLocal}
-              />
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={() => {
+                  setTimeout(() => setFolderDialogOpen(true), 0)
+                }}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                New Folder
+              </ContextMenuItem>
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={() => {
+                  setTimeout(() => setAssetDialogOpen(true), 0)
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                New Asset
+              </ContextMenuItem>
               <ContextMenuSeparator />
-              <EditFolder
-                trigger={
-                  <ContextMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                    }}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Folder
-                  </ContextMenuItem>
-                }
-                folderId={item.id}
-                currentName={item.name}
-                onFolderEdited={onRefresh}
-              />
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={() => {
+                  setTimeout(() => setEditFolderDialogOpen(true), 0)
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Folder
+              </ContextMenuItem>
               <ContextMenuItem onClick={handleDeleteFolder} className="hover:cursor-pointer text-red-600 focus:text-red-600">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Folder
@@ -657,6 +630,37 @@ export function FileTreeItemWithContext({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      )}
+      
+      {/* Create Folder Dialog */}
+      {isFolder && (
+        <CreateFolderDialog
+          open={folderDialogOpen}
+          onOpenChange={setFolderDialogOpen}
+          parentFolder={item.id}
+          onFolderCreated={onRefresh}
+        />
+      )}
+      
+      {/* Create Asset Dialog */}
+      {isFolder && (
+        <CreateAssetDialog
+          open={assetDialogOpen}
+          onOpenChange={setAssetDialogOpen}
+          folderId={item.id}
+          onAssetCreated={handleDocumentCreatedLocal}
+        />
+      )}
+      
+      {/* Edit Folder Dialog */}
+      {isFolder && (
+        <EditFolder
+          folderId={item.id}
+          currentName={item.name}
+          onFolderEdited={onRefresh}
+          open={editFolderDialogOpen}
+          onOpenChange={setEditFolderDialogOpen}
+        />
       )}
     </div>
   )

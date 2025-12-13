@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, BookText, Settings } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, Building2, Shield } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -46,6 +46,30 @@ const navigationItems = [
     title: "Models",
     url: "/models", 
     icon: Settings,
+  },
+  {
+    title: "Organizations",
+    url: "/organizations",
+    icon: Building2,
+  },
+  {
+    title: "Administration",
+    url: "#",
+    icon: Shield,
+    items: [
+      {
+        title: "Users",
+        url: "/users",
+      },
+      {
+        title: "Roles",
+        url: "/roles",
+      },
+      {
+        title: "Auth Types",
+        url: "/auth-types",
+      },
+    ],
   },
 ]
 

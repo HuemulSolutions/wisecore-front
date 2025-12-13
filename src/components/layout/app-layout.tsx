@@ -25,6 +25,9 @@ export default function AppLayout() {
       '/organizations': 'Organizations',
       '/graph': 'Graph',
       '/models': 'Models',
+      '/users': 'Users',
+      '/roles': 'Roles',
+      '/auth-types': 'Authentication Types',
     }
     
     // Handle dynamic routes
