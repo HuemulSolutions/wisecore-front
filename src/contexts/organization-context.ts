@@ -12,6 +12,8 @@ interface OrganizationContextType {
   setSelectedOrganizationId: (id: string) => void;
   setOrganizations: (organizations: Organization[]) => void;
   isLoading: boolean;
+  requiresOrganizationSelection: boolean;
+  setRequiresOrganizationSelection: (required: boolean) => void;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -32,6 +34,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const [selectedOrganizationId, setSelectedOrganizationIdState] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [requiresOrganizationSelection, setRequiresOrganizationSelection] = useState(false);
 
   // Cargar organización guardada en localStorage al iniciar
   useEffect(() => {
@@ -44,8 +47,14 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
   // Guardar en localStorage cuando cambie la organización
   const setSelectedOrganizationId = (id: string) => {
-    setSelectedOrganizationIdState(id);
-    localStorage.setItem('selectedOrganizationId', id);
+    if (id === '') {
+      setSelectedOrganizationIdState(null);
+      localStorage.removeItem('selectedOrganizationId');
+    } else {
+      setSelectedOrganizationIdState(id);
+      localStorage.setItem('selectedOrganizationId', id);
+      setRequiresOrganizationSelection(false); // Ocultar dialog cuando se selecciona organización
+    }
   };
 
   const value = {
@@ -54,6 +63,8 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     setSelectedOrganizationId,
     setOrganizations,
     isLoading,
+    requiresOrganizationSelection,
+    setRequiresOrganizationSelection,
   };
 
   return React.createElement(
