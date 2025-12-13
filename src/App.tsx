@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth-context";
+import { OrganizationProvider } from "./contexts/organization-context";
 import { ProtectedRoute } from "./components/auth/protected-route";
 import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
@@ -15,12 +16,16 @@ import Organizations from "./pages/organizations";
 import Assets from "./pages/assets";
 import Graph from "./pages/graph";
 import ModelsPage from "./pages/models";
+import AuthTypesPage from "./components/auth-types-page";
+import UsersPage from "./components/users-page";
+import RolesPage from "./components/roles-page";
 
 export default function App() {
   return (
     <AuthProvider>
-      <ProtectedRoute>
-        <Routes>
+      <OrganizationProvider>
+        <ProtectedRoute>
+            <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<Home />} />
@@ -32,14 +37,18 @@ export default function App() {
             <Route path="asset/*" element={<Assets />} />
             <Route path="graph" element={<Graph />} />
             <Route path="models" element={<ModelsPage />} />
+            <Route path="auth-types" element={<AuthTypesPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="roles" element={<RolesPage />} />
             <Route path="configTemplate/:id" element={<ConfigTemplate />} />
             <Route path="document/:id" element={<DocumentPage />} />
             <Route path="configDocument/:id" element={<ConfigDocumentPage />} />
             <Route path="execution/:id" element={<ExecutionPage />} />
             <Route path="docDepend/:id" element={<DocDependPage />} />
           </Route>
-        </Routes>
-      </ProtectedRoute>
+            </Routes>
+        </ProtectedRoute>
+      </OrganizationProvider>
     </AuthProvider>
   );
 }
