@@ -18,13 +18,21 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
 }
 
 
-export async function createFolder(name: string, organizationId?: string, parentId?: string) {
-    const response = await httpClient.post(`${backendUrl}/folder/create_folder`, {
+export async function createFolder(name: string, organizationId: string, parentId?: string) {
+    const requestBody: {
+        name: string;
+        organization_id: string;
+        parent_folder_id?: string;
+    } = {
         name,
-        type: 'folder',
         organization_id: organizationId,
-        parent_folder_id: parentId || null,
-    });
+    };
+    
+    if (parentId) {
+        requestBody.parent_folder_id = parentId;
+    }
+
+    const response = await httpClient.post(`${backendUrl}/folder/create_folder`, requestBody);
     if (!response.ok) {
         throw new Error('Error creating folder');
     }
