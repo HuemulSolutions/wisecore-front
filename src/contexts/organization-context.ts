@@ -14,6 +14,7 @@ interface OrganizationContextType {
   isLoading: boolean;
   requiresOrganizationSelection: boolean;
   setRequiresOrganizationSelection: (required: boolean) => void;
+  resetOrganizationContext: () => void;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -36,14 +37,52 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const [isLoading, setIsLoading] = useState(true);
   const [requiresOrganizationSelection, setRequiresOrganizationSelection] = useState(false);
 
+  const resetOrganizationContext = () => {
+    setSelectedOrganizationIdState(null);
+    setOrganizations([]);
+    setRequiresOrganizationSelection(true);
+    localStorage.removeItem('selectedOrganizationId');
+  };
+
   // Cargar organización guardada en localStorage al iniciar
   useEffect(() => {
     const savedOrgId = localStorage.getItem('selectedOrganizationId');
     if (savedOrgId) {
       setSelectedOrganizationIdState(savedOrgId);
+      setRequiresOrganizationSelection(false);
+    } else {
+      // Si no hay organización guardada, mostrar el dialog de selección
+      setRequiresOrganizationSelection(true);
     }
     setIsLoading(false);
   }, []);
+
+  // Escuchar cambios en el localStorage para detectar logout
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token' && e.newValue === null) {
+        // Token removido = logout
+        resetOrganizationContext();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // También verificar periódicamente si el token fue removido
+    const checkAuthToken = () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token && selectedOrganizationId) {
+        resetOrganizationContext();
+      }
+    };
+
+    const interval = setInterval(checkAuthToken, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [selectedOrganizationId]);
 
   // Guardar en localStorage cuando cambie la organización
   const setSelectedOrganizationId = (id: string) => {
@@ -65,6 +104,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     isLoading,
     requiresOrganizationSelection,
     setRequiresOrganizationSelection,
+    resetOrganizationContext,
   };
 
   return React.createElement(

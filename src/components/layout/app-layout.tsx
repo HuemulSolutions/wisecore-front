@@ -10,9 +10,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { OrganizationSelectionDialog } from "@/components/organization-selection-dialog"
+import { useOrganization } from "@/contexts/organization-context"
 
 export default function AppLayout() {
   const location = useLocation()
+  const { requiresOrganizationSelection } = useOrganization()
   
   // Map routes to display names
   const getPageName = (pathname: string): string => {
@@ -102,6 +105,9 @@ export default function AppLayout() {
             <Outlet />
           </div>
         </SidebarInset>
+        
+        {/* Dialog de selección de organización */}
+        <OrganizationSelectionDialog open={requiresOrganizationSelection} />
       </SidebarProvider>
     </TooltipProvider>
   )

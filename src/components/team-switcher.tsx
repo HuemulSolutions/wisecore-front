@@ -56,18 +56,110 @@ export function TeamSwitcher({
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton
-            size="lg"
-            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs flex-shrink-0">
-              --
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium text-gray-500">Loading...</span>
-              <span className="truncate text-xs text-muted-foreground">Organization</span>
-            </div>
-          </SidebarMenuButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                size="lg"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs flex-shrink-0">
+                  --
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium text-gray-500">Select Organization</span>
+                  <span className="truncate text-xs text-muted-foreground">Choose from list</span>
+                </div>
+                <ChevronsUpDown className="ml-auto" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+              align="start"
+              side={isMobile ? "bottom" : "right"}
+              sideOffset={4}
+            >
+              <DropdownMenuLabel className="text-muted-foreground text-xs">
+                Organizations
+              </DropdownMenuLabel>
+              {organizations.map((org) => (
+                <DropdownMenuItem
+                  key={org.id}
+                  onClick={() => onOrganizationChange(org.id)}
+                  className="gap-2 p-2 hover:cursor-pointer"
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
+                    {org.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{org.name}</p>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      setTimeout(() => setIsDialogOpen(true), 0)
+                    }}
+                    className="gap-2 p-2 hover:cursor-pointer"
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
+                      <Plus className="h-4 w-4" />
+                    </div>
+                    <div className="font-medium text-muted-foreground">Add Organization</div>
+                  </DropdownMenuItem>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader className="space-y-3">
+                    <DialogTitle className="flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-primary" />
+                      Create New Organization
+                    </DialogTitle>
+                    <DialogDescription>
+                      Create a new organization to manage your documents and templates.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    <div className="grid gap-4">
+                      <label htmlFor="org-name" className="text-sm font-medium text-gray-900">
+                        Organization Name *
+                      </label>
+                      <Input
+                        id="org-name"
+                        value={newOrgName}
+                        onChange={(e) => setNewOrgName(e.target.value)}
+                        placeholder="Enter organization name"
+                        className="w-full"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCreateOrganization()
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsDialogOpen(false)}
+                      className="hover:cursor-pointer"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleCreateOrganization}
+                      disabled={!newOrgName.trim() || isCreating}
+                      className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                    >
+                      {isCreating ? 'Creating...' : 'Create'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </SidebarMenuItem>
       </SidebarMenu>
     )

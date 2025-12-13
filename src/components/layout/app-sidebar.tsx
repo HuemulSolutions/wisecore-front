@@ -119,13 +119,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   useEffect(() => {
     if (organizationsData) {
       setOrganizations(organizationsData)
-      
-      // Si no hay organización seleccionada, seleccionar la primera
-      if (!selectedOrganizationId && organizationsData.length > 0) {
-        setSelectedOrganizationId(organizationsData[0].id)
-      }
     }
-  }, [organizationsData, selectedOrganizationId, setOrganizations, setSelectedOrganizationId])
+  }, [organizationsData, setOrganizations])
 
   const handleCreateOrganization = (name: string) => {
     createOrgMutation.mutate({ name })
@@ -136,8 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   // Obtener organización seleccionada
-  const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || 
-                     (organizations.length > 0 ? organizations[0] : null)
+  const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || null
 
   return (
     <Sidebar collapsible="icon" {...props}>

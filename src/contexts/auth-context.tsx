@@ -82,6 +82,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('selectedOrganizationId'); // Limpiar organización seleccionada
     httpClient.setAuthToken(null);
   };
 
