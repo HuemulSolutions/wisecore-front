@@ -28,11 +28,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import CreateFolder from "@/components/create_folder";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
-import CreateDocumentLib from "@/components/library/create_document_lib";
 import type { FileNode } from "@/components/file tree/types";
 import { AssetContent } from "@/components/library/new-library-content";
+import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
+import { CreateFolderDialog } from "@/components/create_folder";
+import { CreateAssetDialog } from "@/components/create-asset-dialog";
 
 // API response interface
 interface LibraryItem {
@@ -64,6 +65,8 @@ export default function Assets() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
+  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
 
   // Parse URL path to get folder path and selected file
   const parseUrlPath = async () => {
@@ -675,6 +678,20 @@ export default function Assets() {
     );
   }
 
+  const handleCreateFolder = () => {
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => {
+      setFolderDialogOpen(true)
+    }, 0)
+  }
+
+  const handleCreateAsset = () => {
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => {
+      setAssetDialogOpen(true)
+    }, 0)
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* File Tree Sidebar */}
@@ -698,7 +715,6 @@ export default function Assets() {
                       variant="outline"
                       size="sm"
                       onClick={handleGraphNavigation}
-                      className="hover:cursor-pointer h-9 w-9 p-0 hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
                     >
                       <Network className="h-4 w-4 text-gray-600" />
                     </Button>
@@ -713,38 +729,31 @@ export default function Assets() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 hover:cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200"
                     >
                       <Plus className="h-4 w-4 text-gray-600" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <CreateFolder
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <FolderIcon className="h-4 w-4 mr-2" />
-                          Folder
-                        </DropdownMenuItem>
-                      }
-                      parentFolder={getCurrentFolderId()}
-                      onFolderCreated={handleRefresh}
-                    />
-                    <CreateDocumentLib
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Asset
-                        </DropdownMenuItem>
-                      }
-                      folderId={getCurrentFolderId()}
-                      onDocumentCreated={handleDocumentCreated}
-                    />
+                  <DropdownMenuContent
+                    className="min-w-40"
+                  >
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer"
+                        onSelect={handleCreateFolder}
+                      >
+                        <FolderIcon className="h-4 w-4 mr-2"></FolderIcon>
+                        Create Folder
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer"
+                        onSelect={handleCreateAsset}
+                      >
+                        <FileText className="h-4 w-4 mr-2"></FileText>
+                        Create Asset
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -841,32 +850,13 @@ export default function Assets() {
           </ContextMenuTrigger>
           
           <ContextMenuContent>
-            <CreateFolder
-              trigger={
-                <ContextMenuItem 
-                  className="hover:cursor-pointer"
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  <FolderIcon className="h-4 w-4 mr-2" />
-                  New Folder
-                </ContextMenuItem>
-              }
-              parentFolder={getCurrentFolderId()}
-              onFolderCreated={handleRefresh}
-            />
-            <CreateDocumentLib
-              trigger={
-                <ContextMenuItem 
-                  className="hover:cursor-pointer"
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  New Asset
-                </ContextMenuItem>
-              }
-              folderId={getCurrentFolderId()}
-              onDocumentCreated={handleDocumentCreated}
-            />
+            <ContextMenuItem 
+              className="hover:cursor-pointer"
+              onSelect={handleCreateAsset}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              New Asset
+            </ContextMenuItem>
             <ContextMenuItem className="hover:cursor-pointer" onClick={() => console.log('More options clicked')}>
               <MoreHorizontal className="h-4 w-4 mr-2" />
               More Options
@@ -893,6 +883,21 @@ export default function Assets() {
         </div>
       </div>
       
+      {/* Create Folder Dialog */}
+      <CreateFolderDialog
+        open={folderDialogOpen}
+        onOpenChange={setFolderDialogOpen}
+        parentFolder={getCurrentFolderId()}
+        onFolderCreated={handleRefresh}
+      />
+      
+      {/* Create Asset Dialog */}
+      <CreateAssetDialog
+        open={assetDialogOpen}
+        onOpenChange={setAssetDialogOpen}
+        folderId={getCurrentFolderId()}
+        onAssetCreated={handleDocumentCreated}
+      />
     </div>
   );
 }
