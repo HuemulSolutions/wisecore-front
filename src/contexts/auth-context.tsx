@@ -10,6 +10,7 @@ export interface User {
   status: string;
   auth_type_id: string;
   birthdate?: string;
+  is_root_admin: boolean;
 }
 
 export interface AuthContextType {
@@ -51,7 +52,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const parsedUser = JSON.parse(savedUser);
         setToken(savedToken);
         setUser(parsedUser);
-        httpClient.setAuthToken(savedToken);
+        httpClient.setLoginToken(savedToken);
+        console.log('AuthContext: Restored login token from localStorage:', savedToken.substring(0, 10) + '...');
       } catch (error) {
         console.error('Error parsing saved user data:', error);
         localStorage.removeItem('auth_token');
@@ -68,13 +70,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = (authToken: string, userData: User) => {
-    console.log('AuthContext: Login called with token:', authToken.substring(0, 10) + '...', 'and user:', userData);
+    console.log('AuthContext: Login called with token:', authToken.substring(0, 10) + '...', 'and user:', userData.email);
     setToken(authToken);
     setUser(userData);
     localStorage.setItem('auth_token', authToken);
     localStorage.setItem('auth_user', JSON.stringify(userData));
-    httpClient.setAuthToken(authToken);
-    console.log('AuthContext: Login completed, isAuthenticated should be true now');
+    httpClient.setLoginToken(authToken);
+    console.log('AuthContext: Login completed, login token set in httpClient');
   };
 
   const logout = () => {
@@ -82,7 +84,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
-    httpClient.setAuthToken(null);
+    localStorage.removeItem('selectedOrganizationId'); // Limpiar organización seleccionada
+    localStorage.removeItem('organizationToken'); // Limpiar token de organización
+    httpClient.setLoginToken(null);
+    httpClient.setOrganizationToken(null);
+    httpClient.setOrganizationId(null);
   };
 
   const updateUser = (updatedUser: User) => {

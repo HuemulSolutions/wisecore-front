@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { MessageBubble } from "./bubble";
 import type { Message } from "./bubble";
 import { chatbot } from "@/services/generate";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface ChatbotProps {
   executionId: string;
 }
 
-export default function Chatbot({ executionId }: ChatbotProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function Chatbot({ executionId }: ChatbotProps) {  const { selectedOrganizationId } = useOrganization();  const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -76,6 +76,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {
       executionId,
       user_message: content,
       threadId: threadId || undefined,
+      organizationId: selectedOrganizationId!,
       onData: (text: string) => {
         setMessages((prev) =>
           prev.map((msg) =>

@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Edit } from "lucide-react"
+import * as React from "react"
+import { useState } from "react"
+import { useMutation } from "@tanstack/react-query"
+import { Edit3 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,30 +18,54 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { editFolder } from "@/services/library"
 import { toast } from "sonner"
+import { useOrganizationId } from "@/hooks/use-organization"
 
 interface EditFolderProps {
   trigger?: React.ReactNode
   folderId: string
   currentName: string
   onFolderEdited?: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export default function EditFolder({ 
-  trigger, 
   folderId, 
   currentName,
-  onFolderEdited 
+  onFolderEdited,
+  open,
+  onOpenChange
 }: EditFolderProps) {
   const [name, setName] = useState(currentName)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
 
-  // Reset name when currentName changes
-  useEffect(() => {
-    setName(currentName)
-  }, [currentName])
+  // Reset name when currentName changes or dialog opens
+  React.useEffect(() => {
+    if (open) {
+      setName(currentName)
+    }
+  }, [currentName, open])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const selectedOrganizationId = useOrganizationId()
+  
+  const editFolderMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      if (!selectedOrganizationId) {
+        throw new Error('No organization selected');
+      }
+      return await editFolder(folderId, newName.trim(), selectedOrganizationId)
+    },
+    onSuccess: () => {
+      toast.success(`Folder renamed to "${name.trim()}"`)
+      onFolderEdited?.()
+      onOpenChange(false)
+    },
+    onError: (error) => {
+      console.error('Error editing folder:', error)
+      toast.error("Failed to rename folder. Please try again.")
+    },
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!name.trim()) {
@@ -49,110 +75,61 @@ export default function EditFolder({
 
     if (name.trim() === currentName) {
       toast.info("No changes made")
-      setIsOpen(false)
+      onOpenChange(false)
       return
     }
 
-    setIsSubmitting(true)
-    
-    try {
-      await editFolder(folderId, name.trim())
-      toast.success(`Folder renamed to "${name.trim()}"`)
-      onFolderEdited?.()
-      setIsOpen(false)
-    } catch (error) {
-      console.error('Error editing folder:', error)
-      toast.error("Failed to rename folder. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const openDialog = () => {
-    setName(currentName)
-    setIsOpen(true)
-  }
-
-  const closeDialog = () => {
-    setIsOpen(false)
-    setName(currentName) // Reset to original name
-  }
-
-  // Handle click with proper event handling for menu items
-  const handleTriggerClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setTimeout(() => {
-      openDialog()
-    }, 10)
+    editFolderMutation.mutate(name.trim())
   }
 
   return (
-    <>
-      {/* Trigger element */}
-      <div onClick={handleTriggerClick}>
-        {trigger || (
-          <Button
-            variant="outline"
-            size="sm"
-            className="hover:cursor-pointer"
-          >
-            <Edit className="h-4 w-4 mr-2" />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-2">
+            <Edit3 className="h-5 w-5 text-primary" />
             Edit Folder
-          </Button>
-        )}
-      </div>
-
-      {/* Dialog */}
-      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setIsOpen(open); }}>
-        <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Edit Folder</DialogTitle>
-            <DialogDescription>
-              Change the name of the folder "{currentName}".
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
+          </DialogTitle>
+          <DialogDescription>
+            Change the name of the folder "{currentName}".
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Folder Name *</Label>
               <Input
                 id="name"
-                placeholder="Enter folder name"
+                name="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="col-span-3"
-                disabled={isSubmitting}
+                placeholder="Enter folder name"
                 required
+                disabled={editFolderMutation.isPending}
               />
             </div>
           </div>
           
-          <DialogFooter className="gap-2">
+          <DialogFooter className="mt-8 gap-3">
             <DialogClose asChild>
               <Button 
                 type="button" 
                 variant="outline"
-                className="hover:cursor-pointer"
-                disabled={isSubmitting}
+                disabled={editFolderMutation.isPending}
               >
                 Cancel
               </Button>
             </DialogClose>
             <Button 
               type="submit" 
-              disabled={isSubmitting || !name.trim()}
+              disabled={editFolderMutation.isPending || !name.trim()}
               className="hover:cursor-pointer"
             >
-              {isSubmitting ? "Saving..." : "Save Changes"}
+              {editFolderMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

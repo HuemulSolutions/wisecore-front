@@ -34,7 +34,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({ open
         setDescription(currentDescription || '');
       } else {
         try {
-          const doc = await getDocumentById(documentId);
+          const doc = await getDocumentById(documentId, selectedOrganizationId!);
           if (!cancelled) {
             setDescription(doc?.description || '');
           }

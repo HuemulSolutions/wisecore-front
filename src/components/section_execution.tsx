@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { fixSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
+import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 
 interface SectionExecutionProps {
@@ -38,6 +39,7 @@ interface SectionExecutionProps {
 }
 
 export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit }: SectionExecutionProps) {
+    const { selectedOrganizationId } = useOrganization();
     const [isPromptOpen, setIsPromptOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
@@ -225,6 +227,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 fixSection({
                                     instructions: aiPrompt,
                                     content: sectionExecution.output.replace(/\\n/g, "\n"),
+                                    organizationId: selectedOrganizationId!,
                                     onData: (chunk: string) => {
                                         const normalized = chunk.replace(/\\n/g, "\n");
                                         setAiPreview(prev => (prev ?? '') + normalized);

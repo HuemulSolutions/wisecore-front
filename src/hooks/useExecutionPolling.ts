@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useEffect } from 'react';
 import { getExecutionStatus } from '@/services/executions';
+import { useOrganizationId } from '@/hooks/use-organization';
 
 interface ExecutionStatus {
   id: string;
@@ -22,12 +23,13 @@ export function useExecutionPolling({
   onStatusChange
 }: UseExecutionPollingProps) {
   const queryClient = useQueryClient();
+  const selectedOrganizationId = useOrganizationId();
   const previousStatusRef = useRef<string | null>(null);
 
   const { data: execution, isLoading, error, refetch } = useQuery<ExecutionStatus>({
     queryKey: ['execution-status', executionId],
-    queryFn: () => getExecutionStatus(executionId!),
-    enabled: enabled && !!executionId,
+    queryFn: () => getExecutionStatus(executionId!, selectedOrganizationId!),
+    enabled: enabled && !!executionId && !!selectedOrganizationId,
     refetchInterval: (query) => {
       try {
         // Stop polling if execution is completed or failed

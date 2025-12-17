@@ -1,0 +1,88 @@
+import { httpClient } from '@/lib/http-client';
+import { backendUrl } from '@/config';
+
+export interface DocumentType {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  document_count: number;
+}
+
+export interface DocumentTypesResponse {
+  data: DocumentType[];
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface CreateDocumentTypeData {
+  name: string;
+  color: string;
+}
+
+export interface UpdateDocumentTypeData {
+  name?: string;
+  color?: string;
+}
+
+// Get current organization ID from localStorage or context
+const getOrganizationId = (): string | null => {
+  return localStorage.getItem('selectedOrganizationId');
+};
+
+// Get headers with organization ID
+const getHeaders = (): Record<string, string> => {
+  const orgId = getOrganizationId();
+  const headers: Record<string, string> = {};
+  
+  if (orgId) {
+    headers['X-Org-Id'] = orgId;
+  }
+  
+  return headers;
+};
+
+// Get all document types
+export const getDocumentTypes = async (): Promise<DocumentTypesResponse> => {
+  const response = await httpClient.fetch(`${backendUrl}/document_types/`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch asset types');
+  }
+  
+  return response.json();
+};
+
+// Create new document type
+export const createDocumentType = async (data: CreateDocumentTypeData): Promise<DocumentType> => {
+  const response = await httpClient.fetch(`${backendUrl}/document_types/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to create asset type');
+  }
+  
+  return response.json();
+};
+
+// Delete document type
+export const deleteDocumentType = async (id: string): Promise<void> => {
+  const response = await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
+    method: 'DELETE',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete document type');
+  }
+};

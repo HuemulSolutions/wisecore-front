@@ -52,13 +52,8 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({ onCl
   useEffect(() => {
     if (organizationsData) {
       setOrganizations(organizationsData);
-      
-      // Si no hay organización seleccionada, seleccionar la primera
-      if (!selectedOrganizationId && organizationsData.length > 0) {
-        setSelectedOrganizationId(organizationsData[0].id);
-      }
     }
-  }, [organizationsData, selectedOrganizationId, setOrganizations, setSelectedOrganizationId]);
+  }, [organizationsData, setOrganizations]);
 
   if (isLoading) {
     return (

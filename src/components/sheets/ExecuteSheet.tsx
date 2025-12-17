@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Play, 
   Loader2, 
-  WandSparkles, 
   CircleCheck, 
   CircleX,
   Plus 
@@ -37,13 +36,13 @@ import {
 import { 
   getExecutionById, 
   approveExecution, 
-  disapproveExecution, 
-  createExecution 
+  disapproveExecution,
+  executeDocument 
 } from "@/services/executions";
-import { getLLMs, updateExecutionLLM } from "@/services/llms";
-import { generateDocumentWorker } from "@/services/generate";
+import { getLLMs, updateExecutionLLM, getDefaultLLM } from "@/services/llms";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface ExecuteSheetProps {
   selectedFile: {
@@ -81,9 +80,11 @@ export function ExecuteSheet({
   const [sheetSelectedLLM, setSheetSelectedLLM] = useState<string>("");
   const [isApproving, setIsApproving] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
   
   // Query client para invalidar queries
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
   
   // Refs para la inicialización
   const instructionsInitialized = useRef<boolean>(false);
@@ -91,14 +92,15 @@ export function ExecuteSheet({
   // Fetch executions for the document to check for existing pending executions
   const { data: documentExecutions } = useExecutionsByDocumentId(
     selectedFile?.id || '',
-    selectedFile?.type === 'document' && !!selectedFile?.id && isOpen
+    selectedOrganizationId || '',
+    selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && isOpen
   );
 
   // Query para obtener detalles de la ejecución actual
   const { data: currentExecution, refetch: refetchExecution } = useQuery({
     queryKey: ["execution", currentExecutionId],
-    queryFn: () => getExecutionById(currentExecutionId!),
-    enabled: !!currentExecutionId,
+    queryFn: () => getExecutionById(currentExecutionId!, selectedOrganizationId!),
+    enabled: !!currentExecutionId && !!selectedOrganizationId,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -109,19 +111,37 @@ export function ExecuteSheet({
     queryFn: getLLMs,
   });
 
-  // Mutation para crear ejecución
-  const createExecutionMutation = useMutation({
-    mutationFn: (documentId: string) => createExecution(documentId),
+  // Query para obtener LLM por defecto
+  const { data: defaultLLM } = useQuery({
+    queryKey: ["default-llm"],
+    queryFn: getDefaultLLM,
+  });
+
+  // Mutation para ejecutar documento (crear y ejecutar en una operación)
+  const executeDocumentMutation = useMutation({
+    mutationFn: ({ documentId, instructions }: { documentId: string; instructions?: string }) => 
+      executeDocument({
+        documentId,
+        llmId: defaultLLM?.id || "",
+        instructions,
+        organizationId: selectedOrganizationId!
+      }),
     onSuccess: (executionData) => {
-      toast.success("Execution created successfully");
+      toast.success("Document execution started successfully");
       setCurrentExecutionId(executionData.id);
+      setHasAttemptedCreation(false);
       onExecutionCreated?.(executionData.id);
+      onExecutionComplete?.();
+      onOpenChange(false); // Cerrar el sheet inmediatamente
     },
     onError: (error) => {
-      console.error("Error creating execution:", error);
-      toast.error("Error creating execution: " + (error as Error).message);
+      console.error("Error executing document:", error);
+      toast.error("Error executing document: " + (error as Error).message);
+      setHasAttemptedCreation(true);
     },
   });
+
+
 
   // Mutation para actualizar LLM
   const updateLLMMutation = useMutation({
@@ -137,45 +157,27 @@ export function ExecuteSheet({
 
 
 
-  const handleGenerateInSheet = async () => {
-    if (!currentExecution?.document_id || !currentExecutionId) return;
-    
-    if (isExecutionRunning()) {
-      console.log("Generation already in progress, skipping...");
+  // Nueva función para ejecutar documento directamente
+  const handleExecuteDocument = () => {
+    if (!selectedFile?.id || !defaultLLM?.id) {
+      toast.error("Document ID or default LLM not available");
       return;
     }
-    
-    setIsGeneratingInSheet(true);
-    
-    try {
-      await generateDocumentWorker({
-        documentId: currentExecution.document_id,
-        executionId: currentExecutionId,
-        instructions: sheetInstructions
-      });
-      
-      toast.success("Generation started successfully. The status will be updated automatically.");
-      
-      // Call the completion callback to start polling
-      onExecutionComplete?.();
-      
-      // Close the sheet since we no longer need to monitor streaming
-      onOpenChange(false);
-      
-    } catch (error) {
-      console.error('Error starting generation:', error);
-      toast.error("Error starting generation. Please try again.");
-    } finally {
-      setIsGeneratingInSheet(false);
-    }
+
+    executeDocumentMutation.mutate({
+      documentId: selectedFile.id,
+      instructions: sheetInstructions
+    });
   };
+
+
 
   const handleApproveInSheet = async () => {
     if (!currentExecutionId) return;
     
     setIsApproving(true);
     try {
-      await approveExecution(currentExecutionId);
+      await approveExecution(currentExecutionId, selectedOrganizationId!);
       refetchExecution();
       toast.success("Execution approved successfully");
       
@@ -194,7 +196,7 @@ export function ExecuteSheet({
     
     setIsApproving(true);
     try {
-      await disapproveExecution(currentExecutionId);
+      await disapproveExecution(currentExecutionId, selectedOrganizationId!);
       refetchExecution();
       toast.success("Execution disapproved successfully");
     } catch (error) {
@@ -228,27 +230,21 @@ export function ExecuteSheet({
     }
   }, [currentExecution?.status]);
 
-  // Effect para crear o reutilizar ejecución cuando se abre el sheet
+  // Effect para buscar ejecuciones existentes cuando se abre el sheet
   useEffect(() => {
-    if (isOpen && selectedFile && !currentExecutionId && !createExecutionMutation.isPending) {
-      // Verificar que el documento tenga secciones antes de crear o reutilizar la ejecución
-      if (fullDocument?.sections && fullDocument.sections.length > 0) {
-        // Buscar si ya existe una ejecución pendiente
-        const existingPendingExecution = documentExecutions?.find((execution: any) => 
-          execution.status === 'pending'
-        );
-        
-        if (existingPendingExecution) {
-          console.log('Reusing existing pending execution:', existingPendingExecution.id);
-          setCurrentExecutionId(existingPendingExecution.id);
-          onExecutionCreated?.(existingPendingExecution.id);
-        } else {
-          console.log('Creating new execution for document:', selectedFile.id);
-          createExecutionMutation.mutate(selectedFile.id);
-        }
+    if (isOpen && selectedFile && !currentExecutionId && documentExecutions) {
+      // Buscar si ya existe una ejecución en proceso o pendiente
+      const existingActiveExecution = documentExecutions?.find((execution: any) => 
+        execution.status === 'pending' || execution.status === 'running'
+      );
+      
+      if (existingActiveExecution) {
+        console.log('Found existing active execution:', existingActiveExecution.id);
+        setCurrentExecutionId(existingActiveExecution.id);
+        onExecutionCreated?.(existingActiveExecution.id);
       }
     }
-  }, [isOpen, selectedFile, currentExecutionId, createExecutionMutation.isPending, fullDocument?.sections, documentExecutions]);
+  }, [isOpen, selectedFile, currentExecutionId, documentExecutions]);
 
   // Helper function to determine if execution is actively running
   const isExecutionRunning = () => {
@@ -270,6 +266,7 @@ export function ExecuteSheet({
       setCurrentExecutionId(null);
       setSheetInstructions("");
       setSheetSelectedLLM("");
+      setHasAttemptedCreation(false); // Reset the attempt flag when closing
       // No resetear isGeneratingInSheet aquí si la ejecución sigue corriendo
       if (currentExecution?.status !== "running") {
         setIsGeneratingInSheet(false);
@@ -337,18 +334,16 @@ export function ExecuteSheet({
                           handleApproveInSheet();
                         } else if (currentExecution.status === "approved") {
                           handleDisapproveInSheet();
-                        } else {
-                          handleGenerateInSheet();
                         }
                       }}
-                      disabled={isExecutionRunning() || (currentExecution.status !== "pending" && currentExecution.status !== "completed" && currentExecution.status !== "approved") || isApproving}
+                      disabled={isExecutionRunning() || (currentExecution.status !== "completed" && currentExecution.status !== "approved") || isApproving}
                       className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
                       style={{ alignSelf: 'center' }}
                     >
                       {isExecutionRunning() ? (
                         <>
                           <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                          Generating...
+                          Processing...
                         </>
                       ) : currentExecution.status === "completed" ? (
                         isApproving ? (
@@ -374,35 +369,16 @@ export function ExecuteSheet({
                             Disapprove
                           </>
                         )
-                      ) : (
-                        <>
-                          <WandSparkles className="h-3.5 w-3.5 mr-1.5" />
-                          Generate
-                        </>
-                      )}
+                      ) : null}
                     </Button>
                   ) : (
                     <Button 
-                      onClick={() => {
-                        if (selectedFile) {
-                          // Buscar si ya existe una ejecución pendiente
-                          const existingPendingExecution = documentExecutions?.find((execution: any) => 
-                            execution.status === 'pending'
-                          );
-                          
-                          if (existingPendingExecution) {
-                            setCurrentExecutionId(existingPendingExecution.id);
-                            onExecutionCreated?.(existingPendingExecution.id);
-                          } else {
-                            createExecutionMutation.mutate(selectedFile.id);
-                          }
-                        }
-                      }}
-                      disabled={!fullDocument?.sections || fullDocument.sections.length === 0 || createExecutionMutation.isPending}
+                      onClick={handleExecuteDocument}
+                      disabled={!fullDocument?.sections || fullDocument.sections.length === 0 || executeDocumentMutation.isPending || !defaultLLM?.id}
                       className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                       style={{ alignSelf: 'center' }}
                     >
-                      {createExecutionMutation.isPending ? (
+                      {executeDocumentMutation.isPending ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           Creating...
@@ -410,7 +386,7 @@ export function ExecuteSheet({
                       ) : (
                         <>
                           <Play className="h-4 w-4 mr-2" />
-                          {documentExecutions?.find((execution: any) => execution.status === 'pending') ? 'Continue Execution' : 'Create Execution'}
+                          Execute Document
                         </>
                       )}
                     </Button>
@@ -528,13 +504,29 @@ export function ExecuteSheet({
                 </>
               ) : (
                 <>
-                  {/* Estado de carga mientras se crea la ejecución */}
-                  {createExecutionMutation.isPending ? (
+                  {/* Estado de carga mientras se ejecuta el documento */}
+                  {executeDocumentMutation.isPending ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="text-center">
                         <Loader2 className="h-8 w-8 animate-spin text-[#4464f7] mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Creating Execution</h3>
-                        <p className="text-sm text-gray-500">Setting up your document execution...</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Executing Document</h3>
+                        <p className="text-sm text-gray-500">Starting document execution...</p>
+                      </div>
+                    </div>
+                  ) : hasAttemptedCreation && executeDocumentMutation.isError ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <CircleX className="h-16 w-16 mx-auto mb-4 text-red-500" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Execute Document</h3>
+                        <p className="text-sm text-gray-500 mb-6">There was an error executing the document. Please try again.</p>
+                        <Button
+                          onClick={handleExecuteDocument}
+                          disabled={!defaultLLM?.id}
+                          className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Try Again
+                        </Button>
                       </div>
                     </div>
                   ) : !fullDocument?.sections || fullDocument.sections.length === 0 ? (

@@ -7,6 +7,7 @@ import { formatDate } from '@/services/utils';
 import { deleteExecution } from '@/services/executions';
 import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useOrganizationId } from '@/hooks/use-organization';
 
 export interface ExecutionInfoSheetProps {
     execution: {
@@ -28,11 +29,17 @@ export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating,
     const navigate = useNavigate();
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const selectedOrganizationId = useOrganizationId();
+    
+    // Si no hay organización seleccionada, no renderizar nada
+    if (!selectedOrganizationId) {
+        return null;
+    }
 
     const handleConfirmDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteExecution(execution.id);
+            await deleteExecution(execution.id, selectedOrganizationId);
             onExecutionDeleted?.();
             navigate('/asset');
         } catch (error) {

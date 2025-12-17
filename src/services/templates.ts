@@ -4,7 +4,7 @@ import { httpClient } from "@/lib/http-client";
 export async function getAllTemplates(organizationId: string) {
     const response = await httpClient.get(`${backendUrl}/templates/`, {
         headers: {
-            'OrganizationId': organizationId,
+            'X-Org-Id': organizationId,
         },
     });
     if (!response.ok) {
@@ -21,7 +21,7 @@ export async function addTemplate( { name, description, organization_id }: { nam
         description: description || null
     }, {
         headers: {
-            'OrganizationId': organization_id,
+            'X-Org-Id': organization_id,
         },
     });
 
@@ -37,8 +37,12 @@ export async function addTemplate( { name, description, organization_id }: { nam
 }
 
 
-export async function getTemplateById(templateId: string) {
-    const response = await httpClient.get(`${backendUrl}/templates/${templateId}`);
+export async function getTemplateById(templateId: string, organizationId: string) {
+    const response = await httpClient.get(`${backendUrl}/templates/${templateId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al obtener la plantilla');
     }
@@ -46,8 +50,12 @@ export async function getTemplateById(templateId: string) {
     return data.data;
 }
 
-export async function deleteTemplate(templateId: string) {
-    const response = await httpClient.delete(`${backendUrl}/templates/${templateId}`);
+export async function deleteTemplate(templateId: string, organizationId: string) {
+    const response = await httpClient.delete(`${backendUrl}/templates/${templateId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         throw new Error('Error al eliminar la plantilla');
@@ -58,7 +66,7 @@ export async function deleteTemplate(templateId: string) {
     return data;
 }
 
-export async function updateTemplate(templateId: string, updateData: { name?: string; description?: string | null }) {
+export async function updateTemplate(templateId: string, updateData: { name?: string; description?: string | null }, organizationId: string) {
     const payload: Record<string, string | null> = {};
 
     if (updateData.name !== undefined) {
@@ -69,7 +77,11 @@ export async function updateTemplate(templateId: string, updateData: { name?: st
         payload.description = updateData.description;
     }
 
-    const response = await httpClient.put(`${backendUrl}/templates/${templateId}`, payload);
+    const response = await httpClient.put(`${backendUrl}/templates/${templateId}`, payload, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         let errorMessage = 'Error al actualizar la plantilla';
@@ -91,8 +103,12 @@ export async function updateTemplate(templateId: string, updateData: { name?: st
 }
 
 
-export async function exportTemplate(templateId: string) {
-    const response = await httpClient.get(`${backendUrl}/templates/${templateId}/export`);
+export async function exportTemplate(templateId: string, organizationId: string) {
+    const response = await httpClient.get(`${backendUrl}/templates/${templateId}/export`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al exportar la plantilla');
     }
@@ -101,8 +117,12 @@ export async function exportTemplate(templateId: string) {
     return data.data;
 }
 
-export async function generateTemplateSections(templateId: string) {
-    const response = await httpClient.post(`${backendUrl}/templates/${templateId}/generate`);
+export async function generateTemplateSections(templateId: string, organizationId: string) {
+    const response = await httpClient.post(`${backendUrl}/templates/${templateId}/generate`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         throw new Error('Error al generar las secciones de la plantilla');

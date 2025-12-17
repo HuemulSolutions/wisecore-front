@@ -32,10 +32,12 @@ import {
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { selectedOrganizationId } = useOrganization();
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,8 +48,8 @@ export default function DocumentPage() {
     refetch
   } = useQuery({
     queryKey: ["document", id],
-    queryFn: () => getDocumentById(id!),
-    enabled: !!id, // Only run if id is defined
+    queryFn: () => getDocumentById(id!, selectedOrganizationId!),
+    enabled: !!id && !!selectedOrganizationId, // Only run if id and organizationId are defined
   });
 
   const handleRefreshExecutions = () => {
@@ -98,7 +100,7 @@ export default function DocumentPage() {
     }
 
     try {
-      await deleteDocument(id);
+      await deleteDocument(id, selectedOrganizationId!);
       toast.success("Asset deleted successfully");
       sessionStorage.removeItem("library-selectedFile");
       sessionStorage.removeItem("library-selected-file");
@@ -114,7 +116,7 @@ export default function DocumentPage() {
   };
 
   const handleNewExecution = () => {
-    createExecution(id!)
+    createExecution(id!, selectedOrganizationId!)
       .then((execution) => {
         console.log("Execution created:", execution);
         navigate(`/execution/${execution.id}`);
@@ -148,7 +150,7 @@ export default function DocumentPage() {
         return;
       }
       
-      await exportExecutionToWord(lastExecution.id.toString());
+      await exportExecutionToWord(lastExecution.id.toString(), selectedOrganizationId!);
       console.log("Word export completed successfully");
     } catch (error) {
       console.error("Error exporting to Word:", error);
@@ -168,7 +170,7 @@ export default function DocumentPage() {
         return;
       }
       
-      await exportExecutionToMarkdown(lastExecution.id.toString());
+      await exportExecutionToMarkdown(lastExecution.id.toString(), selectedOrganizationId!);
       console.log("Markdown export completed successfully");
     } catch (error) {
       console.error("Error exporting to Markdown:", error);
@@ -194,7 +196,7 @@ export default function DocumentPage() {
 
     try {
       setIsUploadingTemplate(true);
-      await uploadDocxTemplate(id!, file);
+      await uploadDocxTemplate(id!, file, selectedOrganizationId!);
       console.log('Template uploaded successfully');
       await refetch();
       toast.success('Template uploaded successfully');
@@ -222,7 +224,7 @@ export default function DocumentPage() {
         return;
       }
       
-      await exportExecutionCustomWord(lastExecution.id.toString());
+      await exportExecutionCustomWord(lastExecution.id.toString(), selectedOrganizationId!);
       console.log("Custom Word export completed successfully");
     } catch (error) {
       console.error("Error exporting to custom Word:", error);

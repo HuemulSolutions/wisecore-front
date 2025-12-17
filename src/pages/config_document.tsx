@@ -12,11 +12,13 @@ import { formatDate } from "@/services/utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
@@ -33,13 +35,13 @@ export default function ConfigDocumentPage() {
     error,
   } = useQuery({
     queryKey: ["document", id],
-    queryFn: () => getDocumentById(id!),
-    enabled: !!id, // Solo ejecutar si id está definido
+    queryFn: () => getDocumentById(id!, selectedOrganizationId!),
+    enabled: !!id && !!selectedOrganizationId, // Solo ejecutar si id y organizationId están definidos
   });
 
   const addSectionMutation = useMutation({
     mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
-      createSection(sectionData),
+      createSection(sectionData, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document", id] });
       setIsAddingSection(false);
@@ -52,7 +54,7 @@ export default function ConfigDocumentPage() {
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
-      updateSection(sectionId, sectionData),
+      updateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
@@ -64,7 +66,7 @@ export default function ConfigDocumentPage() {
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteSection(sectionId),
+    mutationFn: (sectionId: string) => deleteSection(sectionId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
@@ -76,7 +78,7 @@ export default function ConfigDocumentPage() {
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
@@ -89,7 +91,7 @@ export default function ConfigDocumentPage() {
 
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
-    mutationFn: (documentId: string) => generateDocumentStructure(documentId),
+    mutationFn: (documentId: string) => generateDocumentStructure(documentId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ["document", id] });

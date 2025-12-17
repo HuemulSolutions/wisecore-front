@@ -1,10 +1,14 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function createSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string; type?: string }) {
+export async function createSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string; type?: string }, organizationId: string) {
     const response = await httpClient.post(`${backendUrl}/sections/`, {
         ...sectionData,
         type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
     });
 
     if (!response.ok) {
@@ -18,8 +22,12 @@ export async function createSection(sectionData: { name: string; prompt: string;
     return data.data;
 }
 
-export async function updateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
-    const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData);
+export async function updateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }, organizationId: string) {
+    const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         const errorResponse = await response.json();
@@ -32,8 +40,12 @@ export async function updateSection(sectionId: string, sectionData: { name?: str
 }
 
 
-export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
-    const response = await httpClient.put(`${backendUrl}/sections/order`, { new_order: sections });
+export async function updateSectionsOrder(sections: { section_id: string; order: number }[], organizationId: string) {
+    const response = await httpClient.put(`${backendUrl}/sections/order`, { new_order: sections }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         const errorResponse = await response.json();
@@ -46,8 +58,12 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     return data.data;
 }
 
-export async function deleteSection(sectionId: string) {
-    const response = await httpClient.delete(`${backendUrl}/sections/${sectionId}`);
+export async function deleteSection(sectionId: string, organizationId: string) {
+    const response = await httpClient.delete(`${backendUrl}/sections/${sectionId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         const errorResponse = await response.json();

@@ -154,13 +154,13 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
         </Select>
 
         <div className="space-y-2 mt-2">
-          <label className="text-sm font-medium">Document Type</label>
+          <label className="text-sm font-medium">Asset Type</label>
           <Select
             value={documentTypeId}
             onValueChange={(value) => setDocumentTypeId(value)}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select document type" />
+              <SelectValue placeholder="Select asset type" />
             </SelectTrigger>
             <SelectContent>
               {/* Display existing document types from API */}
@@ -183,7 +183,7 @@ export default function CreateDocument({ trigger }: CreateDocumentProps) {
                       size="sm" 
                       className="w-full justify-start text-blue-600 hover:text-blue-700 hover:cursor-pointer"
                     >
-                      + Create new document type
+                      + Create new asset type
                     </Button>
                   }
                   onDocumentTypeCreated={handleCreateDocumentType}

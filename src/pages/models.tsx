@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, ChevronUp, ChevronDown, CheckCircle, Circle, Settings, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 import {
@@ -449,325 +452,369 @@ export default function ModelsPage() {
     }
   }
 
+  // Loading state
   if (loadingSupportedProviders || loadingConfiguredProviders || loadingLLMs) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="bg-background p-6 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <Skeleton className="h-9 w-48" />
+          </div>
+          <Card className="border border-border bg-card">
+            <div className="p-6 space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </Card>
+        </div>
       </div>
     )
   }
 
+  // Error or empty state
   if (!allProviders || allProviders.length === 0) {
     return (
-      <div className="space-y-6 bg-gray-50 min-h-screen p-6">
-        <div>
-          <h1 className="text-3xl font-bold">Configuration</h1>
-          <p className="text-muted-foreground">
-            Manage your LLM providers and models in one place
-          </p>
-        </div>
-        <div className="text-center py-12">
-          <p className="text-gray-500">No providers available. Please check your connection or try again later.</p>
+      <div className="bg-background p-6 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              <Settings className="w-8 h-8 text-primary" />
+              <h1 className="text-3xl font-bold text-foreground">Models Configuration</h1>
+            </div>
+          </div>
+          <Card className="border border-border bg-card">
+            <div className="text-center py-12">
+              <Settings className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No providers available</h3>
+              <p className="text-muted-foreground">Please check your connection or try again later.</p>
+            </div>
+          </Card>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 min-h-screen p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Configuration</h1>
-        <p className="text-muted-foreground">
-          Manage your LLM providers and models in one place
-        </p>
-      </div>
+    <div className="bg-background p-6 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <Settings className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-bold text-foreground">Models Configuration</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-sm">
+              {allProviders.filter(p => p.isConfigured).length} configured providers
+            </Badge>
+            <Badge variant="outline" className="text-sm">
+              {llms.length} models
+            </Badge>
+          </div>
+        </div>
 
-      {/* Providers List */}
-      <div className="space-y-3">
+        {/* Providers List */}
+        <div className="space-y-4 pb-8 max-h-[calc(100vh-200px)] overflow-y-auto">
         {allProviders.map((provider: any) => {
           const status = getProviderStatus(provider)
           const isOpen = openProviders.includes(provider.id)
           const models = getProviderModels(provider.id)
 
           return (
-            <div key={provider.id} className="border border-gray-200 rounded-lg bg-white">
+            <Card key={provider.id} className="border border-border bg-card">
               <Collapsible 
-                open={isOpen} 
-                onOpenChange={(open) => {
-                  if (open) {
-                    setOpenProviders(prev => [...prev, provider.id])
-                  } else {
-                    setOpenProviders(prev => prev.filter(id => id !== provider.id))
-                  }
-                }}
+          open={isOpen} 
+          onOpenChange={(open) => {
+            if (open) {
+              setOpenProviders(prev => [...prev, provider.id])
+            } else {
+              setOpenProviders(prev => prev.filter(id => id !== provider.id))
+            }
+          }}
+          className="h-auto"
               >
-                <div className="flex w-full items-center p-4">
-                  <CollapsibleTrigger
-                    className="flex items-center gap-3 text-left hover:bg-gray-50 rounded-lg p-2 flex-1"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                      <span className="text-lg font-semibold text-gray-700">
-                        {(provider.display_name || provider.name).charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{provider.display_name || provider.name}</h3>
-                      <div className="flex items-center gap-2 text-sm mt-1">
-                        {status.configured ? (
-                          <>
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-green-600 font-medium">Configured</span>
-                          </>
-                        ) : (
-                          <>
-                            <Circle className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-500 font-medium">Not configured</span>
-                          </>
-                        )}
-                        <span className="text-gray-400">•</span>
-                        <span className="text-gray-500">
-                          {status.modelCount} model{status.modelCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  
-                  {/* Action buttons - solo mostrar para proveedores configurados */}
-                  {provider.isConfigured && (
-                    <div className="flex items-center gap-1 mr-2">
-                      {isMobile ? (
-                        <DropdownMenu 
-                          open={openDropdowns[`provider-${provider.id}`] || false}
-                          onOpenChange={(open) => 
-                            setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: open }))
-                          }
-                        >
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-600" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleEditProvider(provider)}
-                              className="hover:cursor-pointer"
-                            >
-                              <Edit className="h-4 w-4 mr-2 text-blue-600" />
-                              Edit Provider
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteProvider(provider)}
-                              className="hover:cursor-pointer text-red-600"
-                              disabled={deleteProviderMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleEditProvider(provider)
-                            }}
-                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
-                          >
-                            <Edit className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteProvider(provider)
-                            }}
-                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                            disabled={deleteProviderMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Chevron button */}
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
-                    >
-                      {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-                    </Button>
-                  </CollapsibleTrigger>
+          <div className="flex w-full items-center p-4">
+            <CollapsibleTrigger
+              className="flex items-center gap-3 text-left hover:bg-muted/20 rounded-lg p-2 flex-1"
+            >
+              <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center">
+                <span className="text-lg font-semibold text-foreground">
+            {(provider.display_name || provider.name).charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground">{provider.display_name || provider.name}</h3>
+                <div className="flex items-center gap-2 text-sm mt-1">
+            {status.configured ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <Badge className="bg-green-100/80 text-green-700 border-green-200">Configured</Badge>
+              </>
+            ) : (
+              <>
+                <Circle className="h-4 w-4 text-muted-foreground" />
+                <Badge variant="outline" className="text-muted-foreground">Not configured</Badge>
+              </>
+            )}
+            <span className="text-muted-foreground">•</span>
+            <span className="text-muted-foreground">
+              {status.modelCount} model{status.modelCount !== 1 ? 's' : ''}
+            </span>
                 </div>
-                
-                {isOpen && (
-                  <CollapsibleContent className="px-6 pb-6 bg-gray-50 border-t border-gray-100">
-                    {provider.isConfigured ? (
-                      <>
-                        {/* Models Section */}
-                        <div className="mb-6">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-semibold text-gray-900">Models</h4>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedProviderId(provider.id)
-                                setIsCreateModelOpen(true)
-                              }}
-                              className="hover:cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Model
-                            </Button>
-                          </div>
-                          <div className="bg-gray-50 rounded-md">
-                            <Table>
-                              <TableHeader>
-                                <TableRow className="border-b border-gray-200">
-                                  <TableHead className="text-gray-600 font-medium">Display Name</TableHead>
-                                  <TableHead className="text-gray-600 font-medium">Technical Name</TableHead>
-                                  <TableHead className="text-gray-600 font-medium">Default</TableHead>
-                                  <TableHead className="text-gray-600 font-medium">Actions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {models.map((model) => (
-                                  <TableRow key={model.id} className="border-b border-gray-100 hover:bg-white">
-                                    <TableCell className="font-semibold text-gray-900">{model.name}</TableCell>
-                                    <TableCell className="text-gray-500 font-mono text-sm">
-                                      {model.internal_name}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Checkbox
-                                        checked={model.is_default || false}
-                                        onCheckedChange={(checked) =>
-                                          handleDefaultChange(model.id, checked as boolean)
-                                        }
-                                        className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      <div className="flex gap-1">
-                                        {isMobile ? (
-                                          <DropdownMenu 
-                                            open={openDropdowns[`model-${model.id}`] || false}
-                                            onOpenChange={(open) => 
-                                              setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: open }))
-                                            }
-                                          >
-                                            <DropdownMenuTrigger asChild>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
-                                              >
-                                                <MoreVertical className="h-4 w-4 text-gray-600" />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                              <DropdownMenuItem
-                                                onClick={() => handleEditModel(model)}
-                                                className="hover:cursor-pointer"
-                                              >
-                                                <Edit className="h-4 w-4 mr-2 text-blue-600" />
-                                                Edit Model
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                onClick={() => handleDeleteModel(model)}
-                                                className="hover:cursor-pointer text-red-600"
-                                                disabled={deleteLLMMutation.isPending}
-                                              >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
-                                              </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        ) : (
-                                          <>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleEditModel(model)}
-                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
-                                            >
-                                              <Edit className="h-4 w-4 text-blue-600" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleDeleteModel(model)}
-                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                                              disabled={deleteLLMMutation.isPending}
-                                            >
-                                              <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {/* Configuration Section for unconfigured providers */}
-                        <div className="text-center py-8">
-                          <div className="mb-4">
-                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                              <span className="text-2xl font-bold text-gray-400">
-                                {(provider.display_name || provider.name).charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{provider.display_name || provider.name}</h3>
-                            <p className="text-gray-500 mb-6">
-                              Configure this provider to start using its models
-                            </p>
-                          </div>
-                          <Button
-                            onClick={() => {
-                              setEditingProvider({
-                                ...provider,
-                                key: '',
-                                endpoint: '',
-                                deployment: '',
-                                providerKey: provider.name // This should be the key like 'openai', 'azure_openai', etc.
-                              })
-                            }}
-                            className="hover:cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Configure Provider
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </CollapsibleContent>
+              </div>
+            </CollapsibleTrigger>
+            
+            {/* Action buttons - solo mostrar para proveedores configurados */}
+            {provider.isConfigured && (
+              <div className="flex items-center gap-1 mr-2">
+                {isMobile ? (
+            <DropdownMenu 
+              open={openDropdowns[`provider-${provider.id}`] || false}
+              onOpenChange={(open) => 
+                setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: open }))
+              }
+              modal={false}
+            >
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-muted/20"
+                >
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => handleEditProvider(provider)}
+                  className="hover:cursor-pointer"
+                >
+                  <Edit className="h-4 w-4 mr-2 text-blue-600" />
+                  Edit Provider
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleDeleteProvider(provider)}
+                  className="hover:cursor-pointer text-red-600"
+                  disabled={deleteProviderMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+                ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleEditProvider(provider)
+                }}
+                className="hover:cursor-pointer h-8 w-8 p-0"
+              >
+                <Edit className="h-4 w-4 text-blue-600" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeleteProvider(provider)
+                }}
+                className="hover:cursor-pointer h-8 w-8 p-0"
+                disabled={deleteProviderMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </>
                 )}
-              </Collapsible>
+              </div>
+            )}
+
+            {/* Chevron button */}
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-muted/20"
+              >
+                {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          
+          {isOpen && (
+            <CollapsibleContent className="px-6 pt-6 pb-6 bg-muted/30 border-t border-border overflow-visible">
+              {provider.isConfigured ? (
+                <>
+            {/* Models Section */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-semibold text-foreground">Models</h4>
+                <Button
+                  size="sm"
+                  onClick={() => {
+              setSelectedProviderId(provider.id)
+              setIsCreateModelOpen(true)
+                  }}
+                  className="hover:cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Model
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border bg-muted/30">
+                <TableHead className="text-foreground font-medium">Display Name</TableHead>
+                <TableHead className="text-foreground font-medium">Technical Name</TableHead>
+                <TableHead className="text-foreground font-medium">Default</TableHead>
+                <TableHead className="text-right text-foreground font-medium">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+              <TableBody>
+                {models.map((model) => (
+                  <TableRow key={model.id} className="border-b border-border hover:bg-muted/20 transition">
+                    <TableCell className="font-semibold text-foreground">{model.name}</TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-sm">
+                {model.internal_name}
+                    </TableCell>
+                    <TableCell>
+                <Checkbox
+                  checked={model.is_default || false}
+                  onCheckedChange={(checked) =>
+                    handleDefaultChange(model.id, checked as boolean)
+                  }
+                />
+                    </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                {isMobile ? (
+                  <DropdownMenu 
+                    open={openDropdowns[`model-${model.id}`] || false}
+                    onOpenChange={(open) => 
+                      setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: open }))
+                    }
+                    modal={false}
+                  >
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                  variant="outline"
+                  size="sm"
+                  className="hover:cursor-pointer h-8 w-8 p-0"
+                      >
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                  onClick={() => handleEditModel(model)}
+                  className="hover:cursor-pointer"
+                      >
+                  <Edit className="h-4 w-4 mr-2 text-blue-600" />
+                  Edit Model
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                  onClick={() => handleDeleteModel(model)}
+                  className="hover:cursor-pointer text-red-600"
+                  disabled={deleteLLMMutation.isPending}
+                      >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditModel(model)}
+                      className="hover:cursor-pointer h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4 text-blue-600" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteModel(model)}
+                      className="hover:cursor-pointer h-8 w-8 p-0"
+                      disabled={deleteLLMMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </>
+                )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+                </TableBody>
+              </Table>
+              </div>
             </div>
+                </>
+              ) : (
+                <>
+            {/* Configuration Section for unconfigured providers */}
+            <div className="text-center py-8">
+              <div className="mb-4">
+                <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl font-bold text-muted-foreground">
+              {(provider.display_name || provider.name).charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{provider.display_name || provider.name}</h3>
+                <p className="text-muted-foreground mb-6">
+                  Configure this provider to start using its models
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingProvider({
+              ...provider,
+              key: '',
+              endpoint: '',
+              deployment: '',
+              providerKey: provider.name // This should be the key like 'openai', 'azure_openai', etc.
+                  })
+                }}
+                className="hover:cursor-pointer"
+              >
+                Configure Provider
+              </Button>
+            </div>
+                </>
+              )}
+            </CollapsibleContent>
+          )}
+              </Collapsible>
+            </Card>
           )
         })}
+        </div>
+
+        {/* Empty State when no models exist */}
+        {allProviders.filter(p => p.isConfigured).length === 0 && (
+          <Card className="border border-border bg-card">
+            <div className="text-center py-12">
+              <Settings className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No providers configured</h3>
+              <p className="text-muted-foreground">
+                Configure providers above to start creating and managing AI models.
+              </p>
+            </div>
+          </Card>
+        )}
       </div>
 
-      {/* Create Provider Dialog - Removed: Providers are configured from supported providers list */}
+        {/* Create Provider Dialog - Removed: Providers are configured from supported providers list */}
 
-      {/* Edit Provider Dialog */}
+        {/* Edit Provider Dialog */}
       <Dialog open={!!editingProvider} onOpenChange={() => setEditingProvider(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

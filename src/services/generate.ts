@@ -12,7 +12,8 @@ import type { EventSourceMessage } from "@microsoft/fetch-event-source";
 async function* ssePostStream(
   url: string,
   payload: unknown,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  additionalHeaders?: Record<string, string>
 ): AsyncGenerator<SSEEvent, void, unknown> {
   const events: SSEEvent[] = [];
   let closed = false;
@@ -50,6 +51,10 @@ async function* ssePostStream(
   const token = httpClient.getAuthToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  }
+  // Add additional headers if provided
+  if (additionalHeaders) {
+    Object.assign(headers, additionalHeaders);
   }
 
   fetchEventSource(url, {
@@ -94,6 +99,7 @@ interface GenerateStreamParams {
     documentId: string;
     executionId: string;
     userInstructions?: string;
+    organizationId: string;
     signal?: AbortSignal;
     onData: (text: string) => void;
     onInfo: (sectionId: string) => void;
@@ -105,8 +111,10 @@ async function* fetchGeneration(
   documentId: string,
   executionId: string,
   userInstructions?: string,
+  organizationId?: string,
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
+  const additionalHeaders = organizationId ? { 'X-Org-Id': organizationId } : undefined;
   return yield* ssePostStream(
     `${backendUrl}/generation/generate_document`,
     {
@@ -114,7 +122,8 @@ async function* fetchGeneration(
       execution_id: executionId,
       instructions: userInstructions,
     },
-    signal
+    signal,
+    additionalHeaders
   );
 }
 
@@ -126,6 +135,7 @@ interface GenerateWorkerParams {
     instructions?: string;
     startSectionId?: string;
     singleSectionMode?: boolean;
+    organizationId: string;
 }
 
 // New function for worker-based generation (no streaming)
@@ -133,7 +143,7 @@ export const generateDocumentWorker = async (params: GenerateWorkerParams): Prom
     if (!params) {
         throw new TypeError("generateDocumentWorker: parameter 'params' is undefined. You must pass an object with the required properties.");
     }
-    const { documentId, executionId, instructions, startSectionId, singleSectionMode } = params;
+    const { documentId, executionId, instructions, startSectionId, singleSectionMode, organizationId } = params;
 
     // Construct payload based on the execution mode
     const payload: Record<string, unknown> = {
@@ -152,7 +162,11 @@ export const generateDocumentWorker = async (params: GenerateWorkerParams): Prom
     }
 
     try {
-        const response = await httpClient.post(`${backendUrl}/generation/generate_worker`, payload);
+        const response = await httpClient.post(`${backendUrl}/generation/generate_worker`, payload, {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -176,12 +190,14 @@ export const generateDocumentWorker = async (params: GenerateWorkerParams): Prom
 export const generateEntireDocument = async (
     documentId: string,
     executionId: string,
+    organizationId: string,
     instructions?: string
 ): Promise<void> => {
     return generateDocumentWorker({
         documentId,
         executionId,
         instructions,
+        organizationId,
     });
 };
 
@@ -194,6 +210,7 @@ export const generateFromSection = async (
     documentId: string,
     executionId: string,
     startSectionId: string,
+    organizationId: string,
     instructions?: string
 ): Promise<void> => {
     return generateDocumentWorker({
@@ -201,6 +218,7 @@ export const generateFromSection = async (
         executionId,
         startSectionId,
         instructions,
+        organizationId,
     });
 };
 
@@ -213,6 +231,7 @@ export const generateSingleSection = async (
     documentId: string,
     executionId: string,
     startSectionId: string,
+    organizationId: string,
     instructions?: string
 ): Promise<void> => {
     return generateDocumentWorker({
@@ -221,6 +240,7 @@ export const generateSingleSection = async (
         startSectionId,
         singleSectionMode: true,
         instructions,
+        organizationId,
     });
 };
 
@@ -232,6 +252,7 @@ export const generateSingleSection = async (
 export const generateFirstSection = async (
     documentId: string,
     executionId: string,
+    organizationId: string,
     instructions?: string
 ): Promise<void> => {
     return generateDocumentWorker({
@@ -239,6 +260,7 @@ export const generateFirstSection = async (
         executionId,
         singleSectionMode: true,
         instructions,
+        organizationId,
     });
 };
 
@@ -247,10 +269,10 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
     if (!params) {
         throw new TypeError("generateDocument: parameter 'params' is undefined. You must pass an object with the required properties.");
     }
-    const { documentId, executionId, userInstructions, signal, onData, onInfo, onError, onClose } = params;
+    const { documentId, executionId, userInstructions, organizationId, signal, onData, onInfo, onError, onClose } = params;
 
     try {
-        for await (const event of fetchGeneration(documentId, executionId, userInstructions, signal)) {
+        for await (const event of fetchGeneration(documentId, executionId, userInstructions, organizationId, signal)) {
             console.log('Received event:', event);
             if (event.event === 'info') {
                 try {
@@ -283,6 +305,7 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
 interface FixSectionParams {
     instructions: string;
     content: string;
+    organizationId: string;
     onData: (text: string) => void;
     onError: (error: Event) => void;
     onClose: () => void;
@@ -291,6 +314,7 @@ interface FixSectionParams {
 interface RedactPromptParams {
     name: string;
     content?: string;
+    organizationId: string;
     onData: (text: string) => void;
     onError: (error: Event) => void;
     onClose: () => void;
@@ -300,6 +324,7 @@ interface ChatbotParams {
     executionId: string;
     user_message: string;
     threadId?: string;
+    organizationId: string;
     onData: (text: string) => void;
     onThreadId: (threadId: string) => void;
     onError: (error: Event) => void;
@@ -309,37 +334,46 @@ interface ChatbotParams {
 async function* fetchFixSection(
   instructions: string,
   content: string,
+  organizationId: string,
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
+  const additionalHeaders = { 'X-Org-Id': organizationId };
   return yield* ssePostStream(
     `${backendUrl}/generation/fix_section`,
     { content, instructions },
-    signal
+    signal,
+    additionalHeaders
   );
 }
 
 async function* fetchRedactPrompt(
   name: string,
-  content?: string,
+  content: string | undefined,
+  organizationId: string,
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
+  const additionalHeaders = { 'X-Org-Id': organizationId };
   return yield* ssePostStream(
     `${backendUrl}/generation/redact_section_prompt`,
     { name, content },
-    signal
+    signal,
+    additionalHeaders
   );
 }
 
 async function* fetchChatbot(
   executionId: string,
   user_message: string,
+  organizationId: string,
   threadId?: string,
   signal?: AbortSignal
 ): AsyncGenerator<SSEEvent, void, unknown> {
+  const additionalHeaders = { 'X-Org-Id': organizationId };
   return yield* ssePostStream(
     `${backendUrl}/chatbot`,
     { execution_id: executionId, user_message, thread_id: threadId },
-    signal
+    signal,
+    additionalHeaders
   );
 }
 
@@ -347,13 +381,13 @@ export const fixSection = async (params: FixSectionParams): Promise<void> => {
     if (!params) {
         throw new TypeError("fixSection: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
-    const { instructions, content, onData, onError, onClose } = params;
+    const { instructions, content, organizationId, onData, onError, onClose } = params;
 
     // Controller to allow cancelling the stream on error
     const controller = new AbortController();
 
     try {
-        for await (const event of fetchFixSection(instructions, content, controller.signal)) {
+        for await (const event of fetchFixSection(instructions, content, organizationId, controller.signal)) {
             console.log('Received event:', event);
             if (event.event === 'content') {
                 console.log("Content: ", event.data);
@@ -378,13 +412,13 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
     if (!params) {
         throw new TypeError("redactPrompt: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
-    const { name, content, onData, onError, onClose } = params;
+    const { name, content, organizationId, onData, onError, onClose } = params;
 
     // Controller to allow cancelling the stream on error
     const controller = new AbortController();
 
     try {
-        for await (const event of fetchRedactPrompt(name, content, controller.signal)) {
+        for await (const event of fetchRedactPrompt(name, content, organizationId, controller.signal)) {
             console.log('Received event:', event);
             if (event.event === 'content') {
                 console.log("Content: ", event.data);
@@ -409,13 +443,13 @@ export const chatbot = async (params: ChatbotParams): Promise<void> => {
     if (!params) {
         throw new TypeError("chatbot: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
-    const { executionId, user_message, threadId, onData, onThreadId, onError, onClose } = params;
+    const { executionId, user_message, threadId, organizationId, onData, onThreadId, onError, onClose } = params;
 
     // Controller to allow cancelling the stream on error
     const controller = new AbortController();
 
     try {
-        for await (const event of fetchChatbot(executionId, user_message, threadId, controller.signal)) {
+        for await (const event of fetchChatbot(executionId, user_message, organizationId, threadId, controller.signal)) {
             console.log('Received event:', event);
             if (event.event === 'content') {
                 console.log("Content: ", event.data);

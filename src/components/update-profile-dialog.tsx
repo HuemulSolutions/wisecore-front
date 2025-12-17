@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { ChevronDownIcon } from "lucide-react"
+import { ChevronDownIcon, Edit3 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -88,17 +88,20 @@ export function UpdateProfileDialog({ open, onOpenChange }: UpdateProfileDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Update Profile</DialogTitle>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader className="space-y-3">
+            <DialogTitle className="flex items-center gap-2">
+                <Edit3 className="h-5 w-5 text-primary" />
+                Update Profile
+            </DialogTitle>
           <DialogDescription>
             Make changes to your profile information here.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4">
-            <div className="grid gap-3">
-              <Label htmlFor="name">First Name</Label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-6">
+            <div className="grid gap-2">
+              <Label htmlFor="name">First Name *</Label>
               <Input
                 id="name"
                 name="name"
@@ -108,8 +111,8 @@ export function UpdateProfileDialog({ open, onOpenChange }: UpdateProfileDialogP
                 required
               />
             </div>
-            <div className="grid gap-3">
-              <Label htmlFor="lastName">Last Name</Label>
+            <div className="grid gap-2">
+              <Label htmlFor="lastName">Last Name *</Label>
               <Input
                 id="lastName"
                 name="lastName"
@@ -119,7 +122,7 @@ export function UpdateProfileDialog({ open, onOpenChange }: UpdateProfileDialogP
                 required
               />
             </div>
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               <Label htmlFor="birthdate">Date of Birth (Optional)</Label>
               <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                 <PopoverTrigger asChild>
@@ -147,7 +150,8 @@ export function UpdateProfileDialog({ open, onOpenChange }: UpdateProfileDialogP
               </Popover>
             </div>
           </div>
-          <DialogFooter>
+          
+          <DialogFooter className="mt-8 gap-3">
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 Cancel

@@ -91,7 +91,7 @@ export default function Templates() {
 
   // Mutation para eliminar template
   const deleteTemplateMutation = useMutation({
-    mutationFn: (templateId: string) => deleteTemplate(templateId),
+    mutationFn: (templateId: string) => deleteTemplate(templateId, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] });
       setSelectedTemplate(null);

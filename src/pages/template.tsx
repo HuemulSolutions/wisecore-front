@@ -39,11 +39,13 @@ import {
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function ConfigTemplate() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -62,13 +64,13 @@ export default function ConfigTemplate() {
 
   const { data: template, isLoading, error } = useQuery({
     queryKey: ["template", id],
-    queryFn: () => getTemplateById(id!),
-    enabled: !!id, // Solo ejecutar si id está definido
+    queryFn: () => getTemplateById(id!, selectedOrganizationId!),
+    enabled: !!id && !!selectedOrganizationId, // Solo ejecutar si id y organizationId están definidos
   });
 
   const addSectionMutation = useMutation({
     mutationFn: (sectionData: { name: string; template_id: string, prompt: string, dependencies: string[] }) => 
-      createTemplateSection(sectionData),
+      createTemplateSection(sectionData, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["template", id] });
       setIsAddingSection(false);
@@ -81,7 +83,7 @@ export default function ConfigTemplate() {
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
-      updateTemplateSection(sectionId, sectionData),
+      updateTemplateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ["template", id] });
@@ -94,7 +96,7 @@ export default function ConfigTemplate() {
 
   // Nueva mutation para eliminar sección (igual a la de update)
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId),
+    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["template", id] });
@@ -107,7 +109,7 @@ export default function ConfigTemplate() {
 
   // Mutation para reordenar secciones y persistir en backend
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ["template", id] });
@@ -120,7 +122,7 @@ export default function ConfigTemplate() {
 
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
-    mutationFn: (templateId: string) => generateTemplateSections(templateId),
+    mutationFn: (templateId: string) => generateTemplateSections(templateId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ["template", id] });
@@ -133,7 +135,7 @@ export default function ConfigTemplate() {
 
   const updateTemplateMutation = useMutation({
     mutationFn: ({ templateId, data }: { templateId: string; data: { name?: string; description?: string | null } }) =>
-      updateTemplate(templateId, data),
+      updateTemplate(templateId, data, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Template updated successfully");
       queryClient.invalidateQueries({ queryKey: ["template", id] });
@@ -258,7 +260,7 @@ export default function ConfigTemplate() {
 
   const handleDelete = async () => {
     try {
-      await deleteTemplate(template.id);
+      await deleteTemplate(template.id, selectedOrganizationId!);
       toast.success("Template deleted successfully");
       navigate("/templates"); // Redirigir a la lista de templates
       closeDeleteDialog();

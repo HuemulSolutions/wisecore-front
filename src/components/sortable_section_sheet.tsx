@@ -2,7 +2,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Markdown from "./ui/markdown";
 import {
@@ -28,7 +28,7 @@ import {
   Edit,
   Trash2
 } from "lucide-react";
-import EditSectionSheet from "./edit_section_sheet";
+import { EditSectionDialog } from "./edit-section-dialog";
 
 type Dependency = { id: string; name: string };
 
@@ -51,7 +51,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -81,20 +81,9 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
     closeDeleteDialog();
   };
 
-  const handleEditCancel = () => {
-    setIsEditing(false);
-  };
-
   const handleEditSave = (sectionData: object) => {
     onSave(item.id, sectionData);
-    setIsEditing(false);
   };
-
-  useEffect(() => {
-    if (isEditing) {
-      setIsExpanded(true);
-    }
-  }, [isEditing]);
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
@@ -149,7 +138,10 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onClick={() => setIsEditing(true)}
+                    onSelect={() => {
+                      // Sincroniza apertura al ciclo de cierre del dropdown
+                      setTimeout(() => setShowEditDialog(true), 0);
+                    }}
                     className="hover:cursor-pointer"
                   >
                     <Edit className="h-4 w-4 mr-2" />
@@ -175,8 +167,8 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
             let decodedPrompt = item.prompt
               .replace(/\\n/g, '\n')
               .replace(/\\\//g, '/')
-              .replace(/•/g, '-')
-              .replace(/\t/g, '  ');
+              .replace(/•/g, '-') // Convertir bullets (•) a guiones de markdown
+              .replace(/\t/g, '  '); // Convertir tabs a espacios
             
             // Extraer el primer párrafo o las primeras líneas significativas
             const lines = decodedPrompt.split('\n').filter(line => line.trim() !== '');
@@ -192,7 +184,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
               previewText = `${mainHeader}: `;
             }
             
-            const contentPreview = firstMeaningfulLines.length > 150 
+            const contentPreview = firstMeaningfulLines.length > 100 
               ? `${firstMeaningfulLines.substring(0, 150)}...`
               : firstMeaningfulLines;
               
@@ -205,7 +197,8 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                     <span className="font-medium text-gray-800">Prompt</span>
                   )}
                   {mainHeader && ': '}
-                  <span className="text-gray-600">{contentPreview}</span>
+                  {/* <span className="text-gray-600">{contentPreview}</span> */}
+                  <Markdown>{contentPreview}</Markdown>
                 </div>
               </div>
             );
@@ -239,15 +232,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
         {/* Contenido expandido */}
         {isExpanded && (
           <CardContent className="pt-0 px-3 sm:px-6">
-            {isEditing ? (
-              <EditSectionSheet
-                item={item}
-                onCancel={handleEditCancel}
-                onSave={handleEditSave}
-                existingSections={existingSections as any}
-              />
-            ) : (
-              <div className="space-y-4 min-w-0">
+            <div className="space-y-4 min-w-0">
                 {/* Prompt */}
                 {item.prompt && (() => {
                   // Decodificar caracteres especiales y convertir bullets a markdown
@@ -286,7 +271,6 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                   </div>
                 )}
               </div>
-            )}
           </CardContent>
         )}
       </Card>
@@ -313,6 +297,15 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Section Dialog */}
+      <EditSectionDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        item={item}
+        onSave={handleEditSave}
+        existingSections={existingSections as any}
+      />
     </div>
   );
 }

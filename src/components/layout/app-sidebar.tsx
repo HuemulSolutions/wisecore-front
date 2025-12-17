@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, BookText, Settings } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Shield, Package } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -17,6 +17,7 @@ import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
+import { useAuth } from "@/contexts/auth-context"
 import { getAllOrganizations, addOrganization } from "@/services/organizations"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -43,9 +44,38 @@ const navigationItems = [
     icon: LayoutTemplate,
   },
   {
-    title: "Models",
-    url: "/models", 
-    icon: Settings,
+    title: "Asset Management",
+    url: "#",
+    icon: Package,
+    items: [
+      {
+        title: "Asset Types",
+        url: "/asset-types",
+      },
+    ],
+  },
+  {
+    title: "Administration",
+    url: "#",
+    icon: Shield,
+    items: [
+      {
+        title: "Users",
+        url: "/users",
+      },
+      {
+        title: "Roles",
+        url: "/roles",
+      },
+      {
+        title: "Models",
+        url: "/models",
+      },
+      {
+        title: "Auth Types",
+        url: "/auth-types",
+      },
+    ],
   },
 ]
 
@@ -61,6 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const queryClient = useQueryClient()
   const location = useLocation()
   const isMobile = useIsMobile()
+  const { user } = useAuth()
   
   const { 
     selectedOrganizationId, 
@@ -95,13 +126,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   useEffect(() => {
     if (organizationsData) {
       setOrganizations(organizationsData)
-      
-      // Si no hay organización seleccionada, seleccionar la primera
-      if (!selectedOrganizationId && organizationsData.length > 0) {
-        setSelectedOrganizationId(organizationsData[0].id)
-      }
     }
-  }, [organizationsData, selectedOrganizationId, setOrganizations, setSelectedOrganizationId])
+  }, [organizationsData, setOrganizations])
 
   const handleCreateOrganization = (name: string) => {
     createOrgMutation.mutate({ name })
@@ -112,8 +138,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   // Obtener organización seleccionada
-  const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || 
-                     (organizations.length > 0 ? organizations[0] : null)
+  const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || null
+
+  // Filtrar navigationItems basándose en permisos de administrador
+  const filteredNavigationItems = navigationItems.filter(item => {
+    // Si el item es "Administration" o "Asset Management", solo mostrarlo si el usuario es admin
+    if (item.title === "Administration" || item.title === "Asset Management") {
+      return user?.is_root_admin === true
+    }
+    return true
+  })
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -127,7 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navigationItems} />
+        <NavMain items={filteredNavigationItems} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

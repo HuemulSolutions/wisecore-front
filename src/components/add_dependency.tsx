@@ -7,7 +7,7 @@ import {FileText, Trash2, Filter} from "lucide-react";
 import {useState} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocumentDependencies, addDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
-import { getAllDocuments, getDocumentById } from "@/services/documents";
+import { getAllDocuments } from "@/services/documents";
 import { getAllDocumentTypes } from "@/services/document_type";
 import { useOrganization } from "@/contexts/organization-context";
 
@@ -37,22 +37,18 @@ export default function AddDependency({ id }: { id: string }) {
     const queryClient = useQueryClient();
     const { selectedOrganizationId } = useOrganization();
 
-    const { data: document } = useQuery({
-        queryKey: ['document', id],
-        queryFn: () => getDocumentById(id),
-        enabled: !!id,
-    });
+    // Document data is fetched but not currently used in this component
 
     const { data: dependencies = [], isLoading, error } = useQuery<Dependency[]>({
         queryKey: ['documentDependencies', id],
-        queryFn: () => getDocumentDependencies(id!),
-        enabled: !!id,
+        queryFn: () => getDocumentDependencies(id!, selectedOrganizationId!),
+        enabled: !!id && !!selectedOrganizationId,
     });
 
     const { data: allDocuments = [] } = useQuery<Document[]>({
         queryKey: ['allDocuments'],
-        queryFn: () => getAllDocuments(document?.organization_id),
-        enabled: !!document?.organization_id,
+        queryFn: () => getAllDocuments(selectedOrganizationId!),
+        enabled: !!selectedOrganizationId,
     });
 
     const { data: documentTypes = [] } = useQuery<DocumentType[]>({
@@ -62,7 +58,7 @@ export default function AddDependency({ id }: { id: string }) {
     });
 
     const addDependencyMutation = useMutation({
-        mutationFn: (dependsOnDocumentId: string) => addDocumentDependency(id, dependsOnDocumentId),
+        mutationFn: (dependsOnDocumentId: string) => addDocumentDependency(id, dependsOnDocumentId, selectedOrganizationId!),
         onSuccess: () => {
             // Refrescar las dependencias y limpiar el select
             queryClient.invalidateQueries({ queryKey: ['documentDependencies', id] });
@@ -86,7 +82,7 @@ export default function AddDependency({ id }: { id: string }) {
 
     const handleRemoveDependency = (dependencyId: string) => {
         
-        removeDocumentDependency(id, dependencyId)
+        removeDocumentDependency(id, dependencyId, selectedOrganizationId!)
             .then(() => {
                 // Refrescar las dependencias después de eliminar
                 queryClient.invalidateQueries({ queryKey: ['documentDependencies', id] });
@@ -140,14 +136,14 @@ export default function AddDependency({ id }: { id: string }) {
                                             variant="outline"
                                             size="sm"
                                             className="hover:cursor-pointer"
-                                            title="Filter by document type"
+                                            title="Filter by asset type"
                                         >
                                             <Filter className="h-4 w-4" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-64 p-3">
                                         <div className="space-y-3">
-                                            <h4 className="font-semibold text-sm">Document Types</h4>
+                                            <h4 className="font-semibold text-sm">Asset Types</h4>
                                             <div className="space-y-2">
                                                 {documentTypes.map((type) => (
                                                     <div key={type.id} className="flex items-center space-x-2">
