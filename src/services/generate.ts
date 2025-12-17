@@ -264,6 +264,107 @@ export const generateFirstSection = async (
     });
 };
 
+// New execution interface for the /execution/generate endpoint
+interface ExecuteGenerationParams {
+    documentId: string;
+    executionId: string;
+    sectionId?: string;
+    mode: 'single' | 'from';
+    instructions?: string;
+    llmModel: string;
+    organizationId: string;
+}
+
+/**
+ * Execute generation using the new /execution/generate endpoint
+ * Supports both single section and from-section execution modes
+ */
+export const executeGeneration = async (params: ExecuteGenerationParams): Promise<void> => {
+    if (!params) {
+        throw new TypeError("executeGeneration: parameter 'params' is undefined. You must pass an object with the required properties.");
+    }
+    
+    const { documentId, executionId, sectionId, mode, instructions, llmModel, organizationId } = params;
+
+    const payload: Record<string, unknown> = {
+        document_id: documentId,
+        execution_id: executionId,
+        llm_id: llmModel,
+        instructions: instructions || '',
+    };
+
+    // Add section-specific parameters based on mode
+    if (mode === 'single' && sectionId) {
+        payload.section_id = sectionId;
+        payload.single_section_mode = true;
+    } else if (mode === 'from' && sectionId) {
+        payload.start_section_id = sectionId;
+        payload.single_section_mode = false;
+    }
+
+    try {
+        const response = await httpClient.post(`${backendUrl}/execution/generate`, payload, {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Execution started successfully:', result);
+    } catch (error) {
+        console.error('Error starting execution:', error);
+        throw error;
+    }
+};
+
+/**
+ * Convenience function for executing a single section
+ */
+export const executeSingleSection = async (
+    documentId: string,
+    executionId: string,
+    sectionId: string,
+    organizationId: string,
+    llmModel: string,
+    instructions?: string
+): Promise<void> => {
+    return executeGeneration({
+        documentId,
+        executionId,
+        sectionId,
+        mode: 'single',
+        instructions,
+        llmModel,
+        organizationId,
+    });
+};
+
+/**
+ * Convenience function for executing from a specific section onwards
+ */
+export const executeFromSection = async (
+    documentId: string,
+    executionId: string,
+    sectionId: string,
+    organizationId: string,
+    llmModel: string,
+    instructions?: string
+): Promise<void> => {
+    return executeGeneration({
+        documentId,
+        executionId,
+        sectionId,
+        mode: 'from',
+        instructions,
+        llmModel,
+        organizationId,
+    });
+};
+
 // Legacy streaming function (kept for backward compatibility)
 export const generateDocument = async (params: GenerateStreamParams): Promise<void> => {
     if (!params) {
