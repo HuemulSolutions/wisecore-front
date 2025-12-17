@@ -49,6 +49,7 @@ import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { addTemplate, getTemplateById } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
@@ -155,12 +156,14 @@ function SectionSeparator({
   onAddSection, 
   index, 
   isLastSection = false,
-  isMobile = false
+  isMobile = false,
+  selectedFile
 }: { 
   onAddSection: (afterIndex?: number) => void;
   index?: number;
   isLastSection?: boolean;
   isMobile?: boolean;
+  selectedFile?: { id: string; name: string; type: "folder" | "document"; access_levels?: string[] } | null;
 }) {
   return (
     <div className="group relative flex items-center justify-center my-4 px-4">
@@ -171,7 +174,10 @@ function SectionSeparator({
       
       {/* Add section button - appears on hover on desktop, always visible on mobile */}
       <div className="relative bg-white px-6">
-        <Button
+        <DocumentActionButton
+          accessLevels={selectedFile?.access_levels}
+          requiredAccess={["edit", "create"]}
+          requireAll={false}
           onClick={() => onAddSection(index)}
           variant="ghost"
           size="sm"
@@ -191,7 +197,7 @@ function SectionSeparator({
           title={`Add section ${isLastSection ? 'at the end' : index !== undefined && index >= 0 ? `after section ${index + 1}` : 'at the beginning'}`}
         >
           <PlusCircle className="h-4 w-4" />
-        </Button>
+        </DocumentActionButton>
       </div>
     </div>
   );
@@ -210,6 +216,7 @@ export function AssetContent({
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
+  const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
 
   // Si no hay organización seleccionada, no renderizar nada
   if (!selectedOrganizationId) {
@@ -1139,24 +1146,31 @@ export function AssetContent({
               </EmptyIcon>
               <EmptyTitle>Welcome to Assets</EmptyTitle>
               <EmptyDescription>
-                Create your first document or select an existing one to get started with your document workflow.
+                {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('assets'))
+                  ? "Create your first document or select an existing one to get started with your document workflow."
+                  : "Select an existing asset to get started or contact your administrator for permissions to create new assets."
+                }
               </EmptyDescription>
               <EmptyActions>
-                <Button
-                  onClick={() => setIsCreateTemplateSheetOpen(true)}
-                  variant="outline"
-                  className="hover:cursor-pointer"
-                >
-                  <FileCode className="h-4 w-4 mr-2" />
-                  Create Template
-                </Button>
-                <Button 
-                  onClick={() => setIsCreateAssetDialogOpen(true)}
-                  className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Create Asset
-                </Button>
+                {canAccessTemplates && canCreate('template') && (
+                  <Button
+                    onClick={() => setIsCreateTemplateSheetOpen(true)}
+                    variant="outline"
+                    className="hover:cursor-pointer"
+                  >
+                    <FileCode className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                )}
+                {canAccessAssets && canCreate('assets') && (
+                  <Button 
+                    onClick={() => setIsCreateAssetDialogOpen(true)}
+                    className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Create Asset
+                  </Button>
+                )}
               </EmptyActions>
             </div>
           </Empty>
@@ -1336,17 +1350,23 @@ export function AssetContent({
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
               {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                      title="Switch Version"
-                    >
-                      <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
+                <DocumentAccessControl
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess="read"
+                >
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <DocumentActionButton
+                        accessLevels={selectedFile?.access_levels}
+                        requiredAccess="read"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                        title="Switch Version"
+                      >
+                        <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
+                      </DocumentActionButton>
+                    </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64">
                     <div className="px-3 py-2 border-b border-gray-100">
                       <p className="text-xs font-medium text-gray-900">Document Versions</p>
@@ -1407,6 +1427,7 @@ export function AssetContent({
                       })}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </DocumentAccessControl>
               )}
               
               {/* Edit Button */}
@@ -2180,6 +2201,7 @@ export function AssetContent({
                                 onAddSection={() => handleAddSectionAtPosition(-1)} 
                                 index={-1}
                                 isMobile={isMobile}
+                                selectedFile={selectedFile}
                               />
                               
                               {documentContent.content.map((section: ContentSection, index: number) => {
@@ -2213,6 +2235,7 @@ export function AssetContent({
                                   documentId={selectedFile?.id}
                                   executionId={selectedExecutionId || undefined}
                                   executionStatus={selectedExecutionInfo?.status}
+                                  accessLevels={selectedFile?.access_levels}
                                   onExecutionStart={(executionIdForSection) => {
                                     // Set section execution for polling banner
                                     if (executionIdForSection) {
@@ -2229,6 +2252,7 @@ export function AssetContent({
                                 index={index}
                                 isLastSection={index === documentContent.content.length - 1}
                                 isMobile={isMobile}
+                                selectedFile={selectedFile}
                               />
                             </div>
                           );

@@ -3,6 +3,7 @@ import Markdown from "@/components/ui/markdown";
 import { useState, useEffect, useRef } from 'react';
 import Editor from '../editor';
 import { Button } from "@/components/ui/button";
+import { DocumentActionButton, DocumentAccessControl } from "@/components/document-access-control";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution-config-dialog';
@@ -31,7 +32,6 @@ import { fixSection, executeSingleSection, executeFromSection } from '@/services
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
-import ProtectedComponent from '@/components/protected-component';
 
 interface SectionExecutionProps {
     sectionExecution: {
@@ -46,6 +46,7 @@ interface SectionExecutionProps {
     executionId?: string;
     onExecutionStart?: (executionId?: string) => void;
     executionStatus?: string;
+    accessLevels?: string[];
 }
 
 export default function SectionExecution({ 
@@ -56,7 +57,8 @@ export default function SectionExecution({
     documentId, 
     executionId, 
     onExecutionStart, 
-    executionStatus 
+    executionStatus,
+    accessLevels
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -257,124 +259,126 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
-                                <ProtectedComponent resource="section_execution" resourceAction="r">
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                                onClick={handleCopy}
-                                            >
-                                                <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Copy content</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </ProtectedComponent>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DocumentActionButton
+                                            accessLevels={accessLevels}
+                                            requiredAccess="read"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                            onClick={handleCopy}
+                                        >
+                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
+                                        </DocumentActionButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Copy content</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
                                 {documentId && executionId && sectionExecution.section_id && !isExecutionApproved && (
                                     <>
-                                        <ProtectedComponent resource="section_execution" resourceAction="c">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
-                                                        onClick={() => handleOpenExecutionConfig('single')}
-                                                        disabled={isExecuting}
-                                                    >
-                                                        <Play className="h-3.5 w-3.5 text-green-600" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Execute this section</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </ProtectedComponent>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <DocumentActionButton
+                                                    accessLevels={accessLevels}
+                                                    requiredAccess={["edit", "create"]}
+                                                    requireAll={false}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
+                                                    onClick={() => handleOpenExecutionConfig('single')}
+                                                    disabled={isExecuting}
+                                                >
+                                                    <Play className="h-3.5 w-3.5 text-green-600" />
+                                                </DocumentActionButton>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Execute this section</p>
+                                            </TooltipContent>
+                                        </Tooltip>
 
-                                        <ProtectedComponent resource="section_execution" resourceAction="c">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
-                                                        onClick={() => handleOpenExecutionConfig('from')}
-                                                        disabled={isExecuting}
-                                                    >
-                                                        <FastForward className="h-3.5 w-3.5 text-purple-600" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Execute from this section</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </ProtectedComponent>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <DocumentActionButton
+                                                    accessLevels={accessLevels}
+                                                    requiredAccess={["edit", "create"]}
+                                                    requireAll={false}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
+                                                    onClick={() => handleOpenExecutionConfig('from')}
+                                                    disabled={isExecuting}
+                                                >
+                                                    <FastForward className="h-3.5 w-3.5 text-purple-600" />
+                                                </DocumentActionButton>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Execute from this section</p>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </>
                                 )}
 
                                 {!isEditing && !isAiEditing && !isExecutionApproved && (
-                                    <ProtectedComponent resource="section_execution" resourceAction="u">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                                    onClick={handleStartEditing}
-                                                >
-                                                    <Edit className="h-3.5 w-3.5 text-gray-600" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Edit section</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </ProtectedComponent>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="edit"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                                onClick={handleStartEditing}
+                                            >
+                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
+                                            </DocumentActionButton>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Edit section</p>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 )}
 
                                 {!isEditing && !isAiEditing && !isExecutionApproved && (
-                                    <ProtectedComponent resource="section_execution" resourceAction="u">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
-                                                    onClick={() => setIsAiEditing(true)}
-                                                >
-                                                    <Bot className="h-3.5 w-3.5 text-blue-600" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Ask AI to edit</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </ProtectedComponent>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="edit"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
+                                                onClick={() => setIsAiEditing(true)}
+                                            >
+                                                <Bot className="h-3.5 w-3.5 text-blue-600" />
+                                            </DocumentActionButton>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Ask AI to edit</p>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 )}
 
                                 {!isEditing && !isAiEditing && !isExecutionApproved && (
-                                    <ProtectedComponent resource="section_execution" resourceAction="d">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
-                                                    onClick={() => openDeleteDialog()}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Delete section</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </ProtectedComponent>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="delete"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
+                                                onClick={() => openDeleteDialog()}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                                            </DocumentActionButton>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Delete section</p>
+                                        </TooltipContent>
+                                    </Tooltip>
                                 )}
                             </div>
                         )}
@@ -388,7 +392,10 @@ export default function SectionExecution({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <ProtectedComponent resource="section_execution" resourceAction="r">
+                                    <DocumentAccessControl
+                                        accessLevels={accessLevels}
+                                        requiredAccess="read"
+                                    >
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'
                                             onClick={handleCopy}
@@ -396,10 +403,14 @@ export default function SectionExecution({
                                             <Copy className="h-4 w-4 mr-2" />
                                             Copy
                                         </DropdownMenuItem>
-                                    </ProtectedComponent>
+                                    </DocumentAccessControl>
                                     {documentId && executionId && sectionExecution.section_id && !isExecutionApproved && (
                                         <>
-                                            <ProtectedComponent resource="section_execution" resourceAction="c">
+                                            <DocumentAccessControl
+                                                accessLevels={accessLevels}
+                                                requiredAccess={["edit", "create"]}
+                                                requireAll={false}
+                                            >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
                                                     onSelect={() => {
@@ -410,8 +421,12 @@ export default function SectionExecution({
                                                     <Play className="h-4 w-4 mr-2" />
                                                     Execute Section
                                                 </DropdownMenuItem>
-                                            </ProtectedComponent>
-                                            <ProtectedComponent resource="section_execution" resourceAction="c">
+                                            </DocumentAccessControl>
+                                            <DocumentAccessControl
+                                                accessLevels={accessLevels}
+                                                requiredAccess={["edit", "create"]}
+                                                requireAll={false}
+                                            >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
                                                     onSelect={() => {
@@ -422,11 +437,14 @@ export default function SectionExecution({
                                                     <FastForward className="h-4 w-4 mr-2" />
                                                     Execute From Section
                                                 </DropdownMenuItem>
-                                            </ProtectedComponent>
+                                            </DocumentAccessControl>
                                         </>
                                     )}
                                     {!isEditing && !isAiEditing && !isExecutionApproved && (
-                                        <ProtectedComponent resource="section_execution" resourceAction="u">
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="edit"
+                                        >
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
                                                 onClick={handleStartEditing}
@@ -434,10 +452,13 @@ export default function SectionExecution({
                                                 <Edit className="h-4 w-4 mr-2" />
                                                 Edit
                                             </DropdownMenuItem>
-                                        </ProtectedComponent>
+                                        </DocumentAccessControl>
                                     )}
                                     {!isEditing && !isAiEditing && !isExecutionApproved && (
-                                        <ProtectedComponent resource="section_execution" resourceAction="u">
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="edit"
+                                        >
                                             <DropdownMenuItem 
                                                 className="hover:cursor-pointer"
                                                 onClick={() => setIsAiEditing(true)}
@@ -445,10 +466,13 @@ export default function SectionExecution({
                                                 <Bot className="h-4 w-4 mr-2" />
                                                 Ask AI to Edit
                                             </DropdownMenuItem>
-                                        </ProtectedComponent>
+                                        </DocumentAccessControl>
                                     )}
                                     {!isEditing && !isAiEditing && !isExecutionApproved && (
-                                        <ProtectedComponent resource="section_execution" resourceAction="d">
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="delete"
+                                        >
                                             <DropdownMenuItem 
                                                 className="text-red-600 hover:cursor-pointer"
                                                 onSelect={() => {
@@ -459,7 +483,7 @@ export default function SectionExecution({
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Delete
                                             </DropdownMenuItem>
-                                        </ProtectedComponent>
+                                        </DocumentAccessControl>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
