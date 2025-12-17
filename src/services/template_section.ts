@@ -4,10 +4,14 @@ import { httpClient } from "@/lib/http-client";
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
 // No necesitamos un endpoint separado para obtener las secciones
 
-export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string; type?: string }) {
+export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string; type?: string }, organizationId: string) {
     const response = await httpClient.post(`${backendUrl}/template_section/`, {
         ...sectionData,
         type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
     });
 
     if (!response.ok) {
@@ -21,8 +25,12 @@ export async function createTemplateSection(sectionData: { name: string; prompt:
     return data.data;
 }
 
-export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }) {
-    const response = await httpClient.put(`${backendUrl}/template_section/${sectionId}`, sectionData);
+export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }, organizationId: string) {
+    const response = await httpClient.put(`${backendUrl}/template_section/${sectionId}`, sectionData, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         const errorResponse = await response.json();
         console.error('Error updating section:', errorResponse);
@@ -33,8 +41,12 @@ export async function updateTemplateSection(sectionId: string, sectionData: { na
     return data.data;
 }
 
-export async function deleteTemplateSection(sectionId: string) {
-    const response = await httpClient.delete(`${backendUrl}/template_section/${sectionId}`);
+export async function deleteTemplateSection(sectionId: string, organizationId: string) {
+    const response = await httpClient.delete(`${backendUrl}/template_section/${sectionId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         const errorResponse = await response.json();
@@ -48,8 +60,12 @@ export async function deleteTemplateSection(sectionId: string) {
 }
 
 
-export async function updateSectionsOrder(sections: { section_id: string; order: number }[]) {
-    const response = await httpClient.put(`${backendUrl}/template_section/order`, { new_order: sections });
+export async function updateSectionsOrder(sections: { section_id: string; order: number }[], organizationId: string) {
+    const response = await httpClient.put(`${backendUrl}/template_section/order`, { new_order: sections }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         throw new Error('Error al actualizar el orden de las secciones');
@@ -60,6 +76,6 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     return data.data;
 }
 
-export async function updateTemplateSectionsOrder(sectionsOrder: { section_id: string; order: number }[]) {
-  return updateSectionsOrder(sectionsOrder);
+export async function updateTemplateSectionsOrder(sectionsOrder: { section_id: string; order: number }[], organizationId: string) {
+  return updateSectionsOrder(sectionsOrder, organizationId);
 }

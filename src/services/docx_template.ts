@@ -1,13 +1,16 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function uploadDocxTemplate(documentId: string, file: File) {
+export async function uploadDocxTemplate(documentId: string, file: File, organizationId: string) {
   const formData = new FormData();
   formData.append('file', file);
 
   const response = await httpClient.fetch(`${backendUrl}/docx_template/${documentId}`, {
     method: 'POST',
     body: formData,
+    headers: {
+      'X-Org-Id': organizationId,
+    },
   });
 
   if (!response.ok) {

@@ -9,7 +9,7 @@ export async function getAllDocuments(organizationId: string, documentTypeId?: s
   
   const headers: Record<string, string> = {};
   if (organizationId) {
-    headers['OrganizationId'] = organizationId;
+    headers['X-Org-Id'] = organizationId;
   }
   
   const response = await httpClient.get(url.toString(), {
@@ -23,8 +23,12 @@ export async function getAllDocuments(organizationId: string, documentTypeId?: s
   return data.data;
 }
 
-export async function getDocumentById(documentId: string) {
-  const response = await httpClient.get(`${backendUrl}/documents/${documentId}`);
+export async function getDocumentById(documentId: string, organizationId: string) {
+  const response = await httpClient.get(`${backendUrl}/documents/${documentId}`, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
   if (!response.ok) {
     throw new Error('Error al obtener el documento');
   }
@@ -33,8 +37,12 @@ export async function getDocumentById(documentId: string) {
   return data.data;
 }
 
-export async function deleteDocument(documentId: string) {
-  const response = await httpClient.delete(`${backendUrl}/documents/${documentId}`);
+export async function deleteDocument(documentId: string, organizationId: string) {
+  const response = await httpClient.delete(`${backendUrl}/documents/${documentId}`, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
   if (!response.ok) {
     throw new Error('Error al eliminar el documento');
   }
@@ -42,8 +50,12 @@ export async function deleteDocument(documentId: string) {
   return true;
 }
 
-export async function getDocumentSections(documentId: string) {
-  const response = await httpClient.get(`${backendUrl}/documents/${documentId}/sections`);
+export async function getDocumentSections(documentId: string, organizationId: string) {
+  const response = await httpClient.get(`${backendUrl}/documents/${documentId}/sections`, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
   if (!response.ok) {
     throw new Error('Error al obtener las secciones del documento');
   }
@@ -56,7 +68,7 @@ export async function createDocument(documentData: { name: string; description?:
   template_id?: string | null; document_type_id?: string, folder_id?: string }, organizationId: string) {
   const response = await httpClient.post(`${backendUrl}/documents/`, documentData, {
     headers: {
-      'OrganizationId': organizationId,
+      'X-Org-Id': organizationId,
     },
   });
 
@@ -71,14 +83,18 @@ export async function createDocument(documentData: { name: string; description?:
   return data.data;
 }
 
-export async function getDocumentContent(documentId: string, executionId?: string) {
+export async function getDocumentContent(documentId: string, organizationId: string, executionId?: string) {
   const url = new URL(`${backendUrl}/documents/content`);
   url.searchParams.append('document_id', documentId);
   if (executionId) {
     url.searchParams.append('execution_id', executionId);
   }
 
-  const response = await httpClient.get(url.toString());
+  const response = await httpClient.get(url.toString(), {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
   if (!response.ok) {
     throw new Error('Error al obtener el contenido del documento');
   } 
@@ -88,8 +104,12 @@ export async function getDocumentContent(documentId: string, executionId?: strin
 }
 
 
-export async function generateDocumentStructure(documentId: string) {
-  const response = await httpClient.post(`${backendUrl}/documents/${documentId}/generate`);
+export async function generateDocumentStructure(documentId: string, organizationId: string) {
+  const response = await httpClient.post(`${backendUrl}/documents/${documentId}/generate`, {}, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
 
   if (!response.ok) {
     throw new Error('Error al generar la estructura del documento');
@@ -107,7 +127,7 @@ export async function updateDocument(
 ) {
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}`, documentData, {
     headers: {
-      'OrganizationId': organizationId,
+      'X-Org-Id': organizationId,
     },
   });
 
@@ -122,11 +142,15 @@ export async function updateDocument(
   return data.data;
 }
 
-export async function moveDocument(documentId: string, newParentId?: string) {
+export async function moveDocument(documentId: string, newParentId: string | undefined, organizationId: string) {
   console.log('Moving document:', documentId, 'to parent:', newParentId);
   
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}/move`, {
     parent_folder_id: newParentId,
+  }, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
   });
 
   if (!response.ok) {

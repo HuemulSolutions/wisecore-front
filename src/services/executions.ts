@@ -2,9 +2,13 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
 
-export async function getExecutionsByDocumentId(documentId: string) {
+export async function getExecutionsByDocumentId(documentId: string, organizationId: string) {
     console.log(`Fetching executions for document ID: ${documentId}`);
-    const response = await httpClient.get(`${backendUrl}/documents/${documentId}/executions`);
+    const response = await httpClient.get(`${backendUrl}/documents/${documentId}/executions`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al obtener las ejecuciones del documento');
     }
@@ -13,9 +17,13 @@ export async function getExecutionsByDocumentId(documentId: string) {
     return data.data;
 }
 
-export async function getExecutionById(executionId: string) {
+export async function getExecutionById(executionId: string, organizationId: string) {
     console.log(`Fetching execution with ID: ${executionId}`);
-    const response = await httpClient.get(`${backendUrl}/execution/${executionId}`);
+    const response = await httpClient.get(`${backendUrl}/execution/${executionId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al obtener la ejecución');
     }
@@ -24,10 +32,14 @@ export async function getExecutionById(executionId: string) {
     return data.data;
 }
 
-export async function getExecutionStatus(executionId: string) {
+export async function getExecutionStatus(executionId: string, organizationId: string) {
     console.log(`Fetching execution status with ID: ${executionId}`);
     try {
-        const response = await httpClient.get(`${backendUrl}/execution/status/${executionId}`);
+        const response = await httpClient.get(`${backendUrl}/execution/status/${executionId}`, {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -42,9 +54,13 @@ export async function getExecutionStatus(executionId: string) {
     }
 }
 
-export async function createExecution(documentId: string) {
+export async function createExecution(documentId: string, organizationId: string) {
     console.log(`Creating execution for document ID: ${documentId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/${documentId}`);
+    const response = await httpClient.post(`${backendUrl}/execution/${documentId}`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         throw new Error('Error al crear la ejecución del documento');
@@ -55,10 +71,46 @@ export async function createExecution(documentId: string) {
     return data.data;
 }
 
+export async function executeDocument({
+    documentId,
+    llmId,
+    instructions,
+    organizationId
+}: {
+    documentId: string;
+    llmId: string;
+    instructions?: string;
+    organizationId: string;
+}) {
+    console.log(`Executing document with ID: ${documentId}`);
+    const response = await httpClient.post(`${backendUrl}/execution/generate`, {
+        document_id: documentId,
+        llm_id: llmId,
+        instructions: instructions || "",
+        single_section_mode: false
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
-export async function deleteExecution(executionId: string) {
+    if (!response.ok) {
+        throw new Error('Error al ejecutar el documento');
+    }
+
+    const data = await response.json();
+    console.log('Document execution started:', data.data);
+    return data.data;
+}
+
+
+export async function deleteExecution(executionId: string, organizationId: string) {
     console.log(`Deleting execution with ID: ${executionId}`);
-    const response = await httpClient.delete(`${backendUrl}/execution/${executionId}`);
+    const response = await httpClient.delete(`${backendUrl}/execution/${executionId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al eliminar la ejecución');
     }
@@ -68,9 +120,13 @@ export async function deleteExecution(executionId: string) {
 }
 
 
-export async function updateLLM(executionId: string, llmId: string) {
+export async function updateLLM(executionId: string, llmId: string, organizationId: string) {
     console.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
-    const response = await httpClient.put(`${backendUrl}/execution/update_llm/${executionId}`, { llm_id: llmId });
+    const response = await httpClient.put(`${backendUrl}/execution/update_llm/${executionId}`, { llm_id: llmId }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
 
     if (!response.ok) {
         throw new Error('Error al actualizar el LLM de la ejecución');
@@ -81,7 +137,7 @@ export async function updateLLM(executionId: string, llmId: string) {
     return data.data;
 }
 
-async function exportExecutionFile(executionId: string, exportType: 'markdown' | 'word' | 'custom_word') {
+async function exportExecutionFile(executionId: string, exportType: 'markdown' | 'word' | 'custom_word', organizationId: string) {
     const endpoints = {
         markdown: 'export_markdown',
         word: 'export_word',
@@ -95,7 +151,11 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     };
     
     console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
-    const response = await httpClient.get(`${backendUrl}/execution/${endpoints[exportType]}/${executionId}`);
+    const response = await httpClient.get(`${backendUrl}/execution/${endpoints[exportType]}/${executionId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     
     if (!response.ok) {
         throw new Error(`Error al exportar la ejecución a ${exportType}`);
@@ -124,21 +184,25 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     return { filename, success: true };
 }
 
-export async function exportExecutionToMarkdown(executionId: string) {
-    return exportExecutionFile(executionId, 'markdown');
+export async function exportExecutionToMarkdown(executionId: string, organizationId: string) {
+    return exportExecutionFile(executionId, 'markdown', organizationId);
 }
 
-export async function exportExecutionToWord(executionId: string) {
-    return exportExecutionFile(executionId, 'word');
+export async function exportExecutionToWord(executionId: string, organizationId: string) {
+    return exportExecutionFile(executionId, 'word', organizationId);
 }
 
-export async function exportExecutionCustomWord(executionId: string) {
-    return exportExecutionFile(executionId, 'custom_word');
+export async function exportExecutionCustomWord(executionId: string, organizationId: string) {
+    return exportExecutionFile(executionId, 'custom_word', organizationId);
 }
 
-export async function approveExecution(executionId: string) {
+export async function approveExecution(executionId: string, organizationId: string) {
     console.log(`Approving execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/approve/${executionId}`);
+    const response = await httpClient.post(`${backendUrl}/execution/approve/${executionId}`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al aprobar la ejecución');
     }
@@ -147,14 +211,33 @@ export async function approveExecution(executionId: string) {
     return data.data;
 }
 
-export async function disapproveExecution(executionId: string) {
+export async function disapproveExecution(executionId: string, organizationId: string) {
     console.log(`Disapproving execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/disapprove/${executionId}`);
+    const response = await httpClient.post(`${backendUrl}/execution/disapprove/${executionId}`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error al desaprobar la ejecución');
     }
     const data = await response.json();
     console.log('Execution disapproved:', data.data);
+    return data.data;
+}
+
+export async function cloneExecution(executionId: string, organizationId: string) {
+    console.log(`Cloning execution with ID: ${executionId}`);
+    const response = await httpClient.post(`${backendUrl}/execution/clone/${executionId}`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    if (!response.ok) {
+        throw new Error('Error al clonar la ejecución');
+    }
+    const data = await response.json();
+    console.log('Execution cloned:', data.data);
     return data.data;
 }
 

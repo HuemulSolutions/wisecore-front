@@ -6,11 +6,20 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
     const url = `${backendUrl}/folder/${folderPath}`;
     const response = await httpClient.get(url, {
         headers: {
-            'OrganizationId': organizationId,
+            'X-Org-Id': organizationId,
         },
     });
     if (!response.ok) {
-        throw new Error('Error fetching library content');
+        let errorMessage = 'Error fetching library content';
+        try {
+            const errorData = await response.json();
+            if (errorData.detail) {
+                errorMessage = errorData.detail;
+            }
+        } catch {
+            // If we can't parse the error response, use the default message
+        }
+        throw new Error(errorMessage);
     }
     const data = await response.json();
     console.log('Library content fetched:', data.data);
@@ -32,7 +41,11 @@ export async function createFolder(name: string, organizationId: string, parentI
         requestBody.parent_folder_id = parentId;
     }
 
-    const response = await httpClient.post(`${backendUrl}/folder/create_folder`, requestBody);
+    const response = await httpClient.post(`${backendUrl}/folder/create_folder`, requestBody, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error creating folder');
     }
@@ -42,9 +55,13 @@ export async function createFolder(name: string, organizationId: string, parentI
 }
 
 
-export async function editFolder(folderId: string, name: string) {
+export async function editFolder(folderId: string, name: string, organizationId: string) {
     const response = await httpClient.put(`${backendUrl}/folder/${folderId}`, {
         name,
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
     });
     if (!response.ok) {
         throw new Error('Error editing folder');
@@ -54,8 +71,12 @@ export async function editFolder(folderId: string, name: string) {
     return data?.data;
 }
 
-export async function deleteFolder(folderId: string) {
-    const response = await httpClient.delete(`${backendUrl}/folder/${folderId}`);
+export async function deleteFolder(folderId: string, organizationId: string) {
+    const response = await httpClient.delete(`${backendUrl}/folder/${folderId}`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
     if (!response.ok) {
         throw new Error('Error deleting folder');
     }
@@ -64,9 +85,13 @@ export async function deleteFolder(folderId: string) {
     return data?.data;
 }
 
-export async function moveFolder(folderId: string, newParentId?: string) {
+export async function moveFolder(folderId: string, newParentId: string | undefined, organizationId: string) {
     const response = await httpClient.put(`${backendUrl}/folder/${folderId}/move`, {
         parent_folder_id: newParentId || null,
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
     });
     if (!response.ok) {
         throw new Error('Error moving folder');
