@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth-context";
 import { OrganizationProvider } from "./contexts/organization-context";
+import { PermissionsProvider } from "./contexts/permissions-context";
 import { ProtectedRoute } from "./components/auth/protected-route";
+import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/protected-route-with-permissions";
 import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
@@ -25,31 +27,89 @@ export default function App() {
   return (
     <AuthProvider>
       <OrganizationProvider>
-        <ProtectedRoute>
+        <PermissionsProvider>
+          <ProtectedRoute>
             <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<Home />} />
-            <Route path="organizations" element={<Organizations />} />
-            <Route path="templates" element={<Templates />} />
-            <Route path="templates/:id" element={<Templates />} />
+            <Route path="organizations" element={
+              <PermissionProtectedRoute permissions={["organization:r", "organization:l"]}>
+                <Organizations />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="templates" element={
+              <PermissionProtectedRoute permissions={["template:r", "template:l"]}>
+                <Templates />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="templates/:id" element={
+              <PermissionProtectedRoute permissions={["template:r", "template:u"]}>
+                <Templates />
+              </PermissionProtectedRoute>
+            } />
             <Route path="search" element={<SearchPage />} />
-            <Route path="asset" element={<Assets />} />
-            <Route path="asset/*" element={<Assets />} />
+            <Route path="asset" element={
+              <PermissionProtectedRoute permissions={["assets:r", "assets:l"]}>
+                <Assets />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="asset/*" element={
+              <PermissionProtectedRoute permissions={["assets:r", "assets:l"]}>
+                <Assets />
+              </PermissionProtectedRoute>
+            } />
             <Route path="graph" element={<Graph />} />
-            <Route path="models" element={<ModelsPage />} />
-            <Route path="auth-types" element={<AuthTypesPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="roles" element={<RolesPage />} />
-            <Route path="asset-types" element={<AssetTypesPage />} />
-            <Route path="configTemplate/:id" element={<ConfigTemplate />} />
-            <Route path="document/:id" element={<DocumentPage />} />
-            <Route path="configDocument/:id" element={<ConfigDocumentPage />} />
-            <Route path="execution/:id" element={<ExecutionPage />} />
+            <Route path="models" element={
+              <PermissionProtectedRoute permissions={["llm:r", "llm_provider:r"]}>
+                <ModelsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="auth-types" element={
+              <PermissionProtectedRoute requireRootAdmin>
+                <AuthTypesPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="users" element={
+              <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
+                <UsersPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="roles" element={
+              <PermissionProtectedRoute permissions={["rbac:r", "rbac:manage"]}>
+                <RolesPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="asset-types" element={
+              <PermissionProtectedRoute permissions={["document_type:r", "document_type:l"]}>
+                <AssetTypesPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="configTemplate/:id" element={
+              <PermissionProtectedRoute permissions={["template:u", "template_section:r"]}>
+                <ConfigTemplate />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="document/:id" element={
+              <PermissionProtectedRoute permissions={["section:r", "assets:r"]}>
+                <DocumentPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="configDocument/:id" element={
+              <PermissionProtectedRoute permissions={["section:u", "section:c"]}>
+                <ConfigDocumentPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="execution/:id" element={
+              <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:c"]}>
+                <ExecutionPage />
+              </PermissionProtectedRoute>
+            } />
             <Route path="docDepend/:id" element={<DocDependPage />} />
           </Route>
             </Routes>
         </ProtectedRoute>
+        </PermissionsProvider>
       </OrganizationProvider>
     </AuthProvider>
   );
