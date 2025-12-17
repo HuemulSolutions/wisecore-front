@@ -22,7 +22,7 @@ export function ExecutionStatusBanner({
   console.log('ExecutionStatusBanner rendering with executionId:', executionId);
   
   // Intentar obtener el status desde el cache de documentContent primero
-  const { selectedOrganizationId } = useOrganization();
+  useOrganization();
   const queryClient = useQueryClient();
   
   // Buscar en cache del documentContent para evitar llamada extra
