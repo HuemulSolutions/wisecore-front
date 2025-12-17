@@ -19,6 +19,7 @@ import ModelsPage from "./pages/models";
 import AuthTypesPage from "./components/auth-types-page";
 import UsersPage from "./components/users-page";
 import RolesPage from "./components/roles-page";
+import AssetTypesPage from "./components/asset-types-page";
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="auth-types" element={<AuthTypesPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="roles" element={<RolesPage />} />
+            <Route path="asset-types" element={<AssetTypesPage />} />
             <Route path="configTemplate/:id" element={<ConfigTemplate />} />
             <Route path="document/:id" element={<DocumentPage />} />
             <Route path="configDocument/:id" element={<ConfigDocumentPage />} />
