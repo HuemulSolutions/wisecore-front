@@ -8,6 +8,7 @@ import { formatDate } from '@/services/utils';
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionCustomWord, deleteExecution, createExecution } from '@/services/executions';
 import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useOrganization } from '@/contexts/organization-context';
 
 
 export interface ExecutionInfoProps {
@@ -24,6 +25,7 @@ export interface ExecutionInfoProps {
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useNavigate();
+    const { selectedOrganizationId } = useOrganization();
     const [isExporting, setIsExporting] = useState(false);
     const [isExportingWord, setIsExportingWord] = useState(false);
     const [isExportingCustomWord, setIsExportingCustomWord] = useState(false);
@@ -33,7 +35,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     const handleExportToMarkdown = async () => {
         try {
             setIsExporting(true);
-            await exportExecutionToMarkdown(execution.id);
+            await exportExecutionToMarkdown(execution.id, selectedOrganizationId!);
         } catch (error) {
             console.error('Error exporting execution to markdown:', error);
         } finally {
@@ -44,7 +46,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     const handleExportToWord = async () => {
         try {
             setIsExportingWord(true);
-            await exportExecutionToWord(execution.id);
+            await exportExecutionToWord(execution.id, selectedOrganizationId!);
         } catch (error) {
             console.error('Error exporting execution to Word:', error);
         } finally {
@@ -55,7 +57,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     const handleExportToCustomWord = async () => {
         try {
             setIsExportingCustomWord(true);
-            await exportExecutionCustomWord(execution.id);
+            await exportExecutionCustomWord(execution.id, selectedOrganizationId!);
         } catch (error) {
             console.error('Error exporting execution to custom Word:', error);
         } finally {
@@ -66,7 +68,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     const handleConfirmDelete = async () => {
         try {
             setIsDeleting(true);
-            await deleteExecution(execution.id);
+            await deleteExecution(execution.id, selectedOrganizationId!);
             navigate(`/document/${execution.document_id}`);
         } catch (error) {
             console.error('Error deleting execution:', error);
@@ -77,7 +79,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     };
 
     const handleNewExecution = () => {
-        createExecution(execution.document_id!)
+        createExecution(execution.document_id!, selectedOrganizationId!)
           .then((execution) => {
             console.log("Execution created:", execution);
             navigate(`/execution/${execution.id}`);

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, MoreHorizontal, Edit } from "lucide-react"
+import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, Edit, MoreVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { 
   Tooltip,
@@ -38,9 +38,10 @@ import { Button } from "@/components/ui/button"
 import { CreateFolderDialog } from "@/components/create_folder"
 import { CreateAssetDialog } from "@/components/create-asset-dialog"
 import EditFolder from "@/components/edit_folder"
-import { deleteFolder } from "@/services/library"
+import { deleteFolder } from "@/services/library";
 import { toast } from "sonner"
 import type { FileNode } from "./types"
+import { useOrganization } from "@/contexts/organization-context"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -173,11 +174,12 @@ export function FileTreeItemWithContext({
   onShare,
   currentPath = [],
 }: FileTreeItemWithContextProps) {
+  const { selectedOrganizationId } = useOrganization()
   const [isDragOver, setIsDragOver] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingFolder, setDeletingFolder] = useState<FileNode | null>(null)
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
@@ -327,20 +329,24 @@ export function FileTreeItemWithContext({
   }
 
   const handleDeleteFolder = () => {
-    setIsDeleteDialogOpen(true);
+    // Use setTimeout so the context/dropdown menu fully closes before the dialog appears
+    setTimeout(() => {
+      setDeletingFolder(item)
+    }, 0)
   };
 
 
   const handleDeleteConfirm = async () => {
     try {
-      await deleteFolder(item.id);
-      toast.success(`Folder "${item.name}" deleted successfully`);
-      onRefresh?.();
+      if (deletingFolder) {
+        await deleteFolder(deletingFolder.id, selectedOrganizationId!);
+        toast.success(`Folder "${deletingFolder.name}" deleted successfully`);
+        onRefresh?.();
+        setDeletingFolder(null);
+      }
     } catch (error) {
       console.error('Error deleting folder:', error);
       toast.error(`Failed to delete folder. Please try again.`);
-    } finally {
-      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -446,7 +452,7 @@ export function FileTreeItemWithContext({
                   className="h-6 w-6 p-0 hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:cursor-pointer"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MoreHorizontal className="h-3 w-3" />
+                  <MoreVertical className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -481,9 +487,7 @@ export function FileTreeItemWithContext({
                       Edit Folder
                     </DropdownMenuItem>
                     <DropdownMenuItem 
-                      onSelect={() => {
-                        handleDeleteFolder();
-                      }}
+                      onSelect={handleDeleteFolder}
                       className="hover:cursor-pointer text-red-600 focus:text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -552,14 +556,14 @@ export function FileTreeItemWithContext({
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Folder
               </ContextMenuItem>
-              <ContextMenuItem onClick={handleDeleteFolder} className="hover:cursor-pointer text-red-600 focus:text-red-600">
+              <ContextMenuItem onSelect={handleDeleteFolder} className="hover:cursor-pointer text-red-600 focus:text-red-600">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Folder
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>
           )}
-          <ContextMenuItem onClick={handleShare} className="hover:cursor-pointer">
+          <ContextMenuItem onSelect={handleShare} className="hover:cursor-pointer">
             <Share className="h-4 w-4 mr-2" />
             Share Link
           </ContextMenuItem>
@@ -605,25 +609,26 @@ export function FileTreeItemWithContext({
 
       {/* Delete Confirmation Dialog - only for folders */}
       {isFolder && (
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent className="sm:max-w-[425px]">
+        <AlertDialog 
+          open={!!deletingFolder} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletingFolder(null)
+            }
+          }}
+        >
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Folder</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete "{item.name}"? 
-                <br />
-                <strong className="text-red-600">
-                  All files and subfolders will be permanently deleted and this action cannot be undone.
-                </strong>
+                Are you sure you want to delete "{deletingFolder?.name}"? All files and subfolders will be permanently deleted and this action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="hover:cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
-                Cancel
-              </AlertDialogCancel>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                className="hover:cursor-pointer bg-transparent border-0 text-red-600 hover:bg-red-50"
                 onClick={handleDeleteConfirm}
+                className="bg-destructive hover:bg-destructive/90"
               >
                 Delete Folder
               </AlertDialogAction>
@@ -636,7 +641,11 @@ export function FileTreeItemWithContext({
       {isFolder && (
         <CreateFolderDialog
           open={folderDialogOpen}
-          onOpenChange={setFolderDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setFolderDialogOpen(false)
+            }
+          }}
           parentFolder={item.id}
           onFolderCreated={onRefresh}
         />
@@ -646,7 +655,11 @@ export function FileTreeItemWithContext({
       {isFolder && (
         <CreateAssetDialog
           open={assetDialogOpen}
-          onOpenChange={setAssetDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAssetDialogOpen(false)
+            }
+          }}
           folderId={item.id}
           onAssetCreated={handleDocumentCreatedLocal}
         />

@@ -15,6 +15,7 @@ import { useState, useEffect } from "react";
 import SectionExecution from "@/components/section_execution";
 import { TableOfContents } from "@/components/table-of-contents";
 import Chatbot from "@/components/chatbot/chatbot";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface ExecutionInfoSheetProps {
   isOpen: boolean;
@@ -30,13 +31,14 @@ export function ExecutionInfoSheet({
   executionId,
   documentName,
 }: ExecutionInfoSheetProps) {
+  const { selectedOrganizationId } = useOrganization();
   const [isGenerating] = useState(false);
   const [editableSections, setEditableSections] = useState<any[]>([]);
 
   const { data: execution, isLoading, error, refetch } = useQuery({
     queryKey: ["execution", executionId],
-    queryFn: () => getExecutionById(executionId),
-    enabled: isOpen && !!executionId,
+    queryFn: () => getExecutionById(executionId, selectedOrganizationId!),
+    enabled: isOpen && !!executionId && !!selectedOrganizationId,
   });
 
   // Update local state when execution data changes

@@ -12,6 +12,7 @@ import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugi
 import type { MDXEditorMethods } from '@mdxeditor/editor';
 import { Sparkles, Loader2 } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface Section {
   id: string;
@@ -27,6 +28,7 @@ interface AddSectionFormProps {
 }
 
 export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {
+  const { selectedOrganizationId } = useOrganization();
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
@@ -45,6 +47,7 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
       let accumulatedText = "";
       await redactPrompt({
         name: name.trim(),
+        organizationId: selectedOrganizationId!,
         onData: (text: string) => {
           accumulatedText += text;
           // Convert \n to actual line breaks for markdown

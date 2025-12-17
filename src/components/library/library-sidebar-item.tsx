@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/edit_document_dialog";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface LibraryItem {
   id: string;
@@ -62,28 +63,31 @@ export function LibrarySidebarItem({
   setSelectedFile
 }: LibrarySidebarItemProps) {
   const navigate = useNavigate();
+  const { selectedOrganizationId } = useOrganization();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const handleDelete = () => {
-    // Usar mismo diálogo para documentos y carpetas
-    setTimeout(() => setIsDeleteDialogOpen(true), 10);
+    // Use setTimeout so the context menu fully closes before the dialog appears
+    setTimeout(() => {
+      setIsDeleteDialogOpen(true)
+    }, 0)
   };
 
   const handleDeleteConfirm = async () => {
     try {
       if (item.type === 'document') {
-        await deleteDocument(item.id);
+        await deleteDocument(item.id, selectedOrganizationId!);
         toast.success(`Document "${item.name}" deleted successfully`);
       } else {
-        await deleteFolder(item.id);
+        await deleteFolder(item.id, selectedOrganizationId!);
         toast.success(`Folder "${item.name}" deleted successfully`);
       }
       if (setSelectedFile) {
         setSelectedFile(null);
       }
       onRefresh?.();
-      setIsDeleteDialogOpen(false);
+      // Don't manually close dialog - let Radix handle it
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error(`Failed to delete ${item.type === 'document' ? 'document' : 'folder'}. Please try again.`);
@@ -153,21 +157,21 @@ export function LibrarySidebarItem({
         </ContextMenuTrigger>
         <ContextMenuContent>
           {item.type === "folder" ? (
-            <ContextMenuItem onClick={handleDelete} className="hover:cursor-pointer">
+            <ContextMenuItem onSelect={handleDelete} className="hover:cursor-pointer">
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </ContextMenuItem>
           ) : (
             <>
-              <ContextMenuItem onClick={handleEdit} className="hover:cursor-pointer">
+              <ContextMenuItem onSelect={handleEdit} className="hover:cursor-pointer">
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </ContextMenuItem>
-              <ContextMenuItem onClick={handleManage} className="hover:cursor-pointer">
+              <ContextMenuItem onSelect={handleManage} className="hover:cursor-pointer">
                 <Settings className="mr-2 h-4 w-4" />
                 Manage
               </ContextMenuItem>
-              <ContextMenuItem onClick={handleDelete} className="hover:cursor-pointer">
+              <ContextMenuItem onSelect={handleDelete} className="hover:cursor-pointer">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </ContextMenuItem>
@@ -176,22 +180,29 @@ export function LibrarySidebarItem({
         </ContextMenuContent>
       </ContextMenu>
 
-      {/* Delete Confirmation Dialog - only for documents */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!open) setIsDeleteDialogOpen(false); }}>
-        <AlertDialogContent className="sm:max-w-[425px]">
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog 
+        open={isDeleteDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsDeleteDialogOpen(false)
+          }
+        }}
+      >
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{item.type === 'document' ? 'Delete Document' : 'Delete Folder'}</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{item.name}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="hover:cursor-pointer" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="hover:cursor-pointer bg-red-600 text-white hover:bg-red-700"
-              onClick={handleDeleteConfirm}
+              onClick={() => {
+                handleDeleteConfirm()
+              }}
+              className="bg-destructive hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
@@ -202,18 +213,22 @@ export function LibrarySidebarItem({
       {item.type === 'document' && (
         <EditDocumentDialog
           open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
-            documentId={item.id}
-            currentName={item.name}
-            // No tenemos descripción aquí; el dialog la obtendrá si falta
-            onUpdated={(newName) => {
-              // Refrescar lista para reflejar nombre actualizado
-              onRefresh?.();
-              // Actualizar selección si este item está seleccionado
-              if (isSelected && setSelectedFile) {
-                setSelectedFile({ ...item, name: newName });
-              }
-            }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsEditDialogOpen(false)
+            }
+          }}
+          documentId={item.id}
+          currentName={item.name}
+          // No tenemos descripción aquí; el dialog la obtendrá si falta
+          onUpdated={(newName) => {
+            // Refrescar lista para reflejar nombre actualizado
+            onRefresh?.();
+            // Actualizar selección si este item está seleccionado
+            if (isSelected && setSelectedFile) {
+              setSelectedFile({ ...item, name: newName });
+            }
+          }}
         />
       )}
     </TooltipProvider>

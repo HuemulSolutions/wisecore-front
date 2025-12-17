@@ -18,12 +18,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building2, Plus, CheckCircle } from 'lucide-react';
-import { getAllOrganizations, addOrganization } from '@/services/organizations';
+import { getUserOrganizations, generateOrganizationToken, addOrganization } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
+import { useAuth } from '@/contexts/auth-context';
 
 interface Organization {
   id: string;
   name: string;
+  description?: string | null;
+  db_name?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface OrganizationSelectionDialogProps {
@@ -35,21 +40,23 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
+  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   
-  const { setSelectedOrganizationId, setOrganizations } = useOrganization();
+  const { setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: organizationsData, isLoading } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: getAllOrganizations,
-    enabled: open, // Solo cargar cuando el dialog esté abierto
+    queryKey: ['user-organizations', user?.id],
+    queryFn: () => getUserOrganizations(user!.id),
+    enabled: open && !!user?.id, // Solo cargar cuando el dialog esté abierto y tengamos user_id
   });
 
   const createOrgMutation = useMutation({
     mutationFn: addOrganization,
     onSuccess: (newOrg) => {
-      queryClient.invalidateQueries({ queryKey: ['organizations'] });
-      setSelectedOrganizationId(newOrg.id);
+      queryClient.invalidateQueries({ queryKey: ['user-organizations'] });
+      handleSelectOrganization(newOrg.id);
       setNewOrgName('');
       setNewOrgDescription('');
       setShowCreateForm(false);
@@ -62,9 +69,26 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
     }
   }, [organizationsData, setOrganizations]);
 
-  const handleSelectOrganization = () => {
-    if (selectedOrgId) {
-      setSelectedOrganizationId(selectedOrgId);
+  const handleSelectOrganization = async (orgId?: string) => {
+    const organizationId = orgId || selectedOrgId;
+    if (organizationId && user?.id) {
+      setIsGeneratingToken(true);
+      try {
+        const tokenResponse = await generateOrganizationToken(user.id, organizationId);
+        const orgToken = tokenResponse.token || tokenResponse.data?.token;
+        
+        // Actualizar el contexto de organización
+        setSelectedOrganizationId(organizationId);
+        setOrganizationToken(orgToken);
+        
+        console.log('Organization token generated successfully:', orgToken?.substring(0, 10) + '...');
+        
+      } catch (error) {
+        console.error('Error generating organization token:', error);
+        // Aquí podrías mostrar un toast de error
+      } finally {
+        setIsGeneratingToken(false);
+      }
     }
   };
 
@@ -127,12 +151,12 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
 
               <div className="flex flex-col gap-3">
                 <Button
-                  onClick={handleSelectOrganization}
-                  disabled={!selectedOrgId || isLoading}
+                  onClick={() => handleSelectOrganization()}
+                  disabled={!selectedOrgId || isLoading || isGeneratingToken}
                   className="w-full bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Continue with Selected Organization
+                  {isGeneratingToken ? 'Generating token...' : 'Continue with Selected Organization'}
                 </Button>
 
                 <div className="relative">

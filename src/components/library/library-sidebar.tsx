@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CreateFolder from "../create_folder";
-import CreateDocumentLib from "./create_document_lib";
+import { CreateAssetDialog } from "../create-asset-dialog";
 import { LibrarySidebarItem } from "../library/library-sidebar-item";
 
 // API response interface
@@ -51,6 +51,7 @@ export function LibrarySidebar({
   onRefresh
 }: LibrarySidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCreateAssetDialogOpen, setIsCreateAssetDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   // Get current folder ID for parent folder parameter
@@ -224,25 +225,34 @@ export function LibrarySidebar({
                   }
                   parentFolder={getCurrentFolderId()}
                 />
-                <CreateDocumentLib
-                  trigger={
-                    <DropdownMenuItem 
-                      className="hover:cursor-pointer"
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Asset
-                    </DropdownMenuItem>
-                  }
-                  folderId={getCurrentFolderId()}
-                  onDocumentCreated={handleDocumentCreated}
-                />
+                <DropdownMenuItem 
+                  className="hover:cursor-pointer"
+                  onSelect={() => {
+                    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+                    setTimeout(() => setIsCreateAssetDialogOpen(true), 0);
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Asset
+                </DropdownMenuItem>
                 
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
       </div>
+      
+      {/* Create Asset Dialog */}
+      <CreateAssetDialog
+        open={isCreateAssetDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateAssetDialogOpen(false)
+          }
+        }}
+        folderId={getCurrentFolderId()}
+        onAssetCreated={handleDocumentCreated}
+      />
     </TooltipProvider>
   );
 }

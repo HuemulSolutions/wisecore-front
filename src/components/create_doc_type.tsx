@@ -13,44 +13,45 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { createDocumentType } from "@/services/document_type";
+import { ColorPicker } from "@/components/color-picker";
+import { Plus } from "lucide-react";
 
 interface CreateDocumentTypeProps {
   trigger: React.ReactNode;
   onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string }) => void;
+  // Optional external control
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: CreateDocumentTypeProps) {
+export default function CreateDocumentType({ 
+  trigger, 
+  onDocumentTypeCreated, 
+  open: externalOpen, 
+  onOpenChange: externalOnOpenChange 
+}: CreateDocumentTypeProps) {
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [internalDialogOpen, setInternalDialogOpen] = useState(false);
+  
+  // Use external control if provided, otherwise use internal state
+  const isDialogOpen = externalOpen !== undefined ? externalOpen : internalDialogOpen;
+  const setIsDialogOpen = externalOnOpenChange || setInternalDialogOpen;
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#3B82F6");
   const [error, setError] = useState<string | null>(null);
   const { selectedOrganizationId } = useOrganization();
 
-  const predefinedColors = [
-    "#6B7280",
-    "#3B82F6",
-    "#EF4444",
-    "#22C55E",
-    "#EAB308",
-    "#8B5CF6",
-    "#F97316",
-    "#EC4899",
-    "#06B6D4",
-    "#84CC16",
-  ];
-
   const mutation = useMutation({
     mutationFn: (documentTypeData: { name: string; color: string }) => 
       createDocumentType(documentTypeData, selectedOrganizationId!),
     onSuccess: (createdDocumentType) => {
-      queryClient.invalidateQueries({ queryKey: ["documentTypes", selectedOrganizationId] });
+      queryClient.invalidateQueries({ queryKey: ["document-types", selectedOrganizationId] });
       onDocumentTypeCreated?.(createdDocumentType);
       resetForm();
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      setError(error.message || "An error occurred while creating the document type");
+      setError(error.message || "An error occurred while creating the asset type");
     },
   });
 
@@ -74,7 +75,9 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
     });
   };
 
-  const handleCancel = () => {
+  const handleCancel = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     resetForm();
     setIsDialogOpen(false);
   };
@@ -85,11 +88,14 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
         {trigger}
       </DialogTrigger>
 
-      <DialogContent>
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>New Document Type</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-primary" />
+            Create Asset Type
+          </DialogTitle>
           <DialogDescription>
-            Create a new document type with a name and color.
+            Create a new asset type with a name and color.
           </DialogDescription>
         </DialogHeader>
 
@@ -98,26 +104,15 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Document type name"
+            placeholder="Asset type name"
             className="w-full"
           />
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Color</label>
-            <div className="grid grid-cols-5 gap-2">
-              {predefinedColors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setSelectedColor(color)}
-                  className={`w-8 h-8 rounded-full border-2 hover:cursor-pointer hover:scale-110 transition-transform ${
-                    selectedColor === color ? 'border-gray-900 ring-2 ring-gray-300' : 'border-gray-200'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
+          <ColorPicker
+            label="Color"
+            value={selectedColor}
+            onChange={setSelectedColor}
+          />
         </div>
 
         {error && (
@@ -128,6 +123,7 @@ export default function CreateDocumentType({ trigger, onDocumentTypeCreated }: C
 
         <DialogFooter className="flex justify-end space-x-2">
           <Button
+            type="button"
             variant="outline"
             onClick={handleCancel}
             className="hover:cursor-pointer"

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useOrganization } from "@/contexts/organization-context";
 import {
   Sheet,
   SheetContent,
@@ -38,6 +39,7 @@ export function SectionSheet({
   isMobile = false
 }: SectionSheetProps) {
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isFormValid, setIsFormValid] = useState(false);
@@ -65,7 +67,7 @@ export function SectionSheet({
   // Mutations for sections management
   const addSectionMutation = useMutation({
     mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
-      createSection(sectionData),
+      createSection(sectionData, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -81,7 +83,7 @@ export function SectionSheet({
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
-      updateSection(sectionId, sectionData),
+      updateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
@@ -94,7 +96,7 @@ export function SectionSheet({
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteSection(sectionId),
+    mutationFn: (sectionId: string) => deleteSection(sectionId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
@@ -107,7 +109,7 @@ export function SectionSheet({
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
@@ -142,7 +144,7 @@ export function SectionSheet({
 
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
-    mutationFn: (documentId: string) => generateDocumentStructure(documentId),
+    mutationFn: (documentId: string) => generateDocumentStructure(documentId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });

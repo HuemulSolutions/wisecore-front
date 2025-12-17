@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface ExecutionStatusBannerProps {
   executionId: string | null;
-  onExecutionComplete?: () => void;
+  onExecutionComplete?: (completedExecutionId?: string) => void;
   className?: string;
 }
 
@@ -29,7 +29,7 @@ export function ExecutionStatusBanner({
       try {
         if (status === 'completed') {
           toast.success('Document generation completed successfully!');
-          onExecutionComplete?.();
+          onExecutionComplete?.(executionData?.execution_id || executionId);
           stopPolling();
         } else if (status === 'failed') {
           toast.error('Document generation failed. Please try again.');
@@ -52,7 +52,7 @@ export function ExecutionStatusBanner({
   }, [error]);
 
   // Don't show banner if no execution or if execution is in final state
-  if (!execution || ['completed', 'failed', 'approved'].includes(execution.status)) {
+  if (!execution || ['completed', 'approved'].includes(execution.status)) {
     return null;
   }
 
@@ -84,6 +84,15 @@ export function ExecutionStatusBanner({
           bgColor: 'bg-orange-50 border-orange-200',
           textColor: 'text-orange-900',
           descriptionColor: 'text-orange-700'
+        };
+      case 'failed':
+        return {
+          icon: <AlertCircle className="h-4 w-4 text-red-600" />,
+          text: 'Generation failed',
+          description: 'There was an error generating your document. Please try again.',
+          bgColor: 'bg-red-50 border-red-200',
+          textColor: 'text-red-900',
+          descriptionColor: 'text-red-700'
         };
       default:
         return {

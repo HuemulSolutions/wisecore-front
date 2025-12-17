@@ -31,6 +31,7 @@ export default function AppLayout() {
       '/users': 'Users',
       '/roles': 'Roles',
       '/auth-types': 'Authentication Types',
+      '/asset-types': 'Asset Types',
     }
     
     // Handle dynamic routes

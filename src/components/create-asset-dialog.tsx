@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { Plus } from "lucide-react"
+import { Plus, PlusCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -30,6 +30,7 @@ import { getAllDocumentTypes } from "@/services/document_type"
 import { getAllTemplates } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
+import CreateDocumentType from "@/components/create_doc_type"
 
 interface CreateAssetRequest {
   name: string;
@@ -52,6 +53,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
   const [description, setDescription] = useState("")
   const [documentTypeId, setDocumentTypeId] = useState("")
   const [templateId, setTemplateId] = useState("")
+  const [showCreateDocTypeDialog, setShowCreateDocTypeDialog] = useState(false)
 
   React.useEffect(() => {
     if (open) {
@@ -75,6 +77,30 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     queryFn: () => getAllTemplates(selectedOrganizationId!),
     enabled: !!selectedOrganizationId && open,
   })
+
+  // Handle new document type creation
+  const handleNewDocumentTypeCreated = (newDocType: { id: string; name: string; color: string }) => {
+    // Auto-select the newly created document type
+    setDocumentTypeId(newDocType.id)
+    // Refresh document types query to include the new one
+    // The query will automatically refetch due to the invalidation in CreateDocumentType
+    toast.success(`Asset type "${newDocType.name}" created and selected`)
+  }
+
+  // Handle document type dialog close
+  const handleDocumentTypeDialogClose = (open: boolean) => {
+    setShowCreateDocTypeDialog(open)
+    // Don't let the close event bubble up to parent dialog
+    if (!open) {
+      // Force focus back to document type select to prevent parent dialog from closing
+      setTimeout(() => {
+        const selectTrigger = document.querySelector('[id="documentType"]')
+        if (selectTrigger) {
+          (selectTrigger as HTMLElement).focus()
+        }
+      }, 100)
+    }
+  }
 
   const createAssetMutation = useMutation({
     mutationFn: async (data: CreateAssetRequest) => {
@@ -105,7 +131,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     }
 
     if (!documentTypeId) {
-      toast.error("Document type is required")
+      toast.error("Asset type is required")
       return
     }
 
@@ -128,7 +154,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader className="space-y-3">
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" />
@@ -185,10 +211,16 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
             </div>
           </div>
             <div className="grid gap-2">
-              <Label htmlFor="documentType">Document Type *</Label>
-              <Select value={documentTypeId} onValueChange={setDocumentTypeId} >
+              <Label htmlFor="documentType">Asset Type *</Label>
+              <Select value={documentTypeId} onValueChange={(value) => {
+                if (value === "__create_new__") {
+                  setShowCreateDocTypeDialog(true)
+                } else {
+                  setDocumentTypeId(value)
+                }
+              }} >
                 <SelectTrigger id="documentType" className="w-full">
-                  <SelectValue placeholder="Select document type" />
+                  <SelectValue placeholder="Select asset type" />
                 </SelectTrigger>
                 <SelectContent>
                   {documentTypes.map((type: any) => (
@@ -202,6 +234,15 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
                       </div>
                     </SelectItem>
                   ))}
+                  {documentTypes.length > 0 && (
+                    <div className="border-t my-1" />
+                  )}
+                  <SelectItem value="__create_new__" className="text-blue-600 hover:text-blue-700">
+                    <div className="flex items-center gap-2">
+                      <PlusCircle className="w-3 h-3" />
+                      Create new asset type...
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -222,6 +263,16 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
           </DialogFooter>
         </form>
       </DialogContent>
+      
+      {/* Create Document Type Dialog */}
+      {showCreateDocTypeDialog && (
+        <CreateDocumentType
+          trigger={<div />} // Empty trigger since we control it programmatically  
+          open={showCreateDocTypeDialog}
+          onOpenChange={handleDocumentTypeDialogClose}
+          onDocumentTypeCreated={handleNewDocumentTypeCreated}
+        />
+      )}
     </Dialog>
   )
 }

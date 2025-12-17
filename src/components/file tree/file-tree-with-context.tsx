@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { FileTreeItemWithContext } from "./file-tree-item-with-context"
 import type { FileNode } from "./types"
+import { useOrganizationId } from "@/hooks/use-organization"
 
 interface FileTreeWithContextProps {
   items: FileNode[]
@@ -29,6 +30,12 @@ export function FileTreeWithContext({
 }: FileTreeWithContextProps) {
   const [items, setItems] = useState(initialItems)
   const [selected, setSelected] = useState(selectedId)
+  const selectedOrganizationId = useOrganizationId()
+  
+  // Si no hay organización seleccionada, no renderizar nada
+  if (!selectedOrganizationId) {
+    return null;
+  }
 
   // Sincronizar items cuando cambien los initialItems
   useEffect(() => {
@@ -77,10 +84,10 @@ export function FileTreeWithContext({
       // Llamar a la API correspondiente según el tipo de item
       if (draggedItem.type === "folder") {
         const { moveFolder } = await import("@/services/library");
-        await moveFolder(draggedItem.id, targetFolder.id);
+        await moveFolder(draggedItem.id, targetFolder.id, selectedOrganizationId);
       } else if (draggedItem.type === "file") {
         const { moveDocument } = await import("@/services/documents");
-        await moveDocument(draggedItem.id, targetFolder.id);
+        await moveDocument(draggedItem.id, targetFolder.id, selectedOrganizationId);
       }
 
       // Si la llamada a la API fue exitosa, actualizar la interfaz localmente

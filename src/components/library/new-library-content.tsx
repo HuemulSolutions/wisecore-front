@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Chatbot from "../chatbot/chatbot";
-import { ExecuteSheet, SectionSheet, DependenciesSheet, ContextSheet, TemplateConfigSheet } from "../sheets";
+import { SectionSheet, DependenciesSheet, ContextSheet, TemplateConfigSheet } from "../sheets";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import {
@@ -42,7 +42,8 @@ import {
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/documents";
-import { exportExecutionToMarkdown, exportExecutionToWord } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution } from "@/services/executions";
+import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { addTemplate, getTemplateById } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
@@ -51,7 +52,7 @@ import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/edit_document_dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import CreateDocumentLib from "@/components/library/create_document_lib";
+import { CreateAssetDialog } from "@/components/create-asset-dialog";
 import SectionExecution from "./library_section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatDateTime } from "@/lib/utils";
@@ -202,12 +203,17 @@ export function AssetContent({
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
 
+  // Si no hay organización seleccionada, no renderizar nada
+  if (!selectedOrganizationId) {
+    return null;
+  }
+
   // Mutation for direct section creation
   const addSectionMutation = useMutation({
     mutationFn: async (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[]; order?: number }) => {
       // First create the section
       const { order, ...createData } = sectionData;
-      const newSection = await createSection(createData);
+      const newSection = await createSection(createData, selectedOrganizationId!);
       
       // If order is specified, reorder sections
       if (order !== undefined) {
@@ -243,7 +249,7 @@ export function AssetContent({
         sectionsWithOrder.sort((a, b) => a.order - b.order);
         
         // Update the order
-        await updateSectionsOrder(sectionsWithOrder);
+        await updateSectionsOrder(sectionsWithOrder, selectedOrganizationId!);
       }
       
       return newSection;
@@ -284,7 +290,7 @@ export function AssetContent({
       setIsCreateTemplateSheetOpen(false);
       toast.success("Template created successfully");
       
-      // Invalidate templates query to refresh the template list in CreateDocumentLib
+      // Invalidate templates query to refresh the template list in CreateAssetDialog
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       
       // Open template configuration sheet instead of navigating
@@ -328,11 +334,130 @@ export function AssetContent({
     },
   });
 
+  // Mutation para ejecutar documento directamente
+  const executeDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, instructions }: { documentId: string; instructions?: string }) => {
+      if (!defaultLLM?.id) {
+        throw new Error('No default LLM available');
+      }
+      return await executeDocument({
+        documentId,
+        llmId: defaultLLM.id,
+        instructions: instructions || "",
+        organizationId: selectedOrganizationId!
+      });
+    },
+    onSuccess: (executionData) => {
+      toast.success("Document execution started successfully");
+      setCurrentExecutionId(executionData.id);
+      
+      // Update selected execution to show the new one
+      setSelectedExecutionId(executionData.id);
+      
+      // Invalidate all relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      
+      // Force refetch document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error("Error executing document:", error);
+      toast.error("Error executing document: " + error.message);
+    },
+  });
+
+  // Mutation for approve execution
+  const approveMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedExecutionId || !selectedOrganizationId) {
+        throw new Error('Missing execution ID or organization ID');
+      }
+      return approveExecution(selectedExecutionId, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      toast.success('Execution approved successfully!');
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      
+      // Force refetch document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error('Error approving execution:', error);
+      toast.error('Failed to approve execution. Please try again.');
+    },
+  });
+
+  // Mutation for disapprove execution
+  const disapproveMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedExecutionId || !selectedOrganizationId) {
+        throw new Error('Missing execution ID or organization ID');
+      }
+      return disapproveExecution(selectedExecutionId, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      toast.success('Execution disapproved successfully!');
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      
+      // Force refetch document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error('Error disapproving execution:', error);
+      toast.error('Failed to disapprove execution. Please try again.');
+    },
+  });
+
+  // Mutation for clone execution
+  const cloneMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedExecutionId || !selectedOrganizationId) {
+        throw new Error('Missing execution ID or organization ID');
+      }
+      return cloneExecution(selectedExecutionId, selectedOrganizationId);
+    },
+    onSuccess: (clonedExecution) => {
+      toast.success('Execution cloned successfully!');
+      // Switch to the new cloned execution
+      setSelectedExecutionId(clonedExecution.id);
+      
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      
+      // Force refetch document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error('Error cloning execution:', error);
+      toast.error('Failed to clone execution. Please try again.');
+    },
+  });
+
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
-  const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
@@ -357,6 +482,9 @@ export function AssetContent({
   const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
   const [createdTemplate, setCreatedTemplate] = useState<{ id: string; name: string } | null>(null);
   const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
+  
+  // Asset creation state
+  const [isCreateAssetDialogOpen, setIsCreateAssetDialogOpen] = useState(false);
   
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -453,42 +581,66 @@ export function AssetContent({
     createSectionExecutionMutation.mutate(values);
   };
 
-  // Handle create new execution
+  // Handle create new execution - ejecutar directamente
   const handleCreateExecution = () => {
     if (selectedFile && selectedFile.type === 'document') {
       if (hasExecutionInProcess) {
         toast.error('There\'s already an execution running. Please wait for it to complete before creating a new one.');
         return;
       }
-      setIsExecuteSheetOpen(true);
+      
+      // Verificar que el documento tenga secciones
+      if (!fullDocument?.sections || fullDocument.sections.length === 0) {
+        toast.error('This document needs sections before it can be executed.');
+        return;
+      }
+      
+      // Verificar que hay LLM por defecto disponible
+      if (!defaultLLM?.id) {
+        toast.error('No default LLM available. Please configure a default LLM first.');
+        return;
+      }
+      
+      // Ejecutar documento directamente
+      executeDocumentMutation.mutate({
+        documentId: selectedFile.id,
+        instructions: undefined // Sin instrucciones específicas
+      });
     }
   };
 
   // Fetch document content when a document is selected
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
-    queryFn: () => getDocumentContent(selectedFile!.id, selectedExecutionId || undefined),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id,
+    queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
   });
 
   // Fetch full document details for sections management
   const { data: fullDocument } = useQuery({
     queryKey: ['document', selectedFile?.id],
-    queryFn: () => getDocumentById(selectedFile!.id),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id,
+    queryFn: () => getDocumentById(selectedFile!.id, selectedOrganizationId!),
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
   });
 
   // Fetch full template details for configuration
   const { data: fullTemplate } = useQuery({
     queryKey: ['template', createdTemplate?.id],
-    queryFn: () => getTemplateById(createdTemplate!.id),
-    enabled: !!createdTemplate?.id,
+    queryFn: () => getTemplateById(createdTemplate!.id, selectedOrganizationId!),
+    enabled: !!createdTemplate?.id && !!selectedOrganizationId,
+  });
+
+  // Query para obtener LLM por defecto
+  const { data: defaultLLM } = useQuery({
+    queryKey: ["default-llm"],
+    queryFn: getDefaultLLM,
   });
 
   // Fetch executions for the document to check for running executions
   const { data: documentExecutions } = useExecutionsByDocumentId(
     selectedFile?.id || '',
-    selectedFile?.type === 'document' && !!selectedFile?.id
+    selectedOrganizationId || '',
+    selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId
   );
 
   // Check if there's any execution in process
@@ -520,11 +672,11 @@ export function AssetContent({
     );
   }, [documentExecutions]);
 
-  // Get the active execution ID (running or pending) from document executions
+  // Get the active execution ID (running, pending, or failed) from document executions
   const activeExecutionId = useMemo(() => {
     if (!documentExecutions) return null;
     const activeExecution = documentExecutions.find((execution: any) => 
-      ['running', 'pending'].includes(execution.status)
+      ['running', 'pending', 'failed'].includes(execution.status)
     );
     return activeExecution?.id || null;
   }, [documentExecutions]);
@@ -549,15 +701,15 @@ export function AssetContent({
 
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
-    if (selectedFile?.type === 'document' && documentContent?.executions?.length > 0) {
+    if (selectedFile?.type === 'document' && documentExecutions?.length > 0) {
       // Si no hay ejecución seleccionada, usar la ejecución más reciente (primera en la lista)
-      // Only initialize if there's no selected execution AND documentContent just loaded
+      // Only initialize if there's no selected execution AND documentExecutions just loaded
       if (!selectedExecutionId) {
-        const mostRecentExecution = documentContent.executions[0];
+        const mostRecentExecution = documentExecutions[0];
         setSelectedExecutionId(mostRecentExecution.id);
       }
     }
-  }, [selectedFile?.id, documentContent?.executions?.length]); // Removed selectedExecutionId to avoid conflicts
+  }, [selectedFile?.id, documentExecutions?.length]); // Removed selectedExecutionId to avoid conflicts
 
   // Auto-update to latest execution when returning to a document with completed executions
   // This is disabled to avoid interfering with manual user selections
@@ -615,7 +767,7 @@ export function AssetContent({
   const handleExportMarkdown = async () => {
     if (documentContent?.execution_id) {
       try {
-        await exportExecutionToMarkdown(documentContent.execution_id);
+        await exportExecutionToMarkdown(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
         console.error('Error exporting to markdown:', error);
       }
@@ -626,7 +778,7 @@ export function AssetContent({
   const handleExportWord = async () => {
     if (documentContent?.execution_id) {
       try {
-        await exportExecutionToWord(documentContent.execution_id);
+        await exportExecutionToWord(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
         console.error('Error exporting to word:', error);
       }
@@ -649,11 +801,59 @@ export function AssetContent({
     }
   };
 
+  function openCloneDialog() {
+    setIsCloneDialogOpen(true);
+  }
+
+  function closeCloneDialog() {
+    setIsCloneDialogOpen(false);
+  }
+
+  const handleCloneDialogChange = (open: boolean) => {
+    if (open) {
+      openCloneDialog();
+    } else {
+      closeCloneDialog();
+    }
+  };
+
+  function openApproveDialog() {
+    setIsApproveDialogOpen(true);
+  }
+
+  function closeApproveDialog() {
+    setIsApproveDialogOpen(false);
+  }
+
+  const handleApproveDialogChange = (open: boolean) => {
+    if (open) {
+      openApproveDialog();
+    } else {
+      closeApproveDialog();
+    }
+  };
+
+  function openDisapproveDialog() {
+    setIsDisapproveDialogOpen(true);
+  }
+
+  function closeDisapproveDialog() {
+    setIsDisapproveDialogOpen(false);
+  }
+
+  const handleDisapproveDialogChange = (open: boolean) => {
+    if (open) {
+      openDisapproveDialog();
+    } else {
+      closeDisapproveDialog();
+    }
+  };
+
   // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     if (selectedFile) {
       try {
-        await deleteDocument(selectedFile.id);
+        await deleteDocument(selectedFile.id, selectedOrganizationId!);
         console.log('Document deleted successfully:', selectedFile.id);
         toast.success(`Document "${selectedFile.name}" deleted successfully`);
         
@@ -673,6 +873,24 @@ export function AssetContent({
         toast.error('Failed to delete document. Please try again.');
       }
     }
+  };
+
+  // Handle clone confirmation
+  const handleCloneConfirm = () => {
+    cloneMutation.mutate();
+    closeCloneDialog();
+  };
+
+  // Handle approve confirmation
+  const handleApproveConfirm = () => {
+    approveMutation.mutate();
+    closeApproveDialog();
+  };
+
+  // Handle disapprove confirmation
+  const handleDisapproveConfirm = () => {
+    disapproveMutation.mutate();
+    closeDisapproveDialog();
   };
 
   // Open edit dialog and prefill values
@@ -697,7 +915,11 @@ export function AssetContent({
     };
 
     return (
-      <Dialog open={isCreateTemplateSheetOpen} onOpenChange={setIsCreateTemplateSheetOpen}>
+      <Dialog open={isCreateTemplateSheetOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsCreateTemplateSheetOpen(false)
+        }
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -797,16 +1019,13 @@ export function AssetContent({
                   <FileCode className="h-4 w-4 mr-2" />
                   Create Template
                 </Button>
-                <CreateDocumentLib
-                  trigger={
-                    <Button className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Create Asset
-                    </Button>
-                  }
-                  folderId={currentFolderId}
-                  onDocumentCreated={handleDocumentCreated}
-                />
+                <Button 
+                  onClick={() => setIsCreateAssetDialogOpen(true)}
+                  className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Create Asset
+                </Button>
               </EmptyActions>
             </div>
           </Empty>
@@ -820,6 +1039,14 @@ export function AssetContent({
           template={fullTemplate}
           isOpen={isTemplateConfigSheetOpen}
           onOpenChange={setIsTemplateConfigSheetOpen}
+        />
+        
+        {/* Create Asset Dialog */}
+        <CreateAssetDialog
+          open={isCreateAssetDialogOpen}
+          onOpenChange={setIsCreateAssetDialogOpen}
+          folderId={currentFolderId}
+          onAssetCreated={handleDocumentCreated}
         />
       </>
     );
@@ -857,8 +1084,9 @@ export function AssetContent({
                   </span>
                   {selectedExecutionInfo && (
                     <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <span>v:</span>
-                      <span className="font-medium text-xs">{selectedExecutionInfo.formattedDate}</span>
+                      <span className="font-medium text-xs text-gray-900">{selectedExecutionInfo.name}</span>
+                      <span>•</span>
+                      <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
                       {selectedExecutionInfo.isLatest && (
                         <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
                           Latest
@@ -911,35 +1139,25 @@ export function AssetContent({
             
             {/* Mobile Action Buttons - Icon Only */}
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5">
-              <ExecuteSheet
-                selectedFile={selectedFile}
-                fullDocument={fullDocument}
-                isOpen={isExecuteSheetOpen}
-                onOpenChange={setIsExecuteSheetOpen}
-                onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
-                onExecutionComplete={() => {
-                  // Refresh document content when execution completes
-                  queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                  queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-                  
-                  // Reset execution ID to load the latest execution automatically
-                  setSelectedExecutionId(null);
-                  
-                  // Refetch document content to get the latest execution
-                  setTimeout(() => {
-                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                  }, 500);
-                }}
-                onExecutionCreated={(executionId) => {
-                  setCurrentExecutionId(executionId);
-                  // Invalidate executions query to update the list
-                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-                }}
-                isMobile={isMobile}
-                disabled={hasExecutionInProcess}
-                disabledReason="There's already an execution running. Please wait for it to complete."
-              />
+              <Button
+                size="sm"
+                onClick={handleCreateExecution}
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id
+                  ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
+                  : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
+                }
+                title={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id 
+                  ? "Cannot execute document" 
+                  : "Execute Document"
+                }
+              >
+                {executeDocumentMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+              </Button>
               
               <SectionSheet
                 selectedFile={selectedFile}
@@ -965,7 +1183,7 @@ export function AssetContent({
               
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
-              {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
+              {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -982,19 +1200,21 @@ export function AssetContent({
                       <p className="text-xs font-medium text-gray-900">Document Versions</p>
                       <p className="text-xs text-gray-500">Select a version to view</p>
                     </div>
-                    {documentContent.executions
+                    {documentExecutions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
                         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                       )
-                      .map((execution: { id: string; created_at: string }, index: number) => {
-                        const date = new Date(execution.created_at);
-                        const formattedDate = formatDateTime(date);
+                      .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
                         const isSelected = selectedExecutionId === execution.id;
+                        const isApproved = execution.status === 'approved';
+                        const isLatest = index === 0;
                         
                         return (
                           <DropdownMenuItem 
                             key={execution.id} 
-                            className="hover:cursor-pointer flex items-center justify-between"
+                            className={`hover:cursor-pointer p-2 transition-colors ${
+                              isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
+                            }`}
                             onClick={() => {
                               setSelectedExecutionId(execution.id);
                               // Invalidate all document-content queries and refetch with new execution ID
@@ -1002,14 +1222,34 @@ export function AssetContent({
                               queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                             }}
                           >
-                            <div className="flex items-center gap-2">
-                              {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
-                              <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
-                                {formattedDate}
-                              </span>
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-medium ${
+                                  isSelected ? 'text-[#4464f7]' : 'text-gray-900'
+                                }`}>
+                                  {execution.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {isLatest && (
+                                  <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                    <Clock className="w-3 h-3" />
+                                    <span>Latest</span>
+                                  </div>
+                                )}
+                                {isApproved && (
+                                  <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                    <CheckCircle className="w-3 h-3" />
+                                    <span>Approved</span>
+                                  </div>
+                                )}
+                                {isSelected && (
+                                  <div className="flex items-center gap-1 text-[#4464f7] text-xs font-medium">
+                                    <Eye className="w-3 h-3" />
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            {index === 0 && <span className="text-xs text-green-600">Latest</span>}
-                            {isSelected && <span className="text-xs text-[#4464f7]">Active</span>}
                           </DropdownMenuItem>
                         );
                       })}
@@ -1027,6 +1267,19 @@ export function AssetContent({
               >
                 <Edit3 className="h-4 w-4" />
               </Button>
+
+              {/* Clone Button - only show if there's an execution to clone */}
+              {selectedExecutionId && (
+                <Button
+                  onClick={() => setTimeout(() => openCloneDialog(), 0)}
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                  title="Clone Execution"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
               
               {/* Export Dropdown */}
               <DropdownMenu>
@@ -1062,6 +1315,49 @@ export function AssetContent({
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
+
+              {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
+              {(() => {
+                if (!selectedExecutionId) return null;
+                
+                // Check execution status from multiple sources to ensure reliability
+                const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                const statusFromDocumentExecutions = currentExecution?.status;
+                const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                
+                // Show Approve button when status is 'completed'
+                if (actualStatus === 'completed') {
+                  return (
+                    <Button
+                      onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer transition-colors rounded-full"
+                      title="Approve Execution"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  );
+                }
+                
+                // Show Disapprove button when status is 'approved'
+                if (actualStatus === 'approved') {
+                  return (
+                    <Button
+                      onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors rounded-full"
+                      title="Disapprove Execution"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  );
+                }
+                
+                return null;
+              })()}
             </div>
           </div>
         )}
@@ -1076,17 +1372,18 @@ export function AssetContent({
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
                 <div className="flex flex-col gap-2 flex-1">
                   <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
-                  {/* {selectedExecutionInfo && (
+                  {selectedExecutionInfo && (
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <span>Version:</span>
-                      <span className="font-medium">{selectedExecutionInfo.formattedDate}</span>
+                      <span className="font-medium text-gray-900">{selectedExecutionInfo.name}</span>
+                      <span>•</span>
+                      <span>{selectedExecutionInfo.formattedDate}</span>
                       {selectedExecutionInfo.isLatest && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
                           Latest
                         </span>
                       )}
                     </div>
-                  )} */}
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {documentContent?.document_type && (
@@ -1113,34 +1410,31 @@ export function AssetContent({
             <div className="flex items-start gap-2 flex-wrap">
               {/* Primary Actions Group */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
-              <ExecuteSheet
-                selectedFile={selectedFile}
-                fullDocument={fullDocument}
-                isOpen={isExecuteSheetOpen}
-                onOpenChange={setIsExecuteSheetOpen}
-                onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
-                onExecutionComplete={() => {
-                  // Refresh document content when execution completes
-                  queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                  queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-                  
-                  // Reset execution ID to load the latest execution automatically
-                  setSelectedExecutionId(null);
-                  
-                  // Refetch document content to get the latest execution
-                  setTimeout(() => {
-                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                  }, 500);
-                }}
-                onExecutionCreated={(executionId) => {
-                  setCurrentExecutionId(executionId);
-                  // Invalidate executions query to update the list
-                  queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-                }}
-                disabled={hasExecutionInProcess}
-                disabledReason="There's already an execution running. Please wait for it to complete."
-              />
+              <Button
+                size="sm"
+                onClick={handleCreateExecution}
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id
+                  ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
+                  : "h-8 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm text-xs"
+                }
+                title={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id 
+                  ? "Cannot execute document" 
+                  : "Execute Document"
+                }
+              >
+                {executeDocumentMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Executing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5 mr-1.5" />
+                    Execute
+                  </>
+                )}
+              </Button>
                 
                 <SectionSheet
                   selectedFile={selectedFile}
@@ -1165,7 +1459,7 @@ export function AssetContent({
               {/* Secondary Actions Group */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
                 {/* Execution Dropdown - only show for documents with executions */}
-                {selectedFile.type === 'document' && documentContent?.executions?.length > 0 && (
+                {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -1174,7 +1468,7 @@ export function AssetContent({
                         className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
-                        <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
+                        <span className="font-medium">v{documentExecutions.length - documentExecutions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64">
@@ -1182,19 +1476,21 @@ export function AssetContent({
                         <p className="text-xs font-medium text-gray-900">Document Versions</p>
                         <p className="text-xs text-gray-500">Select a version to view</p>
                       </div>
-                      {documentContent.executions
+                      {documentExecutions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
                           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                         )
-                        .map((execution: { id: string; created_at: string }, index: number) => {
-                          const date = new Date(execution.created_at);
-                          const formattedDate = formatDateTime(date);
+                        .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
                           const isSelected = selectedExecutionId === execution.id;
+                          const isApproved = execution.status === 'approved';
+                          const isLatest = index === 0;
                           
                           return (
                             <DropdownMenuItem 
                               key={execution.id} 
-                              className="hover:cursor-pointer flex items-center justify-between"
+                              className={`hover:cursor-pointer p-2 transition-colors ${
+                                isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
+                              }`}
                               onClick={() => {
                                 setSelectedExecutionId(execution.id);
                                 // Invalidate all document-content queries and refetch with new execution ID
@@ -1202,14 +1498,34 @@ export function AssetContent({
                                 queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                               }}
                             >
-                              <div className="flex items-center gap-2">
-                                {index === 0 && <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />}
-                                <span className={`text-sm ${isSelected ? 'font-semibold text-[#4464f7]' : 'font-medium'}`}>
-                                  {formattedDate}
-                                </span>
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-sm font-medium ${
+                                    isSelected ? 'text-[#4464f7]' : 'text-gray-900'
+                                  }`}>
+                                    {execution.name}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {isLatest && (
+                                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                      <Clock className="w-3 h-3" />
+                                      <span>Latest</span>
+                                    </div>
+                                  )}
+                                  {isApproved && (
+                                    <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                      <CheckCircle className="w-3 h-3" />
+                                      <span>Approved</span>
+                                    </div>
+                                  )}
+                                  {isSelected && (
+                                    <div className="flex items-center gap-1 text-[#4464f7] text-xs font-medium">
+                                      <Eye className="w-3 h-3" />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              {index === 0 && <span className="text-xs text-green-600">Latest</span>}
-                              {isSelected && <span className="text-xs text-[#4464f7]">Active</span>}
                             </DropdownMenuItem>
                           );
                         })}
@@ -1217,6 +1533,70 @@ export function AssetContent({
                   </DropdownMenu>
                 )}
                 
+                {/* Approve/Disapprove Buttons - Desktop Version - show conditionally based on execution status */}
+                {(() => {
+                  if (!selectedExecutionId) return null;
+                  
+                  const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                  const statusFromDocumentExecutions = currentExecution?.status;
+                  const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  
+                  // Show Approve button when status is 'completed'
+                  if (actualStatus === 'completed') {
+                    return (
+                      <Button
+                        onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2.5 text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer transition-colors"
+                        title="Approve Execution"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </Button>
+                    );
+                  }
+                  
+                  // Show Disapprove button when status is 'approved'
+                  if (actualStatus === 'approved') {
+                    return (
+                      <Button
+                        onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
+                        title="Disapprove Execution"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    );
+                  }
+                  
+                  return null;
+                })()}
+
+                {/* Execution Actions Group */}
+                {/* Clone Button - Desktop - only show if there's an execution to clone */}
+                {selectedExecutionId && (
+                  <Button
+                    onClick={() => setTimeout(() => openCloneDialog(), 0)}
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                    title="Clone Execution"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                
+                
+
+                {/* Separator between execution and document actions */}
+                {selectedExecutionId && (
+                  <div className="h-6 w-px bg-gray-200 mx-2"></div>
+                )}
+
+                {/* Document Actions Group */}
                 <Button
                   onClick={openEditDialog}
                   size="sm"
@@ -1271,18 +1651,94 @@ export function AssetContent({
           <div className="py-4 md:py-5 px-4 md:px-6">
             {selectedFile.type === 'document' ? (
               <>
-                {/* Execution Status Banner - Show for active executions */}
-                <ExecutionStatusBanner
-                  executionId={currentExecutionId || activeExecutionId}
-                  onExecutionComplete={() => {
-                    // Clear the current execution ID and refresh content
-                    setCurrentExecutionId(null);
-                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                  }}
-                  className="mb-4"
-                />
+                {/* Execution Status Banner - Show only for selected execution if it's in an active state */}
+                {(() => {
+                  // Show banner if user just started a new execution
+                  if (currentExecutionId) {
+                    return (
+                      <ExecutionStatusBanner
+                        executionId={currentExecutionId}
+                        onExecutionComplete={(completedExecutionId) => {
+                          console.log('🔄 Execution completed, updating to show new content...', completedExecutionId);
+                          
+                          // Clear the current execution ID since it's no longer running
+                          setCurrentExecutionId(null);
+                          
+                          // Update selectedExecutionId to the completed execution so user sees the new content
+                          if (completedExecutionId) {
+                            console.log('🎯 Switching to completed execution:', completedExecutionId);
+                            setSelectedExecutionId(completedExecutionId);
+                          }
+                          
+                          // Remove all cached queries aggressively
+                          queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                          queryClient.removeQueries({ queryKey: ['document', selectedFile?.id] });
+                          queryClient.removeQueries({ queryKey: ['executions', selectedFile?.id] });
+                          
+                          // Force multiple waves of refresh to ensure content updates with the new execution
+                          setTimeout(() => {
+                            console.log('🔄 First refetch wave with new execution...');
+                            refetchDocumentContent();
+                            queryClient.invalidateQueries({ queryKey: ['document-content'] });
+                          }, 300);
+                          
+                          setTimeout(() => {
+                            console.log('🔄 Second refetch wave...');
+                            refetchDocumentContent();
+                            queryClient.invalidateQueries({ queryKey: ['executions'] });
+                          }, 800);
+                          
+                          setTimeout(() => {
+                            console.log('🔄 Final refetch wave...');
+                            refetchDocumentContent();
+                          }, 1200);
+                        }}
+                        className="mb-4"
+                      />
+                    );
+                  }
+                  
+                  // Show banner if currently selected execution is in an active state
+                  if (selectedExecutionId && selectedExecutionInfo) {
+                    const shouldShowBanner = ['running', 'pending', 'failed'].includes(selectedExecutionInfo.status);
+                    if (shouldShowBanner) {
+                      return (
+                        <ExecutionStatusBanner
+                          executionId={selectedExecutionId}
+                          onExecutionComplete={(completedExecutionId) => {
+                            console.log('🔄 Selected execution completed, ensuring content refresh...', completedExecutionId);
+                            
+                            // Remove all cached queries aggressively
+                            queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                            queryClient.removeQueries({ queryKey: ['document', selectedFile?.id] });
+                            queryClient.removeQueries({ queryKey: ['executions', selectedFile?.id] });
+                            
+                            // Force multiple waves of refresh to ensure content updates
+                            setTimeout(() => {
+                              console.log('🔄 First refetch wave...');
+                              refetchDocumentContent();
+                              queryClient.invalidateQueries({ queryKey: ['document-content'] });
+                            }, 300);
+                            
+                            setTimeout(() => {
+                              console.log('🔄 Second refetch wave...');
+                              refetchDocumentContent();
+                              queryClient.invalidateQueries({ queryKey: ['executions'] });
+                            }, 800);
+                            
+                            setTimeout(() => {
+                              console.log('🔄 Final refetch wave...');
+                              refetchDocumentContent();
+                            }, 1200);
+                          }}
+                          className="mb-4"
+                        />
+                      );
+                    }
+                  }
+                  
+                  return null;
+                })()}
                 
                 {/* Section Execution Status Banner - for individual section executions */}
                 {sectionExecutionId && sectionExecutionId !== (currentExecutionId || activeExecutionId) && (
@@ -1303,7 +1759,7 @@ export function AssetContent({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                     <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                   </div>
-                ) : (!documentContent?.executions || documentContent.executions.length === 0) || (!documentContent?.content) ? (
+                ) : (!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content) ? (
                   // Show Empty when document has no executions
                   <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
                     <Empty className="max-w-2xl">
@@ -1330,15 +1786,24 @@ export function AssetContent({
                           ) : (
                             <>
                               <Button
-                                onClick={() => setIsExecuteSheetOpen(true)}
-                                disabled={hasExecutionInProcess}
-                                className={hasExecutionInProcess 
+                                onClick={handleCreateExecution}
+                                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id}
+                                className={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id
                                   ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
                                   : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                                 }
                               >
-                                <Zap className="h-4 w-4 mr-2" />
-                                {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                {executeDocumentMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Executing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="h-4 w-4 mr-2" />
+                                    {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                  </>
+                                )}
                               </Button>
                               <Button
                                 onClick={() => setIsSectionSheetOpen(true)}
@@ -1442,10 +1907,20 @@ export function AssetContent({
                         <Button 
                           variant="outline" 
                           onClick={handleCreateExecution}
-                          className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
+                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+                          className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Play className="h-4 w-4 mr-2" />
-                          Create Execution
+                          {executeDocumentMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Executing...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-2" />
+                              Execute Document
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -1498,7 +1973,11 @@ export function AssetContent({
       )}
 
       {/* Direct Section Creation Dialog */}
-      <Dialog open={isDirectSectionDialogOpen} onOpenChange={setIsDirectSectionDialogOpen}>
+      <Dialog open={isDirectSectionDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsDirectSectionDialogOpen(false)
+        }
+      }}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1562,7 +2041,11 @@ export function AssetContent({
       </Dialog>
 
       {/* Section Execution Creation Dialog */}
-      <Dialog open={isSectionExecutionDialogOpen} onOpenChange={setIsSectionExecutionDialogOpen}>
+      <Dialog open={isSectionExecutionDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsSectionExecutionDialogOpen(false)
+        }
+      }}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1646,6 +2129,150 @@ export function AssetContent({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Clone Confirmation AlertDialog */}
+      <AlertDialog open={isCloneDialogOpen} onOpenChange={handleCloneDialogChange}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-[#4464f7]" />
+              Clone Execution
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedExecutionInfo ? (
+                <>
+                  Are you sure you want to clone the execution <strong>{selectedExecutionInfo.name}</strong>?
+                  <br />
+                  This will create a new version that you can modify independently.
+                </>
+              ) : (
+                "Are you sure you want to clone this execution? This will create a new version that you can modify independently."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel 
+              className="hover:cursor-pointer"
+              disabled={cloneMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="hover:cursor-pointer bg-[#4464f7] text-white hover:bg-[#3451e6]"
+              onClick={handleCloneConfirm}
+              disabled={cloneMutation.isPending}
+            >
+              {cloneMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cloning...
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Clone Execution
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Approve Confirmation AlertDialog */}
+      <AlertDialog open={isApproveDialogOpen} onOpenChange={handleApproveDialogChange}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-600" />
+              Approve Execution
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedExecutionInfo ? (
+                <>
+                  Are you sure you want to approve the execution <strong>{selectedExecutionInfo.name}</strong>?
+                  <br />
+                  This will mark the execution as approved and ready for production use.
+                </>
+              ) : (
+                "Are you sure you want to approve this execution? This will mark it as approved and ready for production use."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel 
+              className="hover:cursor-pointer"
+              disabled={approveMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="hover:cursor-pointer bg-green-600 text-white hover:bg-green-700"
+              onClick={handleApproveConfirm}
+              disabled={approveMutation.isPending}
+            >
+              {approveMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Approve Execution
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Disapprove Confirmation AlertDialog */}
+      <AlertDialog open={isDisapproveDialogOpen} onOpenChange={handleDisapproveDialogChange}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <X className="h-5 w-5 text-red-600" />
+              Disapprove Execution
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedExecutionInfo ? (
+                <>
+                  Are you sure you want to disapprove the execution <strong>{selectedExecutionInfo.name}</strong>?
+                  <br />
+                  This will mark the execution as not approved and remove it from production use.
+                </>
+              ) : (
+                "Are you sure you want to disapprove this execution? This will mark it as not approved and remove it from production use."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel 
+              className="hover:cursor-pointer"
+              disabled={disapproveMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="hover:cursor-pointer bg-red-600 text-white hover:bg-red-700"
+              onClick={handleDisapproveConfirm}
+              disabled={disapproveMutation.isPending}
+            >
+              {disapproveMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Disapproving...
+                </>
+              ) : (
+                <>
+                  <X className="mr-2 h-4 w-4" />
+                  Disapprove Execution
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <EditDocumentDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
@@ -1659,6 +2286,14 @@ export function AssetContent({
           // Opcional: refresh sin forzar re-render grande
           queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
         }}
+      />
+      
+      {/* Create Asset Dialog */}
+      <CreateAssetDialog
+        open={isCreateAssetDialogOpen}
+        onOpenChange={setIsCreateAssetDialogOpen}
+        folderId={currentFolderId}
+        onAssetCreated={handleDocumentCreated}
       />
     </div>
   );

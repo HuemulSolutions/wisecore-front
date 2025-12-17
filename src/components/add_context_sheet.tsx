@@ -31,6 +31,7 @@ import {
 import { getContext, addTextContext, addDocumentContext, deleteContext } from "@/services/context";
 import { ContextDisplay } from "./context";
 import { toast } from "sonner";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function AddContextSheet({ id }: { id: string }) {
   const [context, setContext] = useState("");
@@ -42,18 +43,19 @@ export default function AddContextSheet({ id }: { id: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
 
   // Get document contexts
   const { data: contexts, isLoading, error } = useQuery({
     queryKey: ['contexts', id],
-    queryFn: () => getContext(id),
-    enabled: !!id
+    queryFn: () => getContext(id, selectedOrganizationId!),
+    enabled: !!id && !!selectedOrganizationId
   });
 
   // Mutation to add text context
   const addTextMutation = useMutation({
     mutationFn: ({ name, content }: { name: string; content: string }) => 
-      addTextContext(id, name, content),
+      addTextContext(id, name, content, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Text context added successfully");
       setContext("");
@@ -68,7 +70,7 @@ export default function AddContextSheet({ id }: { id: string }) {
   // Mutation to add document context
   const addDocumentMutation = useMutation({
     mutationFn: ({ file }: { file: File }) => 
-      addDocumentContext(id, file),
+      addDocumentContext(id, file, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Document context added successfully");
       setUploadedFile(null);
@@ -85,7 +87,7 @@ export default function AddContextSheet({ id }: { id: string }) {
 
   // Mutation to delete context
   const deleteContextMutation = useMutation({
-    mutationFn: (contextId: string) => deleteContext(contextId),
+    mutationFn: (contextId: string) => deleteContext(contextId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Context deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });

@@ -84,7 +84,7 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader className="space-y-3">
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-primary" />

@@ -16,6 +16,7 @@ import { generateTemplateSections } from "@/services/templates";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface TemplateConfigSheetProps {
   template: {
@@ -34,6 +35,7 @@ export function TemplateConfigSheet({
   onOpenChange
 }: TemplateConfigSheetProps) {
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
@@ -60,7 +62,7 @@ export function TemplateConfigSheet({
   // Mutations for template sections management
   const addSectionMutation = useMutation({
     mutationFn: (sectionData: { name: string; template_id: string; prompt: string; dependencies: string[] }) =>
-      createTemplateSection(sectionData),
+      createTemplateSection(sectionData, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
       setIsAddingSection(false);
@@ -74,7 +76,7 @@ export function TemplateConfigSheet({
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
-      updateTemplateSection(sectionId, sectionData),
+      updateTemplateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Template section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
@@ -86,7 +88,7 @@ export function TemplateConfigSheet({
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId),
+    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Template section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
@@ -98,7 +100,7 @@ export function TemplateConfigSheet({
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Template sections order updated");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
@@ -132,7 +134,7 @@ export function TemplateConfigSheet({
 
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
-    mutationFn: (templateId: string) => generateTemplateSections(templateId),
+    mutationFn: (templateId: string) => generateTemplateSections(templateId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Template sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });

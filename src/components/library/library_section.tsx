@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { fixSection, generateSingleSection, generateFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
+import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 
 interface SectionExecutionProps {
@@ -53,6 +54,7 @@ export default function SectionExecution({
     executionId, 
     onExecutionStart 
 }: SectionExecutionProps) {
+    const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
@@ -105,7 +107,7 @@ export default function SectionExecution({
         try {
             setIsExecuting(true);
             onExecutionStart?.(executionId); // Pass executionId to show banner
-            await generateSingleSection(documentId, executionId, sectionExecution.section_id);
+            await generateSingleSection(documentId, executionId, sectionExecution.section_id, selectedOrganizationId!);
             toast.success('Section execution started successfully');
             onUpdate?.();
         } catch (error) {
@@ -125,7 +127,7 @@ export default function SectionExecution({
         try {
             setIsExecuting(true);
             onExecutionStart?.(executionId); // Pass executionId to show banner
-            await generateFromSection(documentId, executionId, sectionExecution.section_id);
+            await generateFromSection(documentId, executionId, sectionExecution.section_id, selectedOrganizationId!);
             toast.success('Execution from this section started successfully');
             onUpdate?.();
         } catch (error) {
@@ -383,6 +385,7 @@ export default function SectionExecution({
                                 fixSection({
                                     instructions: aiPrompt,
                                     content: sectionExecution.output.replace(/\\n/g, "\n"),
+                                    organizationId: selectedOrganizationId!,
                                     onData: (chunk: string) => {
                                         const normalized = chunk.replace(/\\n/g, "\n");
                                         setAiPreview(prev => (prev ?? '') + normalized);

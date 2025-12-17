@@ -50,8 +50,8 @@ export default function AddDependencySheet({ id }: { id: string }) {
 
     const { data: dependencies = [], isLoading, error } = useQuery<Dependency[]>({
         queryKey: ['documentDependencies', id],
-        queryFn: () => getDocumentDependencies(id!),
-        enabled: !!id,
+        queryFn: () => getDocumentDependencies(id!, selectedOrganizationId!),
+        enabled: !!id && !!selectedOrganizationId,
     });
 
     const { data: documentTypes = [] } = useQuery<DocumentType[]>({
@@ -61,7 +61,7 @@ export default function AddDependencySheet({ id }: { id: string }) {
     });
 
     const addDependencyMutation = useMutation({
-        mutationFn: (dependsOnDocumentId: string) => addDocumentDependency(id, dependsOnDocumentId),
+        mutationFn: (dependsOnDocumentId: string) => addDocumentDependency(id, dependsOnDocumentId, selectedOrganizationId!),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['documentDependencies', id] });
             toast.success("Dependency added successfully");
@@ -73,7 +73,7 @@ export default function AddDependencySheet({ id }: { id: string }) {
     });
 
     const removeDependencyMutation = useMutation({
-        mutationFn: (dependencyId: string) => removeDocumentDependency(id, dependencyId),
+        mutationFn: (dependencyId: string) => removeDocumentDependency(id, dependencyId, selectedOrganizationId!),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['documentDependencies', id] });
             toast.success("Dependency removed successfully");

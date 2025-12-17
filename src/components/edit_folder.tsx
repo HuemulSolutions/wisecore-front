@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { editFolder } from "@/services/library"
 import { toast } from "sonner"
+import { useOrganizationId } from "@/hooks/use-organization"
 
 interface EditFolderProps {
   trigger?: React.ReactNode
@@ -44,9 +45,14 @@ export default function EditFolder({
     }
   }, [currentName, open])
 
+  const selectedOrganizationId = useOrganizationId()
+  
   const editFolderMutation = useMutation({
     mutationFn: async (newName: string) => {
-      return await editFolder(folderId, newName.trim())
+      if (!selectedOrganizationId) {
+        throw new Error('No organization selected');
+      }
+      return await editFolder(folderId, newName.trim(), selectedOrganizationId)
     },
     onSuccess: () => {
       toast.success(`Folder renamed to "${name.trim()}"`)
