@@ -1,7 +1,9 @@
 "use client"
 
-import type React from "react"
+
 import { useState, useEffect } from "react"
+import { useDraggable, useDroppable } from "@dnd-kit/core"
+import { CSS } from "@dnd-kit/utilities"
 import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, Edit, MoreVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { 
@@ -35,6 +37,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { DocumentAccessControl } from "@/components/document-access-control"
 import { CreateFolderDialog } from "@/components/create_folder"
 import { CreateAssetDialog } from "@/components/create-asset-dialog"
 import EditFolder from "@/components/edit_folder"
@@ -42,6 +45,7 @@ import { deleteFolder } from "@/services/library";
 import { toast } from "sonner"
 import type { FileNode } from "./types"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -148,7 +152,6 @@ const getFileIconAndColor = (fileName: string) => {
 interface FileTreeItemWithContextProps {
   item: FileNode
   level: number
-  onDrop: (draggedItem: FileNode, targetFolder: FileNode) => void
   onSelect: (item: FileNode) => void
   onDoubleClick?: (item: FileNode) => void
   selectedId?: string
@@ -163,7 +166,6 @@ interface FileTreeItemWithContextProps {
 export function FileTreeItemWithContext({
   item,
   level,
-  onDrop,
   onSelect,
   onDoubleClick,
   selectedId,
@@ -175,8 +177,7 @@ export function FileTreeItemWithContext({
   currentPath = [],
 }: FileTreeItemWithContextProps) {
   const { selectedOrganizationId } = useOrganization()
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
+  const { canCreate, canAccessFolders, canAccessAssets } = useUserPermissions()
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
   const [deletingFolder, setDeletingFolder] = useState<FileNode | null>(null)
@@ -188,6 +189,39 @@ export function FileTreeItemWithContext({
   
   // Estado expandido solo para la sesión actual (no persistente)
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // dnd-kit hooks
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: item.id,
+    data: {
+      type: item.type,
+      item,
+    },
+    // Add these options to make it work better with dev tools
+    disabled: item.id === '__back__', // Disable dragging for back button
+  })
+
+  const {
+    setNodeRef: setDropRef,
+    isOver,
+  } = useDroppable({
+    id: item.id,
+    disabled: !isFolder, // Solo las carpetas pueden recibir drops
+    data: {
+      type: item.type,
+      item,
+    },
+  })
+
+  const dragStyle = {
+    transform: CSS.Translate.toString(transform),
+  }
 
 
 
@@ -214,58 +248,10 @@ export function FileTreeItemWithContext({
     );
   }
 
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.effectAllowed = "move"
-    e.dataTransfer.setData("application/json", JSON.stringify(item))
-    setIsDragging(true)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (isFolder) {
-      try {
-        const draggedData = e.dataTransfer.getData("application/json")
-        if (draggedData) {
-          const draggedNode = JSON.parse(draggedData) as FileNode
-          // No permitir soltar sobre sí mismo
-          if (draggedNode.id === item.id) {
-            return
-          }
-        }
-      } catch (error) {
-        // Ignorar errores de parsing durante drag over
-      }
-      
-      e.preventDefault()
-      e.dataTransfer.dropEffect = "move"
-      setIsDragOver(true)
-    }
-  }
-
-  const handleDragLeave = () => {
-    setIsDragOver(false)
-  }
-
-  const handleDragEnd = () => {
-    setIsDragging(false)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-    setIsDragging(false)
-
-    try {
-      const draggedData = e.dataTransfer.getData("application/json")
-      const draggedNode = JSON.parse(draggedData) as FileNode
-
-      if (isFolder && draggedNode.id !== item.id) {
-        onDrop(draggedNode, item)
-        setIsExpanded(true)
-      }
-    } catch (error) {
-      console.error("Error en drop:", error)
-    }
+  // Combinar refs para drag y drop
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
   }
 
   const handleToggleExpand = async () => {
@@ -376,23 +362,26 @@ export function FileTreeItemWithContext({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            draggable
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            ref={setNodeRef}
+            style={{
+              ...dragStyle,
+              paddingLeft: `${level * 16 + 8}px`
+            }}
+            {...attributes}
+            {...(item.id !== '__back__' ? listeners : {})}
             onClick={handleClick}
             onDoubleClick={() => onDoubleClick?.(item)}
+            data-drag-handle={item.id !== '__back__'}
             className={cn(
               "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors",
               "hover:bg-accent/50",
               isSelected && "bg-accent text-accent-foreground",
-              isDragOver && "bg-primary/20 border-2 border-dashed border-primary",
+              isOver && isFolder && "bg-primary/10 border-2 border-dashed border-primary animate-pulse",
               isDragging && "opacity-50 cursor-grabbing",
               "group",
+              // Add touch-action for better mobile and dev tools compatibility
+              "touch-none select-none",
             )}
-            style={{ paddingLeft: `${level * 16 + 8}px` }}
           >
             {/* Botón de expandir/contraer */}
             {isFolder && (
@@ -458,129 +447,268 @@ export function FileTreeItemWithContext({
               <DropdownMenuContent align="end" className="w-48">
                 {isFolder && (
                   <>
-                    <DropdownMenuItem 
-                      className="hover:cursor-pointer"
-                      onSelect={() => {
-                        setTimeout(() => setFolderDialogOpen(true), 0)
-                      }}
-                    >
-                      <FolderPlus className="h-4 w-4 mr-2" />
-                      New Folder
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="hover:cursor-pointer"
-                      onSelect={() => {
-                        setTimeout(() => setAssetDialogOpen(true), 0)
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      New Asset
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="hover:cursor-pointer"
-                      onSelect={() => {
-                        setTimeout(() => setEditFolderDialogOpen(true), 0)
-                      }}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Folder
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onSelect={handleDeleteFolder}
-                      className="hover:cursor-pointer text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Folder
-                    </DropdownMenuItem>
+                    {canAccessFolders && canCreate('folder') && (
+                      <DropdownMenuItem 
+                        className="hover:cursor-pointer"
+                        onSelect={() => {
+                          setTimeout(() => setFolderDialogOpen(true), 0)
+                        }}
+                      >
+                        <FolderPlus className="h-4 w-4 mr-2" />
+                        New Folder
+                      </DropdownMenuItem>
+                    )}
+                    {canAccessAssets && canCreate('assets') && (
+                      <DropdownMenuItem 
+                        className="hover:cursor-pointer"
+                        onSelect={() => {
+                          setTimeout(() => setAssetDialogOpen(true), 0)
+                        }}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        New Asset
+                      </DropdownMenuItem>
+                    )}
+                    {((canAccessFolders && canCreate('folder')) || (canAccessAssets && canCreate('assets'))) && (
+                      <DropdownMenuSeparator />
+                    )}
+                    {isFolder ? (
+                      <>
+                        <DocumentAccessControl
+                          accessLevels={item.access_levels}
+                          requiredAccess="edit"
+                        >
+                          <DropdownMenuItem 
+                            className="hover:cursor-pointer"
+                            onSelect={() => {
+                              setTimeout(() => setEditFolderDialogOpen(true), 0)
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Folder
+                          </DropdownMenuItem>
+                        </DocumentAccessControl>
+                        <DocumentAccessControl
+                          accessLevels={item.access_levels}
+                          requiredAccess="delete"
+                        >
+                          <DropdownMenuItem 
+                            onSelect={handleDeleteFolder}
+                            className="hover:cursor-pointer text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Folder
+                          </DropdownMenuItem>
+                        </DocumentAccessControl>
+                      </>
+                    ) : (
+                      <>
+                        <DocumentAccessControl
+                          accessLevels={item.access_levels}
+                          requiredAccess="edit"
+                        >
+                          <DropdownMenuItem 
+                            className="hover:cursor-pointer"
+                            onSelect={() => {
+                              // Para documentos, navegar a la página de edición
+                              console.log('Edit document:', item.name)
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Document
+                          </DropdownMenuItem>
+                        </DocumentAccessControl>
+                        <DocumentAccessControl
+                          accessLevels={item.access_levels}
+                          requiredAccess="delete"
+                        >
+                          <DropdownMenuItem 
+                            className="hover:cursor-pointer text-red-600 focus:text-red-600"
+                            onSelect={() => {
+                              // Para documentos, manejar eliminación de documento
+                              console.log('Delete document:', item.name)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Document
+                          </DropdownMenuItem>
+                        </DocumentAccessControl>
+                      </>
+                    )}
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleShare();
-                  }} 
-                  className="hover:cursor-pointer"
-                >
-                  <Share className="h-4 w-4 mr-2" />
-                  Share Link
-                </DropdownMenuItem>
+                {isFolder ? (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleShare();
+                    }} 
+                    className="hover:cursor-pointer"
+                  >
+                    <Share className="h-4 w-4 mr-2" />
+                    Share Link
+                  </DropdownMenuItem>
+                ) : (
+                  <DocumentAccessControl
+                    accessLevels={item.access_levels}
+                    requiredAccess="read"
+                  >
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleShare();
+                      }} 
+                      className="hover:cursor-pointer"
+                    >
+                      <Share className="h-4 w-4 mr-2" />
+                      Share Link
+                    </DropdownMenuItem>
+                  </DocumentAccessControl>
+                )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled>
-                  {isFolder ? (
-                    <>
-                      <Folder className="h-4 w-4 mr-2" />
-                      Folder Properties
-                    </>
-                  ) : (
-                    <>
+                {isFolder ? (
+                  <DropdownMenuItem disabled>
+                    <Folder className="h-4 w-4 mr-2" />
+                    Folder Properties
+                  </DropdownMenuItem>
+                ) : (
+                  <DocumentAccessControl
+                    accessLevels={item.access_levels}
+                    requiredAccess="read"
+                  >
+                    <DropdownMenuItem disabled>
                       <File className="h-4 w-4 mr-2" />
                       File Properties
-                    </>
-                  )}
-                </DropdownMenuItem>
+                    </DropdownMenuItem>
+                  </DocumentAccessControl>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </ContextMenuTrigger>
         
         <ContextMenuContent>
-          {isFolder && (
+          {isFolder ? (
             <>
-              <ContextMenuItem 
-                className="hover:cursor-pointer"
-                onSelect={() => {
-                  setTimeout(() => setFolderDialogOpen(true), 0)
-                }}
+              {canAccessFolders && canCreate('folder') && (
+                <ContextMenuItem 
+                  className="hover:cursor-pointer"
+                  onSelect={() => {
+                    setTimeout(() => setFolderDialogOpen(true), 0)
+                  }}
+                >
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  New Folder
+                </ContextMenuItem>
+              )}
+              {canAccessAssets && canCreate('assets') && (
+                <ContextMenuItem 
+                  className="hover:cursor-pointer"
+                  onSelect={() => {
+                    setTimeout(() => setAssetDialogOpen(true), 0)
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  New Asset
+                </ContextMenuItem>
+              )}
+              {((canAccessFolders && canCreate('folder')) || (canAccessAssets && canCreate('assets'))) && (
+                <ContextMenuSeparator />
+              )}
+              <DocumentAccessControl
+                accessLevels={item.access_levels}
+                requiredAccess="edit"
               >
-                <FolderPlus className="h-4 w-4 mr-2" />
-                New Folder
-              </ContextMenuItem>
-              <ContextMenuItem 
-                className="hover:cursor-pointer"
-                onSelect={() => {
-                  setTimeout(() => setAssetDialogOpen(true), 0)
-                }}
+                <ContextMenuItem 
+                  className="hover:cursor-pointer"
+                  onSelect={() => {
+                    setTimeout(() => setEditFolderDialogOpen(true), 0)
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Folder
+                </ContextMenuItem>
+              </DocumentAccessControl>
+              <DocumentAccessControl
+                accessLevels={item.access_levels}
+                requiredAccess="delete"
               >
-                <FileText className="h-4 w-4 mr-2" />
-                New Asset
-              </ContextMenuItem>
+                <ContextMenuItem onSelect={handleDeleteFolder} className="hover:cursor-pointer text-red-600 focus:text-red-600">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Folder
+                </ContextMenuItem>
+              </DocumentAccessControl>
               <ContextMenuSeparator />
-              <ContextMenuItem 
-                className="hover:cursor-pointer"
-                onSelect={() => {
-                  setTimeout(() => setEditFolderDialogOpen(true), 0)
-                }}
+            </>
+          ) : (
+            <>
+              <DocumentAccessControl
+                accessLevels={item.access_levels}
+                requiredAccess="edit"
               >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Folder
-              </ContextMenuItem>
-              <ContextMenuItem onSelect={handleDeleteFolder} className="hover:cursor-pointer text-red-600 focus:text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Folder
-              </ContextMenuItem>
+                <ContextMenuItem 
+                  className="hover:cursor-pointer"
+                  onSelect={() => {
+                    // Para documentos, navegar a la página de edición
+                    console.log('Edit document:', item.name)
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Document
+                </ContextMenuItem>
+              </DocumentAccessControl>
+              <DocumentAccessControl
+                accessLevels={item.access_levels}
+                requiredAccess="delete"
+              >
+                <ContextMenuItem 
+                  className="hover:cursor-pointer text-red-600 focus:text-red-600"
+                  onSelect={() => {
+                    // Para documentos, manejar eliminación de documento
+                    console.log('Delete document:', item.name)
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Document
+                </ContextMenuItem>
+              </DocumentAccessControl>
               <ContextMenuSeparator />
             </>
           )}
-          <ContextMenuItem onSelect={handleShare} className="hover:cursor-pointer">
-            <Share className="h-4 w-4 mr-2" />
-            Share Link
-          </ContextMenuItem>
+          {isFolder ? (
+            <ContextMenuItem onSelect={handleShare} className="hover:cursor-pointer">
+              <Share className="h-4 w-4 mr-2" />
+              Share Link
+            </ContextMenuItem>
+          ) : (
+            <DocumentAccessControl
+              accessLevels={item.access_levels}
+              requiredAccess="read"
+            >
+              <ContextMenuItem onSelect={handleShare} className="hover:cursor-pointer">
+                <Share className="h-4 w-4 mr-2" />
+                Share Link
+              </ContextMenuItem>
+            </DocumentAccessControl>
+          )}
           <ContextMenuSeparator />
-          <ContextMenuItem disabled>
-            {isFolder ? (
-              <>
-                <Folder className="h-4 w-4 mr-2" />
-                Folder Properties
-              </>
-            ) : (
-              <>
+          {isFolder ? (
+            <ContextMenuItem disabled>
+              <Folder className="h-4 w-4 mr-2" />
+              Folder Properties
+            </ContextMenuItem>
+          ) : (
+            <DocumentAccessControl
+              accessLevels={item.access_levels}
+              requiredAccess="read"
+            >
+              <ContextMenuItem disabled>
                 <File className="h-4 w-4 mr-2" />
                 File Properties
-              </>
-            )}
-          </ContextMenuItem>
+              </ContextMenuItem>
+            </DocumentAccessControl>
+          )}
         </ContextMenuContent>
       </ContextMenu>
 
@@ -592,7 +720,6 @@ export function FileTreeItemWithContext({
               key={child.id}
               item={child}
               level={level + 1}
-              onDrop={onDrop}
               onSelect={onSelect}
               onDoubleClick={onDoubleClick}
               selectedId={selectedId}

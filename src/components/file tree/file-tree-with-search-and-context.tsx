@@ -8,7 +8,6 @@ import type { FileNode } from "./types"
 
 interface FileTreeWithSearchAndContextProps {
   items: FileNode[]
-  onDrop?: (draggedItem: FileNode, targetFolder: FileNode) => void
   onSelect?: (item: FileNode) => void
   onDoubleClick?: (item: FileNode) => void
   selectedId?: string
@@ -22,7 +21,6 @@ interface FileTreeWithSearchAndContextProps {
 
 export function FileTreeWithSearchAndContext({
   items: initialItems,
-  onDrop,
   onSelect,
   onDoubleClick,
   selectedId,
@@ -60,7 +58,6 @@ export function FileTreeWithSearchAndContext({
 
       <FileTreeWithContext
         items={initialItems}
-        onDrop={onDrop}
         onSelect={handleSelect}
         onDoubleClick={handleDoubleClick}
         selectedId={selected}

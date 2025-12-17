@@ -1,7 +1,7 @@
 export interface FileNode {
   id: string
   name: string
-  type: "file" | "folder"
+  type: "file" | "folder" | "document"
   children?: FileNode[]
   icon?: string
   isLoading?: boolean
@@ -11,6 +11,7 @@ export interface FileNode {
     name: string;
     color: string;
   };
+  access_levels?: string[];
 }
 
 export interface FileTreeProps {
