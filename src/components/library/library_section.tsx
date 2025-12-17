@@ -5,6 +5,7 @@ import Editor from '../editor';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
+import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution-config-dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -26,7 +27,7 @@ import {
     AlertDialogCancel,
     AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { fixSection, generateSingleSection, generateFromSection } from '@/services/generate';
+import { fixSection, executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
@@ -64,6 +65,8 @@ export default function SectionExecution({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
+    const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
+    const [executionMode, setExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
 
     console.log('SectionExecution Props:', { 
@@ -98,7 +101,12 @@ export default function SectionExecution({
         }
     };
 
-    const handleExecuteSection = async () => {
+    const handleOpenExecutionConfig = (mode: 'single' | 'from') => {
+        setExecutionMode(mode);
+        setExecutionConfigOpen(true);
+    };
+
+    const handleExecuteWithConfig = async (config: ExecutionConfig) => {
         if (!documentId || !executionId || !sectionExecution.section_id) {
             toast.error('Missing required information for section execution');
             return;
@@ -106,33 +114,35 @@ export default function SectionExecution({
 
         try {
             setIsExecuting(true);
+            setExecutionConfigOpen(false);
             onExecutionStart?.(executionId); // Pass executionId to show banner
-            await generateSingleSection(documentId, executionId, sectionExecution.section_id, selectedOrganizationId!);
-            toast.success('Section execution started successfully');
+
+            if (executionMode === 'single') {
+                await executeSingleSection(
+                    documentId,
+                    executionId,
+                    sectionExecution.section_id,
+                    selectedOrganizationId!,
+                    config.llmModel,
+                    config.instructions
+                );
+                toast.success('Section execution started successfully');
+            } else {
+                await executeFromSection(
+                    documentId,
+                    executionId,
+                    sectionExecution.section_id,
+                    selectedOrganizationId!,
+                    config.llmModel,
+                    config.instructions
+                );
+                toast.success('Execution from this section started successfully');
+            }
+
             onUpdate?.();
         } catch (error) {
             console.error('Error executing section:', error);
             toast.error('Failed to execute section. Please try again.');
-        } finally {
-            setIsExecuting(false);
-        }
-    };
-
-    const handleExecuteFromSection = async () => {
-        if (!documentId || !executionId || !sectionExecution.section_id) {
-            toast.error('Missing required information for section execution');
-            return;
-        }
-
-        try {
-            setIsExecuting(true);
-            onExecutionStart?.(executionId); // Pass executionId to show banner
-            await generateFromSection(documentId, executionId, sectionExecution.section_id, selectedOrganizationId!);
-            toast.success('Execution from this section started successfully');
-            onUpdate?.();
-        } catch (error) {
-            console.error('Error executing from section:', error);
-            toast.error('Failed to execute from section. Please try again.');
         } finally {
             setIsExecuting(false);
         }
@@ -204,7 +214,7 @@ export default function SectionExecution({
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
-                                                    onClick={handleExecuteSection}
+                                                    onClick={() => handleOpenExecutionConfig('single')}
                                                     disabled={isExecuting}
                                                 >
                                                     <Play className="h-3.5 w-3.5 text-green-600" />
@@ -221,7 +231,7 @@ export default function SectionExecution({
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
-                                                    onClick={handleExecuteFromSection}
+                                                    onClick={() => handleOpenExecutionConfig('from')}
                                                     disabled={isExecuting}
                                                 >
                                                     <FastForward className="h-3.5 w-3.5 text-purple-600" />
@@ -310,7 +320,9 @@ export default function SectionExecution({
                                         <>
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
-                                                onClick={handleExecuteSection}
+                                                onSelect={() => {
+                                                    setTimeout(() => handleOpenExecutionConfig('single'), 0);
+                                                }}
                                                 disabled={isExecuting}
                                             >
                                                 <Play className="h-4 w-4 mr-2" />
@@ -318,7 +330,9 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
-                                                onClick={handleExecuteFromSection}
+                                                onSelect={() => {
+                                                    setTimeout(() => handleOpenExecutionConfig('from'), 0);
+                                                }}
                                                 disabled={isExecuting}
                                             >
                                                 <FastForward className="h-4 w-4 mr-2" />
@@ -499,6 +513,15 @@ export default function SectionExecution({
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        {/* Execution Configuration Dialog */}
+        <ExecutionConfigDialog
+            open={executionConfigOpen}
+            onOpenChange={setExecutionConfigOpen}
+            mode={executionMode}
+            onExecute={handleExecuteWithConfig}
+            isExecuting={isExecuting}
+        />
         </div>
     );
 

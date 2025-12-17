@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Edit2, Trash2, Plus, Search, Shield, UserPlus, Users, MoreVertical } from "lucide-react"
+import { Trash2, Plus, Search, Shield, UserPlus, Users, MoreVertical } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles, useRoleMutations } from "@/hooks/useRbac"
 import { type Role } from "@/services/rbac"
 import CreateRoleSheet from "@/components/create-role-sheet"
@@ -116,7 +117,7 @@ function UserSelectDialog({ open, onOpenChange, onUserSelect }: UserSelectDialog
 }
 
 export default function RolesPage() {
-  const { user: currentUser } = useAuth()
+  useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
   const [editingRole, setEditingRole] = useState<Role | null>(null)
@@ -126,14 +127,17 @@ export default function RolesPage() {
   const [assigningRoleToUsers, setAssigningRoleToUsers] = useState<Role | null>(null)
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
 
-  // Check if user is admin
-  if (!currentUser?.is_root_admin) {
+  // Get permissions
+  const { canAccessRoles } = useUserPermissions()
+
+  // Check if user has access to roles management
+  if (!canAccessRoles) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You need administrator privileges to access this page.</p>
+          <p className="text-muted-foreground">You don't have permission to access role management.</p>
         </div>
       </div>
     )
@@ -179,7 +183,7 @@ export default function RolesPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8">
+      <div className="bg-background p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
             <Skeleton className="h-9 w-48" />
@@ -203,7 +207,7 @@ export default function RolesPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground mb-2">Error loading roles</div>
           <p className="text-muted-foreground">{error.message}</p>
@@ -213,7 +217,7 @@ export default function RolesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 md:p-8">
+    <div className="bg-background p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -296,7 +300,7 @@ export default function RolesPage() {
         )}
 
         {/* Table */}
-        <Card className="overflow-hidden border border-border bg-card">
+        <Card className="overflow border border-border bg-card overflow-auto max-h-[70vh]">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -381,8 +385,8 @@ export default function RolesPage() {
                               setEditingRole(role)
                             }, 0)
                           }} className="hover:cursor-pointer">
-                            <Edit2 className="mr-2 h-4 w-4" />
-                            Edit Role
+                            <Shield className="mr-2 h-4 w-4" />
+                            Manage Permissions
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => {

@@ -68,7 +68,7 @@ export default function AuthTypesPage() {
 
         {/* Table */}
         {!isLoading && !error && (
-          <Card className="overflow-hidden border border-border bg-card">
+          <Card className="border border-border bg-card overflow-auto max-h-[70vh]">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

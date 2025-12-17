@@ -8,7 +8,7 @@ import {
   Plus 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import ExecutionInfoSheet from "@/components/execution_info_sheet";
 import SectionExecutionSheet from "@/components/section_execution_sheet";
 import EditDocumentDialog from "@/components/edit_document_dialog";
@@ -31,7 +31,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "../ui/sheet";
 import { 
   getExecutionById, 
@@ -68,11 +67,7 @@ export function ExecuteSheet({
   onOpenChange,
   onSectionSheetOpen,
   onExecutionComplete,
-  onExecutionCreated,
-  isMobile = false,
-  disabled = false,
-  disabledReason
-}: ExecuteSheetProps) {
+  onExecutionCreated}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [isGeneratingInSheet, setIsGeneratingInSheet] = useState(false);
@@ -119,12 +114,12 @@ export function ExecuteSheet({
 
   // Mutation para ejecutar documento (crear y ejecutar en una operación)
   const executeDocumentMutation = useMutation({
-    mutationFn: ({ documentId, instructions }: { documentId: string; instructions?: string }) => 
+    mutationFn: ({ documentId, llmId, instructions, organizationId }: { documentId: string; llmId: string; instructions?: string; organizationId: string }) => 
       executeDocument({
         documentId,
-        llmId: defaultLLM?.id || "",
+        llmId,
         instructions,
-        organizationId: selectedOrganizationId!
+        organizationId
       }),
     onSuccess: (executionData) => {
       toast.success("Document execution started successfully");
@@ -159,14 +154,22 @@ export function ExecuteSheet({
 
   // Nueva función para ejecutar documento directamente
   const handleExecuteDocument = () => {
-    if (!selectedFile?.id || !defaultLLM?.id) {
-      toast.error("Document ID or default LLM not available");
+    if (!selectedFile?.id) {
+      toast.error("Document ID not available");
+      return;
+    }
+
+    const llmToUse = sheetSelectedLLM || defaultLLM?.id;
+    if (!llmToUse) {
+      toast.error("Please select a language model");
       return;
     }
 
     executeDocumentMutation.mutate({
       documentId: selectedFile.id,
-      instructions: sheetInstructions
+      llmId: llmToUse,
+      instructions: sheetInstructions,
+      organizationId: selectedOrganizationId!
     });
   };
 
@@ -260,6 +263,13 @@ export function ExecuteSheet({
     );
   };
 
+  // Effect para inicializar el LLM por defecto cuando se abre el sheet
+  useEffect(() => {
+    if (isOpen && !currentExecution && defaultLLM?.id && !sheetSelectedLLM) {
+      setSheetSelectedLLM(defaultLLM.id);
+    }
+  }, [isOpen, defaultLLM?.id, currentExecution, sheetSelectedLLM]);
+
   // Effect para resetear la ejecución cuando se cierra el sheet
   useEffect(() => {
     if (!isOpen) {
@@ -278,22 +288,6 @@ export function ExecuteSheet({
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetTrigger asChild>
-          <Button
-            size="sm"
-            disabled={disabled}
-            className={disabled
-              ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
-              : isMobile 
-                ? "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full" 
-                : "h-8 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm text-xs"
-            }
-            title={disabled ? (disabledReason || "Cannot create execution") : "Create New Execution"}
-          >
-            <Play className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
-            {!isMobile && (disabled ? "Busy" : "Execute")}
-          </Button>
-        </SheetTrigger>
         <SheetContent 
           side="right" 
           className="w-full sm:max-w-[90vw] lg:max-w-[900px] p-0"
@@ -374,7 +368,7 @@ export function ExecuteSheet({
                   ) : (
                     <Button 
                       onClick={handleExecuteDocument}
-                      disabled={!fullDocument?.sections || fullDocument.sections.length === 0 || executeDocumentMutation.isPending || !defaultLLM?.id}
+                      disabled={!fullDocument?.sections || fullDocument.sections.length === 0 || executeDocumentMutation.isPending || (!sheetSelectedLLM && !defaultLLM?.id)}
                       className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                       style={{ alignSelf: 'center' }}
                     >
@@ -506,55 +500,131 @@ export function ExecuteSheet({
                 <>
                   {/* Estado de carga mientras se ejecuta el documento */}
                   {executeDocumentMutation.isPending ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-[#4464f7] mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Executing Document</h3>
-                        <p className="text-sm text-gray-500">Starting document execution...</p>
-                      </div>
-                    </div>
+                    <Card className="border-0 shadow-sm border-l-4 border-l-[#4464f7]">
+                      <CardContent className="py-8">
+                        <div className="text-center">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-[#4464f7]/10 rounded-full flex items-center justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-[#4464f7]" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Executing Document</h3>
+                          <p className="text-sm text-gray-600">Starting document execution, this may take a few moments...</p>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : hasAttemptedCreation && executeDocumentMutation.isError ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-center">
-                        <CircleX className="h-16 w-16 mx-auto mb-4 text-red-500" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Execute Document</h3>
-                        <p className="text-sm text-gray-500 mb-6">There was an error executing the document. Please try again.</p>
+                    <Card className="border-0 shadow-sm border-l-4 border-l-red-500">
+                      <CardContent className="py-8">
+                        <div className="text-center">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
+                            <CircleX className="h-8 w-8 text-red-500" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Execute Document</h3>
+                          <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+                            There was an error executing the document. Please check your configuration and try again.
+                          </p>
                         <Button
                           onClick={handleExecuteDocument}
-                          disabled={!defaultLLM?.id}
-                          className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                          disabled={!sheetSelectedLLM && !defaultLLM?.id}
+                          className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer px-6"
                         >
                           <Play className="h-4 w-4 mr-2" />
                           Try Again
                         </Button>
-                      </div>
-                    </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : !fullDocument?.sections || fullDocument.sections.length === 0 ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-center">
-                        <Play className="h-16 w-16 mx-auto mb-4 opacity-40 text-[#4464f7]" />
-                        <h3 className="text-lg font-medium text-gray-500 mb-2">No Sections Available</h3>
-                        <p className="text-sm text-gray-400 mb-6">This document needs sections before it can be executed.</p>
-                        <Button
-                          onClick={() => {
-                            onOpenChange(false);
-                            onSectionSheetOpen();
-                          }}
-                          className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Sections
-                        </Button>
-                      </div>
-                    </div>
+                    <Card className="border-0 shadow-sm">
+                      <CardContent className="py-12">
+                        <div className="text-center">
+                          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                            <Play className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Sections Available</h3>
+                          <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+                            This document needs sections before it can be executed. Add some sections to get started with content generation.
+                          </p>
+                          <Button
+                            onClick={() => {
+                              onOpenChange(false);
+                              onSectionSheetOpen();
+                            }}
+                            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer px-6"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Sections
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-center">
-                        <Play className="h-8 w-8 animate-pulse text-[#4464f7] mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Preparing Execution</h3>
-                        <p className="text-sm text-gray-500">Please wait while we set up your execution...</p>
-                      </div>
-                    </div>
+                    /* Configuration for new execution */
+                    <Card className="border-0 shadow-sm">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          Execution Configuration
+                        </CardTitle>
+                        <CardDescription className="text-sm text-gray-600">
+                          Configure the settings for your new execution. Select a language model and provide any specific instructions.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-6">
+                          <div className="space-y-3">
+                            <label className="block text-sm font-medium text-gray-900">
+                              Language Model <span className="text-red-500">*</span>
+                            </label>
+                            <Select
+                              value={sheetSelectedLLM}
+                              onValueChange={setSheetSelectedLLM}
+                              disabled={executeDocumentMutation.isPending}
+                            >
+                              <SelectTrigger className="w-full h-11 border-gray-300 focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20">
+                                <SelectValue placeholder="Select a language model" />
+                              </SelectTrigger>
+                              <SelectContent className="max-w-full">
+                                {llms?.map((llm: any) => (
+                                  <SelectItem key={llm.id} value={llm.id} className="cursor-pointer">
+                                    <div className="flex items-center justify-between w-full gap-3">
+                                      <span className="font-medium">{llm.name}</span>
+                                      {defaultLLM?.id === llm.id && (
+                                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium border border-blue-200">
+                                          Default
+                                        </span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!sheetSelectedLLM && (
+                              <p className="text-xs text-gray-500">
+                                Please select a language model to proceed with the execution.
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <label htmlFor="new-instructions" className="block text-sm font-medium text-gray-900">
+                              Execution Instructions
+                              <span className="text-sm font-normal text-gray-500 ml-1">(Optional)</span>
+                            </label>
+                            <textarea
+                              id="new-instructions"
+                              value={sheetInstructions}
+                              onChange={(e) => setSheetInstructions(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4464f7]/20 focus:border-[#4464f7] resize-none transition-colors"
+                              rows={5}
+                              placeholder="Enter any specific instructions for this execution. For example: 'Focus on technical details' or 'Keep it concise and professional'..."
+                              disabled={executeDocumentMutation.isPending}
+                            />
+                            <p className="text-xs text-gray-500">
+                              These instructions will guide the AI during content generation.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
                 </>
               )}

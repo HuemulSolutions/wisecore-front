@@ -1,16 +1,17 @@
 // Dialog component for viewing user organizations
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Plus } from "lucide-react"
+import { Building, Plus, Trash2 } from "lucide-react"
 import { useUserOrganizations } from "@/hooks/useUsers"
 import { type User } from "@/services/users"
 import { getAllOrganizations } from "@/services/organizations"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { assignUserToOrganization } from "@/services/users"
+import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
 import { toast } from "sonner"
 
 interface UserOrganizationsDialogProps {
@@ -21,6 +22,7 @@ interface UserOrganizationsDialogProps {
 
 export default function UserOrganizationsDialog({ user, open, onOpenChange }: UserOrganizationsDialogProps) {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>("")
+  const [] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: organizationsResponse, isLoading, error } = useUserOrganizations(user?.id)
@@ -40,6 +42,18 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
     },
     onError: (error) => {
       toast.error('Failed to assign user to organization: ' + error.message)
+    },
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: (organizationId: string) => 
+      removeUserFromOrganization(organizationId, user!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
+      toast.success('User removed from organization successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to remove user from organization: ' + error.message)
     },
   })
 
@@ -122,9 +136,41 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                       <div className="text-xs text-muted-foreground">{org.description}</div>
                     )}
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    Member
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      Member
+                    </Badge>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="hover:cursor-pointer h-6 px-2"
+                          disabled={removeMutation.isPending}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove User from Organization</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to remove <strong>{user.name} {user.last_name}</strong> from <strong>{org.name}</strong>?
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => removeMutation.mutate(org.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Remove User
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               ))}
             </div>

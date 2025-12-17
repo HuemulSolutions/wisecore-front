@@ -21,6 +21,7 @@ import { Building2, Plus, CheckCircle } from 'lucide-react';
 import { getUserOrganizations, generateOrganizationToken, addOrganization } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface Organization {
   id: string;
@@ -42,8 +43,9 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
   const [newOrgDescription, setNewOrgDescription] = useState('');
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   
-  const { setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization();
+  const { setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken } = useOrganization();
   const { user } = useAuth();
+  const { isLoading: permissionsLoading } = useUserPermissions();
   const queryClient = useQueryClient();
 
   const { data: organizationsData, isLoading } = useQuery({
@@ -152,12 +154,25 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
               <div className="flex flex-col gap-3">
                 <Button
                   onClick={() => handleSelectOrganization()}
-                  disabled={!selectedOrgId || isLoading || isGeneratingToken}
+                  disabled={Boolean(!selectedOrgId || isLoading || isGeneratingToken || (organizationToken && permissionsLoading))}
                   className="w-full bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  {isGeneratingToken ? 'Generating token...' : 'Continue with Selected Organization'}
+                  {isGeneratingToken 
+                    ? 'Generating token...' 
+                    : (organizationToken && permissionsLoading)
+                    ? 'Loading permissions...'
+                    : 'Continue with Selected Organization'}
                 </Button>
+                
+                {/* Mostrar estado de carga de permisos */}
+                {organizationToken && permissionsLoading && (
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Setting up your workspace permissions...
+                    </p>
+                  </div>
+                )}
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">

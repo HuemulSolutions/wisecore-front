@@ -10,10 +10,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2, Check, X, Edit, Shield, Users, Building, Plus, UserPlus, MoreVertical } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type User } from "@/services/users"
 import { useUsers, useUserMutations } from "@/hooks/useUsers"
+import ProtectedComponent from "@/components/protected-component"
 
 import EditUserDialog from "@/components/edit-user-dialog"
 import UserOrganizationsDialog from "@/components/user-organizations-dialog"
@@ -58,7 +59,6 @@ const translateStatus = (status: string) => {
 
 
 export default function UsersPage() {
-  const { user: currentUser } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
@@ -68,6 +68,9 @@ export default function UsersPage() {
   const [assigningRoleUser, setAssigningRoleUser] = useState<User | null>(null)
   const [deletingUser, setDeletingUser] = useState<User | null>(null)
 
+  // Get permissions context
+  const { canAccessUsers } = useUserPermissions()
+  
   // Get organization context
   const { selectedOrganizationId, organizationToken } = useOrganization()
   
@@ -75,14 +78,14 @@ export default function UsersPage() {
   const { data: usersResponse, isLoading, error } = useUsers(!!selectedOrganizationId && !!organizationToken)
   const { approveUser: approveUserMutation, rejectUser: rejectUserMutation, deleteUser: deleteUserMutation } = useUserMutations()
 
-  // Check if user is admin
-  if (!currentUser?.is_root_admin) {
+  // Check if user has access to users management
+  if (!canAccessUsers) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You need administrator privileges to access this page.</p>
+          <p className="text-muted-foreground">You don't have permission to access user management.</p>
         </div>
       </div>
     )
@@ -91,7 +94,7 @@ export default function UsersPage() {
   // Check if organization is selected
   if (!selectedOrganizationId || !organizationToken) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <Building className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Organization Required</h2>
@@ -133,7 +136,7 @@ export default function UsersPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8">
+      <div className="bg-background p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
             <Skeleton className="h-9 w-48" />
@@ -157,7 +160,7 @@ export default function UsersPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground mb-2">Error loading users</div>
           <p className="text-muted-foreground">{error.message}</p>
@@ -167,7 +170,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 md:p-8">
+    <div className="bg-background p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -176,13 +179,15 @@ export default function UsersPage() {
             <h1 className="text-3xl font-bold text-foreground">Users Management</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              onClick={() => setShowCreateDialog(true)}
-              className="hover:cursor-pointer"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add User
-            </Button>
+            <ProtectedComponent permission="user:c">
+              <Button 
+                onClick={() => setShowCreateDialog(true)}
+                className="hover:cursor-pointer"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add User
+              </Button>
+            </ProtectedComponent>
             <Badge variant="outline" className="text-sm">
               {filteredUsers.length} users
             </Badge>
@@ -250,7 +255,7 @@ export default function UsersPage() {
         )}
 
         {/* Table */}
-        <Card className="overflow-hidden border border-border bg-card">
+        <Card className="border border-border bg-card overflow-auto max-h-[70vh]">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -348,34 +353,38 @@ export default function UsersPage() {
                         <DropdownMenuContent align="end">
                           {user.status === 'pending' && (
                             <>
-                              <DropdownMenuItem 
-                                onSelect={() => approveUserMutation.mutate(user.id)}
-                                disabled={approveUserMutation.isPending}
-                                className="hover:cursor-pointer"
-                              >
-                                <Check className="mr-2 h-4 w-4" />
-                                Approve User
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onSelect={() => rejectUserMutation.mutate(user.id)}
-                                disabled={rejectUserMutation.isPending}
-                                className="hover:cursor-pointer"
-                              >
-                                <X className="mr-2 h-4 w-4" />
-                                Reject User
-                              </DropdownMenuItem>
+                              <ProtectedComponent permission="user:u">
+                                <DropdownMenuItem 
+                                  onSelect={() => approveUserMutation.mutate(user.id)}
+                                  disabled={approveUserMutation.isPending}
+                                  className="hover:cursor-pointer"
+                                >
+                                  <Check className="mr-2 h-4 w-4" />
+                                  Approve User
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onSelect={() => rejectUserMutation.mutate(user.id)}
+                                  disabled={rejectUserMutation.isPending}
+                                  className="hover:cursor-pointer"
+                                >
+                                  <X className="mr-2 h-4 w-4" />
+                                  Reject User
+                                </DropdownMenuItem>
+                              </ProtectedComponent>
                               <DropdownMenuSeparator />
                             </>
                           )}
-                          <DropdownMenuItem onSelect={() => {
-                            // Use setTimeout so the dropdown menu fully closes before the dialog appears
-                            setTimeout(() => {
-                              setAssigningRoleUser(user)
-                            }, 0)
-                          }} className="hover:cursor-pointer">
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Assign Roles
-                          </DropdownMenuItem>
+                          <ProtectedComponent permissions={["rbac:manage", "user:u"]}>
+                            <DropdownMenuItem onSelect={() => {
+                              // Use setTimeout so the dropdown menu fully closes before the dialog appears
+                              setTimeout(() => {
+                                setAssigningRoleUser(user)
+                              }, 0)
+                            }} className="hover:cursor-pointer">
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Assign Roles
+                            </DropdownMenuItem>
+                          </ProtectedComponent>
                           <DropdownMenuItem onSelect={() => {
                             // Use setTimeout so the dropdown menu fully closes before the dialog appears
                             setTimeout(() => {
@@ -385,25 +394,29 @@ export default function UsersPage() {
                             <Building className="mr-2 h-4 w-4" />
                             View Organizations
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => {
-                            // Use setTimeout so the dropdown menu fully closes before the dialog appears
-                            setTimeout(() => {
-                              setEditingUser(user)
-                            }, 0)
-                          }} className="hover:cursor-pointer">
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit User
-                          </DropdownMenuItem>
+                          <ProtectedComponent permission="user:u">
+                            <DropdownMenuItem onSelect={() => {
+                              // Use setTimeout so the dropdown menu fully closes before the dialog appears
+                              setTimeout(() => {
+                                setEditingUser(user)
+                              }, 0)
+                            }} className="hover:cursor-pointer">
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit User
+                            </DropdownMenuItem>
+                          </ProtectedComponent>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onSelect={() => {
-                            // Use setTimeout so the dropdown menu fully closes before the dialog appears
-                            setTimeout(() => {
-                              setDeletingUser(user)
-                            }, 0)
-                          }} className="hover:cursor-pointer text-destructive focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete User
-                          </DropdownMenuItem>
+                          <ProtectedComponent permission="user:d">
+                            <DropdownMenuItem onSelect={() => {
+                              // Use setTimeout so the dropdown menu fully closes before the dialog appears
+                              setTimeout(() => {
+                                setDeletingUser(user)
+                              }, 0)
+                            }} className="hover:cursor-pointer text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </ProtectedComponent>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

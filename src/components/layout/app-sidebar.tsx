@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Home, Search, LayoutTemplate, BookText, Shield, Package } from "lucide-react"
 import { useLocation } from "react-router-dom"
-import { useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Sidebar,
@@ -13,11 +13,12 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
-import { useAuth } from "@/contexts/auth-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getAllOrganizations, addOrganization } from "@/services/organizations"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -91,11 +92,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const queryClient = useQueryClient()
   const location = useLocation()
   const isMobile = useIsMobile()
-  const { user } = useAuth()
+  const {
+    isRootAdmin,
+    canAccessUsers,
+    canAccessRoles,
+    canAccessAssets,
+    canAccessModels,
+    canAccessTemplates,
+    canAccessDocumentTypes,
+    isLoading: permissionsLoading,
+  } = useUserPermissions()
   
   const { 
     selectedOrganizationId, 
     organizations, 
+    organizationToken,
     setSelectedOrganizationId, 
     setOrganizations 
   } = useOrganization()
@@ -140,14 +151,120 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Obtener organización seleccionada
   const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || null
 
-  // Filtrar navigationItems basándose en permisos de administrador
-  const filteredNavigationItems = navigationItems.filter(item => {
-    // Si el item es "Administration" o "Asset Management", solo mostrarlo si el usuario es admin
-    if (item.title === "Administration" || item.title === "Asset Management") {
-      return user?.is_root_admin === true
+  // Estado interno para controlar el parpadeo del menú
+  const [menuReady, setMenuReady] = useState(false);
+  
+  // Determinar si los permisos están listos para mostrar
+  const permissionsReady = organizationToken && !permissionsLoading;
+
+  // Controlar la transición del menú con un pequeño delay para evitar parpadeo
+  useEffect(() => {
+    console.log('Sidebar state:', { 
+      organizationToken: !!organizationToken, 
+      permissionsLoading, 
+      permissionsReady, 
+      menuReady 
+    });
+    
+    if (permissionsReady) {
+      // Pequeño delay para asegurar que el contexto esté completamente actualizado
+      const timer = setTimeout(() => {
+        console.log('Setting menuReady to true');
+        setMenuReady(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      // Inmediatamente mostrar loading cuando no está ready
+      console.log('Setting menuReady to false');
+      setMenuReady(false);
     }
-    return true
-  })
+  }, [permissionsReady, organizationToken, permissionsLoading]);
+
+  // Filtrar navigationItems basándose en permisos del usuario
+  const filteredNavigationItems = useMemo(() => {
+    // Si los permisos no están listos, no devolver ningún item
+    // El componente mostrará skeleton loading en su lugar
+    if (!menuReady) {
+      return [];
+    }
+
+    return navigationItems.map(item => {
+      // Verificar cada item principal
+      let shouldShowItem = true;
+      
+      switch (item.title) {
+        case "Assets":
+          // Mostrar Assets si tiene cualquier permiso relacionado con assets
+          shouldShowItem = canAccessAssets || isRootAdmin;
+          break;
+        case "Templates":
+          // Mostrar Templates si tiene cualquier permiso relacionado con templates
+          shouldShowItem = canAccessTemplates || isRootAdmin;
+          break;
+        case "Asset Management":
+          // Mostrar Asset Management si tiene acceso a document types o asset types
+          shouldShowItem = canAccessDocumentTypes || isRootAdmin;
+          break;
+        case "Administration":
+          // Mostrar Administration si tiene acceso a cualquier función administrativa
+          shouldShowItem = canAccessUsers || canAccessRoles || canAccessModels || isRootAdmin;
+          break;
+        default:
+          // Home y Search son accesibles para todos los usuarios autenticados
+          shouldShowItem = true;
+      }
+
+      if (!shouldShowItem) {
+        return null;
+      }
+
+      // Si el item tiene subitems, filtrarlos también
+      if (item.items) {
+        const filteredSubItems = item.items.filter(subItem => {
+          switch (subItem.title) {
+            case "Asset Types":
+              // Solo mostrar si tiene permisos para gestionar tipos de documentos/assets
+              return canAccessDocumentTypes || isRootAdmin;
+            case "Users":
+              // Solo mostrar si tiene permisos para gestionar usuarios
+              return canAccessUsers || isRootAdmin;
+            case "Roles":
+              // Solo mostrar si tiene permisos para gestionar roles
+              return canAccessRoles || isRootAdmin;
+            case "Models":
+              // Solo mostrar si tiene permisos para gestionar modelos LLM
+              return canAccessModels || isRootAdmin;
+            case "Auth Types":
+              // Solo root admin puede gestionar tipos de autenticación
+              return isRootAdmin;
+            default:
+              return true;
+          }
+        });
+
+        // Si no tiene subitems visibles, no mostrar el item principal
+        if (filteredSubItems.length === 0) {
+          return null;
+        }
+
+        return {
+          ...item,
+          items: filteredSubItems
+        };
+      }
+
+      return item;
+    }).filter(Boolean) as typeof navigationItems;
+  }, [
+    menuReady,
+    canAccessAssets,
+    canAccessTemplates, 
+    canAccessDocumentTypes,
+    canAccessUsers,
+    canAccessRoles,
+    canAccessModels,
+    isRootAdmin
+  ])
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -161,7 +278,36 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={filteredNavigationItems} />
+        {!menuReady ? (
+          <div className="space-y-2 px-2 pt-4">
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-sidebar-foreground/70 px-2 mb-2">
+                Navigation
+              </div>
+              {/* Home */}
+              <div className="flex items-center gap-3 rounded-md px-3 py-2">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              {/* Search */}
+              <div className="flex items-center gap-3 rounded-md px-3 py-2">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              {/* Loading placeholders para otros elementos */}
+              <div className="flex items-center gap-3 rounded-md px-3 py-2">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="flex items-center gap-3 rounded-md px-3 py-2">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <NavMain items={filteredNavigationItems} />
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

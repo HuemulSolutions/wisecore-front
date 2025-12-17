@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/tooltip";
 import Chatbot from "../chatbot/chatbot";
 import { SectionSheet, DependenciesSheet, ContextSheet, TemplateConfigSheet } from "../sheets";
+import { ExecuteSheet } from "@/components/sheets/ExecuteSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { DocumentAccessControl, DocumentActionButton } from "@/components/document-access-control";
 
 import {
   DropdownMenu,
@@ -62,6 +64,12 @@ interface LibraryItem {
   id: string;
   name: string;
   type: "folder" | "document";
+  document_type?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+  access_levels?: string[];
 }
 
 interface BreadcrumbItem {
@@ -486,6 +494,9 @@ export function AssetContent({
   // Asset creation state
   const [isCreateAssetDialogOpen, setIsCreateAssetDialogOpen] = useState(false);
   
+  // Execute sheet state
+  const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
+  
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
     if (createdTemplate && selectedFile) {
@@ -505,6 +516,34 @@ export function AssetContent({
   const handleDocumentCreated = (createdDocument: { id: string; name: string; type: "document" }) => {
     onRefresh();
     setSelectedFile(createdDocument);
+  };
+
+  // Handle execution created from Execute Sheet
+  const handleExecutionCreated = (executionId: string) => {
+    setSelectedExecutionId(executionId);
+    setCurrentExecutionId(executionId);
+    
+    // Invalidate queries to refresh execution data
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+    
+    // Force refetch document content
+    setTimeout(() => {
+      refetchDocumentContent();
+    }, 500);
+  };
+
+  // Handle execution complete from Execute Sheet
+  const handleExecutionComplete = () => {
+    // Refresh document content and executions
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+    
+    setTimeout(() => {
+      refetchDocumentContent();
+    }, 500);
   };
 
 
@@ -581,31 +620,10 @@ export function AssetContent({
     createSectionExecutionMutation.mutate(values);
   };
 
-  // Handle create new execution - ejecutar directamente
+  // Handle create new execution - abrir Execute Sheet
   const handleCreateExecution = () => {
     if (selectedFile && selectedFile.type === 'document') {
-      if (hasExecutionInProcess) {
-        toast.error('There\'s already an execution running. Please wait for it to complete before creating a new one.');
-        return;
-      }
-      
-      // Verificar que el documento tenga secciones
-      if (!fullDocument?.sections || fullDocument.sections.length === 0) {
-        toast.error('This document needs sections before it can be executed.');
-        return;
-      }
-      
-      // Verificar que hay LLM por defecto disponible
-      if (!defaultLLM?.id) {
-        toast.error('No default LLM available. Please configure a default LLM first.');
-        return;
-      }
-      
-      // Ejecutar documento directamente
-      executeDocumentMutation.mutate({
-        documentId: selectedFile.id,
-        instructions: undefined // Sin instrucciones específicas
-      });
+      setIsExecuteSheetOpen(true);
     }
   };
 
@@ -1139,7 +1157,10 @@ export function AssetContent({
             
             {/* Mobile Action Buttons - Icon Only */}
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5">
-              <Button
+              <DocumentActionButton
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess={["create"]}
+                requireAll={false}
                 size="sm"
                 onClick={handleCreateExecution}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
@@ -1157,29 +1178,47 @@ export function AssetContent({
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-              </Button>
+              </DocumentActionButton>
               
-              <SectionSheet
-                selectedFile={selectedFile}
-                fullDocument={fullDocument}
-                isOpen={isSectionSheetOpen}
-                onOpenChange={setIsSectionSheetOpen}
-                isMobile={isMobile}
-              />
+              <DocumentAccessControl
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess={["edit", "create"]}
+                requireAll={false}
+              >
+                <SectionSheet
+                  selectedFile={selectedFile}
+                  fullDocument={fullDocument}
+                  isOpen={isSectionSheetOpen}
+                  onOpenChange={setIsSectionSheetOpen}
+                  isMobile={isMobile}
+                />
+              </DocumentAccessControl>
               
-              <DependenciesSheet
-                selectedFile={selectedFile}
-                isOpen={isDependenciesSheetOpen}
-                onOpenChange={setIsDependenciesSheetOpen}
-                isMobile={isMobile}
-              />
+              <DocumentAccessControl
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess={["edit", "create"]}
+                requireAll={false}
+              >
+                <DependenciesSheet
+                  selectedFile={selectedFile}
+                  isOpen={isDependenciesSheetOpen}
+                  onOpenChange={setIsDependenciesSheetOpen}
+                  isMobile={isMobile}
+                />
+              </DocumentAccessControl>
               
-              <ContextSheet
-                selectedFile={selectedFile}
-                isOpen={isContextSheetOpen}
-                onOpenChange={setIsContextSheetOpen}
-                isMobile={isMobile}
-              />
+              <DocumentAccessControl
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess={["edit", "create"]}
+                requireAll={false}
+              >
+                <ContextSheet
+                  selectedFile={selectedFile}
+                  isOpen={isContextSheetOpen}
+                  onOpenChange={setIsContextSheetOpen}
+                  isMobile={isMobile}
+                />
+              </DocumentAccessControl>
               
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
@@ -1258,7 +1297,9 @@ export function AssetContent({
               )}
               
               {/* Edit Button */}
-              <Button
+              <DocumentActionButton
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess="edit"
                 onClick={openEditDialog}
                 size="sm"
                 variant="ghost"
@@ -1266,11 +1307,14 @@ export function AssetContent({
                 title="Edit Document"
               >
                 <Edit3 className="h-4 w-4" />
-              </Button>
+              </DocumentActionButton>
 
               {/* Clone Button - only show if there's an execution to clone */}
               {selectedExecutionId && (
-                <Button
+                <DocumentActionButton
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
                   onClick={() => setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
                   variant="ghost"
@@ -1278,35 +1322,42 @@ export function AssetContent({
                   title="Clone Execution"
                 >
                   <Copy className="h-4 w-4" />
-                </Button>
+                </DocumentActionButton>
               )}
               
               {/* Export Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
-                    title="Export Options"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export as Markdown
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
-                    <FileCode className="mr-2 h-4 w-4" />
-                    Export as Word
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <DocumentAccessControl
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess="read"
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                      title="Export Options"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as Markdown
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                      <FileCode className="mr-2 h-4 w-4" />
+                      Export as Word
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </DocumentAccessControl>
               
               {/* Delete Button */}
-              <Button
+              <DocumentActionButton
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess="delete"
                 onClick={() => setTimeout(() => openDeleteDialog(), 0)}
                 size="sm"
                 variant="ghost"
@@ -1314,7 +1365,7 @@ export function AssetContent({
                 title="Delete Document"
               >
                 <Trash2 className="h-4 w-4" />
-              </Button>
+              </DocumentActionButton>
 
               {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
               {(() => {
@@ -1329,30 +1380,52 @@ export function AssetContent({
                 // Show Approve button when status is 'completed'
                 if (actualStatus === 'completed') {
                   return (
-                    <Button
+                    <DocumentActionButton
+                      accessLevels={selectedFile?.access_levels}
+                      requiredAccess="approve"
                       onClick={() => setTimeout(() => openApproveDialog(), 0)}
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer transition-colors rounded-full"
-                      title="Approve Execution"
+                      disabled={approveMutation.isPending}
+                      className={`h-8 w-8 p-0 transition-colors rounded-full ${
+                        approveMutation.isPending 
+                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                          : 'text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer'
+                      }`}
+                      title={approveMutation.isPending ? "Approving..." : "Approve Execution"}
                     >
-                      <Check className="h-4 w-4" />
-                    </Button>
+                      {approveMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </DocumentActionButton>
                   );
                 }
                 
                 // Show Disapprove button when status is 'approved'
                 if (actualStatus === 'approved') {
                   return (
-                    <Button
+                    <DocumentActionButton
+                      accessLevels={selectedFile?.access_levels}
+                      requiredAccess="approve"
                       onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors rounded-full"
-                      title="Disapprove Execution"
+                      disabled={disapproveMutation.isPending}
+                      className={`h-8 w-8 p-0 transition-colors rounded-full ${
+                        disapproveMutation.isPending 
+                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                          : 'text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer'
+                      }`}
+                      title={disapproveMutation.isPending ? "Converting to Draft..." : "Convert to Draft"}
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
+                      {disapproveMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
+                    </DocumentActionButton>
                   );
                 }
                 
@@ -1410,7 +1483,10 @@ export function AssetContent({
             <div className="flex items-start gap-2 flex-wrap">
               {/* Primary Actions Group */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
-              <Button
+              <DocumentActionButton
+                accessLevels={selectedFile?.access_levels}
+                requiredAccess={["create"]}
+                requireAll={false}
                 size="sm"
                 onClick={handleCreateExecution}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
@@ -1434,26 +1510,44 @@ export function AssetContent({
                     Execute
                   </>
                 )}
-              </Button>
+              </DocumentActionButton>
                 
-                <SectionSheet
-                  selectedFile={selectedFile}
-                  fullDocument={fullDocument}
-                  isOpen={isSectionSheetOpen}
-                  onOpenChange={setIsSectionSheetOpen}
-                />
+                <DocumentAccessControl
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
+                >
+                  <SectionSheet
+                    selectedFile={selectedFile}
+                    fullDocument={fullDocument}
+                    isOpen={isSectionSheetOpen}
+                    onOpenChange={setIsSectionSheetOpen}
+                  />
+                </DocumentAccessControl>
                 
-                <DependenciesSheet
-                  selectedFile={selectedFile}
-                  isOpen={isDependenciesSheetOpen}
-                  onOpenChange={setIsDependenciesSheetOpen}
-                />
+                <DocumentAccessControl
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
+                >
+                  <DependenciesSheet
+                    selectedFile={selectedFile}
+                    isOpen={isDependenciesSheetOpen}
+                    onOpenChange={setIsDependenciesSheetOpen}
+                  />
+                </DocumentAccessControl>
                 
-                <ContextSheet
-                  selectedFile={selectedFile}
-                  isOpen={isContextSheetOpen}
-                  onOpenChange={setIsContextSheetOpen}
-                />
+                <DocumentAccessControl
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
+                >
+                  <ContextSheet
+                    selectedFile={selectedFile}
+                    isOpen={isContextSheetOpen}
+                    onOpenChange={setIsContextSheetOpen}
+                  />
+                </DocumentAccessControl>
               </div>
               
               {/* Secondary Actions Group */}
@@ -1545,30 +1639,52 @@ export function AssetContent({
                   // Show Approve button when status is 'completed'
                   if (actualStatus === 'completed') {
                     return (
-                      <Button
+                      <DocumentActionButton
+                        accessLevels={selectedFile?.access_levels}
+                        requiredAccess="approve"
                         onClick={() => setTimeout(() => openApproveDialog(), 0)}
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2.5 text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer transition-colors"
-                        title="Approve Execution"
+                        disabled={approveMutation.isPending}
+                        className={`h-8 px-2.5 transition-colors ${
+                          approveMutation.isPending 
+                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                            : 'text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer'
+                        }`}
+                        title={approveMutation.isPending ? "Approving..." : "Approve Execution"}
                       >
-                        <Check className="h-3.5 w-3.5" />
-                      </Button>
+                        {approveMutation.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                      </DocumentActionButton>
                     );
                   }
                   
                   // Show Disapprove button when status is 'approved'
                   if (actualStatus === 'approved') {
                     return (
-                      <Button
+                      <DocumentActionButton
+                        accessLevels={selectedFile?.access_levels}
+                        requiredAccess="approve"
                         onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
-                        title="Disapprove Execution"
+                        disabled={disapproveMutation.isPending}
+                        className={`h-8 px-2.5 transition-colors ${
+                          disapproveMutation.isPending 
+                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                            : 'text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer'
+                        }`}
+                        title={disapproveMutation.isPending ? "Converting to Draft..." : "Convert to Draft"}
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
+                        {disapproveMutation.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <X className="h-3.5 w-3.5" />
+                        )}
+                      </DocumentActionButton>
                     );
                   }
                   
@@ -1578,7 +1694,10 @@ export function AssetContent({
                 {/* Execution Actions Group */}
                 {/* Clone Button - Desktop - only show if there's an execution to clone */}
                 {selectedExecutionId && (
-                  <Button
+                  <DocumentActionButton
+                    accessLevels={selectedFile?.access_levels}
+                    requiredAccess={["edit", "create"]}
+                    requireAll={false}
                     onClick={() => setTimeout(() => openCloneDialog(), 0)}
                     size="sm"
                     variant="ghost"
@@ -1586,7 +1705,7 @@ export function AssetContent({
                     title="Clone Execution"
                   >
                     <Copy className="h-3.5 w-3.5" />
-                  </Button>
+                  </DocumentActionButton>
                 )}
                 
                 
@@ -1597,7 +1716,9 @@ export function AssetContent({
                 )}
 
                 {/* Document Actions Group */}
-                <Button
+                <DocumentActionButton
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess="edit"
                   onClick={openEditDialog}
                   size="sm"
                   variant="ghost"
@@ -1605,32 +1726,39 @@ export function AssetContent({
                   title="Edit Document"
                 >
                   <Edit3 className="h-3.5 w-3.5" />
-                </Button>
+                </DocumentActionButton>
                 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                      title="Export Options"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Export as Markdown
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
-                      <FileCode className="mr-2 h-4 w-4" />
-                      Export as Word
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <DocumentAccessControl
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess="read"
+                >
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                        title="Export Options"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export as Markdown
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                        <FileCode className="mr-2 h-4 w-4" />
+                        Export as Word
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </DocumentAccessControl>
                 
-                <Button
+                <DocumentActionButton
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess="delete"
                   onClick={() => setTimeout(() => openDeleteDialog(), 0)}
                   size="sm"
                   variant="ghost"
@@ -1638,7 +1766,7 @@ export function AssetContent({
                   title="Delete Document"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                </DocumentActionButton>
               </div>
             </div>
             
@@ -1776,13 +1904,16 @@ export function AssetContent({
                         </EmptyDescription>
                         <EmptyActions>
                           {fullDocument?.sections?.length === 0 ? (
-                            <Button
+                            <DocumentActionButton
+                              accessLevels={selectedFile?.access_levels}
+                              requiredAccess={["edit", "create"]}
+                              requireAll={false}
                               onClick={() => setIsSectionSheetOpen(true)}
                               className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                             >
                               <Plus className="h-4 w-4 mr-2" />
                               Add Sections
-                            </Button>
+                            </DocumentActionButton>
                           ) : (
                             <>
                               <Button
@@ -1895,16 +2026,22 @@ export function AssetContent({
                       <p className="text-sm text-gray-400 mt-1 mb-6">This document doesn't have any content yet</p>
                       
                       <div className="flex gap-3 justify-center">
-                        <Button 
+                        <DocumentActionButton
+                          accessLevels={selectedFile?.access_levels}
+                          requiredAccess={["edit", "create"]}
+                          requireAll={false}
                           variant="outline" 
                           onClick={handleAddSection}
                           className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Section
-                        </Button>
+                        </DocumentActionButton>
                         
-                        <Button 
+                        <DocumentActionButton
+                          accessLevels={selectedFile?.access_levels}
+                          requiredAccess={["edit", "create"]}
+                          requireAll={false}
                           variant="outline" 
                           onClick={handleCreateExecution}
                           disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
@@ -1921,7 +2058,7 @@ export function AssetContent({
                               Execute Document
                             </>
                           )}
-                        </Button>
+                        </DocumentActionButton>
                       </div>
                     </div>
                   </div>
@@ -2231,17 +2368,17 @@ export function AssetContent({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <X className="h-5 w-5 text-red-600" />
-              Disapprove Execution
+              Draft execution
             </AlertDialogTitle>
             <AlertDialogDescription>
               {selectedExecutionInfo ? (
                 <>
-                  Are you sure you want to disapprove the execution <strong>{selectedExecutionInfo.name}</strong>?
+                  Are you sure you want to convert the execution to draft <strong>{selectedExecutionInfo.name}</strong>?
                   <br />
-                  This will mark the execution as not approved and remove it from production use.
+                  This will mark the execution as draft and remove it from production use.
                 </>
               ) : (
-                "Are you sure you want to disapprove this execution? This will mark it as not approved and remove it from production use."
+                "Are you sure you want to convert the execution to draft this execution? This will mark it as draft and remove it from production use."
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -2260,12 +2397,12 @@ export function AssetContent({
               {disapproveMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Disapproving...
+                  Converting...
                 </>
               ) : (
                 <>
                   <X className="mr-2 h-4 w-4" />
-                  Disapprove Execution
+                  Draft execution
                 </>
               )}
             </AlertDialogAction>
@@ -2288,6 +2425,28 @@ export function AssetContent({
         }}
       />
       
+      {/* Execute Sheet */}
+      <ExecuteSheet
+        selectedFile={selectedFile}
+        fullDocument={fullDocument}
+        isOpen={isExecuteSheetOpen}
+        onOpenChange={setIsExecuteSheetOpen}
+        onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
+        onExecutionCreated={handleExecutionCreated}
+        onExecutionComplete={handleExecutionComplete}
+        isMobile={isMobile}
+        disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+        disabledReason={
+          hasExecutionInProcess 
+            ? "There's already an execution running" 
+            : !fullDocument?.sections || fullDocument.sections.length === 0 
+              ? "This document needs sections before it can be executed" 
+              : !defaultLLM?.id 
+                ? "No default LLM available" 
+                : undefined
+        }
+      />
+
       {/* Create Asset Dialog */}
       <CreateAssetDialog
         open={isCreateAssetDialogOpen}

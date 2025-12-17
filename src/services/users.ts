@@ -157,3 +157,12 @@ export const assignUserToOrganization = async (organizationId: string, data: Ass
     throw new Error('Failed to assign user to organization');
   }
 };
+
+// Remove user from organization
+export const removeUserFromOrganization = async (organizationId: string, userId: string): Promise<void> => {
+  const response = await httpClient.delete(`${backendUrl}/organizations/${organizationId}/users/${userId}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to remove user from organization');
+  }
+};
