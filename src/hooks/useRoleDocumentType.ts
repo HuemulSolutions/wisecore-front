@@ -6,7 +6,8 @@ import {
   getDocumentTypePermissions,
   grantAccess, 
   revokeAccess, 
-  updateAccess 
+  updateAccess,
+  bulkGrantAccess
 } from "@/services/role-document-type"
 import { toast } from "sonner"
 
@@ -98,9 +99,7 @@ export function useRoleDocumentTypeMutations() {
   })
 
   const bulkGrantAccessMutation = useMutation({
-    mutationFn: async (permissions: Array<{ role_id: string; document_type_id: string; access_levels: string[] }>) => {
-      await Promise.all(permissions.map(permission => grantAccess(permission)))
-    },
+    mutationFn: bulkGrantAccess,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.all })
       toast.success('All permissions granted successfully')
