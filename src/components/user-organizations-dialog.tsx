@@ -163,7 +163,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => removeMutation.mutate(org.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="bg-destructive hover:bg-destructive/90"
                           >
                             Remove User
                           </AlertDialogAction>
