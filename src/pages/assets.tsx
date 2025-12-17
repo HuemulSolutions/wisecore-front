@@ -45,6 +45,7 @@ interface LibraryItem {
     name: string;
     color: string;
   };
+  access_levels?: string[];
 }
 
 interface BreadcrumbItem {
@@ -210,15 +211,24 @@ export default function Assets() {
     }
 
     if (item.type === 'file') {
-      // Select document
-      const selectedDoc = {
+      // Find the full item data from currentItems to get access_levels
+      const fullItemData = currentItems.find((libraryItem: LibraryItem) => libraryItem.id === item.id);
+      
+      // Select document with all necessary data including access_levels
+      const selectedDoc: LibraryItem = {
         id: item.id,
         name: item.name,
-        type: 'document' as const
+        type: 'document' as const,
+        document_type: fullItemData?.document_type,
+        access_levels: fullItemData?.access_levels
       };
       setSelectedFile(selectedDoc);
       
-      console.log('🔍 File selected, will get correct path from tree component');
+      // Update URL to include the selected file
+      const newUrl = buildUrlPath(breadcrumb, item.id);
+      navigate(newUrl, { replace: true });
+      
+      console.log('🔍 File selected with access levels:', selectedDoc.access_levels);
     }
     // For folders, we let the FileTree handle expansion internally
     // The onDoubleClick will handle navigation
@@ -472,14 +482,32 @@ export default function Assets() {
     sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
   }, [breadcrumb]);
 
-  // Persistir / limpiar archivo seleccionado
+  // Persistir / limpiar archivo seleccionado y actualizar URL
   useEffect(() => {
     if (selectedFile) {
       sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
+      
+      // Update URL only if we're not in the middle of initialization
+      if (hasRestoredRef.current) {
+        const newUrl = buildUrlPath(breadcrumb, selectedFile.id);
+        const currentUrl = location.pathname;
+        if (newUrl !== currentUrl) {
+          navigate(newUrl, { replace: true });
+        }
+      }
     } else {
       sessionStorage.removeItem('library-selectedFile');
+      
+      // Update URL to show just the folder if no file is selected
+      if (hasRestoredRef.current) {
+        const newUrl = buildUrlPath(breadcrumb);
+        const currentUrl = location.pathname;
+        if (newUrl !== currentUrl) {
+          navigate(newUrl, { replace: true });
+        }
+      }
     }
-  }, [selectedFile]);
+  }, [selectedFile, breadcrumb, navigate, location.pathname]);
 
   // Reset state when organization changes
   useEffect(() => {
