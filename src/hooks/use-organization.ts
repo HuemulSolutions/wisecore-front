@@ -26,15 +26,18 @@ export function useRequiredOrganization() {
 }
 
 /**
- * Hook que retorna el ID de organización y lanza error si no hay una seleccionada.
+ * Hook que retorna el ID de organización y activa el diálogo de selección si no hay una.
  * Útil para componentes que requieren una organización.
+ * Retorna null mientras no haya organización seleccionada.
  */
-export function useOrganizationId(): string {
-  const { selectedOrganizationId } = useOrganization();
+export function useOrganizationId(): string | null {
+  const { selectedOrganizationId, setRequiresOrganizationSelection } = useOrganization();
   
-  if (!selectedOrganizationId) {
-    throw new Error("Organization ID is required but not available");
-  }
+  useEffect(() => {
+    if (!selectedOrganizationId) {
+      setRequiresOrganizationSelection(true);
+    }
+  }, [selectedOrganizationId, setRequiresOrganizationSelection]);
   
   return selectedOrganizationId;
 }

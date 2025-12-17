@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { getExecutionsByDocumentId } from '@/services/executions';
 
-export function useExecutionsByDocumentId(documentId: string, enabled: boolean) {
+export function useExecutionsByDocumentId(documentId: string, organizationId: string, enabled: boolean) {
   return useQuery({
-    queryKey: ['executions', documentId],
-    queryFn: () => getExecutionsByDocumentId(documentId),
+    queryKey: ['executions', documentId, organizationId],
+    queryFn: () => getExecutionsByDocumentId(documentId, organizationId),
     enabled,
     refetchInterval: (query) => {
       try {
