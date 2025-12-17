@@ -31,7 +31,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "../ui/sheet";
 import { 
   getExecutionById, 
@@ -68,11 +67,7 @@ export function ExecuteSheet({
   onOpenChange,
   onSectionSheetOpen,
   onExecutionComplete,
-  onExecutionCreated,
-  isMobile = false,
-  disabled = false,
-  disabledReason
-}: ExecuteSheetProps) {
+  onExecutionCreated}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [isGeneratingInSheet, setIsGeneratingInSheet] = useState(false);
