@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -44,7 +44,7 @@ import {
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/documents";
-import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { addTemplate, getTemplateById } from "@/services/templates";
@@ -430,6 +430,42 @@ export function AssetContent({
     },
   });
 
+  // Mutation for deleting execution
+  const deleteExecutionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedExecutionId || !selectedOrganizationId) {
+        throw new Error('Missing execution ID or organization ID');
+      }
+      return deleteExecution(selectedExecutionId, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      toast.success('Execution deleted successfully!');
+      
+      // Clear selected execution and switch to most recent remaining execution
+      const executions = documentContent?.executions || documentExecutions;
+      const remainingExecutions = executions?.filter((exec: any) => exec.id !== selectedExecutionId);
+      if (remainingExecutions && remainingExecutions.length > 0) {
+        setSelectedExecutionId(remainingExecutions[0].id);
+      } else {
+        setSelectedExecutionId(null);
+      }
+      
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      
+      // Force refetch document content
+      setTimeout(() => {
+        refetchDocumentContent();
+      }, 500);
+    },
+    onError: (error: Error) => {
+      console.error('Error deleting execution:', error);
+      toast.error('Failed to delete execution. Please try again.');
+    },
+  });
+
   // Mutation for clone execution
   const cloneMutation = useMutation({
     mutationFn: async () => {
@@ -461,6 +497,7 @@ export function AssetContent({
 
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
@@ -632,6 +669,33 @@ export function AssetContent({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    // Polling optimizado: solo cuando vale la pena
+    refetchInterval: () => {
+      // Obtener ejecuciones y estado actual
+      const cachedExecutions = queryClient.getQueryData(['executions', selectedFile?.id, selectedOrganizationId]);
+      if (cachedExecutions && Array.isArray(cachedExecutions) && selectedExecutionId) {
+        const currentExecution = cachedExecutions.find((exec: any) => exec.id === selectedExecutionId);
+        
+        // Si la ejecución está 'pending', no necesitamos hacer polling del contenido
+        // ya que será null hasta que esté 'running' o 'completed'
+        if (currentExecution?.status === 'pending') {
+          return false; // No hacer polling del contenido si está pending
+        }
+        
+        // Si está 'running', hacer polling cada 30 segundos
+        if (currentExecution?.status === 'running') {
+          return 30000;
+        }
+        
+        // Si está 'completed' o 'approved', no necesita polling
+        if (['completed', 'approved', 'failed'].includes(currentExecution?.status)) {
+          return false;
+        }
+      }
+      return false;
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 15000, // 15 segundos para content
   });
 
   // Fetch full document details for sections management
@@ -655,32 +719,49 @@ export function AssetContent({
   });
 
   // Fetch executions for the document to check for running executions
+  // Optimización: Solo usar este endpoint si no tenemos datos de executions en documentContent
+  const shouldFetchExecutions = useMemo(() => {
+    // Si no hay documento seleccionado, no fetch
+    if (!selectedFile?.id || selectedFile.type !== 'document') return false;
+    
+    // Si ya tenemos executions data en documentContent, no necesitamos el endpoint separado
+    if (documentContent?.executions && Array.isArray(documentContent.executions)) {
+      return false;
+    }
+    
+    return true;
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.executions]);
+
   const { data: documentExecutions } = useExecutionsByDocumentId(
     selectedFile?.id || '',
     selectedOrganizationId || '',
-    selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId
+    shouldFetchExecutions && !!selectedOrganizationId
   );
 
-  // Check if there's any execution in process
+  // Check if there's any execution in process - usar datos optimizados
   const hasExecutionInProcess = useMemo(() => {
-    if (!documentExecutions) return false;
-    return documentExecutions.some((execution: any) => 
+    // Priorizar executions de documentContent si están disponibles
+    const executions = documentContent?.executions || documentExecutions;
+    if (!executions) return false;
+    return executions.some((execution: any) => 
       ['running', 'queued'].includes(execution.status)
     );
-  }, [documentExecutions]);
+  }, [documentContent?.executions, documentExecutions]);
 
   // Check if there's a pending execution that can be resumed
   const hasPendingExecution = useMemo(() => {
-    if (!documentExecutions) return false;
-    return documentExecutions.some((execution: any) => 
+    const executions = documentContent?.executions || documentExecutions;
+    if (!executions) return false;
+    return executions.some((execution: any) => 
       execution.status === 'pending'
     );
-  }, [documentExecutions]);
+  }, [documentContent?.executions, documentExecutions]);
 
   // Check if there's a new pending execution (never executed)
   const hasNewPendingExecution = useMemo(() => {
-    if (!documentExecutions) return false;
-    const pendingExecution = documentExecutions.find((execution: any) => 
+    const executions = documentContent?.executions || documentExecutions;
+    if (!executions) return false;
+    const pendingExecution = executions.find((execution: any) => 
       execution.status === 'pending'
     );
     if (!pendingExecution) return false;
@@ -688,21 +769,23 @@ export function AssetContent({
     return !pendingExecution.sections?.some((section: any) => 
       section.output && section.output.trim().length > 0
     );
-  }, [documentExecutions]);
+  }, [documentContent?.executions, documentExecutions]);
 
   // Get the active execution ID (running, pending, or failed) from document executions
   const activeExecutionId = useMemo(() => {
-    if (!documentExecutions) return null;
-    const activeExecution = documentExecutions.find((execution: any) => 
+    const executions = documentContent?.executions || documentExecutions;
+    if (!executions) return null;
+    const activeExecution = executions.find((execution: any) => 
       ['running', 'pending', 'failed'].includes(execution.status)
     );
     return activeExecution?.id || null;
-  }, [documentExecutions]);
+  }, [documentContent?.executions, documentExecutions]);
 
   // Get selected execution details for displaying version info
   const selectedExecutionInfo = useMemo(() => {
-    if (!documentExecutions || !selectedExecutionId) return null;
-    const selectedExecution = documentExecutions.find((execution: any) => 
+    const executions = documentContent?.executions || documentExecutions;
+    if (!executions || !selectedExecutionId) return null;
+    const selectedExecution = executions.find((execution: any) => 
       execution.id === selectedExecutionId
     );
     if (!selectedExecution) return null;
@@ -713,21 +796,44 @@ export function AssetContent({
     return {
       ...selectedExecution,
       formattedDate,
-      isLatest: documentExecutions[0]?.id === selectedExecution.id
+      isLatest: executions[0]?.id === selectedExecution.id
     };
-  }, [documentExecutions, selectedExecutionId]);
+  }, [documentContent?.executions, documentExecutions, selectedExecutionId]);
 
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
-    if (selectedFile?.type === 'document' && documentExecutions?.length > 0) {
-      // Si no hay ejecución seleccionada, usar la ejecución más reciente (primera en la lista)
-      // Only initialize if there's no selected execution AND documentExecutions just loaded
+    // Usar executions de documentContent o documentExecutions
+    const executions = documentContent?.executions || documentExecutions;
+    
+    if (selectedFile?.type === 'document' && executions?.length > 0) {
+      // Si no hay ejecución seleccionada, priorizar la ejecución aprobada
       if (!selectedExecutionId) {
-        const mostRecentExecution = documentExecutions[0];
-        setSelectedExecutionId(mostRecentExecution.id);
+        // First, look for an approved execution
+        const approvedExecution = executions.find((execution: any) => 
+          execution.status === 'approved'
+        );
+        
+        // If there's an approved execution, use it. Otherwise, use the most recent one
+        const executionToSelect = approvedExecution || executions[0];
+        setSelectedExecutionId(executionToSelect.id);
       }
     }
-  }, [selectedFile?.id, documentExecutions?.length]); // Removed selectedExecutionId to avoid conflicts
+  }, [selectedFile?.id, documentContent?.executions, documentExecutions?.length]); // Include both data sources
+  
+  // Invalidate cache when selectedExecutionId changes to ensure fresh content
+  useEffect(() => {
+    if (selectedExecutionId && selectedFile?.id) {
+      console.log('🔄 Invalidating cache for execution change:', selectedExecutionId);
+      // Invalidar cache específicamente para esta combinación documento-ejecución
+      queryClient.invalidateQueries({ 
+        queryKey: ['document-content', selectedFile.id, selectedExecutionId] 
+      });
+      // También invalidar el cache general para forzar refetch
+      queryClient.invalidateQueries({ 
+        queryKey: ['document-content', selectedFile.id] 
+      });
+    }
+  }, [selectedExecutionId, selectedFile?.id, queryClient]);
 
   // Auto-update to latest execution when returning to a document with completed executions
   // This is disabled to avoid interfering with manual user selections
@@ -803,18 +909,18 @@ export function AssetContent({
     }
   };
 
-  function openDeleteDialog() {
+  function openDeleteDialog(type: 'document' | 'execution') {
+    setDeleteType(type);
     setIsDeleteDialogOpen(true);
   }
 
   function closeDeleteDialog() {
     setIsDeleteDialogOpen(false);
+    setDeleteType(null);
   }
 
   const handleDeleteDialogChange = (open: boolean) => {
-    if (open) {
-      openDeleteDialog();
-    } else {
+    if (!open) {
       closeDeleteDialog();
     }
   };
@@ -868,7 +974,16 @@ export function AssetContent({
   };
 
   // Handle delete confirmation
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
+    if (deleteType === 'document') {
+      handleDeleteDocument();
+    } else if (deleteType === 'execution') {
+      deleteExecutionMutation.mutate();
+    }
+    closeDeleteDialog();
+  };
+
+  const handleDeleteDocument = async () => {
     if (selectedFile) {
       try {
         await deleteDocument(selectedFile.id, selectedOrganizationId!);
@@ -884,8 +999,6 @@ export function AssetContent({
         // Invalidate related queries
         queryClient.invalidateQueries({ queryKey: ['library'] });
         queryClient.invalidateQueries({ queryKey: ['document-content'] });
-        
-        closeDeleteDialog();
       } catch (error) {
         console.error('Error deleting document:', error);
         toast.error('Failed to delete document. Please try again.');
@@ -1354,18 +1467,42 @@ export function AssetContent({
                 </DropdownMenu>
               </DocumentAccessControl>
               
-              {/* Delete Button */}
-              <DocumentActionButton
+              {/* Delete Options */}
+              <DocumentAccessControl
                 accessLevels={selectedFile?.access_levels}
                 requiredAccess="delete"
-                onClick={() => setTimeout(() => openDeleteDialog(), 0)}
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors rounded-full"
-                title="Delete Document"
               >
-                <Trash2 className="h-4 w-4" />
-              </DocumentActionButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors rounded-full"
+                      title="Delete Options"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {selectedExecutionId && (
+                      <DropdownMenuItem
+                        onClick={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Execution
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => setTimeout(() => openDeleteDialog('document'), 0)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                    >
+                      <FileX className="mr-2 h-4 w-4" />
+                      Delete Document
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </DocumentAccessControl>
 
               {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
               {(() => {
@@ -1756,17 +1893,42 @@ export function AssetContent({
                   </DropdownMenu>
                 </DocumentAccessControl>
                 
-                <DocumentActionButton
+                {/* Delete Options */}
+                <DocumentAccessControl
                   accessLevels={selectedFile?.access_levels}
                   requiredAccess="delete"
-                  onClick={() => setTimeout(() => openDeleteDialog(), 0)}
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
-                  title="Delete Document"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </DocumentActionButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
+                        title="Delete Options"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {selectedExecutionId && (
+                        <DropdownMenuItem
+                          onClick={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Execution
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => setTimeout(() => openDeleteDialog('document'), 0)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                      >
+                        <FileX className="mr-2 h-4 w-4" />
+                        Delete Document
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </DocumentAccessControl>
               </div>
             </div>
             
@@ -1779,7 +1941,7 @@ export function AssetContent({
           <div className="py-4 md:py-5 px-4 md:px-6">
             {selectedFile.type === 'document' ? (
               <>
-                {/* Execution Status Banner - Show only for selected execution if it's in an active state */}
+                {/* Execution Status Banner - Show for any active execution */}
                 {(() => {
                   // Show banner if user just started a new execution
                   if (currentExecutionId) {
@@ -1826,15 +1988,29 @@ export function AssetContent({
                     );
                   }
                   
-                  // Show banner if currently selected execution is in an active state
-                  if (selectedExecutionId && selectedExecutionInfo) {
-                    const shouldShowBanner = ['running', 'pending', 'failed'].includes(selectedExecutionInfo.status);
-                    if (shouldShowBanner) {
+                  // Show banner for any active execution (not just selected one)
+                  const executions = documentContent?.executions || documentExecutions;
+                  if (executions && Array.isArray(executions)) {
+                    // Find any execution in active state (prioritize running > pending > queued)
+                    const runningExecution = executions.find((exec: any) => exec.status === 'running');
+                    const pendingExecution = executions.find((exec: any) => exec.status === 'pending');
+                    const queuedExecution = executions.find((exec: any) => exec.status === 'queued');
+                    const failedExecution = executions.find((exec: any) => exec.status === 'failed');
+                    
+                    const activeExecution = runningExecution || pendingExecution || queuedExecution || failedExecution;
+                    
+                    if (activeExecution && activeExecution.id !== currentExecutionId) {
                       return (
                         <ExecutionStatusBanner
-                          executionId={selectedExecutionId}
+                          executionId={activeExecution.id}
                           onExecutionComplete={(completedExecutionId) => {
-                            console.log('🔄 Selected execution completed, ensuring content refresh...', completedExecutionId);
+                            console.log('🔄 Active execution completed, ensuring content refresh...', completedExecutionId);
+                            
+                            // Si la ejecución completada es diferente a la seleccionada, cambiar a la completada
+                            if (completedExecutionId && completedExecutionId !== selectedExecutionId) {
+                              console.log('🎯 Switching to completed execution:', completedExecutionId);
+                              setSelectedExecutionId(completedExecutionId);
+                            }
                             
                             // Remove all cached queries aggressively
                             queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1887,82 +2063,126 @@ export function AssetContent({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                     <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                   </div>
-                ) : (!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content) ? (
-                  // Show Empty when document has no executions
-                  <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
-                    <Empty className="max-w-2xl">
-                      <div className="p-8 text-center">
-                        <EmptyIcon>
-                          <Zap className="h-12 w-12" />
-                        </EmptyIcon>
-                        <EmptyTitle>Setup {selectedFile.name}</EmptyTitle>
-                        <EmptyDescription>
-                          {fullDocument?.sections?.length > 0 
-                            ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
-                            : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
-                          }
-                        </EmptyDescription>
-                        <EmptyActions>
-                          {fullDocument?.sections?.length === 0 ? (
-                            <DocumentActionButton
-                              accessLevels={selectedFile?.access_levels}
-                              requiredAccess={["edit", "create"]}
-                              requireAll={false}
-                              onClick={() => setIsSectionSheetOpen(true)}
-                              className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Sections
-                            </DocumentActionButton>
-                          ) : (
-                            <>
-                              <Button
-                                onClick={handleCreateExecution}
-                                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id}
-                                className={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id
-                                  ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
-                                  : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                ) : (
+                  // Lógica mejorada para manejar diferentes estados de ejecución
+                  (() => {
+                    const executions = documentContent?.executions || documentExecutions;
+                    const currentExecution = executions?.find((exec: any) => exec.id === selectedExecutionId);
+                    
+                    // PRIORIDAD: Si hay una ejecución seleccionada que está pending/running, mostrar estado apropiado
+                    // independientemente de si hay contenido de otras ejecuciones
+                    if (currentExecution && ['pending', 'running'].includes(currentExecution.status)) {
+                      return (
+                        <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
+                          <Empty className="max-w-2xl">
+                            <div className="p-8 text-center">
+                              <EmptyIcon>
+                                {currentExecution.status === 'running' ? (
+                                  <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+                                ) : (
+                                  <Clock className="h-12 w-12 text-amber-500" />
+                                )}
+                              </EmptyIcon>
+                              <EmptyTitle>
+                                {currentExecution.status === 'running' 
+                                  ? 'Content is being generated' 
+                                  : 'Execution is pending'
                                 }
-                              >
-                                {executeDocumentMutation.isPending ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Executing...
-                                  </>
+                              </EmptyTitle>
+                              <EmptyDescription>
+                                {currentExecution.status === 'running'
+                                  ? 'Please wait while the document content is being generated. This may take a few minutes.'
+                                  : 'This execution is waiting to start. Content will be available once the execution begins.'
+                                }
+                              </EmptyDescription>
+                            </div>
+                          </Empty>
+                        </div>
+                      );
+                    }
+                    
+                    // Si no hay ejecuciones o no hay contenido (solo para casos sin execuciones activas)
+                    if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
+                      return (
+                        <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
+                          <Empty className="max-w-2xl">
+                            <div className="p-8 text-center">
+                              <EmptyIcon>
+                                <Zap className="h-12 w-12" />
+                              </EmptyIcon>
+                              <EmptyTitle>Setup {selectedFile.name}</EmptyTitle>
+                              <EmptyDescription>
+                                {fullDocument?.sections?.length > 0 
+                                  ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
+                                  : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
+                                }
+                              </EmptyDescription>
+                              <EmptyActions>
+                                {fullDocument?.sections?.length === 0 ? (
+                                  <DocumentActionButton
+                                    accessLevels={selectedFile?.access_levels}
+                                    requiredAccess={["edit", "create"]}
+                                    requireAll={false}
+                                    onClick={() => setIsSectionSheetOpen(true)}
+                                    className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Sections
+                                  </DocumentActionButton>
                                 ) : (
                                   <>
-                                    <Zap className="h-4 w-4 mr-2" />
-                                    {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                    <Button
+                                      onClick={handleCreateExecution}
+                                      disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id}
+                                      className={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id
+                                        ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                        : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                      }
+                                    >
+                                      {executeDocumentMutation.isPending ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Executing...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Zap className="h-4 w-4 mr-2" />
+                                          {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      onClick={() => setIsSectionSheetOpen(true)}
+                                      variant="outline"
+                                      className="hover:cursor-pointer"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Add More Sections
+                                    </Button>
                                   </>
                                 )}
-                              </Button>
-                              <Button
-                                onClick={() => setIsSectionSheetOpen(true)}
-                                variant="outline"
-                                className="hover:cursor-pointer"
-                              >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add More Sections
-                              </Button>
-                            </>
-                          )}
-                        </EmptyActions>
-                      </div>
-                    </Empty>
-                  </div>
-                ) : documentContent?.content ? (
-                  <div className="prose prose-gray max-w-full prose-sm md:prose-base">
-                    {Array.isArray(documentContent.content) ? (
-                      // New format: array of sections with separators
-                      <>
-                        {/* Add section button at the beginning */}
-                        <SectionSeparator 
-                          onAddSection={() => handleAddSectionAtPosition(-1)} 
-                          index={-1}
-                          isMobile={isMobile}
-                        />
-                        
-                        {documentContent.content.map((section: ContentSection, index: number) => {
+                              </EmptyActions>
+                            </div>
+                          </Empty>
+                        </div>
+                      );
+                    }
+                    
+                    // Si hay contenido disponible, renderizar el contenido
+                    if (documentContent?.content) {
+                      return (
+                        <div className="prose prose-gray max-w-full prose-sm md:prose-base">
+                          {Array.isArray(documentContent.content) ? (
+                            // New format: array of sections with separators
+                            <>
+                              {/* Add section button at the beginning */}
+                              <SectionSeparator 
+                                onAddSection={() => handleAddSectionAtPosition(-1)} 
+                                index={-1}
+                                isMobile={isMobile}
+                              />
+                              
+                              {documentContent.content.map((section: ContentSection, index: number) => {
                           // Find the corresponding section in fullDocument to get the real section_id
                           // Using index-based mapping as sections should be in the same order
                           const correspondingSection = fullDocument?.sections?.[index];
@@ -1992,6 +2212,7 @@ export function AssetContent({
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
                                   executionId={selectedExecutionId || undefined}
+                                  executionStatus={selectedExecutionInfo?.status}
                                   onExecutionStart={(executionIdForSection) => {
                                     // Set section execution for polling banner
                                     if (executionIdForSection) {
@@ -2011,57 +2232,63 @@ export function AssetContent({
                               />
                             </div>
                           );
-                        })}
-                      </>
-                    ) : (
-                      // Legacy format: single string content
-                      <Markdown>{documentContent.content}</Markdown>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full min-h-[400px]">
-                    <div className="text-center">
-                      <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
-                      <p className="text-lg font-medium text-gray-500">No content available</p>
-                      <p className="text-sm text-gray-400 mt-1 mb-6">This document doesn't have any content yet</p>
-                      
-                      <div className="flex gap-3 justify-center">
-                        <DocumentActionButton
-                          accessLevels={selectedFile?.access_levels}
-                          requiredAccess={["edit", "create"]}
-                          requireAll={false}
-                          variant="outline" 
-                          onClick={handleAddSection}
-                          className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Section
-                        </DocumentActionButton>
-                        
-                        <DocumentActionButton
-                          accessLevels={selectedFile?.access_levels}
-                          requiredAccess={["edit", "create"]}
-                          requireAll={false}
-                          variant="outline" 
-                          onClick={handleCreateExecution}
-                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
-                          className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {executeDocumentMutation.isPending ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Executing...
+                              })}
                             </>
                           ) : (
-                            <>
-                              <Play className="h-4 w-4 mr-2" />
-                              Execute Document
-                            </>
+                            // Legacy format: single string content
+                            <Markdown>{documentContent.content}</Markdown>
                           )}
-                        </DocumentActionButton>
+                        </div>
+                      );
+                    }
+                    
+                    // Si no hay contenido disponible, mostrar mensaje
+                    return (
+                      <div className="flex items-center justify-center h-full min-h-[400px]">
+                        <div className="text-center">
+                          <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
+                          <p className="text-lg font-medium text-gray-500">No content available</p>
+                          <p className="text-sm text-gray-400 mt-1 mb-6">This document doesn't have any content yet</p>
+                          
+                          <div className="flex gap-3 justify-center">
+                            <DocumentActionButton
+                              accessLevels={selectedFile?.access_levels}
+                              requiredAccess={["edit", "create"]}
+                              requireAll={false}
+                              variant="outline" 
+                              onClick={handleAddSection}
+                              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Section
+                            </DocumentActionButton>
+                            
+                            <DocumentActionButton
+                              accessLevels={selectedFile?.access_levels}
+                              requiredAccess={["edit", "create"]}
+                              requireAll={false}
+                              variant="outline" 
+                              onClick={handleCreateExecution}
+                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+                              className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {executeDocumentMutation.isPending ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Executing...
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="h-4 w-4 mr-2" />
+                                  Execute Document
+                                </>
+                              )}
+                            </DocumentActionButton>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()
                 )}
               </>
             ) : (
@@ -2247,20 +2474,67 @@ export function AssetContent({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogChange}>
         <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {deleteType === 'execution' ? (
+                <>
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                  Delete Execution
+                </>
+              ) : (
+                <>
+                  <FileX className="h-5 w-5 text-red-600" />
+                  Delete Document
+                </>
+              )}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{selectedFile?.name}"? This action cannot be undone.
+              {deleteType === 'execution' ? (
+                selectedExecutionInfo ? (
+                  <>
+                    Are you sure you want to delete the execution from {selectedExecutionInfo.formattedDate}?
+                    <br />
+                    This action cannot be undone.
+                  </>
+                ) : (
+                  "Are you sure you want to delete this execution? This action cannot be undone."
+                )
+              ) : (
+                `Are you sure you want to delete "${selectedFile?.name}"? This will delete the document and all its executions. This action cannot be undone.`
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="hover:cursor-pointer">
+            <AlertDialogCancel 
+              className="hover:cursor-pointer"
+              disabled={deleteExecutionMutation.isPending}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               className="hover:cursor-pointer bg-red-600 text-white hover:bg-red-700"
               onClick={handleDeleteConfirm}
+              disabled={deleteExecutionMutation.isPending}
             >
-              Delete
+              {deleteExecutionMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  {deleteType === 'execution' ? (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Execution
+                    </>
+                  ) : (
+                    <>
+                      <FileX className="mr-2 h-4 w-4" />
+                      Delete Document
+                    </>
+                  )}
+                </>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
