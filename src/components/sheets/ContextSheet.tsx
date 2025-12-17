@@ -1,5 +1,5 @@
 import { Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { DocumentActionButton } from "@/components/document-access-control";
 import {
   Sheet,
   SheetContent,
@@ -15,6 +15,7 @@ interface ContextSheetProps {
     id: string;
     name: string;
     type: "folder" | "document";
+    access_levels?: string[];
   } | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,7 +31,10 @@ export function ContextSheet({
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
-        <Button
+        <DocumentActionButton
+          accessLevels={selectedFile?.access_levels}
+          requiredAccess={["edit", "create"]}
+          requireAll={false}
           size="sm"
           variant="ghost"
           className={isMobile 
@@ -41,7 +45,7 @@ export function ContextSheet({
         >
           <Users className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
           {!isMobile && "Context"}
-        </Button>
+        </DocumentActionButton>
       </SheetTrigger>
       
       <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0">
