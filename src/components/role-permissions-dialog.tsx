@@ -89,11 +89,10 @@ export default function RolePermissionsDialog({
     if (!documentType) return
 
     const currentPermissions = (existingPermissionsData?.data && Array.isArray(existingPermissionsData.data)) ? existingPermissionsData.data : []
-    const newPermissions = Array.from(rolePermissions.entries())
+    const rolesPermissions = Array.from(rolePermissions.entries())
       .filter(([_, permissions]) => permissions.size > 0)
       .map(([roleId, permissions]) => ({
         role_id: roleId,
-        document_type_id: documentType.id,
         access_levels: Array.from(permissions)
       }))
 
@@ -107,11 +106,15 @@ export default function RolePermissionsDialog({
       revokeAccess.mutateAsync({ roleId, documentTypeId })
     )
 
-    // Grant new permissions
+    // Grant new permissions using the correct bulk format
     Promise.all(revokePromises)
       .then(() => {
-        if (newPermissions.length > 0) {
-          return bulkGrantAccess.mutateAsync(newPermissions)
+        if (rolesPermissions.length > 0) {
+          const bulkPermissionsPayload = {
+            document_type_id: documentType.id,
+            roles_permissions: rolesPermissions
+          }
+          return bulkGrantAccess.mutateAsync(bulkPermissionsPayload)
         }
       })
       .then(() => {
@@ -121,7 +124,7 @@ export default function RolePermissionsDialog({
         console.error('Error updating permissions:', error)
       })
 
-    if (newPermissions.length === 0 && rolesToRevoke.length === 0) {
+    if (rolesPermissions.length === 0 && rolesToRevoke.length === 0) {
       onOpenChange(false)
       return
     }
