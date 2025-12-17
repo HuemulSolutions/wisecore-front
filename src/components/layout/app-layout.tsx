@@ -12,10 +12,17 @@ import {
 } from "@/components/ui/tooltip"
 import { OrganizationSelectionDialog } from "@/components/organization-selection-dialog"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 
 export default function AppLayout() {
   const location = useLocation()
-  const { requiresOrganizationSelection } = useOrganization()
+  const { requiresOrganizationSelection, organizationToken } = useOrganization()
+  const { isLoading: permissionsLoading } = useUserPermissions()
+  
+  // El diálogo debe mantenerse abierto si:
+  // 1. Se requiere selección de organización O
+  // 2. Tenemos token de organización pero los permisos aún están cargando
+  const shouldShowDialog = requiresOrganizationSelection || (!!organizationToken && permissionsLoading)
   
   // Map routes to display names
   const getPageName = (pathname: string): string => {
@@ -102,13 +109,14 @@ export default function AppLayout() {
               </Tooltip>
             </div>
           </header>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1">
+            {/* <PermissionsDebugger /> */}
             <Outlet />
           </div>
         </SidebarInset>
         
         {/* Dialog de selección de organización */}
-        <OrganizationSelectionDialog open={requiresOrganizationSelection} />
+        <OrganizationSelectionDialog open={shouldShowDialog} />
       </SidebarProvider>
     </TooltipProvider>
   )
