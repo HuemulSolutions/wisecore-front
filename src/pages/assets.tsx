@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { File, Plus, Network, Folder as FolderIcon, FileText, Search, MoreHorizontal, FolderTree } from "lucide-react"; 
+import { File, Plus, Network, Folder as FolderIcon, FileText, Search, FolderTree, MoreVertical } from "lucide-react"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLibraryContent } from "@/services/library";
 import { getDocumentContent } from "@/services/documents";
@@ -161,7 +161,7 @@ export default function Assets() {
   const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobile); // Closed by default on mobile
   const [searchTerm, setSearchTerm] = useState("");
-  const { selectedOrganizationId } = useOrganization();
+  const { selectedOrganizationId, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
 
   // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
@@ -550,8 +550,8 @@ export default function Assets() {
   // Fetch document content when a document is selected
   const { refetch: refetchDocumentContent } = useQuery({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
-    queryFn: () => getDocumentContent(selectedFile!.id, selectedExecutionId || undefined),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id,
+    queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
   });
 
   // Initialize selected execution ID when a document is selected
@@ -570,6 +570,20 @@ export default function Assets() {
     queryKey: ['library', selectedOrganizationId, currentFolderId],
     queryFn: () => getLibraryContent(selectedOrganizationId!, currentFolderId),
     enabled: !!selectedOrganizationId,
+    retry: (failureCount, error) => {
+      // No retry for authentication/authorization errors
+      if (error instanceof Error && 
+          (error.message.includes('401') || 
+           error.message.includes('403') ||
+           error.message.includes('Unauthorized') ||
+           error.message.includes('no tiene ningún rol') ||
+           error.message.includes('access denied'))) {
+        return false;
+      }
+      // Retry other errors up to 2 times (instead of default 3)
+      return failureCount < 2;
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const currentItems = libraryData?.content || [];
@@ -667,12 +681,69 @@ export default function Assets() {
 
 
   if (error) {
+    // Check if it's a role/permission error vs other errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const isPermissionError = errorMessage.includes('no tiene ningún rol') || 
+                             errorMessage.includes('no permission') ||
+                             errorMessage.includes('insufficient privileges') ||
+                             errorMessage.includes('access denied');
+    
+    if (isPermissionError) {
+      return (
+        <div className="flex items-center justify-center h-screen bg-gray-50">
+          <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-amber-100 rounded-full">
+              <File className="h-8 w-8 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Restringido</h2>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              No tienes los permisos necesarios para acceder a los assets de esta organización.
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              Por favor contacta a tu administrador para que te asigne el rol apropiado.
+            </p>
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Reset organization selection to allow user to choose a different one
+                  resetOrganizationContext();
+                }}
+                className="hover:cursor-pointer w-full"
+              >
+                Cambiar Organización
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
-      <div className="flex items-center justify-center h-full text-red-500 bg-gray-50">
-        <div className="text-center">
-          <File className="h-16 w-16 mx-auto mb-4 opacity-30" />
-          <p className="text-lg font-medium">Error loading library content</p>
-          <p className="text-sm mt-1">Please try again later</p>
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-red-100 rounded-full">
+            <File className="h-8 w-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error al Cargar Assets</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Ocurrió un problema al cargar el contenido. Por favor intenta de nuevo.
+          </p>
+          <p className="text-xs text-gray-500 mb-6">
+            {errorMessage}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Trigger a refetch
+              queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
+            }}
+            className="hover:cursor-pointer"
+          >
+            Intentar de Nuevo
+          </Button>
         </div>
       </div>
     );
@@ -690,6 +761,23 @@ export default function Assets() {
     setTimeout(() => {
       setAssetDialogOpen(true)
     }, 0)
+  }
+
+  // Si no hay organización seleccionada, mostrar un placeholder
+  if (!selectedOrganizationId) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-blue-100 rounded-full">
+            <FolderIcon className="h-8 w-8 text-blue-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Organización Requerida</h2>
+          <p className="text-sm text-gray-600">
+            Por favor selecciona una organización para ver los assets.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -811,9 +899,19 @@ export default function Assets() {
           <ContextMenuTrigger asChild>
             <div className="flex-1 overflow-y-auto p-2 min-h-0">
               {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <File className="h-6 w-6 animate-spin text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-500">Loading...</span>
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center mb-3">
+                      <FolderIcon className="h-8 w-8 animate-pulse text-blue-500 mr-2" />
+                      <div className="flex space-x-1">
+                        <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                        <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                        <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce"></div>
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">Cargando assets...</p>
+                    <p className="text-xs text-gray-500 mt-1">Por favor espera un momento</p>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -858,7 +956,7 @@ export default function Assets() {
               New Asset
             </ContextMenuItem>
             <ContextMenuItem className="hover:cursor-pointer" onClick={() => console.log('More options clicked')}>
-              <MoreHorizontal className="h-4 w-4 mr-2" />
+              <MoreVertical className="h-4 w-4 mr-2" />
               More Options
             </ContextMenuItem>
           </ContextMenuContent>
@@ -886,7 +984,11 @@ export default function Assets() {
       {/* Create Folder Dialog */}
       <CreateFolderDialog
         open={folderDialogOpen}
-        onOpenChange={setFolderDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFolderDialogOpen(false)
+          }
+        }}
         parentFolder={getCurrentFolderId()}
         onFolderCreated={handleRefresh}
       />
@@ -894,7 +996,11 @@ export default function Assets() {
       {/* Create Asset Dialog */}
       <CreateAssetDialog
         open={assetDialogOpen}
-        onOpenChange={setAssetDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssetDialogOpen(false)
+          }
+        }}
         folderId={getCurrentFolderId()}
         onAssetCreated={handleDocumentCreated}
       />
