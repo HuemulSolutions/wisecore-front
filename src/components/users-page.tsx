@@ -78,7 +78,7 @@ export default function UsersPage() {
   // Check if user is admin
   if (!currentUser?.is_root_admin) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Access Denied</h2>
@@ -91,7 +91,7 @@ export default function UsersPage() {
   // Check if organization is selected
   if (!selectedOrganizationId || !organizationToken) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <Building className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">Organization Required</h2>
@@ -133,7 +133,7 @@ export default function UsersPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8">
+      <div className="bg-background p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
             <Skeleton className="h-9 w-48" />
@@ -157,7 +157,7 @@ export default function UsersPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6 md:p-8 flex items-center justify-center">
+      <div className="bg-background p-6 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground mb-2">Error loading users</div>
           <p className="text-muted-foreground">{error.message}</p>
@@ -167,7 +167,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 md:p-8">
+    <div className="bg-background p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -250,7 +250,7 @@ export default function UsersPage() {
         )}
 
         {/* Table */}
-        <Card className="overflow-hidden border border-border bg-card">
+        <Card className="border border-border bg-card overflow-auto max-h-[70vh]">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
