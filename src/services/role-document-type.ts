@@ -152,5 +152,27 @@ export const updateAccess = async (roleDocTypeId: string, accessLevel: string): 
   }
 };
 
+// Bulk grant access using the /api/v1/role-doctype/bulk endpoint
+export const bulkGrantAccess = async (data: {
+  document_type_id: string;
+  roles_permissions: Array<{
+    role_id: string;
+    access_levels: string[];
+  }>;
+}): Promise<void> => {
+  const response = await httpClient.fetch(`${backendUrl}/role-doctype/bulk`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to grant bulk access');
+  }
+};
+
 // Legacy function name for backward compatibility
 export const assignRoleDocumentTypePermissions = grantAccess;
