@@ -122,9 +122,9 @@ export const getUserRoles = async (userId: string): Promise<UserRolesResponse> =
   return response.json();
 };
 
-// Assign roles to user
+// Assign roles to user using bulk endpoint
 export const assignRolesToUser = async (userId: string, data: AssignRolesData): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/rbac/users/${userId}/roles`, data, {
+  const response = await httpClient.post(`${backendUrl}/rbac/users/${userId}/bulk_roles`, data, {
     headers: getHeaders(),
   });
   
@@ -151,7 +151,9 @@ export const assignRoleToUser = async (userId: string, roleIds: string[]): Promi
 
 // Get permissions for a specific role
 export const getRolePermissions = async (roleId: string): Promise<PermissionsResponse> => {
-  const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions`);
+  const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions`, {
+    headers: getHeaders(),
+  });
   
   if (!response.ok) {
     throw new Error('Failed to fetch role permissions');
