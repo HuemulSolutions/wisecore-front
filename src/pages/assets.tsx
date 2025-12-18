@@ -933,7 +933,7 @@ export default function Assets() {
         {/* File Tree Content */}
         <ContextMenu>
           <ContextMenuTrigger asChild>
-            <div className="flex-1 overflow-y-auto p-2 min-h-0">
+            <div className="flex-1 p-2 overflow-auto min-h-[80vh] max-h-[80vh]">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
