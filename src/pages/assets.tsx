@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { File, Plus, Network, Folder as FolderIcon, FileText, Search, FolderTree, MoreVertical } from "lucide-react"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLibraryContent } from "@/services/library";
-import { getDocumentContent } from "@/services/documents";
 import { FileTreeWithSearchAndContext } from "@/components/file tree/file-tree-with-search-and-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -142,8 +141,8 @@ function AssetsContent() {
     };
   };
 
-  // Build URL path from breadcrumb and selected file
-  const buildUrlPath = (breadcrumb: BreadcrumbItem[], selectedFileId?: string) => {
+  // Build URL path from breadcrumb and selected file (memoized for performance)
+  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string) => {
     let path = '/asset';
     
     if (breadcrumb.length > 0) {
@@ -156,10 +155,11 @@ function AssetsContent() {
     }
     
     return path;
-  };
+  }, []);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+
   const isMobile = useIsMobile();
   const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobile); // Closed by default on mobile
@@ -176,18 +176,38 @@ function AssetsContent() {
     }
   }, [isMobile, setOpenMobile]);
 
-  // Convert LibraryItem to FileNode
-  const convertToFileNodes = (items: LibraryItem[]): FileNode[] => {
-    return items.map(item => {
-      console.log(`🔄 Converting LibraryItem to FileNode [${item.name}]:`, {
-        name: item.name,
-        type: item.type,
-        has_access_levels: !!item.access_levels,
-        access_levels: item.access_levels,
-        document_type: item.document_type
-      });
-      
-      return {
+  // Get current folder ID (last item in breadcrumb or undefined for root)
+  const currentFolderId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].id : undefined;
+
+  // Fetch library content for current folder (optimized with staleTime)
+  const { data: libraryData, isLoading, error } = useQuery({
+    queryKey: ['library', selectedOrganizationId, currentFolderId],
+    queryFn: () => getLibraryContent(selectedOrganizationId!, currentFolderId),
+    enabled: !!selectedOrganizationId,
+    staleTime: 30000, // Cache for 30 seconds to avoid unnecessary refetches
+    gcTime: 300000, // Keep in cache for 5 minutes
+    retry: (failureCount, error) => {
+      // No retry for authentication/authorization errors
+      if (error instanceof Error && 
+          (error.message.includes('401') || 
+           error.message.includes('403') ||
+           error.message.includes('Unauthorized') ||
+           error.message.includes('no tiene ningún rol') ||
+           error.message.includes('access denied'))) {
+        return false;
+      }
+      // Retry other errors up to 2 times (instead of default 3)
+      return failureCount < 2;
+    },
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
+  const currentItems = libraryData?.content || [];
+
+  // Convert LibraryItem to FileNode (memoized for performance)
+  const convertToFileNodes = useMemo(() => {
+    return (items: LibraryItem[]): FileNode[] => {
+      return items.map(item => ({
         id: item.id,
         name: item.name,
         type: item.type === 'folder' ? 'folder' as const : 'file' as const,
@@ -195,24 +215,42 @@ function AssetsContent() {
         icon: item.type === 'folder' ? 'folder' : 'file',
         document_type: item.document_type,
         access_levels: item.access_levels,
-      };
-    });
-  };
+      }));
+    };
+  }, []);
 
-  // Filter items based on search
-  const getFilteredItems = (): LibraryItem[] => {
+  // Filter items based on search (memoized)
+  const filteredItems = useMemo((): LibraryItem[] => {
     if (!searchTerm) return currentItems;
+    const lowerSearchTerm = searchTerm.toLowerCase();
     return currentItems.filter((item: LibraryItem) => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      item.name.toLowerCase().includes(lowerSearchTerm)
     );
-  };
+  }, [currentItems, searchTerm]);
 
+  // Create items with back button when in subfolder (memoized to avoid unnecessary re-renders)
+  const treeItems = useMemo((): FileNode[] => {
+    const fileNodes = convertToFileNodes(filteredItems);
+    
+    // If we're in a subfolder, add a back button
+    if (breadcrumb.length > 0) {
+      const backNode: FileNode = {
+        id: '__back__',
+        name: '← Back',
+        type: 'folder',
+        icon: 'back'
+      };
+      return [backNode, ...fileNodes];
+    }
+    
+    return fileNodes;
+  }, [convertToFileNodes, filteredItems, breadcrumb.length]);
 
-
-
-
-  // Handle file/folder selection from tree  
-  const handleTreeSelect = (item: FileNode) => {
+  // Handle file/folder selection from tree (optimized to reduce re-renders)
+  const handleTreeSelect = useCallback((item: FileNode) => {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, 12);
+    console.log(`🎯 [${timestamp}] handleTreeSelect called for "${item.name}" (${item.type})`);
+    
     // Handle special back button
     if (item.id === '__back__') {
       const newBreadcrumb = breadcrumb.slice(0, -1);
@@ -226,16 +264,18 @@ function AssetsContent() {
     }
 
     if (item.type === 'file') {
-      console.log('🔍 FileNode item data:', item);
-      console.log('🔍 FileNode access_levels:', item.access_levels);
+      console.log(`📄 [${timestamp}] Processing file selection for "${item.name}"`);
+      
+      // ACTIVAR LOADING INMEDIATAMENTE
+      console.log(`⚡ [${timestamp}] ACTIVATING LOADING for "${item.name}"`);
       
       // Find the full item data from currentItems to get access_levels
       const fullItemData = currentItems.find((libraryItem: LibraryItem) => libraryItem.id === item.id);
-      console.log('🔍 Full item data from currentItems:', fullItemData);
+      console.log(`🔍 [${timestamp}] Found fullItemData:`, fullItemData ? 'Yes' : 'No');
       
       // Use access_levels from FileNode first, fallback to fullItemData
       const accessLevels = item.access_levels || fullItemData?.access_levels;
-      console.log('🔍 Final access levels being used:', accessLevels);
+      console.log(`🔐 [${timestamp}] Access levels:`, accessLevels);
       
       // Select document with all necessary data including access_levels
       const selectedDoc: LibraryItem = {
@@ -245,20 +285,29 @@ function AssetsContent() {
         document_type: item.document_type || fullItemData?.document_type,
         access_levels: accessLevels
       };
+      console.log(`📝 [${timestamp}] Setting selectedFile:`, selectedDoc);
       setSelectedFile(selectedDoc);
       
       // Update URL to include the selected file
       const newUrl = buildUrlPath(breadcrumb, item.id);
+      console.log(`🌐 [${timestamp}] Navigating to URL:`, newUrl);
       navigate(newUrl, { replace: true });
       
-      console.log('🔍 File selected with access levels:', selectedDoc.access_levels);
+      // DESACTIVAR LOADING DESPUÉS DE UN DELAY
+      setTimeout(() => {
+        const endTimestamp = new Date().toISOString().split('T')[1].slice(0, 12);
+        console.log(`⚪ [${endTimestamp}] DEACTIVATING LOADING for "${item.name}"`);
+        console.log(`💫 [${endTimestamp}] Loading deactivated for "${item.name}"`);
+      }, 400);
+      
+      console.log(`✅ [${timestamp}] handleTreeSelect completed for file "${item.name}"`);
     }
     // For folders, we let the FileTree handle expansion internally
     // The onDoubleClick will handle navigation
-  };
+  }, [breadcrumb, currentItems, navigate]);
 
-  // Handle double click for folder navigation
-  const handleTreeDoubleClick = (item: FileNode) => {
+  // Handle double click for folder navigation (optimized)
+  const handleTreeDoubleClick = useCallback((item: FileNode) => {
     if (item.type === 'folder' && item.id !== '__back__') {
       // Navigate into folder using breadcrumb
       const newBreadcrumb = [...breadcrumb, { id: item.id, name: item.name }];
@@ -269,10 +318,10 @@ function AssetsContent() {
       const newUrl = buildUrlPath(newBreadcrumb);
       navigate(newUrl, { replace: true });
     }
-  };
+  }, [breadcrumb, navigate]);
 
-  // Handle loading children for folders (lazy loading)
-  const handleLoadChildren = async (folderId: string): Promise<FileNode[]> => {
+  // Handle loading children for folders (lazy loading, optimized)
+  const handleLoadChildren = useCallback(async (folderId: string): Promise<FileNode[]> => {
     try {
       const data = await getLibraryContent(selectedOrganizationId!, folderId);
       return convertToFileNodes(data?.content || []);
@@ -280,7 +329,7 @@ function AssetsContent() {
       console.error('Error loading folder children:', error);
       return [];
     }
-  };
+  }, [selectedOrganizationId, convertToFileNodes]);
 
   // Get current folder ID for create operations
   const getCurrentFolderId = (): string | undefined => {
@@ -598,12 +647,7 @@ function AssetsContent() {
     }
   }, [location.state, location.pathname, navigate]);
 
-  // Fetch document content when a document is selected
-  const { refetch: refetchDocumentContent } = useQuery({
-    queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
-    queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-  });
+  // Document content query is now handled by AssetContent component
 
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
@@ -613,50 +657,7 @@ function AssetsContent() {
     }
   }, [selectedFile?.id]);
 
-  // Get current folder ID (last item in breadcrumb or undefined for root)
-  const currentFolderId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].id : undefined;
 
-  // Fetch library content for current folder
-  const { data: libraryData, isLoading, error } = useQuery({
-    queryKey: ['library', selectedOrganizationId, currentFolderId],
-    queryFn: () => getLibraryContent(selectedOrganizationId!, currentFolderId),
-    enabled: !!selectedOrganizationId,
-    retry: (failureCount, error) => {
-      // No retry for authentication/authorization errors
-      if (error instanceof Error && 
-          (error.message.includes('401') || 
-           error.message.includes('403') ||
-           error.message.includes('Unauthorized') ||
-           error.message.includes('no tiene ningún rol') ||
-           error.message.includes('access denied'))) {
-        return false;
-      }
-      // Retry other errors up to 2 times (instead of default 3)
-      return failureCount < 2;
-    },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-
-  const currentItems = libraryData?.content || [];
-
-  // Create items with back button when in subfolder (memoized to avoid unnecessary re-renders)
-  const treeItems = useMemo((): FileNode[] => {
-    const filteredItems = getFilteredItems();
-    const fileNodes = convertToFileNodes(filteredItems);
-    
-    // If we're in a subfolder, add a back button
-    if (breadcrumb.length > 0) {
-      const backNode: FileNode = {
-        id: '__back__',
-        name: '← Back',
-        type: 'folder',
-        icon: 'back'
-      };
-      return [backNode, ...fileNodes];
-    }
-    
-    return fileNodes;
-  }, [currentItems, searchTerm, breadcrumb]);
 
   // Handle refresh library content
   const handleRefresh = async () => {
@@ -687,10 +688,11 @@ function AssetsContent() {
 
   // Handle sharing - generate URL based on current breadcrumb and item path
   const handleShare = async (item: FileNode, fullPath: string[], isAutomatic = false) => {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, 12);
+    console.log(`🔗 [${timestamp}] === HANDLE SHARE START === for "${item.name}" (${item.type}) - ${isAutomatic ? 'AUTO' : 'MANUAL'}`);
     try {
-      console.log(`🔗 Sharing item: "${item.name}" (${item.type}) - ${isAutomatic ? 'AUTO' : 'MANUAL'}`);
-      console.log(`📁 Current breadcrumb:`, breadcrumb.map(b => `${b.name}(${b.id})`));
-      console.log(`🛤️  Item full path from component:`, fullPath);
+      console.log(`📁 [${timestamp}] Current breadcrumb:`, breadcrumb.map(b => `${b.name}(${b.id})`));
+      console.log(`🛤️  [${timestamp}] Item full path from component:`, fullPath);
       
       // The fullPath should already contain the complete path from root to the item
       // When we're in a subfolder (breadcrumb.length > 0), we need to combine them
@@ -715,15 +717,21 @@ function AssetsContent() {
       
       // For automatic calls (file selection), only update browser URL without changing navigation
       if (isAutomatic && item.type === 'file' && completePath.length > 0) {
-        console.log(`🔄 Auto-updating ONLY browser URL for selected file: ${item.name}`);
-        console.log(`🔄 Complete path from component:`, completePath);
+        console.log(`🔄 [${timestamp}] Auto-updating ONLY browser URL for selected file: ${item.name}`);
+        console.log(`🔄 [${timestamp}] Complete path from component:`, completePath);
         
         // Build the complete URL directly from the full path
         const completeUrl = `/asset/${completePath.join('/')}`;
-        console.log(`🔄 Auto-corrected browser URL (URL only):`, completeUrl);
+        console.log(`🔄 [${timestamp}] Auto-corrected browser URL (URL only):`, completeUrl);
+        
+        console.log(`⏳ [${timestamp}] Adding 100ms delay to show loading state`);
+        // Add a small delay to show the loading state
+        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log(`⏳ [${timestamp}] Delay completed, calling navigate`);
         
         // Only update the browser URL, DO NOT change breadcrumb or navigation state
         navigate(completeUrl, { replace: true });
+        console.log(`🌐 [${timestamp}] Navigate called successfully`);
       }
       
       // Only copy to clipboard and show toast for manual shares
@@ -738,15 +746,19 @@ function AssetsContent() {
         const { toast } = await import("sonner");
         toast.success(`Link for "${item.name}" copied to clipboard!`);
       } else {
-        console.log(`✅ URL auto-generated: ${shareUrl}`);
+        console.log(`✅ [${timestamp}] URL auto-generated: ${shareUrl}`);
       }
       
+      console.log(`🏁 [${timestamp}] === HANDLE SHARE COMPLETED === for "${item.name}"`);
     } catch (error) {
-      console.error('❌ Error in share handler:', error);
+      console.error(`❌ [${timestamp}] Error in share handler:`, error);
       if (!isAutomatic) {
         const { toast } = await import("sonner");
         toast.error('Failed to copy link to clipboard');
       }
+      console.log(`💥 [${timestamp}] === HANDLE SHARE FAILED === for "${item.name}"`);
+      // Re-throw para que el componente del file tree pueda manejar el error
+      throw error;
     }
   };
 
@@ -1046,7 +1058,6 @@ function AssetsContent() {
             breadcrumb={breadcrumb}
             selectedExecutionId={selectedExecutionId}
             setSelectedExecutionId={setSelectedExecutionId}
-            refetchDocumentContent={refetchDocumentContent}
             setSelectedFile={setSelectedFile}
             onRefresh={handleRefresh}
             currentFolderId={currentFolderId}
