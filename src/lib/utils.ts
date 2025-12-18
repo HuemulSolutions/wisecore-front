@@ -34,10 +34,25 @@ export function formatTime(date: Date, options?: Intl.DateTimeFormatOptions): st
 }
 
 /**
+ * Parse a date string from API (usually in UTC format) into a Date object
+ * This ensures proper timezone handling for dates received from the server
+ */
+export function parseApiDate(dateString: string): Date {
+  // If the date string doesn't end with 'Z' and doesn't have timezone info, 
+  // assume it's UTC and add 'Z' suffix
+  if (dateString && !dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+    return new Date(dateString + 'Z');
+  }
+  return new Date(dateString);
+}
+
+/**
  * Format a date and time together according to user's locale
+ * Automatically handles timezone conversion from UTC to local time
  */
 export function formatDateTime(date: Date, dateOptions?: Intl.DateTimeFormatOptions, timeOptions?: Intl.DateTimeFormatOptions): string {
-  const isToday = date.toDateString() === new Date().toDateString();
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
   
   const timeStr = formatTime(date, timeOptions);
   const dateStr = isToday ? getLocalizedToday() : formatDate(date, {
@@ -48,6 +63,16 @@ export function formatDateTime(date: Date, dateOptions?: Intl.DateTimeFormatOpti
   });
   
   return `${dateStr} ${timeStr}`;
+}
+
+/**
+ * Format an API date string directly to local time
+ * Convenience function that combines parseApiDate and formatDateTime
+ */
+export function formatApiDateTime(apiDateString: string, dateOptions?: Intl.DateTimeFormatOptions, timeOptions?: Intl.DateTimeFormatOptions): string {
+  if (!apiDateString) return '';
+  const date = parseApiDate(apiDateString);
+  return formatDateTime(date, dateOptions, timeOptions);
 }
 
 /**

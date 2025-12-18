@@ -35,6 +35,7 @@ import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
 import { CreateFolderDialog } from "@/components/create_folder";
 import { CreateAssetDialog } from "@/components/create-asset-dialog";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ExpandedFoldersProvider, useExpandedFolders } from "@/hooks/use-expanded-folders";
 
 // API response interface
 interface LibraryItem {
@@ -63,7 +64,7 @@ type LibraryNavigationState = {
   fromLibrary?: boolean;
 };
 
-export default function Assets() {
+function AssetsContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -166,6 +167,7 @@ export default function Assets() {
   const { selectedOrganizationId, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
   const { canCreate, canAccessFolders, canAccessAssets } = useUserPermissions();
+  const { getExpandedFolderIds, reExpandFolders } = useExpandedFolders();
 
   // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
   useEffect(() => {
@@ -176,14 +178,25 @@ export default function Assets() {
 
   // Convert LibraryItem to FileNode
   const convertToFileNodes = (items: LibraryItem[]): FileNode[] => {
-    return items.map(item => ({
-      id: item.id,
-      name: item.name,
-      type: item.type === 'folder' ? 'folder' as const : 'file' as const,
-      children: item.type === 'folder' ? [] : undefined,
-      icon: item.type === 'folder' ? 'folder' : 'file',
-      document_type: item.document_type,
-    }));
+    return items.map(item => {
+      console.log(`🔄 Converting LibraryItem to FileNode [${item.name}]:`, {
+        name: item.name,
+        type: item.type,
+        has_access_levels: !!item.access_levels,
+        access_levels: item.access_levels,
+        document_type: item.document_type
+      });
+      
+      return {
+        id: item.id,
+        name: item.name,
+        type: item.type === 'folder' ? 'folder' as const : 'file' as const,
+        children: item.type === 'folder' ? [] : undefined,
+        icon: item.type === 'folder' ? 'folder' : 'file',
+        document_type: item.document_type,
+        access_levels: item.access_levels,
+      };
+    });
   };
 
   // Filter items based on search
@@ -213,16 +226,24 @@ export default function Assets() {
     }
 
     if (item.type === 'file') {
+      console.log('🔍 FileNode item data:', item);
+      console.log('🔍 FileNode access_levels:', item.access_levels);
+      
       // Find the full item data from currentItems to get access_levels
       const fullItemData = currentItems.find((libraryItem: LibraryItem) => libraryItem.id === item.id);
+      console.log('🔍 Full item data from currentItems:', fullItemData);
+      
+      // Use access_levels from FileNode first, fallback to fullItemData
+      const accessLevels = item.access_levels || fullItemData?.access_levels;
+      console.log('🔍 Final access levels being used:', accessLevels);
       
       // Select document with all necessary data including access_levels
       const selectedDoc: LibraryItem = {
         id: item.id,
         name: item.name,
         type: 'document' as const,
-        document_type: fullItemData?.document_type,
-        access_levels: fullItemData?.access_levels
+        document_type: item.document_type || fullItemData?.document_type,
+        access_levels: accessLevels
       };
       setSelectedFile(selectedDoc);
       
@@ -638,10 +659,30 @@ export default function Assets() {
   }, [currentItems, searchTerm, breadcrumb]);
 
   // Handle refresh library content
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    // Guardar las carpetas actualmente expandidas antes del refresh
+    const expandedFolderIds = getExpandedFolderIds();
+    console.log('📁 Preserving expanded folders before refresh:', expandedFolderIds);
+    
     // Invalidar todas las queries relacionadas con la library de esta organización
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
-    // No forzamos re-render del tree para mantener estado de expansión
+    
+    // Si hay carpetas expandidas, esperamos un poco y luego las re-expandimos
+    if (expandedFolderIds.length > 0) {
+      console.log('⏳ Starting re-expansion process in 1.5 seconds...');
+      // Esperar a que las queries se invaliden y recarguen
+      setTimeout(async () => {
+        console.log('🔄 Re-expanding folders after refresh...');
+        try {
+          await reExpandFolders(expandedFolderIds, handleLoadChildren);
+          console.log('✅ Re-expansion process completed successfully');
+        } catch (error) {
+          console.error('❌ Error during re-expansion process:', error);
+        }
+      }, 1500);
+    } else {
+      console.log('📭 No expanded folders to restore');
+    }
   };
 
   // Handle sharing - generate URL based on current breadcrumb and item path
@@ -1039,5 +1080,14 @@ export default function Assets() {
         onAssetCreated={handleDocumentCreated}
       />
     </div>
+  );
+}
+
+// Componente envoltorio que provee el contexto de carpetas expandidas
+export default function Assets() {
+  return (
+    <ExpandedFoldersProvider>
+      <AssetsContent />
+    </ExpandedFoldersProvider>
   );
 }
