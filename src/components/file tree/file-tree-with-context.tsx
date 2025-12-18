@@ -39,15 +39,16 @@ export function FileTreeWithContext({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3, // Reduced distance for better detection
-        delay: 50, // Shorter delay for more responsive drag
-        tolerance: 0, // No tolerance to ensure immediate detection
+        distance: 10, // Increased distance to prevent interference with clicks
+        delay: 100, // Longer delay to allow normal clicks to work
+        tolerance: 5, // Added tolerance for better click detection
       },
     }),
     // MouseSensor as fallback for when dev tools interfere with PointerSensor
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 3,
+        distance: 10, // Increased distance for consistency
+        delay: 100, // Added delay to match PointerSensor
       },
     }),
     useSensor(KeyboardSensor, {
