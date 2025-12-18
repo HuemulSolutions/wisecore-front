@@ -20,19 +20,21 @@ interface ContextSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
+  accessLevels?: string[];
 }
 
 export function ContextSheet({
   selectedFile,
   isOpen,
   onOpenChange,
-  isMobile = false
+  isMobile = false,
+  accessLevels
 }: ContextSheetProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
         <DocumentActionButton
-          accessLevels={selectedFile?.access_levels}
+          accessLevels={accessLevels || selectedFile?.access_levels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
           size="sm"
@@ -74,7 +76,7 @@ export function ContextSheet({
 
               {/* Context Component */}
               {selectedFile && (
-                <AddContextSheet id={selectedFile.id} />
+                <AddContextSheet id={selectedFile.id} isSheetOpen={isOpen} />
               )}
             </div>
           </div>
