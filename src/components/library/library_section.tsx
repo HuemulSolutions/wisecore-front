@@ -75,18 +75,14 @@ export default function SectionExecution({
     const isMobile = useIsMobile();
     const isExecutionApproved = executionStatus === 'approved';
     
+    // Solucion temporal: usar el ID de la sección como fallback si section_id no existe
+    const sectionIdForExecution = sectionExecution.section_id || sectionExecution.id;
+    
     // Refs and state for maintaining scroll position
     const containerRef = useRef<HTMLDivElement>(null);
     const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0);
 
-    console.log('SectionExecution Props:', { 
-        sectionExecution, 
-        documentId, 
-        executionId,
-        section_id: sectionExecution.section_id,
-        executionStatus,
-        isExecutionApproved 
-    });
+    // Removed debug logging for performance optimization
 
     // Handle entering edit mode with scroll position preservation
     const handleStartEditing = () => {
@@ -175,7 +171,7 @@ export default function SectionExecution({
     };
 
     const handleExecuteWithConfig = async (config: ExecutionConfig) => {
-        if (!documentId || !executionId || !sectionExecution.section_id) {
+        if (!documentId || !executionId || !sectionIdForExecution) {
             toast.error('Missing required information for section execution');
             return;
         }
@@ -189,7 +185,7 @@ export default function SectionExecution({
                 await executeSingleSection(
                     documentId,
                     executionId,
-                    sectionExecution.section_id,
+                    sectionIdForExecution,
                     selectedOrganizationId!,
                     config.llmModel,
                     config.instructions
@@ -199,7 +195,7 @@ export default function SectionExecution({
                 await executeFromSection(
                     documentId,
                     executionId,
-                    sectionExecution.section_id,
+                    sectionIdForExecution,
                     selectedOrganizationId!,
                     config.llmModel,
                     config.instructions
@@ -277,14 +273,13 @@ export default function SectionExecution({
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {documentId && executionId && sectionExecution.section_id && !isExecutionApproved && (
+                                {documentId && executionId && sectionIdForExecution && (accessLevels?.includes('approve') || !isExecutionApproved) && (
                                     <>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <DocumentActionButton
                                                     accessLevels={accessLevels}
-                                                    requiredAccess={["edit", "create"]}
-                                                    requireAll={false}
+                                                    requiredAccess="approve"
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
@@ -303,8 +298,7 @@ export default function SectionExecution({
                                             <TooltipTrigger asChild>
                                                 <DocumentActionButton
                                                     accessLevels={accessLevels}
-                                                    requiredAccess={["edit", "create"]}
-                                                    requireAll={false}
+                                                    requiredAccess="approve"
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
@@ -321,7 +315,7 @@ export default function SectionExecution({
                                     </>
                                 )}
 
-                                {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -341,7 +335,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -361,7 +355,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                {!isEditing && !isAiEditing && (accessLevels?.includes('delete') || !isExecutionApproved) && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -404,12 +398,11 @@ export default function SectionExecution({
                                             Copy
                                         </DropdownMenuItem>
                                     </DocumentAccessControl>
-                                    {documentId && executionId && sectionExecution.section_id && !isExecutionApproved && (
+                                    {documentId && executionId && sectionIdForExecution && (accessLevels?.includes('approve') || !isExecutionApproved) && (
                                         <>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
-                                                requiredAccess={["edit", "create"]}
-                                                requireAll={false}
+                                                requiredAccess="approve"
                                             >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
@@ -424,8 +417,7 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
-                                                requiredAccess={["edit", "create"]}
-                                                requireAll={false}
+                                                requiredAccess="approve"
                                             >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
@@ -440,7 +432,7 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                         </>
                                     )}
-                                    {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                    {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -454,7 +446,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                    {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -468,7 +460,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                    {!isEditing && !isAiEditing && (accessLevels?.includes('delete') || !isExecutionApproved) && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="delete"
