@@ -146,7 +146,7 @@ export async function moveDocument(documentId: string, newParentId: string | und
   console.log('Moving document:', documentId, 'to parent:', newParentId);
   
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}/move`, {
-    folder_id: newParentId,
+    folder_id: newParentId === undefined ? null : newParentId,
   }, {
     headers: {
       'X-Org-Id': organizationId,

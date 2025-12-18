@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
-import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, Edit, MoreVertical } from "lucide-react"
+import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, Edit, MoreVertical, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { 
   Tooltip,
@@ -187,6 +187,17 @@ export function FileTreeItemWithContext({
 
   const isFolder = item.type === "folder"
   
+  // Debug: Log información importante del item
+  console.log(`🔍 [${item.name}] Debug info:`, {
+    name: item.name,
+    type: item.type,
+    isFolder,
+    level,
+    shouldShowMoveToRoot: level > 0,
+    currentPath,
+    itemId: item.id
+  });
+  
   // Estado expandido solo para la sesión actual (no persistente)
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -354,6 +365,37 @@ export function FileTreeItemWithContext({
       console.error('Error sharing item:', error);
       const { toast } = await import("sonner");
       toast.error('Failed to share item');
+    }
+  };
+
+  const handleMoveToRoot = async () => {
+    try {
+      console.log('Moving to root:', { 
+        itemName: item.name, 
+        itemType: item.type, 
+        isFolder, 
+        level,
+        itemId: item.id 
+      });
+
+      if (isFolder) {
+        const { moveFolder } = await import("@/services/library");
+        await moveFolder(item.id, undefined, selectedOrganizationId!);
+      } else {
+        const { moveDocument } = await import("@/services/documents");
+        await moveDocument(item.id, undefined, selectedOrganizationId!);
+      }
+      
+      // Refresh the view to show the updated structure
+      onRefresh?.();
+      
+      const { toast } = await import("sonner");
+      toast.success(`${isFolder ? 'Folder' : 'Asset'} "${item.name}" moved to root successfully`);
+      
+    } catch (error) {
+      console.error('Error moving to root:', error);
+      const { toast } = await import("sonner");
+      toast.error(`Failed to move ${isFolder ? 'folder' : 'asset'} to root. Please try again.`);
     }
   };
 
@@ -535,6 +577,27 @@ export function FileTreeItemWithContext({
                         </DocumentAccessControl>
                       </>
                     )}
+                  </>
+                )}
+                
+                {/* Move to Root - debe estar FUERA del bloque isFolder para que aparezca en ambos */}
+                <DropdownMenuSeparator />
+                {/* Solo mostrar Move to Root si no está en la raíz (level > 0) */}
+                {(() => {
+                  const shouldShow = level > 0;
+                  console.log(`📋 [${item.name}] Dropdown Move to Root check:`, { level, shouldShow });
+                  return shouldShow;
+                })() && (
+                  <>
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={() => {
+                        setTimeout(() => handleMoveToRoot(), 0)
+                      }}
+                    >
+                      <Home className="h-4 w-4 mr-2" />
+                      Move to Root
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
                 )}
@@ -640,6 +703,25 @@ export function FileTreeItemWithContext({
                 </ContextMenuItem>
               </DocumentAccessControl>
               <ContextMenuSeparator />
+              {/* Solo mostrar Move to Root si no está en la raíz (level > 0) */}
+              {(() => {
+                const shouldShow = level > 0;
+                console.log(`🖱️ [${item.name}] Context Menu (Folder) Move to Root check:`, { level, shouldShow });
+                return shouldShow;
+              })() && (
+                <>
+                  <ContextMenuItem 
+                    className="hover:cursor-pointer"
+                    onSelect={() => {
+                      setTimeout(() => handleMoveToRoot(), 0)
+                    }}
+                  >
+                    <Home className="h-4 w-4 mr-2" />
+                    Move to Root
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                </>
+              )}
             </>
           ) : (
             <>
@@ -674,6 +756,25 @@ export function FileTreeItemWithContext({
                 </ContextMenuItem>
               </DocumentAccessControl>
               <ContextMenuSeparator />
+              {/* Solo mostrar Move to Root si no está en la raíz (level > 0) */}
+              {(() => {
+                const shouldShow = level > 0;
+                console.log(`🖱️ [${item.name}] Context Menu (Document) Move to Root check:`, { level, shouldShow });
+                return shouldShow;
+              })() && (
+                <>
+                  <ContextMenuItem 
+                    className="hover:cursor-pointer"
+                    onSelect={() => {
+                      setTimeout(() => handleMoveToRoot(), 0)
+                    }}
+                  >
+                    <Home className="h-4 w-4 mr-2" />
+                    Move to Root
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                </>
+              )}
             </>
           )}
           {isFolder ? (
