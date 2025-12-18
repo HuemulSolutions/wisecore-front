@@ -58,7 +58,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { CreateAssetDialog } from "@/components/create-asset-dialog";
 import SectionExecution from "./library_section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
-import { formatDateTime } from "@/lib/utils";
+import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 
 // API response interface
 interface LibraryItem {
@@ -819,8 +819,7 @@ export function AssetContent({
       return null;
     }
     
-    const date = new Date(selectedExecution.created_at);
-    const formattedDate = formatDateTime(date);
+    const formattedDate = formatApiDateTime(selectedExecution.created_at);
     
     const executionInfo = {
       ...selectedExecution,
@@ -896,7 +895,7 @@ export function AssetContent({
           selectedExecutionId !== mostRecentExecution.id && 
           currentSelectedExecution && 
           ['completed', 'approved', 'failed'].includes(mostRecentExecution.status) &&
-          new Date(mostRecentExecution.created_at) > new Date(currentSelectedExecution.created_at)) {
+          parseApiDate(mostRecentExecution.created_at) > parseApiDate(currentSelectedExecution.created_at)) {
         
         console.log(`Auto-switching to latest completed execution: ${mostRecentExecution.id}`);
         setSelectedExecutionId(mostRecentExecution.id);
@@ -1409,7 +1408,7 @@ export function AssetContent({
                     </div>
                     {documentExecutions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
-                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                        parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                       )
                       .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
                         const isSelected = selectedExecutionId === execution.id;
@@ -1658,7 +1657,7 @@ export function AssetContent({
                       return (
                         <div className="flex items-center gap-1.5 text-xs text-gray-500">
                           <span className="font-medium text-gray-900">
-                            {selectedExecutionInfo.status_message || `Version ${selectedExecutionInfo.status}`}
+                            {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
                           </span>
                           <span>•</span>
                           <span>{selectedExecutionInfo.formattedDate}</span>
@@ -1789,7 +1788,7 @@ export function AssetContent({
                       </div>
                       {documentExecutions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
-                          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                          parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                         )
                         .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
                           const isSelected = selectedExecutionId === execution.id;
