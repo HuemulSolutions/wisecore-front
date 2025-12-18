@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DocumentActionButton } from "@/components/document-access-control";
 import { useOrganization } from "@/contexts/organization-context";
 import {
   Sheet,
@@ -24,6 +25,7 @@ interface SectionSheetProps {
     id: string;
     name: string;
     type: "folder" | "document";
+    access_levels?: string[];
   } | null;
   fullDocument?: any;
   isOpen: boolean;
@@ -165,7 +167,10 @@ export function SectionSheet({
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
-        <Button
+        <DocumentActionButton
+          accessLevels={selectedFile?.access_levels}
+          requiredAccess={["edit", "create"]}
+          requireAll={false}
           size="sm"
           variant="ghost"
           className={isMobile 
@@ -176,7 +181,7 @@ export function SectionSheet({
         >
           <Plus className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
           {!isMobile && "Section"}
-        </Button>
+        </DocumentActionButton>
       </SheetTrigger>
       
       <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0">
@@ -193,7 +198,10 @@ export function SectionSheet({
                 </SheetDescription>
               </div>
               <div className="flex items-center h-full gap-2 ml-4">
-                <Button
+                <DocumentActionButton
+                  accessLevels={selectedFile?.access_levels}
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
                   type="button"
                   size="sm"
                   className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
@@ -206,9 +214,12 @@ export function SectionSheet({
                 >
                   <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
                   Add Section
-                </Button>
+                </DocumentActionButton>
                 {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
-                  <Button
+                  <DocumentActionButton
+                    accessLevels={selectedFile?.access_levels}
+                    requiredAccess={["edit", "create"]}
+                    requireAll={false}
                     type="button"
                     size="sm"
                     variant="outline"
@@ -219,7 +230,7 @@ export function SectionSheet({
                   >
                     <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                     {generateSectionsMutation.isPending ? "Generating..." : "Generate with AI"}
-                  </Button>
+                  </DocumentActionButton>
                 )}
               </div>
             </div>

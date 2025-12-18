@@ -16,16 +16,28 @@ export function useExecutionsByDocumentId(documentId: string, organizationId: st
           ['running', 'pending', 'queued'].includes(execution.status)
         );
         
-        // Poll every 3 seconds if there are running executions, otherwise don't poll
-        return hasRunningExecution ? 3000 : false;
+        // Poll every 45 seconds if there are running executions, otherwise don't poll
+        // Las ejecuciones cambian menos frecuentemente que el contenido
+        return hasRunningExecution ? 45000 : false;
       } catch (error) {
         console.error('Error in refetchInterval for executions:', error);
         return false; // Stop polling on error
       }
     },
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: (query) => {
+      // Solo refetch en window focus si hay ejecuciones activas
+      try {
+        const executions = query.state.data as any[];
+        if (!executions) return false;
+        return executions.some((execution: any) => 
+          ['running', 'pending', 'queued'].includes(execution.status)
+        );
+      } catch (error) {
+        return false;
+      }
+    },
     refetchOnReconnect: true,
-    staleTime: 1000, // Consider data stale after 1 second
+    staleTime: 30000, // Consider data stale after 30 seconds
     retry: (failureCount) => {
       // Only retry up to 3 times
       if (failureCount >= 3) {

@@ -34,6 +34,7 @@ import { AssetContent } from "@/components/library/new-library-content";
 import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
 import { CreateFolderDialog } from "@/components/create_folder";
 import { CreateAssetDialog } from "@/components/create-asset-dialog";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 // API response interface
 interface LibraryItem {
@@ -164,6 +165,7 @@ export default function Assets() {
   const [searchTerm, setSearchTerm] = useState("");
   const { selectedOrganizationId, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
+  const { canCreate, canAccessFolders, canAccessAssets } = useUserPermissions();
 
   // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
   useEffect(() => {
@@ -840,38 +842,44 @@ export default function Assets() {
                   </TooltipContent>
                 </Tooltip>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                {(canAccessFolders && canCreate('folder')) || (canAccessAssets && canCreate('assets')) ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4 text-gray-600" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="min-w-40"
                     >
-                      <Plus className="h-4 w-4 text-gray-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="min-w-40"
-                  >
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer"
-                        onSelect={handleCreateFolder}
-                      >
-                        <FolderIcon className="h-4 w-4 mr-2"></FolderIcon>
-                        Create Folder
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer"
-                        onSelect={handleCreateAsset}
-                      >
-                        <FileText className="h-4 w-4 mr-2"></FileText>
-                        Create Asset
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    {canAccessFolders && canCreate('folder') && (
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          className="hover:cursor-pointer"
+                          onSelect={handleCreateFolder}
+                        >
+                          <FolderIcon className="h-4 w-4 mr-2"></FolderIcon>
+                          Create Folder
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    )}
+                    {canAccessAssets && canCreate('assets') && (
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          className="hover:cursor-pointer"
+                          onSelect={handleCreateAsset}
+                        >
+                          <FileText className="h-4 w-4 mr-2"></FileText>
+                          Create Asset
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
               </div>
               
               <div className="relative">
@@ -957,10 +965,6 @@ export default function Assets() {
                       // Use the isAutoShare flag passed from the component
                       handleShare(item, fullPath, Boolean(isAutoShare));
                     }}
-                    onDrop={(_draggedItem, _targetFolder) => {
-                      // La lógica de drop ya está implementada en FileTreeWithContext
-                      // Solo necesitamos pasar la función para habilitar el drag and drop
-                    }}
                   />
                   
                   {/* Message for empty area */}
@@ -976,13 +980,15 @@ export default function Assets() {
           </ContextMenuTrigger>
           
           <ContextMenuContent>
-            <ContextMenuItem 
-              className="hover:cursor-pointer"
-              onSelect={handleCreateAsset}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              New Asset
-            </ContextMenuItem>
+            {canAccessAssets && canCreate('assets') && (
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={handleCreateAsset}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                New Asset
+              </ContextMenuItem>
+            )}
             <ContextMenuItem className="hover:cursor-pointer" onClick={() => console.log('More options clicked')}>
               <MoreVertical className="h-4 w-4 mr-2" />
               More Options

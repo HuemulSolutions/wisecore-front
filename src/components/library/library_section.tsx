@@ -1,8 +1,9 @@
 import { MoreVertical, Edit, Bot, Send, Copy, Trash2, Play, FastForward } from 'lucide-react';
 import Markdown from "@/components/ui/markdown";
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Editor from '../editor';
 import { Button } from "@/components/ui/button";
+import { DocumentActionButton, DocumentAccessControl } from "@/components/document-access-control";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution-config-dialog';
@@ -44,6 +45,8 @@ interface SectionExecutionProps {
     documentId?: string;
     executionId?: string;
     onExecutionStart?: (executionId?: string) => void;
+    executionStatus?: string;
+    accessLevels?: string[];
 }
 
 export default function SectionExecution({ 
@@ -53,7 +56,9 @@ export default function SectionExecution({
     sectionIndex, 
     documentId, 
     executionId, 
-    onExecutionStart 
+    onExecutionStart, 
+    executionStatus,
+    accessLevels
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -68,13 +73,48 @@ export default function SectionExecution({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [executionMode, setExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
+    const isExecutionApproved = executionStatus === 'approved';
+    
+    // Refs and state for maintaining scroll position
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0);
 
     console.log('SectionExecution Props:', { 
         sectionExecution, 
         documentId, 
         executionId,
-        section_id: sectionExecution.section_id 
+        section_id: sectionExecution.section_id,
+        executionStatus,
+        isExecutionApproved 
     });
+
+    // Handle entering edit mode with scroll position preservation
+    const handleStartEditing = () => {
+        // Save current scroll position relative to the container
+        if (containerRef.current) {
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const relativePosition = scrollTop - containerRect.top + window.innerHeight / 2; // Center of viewport relative to container
+            setSavedScrollPosition(Math.max(0, relativePosition));
+        }
+        setIsEditing(true);
+    };
+
+    // Handle exiting edit mode
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        // Restore scroll position after a brief delay to allow DOM to update
+        setTimeout(() => {
+            if (containerRef.current && savedScrollPosition > 0) {
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
+                window.scrollTo({
+                    top: Math.max(0, targetScrollTop),
+                    behavior: 'smooth'
+                });
+            }
+        }, 100);
+    };
 
     const handleSave = async (sectionId: string, newContent: string) => {
         try {
@@ -83,12 +123,40 @@ export default function SectionExecution({
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
+            
+            // Restore scroll position after save
+            setTimeout(() => {
+                if (containerRef.current && savedScrollPosition > 0) {
+                    const containerRect = containerRef.current.getBoundingClientRect();
+                    const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
+                    window.scrollTo({
+                        top: Math.max(0, targetScrollTop),
+                        behavior: 'smooth'
+                    });
+                }
+            }, 100);
         } catch (e) {
             console.error('Error saving content', e);
         } finally {
             setIsSaving(false);
         }
     };
+
+    // Effect to restore scroll position when entering edit mode
+    useEffect(() => {
+        if (isEditing && savedScrollPosition > 0 && containerRef.current) {
+            setTimeout(() => {
+                if (containerRef.current) {
+                    const containerRect = containerRef.current.getBoundingClientRect();
+                    const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
+                    window.scrollTo({
+                        top: Math.max(0, targetScrollTop),
+                        behavior: 'smooth'
+                    });
+                }
+            }, 150); // Slightly longer delay to ensure editor is fully rendered
+        }
+    }, [isEditing, savedScrollPosition]);
 
     const handleCopy = async () => {
         try {
@@ -182,35 +250,41 @@ export default function SectionExecution({
     const displayedContent = (aiPreview ?? sectionExecution.output.replace(/\\n/g, "\n"));
 
     return (
-        <div className="p-2 relative">
-            {/* Action Buttons - Positioned absolutely in top right */}
-            <div className="absolute top-2 right-2 z-10">
-                {readyToEdit && !isEditing && (
+        <div ref={containerRef} className="p-2 relative">
+            {/* Action Buttons - Always sticky */}
+            {readyToEdit && (
+                <div className="sticky top-0 z-20 flex justify-end p-2 bg-white -mx-2 -mt-2 mb-4">
+                    {!isEditing && (
                     <>
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button
+                                        <DocumentActionButton
+                                            accessLevels={accessLevels}
+                                            requiredAccess="read"
                                             variant="ghost"
                                             size="sm"
                                             className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
                                             onClick={handleCopy}
                                         >
                                             <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                        </Button>
+                                        </DocumentActionButton>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         <p>Copy content</p>
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {documentId && executionId && sectionExecution.section_id && (
+                                {documentId && executionId && sectionExecution.section_id && !isExecutionApproved && (
                                     <>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <Button
+                                                <DocumentActionButton
+                                                    accessLevels={accessLevels}
+                                                    requiredAccess={["edit", "create"]}
+                                                    requireAll={false}
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
@@ -218,7 +292,7 @@ export default function SectionExecution({
                                                     disabled={isExecuting}
                                                 >
                                                     <Play className="h-3.5 w-3.5 text-green-600" />
-                                                </Button>
+                                                </DocumentActionButton>
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p>Execute this section</p>
@@ -227,7 +301,10 @@ export default function SectionExecution({
 
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <Button
+                                                <DocumentActionButton
+                                                    accessLevels={accessLevels}
+                                                    requiredAccess={["edit", "create"]}
+                                                    requireAll={false}
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
@@ -235,7 +312,7 @@ export default function SectionExecution({
                                                     disabled={isExecuting}
                                                 >
                                                     <FastForward className="h-3.5 w-3.5 text-purple-600" />
-                                                </Button>
+                                                </DocumentActionButton>
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p>Execute from this section</p>
@@ -244,17 +321,19 @@ export default function SectionExecution({
                                     </>
                                 )}
 
-                                {!isEditing && !isAiEditing && (
+                                {!isEditing && !isAiEditing && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="edit"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                                onClick={() => setIsEditing(true)}
+                                                onClick={handleStartEditing}
                                             >
                                                 <Edit className="h-3.5 w-3.5 text-gray-600" />
-                                            </Button>
+                                            </DocumentActionButton>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <p>Edit section</p>
@@ -262,17 +341,19 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && (
+                                {!isEditing && !isAiEditing && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="edit"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
                                                 onClick={() => setIsAiEditing(true)}
                                             >
                                                 <Bot className="h-3.5 w-3.5 text-blue-600" />
-                                            </Button>
+                                            </DocumentActionButton>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <p>Ask AI to edit</p>
@@ -280,17 +361,19 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && (
+                                {!isEditing && !isAiEditing && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="delete"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
                                                 onClick={() => openDeleteDialog()}
                                             >
                                                 <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                                            </Button>
+                                            </DocumentActionButton>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <p>Delete section</p>
@@ -309,73 +392,125 @@ export default function SectionExecution({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                        className='hover:cursor-pointer'
-                                        onClick={handleCopy}
+                                    <DocumentAccessControl
+                                        accessLevels={accessLevels}
+                                        requiredAccess="read"
                                     >
-                                        <Copy className="h-4 w-4 mr-2" />
-                                        Copy
-                                    </DropdownMenuItem>
-                                    {documentId && executionId && sectionExecution.section_id && (
-                                        <>
-                                            <DropdownMenuItem
-                                                className='hover:cursor-pointer'
-                                                onSelect={() => {
-                                                    setTimeout(() => handleOpenExecutionConfig('single'), 0);
-                                                }}
-                                                disabled={isExecuting}
-                                            >
-                                                <Play className="h-4 w-4 mr-2" />
-                                                Execute Section
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className='hover:cursor-pointer'
-                                                onSelect={() => {
-                                                    setTimeout(() => handleOpenExecutionConfig('from'), 0);
-                                                }}
-                                                disabled={isExecuting}
-                                            >
-                                                <FastForward className="h-4 w-4 mr-2" />
-                                                Execute From Section
-                                            </DropdownMenuItem>
-                                        </>
-                                    )}
-                                    {!isEditing && !isAiEditing && (
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'
-                                            onClick={() => setIsEditing(true)}
+                                            onClick={handleCopy}
                                         >
-                                            <Edit className="h-4 w-4 mr-2" />
-                                            Edit
+                                            <Copy className="h-4 w-4 mr-2" />
+                                            Copy
                                         </DropdownMenuItem>
+                                    </DocumentAccessControl>
+                                    {documentId && executionId && sectionExecution.section_id && !isExecutionApproved && (
+                                        <>
+                                            <DocumentAccessControl
+                                                accessLevels={accessLevels}
+                                                requiredAccess={["edit", "create"]}
+                                                requireAll={false}
+                                            >
+                                                <DropdownMenuItem
+                                                    className='hover:cursor-pointer'
+                                                    onSelect={() => {
+                                                        setTimeout(() => handleOpenExecutionConfig('single'), 0);
+                                                    }}
+                                                    disabled={isExecuting}
+                                                >
+                                                    <Play className="h-4 w-4 mr-2" />
+                                                    Execute Section
+                                                </DropdownMenuItem>
+                                            </DocumentAccessControl>
+                                            <DocumentAccessControl
+                                                accessLevels={accessLevels}
+                                                requiredAccess={["edit", "create"]}
+                                                requireAll={false}
+                                            >
+                                                <DropdownMenuItem
+                                                    className='hover:cursor-pointer'
+                                                    onSelect={() => {
+                                                        setTimeout(() => handleOpenExecutionConfig('from'), 0);
+                                                    }}
+                                                    disabled={isExecuting}
+                                                >
+                                                    <FastForward className="h-4 w-4 mr-2" />
+                                                    Execute From Section
+                                                </DropdownMenuItem>
+                                            </DocumentAccessControl>
+                                        </>
                                     )}
-                                    {!isEditing && !isAiEditing && (
-                                        <DropdownMenuItem 
-                                            className="hover:cursor-pointer"
-                                            onClick={() => setIsAiEditing(true)}
+                                    {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="edit"
                                         >
-                                            <Bot className="h-4 w-4 mr-2" />
-                                            Ask AI to Edit
-                                        </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onClick={handleStartEditing}
+                                            >
+                                                <Edit className="h-4 w-4 mr-2" />
+                                                Edit
+                                            </DropdownMenuItem>
+                                        </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && (
-                                        <DropdownMenuItem 
-                                            className="text-red-600 hover:cursor-pointer"
-                                            onSelect={() => {
-                                                // Sincroniza apertura al ciclo de cierre del dropdown
-                                                setTimeout(() => openDeleteDialog(), 0);
-                                            }}
+                                    {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="edit"
                                         >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete
-                                        </DropdownMenuItem>
+                                            <DropdownMenuItem 
+                                                className="hover:cursor-pointer"
+                                                onClick={() => setIsAiEditing(true)}
+                                            >
+                                                <Bot className="h-4 w-4 mr-2" />
+                                                Ask AI to Edit
+                                            </DropdownMenuItem>
+                                        </DocumentAccessControl>
+                                    )}
+                                    {!isEditing && !isAiEditing && !isExecutionApproved && (
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="delete"
+                                        >
+                                            <DropdownMenuItem 
+                                                className="text-red-600 hover:cursor-pointer"
+                                                onSelect={() => {
+                                                    // Sincroniza apertura al ciclo de cierre del dropdown
+                                                    setTimeout(() => openDeleteDialog(), 0);
+                                                }}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete
+                                            </DropdownMenuItem>
+                                        </DocumentAccessControl>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}
                     </>
-                )}
-            </div>
+                    )}
+                    
+                    {/* Copy button - always visible */}
+                    {/* <ProtectedComponent resource="section_execution" resourceAction="r">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer ml-2"
+                                    onClick={handleCopy}
+                                >
+                                    <Copy className="h-3.5 w-3.5 text-gray-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Copy content</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </ProtectedComponent> */}
+                </div>
+            )}
             
             {isAiEditing && (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
@@ -474,7 +609,7 @@ export default function SectionExecution({
                         sectionId={sectionExecution.id}
                         content={sectionExecution.output.replace(/\\n/g, "\n")}
                         onSave={handleSave}
-                        onCancel={() => setIsEditing(false)}
+                        onCancel={handleCancelEdit}
                         isSaving={isSaving}
                     />
                 </div>

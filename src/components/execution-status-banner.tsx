@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useExecutionPolling } from '@/hooks/useExecutionPolling';
+import { useOrganization } from '@/contexts/organization-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 interface ExecutionStatusBannerProps {
@@ -19,10 +21,34 @@ export function ExecutionStatusBanner({
 }: ExecutionStatusBannerProps) {
   console.log('ExecutionStatusBanner rendering with executionId:', executionId);
   
+  // Intentar obtener el status desde el cache de documentContent primero
+  useOrganization();
+  const queryClient = useQueryClient();
+  
+  // Buscar en cache del documentContent para evitar llamada extra
+  const getCachedExecutionStatus = () => {
+    const cachedQueries = queryClient.getQueriesData({ queryKey: ['document-content'] });
+    for (const [, data] of cachedQueries) {
+      if (data && typeof data === 'object' && 'executions' in data) {
+        const executions = (data as any).executions;
+        if (Array.isArray(executions)) {
+          const execution = executions.find((exec: any) => exec.id === executionId);
+          if (execution) {
+            return execution;
+          }
+        }
+      }
+    }
+    return null;
+  };
+  
+  const cachedExecution = getCachedExecutionStatus();
+  
+  // Solo hacer polling si no tenemos datos cached o si están obsoletos
   const { execution, stopPolling, invalidateExecution, error } = useExecutionPolling({
     executionId,
-    enabled: !!executionId,
-    pollingInterval: 3000,
+    enabled: !!executionId, // Siempre habilitado para tener datos frescos
+    pollingInterval: 15000, // Siempre hacer polling para ejecuciones activas
     onStatusChange: (status, executionData) => {
       console.log('Banner - Execution status changed:', status, executionData);
       
@@ -40,19 +66,22 @@ export function ExecutionStatusBanner({
       }
     }
   });
+  
+  // Usar cached execution si está disponible, sino usar el del polling
+  const currentExecution = cachedExecution || execution;
 
-  console.log('Banner - Current execution:', execution);
+  console.log('Banner - Current execution:', currentExecution, 'from cache:', !!cachedExecution);
   
   // Handle polling errors
   useEffect(() => {
-    if (error) {
+    if (error && !cachedExecution) {
       console.error('Execution polling error:', error);
       toast.error('Error checking execution status. Please refresh the page.');
     }
-  }, [error]);
+  }, [error, cachedExecution]);
 
   // Don't show banner if no execution or if execution is in final state
-  if (!execution || ['completed', 'approved'].includes(execution.status)) {
+  if (!currentExecution || ['completed', 'approved'].includes(currentExecution.status)) {
     return null;
   }
 
@@ -106,7 +135,7 @@ export function ExecutionStatusBanner({
     }
   };
 
-  const statusConfig = getStatusConfig(execution.status);
+  const statusConfig = getStatusConfig(currentExecution.status);
 
   return (
     <Card className={cn(
@@ -129,7 +158,7 @@ export function ExecutionStatusBanner({
           </div>
           
           <div className="flex items-center gap-2">
-            {execution.status === 'running' && (
+            {currentExecution.status === 'running' && (
               <div className="flex items-center gap-2 text-xs text-blue-600">
                 <div className="h-2 w-2 bg-blue-600 rounded-full animate-pulse"></div>
                 Processing
