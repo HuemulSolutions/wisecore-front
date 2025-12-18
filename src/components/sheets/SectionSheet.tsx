@@ -31,6 +31,7 @@ interface SectionSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
+  accessLevels?: string[];
 }
 
 export function SectionSheet({
@@ -38,7 +39,8 @@ export function SectionSheet({
   fullDocument,
   isOpen,
   onOpenChange,
-  isMobile = false
+  isMobile = false,
+  accessLevels
 }: SectionSheetProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
@@ -168,7 +170,7 @@ export function SectionSheet({
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
         <DocumentActionButton
-          accessLevels={selectedFile?.access_levels}
+          accessLevels={accessLevels || selectedFile?.access_levels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
           size="sm"
@@ -199,7 +201,7 @@ export function SectionSheet({
               </div>
               <div className="flex items-center h-full gap-2 ml-4">
                 <DocumentActionButton
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels || selectedFile?.access_levels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                   type="button"
@@ -217,7 +219,7 @@ export function SectionSheet({
                 </DocumentActionButton>
                 {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
                   <DocumentActionButton
-                    accessLevels={selectedFile?.access_levels}
+                    accessLevels={accessLevels || selectedFile?.access_levels}
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     type="button"

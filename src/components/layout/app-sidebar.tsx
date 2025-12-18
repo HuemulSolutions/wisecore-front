@@ -4,7 +4,7 @@ import * as React from "react"
 import { Home, Search, LayoutTemplate, BookText, Shield, Package } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,7 @@ import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { getAllOrganizations, addOrganization } from "@/services/organizations"
+
 import { useIsMobile } from "@/hooks/use-mobile"
 
 // Navigation items
@@ -89,7 +89,6 @@ const navigationItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setOpenMobile } = useSidebar()
-  const queryClient = useQueryClient()
   const location = useLocation()
   const isMobile = useIsMobile()
   const {
@@ -104,27 +103,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   } = useUserPermissions()
   
   const { 
-    selectedOrganizationId, 
-    organizations, 
-    organizationToken,
-    setSelectedOrganizationId, 
-    setOrganizations 
+    organizationToken
   } = useOrganization()
 
-  // Query para obtener organizaciones
-  const { data: organizationsData } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: getAllOrganizations,
-  })
 
-  // Mutation para crear organización
-  const createOrgMutation = useMutation({
-    mutationFn: addOrganization,
-    onSuccess: (newOrg) => {
-      queryClient.invalidateQueries({ queryKey: ['organizations'] })
-      setSelectedOrganizationId(newOrg.id)
-    },
-  })
 
   // Cerrar sidebar automáticamente en móvil cuando cambia la ubicación
   useEffect(() => {
@@ -133,23 +115,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, [location.pathname, isMobile, setOpenMobile])
 
-  // Actualizar organizaciones cuando se cargan los datos
-  useEffect(() => {
-    if (organizationsData) {
-      setOrganizations(organizationsData)
-    }
-  }, [organizationsData, setOrganizations])
 
-  const handleCreateOrganization = (name: string) => {
-    createOrgMutation.mutate({ name })
-  }
 
-  const handleOrganizationChange = (orgId: string) => {
-    setSelectedOrganizationId(orgId)
-  }
 
-  // Obtener organización seleccionada
-  const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || null
+
+
+
+
 
   // Estado interno para controlar el parpadeo del menú
   const [menuReady, setMenuReady] = useState(false);
@@ -269,13 +241,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher
-          organizations={organizations}
-          selectedOrganization={selectedOrg}
-          onOrganizationChange={handleOrganizationChange}
-          onCreateOrganization={handleCreateOrganization}
-          isCreating={createOrgMutation.isPending}
-        />
+        <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
         {!menuReady ? (

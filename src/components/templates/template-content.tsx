@@ -367,10 +367,10 @@ export function TemplateContent({
               {templateData?.description && (
                 <div>
                   <div className="p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 pb-3">
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
                       Description
                     </h2>
-                    <div className="prose prose-sm max-w-none">
+                    <div className="prose prose-sm max-w-full">
                       <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                         {templateData.description}
                       </p>
@@ -444,7 +444,7 @@ export function TemplateContent({
 
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3 sm:space-y-4">
+                        <div className="space-y-3 sm:space-y-4 overflow-auto max-h-[45vh]">
                           {orderedSections.map((section: any) => (
                             <div key={section.id} className="border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
                               <SortableSectionSheet

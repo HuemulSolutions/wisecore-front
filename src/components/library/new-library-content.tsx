@@ -89,7 +89,6 @@ interface LibraryContentProps {
   breadcrumb: BreadcrumbItem[];
   selectedExecutionId: string | null;
   setSelectedExecutionId: (id: string | null) => void;
-  refetchDocumentContent: () => void;
   setSelectedFile: (file: LibraryItem | null) => void;
   onRefresh: () => void;
   currentFolderId?: string;
@@ -157,13 +156,14 @@ function SectionSeparator({
   index, 
   isLastSection = false,
   isMobile = false,
-  selectedFile
+  accessLevels
 }: { 
   onAddSection: (afterIndex?: number) => void;
   index?: number;
   isLastSection?: boolean;
   isMobile?: boolean;
   selectedFile?: { id: string; name: string; type: "folder" | "document"; access_levels?: string[] } | null;
+  accessLevels?: string[];
 }) {
   return (
     <div className="group relative flex items-center justify-center my-4 px-4">
@@ -175,7 +175,7 @@ function SectionSeparator({
       {/* Add section button - appears on hover on desktop, always visible on mobile */}
       <div className="relative bg-white px-6">
         <DocumentActionButton
-          accessLevels={selectedFile?.access_levels}
+          accessLevels={accessLevels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
           onClick={() => onAddSection(index)}
@@ -207,7 +207,6 @@ export function AssetContent({
   selectedFile, 
   selectedExecutionId, 
   setSelectedExecutionId, 
-  refetchDocumentContent,
   setSelectedFile,
   onRefresh,
   currentFolderId,
@@ -218,12 +217,11 @@ export function AssetContent({
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
   
-  // Debug isMobile value
-  console.log('📱 AssetContent isMobile value:', {
-    isMobile,
-    documentName: selectedFile?.name,
-    timestamp: new Date().toISOString()
-  });
+  // States to control on-demand loading
+  const [needsFullDocument, setNeedsFullDocument] = useState(false);
+  const [needsDefaultLLM, setNeedsDefaultLLM] = useState(false);
+  
+  // Removed debug logging to improve performance
 
   // Si no hay organización seleccionada, no renderizar nada
   if (!selectedOrganizationId) {
@@ -277,7 +275,7 @@ export function AssetContent({
       return newSection;
     },
     onSuccess: () => {
-      // Invalidate all relevant queries
+      // Only invalidate necessary queries - no need for refetch since invalidation will trigger automatic refetch
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -286,11 +284,6 @@ export function AssetContent({
       setSectionInsertPosition(undefined);
       setIsDirectSectionFormValid(false);
       toast.success("Section created successfully");
-      
-      // Force refetch of document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error("Error creating section:", error);
@@ -344,11 +337,6 @@ export function AssetContent({
       setAfterFromSectionId(null);
       setIsSectionExecutionFormValid(false);
       toast.success("Section added successfully");
-      
-      // Force refetch of document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error("Error creating section execution:", error);
@@ -380,11 +368,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      
-      // Force refetch document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error("Error executing document:", error);
@@ -406,11 +389,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      
-      // Force refetch document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error('Error approving execution:', error);
@@ -432,11 +410,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      
-      // Force refetch document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error('Error disapproving execution:', error);
@@ -468,11 +441,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      
-      // Force refetch document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error('Error deleting execution:', error);
@@ -497,11 +465,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      
-      // Force refetch document content
-      setTimeout(() => {
-        refetchDocumentContent();
-      }, 500);
     },
     onError: (error: Error) => {
       console.error('Error cloning execution:', error);
@@ -520,6 +483,20 @@ export function AssetContent({
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
+  
+  // Effects to trigger on-demand loading
+  useEffect(() => {
+    // Load full document when section sheet is opened
+    if (isSectionSheetOpen && selectedFile?.type === 'document') {
+      setNeedsFullDocument(true);
+    }
+  }, [isSectionSheetOpen, selectedFile?.type]);
+
+  // Reset states when file changes
+  useEffect(() => {
+    setNeedsFullDocument(false);
+    setNeedsDefaultLLM(false);
+  }, [selectedFile?.id]);
   
   // State for tracking current execution for polling
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
@@ -574,27 +551,18 @@ export function AssetContent({
     setSelectedExecutionId(executionId);
     setCurrentExecutionId(executionId);
     
-    // Invalidate queries to refresh execution data
+    // Invalidate queries to refresh execution data (automatic refetch will occur)
     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
     queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-    
-    // Force refetch document content
-    setTimeout(() => {
-      refetchDocumentContent();
-    }, 500);
   };
 
   // Handle execution complete from Execute Sheet
   const handleExecutionComplete = () => {
-    // Refresh document content and executions
+    // Refresh document content and executions (automatic refetch will occur)
     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
     queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-    
-    setTimeout(() => {
-      refetchDocumentContent();
-    }, 500);
   };
 
 
@@ -674,6 +642,9 @@ export function AssetContent({
   // Handle create new execution - abrir Execute Sheet
   const handleCreateExecution = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      // Load necessary data for execution
+      setNeedsFullDocument(true);
+      setNeedsDefaultLLM(true);
       setIsExecuteSheetOpen(true);
     }
   };
@@ -712,11 +683,13 @@ export function AssetContent({
     staleTime: 15000, // 15 segundos para content
   });
 
-  // Fetch full document details for sections management
+  // Fetch full document details only when needed (sections management, sheet operations)
   const { data: fullDocument } = useQuery({
     queryKey: ['document', selectedFile?.id],
     queryFn: () => getDocumentById(selectedFile!.id, selectedOrganizationId!),
-    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && needsFullDocument,
+    staleTime: 60000, // Cache for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 
   // Fetch full template details for configuration
@@ -726,10 +699,12 @@ export function AssetContent({
     enabled: !!createdTemplate?.id && !!selectedOrganizationId,
   });
 
-  // Query para obtener LLM por defecto
+  // Query para obtener LLM por defecto (solo cuando se vaya a ejecutar)
   const { data: defaultLLM } = useQuery({
     queryKey: ["default-llm"],
     queryFn: getDefaultLLM,
+    enabled: !!selectedOrganizationId && needsDefaultLLM, // Solo cargar cuando se necesite ejecutar
+    staleTime: 300000, // Cache for 5 minutes
   });
 
   // Fetch executions for the document to check for running executions
@@ -752,13 +727,13 @@ export function AssetContent({
     shouldFetchExecutions && !!selectedOrganizationId
   );
 
-  // Check if there's any execution in process - usar datos optimizados
+  // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
-    // Priorizar executions de documentContent si están disponibles
+    // Use executions from documentContent first (preferred), then fallback to separate query
     const executions = documentContent?.executions || documentExecutions;
     if (!executions) return false;
     return executions.some((execution: any) => 
-      ['running', 'queued'].includes(execution.status)
+      ['running', 'queued', 'pending', 'processing'].includes(execution.status)
     );
   }, [documentContent?.executions, documentExecutions]);
 
@@ -795,86 +770,64 @@ export function AssetContent({
     return activeExecution?.id || null;
   }, [documentContent?.executions, documentExecutions]);
 
-  // Get selected execution details for displaying version info
+  // Get the correct access levels - use documentContent first (authoritative), fallback to selectedFile
+  const accessLevels = useMemo(() => {
+    return documentContent?.access_levels || selectedFile?.access_levels || [];
+  }, [documentContent?.access_levels, selectedFile?.access_levels]);
+
+  // Get selected execution details for displaying version info (optimized)
   const selectedExecutionInfo = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
-    console.log('🔍 selectedExecutionInfo calculation:', {
-      hasExecutions: !!executions,
-      executionsCount: executions?.length || 0,
-      selectedExecutionId,
-      documentName: selectedFile?.name
-    });
     
-    if (!executions || !selectedExecutionId) {
-      console.log('🔍 selectedExecutionInfo returning null - missing data');
+    if (!executions) {
       return null;
     }
     
-    const selectedExecution = executions.find((execution: any) => 
-      execution.id === selectedExecutionId
-    );
+    let selectedExecution;
+    
+    if (selectedExecutionId) {
+      // User has manually selected a specific execution
+      selectedExecution = executions.find((execution: any) => 
+        execution.id === selectedExecutionId
+      );
+    } else {
+      // No specific execution selected, use the current execution from documentContent
+      selectedExecution = documentContent?.execution_id 
+        ? executions.find((execution: any) => execution.id === documentContent.execution_id)
+        : executions.find((execution: any) => execution.status === 'approved') || executions[0];
+    }
     
     if (!selectedExecution) {
-      console.log('🔍 selectedExecutionInfo returning null - execution not found:', selectedExecutionId);
       return null;
     }
     
     const formattedDate = formatApiDateTime(selectedExecution.created_at);
     
-    const executionInfo = {
+    return {
       ...selectedExecution,
       formattedDate,
       isLatest: executions[0]?.id === selectedExecution.id
     };
-    
-    console.log('🔍 selectedExecutionInfo result:', executionInfo);
-    return executionInfo;
-  }, [documentContent?.executions, documentExecutions, selectedExecutionId, selectedFile?.name]);
+  }, [documentContent?.executions, documentContent?.execution_id, documentExecutions, selectedExecutionId]);
 
-  // Initialize selected execution ID when a document is selected
+  // Initialize selected execution ID when a document is selected (optimized to prevent unnecessary calls)
   useEffect(() => {
-    // Usar executions de documentContent o documentExecutions
-    const executions = documentContent?.executions || documentExecutions;
-    
-    if (selectedFile?.type === 'document' && executions?.length > 0) {
-      // Verificar si el selectedExecutionId actual existe en las ejecuciones del documento actual
-      const currentExecutionExists = selectedExecutionId && executions.some((execution: any) => 
-        execution.id === selectedExecutionId
-      );
-      
-      // Si no hay ejecución seleccionada o la ejecución actual no pertenece a este documento, seleccionar una nueva
-      if (!selectedExecutionId || !currentExecutionExists) {
-        // First, look for an approved execution
-        const approvedExecution = executions.find((execution: any) => 
-          execution.status === 'approved'
-        );
-        
-        // If there's an approved execution, use it. Otherwise, use the most recent one
-        const executionToSelect = approvedExecution || executions[0];
-        console.log('🔄 Setting selectedExecutionId:', executionToSelect.id, 'for document:', selectedFile.name);
-        setSelectedExecutionId(executionToSelect.id);
+    // Only reset selectedExecutionId when switching to a different document or to non-document
+    if (selectedFile?.type !== 'document') {
+      if (selectedExecutionId) {
+        setSelectedExecutionId(null);
       }
-    } else if (selectedFile?.type !== 'document') {
-      // Si no es un documento, limpiar el selectedExecutionId
-      console.log('🔄 Clearing selectedExecutionId - not a document');
+      return;
+    }
+
+    // Reset selectedExecutionId when switching to a different document
+    // This allows the default call (without execution_id) to return the approved execution
+    if (selectedExecutionId) {
       setSelectedExecutionId(null);
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.executions, documentExecutions?.length, selectedExecutionId]); // Include both data sources and selectedExecutionId
+  }, [selectedFile?.id]);
   
-  // Invalidate cache when selectedExecutionId changes to ensure fresh content
-  useEffect(() => {
-    if (selectedExecutionId && selectedFile?.id) {
-      console.log('🔄 Invalidating cache for execution change:', selectedExecutionId);
-      // Invalidar cache específicamente para esta combinación documento-ejecución
-      queryClient.invalidateQueries({ 
-        queryKey: ['document-content', selectedFile.id, selectedExecutionId] 
-      });
-      // También invalidar el cache general para forzar refetch
-      queryClient.invalidateQueries({ 
-        queryKey: ['document-content', selectedFile.id] 
-      });
-    }
-  }, [selectedExecutionId, selectedFile?.id, queryClient]);
+  // Removed invalidation useEffect - React Query automatically handles query key changes
 
   // Auto-update to latest execution when returning to a document with completed executions
   // This is disabled to avoid interfering with manual user selections
@@ -1319,17 +1272,17 @@ export function AssetContent({
             {/* Mobile Action Buttons - Icon Only */}
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5">
               <DocumentActionButton
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
                 onClick={handleCreateExecution}
-                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
-                className={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
                   : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
-                title={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id 
+                title={executeDocumentMutation.isPending || hasExecutionInProcess 
                   ? "Cannot execute document" 
                   : "Execute Document"
                 }
@@ -1342,7 +1295,7 @@ export function AssetContent({
               </DocumentActionButton>
               
               <DocumentAccessControl
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
               >
@@ -1352,11 +1305,12 @@ export function AssetContent({
                   isOpen={isSectionSheetOpen}
                   onOpenChange={setIsSectionSheetOpen}
                   isMobile={isMobile}
+                  accessLevels={accessLevels}
                 />
               </DocumentAccessControl>
               
               <DocumentAccessControl
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
               >
@@ -1365,11 +1319,12 @@ export function AssetContent({
                   isOpen={isDependenciesSheetOpen}
                   onOpenChange={setIsDependenciesSheetOpen}
                   isMobile={isMobile}
+                  accessLevels={accessLevels}
                 />
               </DocumentAccessControl>
               
               <DocumentAccessControl
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
               >
@@ -1378,6 +1333,7 @@ export function AssetContent({
                   isOpen={isContextSheetOpen}
                   onOpenChange={setIsContextSheetOpen}
                   isMobile={isMobile}
+                  accessLevels={accessLevels}
                 />
               </DocumentAccessControl>
               
@@ -1385,20 +1341,25 @@ export function AssetContent({
               {/* Execution Dropdown - only show for documents with executions */}
               {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
                 <DocumentAccessControl
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess="read"
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <DocumentActionButton
-                        accessLevels={selectedFile?.access_levels}
+                        accessLevels={accessLevels}
                         requiredAccess="read"
                         size="sm"
                         variant="ghost"
                         className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
-                        <span className="font-medium">v{documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
+                        <span className="font-medium">
+                          {selectedExecutionInfo ? 
+                            `v${documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionInfo.id)}` :
+                            'v1'
+                          }
+                        </span>
                       </DocumentActionButton>
                     </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64">
@@ -1411,7 +1372,9 @@ export function AssetContent({
                         parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                       )
                       .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
-                        const isSelected = selectedExecutionId === execution.id;
+                        const isSelected = selectedExecutionInfo ? 
+                          selectedExecutionId === execution.id :
+                          (execution.status === 'approved' || (index === 0 && !documentExecutions.find((e: any) => e.status === 'approved')));
                         const isApproved = execution.status === 'approved';
                         const isLatest = index === 0;
                         
@@ -1466,7 +1429,7 @@ export function AssetContent({
               
               {/* Edit Button */}
               <DocumentActionButton
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess="edit"
                 onClick={openEditDialog}
                 size="sm"
@@ -1480,7 +1443,7 @@ export function AssetContent({
               {/* Clone Button - only show if there's an execution to clone */}
               {selectedExecutionId && (
                 <DocumentActionButton
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                   onClick={() => setTimeout(() => openCloneDialog(), 0)}
@@ -1495,7 +1458,7 @@ export function AssetContent({
               
               {/* Export Dropdown */}
               <DocumentAccessControl
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess="read"
               >
                 <DropdownMenu>
@@ -1524,7 +1487,7 @@ export function AssetContent({
               
               {/* Delete Options */}
               <DocumentAccessControl
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess="delete"
               >
                 <DropdownMenu>
@@ -1573,7 +1536,7 @@ export function AssetContent({
                 if (actualStatus === 'completed') {
                   return (
                     <DocumentActionButton
-                      accessLevels={selectedFile?.access_levels}
+                      accessLevels={accessLevels}
                       requiredAccess="approve"
                       onClick={() => setTimeout(() => openApproveDialog(), 0)}
                       size="sm"
@@ -1599,7 +1562,7 @@ export function AssetContent({
                 if (actualStatus === 'approved') {
                   return (
                     <DocumentActionButton
-                      accessLevels={selectedFile?.access_levels}
+                      accessLevels={accessLevels}
                       requiredAccess="approve"
                       onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
                       size="sm"
@@ -1637,42 +1600,20 @@ export function AssetContent({
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
                 <div className="flex flex-col gap-2 flex-1">
                   <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
-                  {(() => {
-                    console.log('🎯 Version info render check:', {
-                      hasSelectedExecutionInfo: !!selectedExecutionInfo,
-                      selectedExecutionInfo,
-                      isMobile,
-                      documentName: selectedFile?.name
-                    });
-                    
-                    if (selectedExecutionInfo) {
-                      console.log('✅ Rendering version info with fields:', {
-                        status: selectedExecutionInfo.status,
-                        status_message: selectedExecutionInfo.status_message,
-                        formattedDate: selectedExecutionInfo.formattedDate,
-                        isLatest: selectedExecutionInfo.isLatest,
-                        allFields: Object.keys(selectedExecutionInfo)
-                      });
-                      
-                      return (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <span className="font-medium text-gray-900">
-                            {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
-                          </span>
-                          <span>•</span>
-                          <span>{selectedExecutionInfo.formattedDate}</span>
-                          {selectedExecutionInfo.isLatest && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                              Latest
-                            </span>
-                          )}
-                        </div>
-                      );
-                    }
-                    
-                    console.log('🚫 Version info NOT rendered - selectedExecutionInfo is null');
-                    return null;
-                  })()}
+                  {selectedExecutionInfo && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span className="font-medium text-gray-900">
+                        {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
+                      </span>
+                      <span>•</span>
+                      <span>{selectedExecutionInfo.formattedDate}</span>
+                      {selectedExecutionInfo.isLatest && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {documentContent?.document_type && (
@@ -1700,17 +1641,17 @@ export function AssetContent({
               {/* Primary Actions Group */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
               <DocumentActionButton
-                accessLevels={selectedFile?.access_levels}
+                accessLevels={accessLevels}
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
                 onClick={handleCreateExecution}
-                disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
-                className={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id
+                disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
                   : "h-8 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm text-xs"
                 }
-                title={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id 
+                title={executeDocumentMutation.isPending || hasExecutionInProcess 
                   ? "Cannot execute document" 
                   : "Execute Document"
                 }
@@ -1729,7 +1670,7 @@ export function AssetContent({
               </DocumentActionButton>
                 
                 <DocumentAccessControl
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                 >
@@ -1738,11 +1679,12 @@ export function AssetContent({
                     fullDocument={fullDocument}
                     isOpen={isSectionSheetOpen}
                     onOpenChange={setIsSectionSheetOpen}
+                    accessLevels={accessLevels}
                   />
                 </DocumentAccessControl>
                 
                 <DocumentAccessControl
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                 >
@@ -1750,11 +1692,12 @@ export function AssetContent({
                     selectedFile={selectedFile}
                     isOpen={isDependenciesSheetOpen}
                     onOpenChange={setIsDependenciesSheetOpen}
+                    accessLevels={accessLevels}
                   />
                 </DocumentAccessControl>
                 
                 <DocumentAccessControl
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                 >
@@ -1762,6 +1705,7 @@ export function AssetContent({
                     selectedFile={selectedFile}
                     isOpen={isContextSheetOpen}
                     onOpenChange={setIsContextSheetOpen}
+                    accessLevels={accessLevels}
                   />
                 </DocumentAccessControl>
               </div>
@@ -1856,7 +1800,7 @@ export function AssetContent({
                   if (actualStatus === 'completed') {
                     return (
                       <DocumentActionButton
-                        accessLevels={selectedFile?.access_levels}
+                        accessLevels={accessLevels}
                         requiredAccess="approve"
                         onClick={() => setTimeout(() => openApproveDialog(), 0)}
                         size="sm"
@@ -1882,7 +1826,7 @@ export function AssetContent({
                   if (actualStatus === 'approved') {
                     return (
                       <DocumentActionButton
-                        accessLevels={selectedFile?.access_levels}
+                        accessLevels={accessLevels}
                         requiredAccess="approve"
                         onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
                         size="sm"
@@ -1911,7 +1855,7 @@ export function AssetContent({
                 {/* Clone Button - Desktop - only show if there's an execution to clone */}
                 {selectedExecutionId && (
                   <DocumentActionButton
-                    accessLevels={selectedFile?.access_levels}
+                    accessLevels={accessLevels}
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     onClick={() => setTimeout(() => openCloneDialog(), 0)}
@@ -1933,7 +1877,7 @@ export function AssetContent({
 
                 {/* Document Actions Group */}
                 <DocumentActionButton
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess="edit"
                   onClick={openEditDialog}
                   size="sm"
@@ -1945,7 +1889,7 @@ export function AssetContent({
                 </DocumentActionButton>
                 
                 <DocumentAccessControl
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess="read"
                 >
                   <DropdownMenu>
@@ -1974,7 +1918,7 @@ export function AssetContent({
                 
                 {/* Delete Options */}
                 <DocumentAccessControl
-                  accessLevels={selectedFile?.access_levels}
+                  accessLevels={accessLevels}
                   requiredAccess="delete"
                 >
                   <DropdownMenu>
@@ -2044,23 +1988,9 @@ export function AssetContent({
                           queryClient.removeQueries({ queryKey: ['document', selectedFile?.id] });
                           queryClient.removeQueries({ queryKey: ['executions', selectedFile?.id] });
                           
-                          // Force multiple waves of refresh to ensure content updates with the new execution
-                          setTimeout(() => {
-                            console.log('🔄 First refetch wave with new execution...');
-                            refetchDocumentContent();
-                            queryClient.invalidateQueries({ queryKey: ['document-content'] });
-                          }, 300);
-                          
-                          setTimeout(() => {
-                            console.log('🔄 Second refetch wave...');
-                            refetchDocumentContent();
-                            queryClient.invalidateQueries({ queryKey: ['executions'] });
-                          }, 800);
-                          
-                          setTimeout(() => {
-                            console.log('🔄 Final refetch wave...');
-                            refetchDocumentContent();
-                          }, 1200);
+                          // Invalidate queries once - they will refetch automatically
+                          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                          queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
                         }}
                         className="mb-4"
                       />
@@ -2097,22 +2027,9 @@ export function AssetContent({
                             queryClient.removeQueries({ queryKey: ['executions', selectedFile?.id] });
                             
                             // Force multiple waves of refresh to ensure content updates
-                            setTimeout(() => {
-                              console.log('🔄 First refetch wave...');
-                              refetchDocumentContent();
-                              queryClient.invalidateQueries({ queryKey: ['document-content'] });
-                            }, 300);
-                            
-                            setTimeout(() => {
-                              console.log('🔄 Second refetch wave...');
-                              refetchDocumentContent();
-                              queryClient.invalidateQueries({ queryKey: ['executions'] });
-                            }, 800);
-                            
-                            setTimeout(() => {
-                              console.log('🔄 Final refetch wave...');
-                              refetchDocumentContent();
-                            }, 1200);
+                            // Invalidate queries once - they will refetch automatically
+                            queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                            queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
                           }}
                           className="mb-4"
                         />
@@ -2131,7 +2048,6 @@ export function AssetContent({
                       setSectionExecutionId(null);
                       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
                       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-                      refetchDocumentContent();
                     }}
                     className="mb-4"
                   />
@@ -2199,7 +2115,7 @@ export function AssetContent({
                               <EmptyActions>
                                 {fullDocument?.sections?.length === 0 ? (
                                   <DocumentActionButton
-                                    accessLevels={selectedFile?.access_levels}
+                                    accessLevels={accessLevels}
                                     requiredAccess={["edit", "create"]}
                                     requireAll={false}
                                     onClick={() => setIsSectionSheetOpen(true)}
@@ -2212,8 +2128,8 @@ export function AssetContent({
                                   <>
                                     <Button
                                       onClick={handleCreateExecution}
-                                      disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id}
-                                      className={executeDocumentMutation.isPending || hasExecutionInProcess || !defaultLLM?.id
+                                      disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                                      className={executeDocumentMutation.isPending || hasExecutionInProcess
                                         ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
                                         : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                                       }
@@ -2260,6 +2176,7 @@ export function AssetContent({
                                 index={-1}
                                 isMobile={isMobile}
                                 selectedFile={selectedFile}
+                                accessLevels={accessLevels}
                               />
                               
                               {documentContent.content.map((section: ContentSection, index: number) => {
@@ -2268,11 +2185,7 @@ export function AssetContent({
                           const correspondingSection = fullDocument?.sections?.[index];
                           const realSectionId = correspondingSection?.id;
                           
-                          // Debug logging to verify mapping
-                          console.log(`Section ${index}: execution_id=${section.id}, section_id=${realSectionId}`, {
-                            section_execution: section,
-                            document_section: correspondingSection
-                          });
+                          // Removed debug logging for performance
                           
                           return (
                             <div key={section.id}>
@@ -2286,14 +2199,13 @@ export function AssetContent({
                                   onUpdate={() => {
                                     // Refresh document content when section is updated
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                    refetchDocumentContent();
                                   }}
                                   readyToEdit={true}
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
                                   executionId={selectedExecutionId || undefined}
                                   executionStatus={selectedExecutionInfo?.status}
-                                  accessLevels={selectedFile?.access_levels}
+                                  accessLevels={accessLevels}
                                   onExecutionStart={(executionIdForSection) => {
                                     // Set section execution for polling banner
                                     if (executionIdForSection) {
@@ -2311,6 +2223,7 @@ export function AssetContent({
                                 isLastSection={index === documentContent.content.length - 1}
                                 isMobile={isMobile}
                                 selectedFile={selectedFile}
+                                accessLevels={accessLevels}
                               />
                             </div>
                           );
@@ -2334,7 +2247,7 @@ export function AssetContent({
                           
                           <div className="flex gap-3 justify-center">
                             <DocumentActionButton
-                              accessLevels={selectedFile?.access_levels}
+                              accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
                               variant="outline" 
@@ -2346,12 +2259,12 @@ export function AssetContent({
                             </DocumentActionButton>
                             
                             <DocumentActionButton
-                              accessLevels={selectedFile?.access_levels}
+                              accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
                               variant="outline" 
                               onClick={handleCreateExecution}
-                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
+                              disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {executeDocumentMutation.isPending ? (

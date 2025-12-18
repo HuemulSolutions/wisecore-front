@@ -41,7 +41,12 @@ interface DocumentType {
     color: string;
 }
 
-export default function AddDependencySheet({ id }: { id: string }) {
+interface AddDependencySheetProps {
+    id: string;
+    isSheetOpen?: boolean;
+}
+
+export default function AddDependencySheet({ id, isSheetOpen = true }: AddDependencySheetProps) {
     const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);
@@ -51,7 +56,7 @@ export default function AddDependencySheet({ id }: { id: string }) {
     const { data: dependencies = [], isLoading, error } = useQuery<Dependency[]>({
         queryKey: ['documentDependencies', id],
         queryFn: () => getDocumentDependencies(id!, selectedOrganizationId!),
-        enabled: !!id && !!selectedOrganizationId,
+        enabled: !!id && !!selectedOrganizationId && isSheetOpen,
     });
 
     const { data: documentTypes = [] } = useQuery<DocumentType[]>({

@@ -20,19 +20,21 @@ interface DependenciesSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
+  accessLevels?: string[];
 }
 
 export function DependenciesSheet({
   selectedFile,
   isOpen,
   onOpenChange,
-  isMobile = false
+  isMobile = false,
+  accessLevels
 }: DependenciesSheetProps) {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
         <DocumentActionButton
-          accessLevels={selectedFile?.access_levels}
+          accessLevels={accessLevels || selectedFile?.access_levels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
           size="sm"
@@ -74,7 +76,7 @@ export function DependenciesSheet({
 
               {/* Dependencies Component */}
               {selectedFile && (
-                <AddDependencySheet id={selectedFile.id} />
+                <AddDependencySheet id={selectedFile.id} isSheetOpen={isOpen} />
               )}
             </div>
           </div>

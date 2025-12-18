@@ -33,7 +33,12 @@ import { ContextDisplay } from "./context";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 
-export default function AddContextSheet({ id }: { id: string }) {
+interface AddContextSheetProps {
+  id: string;
+  isSheetOpen?: boolean;
+}
+
+export default function AddContextSheet({ id, isSheetOpen = true }: AddContextSheetProps) {
   const [context, setContext] = useState("");
   const [contextName, setContextName] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -49,7 +54,7 @@ export default function AddContextSheet({ id }: { id: string }) {
   const { data: contexts, isLoading, error } = useQuery({
     queryKey: ['contexts', id],
     queryFn: () => getContext(id, selectedOrganizationId!),
-    enabled: !!id && !!selectedOrganizationId
+    enabled: !!id && !!selectedOrganizationId && isSheetOpen
   });
 
   // Mutation to add text context
