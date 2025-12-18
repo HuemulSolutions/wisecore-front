@@ -195,8 +195,19 @@ export function FileTreeItemWithContext({
     level,
     shouldShowMoveToRoot: level > 0,
     currentPath,
-    itemId: item.id
+    itemId: item.id,
+    access_levels: item.access_levels,
+    document_type: item.document_type
   });
+  
+  // Específicamente para documentos/archivos, log si tiene access_levels
+  if (!isFolder) {
+    console.log(`🔍 [${item.name}] File access levels check:`, {
+      hasAccessLevels: !!item.access_levels,
+      accessLevelsCount: item.access_levels?.length || 0,
+      accessLevels: item.access_levels
+    });
+  }
   
   // Estado expandido solo para la sesión actual (no persistente)
   const [isExpanded, setIsExpanded] = useState(false)

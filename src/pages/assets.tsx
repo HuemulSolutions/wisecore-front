@@ -176,14 +176,25 @@ export default function Assets() {
 
   // Convert LibraryItem to FileNode
   const convertToFileNodes = (items: LibraryItem[]): FileNode[] => {
-    return items.map(item => ({
-      id: item.id,
-      name: item.name,
-      type: item.type === 'folder' ? 'folder' as const : 'file' as const,
-      children: item.type === 'folder' ? [] : undefined,
-      icon: item.type === 'folder' ? 'folder' : 'file',
-      document_type: item.document_type,
-    }));
+    return items.map(item => {
+      console.log(`🔄 Converting LibraryItem to FileNode [${item.name}]:`, {
+        name: item.name,
+        type: item.type,
+        has_access_levels: !!item.access_levels,
+        access_levels: item.access_levels,
+        document_type: item.document_type
+      });
+      
+      return {
+        id: item.id,
+        name: item.name,
+        type: item.type === 'folder' ? 'folder' as const : 'file' as const,
+        children: item.type === 'folder' ? [] : undefined,
+        icon: item.type === 'folder' ? 'folder' : 'file',
+        document_type: item.document_type,
+        access_levels: item.access_levels,
+      };
+    });
   };
 
   // Filter items based on search
@@ -213,16 +224,24 @@ export default function Assets() {
     }
 
     if (item.type === 'file') {
+      console.log('🔍 FileNode item data:', item);
+      console.log('🔍 FileNode access_levels:', item.access_levels);
+      
       // Find the full item data from currentItems to get access_levels
       const fullItemData = currentItems.find((libraryItem: LibraryItem) => libraryItem.id === item.id);
+      console.log('🔍 Full item data from currentItems:', fullItemData);
+      
+      // Use access_levels from FileNode first, fallback to fullItemData
+      const accessLevels = item.access_levels || fullItemData?.access_levels;
+      console.log('🔍 Final access levels being used:', accessLevels);
       
       // Select document with all necessary data including access_levels
       const selectedDoc: LibraryItem = {
         id: item.id,
         name: item.name,
         type: 'document' as const,
-        document_type: fullItemData?.document_type,
-        access_levels: fullItemData?.access_levels
+        document_type: item.document_type || fullItemData?.document_type,
+        access_levels: accessLevels
       };
       setSelectedFile(selectedDoc);
       
