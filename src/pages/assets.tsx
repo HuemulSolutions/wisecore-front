@@ -35,6 +35,7 @@ import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
 import { CreateFolderDialog } from "@/components/create_folder";
 import { CreateAssetDialog } from "@/components/create-asset-dialog";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ExpandedFoldersProvider, useExpandedFolders } from "@/hooks/use-expanded-folders";
 
 // API response interface
 interface LibraryItem {
@@ -63,7 +64,7 @@ type LibraryNavigationState = {
   fromLibrary?: boolean;
 };
 
-export default function Assets() {
+function AssetsContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -166,6 +167,7 @@ export default function Assets() {
   const { selectedOrganizationId, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
   const { canCreate, canAccessFolders, canAccessAssets } = useUserPermissions();
+  const { getExpandedFolderIds, reExpandFolders } = useExpandedFolders();
 
   // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
   useEffect(() => {
@@ -657,10 +659,30 @@ export default function Assets() {
   }, [currentItems, searchTerm, breadcrumb]);
 
   // Handle refresh library content
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    // Guardar las carpetas actualmente expandidas antes del refresh
+    const expandedFolderIds = getExpandedFolderIds();
+    console.log('📁 Preserving expanded folders before refresh:', expandedFolderIds);
+    
     // Invalidar todas las queries relacionadas con la library de esta organización
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
-    // No forzamos re-render del tree para mantener estado de expansión
+    
+    // Si hay carpetas expandidas, esperamos un poco y luego las re-expandimos
+    if (expandedFolderIds.length > 0) {
+      console.log('⏳ Starting re-expansion process in 1.5 seconds...');
+      // Esperar a que las queries se invaliden y recarguen
+      setTimeout(async () => {
+        console.log('🔄 Re-expanding folders after refresh...');
+        try {
+          await reExpandFolders(expandedFolderIds, handleLoadChildren);
+          console.log('✅ Re-expansion process completed successfully');
+        } catch (error) {
+          console.error('❌ Error during re-expansion process:', error);
+        }
+      }, 1500);
+    } else {
+      console.log('📭 No expanded folders to restore');
+    }
   };
 
   // Handle sharing - generate URL based on current breadcrumb and item path
@@ -1058,5 +1080,14 @@ export default function Assets() {
         onAssetCreated={handleDocumentCreated}
       />
     </div>
+  );
+}
+
+// Componente envoltorio que provee el contexto de carpetas expandidas
+export default function Assets() {
+  return (
+    <ExpandedFoldersProvider>
+      <AssetsContent />
+    </ExpandedFoldersProvider>
   );
 }

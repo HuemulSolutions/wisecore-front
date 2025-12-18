@@ -46,6 +46,7 @@ import { toast } from "sonner"
 import type { FileNode } from "./types"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useExpandedFolders } from "@/hooks/use-expanded-folders"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -178,6 +179,7 @@ export function FileTreeItemWithContext({
 }: FileTreeItemWithContextProps) {
   const { selectedOrganizationId } = useOrganization()
   const { canCreate, canAccessFolders, canAccessAssets } = useUserPermissions()
+  const { isExpanded: isExpandedGlobal, expandFolder, collapseFolder, isReExpanding, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback } = useExpandedFolders()
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
   const [deletingFolder, setDeletingFolder] = useState<FileNode | null>(null)
@@ -209,8 +211,8 @@ export function FileTreeItemWithContext({
     });
   }
   
-  // Estado expandido solo para la sesión actual (no persistente)
-  const [isExpanded, setIsExpanded] = useState(false)
+  // Usar el estado expandido global en lugar del local
+  const isExpanded = isExpandedGlobal(item.id)
 
   // dnd-kit hooks
   const {
@@ -253,6 +255,22 @@ export function FileTreeItemWithContext({
       setLocalChildren(item.children)
     }
   }, [item.children])
+
+  // Registrar callback para recibir children durante re-expansión
+  useEffect(() => {
+    if (isFolder) {
+      const handleChildrenLoaded = (children: FileNode[]) => {
+        console.log(`🔄 [${item.name}] Received children during re-expansion:`, children.length);
+        setLocalChildren(children);
+      };
+      
+      registerChildrenLoadedCallback(item.id, handleChildrenLoaded);
+      
+      return () => {
+        unregisterChildrenLoadedCallback(item.id);
+      };
+    }
+  }, [item.id, item.name, isFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback]);
   const hasChildren = isFolder && localChildren.length > 0
   const isSelected = selectedId === item.id
 
@@ -277,19 +295,35 @@ export function FileTreeItemWithContext({
   }
 
   const handleToggleExpand = async () => {
+    console.log(`🔄 [${item.name}] Toggle expand: isExpanded=${isExpanded}, isFolder=${isFolder}, isReExpanding=${isReExpanding}`);
+    
+    // Si está en proceso de re-expansión, no permitir cambios manuales
+    if (isReExpanding) {
+      console.log(`⏳ [${item.name}] Ignoring toggle during re-expansion process`);
+      return;
+    }
+    
     if (!isExpanded && isFolder && onLoadChildren) {
+      console.log(`📂 [${item.name}] Loading children for expansion`);
       setIsLoading(true)
       try {
         const loadedChildren = await onLoadChildren(item.id)
         setLocalChildren(loadedChildren)
         onChildrenLoaded?.(item.id, loadedChildren)
+        expandFolder(item.id)
+        console.log(`✅ [${item.name}] Expanded successfully`);
       } catch (error) {
-        console.error("Error cargando contenido:", error)
+        console.error(`❌ [${item.name}] Error cargando contenido:`, error)
       } finally {
         setIsLoading(false)
       }
+    } else if (isExpanded) {
+      console.log(`🔽 [${item.name}] Collapsing folder`);
+      collapseFolder(item.id)
+    } else if (isFolder) {
+      console.log(`📁 [${item.name}] Expanding folder (already has children)`);
+      expandFolder(item.id)
     }
-    setIsExpanded(!isExpanded)
   }
 
 
@@ -313,7 +347,7 @@ export function FileTreeItemWithContext({
           setIsLoading(false)
         }
       }
-      setIsExpanded(!isExpanded)
+      expandFolder(item.id)
     } else {
       // Si es un archivo, automáticamente generar la URL correcta
       try {

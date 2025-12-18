@@ -217,6 +217,13 @@ export function AssetContent({
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  
+  // Debug isMobile value
+  console.log('📱 AssetContent isMobile value:', {
+    isMobile,
+    documentName: selectedFile?.name,
+    timestamp: new Date().toISOString()
+  });
 
   // Si no hay organización seleccionada, no renderizar nada
   if (!selectedOrganizationId) {
@@ -791,21 +798,39 @@ export function AssetContent({
   // Get selected execution details for displaying version info
   const selectedExecutionInfo = useMemo(() => {
     const executions = documentContent?.executions || documentExecutions;
-    if (!executions || !selectedExecutionId) return null;
+    console.log('🔍 selectedExecutionInfo calculation:', {
+      hasExecutions: !!executions,
+      executionsCount: executions?.length || 0,
+      selectedExecutionId,
+      documentName: selectedFile?.name
+    });
+    
+    if (!executions || !selectedExecutionId) {
+      console.log('🔍 selectedExecutionInfo returning null - missing data');
+      return null;
+    }
+    
     const selectedExecution = executions.find((execution: any) => 
       execution.id === selectedExecutionId
     );
-    if (!selectedExecution) return null;
+    
+    if (!selectedExecution) {
+      console.log('🔍 selectedExecutionInfo returning null - execution not found:', selectedExecutionId);
+      return null;
+    }
     
     const date = new Date(selectedExecution.created_at);
     const formattedDate = formatDateTime(date);
     
-    return {
+    const executionInfo = {
       ...selectedExecution,
       formattedDate,
       isLatest: executions[0]?.id === selectedExecution.id
     };
-  }, [documentContent?.executions, documentExecutions, selectedExecutionId]);
+    
+    console.log('🔍 selectedExecutionInfo result:', executionInfo);
+    return executionInfo;
+  }, [documentContent?.executions, documentExecutions, selectedExecutionId, selectedFile?.name]);
 
   // Initialize selected execution ID when a document is selected
   useEffect(() => {
@@ -813,8 +838,13 @@ export function AssetContent({
     const executions = documentContent?.executions || documentExecutions;
     
     if (selectedFile?.type === 'document' && executions?.length > 0) {
-      // Si no hay ejecución seleccionada, priorizar la ejecución aprobada
-      if (!selectedExecutionId) {
+      // Verificar si el selectedExecutionId actual existe en las ejecuciones del documento actual
+      const currentExecutionExists = selectedExecutionId && executions.some((execution: any) => 
+        execution.id === selectedExecutionId
+      );
+      
+      // Si no hay ejecución seleccionada o la ejecución actual no pertenece a este documento, seleccionar una nueva
+      if (!selectedExecutionId || !currentExecutionExists) {
         // First, look for an approved execution
         const approvedExecution = executions.find((execution: any) => 
           execution.status === 'approved'
@@ -822,10 +852,15 @@ export function AssetContent({
         
         // If there's an approved execution, use it. Otherwise, use the most recent one
         const executionToSelect = approvedExecution || executions[0];
+        console.log('🔄 Setting selectedExecutionId:', executionToSelect.id, 'for document:', selectedFile.name);
         setSelectedExecutionId(executionToSelect.id);
       }
+    } else if (selectedFile?.type !== 'document') {
+      // Si no es un documento, limpiar el selectedExecutionId
+      console.log('🔄 Clearing selectedExecutionId - not a document');
+      setSelectedExecutionId(null);
     }
-  }, [selectedFile?.id, documentContent?.executions, documentExecutions?.length]); // Include both data sources
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.executions, documentExecutions?.length, selectedExecutionId]); // Include both data sources and selectedExecutionId
   
   // Invalidate cache when selectedExecutionId changes to ensure fresh content
   useEffect(() => {
@@ -1603,18 +1638,42 @@ export function AssetContent({
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
                 <div className="flex flex-col gap-2 flex-1">
                   <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
-                  {selectedExecutionInfo && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <span className="font-medium text-gray-900">{selectedExecutionInfo.name}</span>
-                      <span>•</span>
-                      <span>{selectedExecutionInfo.formattedDate}</span>
-                      {selectedExecutionInfo.isLatest && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                          Latest
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {(() => {
+                    console.log('🎯 Version info render check:', {
+                      hasSelectedExecutionInfo: !!selectedExecutionInfo,
+                      selectedExecutionInfo,
+                      isMobile,
+                      documentName: selectedFile?.name
+                    });
+                    
+                    if (selectedExecutionInfo) {
+                      console.log('✅ Rendering version info with fields:', {
+                        status: selectedExecutionInfo.status,
+                        status_message: selectedExecutionInfo.status_message,
+                        formattedDate: selectedExecutionInfo.formattedDate,
+                        isLatest: selectedExecutionInfo.isLatest,
+                        allFields: Object.keys(selectedExecutionInfo)
+                      });
+                      
+                      return (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <span className="font-medium text-gray-900">
+                            {selectedExecutionInfo.status_message || `Version ${selectedExecutionInfo.status}`}
+                          </span>
+                          <span>•</span>
+                          <span>{selectedExecutionInfo.formattedDate}</span>
+                          {selectedExecutionInfo.isLatest && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                              Latest
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    
+                    console.log('🚫 Version info NOT rendered - selectedExecutionInfo is null');
+                    return null;
+                  })()}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {documentContent?.document_type && (
