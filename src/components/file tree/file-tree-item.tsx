@@ -2,16 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronRight, Folder, File, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import type { FileNode } from "./types"
+import { useExpandedFolders } from "@/hooks/use-expanded-folders"
 
 interface FileTreeItemProps {
   item: FileNode
@@ -34,14 +29,31 @@ export function FileTreeItem({
   onLoadChildren,
   onChildrenLoaded,
 }: FileTreeItemProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
+  const { isExpanded, expandFolder, collapseFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback } = useExpandedFolders()
 
   const isFolder = item.type === "folder"
+  const isFolderExpanded = isFolder ? isExpanded(item.id) : false
   const hasChildren = isFolder && localChildren.length > 0
   const isSelected = selectedId === item.id
+
+  // Registrar callback para recibir actualizaciones de children cuando se re-expanden las carpetas
+  useEffect(() => {
+    if (isFolder) {
+      const callback = (children: FileNode[]) => {
+        console.log(`📁 Received children update for folder ${item.id}:`, children.length, 'children');
+        setLocalChildren(children);
+      };
+      
+      registerChildrenLoadedCallback(item.id, callback);
+      
+      return () => {
+        unregisterChildrenLoadedCallback(item.id);
+      };
+    }
+  }, [item.id, isFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback]);
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = "move"
@@ -71,7 +83,9 @@ export function FileTreeItem({
 
       if (isFolder && draggedNode.id !== item.id) {
         onDrop(draggedNode, item)
-        setIsExpanded(true)
+        if (!isFolderExpanded) {
+          expandFolder(item.id)
+        }
       }
     } catch (error) {
       console.error("Error en drop:", error)
@@ -79,19 +93,21 @@ export function FileTreeItem({
   }
 
   const handleToggleExpand = async () => {
-    if (!isExpanded && isFolder && onLoadChildren && localChildren.length === 0) {
+    if (!isFolderExpanded && isFolder && onLoadChildren) {
       setIsLoading(true)
       try {
         const loadedChildren = await onLoadChildren(item.id)
         setLocalChildren(loadedChildren)
         onChildrenLoaded?.(item.id, loadedChildren)
+        expandFolder(item.id)
       } catch (error) {
         console.error("Error cargando contenido:", error)
       } finally {
         setIsLoading(false)
       }
+    } else if (isFolderExpanded && isFolder) {
+      collapseFolder(item.id)
     }
-    setIsExpanded(!isExpanded)
   }
 
   return (
@@ -115,28 +131,19 @@ export function FileTreeItem({
       >
         {/* Botón de expandir/contraer */}
         {isFolder && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleToggleExpand()
-                  }}
-                  className={cn(
-                    "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
-                    !hasChildren && !onLoadChildren && "invisible",
-                    (isExpanded || isLoading) && "rotate-90",
-                  )}
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isExpanded ? "Collapse folder" : "Expand folder"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleToggleExpand()
+            }}
+            className={cn(
+              "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
+              !hasChildren && !onLoadChildren && "invisible",
+              (isFolderExpanded || isLoading) && "rotate-90",
+            )}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
         )}
 
         {/* Ícono */}
@@ -153,7 +160,7 @@ export function FileTreeItem({
       </div>
 
       {/* Items hijos si la carpeta está expandida */}
-      {isFolder && isExpanded && localChildren.length > 0 && (
+      {isFolder && isFolderExpanded && localChildren.length > 0 && (
         <div className="w-full">
           {localChildren.map((child) => (
             <FileTreeItem

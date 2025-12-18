@@ -4,12 +4,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, MoreHorizontal, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -42,6 +36,7 @@ import { deleteFolder } from "@/services/library"
 import { toast } from "sonner"
 import type { FileNode } from "./types"
 import { useOrganization } from "@/contexts/organization-context"
+import { useExpandedFolders } from "@/hooks/use-expanded-folders"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -181,11 +176,10 @@ export function FileTreeItemWithContext({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditFolderOpen, setIsEditFolderOpen] = useState(false)
   const { selectedOrganizationId } = useOrganization();
+  const { isExpanded, expandFolder, collapseFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback } = useExpandedFolders();
 
   const isFolder = item.type === "folder"
-  
-  // Estado expandido solo para la sesión actual (no persistente)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const isFolderExpanded = isFolder ? isExpanded(item.id) : false
 
 
 
@@ -195,6 +189,23 @@ export function FileTreeItemWithContext({
       setLocalChildren(item.children)
     }
   }, [item.children])
+
+  // Registrar callback para recibir actualizaciones de children cuando se re-expanden las carpetas
+  useEffect(() => {
+    if (isFolder) {
+      const callback = (children: FileNode[]) => {
+        console.log(`📁 Received children update for folder ${item.id}:`, children.length, 'children');
+        setLocalChildren(children);
+      };
+      
+      registerChildrenLoadedCallback(item.id, callback);
+      
+      return () => {
+        unregisterChildrenLoadedCallback(item.id);
+      };
+    }
+  }, [item.id, isFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback]);
+
   const hasChildren = isFolder && localChildren.length > 0
   const isSelected = selectedId === item.id
 
@@ -259,7 +270,9 @@ export function FileTreeItemWithContext({
 
       if (isFolder && draggedNode.id !== item.id) {
         onDrop(draggedNode, item)
-        setIsExpanded(true)
+        if (!isFolderExpanded) {
+          expandFolder(item.id)
+        }
       }
     } catch (error) {
       console.error("Error en drop:", error)
@@ -267,19 +280,21 @@ export function FileTreeItemWithContext({
   }
 
   const handleToggleExpand = async () => {
-    if (!isExpanded && isFolder && onLoadChildren) {
+    if (!isFolderExpanded && isFolder && onLoadChildren) {
       setIsLoading(true)
       try {
         const loadedChildren = await onLoadChildren(item.id)
         setLocalChildren(loadedChildren)
         onChildrenLoaded?.(item.id, loadedChildren)
+        expandFolder(item.id)
       } catch (error) {
         console.error("Error cargando contenido:", error)
       } finally {
         setIsLoading(false)
       }
+    } else if (isFolderExpanded && isFolder) {
+      collapseFolder(item.id)
     }
-    setIsExpanded(!isExpanded)
   }
 
 
@@ -291,19 +306,21 @@ export function FileTreeItemWithContext({
     
     // Si es una carpeta, expandir automáticamente
     if (isFolder) {
-      if (!isExpanded && onLoadChildren) {
+      if (!isFolderExpanded && onLoadChildren) {
         setIsLoading(true)
         try {
           const loadedChildren = await onLoadChildren(item.id)
           setLocalChildren(loadedChildren)
           onChildrenLoaded?.(item.id, loadedChildren)
+          expandFolder(item.id)
         } catch (error) {
           console.error("Error cargando contenido:", error)
         } finally {
           setIsLoading(false)
         }
+      } else if (isFolderExpanded) {
+        collapseFolder(item.id)
       }
-      setIsExpanded(!isExpanded)
     } else {
       // Si es un archivo, automáticamente generar la URL correcta
       try {
@@ -388,28 +405,19 @@ export function FileTreeItemWithContext({
           >
             {/* Botón de expandir/contraer */}
             {isFolder && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleToggleExpand()
-                      }}
-                      className={cn(
-                        "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
-                        !hasChildren && !onLoadChildren && "invisible",
-                        (isExpanded || isLoading) && "rotate-90",
-                      )}
-                    >
-                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{isExpanded ? "Collapse folder" : "Expand folder"}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleToggleExpand()
+                }}
+                className={cn(
+                  "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
+                  !hasChildren && !onLoadChildren && "invisible",
+                  (isFolderExpanded || isLoading) && "rotate-90",
+                )}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
             )}
 
             {/* Ícono */}
@@ -616,7 +624,7 @@ export function FileTreeItemWithContext({
       </ContextMenu>
 
       {/* Items hijos si la carpeta está expandida */}
-      {isFolder && isExpanded && localChildren.length > 0 && (
+      {isFolder && isFolderExpanded && localChildren.length > 0 && (
         <div className="w-full">
           {localChildren.map((child) => (
             <FileTreeItemWithContext
