@@ -45,7 +45,7 @@ export function TeamSwitcher() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
 
-  const { data: organizationsData, isLoading } = useQuery({
+  const { data: organizationsData } = useQuery({
     queryKey: ['user-organizations', user?.id],
     queryFn: () => getUserOrganizations(user!.id),
     enabled: !!user?.id,

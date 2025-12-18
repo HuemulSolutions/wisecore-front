@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -6,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserCheck, Shield } from "lucide-react"
-import { useRoles, useUserRoles, useRoleMutations } from "@/hooks/useRbac"
+import { useRoles, useUserRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
 import { type User } from "@/services/users"
 
 interface AssignRolesSheetProps {
@@ -17,17 +18,27 @@ interface AssignRolesSheetProps {
 
 export default function AssignRolesSheet({ user, open, onOpenChange }: AssignRolesSheetProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const queryClient = useQueryClient()
   
   const { data: rolesResponse, isLoading: rolesLoading } = useRoles()
-  const { data: userRolesResponse, isLoading: userRolesLoading } = useUserRoles(user?.id || '')
+  const { data: userRolesResponse, isLoading: userRolesLoading, refetch: refetchUserRoles } = useUserRoles(user?.id || '')
   const { assignRoles } = useRoleMutations()
 
   const roles = rolesResponse?.data || []
   const userRoles = userRolesResponse?.data || []
 
-  // Reset form when user changes or dialog opens
+  // Reset form when user changes or dialog opens and fetch fresh user roles
   useEffect(() => {
-    if (open && user && !userRolesLoading) {
+    if (open && user) {
+      // Invalidate and refetch user roles when sheet opens
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(user.id) })
+      refetchUserRoles()
+    }
+  }, [open, user, queryClient, refetchUserRoles])
+
+  // Update selected roles when user roles data changes
+  useEffect(() => {
+    if (open && user && !userRolesLoading && userRoles) {
       setSelectedRoles(userRoles.map(role => role.id))
     }
   }, [user, open, userRoles, userRolesLoading])
