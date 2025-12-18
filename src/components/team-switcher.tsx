@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ChevronsUpDown, Plus, Check } from "lucide-react"
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
   DropdownMenu,
@@ -20,35 +21,81 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { getUserOrganizations, generateOrganizationToken, addOrganization } from '@/services/organizations'
+import { useOrganization } from '@/contexts/organization-context'
+import { useAuth } from '@/contexts/auth-context'
 
-export function TeamSwitcher({
-  organizations,
-  selectedOrganization,
-  onOrganizationChange,
-  onCreateOrganization,
-  isCreating = false,
-}: {
-  organizations: Array<{
-    id: string
-    name: string
-  }>
-  selectedOrganization?: {
-    id: string
-    name: string
-  } | null
-  onOrganizationChange: (orgId: string) => void
-  onCreateOrganization: (name: string) => void
-  isCreating?: boolean
-}) {
+interface Organization {
+  id: string;
+  name: string;
+  description?: string | null;
+  db_name?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function TeamSwitcher() {
   const { isMobile } = useSidebar()
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [newOrgName, setNewOrgName] = React.useState('')
+  const [newOrgDescription, setNewOrgDescription] = React.useState('')
+  const [isGeneratingToken, setIsGeneratingToken] = React.useState(false)
+  
+  const { selectedOrganizationId, organizations, setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization()
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  const { data: organizationsData, isLoading } = useQuery({
+    queryKey: ['user-organizations', user?.id],
+    queryFn: () => getUserOrganizations(user!.id),
+    enabled: !!user?.id,
+  })
+
+  const createOrgMutation = useMutation({
+    mutationFn: addOrganization,
+    onSuccess: (newOrg) => {
+      queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
+      handleOrganizationChange(newOrg.id)
+      setNewOrgName('')
+      setNewOrgDescription('')
+      setIsDialogOpen(false)
+    },
+  })
+
+  React.useEffect(() => {
+    if (organizationsData) {
+      setOrganizations(organizationsData)
+    }
+  }, [organizationsData, setOrganizations])
+
+  const selectedOrganization = organizations?.find(org => org.id === selectedOrganizationId)
+
+  const handleOrganizationChange = async (orgId: string) => {
+    if (orgId && user?.id) {
+      setIsGeneratingToken(true)
+      try {
+        const tokenResponse = await generateOrganizationToken(user.id, orgId)
+        const orgToken = tokenResponse.token || tokenResponse.data?.token
+        
+        setSelectedOrganizationId(orgId)
+        setOrganizationToken(orgToken)
+        
+        console.log('Organization token generated successfully:', orgToken?.substring(0, 10) + '...')
+        
+      } catch (error) {
+        console.error('Error generating organization token:', error)
+      } finally {
+        setIsGeneratingToken(false)
+      }
+    }
+  }
 
   const handleCreateOrganization = () => {
     if (newOrgName.trim()) {
-      onCreateOrganization(newOrgName.trim())
-      setIsDialogOpen(false)
-      setNewOrgName('')
+      createOrgMutation.mutate({ 
+        name: newOrgName.trim(),
+        description: newOrgDescription.trim() || undefined
+      })
     }
   }
 
@@ -81,11 +128,12 @@ export function TeamSwitcher({
               <DropdownMenuLabel className="text-muted-foreground text-xs">
                 Organizations
               </DropdownMenuLabel>
-              {organizations.map((org) => (
+              {organizationsData?.map((org: Organization) => (
                 <DropdownMenuItem
                   key={org.id}
-                  onClick={() => onOrganizationChange(org.id)}
+                  onClick={() => handleOrganizationChange(org.id)}
                   className="gap-2 p-2 hover:cursor-pointer"
+                  disabled={isGeneratingToken}
                 >
                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
                     {org.name.substring(0, 2).toUpperCase()}
@@ -133,27 +181,44 @@ export function TeamSwitcher({
                         placeholder="Enter organization name"
                         className="w-full"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
                             handleCreateOrganization()
                           }
                         }}
+                      />
+                    </div>
+                    <div className="grid gap-4">
+                      <label htmlFor="org-desc" className="text-sm font-medium text-gray-900">
+                        Description (Optional)
+                      </label>
+                      <Input
+                        id="org-desc"
+                        value={newOrgDescription}
+                        onChange={(e) => setNewOrgDescription(e.target.value)}
+                        placeholder="Enter organization description"
+                        className="w-full"
                       />
                     </div>
                   </div>
                   <DialogFooter className="gap-3">
                     <Button 
                       variant="outline" 
-                      onClick={() => setIsDialogOpen(false)}
+                      onClick={() => {
+                        setIsDialogOpen(false)
+                        setNewOrgName('')
+                        setNewOrgDescription('')
+                      }}
                       className="hover:cursor-pointer"
                     >
                       Cancel
                     </Button>
                     <Button 
                       onClick={handleCreateOrganization}
-                      disabled={!newOrgName.trim() || isCreating}
+                      disabled={!newOrgName.trim() || createOrgMutation.isPending}
                       className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                     >
-                      {isCreating ? 'Creating...' : 'Create'}
+                      {createOrgMutation.isPending ? 'Creating...' : 'Create'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -193,11 +258,12 @@ export function TeamSwitcher({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Organizations
             </DropdownMenuLabel>
-            {organizations.map((org) => (
+            {organizationsData?.map((org: Organization) => (
               <DropdownMenuItem
                 key={org.id}
-                onClick={() => onOrganizationChange(org.id)}
+                onClick={() => handleOrganizationChange(org.id)}
                 className="gap-2 p-2 hover:cursor-pointer"
+                disabled={isGeneratingToken}
               >
                 <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
                   {org.name.substring(0, 2).toUpperCase()}
@@ -238,37 +304,54 @@ export function TeamSwitcher({
                 </DialogHeader>
                 <div className="space-y-6">
                   <div className="grid gap-4">
-                    <label htmlFor="org-name" className="text-sm font-medium text-gray-900">
+                    <label htmlFor="org-name-2" className="text-sm font-medium text-gray-900">
                       Organization Name *
                     </label>
                     <Input
-                      id="org-name"
+                      id="org-name-2"
                       value={newOrgName}
                       onChange={(e) => setNewOrgName(e.target.value)}
                       placeholder="Enter organization name"
                       className="w-full"
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
                           handleCreateOrganization()
                         }
                       }}
+                    />
+                  </div>
+                  <div className="grid gap-4">
+                    <label htmlFor="org-desc-2" className="text-sm font-medium text-gray-900">
+                      Description (Optional)
+                    </label>
+                    <Input
+                      id="org-desc-2"
+                      value={newOrgDescription}
+                      onChange={(e) => setNewOrgDescription(e.target.value)}
+                      placeholder="Enter organization description"
+                      className="w-full"
                     />
                   </div>
                 </div>
                 <DialogFooter className="gap-3">
                   <Button 
                     variant="outline" 
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={() => {
+                      setIsDialogOpen(false)
+                      setNewOrgName('')
+                      setNewOrgDescription('')
+                    }}
                     className="hover:cursor-pointer"
                   >
                     Cancel
                   </Button>
                   <Button 
                     onClick={handleCreateOrganization}
-                    disabled={!newOrgName.trim() || isCreating}
+                    disabled={!newOrgName.trim() || createOrgMutation.isPending}
                     className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                   >
-                    {isCreating ? 'Creating...' : 'Create'}
+                    {createOrgMutation.isPending ? 'Creating...' : 'Create'}
                   </Button>
                 </DialogFooter>
               </DialogContent>

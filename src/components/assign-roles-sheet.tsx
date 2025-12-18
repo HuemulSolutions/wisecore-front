@@ -118,7 +118,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange }: AssignRol
                 ))}
               </div>
             ) : (
-              <ScrollArea className="h-[300px] border rounded-md p-4">
+              <ScrollArea className="h-[80vh] border rounded-md p-4">
                 <div className="space-y-4">
                   {roles.map((role) => (
                     <div key={role.id} className="flex items-start space-x-3">
