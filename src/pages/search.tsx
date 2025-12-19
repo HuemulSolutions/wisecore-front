@@ -5,7 +5,6 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";
-import SearchResult from "@/components/search_result";
 import { Loader2, Search, FileText, X, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Markdown from "@/components/ui/markdown";
