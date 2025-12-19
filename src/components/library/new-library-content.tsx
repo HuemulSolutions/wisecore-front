@@ -1355,8 +1355,16 @@ export function AssetContent({
                         title="Switch Version"
                       >
                         <span className="font-medium">
-                          {selectedExecutionInfo ? 
-                            `v${documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionInfo.id)}` :
+                          {documentExecutions ? 
+                            (() => {
+                              const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                                parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
+                              );
+                              // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
+                              const targetId = selectedExecutionId || documentContent?.execution_id;
+                              const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
+                              return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
+                            })() :
                             'v1'
                           }
                         </span>
@@ -1722,7 +1730,18 @@ export function AssetContent({
                         className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
-                        <span className="font-medium">v{documentExecutions.length - documentExecutions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
+                        <span className="font-medium">
+                          {(() => {
+                            if (!documentExecutions) return 'v1';
+                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
+                            );
+                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
+                            const targetId = selectedExecutionId || documentContent?.execution_id;
+                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
+                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
+                          })()} 
+                        </span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64">
