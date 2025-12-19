@@ -8,15 +8,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserCheck, Shield } from "lucide-react"
 import { useRoles, useUserRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
+import { userQueryKeys } from "@/hooks/useUsers"
 import { type User } from "@/services/users"
 
 interface AssignRolesSheetProps {
   user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export default function AssignRolesSheet({ user, open, onOpenChange }: AssignRolesSheetProps) {
+export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }: AssignRolesSheetProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const queryClient = useQueryClient()
   
@@ -51,7 +53,14 @@ export default function AssignRolesSheet({ user, open, onOpenChange }: AssignRol
         userId: user.id, 
         roleIds: selectedRoles 
       }, {
-        onSuccess: () => onOpenChange(false)
+        onSuccess: () => {
+          // Invalidate users query to refresh the users list
+          queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+          // Call additional success callback if provided
+          onSuccess?.()
+          // Close the sheet
+          onOpenChange(false)
+        }
       })
     }
   }

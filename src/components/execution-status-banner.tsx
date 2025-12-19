@@ -21,42 +21,32 @@ export function ExecutionStatusBanner({
 }: ExecutionStatusBannerProps) {
   console.log('ExecutionStatusBanner rendering with executionId:', executionId);
   
-  // Intentar obtener el status desde el cache de documentContent primero
-  useOrganization();
+  const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
   
-  // Buscar en cache del documentContent para evitar llamada extra
-  const getCachedExecutionStatus = () => {
-    const cachedQueries = queryClient.getQueriesData({ queryKey: ['document-content'] });
-    for (const [, data] of cachedQueries) {
-      if (data && typeof data === 'object' && 'executions' in data) {
-        const executions = (data as any).executions;
-        if (Array.isArray(executions)) {
-          const execution = executions.find((exec: any) => exec.id === executionId);
-          if (execution) {
-            return execution;
-          }
-        }
-      }
-    }
-    return null;
-  };
-  
-  const cachedExecution = getCachedExecutionStatus();
-  
-  // Solo hacer polling si no tenemos datos cached o si están obsoletos
+  // Hacer polling para obtener el estado más actual
   const { execution, stopPolling, invalidateExecution, error } = useExecutionPolling({
     executionId,
-    enabled: !!executionId, // Siempre habilitado para tener datos frescos
-    pollingInterval: 15000, // Siempre hacer polling para ejecuciones activas
+    enabled: !!executionId && !!selectedOrganizationId,
+    pollingInterval: 5000, // Poll every 5 seconds for better responsiveness
     onStatusChange: (status, executionData) => {
       console.log('Banner - Execution status changed:', status, executionData);
       
       try {
+        // Invalidate related queries when status changes to ensure UI consistency
+        if (executionData?.execution_id) {
+          queryClient.invalidateQueries({ queryKey: ['document-content'] });
+          queryClient.invalidateQueries({ queryKey: ['executions'] });
+        }
+        
         if (status === 'completed') {
           toast.success('Document generation completed successfully!');
           onExecutionComplete?.(executionData?.execution_id || executionId);
           stopPolling();
+          // Force re-render by invalidating current query
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
+          }, 100);
         } else if (status === 'failed') {
           toast.error('Document generation failed. Please try again.');
           stopPolling();
@@ -67,21 +57,22 @@ export function ExecutionStatusBanner({
     }
   });
   
-  // Usar cached execution si está disponible, sino usar el del polling
-  const currentExecution = cachedExecution || execution;
+  // Use polling data as the primary source of truth
+  const currentExecution = execution;
 
-  console.log('Banner - Current execution:', currentExecution, 'from cache:', !!cachedExecution);
+  console.log('Banner - Current execution:', currentExecution?.status, 'ID:', currentExecution?.id);
   
   // Handle polling errors
   useEffect(() => {
-    if (error && !cachedExecution) {
+    if (error) {
       console.error('Execution polling error:', error);
       toast.error('Error checking execution status. Please refresh the page.');
     }
-  }, [error, cachedExecution]);
+  }, [error]);
 
   // Don't show banner if no execution or if execution is in final state
   if (!currentExecution || ['completed', 'approved'].includes(currentExecution.status)) {
+    console.log('Banner hidden - no execution or final state:', currentExecution?.status);
     return null;
   }
 

@@ -60,12 +60,32 @@ export function useExecutionPolling({
   // Handle status changes in useEffect
   useEffect(() => {
     console.log('Polling execution status:', execution?.status, 'Previous:', previousStatusRef.current);
-    if (onStatusChange && execution?.status && execution.status !== previousStatusRef.current) {
-      console.log('Status changed from', previousStatusRef.current, 'to', execution.status);
-      onStatusChange(execution.status, execution);
-      previousStatusRef.current = execution.status;
+    if (onStatusChange && execution?.status) {
+      // Initialize previousStatusRef if this is the first time we get a status
+      if (previousStatusRef.current === null && execution.status) {
+        console.log('Initializing status tracking with:', execution.status);
+        previousStatusRef.current = execution.status;
+        return; // Don't trigger callback on initialization
+      }
+      
+      // Trigger callback only when status actually changes
+      if (execution.status !== previousStatusRef.current) {
+        console.log('Status changed from', previousStatusRef.current, 'to', execution.status);
+        // Update the ref before calling the callback to prevent race conditions
+        const prevStatus = previousStatusRef.current;
+        previousStatusRef.current = execution.status;
+        
+        // Call the callback with the execution data
+        try {
+          onStatusChange(execution.status, execution);
+        } catch (error) {
+          console.error('Error in onStatusChange callback:', error);
+          // Revert the ref in case of error
+          previousStatusRef.current = prevStatus;
+        }
+      }
     }
-  }, [execution?.status, onStatusChange]);
+  }, [execution?.status, execution?.id, onStatusChange]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -85,6 +105,9 @@ export function useExecutionPolling({
 
   const invalidateExecution = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
+    // Also invalidate related queries to ensure consistency
+    queryClient.invalidateQueries({ queryKey: ['document-content'] });
+    queryClient.invalidateQueries({ queryKey: ['executions'] });
   }, [queryClient, executionId]);
 
   return {

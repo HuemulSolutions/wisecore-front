@@ -45,10 +45,11 @@ interface SortableSectionSheetProps {
   existingSections: object[];
   onSave: (sectionId: string, sectionData: object) => void;
   onDelete: (sectionId: string) => void;
+  isOverlay?: boolean;
 }
 
-export default function SortableSectionSheet({ item, existingSections, onSave, onDelete }: SortableSectionSheetProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+export default function SortableSectionSheet({ item, existingSections, onSave, onDelete, isOverlay = false }: SortableSectionSheetProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -57,7 +58,8 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
     transform: CSS.Transform.toString(transform),
     transition,
     // Visual hint while dragging
-    zIndex: isDragging ? 10 : undefined,
+    zIndex: isDragging ? 1000 : undefined,
+    opacity: isDragging ? 0.8 : undefined,
   };
 
   function openDeleteDialog() {
@@ -87,21 +89,23 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <Card className={`w-full min-w-0 overflow-hidden ${isDragging ? 'shadow-lg' : ''}`}>
+      <Card className={`w-full min-w-0 overflow-hidden ${isDragging ? 'shadow-lg ring-2 ring-blue-500 ring-opacity-50' : ''}`}>
         <CardHeader className="pb-2 px-3 sm:px-6">
           <div className="flex items-center justify-between min-w-0">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              {/* Drag handle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hover:cursor-grab cursor-grabbing active:cursor-grabbing h-8 w-8 flex-shrink-0"
-                title="Drag to reorder"
-                {...attributes}
-                {...listeners}
-              >
-                <GripVertical className="h-4 w-4" />
-              </Button>
+              {/* Drag handle - solo visible si no es overlay */}
+              {!isOverlay && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:cursor-grab cursor-grabbing active:cursor-grabbing h-8 w-8 flex-shrink-0"
+                  title="Drag to reorder"
+                  {...attributes}
+                  {...listeners}
+                >
+                  <GripVertical className="h-4 w-4" />
+                </Button>
+              )}
               
               <div className="flex-1 min-w-0 overflow-hidden">
                 <CardTitle className="text-sm font-medium text-gray-900 truncate">
@@ -111,21 +115,24 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
             </div>
 
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="hover:cursor-pointer h-8 w-8 p-0"
-                title={isExpanded ? "Collapse" : "Expand"}
-              >
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
+              {!isOverlay && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="hover:cursor-pointer h-8 w-8 p-0"
+                  title={isExpanded ? "Collapse" : "Expand"}
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
 
-              <DropdownMenu>
+              {!isOverlay && (
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -159,11 +166,12 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </div>
           </div>
 
-          {/* Preview cuando está colapsado */}
-          {!isExpanded && item.prompt && (() => {
+          {/* Preview cuando está colapsado - solo si no es overlay */}
+          {!isOverlay && !isExpanded && item.prompt && (() => {
             let decodedPrompt = item.prompt
               .replace(/\\n/g, '\n')
               .replace(/\\\//g, '/')
@@ -229,8 +237,8 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
           )}
         </CardHeader>
 
-        {/* Contenido expandido */}
-        {isExpanded && (
+        {/* Contenido expandido - solo si no es overlay */}
+        {!isOverlay && isExpanded && (
           <CardContent className="pt-0 px-3 sm:px-6">
             <div className="space-y-4 min-w-0">
                 {/* Prompt */}

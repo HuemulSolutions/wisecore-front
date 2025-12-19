@@ -654,33 +654,10 @@ export function AssetContent({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Polling optimizado: solo cuando vale la pena
-    refetchInterval: () => {
-      // Obtener ejecuciones y estado actual
-      const cachedExecutions = queryClient.getQueryData(['executions', selectedFile?.id, selectedOrganizationId]);
-      if (cachedExecutions && Array.isArray(cachedExecutions) && selectedExecutionId) {
-        const currentExecution = cachedExecutions.find((exec: any) => exec.id === selectedExecutionId);
-        
-        // Si la ejecución está 'pending', no necesitamos hacer polling del contenido
-        // ya que será null hasta que esté 'running' o 'completed'
-        if (currentExecution?.status === 'pending') {
-          return false; // No hacer polling del contenido si está pending
-        }
-        
-        // Si está 'running', hacer polling cada 30 segundos
-        if (currentExecution?.status === 'running') {
-          return 30000;
-        }
-        
-        // Si está 'completed' o 'approved', no necesita polling
-        if (['completed', 'approved', 'failed'].includes(currentExecution?.status)) {
-          return false;
-        }
-      }
-      return false;
-    },
+    // Remove automatic polling - let the ExecutionStatusBanner handle status updates
+    // and trigger refresh through query invalidation
     refetchOnWindowFocus: false,
-    staleTime: 15000, // 15 segundos para content
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
@@ -1355,8 +1332,16 @@ export function AssetContent({
                         title="Switch Version"
                       >
                         <span className="font-medium">
-                          {selectedExecutionInfo ? 
-                            `v${documentContent.executions.length - documentContent.executions.findIndex((exec: any) => exec.id === selectedExecutionInfo.id)}` :
+                          {documentExecutions ? 
+                            (() => {
+                              const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                                parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
+                              );
+                              // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
+                              const targetId = selectedExecutionId || documentContent?.execution_id;
+                              const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
+                              return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
+                            })() :
                             'v1'
                           }
                         </span>
@@ -1722,7 +1707,18 @@ export function AssetContent({
                         className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
-                        <span className="font-medium">v{documentExecutions.length - documentExecutions.findIndex((exec: any) => exec.id === selectedExecutionId)}</span>
+                        <span className="font-medium">
+                          {(() => {
+                            if (!documentExecutions) return 'v1';
+                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
+                            );
+                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
+                            const targetId = selectedExecutionId || documentContent?.execution_id;
+                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
+                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
+                          })()} 
+                        </span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64">

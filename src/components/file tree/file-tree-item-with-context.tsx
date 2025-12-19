@@ -4,12 +4,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { ChevronRight, Folder, File, Loader2, FolderPlus, FileText, FileImage, FileVideo, FileAudio, FileCode, Database, FileSpreadsheet, Presentation, Trash2, Share, MoreHorizontal, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,24 +18,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import CreateFolder from "@/components/create_folder"
-import CreateDocumentLib from "@/components/library/create_document_lib"
+import { CreateFolderDialog } from "@/components/create_folder"
+import { CreateAssetDialog } from "@/components/create-asset-dialog"
 import EditFolder from "@/components/edit_folder"
 import { deleteFolder } from "@/services/library"
 import { toast } from "sonner"
 import type { FileNode } from "./types"
 import { useOrganization } from "@/contexts/organization-context"
+import { useExpandedFolders } from "@/hooks/use-expanded-folders"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -178,14 +164,15 @@ export function FileTreeItemWithContext({
   const [isDragging, setIsDragging] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingFolder, setDeletingFolder] = useState<FileNode | null>(null)
   const [isEditFolderOpen, setIsEditFolderOpen] = useState(false)
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+  const [isCreateAssetOpen, setIsCreateAssetOpen] = useState(false)
   const { selectedOrganizationId } = useOrganization();
+  const { isExpanded, expandFolder, collapseFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback } = useExpandedFolders();
 
   const isFolder = item.type === "folder"
-  
-  // Estado expandido solo para la sesión actual (no persistente)
-  const [isExpanded, setIsExpanded] = useState(false)
+  const isFolderExpanded = isFolder ? isExpanded(item.id) : false
 
 
 
@@ -195,6 +182,23 @@ export function FileTreeItemWithContext({
       setLocalChildren(item.children)
     }
   }, [item.children])
+
+  // Registrar callback para recibir actualizaciones de children cuando se re-expanden las carpetas
+  useEffect(() => {
+    if (isFolder) {
+      const callback = (children: FileNode[]) => {
+        console.log(`📁 Received children update for folder ${item.id}:`, children.length, 'children');
+        setLocalChildren(children);
+      };
+      
+      registerChildrenLoadedCallback(item.id, callback);
+      
+      return () => {
+        unregisterChildrenLoadedCallback(item.id);
+      };
+    }
+  }, [item.id, isFolder, registerChildrenLoadedCallback, unregisterChildrenLoadedCallback]);
+
   const hasChildren = isFolder && localChildren.length > 0
   const isSelected = selectedId === item.id
 
@@ -259,7 +263,9 @@ export function FileTreeItemWithContext({
 
       if (isFolder && draggedNode.id !== item.id) {
         onDrop(draggedNode, item)
-        setIsExpanded(true)
+        if (!isFolderExpanded) {
+          expandFolder(item.id)
+        }
       }
     } catch (error) {
       console.error("Error en drop:", error)
@@ -267,19 +273,21 @@ export function FileTreeItemWithContext({
   }
 
   const handleToggleExpand = async () => {
-    if (!isExpanded && isFolder && onLoadChildren) {
+    if (!isFolderExpanded && isFolder && onLoadChildren) {
       setIsLoading(true)
       try {
         const loadedChildren = await onLoadChildren(item.id)
         setLocalChildren(loadedChildren)
         onChildrenLoaded?.(item.id, loadedChildren)
+        expandFolder(item.id)
       } catch (error) {
         console.error("Error cargando contenido:", error)
       } finally {
         setIsLoading(false)
       }
+    } else if (isFolderExpanded && isFolder) {
+      collapseFolder(item.id)
     }
-    setIsExpanded(!isExpanded)
   }
 
 
@@ -291,19 +299,21 @@ export function FileTreeItemWithContext({
     
     // Si es una carpeta, expandir automáticamente
     if (isFolder) {
-      if (!isExpanded && onLoadChildren) {
+      if (!isFolderExpanded && onLoadChildren) {
         setIsLoading(true)
         try {
           const loadedChildren = await onLoadChildren(item.id)
           setLocalChildren(loadedChildren)
           onChildrenLoaded?.(item.id, loadedChildren)
+          expandFolder(item.id)
         } catch (error) {
           console.error("Error cargando contenido:", error)
         } finally {
           setIsLoading(false)
         }
+      } else if (isFolderExpanded) {
+        collapseFolder(item.id)
       }
-      setIsExpanded(!isExpanded)
     } else {
       // Si es un archivo, automáticamente generar la URL correcta
       try {
@@ -326,41 +336,62 @@ export function FileTreeItemWithContext({
     onDocumentCreated?.(createdDocument)
   }
 
+  const handleCreateFolder = () => {
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => setIsCreateFolderOpen(true), 0);
+  };
+
+  const handleCreateAsset = () => {
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => setIsCreateAssetOpen(true), 0);
+  };
+
+  const handleEditFolder = () => {
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => setIsEditFolderOpen(true), 0);
+  };
+
   const handleDeleteFolder = () => {
-    setTimeout(() => setIsDeleteDialogOpen(true), 10);
+    // Use setTimeout so the dropdown menu fully closes before the dialog appears
+    setTimeout(() => setDeletingFolder(item), 0);
   };
 
   const handleDeleteConfirm = async () => {
     try {
-      await deleteFolder(item.id, selectedOrganizationId!);
-      toast.success(`Folder "${item.name}" deleted successfully`);
-      onRefresh?.();
-      setIsDeleteDialogOpen(false);
+      if (deletingFolder) {
+        await deleteFolder(deletingFolder.id, selectedOrganizationId!);
+        toast.success(`Folder "${deletingFolder.name}" deleted successfully`);
+        onRefresh?.();
+        setDeletingFolder(null);
+      }
     } catch (error) {
       console.error('Error deleting folder:', error);
       toast.error(`Failed to delete folder. Please try again.`);
     }
   };
 
-  const handleShare = async () => {
-    try {
-      // Construct the complete path from root to this item
-      // currentPath contains the path to the parent, we add this item's ID
-      const completePath = [...currentPath, item.id];
-      
-      console.log('Sharing item:', item.name);
-      console.log('Current path:', currentPath);
-      console.log('Complete path for sharing:', completePath);
-      
-      // Call the onShare callback which handles the URL generation and clipboard
-      // Pass false for isAutomatic since this is a manual share action
-      onShare?.(item, completePath, false);
-      
-    } catch (error) {
-      console.error('Error sharing item:', error);
-      const { toast } = await import("sonner");
-      toast.error('Failed to share item');
-    }
+  const handleShare = () => {
+    // Use setTimeout so the dropdown menu fully closes before the action
+    setTimeout(async () => {
+      try {
+        // Construct the complete path from root to this item
+        // currentPath contains the path to the parent, we add this item's ID
+        const completePath = [...currentPath, item.id];
+        
+        console.log('Sharing item:', item.name);
+        console.log('Current path:', currentPath);
+        console.log('Complete path for sharing:', completePath);
+        
+        // Call the onShare callback which handles the URL generation and clipboard
+        // Pass false for isAutomatic since this is a manual share action
+        onShare?.(item, completePath, false);
+        
+      } catch (error) {
+        console.error('Error sharing item:', error);
+        const { toast } = await import("sonner");
+        toast.error('Failed to share item');
+      }
+    }, 0);
   };
 
   return (
@@ -388,28 +419,19 @@ export function FileTreeItemWithContext({
           >
             {/* Botón de expandir/contraer */}
             {isFolder && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleToggleExpand()
-                      }}
-                      className={cn(
-                        "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
-                        !hasChildren && !onLoadChildren && "invisible",
-                        (isExpanded || isLoading) && "rotate-90",
-                      )}
-                    >
-                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{isExpanded ? "Collapse folder" : "Expand folder"}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleToggleExpand()
+                }}
+                className={cn(
+                  "flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded transition-transform",
+                  !hasChildren && !onLoadChildren && "invisible",
+                  (isFolderExpanded || isLoading) && "rotate-90",
+                )}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
             )}
 
             {/* Ícono */}
@@ -450,58 +472,31 @@ export function FileTreeItemWithContext({
               <DropdownMenuContent align="end" className="w-48">
                 {isFolder && (
                   <>
-                    <CreateFolder
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <FolderPlus className="h-4 w-4 mr-2" />
-                          New Folder
-                        </DropdownMenuItem>
-                      }
-                      parentFolder={item.id}
-                      onFolderCreated={onRefresh}
-                    />
-                    <CreateDocumentLib
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          New Asset
-                        </DropdownMenuItem>
-                      }
-                      folderId={item.id}
-                      onDocumentCreated={handleDocumentCreatedLocal}
-                    />
-                    <DropdownMenuSeparator />
-                    <EditFolder
-                      trigger={
-                        <DropdownMenuItem 
-                          className="hover:cursor-pointer"
-                          onSelect={(e) => {
-                            e.preventDefault();
-                            setTimeout(() => setIsEditFolderOpen(true), 10);
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Folder
-                        </DropdownMenuItem>
-                      }
-                      folderId={item.id}
-                      currentName={item.name}
-                      onFolderEdited={onRefresh}
-                      open={isEditFolderOpen}
-                      onOpenChange={setIsEditFolderOpen}
-                    />
                     <DropdownMenuItem 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setTimeout(handleDeleteFolder, 10);
-                      }} 
+                      className="hover:cursor-pointer"
+                      onSelect={handleCreateFolder}
+                    >
+                      <FolderPlus className="h-4 w-4 mr-2" />
+                      New Folder
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={handleCreateAsset}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      New Asset
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer"
+                      onSelect={handleEditFolder}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Folder
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
                       className="hover:cursor-pointer text-red-600 focus:text-red-600"
+                      onSelect={handleDeleteFolder}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete Folder
@@ -510,11 +505,8 @@ export function FileTreeItemWithContext({
                   </>
                 )}
                 <DropdownMenuItem 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleShare();
-                  }} 
                   className="hover:cursor-pointer"
+                  onSelect={handleShare}
                 >
                   <Share className="h-4 w-4 mr-2" />
                   Share Link
@@ -541,53 +533,32 @@ export function FileTreeItemWithContext({
         <ContextMenuContent>
           {isFolder && (
             <>
-              <CreateFolder
-                trigger={
-                  <ContextMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <FolderPlus className="h-4 w-4 mr-2" />
-                    New Folder
-                  </ContextMenuItem>
-                }
-                parentFolder={item.id}
-                onFolderCreated={onRefresh}
-              />
-              <CreateDocumentLib
-                trigger={
-                  <ContextMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => e.preventDefault()}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    New Asset
-                  </ContextMenuItem>
-                }
-                folderId={item.id}
-                onDocumentCreated={handleDocumentCreatedLocal}
-              />
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={handleCreateFolder}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                New Folder
+              </ContextMenuItem>
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={handleCreateAsset}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                New Asset
+              </ContextMenuItem>
               <ContextMenuSeparator />
-              <EditFolder
-                trigger={
-                  <ContextMenuItem 
-                    className="hover:cursor-pointer"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setTimeout(() => setIsEditFolderOpen(true), 10);
-                    }}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Folder
-                  </ContextMenuItem>
-                }
-                folderId={item.id}
-                currentName={item.name}
-                onFolderEdited={onRefresh}
-                open={isEditFolderOpen}
-                onOpenChange={setIsEditFolderOpen}
-              />
-              <ContextMenuItem onClick={handleDeleteFolder} className="hover:cursor-pointer text-red-600 focus:text-red-600">
+              <ContextMenuItem 
+                className="hover:cursor-pointer"
+                onSelect={handleEditFolder}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Folder
+              </ContextMenuItem>
+              <ContextMenuItem 
+                className="hover:cursor-pointer text-red-600 focus:text-red-600"
+                onSelect={handleDeleteFolder}
+              >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Folder
               </ContextMenuItem>
@@ -616,7 +587,7 @@ export function FileTreeItemWithContext({
       </ContextMenu>
 
       {/* Items hijos si la carpeta está expandida */}
-      {isFolder && isExpanded && localChildren.length > 0 && (
+      {isFolder && isFolderExpanded && localChildren.length > 0 && (
         <div className="w-full">
           {localChildren.map((child) => (
             <FileTreeItemWithContext
@@ -638,31 +609,58 @@ export function FileTreeItemWithContext({
         </div>
       )}
 
-      {/* Delete Confirmation Dialog - only for folders */}
+      {/* Dialogs - only for folders */}
       {isFolder && (
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!open) setIsDeleteDialogOpen(false); }}>
-          <AlertDialogContent className="sm:max-w-[425px]">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete "{item.name}"? 
-                <br />
-                <strong className="text-red-600">All files and subfolders will be permanently deleted and this action cannot be undone.</strong>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2">
-              <AlertDialogCancel className="hover:cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setIsDeleteDialogOpen(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                className="hover:cursor-pointer bg-transparent border-0 text-red-600 hover:bg-red-50"
-                onClick={handleDeleteConfirm}
-              >
-                Delete Folder
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <>
+          <CreateFolderDialog
+            open={isCreateFolderOpen}
+            onOpenChange={setIsCreateFolderOpen}
+            parentFolder={item.id}
+            onFolderCreated={onRefresh}
+          />
+          
+          <CreateAssetDialog
+            open={isCreateAssetOpen}
+            onOpenChange={setIsCreateAssetOpen}
+            folderId={item.id}
+            onAssetCreated={handleDocumentCreatedLocal}
+          />
+          
+          <EditFolder
+            folderId={item.id}
+            currentName={item.name}
+            onFolderEdited={onRefresh}
+            open={isEditFolderOpen}
+            onOpenChange={setIsEditFolderOpen}
+          />
+          
+          <AlertDialog 
+            open={!!deletingFolder} 
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeletingFolder(null)
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{deletingFolder?.name}"? All files and subfolders will be permanently deleted and this action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteConfirm}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       )}
     </div>
   )
