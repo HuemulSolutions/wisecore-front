@@ -268,18 +268,25 @@ export function TemplateContent({
         {isMobile && (
           <div className="bg-white border-b border-gray-200 shadow-sm py-1.5 px-4 z-20 flex-shrink-0">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Button
-                  onClick={onToggleSidebar}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 hover:bg-gray-100 hover:cursor-pointer flex-shrink-0"
-                >
-                  <List className="h-5 w-5" />
-                </Button>
-                <span className="text-sm font-medium text-gray-900 truncate">
-                  {selectedTemplate.name}
-                </span>
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={onToggleSidebar}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-gray-100 hover:cursor-pointer flex-shrink-0"
+                  >
+                    <List className="h-5 w-5" />
+                  </Button>
+                  <span className="text-sm font-medium text-gray-900 truncate">
+                    {selectedTemplate.name}
+                  </span>
+                </div>
+                {templateData?.description && (
+                  <p className="text-xs text-gray-600 truncate ml-11">
+                    {templateData.description}
+                  </p>
+                )}
               </div>
               <Button
                 onClick={() => setIsAddingSectionOpen(true)}
@@ -298,9 +305,16 @@ export function TemplateContent({
             <div className="space-y-3 md:space-y-4">
               {/* Title Section */}
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
-                <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0 flex-1">
-                  {selectedTemplate.name}
-                </h1>
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words mb-1">
+                    {selectedTemplate.name}
+                  </h1>
+                  {templateData?.description && (
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {templateData.description}
+                    </p>
+                  )}
+                </div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-xs font-medium text-blue-700">
                   <FileCode className="w-2.5 h-2.5" />
                   Template
@@ -373,28 +387,6 @@ export function TemplateContent({
             </div>
           ) : (
             <div className="prose prose-gray max-w-full prose-sm md:prose-base">
-              {/* Template Description - Main Content */}
-              {templateData?.description && (
-                <div>
-                  <div className="p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
-                      Description
-                    </h2>
-                    <div className="prose prose-sm max-w-full">
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {templateData.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sections Separator */}
-              {orderedSections && orderedSections.length > 0 && templateData?.description && (
-                <div className="flex items-center my-8">
-                  <div className="flex-1 border-t border-gray-300"></div>
-                </div>
-              )}
 
               {/* Add Section Form */}
               {isAddingSectionOpen && (
@@ -459,7 +451,7 @@ export function TemplateContent({
                       onDragEnd={handleDragEnd}
                     >
                       <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3 sm:space-y-4 overflow-visible max-h-[45vh] overflow-y-auto">
+                        <div className="space-y-3 sm:space-y-4 overflow-visible max-h-[65vh] overflow-y-auto">
                           {orderedSections.map((section: any) => (
                             <div key={section.id} className="border border-gray-200 rounded-lg bg-gray-50 overflow-visible">
                               <SortableSectionSheet
@@ -492,17 +484,6 @@ export function TemplateContent({
                 </div>
               ) : (
                 <>
-                  {/* Separator for empty sections */}
-                  {templateData?.description && (
-                    <div className="flex items-center my-8">
-                      <div className="flex-1 border-t border-gray-300"></div>
-                      <div className="px-4 text-sm font-medium text-gray-500 bg-gray-50 rounded-full py-2">
-                        TEMPLATE SECTIONS
-                      </div>
-                      <div className="flex-1 border-t border-gray-300"></div>
-                    </div>
-                  )}
-                  
                   <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
                     <div className="p-8 text-center">
                       <List className="h-12 w-12 text-gray-300 mx-auto mb-4" />
