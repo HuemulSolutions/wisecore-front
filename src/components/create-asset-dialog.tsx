@@ -26,9 +26,10 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { createDocument } from "@/services/documents"
-import { getAllDocumentTypes } from "@/services/document_type"
 import { getAllTemplates } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
+import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
+import { isRootAdmin } from "@/lib/jwt-utils"
 import { toast } from "sonner"
 import CreateDocumentType from "@/components/create_doc_type"
 
@@ -64,12 +65,8 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     }
   }, [open])
 
-  // Fetch document types
-  const { data: documentTypes = [] } = useQuery({
-    queryKey: ['document-types', selectedOrganizationId],
-    queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
-    enabled: !!selectedOrganizationId && open,
-  })
+  // Fetch document types based on current user's role
+  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes()
 
   // Fetch templates
   const { data: templates = [] } = useQuery({
@@ -223,26 +220,46 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
                   <SelectValue placeholder="Select asset type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {documentTypes.map((type: any) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: type.color }}
-                        />
-                        {type.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                  {documentTypes.length > 0 && (
-                    <div className="border-t my-1" />
-                  )}
-                  <SelectItem value="__create_new__" className="text-blue-600 hover:text-blue-700">
-                    <div className="flex items-center gap-2">
-                      <PlusCircle className="w-3 h-3" />
-                      Create new asset type...
+                  {isLoadingDocTypes ? (
+                    <div className="px-2 py-2 text-sm text-muted-foreground">
+                      Loading asset types...
                     </div>
-                  </SelectItem>
+                  ) : docTypesError ? (
+                    <div className="px-2 py-2 text-sm text-red-500">
+                      Error loading asset types
+                    </div>
+                  ) : documentTypes.length > 0 ? (
+                    documentTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        <div className="flex items-center gap-2">
+                          {type.color && (
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: type.color }}
+                            />
+                          )}
+                          {type.name}
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-2 text-sm text-muted-foreground">
+                      No asset types available with creation permissions
+                    </div>
+                  )}
+                  {isRootAdmin() && (
+                    <>
+                      {documentTypes.length > 0 && (
+                        <div className="border-t my-1" />
+                      )}
+                      <SelectItem value="__create_new__" className="text-blue-600 hover:text-blue-700">
+                        <div className="flex items-center gap-2">
+                          <PlusCircle className="w-3 h-3" />
+                          Create new asset type...
+                        </div>
+                      </SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
