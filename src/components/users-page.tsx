@@ -480,6 +480,10 @@ export default function UsersPage() {
               setAssigningRoleUser(null)
             }
           }}
+          onSuccess={() => {
+            // Additional success handling if needed
+            console.log('Roles assigned successfully, users list will be refreshed')
+          }}
         />
 
         {/* Delete User Dialog */}
