@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import SortableSectionSheet from "@/components/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
@@ -72,6 +72,7 @@ export function TemplateContent({
   const [editDescription, setEditDescription] = useState("");
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isFormValid, setIsFormValid] = useState(false);
+  const [activeSection, setActiveSection] = useState<any>(null);
 
   // Configurar sensores para drag & drop
   const mouseSensor = useSensor(MouseSensor, {
@@ -188,9 +189,18 @@ export function TemplateContent({
     }
   });
 
+  // Función para manejar el inicio del drag
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const section = orderedSections.find((s: any) => s.id === active.id);
+    setActiveSection(section);
+  };
+
   // Función para manejar el final del drag
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveSection(null);
+    
     if (!over || active.id === over.id) return;
 
     const oldIndex = orderedSections.findIndex((s: any) => s.id === active.id);
@@ -442,11 +452,16 @@ export function TemplateContent({
                       </h3>
                     </div>
 
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <DndContext 
+                      sensors={sensors} 
+                      collisionDetection={closestCenter} 
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                    >
                       <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3 sm:space-y-4 overflow-auto max-h-[45vh]">
+                        <div className="space-y-3 sm:space-y-4 overflow-visible max-h-[45vh] overflow-y-auto">
                           {orderedSections.map((section: any) => (
-                            <div key={section.id} className="border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
+                            <div key={section.id} className="border border-gray-200 rounded-lg bg-gray-50 overflow-visible">
                               <SortableSectionSheet
                                 item={section}
                                 existingSections={orderedSections}
@@ -459,6 +474,19 @@ export function TemplateContent({
                           ))}
                         </div>
                       </SortableContext>
+                      <DragOverlay>
+                        {activeSection ? (
+                          <div className="">
+                            <SortableSectionSheet
+                              item={activeSection}
+                              existingSections={orderedSections}
+                              onSave={() => {}}
+                              onDelete={() => {}}
+                              isOverlay={true}
+                            />
+                          </div>
+                        ) : null}
+                      </DragOverlay>
                     </DndContext>
                   </div>
                 </div>
