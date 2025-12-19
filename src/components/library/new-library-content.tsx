@@ -654,33 +654,10 @@ export function AssetContent({
     queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Polling optimizado: solo cuando vale la pena
-    refetchInterval: () => {
-      // Obtener ejecuciones y estado actual
-      const cachedExecutions = queryClient.getQueryData(['executions', selectedFile?.id, selectedOrganizationId]);
-      if (cachedExecutions && Array.isArray(cachedExecutions) && selectedExecutionId) {
-        const currentExecution = cachedExecutions.find((exec: any) => exec.id === selectedExecutionId);
-        
-        // Si la ejecución está 'pending', no necesitamos hacer polling del contenido
-        // ya que será null hasta que esté 'running' o 'completed'
-        if (currentExecution?.status === 'pending') {
-          return false; // No hacer polling del contenido si está pending
-        }
-        
-        // Si está 'running', hacer polling cada 30 segundos
-        if (currentExecution?.status === 'running') {
-          return 30000;
-        }
-        
-        // Si está 'completed' o 'approved', no necesita polling
-        if (['completed', 'approved', 'failed'].includes(currentExecution?.status)) {
-          return false;
-        }
-      }
-      return false;
-    },
+    // Remove automatic polling - let the ExecutionStatusBanner handle status updates
+    // and trigger refresh through query invalidation
     refetchOnWindowFocus: false,
-    staleTime: 15000, // 15 segundos para content
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)

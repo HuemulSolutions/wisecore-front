@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState } from "react"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, PlusCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -50,6 +50,7 @@ interface CreateAssetDialogProps {
 
 export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
   const { selectedOrganizationId } = useOrganization()
+  const queryClient = useQueryClient()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [documentTypeId, setDocumentTypeId] = useState("")
@@ -62,8 +63,14 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
       setDescription("")
       setDocumentTypeId("")
       setTemplateId("")
+      
+      // Refresh document types when dialog opens to ensure latest data
+      if (selectedOrganizationId) {
+        queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
+        queryClient.invalidateQueries({ queryKey: ['document-types'] })
+      }
     }
-  }, [open])
+  }, [open, selectedOrganizationId, queryClient])
 
   // Fetch document types based on current user's role
   const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes()
@@ -219,47 +226,49 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
                 <SelectTrigger id="documentType" className="w-full">
                   <SelectValue placeholder="Select asset type" />
                 </SelectTrigger>
-                <SelectContent>
-                  {isLoadingDocTypes ? (
-                    <div className="px-2 py-2 text-sm text-muted-foreground">
-                      Loading asset types...
-                    </div>
-                  ) : docTypesError ? (
-                    <div className="px-2 py-2 text-sm text-red-500">
-                      Error loading asset types
-                    </div>
-                  ) : documentTypes.length > 0 ? (
-                    documentTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        <div className="flex items-center gap-2">
-                          {type.color && (
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: type.color }}
-                            />
-                          )}
-                          {type.name}
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="px-2 py-2 text-sm text-muted-foreground">
-                      No asset types available with creation permissions
-                    </div>
-                  )}
-                  {isRootAdmin() && (
-                    <>
-                      {documentTypes.length > 0 && (
-                        <div className="border-t my-1" />
-                      )}
-                      <SelectItem value="__create_new__" className="text-blue-600 hover:text-blue-700">
-                        <div className="flex items-center gap-2">
-                          <PlusCircle className="w-3 h-3" />
-                          Create new asset type...
-                        </div>
-                      </SelectItem>
-                    </>
-                  )}
+                <SelectContent className="max-h-[300px] overflow-hidden">
+                  <div className="overflow-y-auto max-h-[300px] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                    {isLoadingDocTypes ? (
+                      <div className="px-2 py-2 text-sm text-muted-foreground">
+                        Loading asset types...
+                      </div>
+                    ) : docTypesError ? (
+                      <div className="px-2 py-2 text-sm text-red-500">
+                        Error loading asset types
+                      </div>
+                    ) : documentTypes.length > 0 ? (
+                      documentTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          <div className="flex items-center gap-2">
+                            {type.color && (
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: type.color }}
+                              />
+                            )}
+                            {type.name}
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-2 text-sm text-muted-foreground">
+                        No asset types available with creation permissions
+                      </div>
+                    )}
+                    {isRootAdmin() && (
+                      <>
+                        {documentTypes.length > 0 && (
+                          <div className="border-t my-1" />
+                        )}
+                        <SelectItem value="__create_new__" className="text-blue-600 hover:text-blue-700">
+                          <div className="flex items-center gap-2">
+                            <PlusCircle className="w-3 h-3" />
+                            Create new asset type...
+                          </div>
+                        </SelectItem>
+                      </>
+                    )}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
