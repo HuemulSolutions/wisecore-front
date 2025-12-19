@@ -1508,7 +1508,7 @@ export function AssetContent({
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Execution
+                        Delete Version
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -1955,7 +1955,7 @@ export function AssetContent({
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Execution
+                          Delete Version
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
@@ -2489,7 +2489,7 @@ export function AssetContent({
               {deleteType === 'execution' ? (
                 <>
                   <Trash2 className="h-5 w-5 text-red-600" />
-                  Delete Execution
+                  Delete Version
                 </>
               ) : (
                 <>
@@ -2536,7 +2536,7 @@ export function AssetContent({
                   {deleteType === 'execution' ? (
                     <>
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Execution
+                      Delete Version
                     </>
                   ) : (
                     <>
