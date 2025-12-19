@@ -149,7 +149,7 @@ export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating,
                                     disabled={isDeleting}
                                 >
                                     <Trash2 className="h-4 w-4 mr-2" />
-                                    {isDeleting ? 'Deleting...' : 'Delete Execution'}
+                                    {isDeleting ? 'Deleting...' : 'Delete Version'}
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -211,7 +211,7 @@ export default function ExecutionInfoSheet({ execution, onRefresh, isGenerating,
             <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Execution</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Version</AlertDialogTitle>
                         <AlertDialogDescription>
                             This action cannot be undone. This will permanently delete the execution and all associated data.
                         </AlertDialogDescription>

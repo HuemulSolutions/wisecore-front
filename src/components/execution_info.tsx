@@ -216,7 +216,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete execution</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Version</AlertDialogTitle>
                         <AlertDialogDescription>
                             This action cannot be undone. This will permanently delete the execution.
                         </AlertDialogDescription>
