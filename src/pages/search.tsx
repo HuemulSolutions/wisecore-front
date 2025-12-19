@@ -6,7 +6,9 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";
 import SearchResult from "@/components/search_result";
-import { Loader2, Search, FileText, X } from "lucide-react";
+import { Loader2, Search, FileText, X, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import Markdown from "@/components/ui/markdown";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/contexts/organization-context";
 
@@ -21,6 +23,153 @@ interface SearchResultData {
   execution_id: string;
   document_name: string;
   sections: SearchResultSection[];
+}
+
+// Component for individual section results
+function SectionResult({ section, index }: { section: SearchResultSection; index: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Function to get preview text (first 120 characters)
+  const getPreviewText = (content: string) => {
+    const plainText = content.replace(/[#*\[\]()]/g, '').replace(/\n+/g, ' ').trim();
+    return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
+  };
+
+  return (
+    <div className="border border-gray-200 bg-white rounded-lg shadow-sm">
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <div className="p-2.5">
+          <div className="flex items-start gap-2.5">
+            {/* Icon */}
+            <div className="flex-shrink-0 mt-0.5">
+              <div className="w-5 h-5 bg-blue-100 rounded flex items-center justify-center">
+                <FileText className="w-3 h-3 text-blue-600" />
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h5 className="text-sm font-medium text-foreground truncate">
+                  {section.section_execution_name || `Sección ${index + 1}`}
+                </h5>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="hover:cursor-pointer h-5 w-5 p-0 flex-shrink-0">
+                    {isExpanded ? (
+                      <ChevronDown className="w-3 h-3" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              
+              {!isExpanded && (
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  {getPreviewText(section.content)}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <CollapsibleContent>
+          <div className="border-t border-gray-100">
+            <div className="px-2.5 pb-2.5 pt-2">
+              <div className="ml-7 prose prose-sm max-w-none text-muted-foreground">
+                <Markdown>{section.content}</Markdown>
+              </div>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
+// Component for individual document results
+function DocumentResult({ document }: { document: SearchResultData }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleOpenDocument = () => {
+    // Navigate to the document using the path structure that Assets expects
+    // Assets component should handle finding the document regardless of its folder location
+    window.open(`/asset/${document.document_id}`, '_blank');
+  };
+
+  return (
+    <Card className="border border-border bg-card">
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-base font-semibold text-foreground truncate">
+                    {document.document_name}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                    Documentación
+                  </span>
+                  <span>
+                    {document.sections?.length || 0} segmento{(document.sections?.length || 0) !== 1 ? 's' : ''} encontrado{(document.sections?.length || 0) !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenDocument}
+                className="hover:cursor-pointer"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Abrir documento
+              </Button>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="hover:cursor-pointer">
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </div>
+        </div>
+        
+        <CollapsibleContent>
+          <div className="border-t border-border">
+            {document.sections && document.sections.length > 0 && (
+              <div className="p-4">
+                <h4 className="text-sm font-medium text-foreground mb-3">
+                  Secciones encontradas:
+                </h4>
+                <div className="space-y-2 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                  {document.sections.map((section, index) => (
+                    <SectionResult 
+                      key={section.section_execution_id}
+                      section={section}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
 }
 
 export default function SearchPage() {
@@ -85,12 +234,12 @@ export default function SearchPage() {
     <div className="bg-background p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <Search className="w-8 h-8 text-primary" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Search className="w-6 h-6 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Search</h1>
-              <p className="text-muted-foreground">Search through your organization's documents and content</p>
+              <h1 className="text-2xl font-bold text-foreground">Search</h1>
+              <p className="text-sm text-muted-foreground">Search through your organization's documents and content</p>
             </div>
           </div>
         </div>
@@ -170,13 +319,17 @@ export default function SearchPage() {
 
             {searchResults && searchResults.length > 0 && (
               <div className="space-y-4">
-                <Card className="border border-border bg-card p-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="h-4 w-4" />
-                    <span>Found {searchResults.length} document{searchResults.length !== 1 ? 's' : ''} with {searchResults.reduce((total, doc) => total + (doc.sections?.length || 0), 0)} matching sections</span>
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Supporting Documents</h2>
+                  <div className="space-y-3">
+                    {searchResults.map((document) => (
+                      <DocumentResult 
+                        key={document.document_id} 
+                        document={document}
+                      />
+                    ))}
                   </div>
-                </Card>
-                <SearchResult documents={searchResults} />
+                </div>
               </div>
             )}
           </div>

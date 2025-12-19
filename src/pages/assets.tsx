@@ -82,8 +82,74 @@ function AssetsContent() {
     
     if (segments.length === 0) return { folderPath: [], selectedFileId: null };
     
-    // We need to determine if the last segment is a file or folder
-    // We'll try to load the parent folder and check if the last segment exists as a file
+    // Special case: if we have only one segment, try to find document globally first
+    if (segments.length === 1) {
+      const possibleFileId = segments[0];
+      console.log('🔍 Single segment detected, trying global document search:', possibleFileId);
+      
+      // Try to find the document in root first
+      try {
+        const rootContent = await getLibraryContent(selectedOrganizationId!, undefined);
+        const rootItems = rootContent?.content || [];
+        const foundInRoot = rootItems.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
+        
+        if (foundInRoot) {
+          console.log('✅ Found document in root:', foundInRoot.name);
+          return { 
+            folderPath: [], 
+            selectedFileId: possibleFileId 
+          };
+        }
+      } catch (error) {
+        console.log('Root search failed:', error instanceof Error ? error.message : 'Unknown error');
+      }
+      
+      // If not in root, search recursively through folders
+      const searchInFolder = async (folderId?: string, currentPath: string[] = []): Promise<{ folderPath: string[], selectedFileId: string } | null> => {
+        try {
+          const content = await getLibraryContent(selectedOrganizationId!, folderId);
+          const items = content?.content || [];
+          
+          // Check if document is in current folder
+          const foundFile = items.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
+          if (foundFile) {
+            console.log('✅ Found document in folder path:', currentPath, 'document:', foundFile.name);
+            return {
+              folderPath: currentPath,
+              selectedFileId: possibleFileId
+            };
+          }
+          
+          // Search in subfolders (limit depth to avoid infinite loops)
+          if (currentPath.length < 10) {
+            const folders = items.filter((item: LibraryItem) => item.type === 'folder');
+            for (const folder of folders) {
+              const result = await searchInFolder(folder.id, [...currentPath, folder.id]);
+              if (result) return result;
+            }
+          }
+          
+          return null;
+        } catch (error) {
+          console.log(`Error searching in folder ${folderId}:`, error instanceof Error ? error.message : 'Unknown error');
+          return null;
+        }
+      };
+      
+      console.log('🔄 Searching in subfolders...');
+      const searchResult = await searchInFolder();
+      if (searchResult) {
+        return searchResult;
+      }
+      
+      console.log('⚠️ Document not found, treating as file in root');
+      return { 
+        folderPath: [], 
+        selectedFileId: possibleFileId 
+      };
+    }
+    
+    // Original logic for multi-segment paths
     const possibleFileId = segments[segments.length - 1];
     const parentFolderPath = segments.slice(0, -1);
     
