@@ -803,6 +803,17 @@ export function AssetContent({
       setSelectedExecutionId(null);
     }
   }, [selectedFile?.id]);
+
+  // Auto-initialize selectedExecutionId with documentContent.execution_id when loading for first time
+  useEffect(() => {
+    if (selectedFile?.type === 'document' && 
+        documentContent?.execution_id && 
+        !selectedExecutionId && 
+        !isLoadingContent) {
+      // Initialize selectedExecutionId with the current execution from API response
+      setSelectedExecutionId(documentContent.execution_id);
+    }
+  }, [documentContent?.execution_id, selectedExecutionId, selectedFile?.type, isLoadingContent]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -1332,17 +1343,21 @@ export function AssetContent({
                         title="Switch Version"
                       >
                         <span className="font-medium">
-                          {documentExecutions ? 
-                            (() => {
-                              const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
-                                parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                              );
-                              // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
-                              const targetId = selectedExecutionId || documentContent?.execution_id;
-                              const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
-                              return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
-                            })() :
-                            'v1'
+                          {(() => {
+                            if (!documentExecutions) return 'v1';
+                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
+                            const targetId = selectedExecutionId || documentContent?.execution_id;
+                            const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
+                            if (selectedExecution?.name) {
+                              return selectedExecution.name.length > 15 ? `${selectedExecution.name.substring(0, 15)}...` : selectedExecution.name;
+                            }
+                            // Fallback to version number if no name
+                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
+                            );
+                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
+                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
+                          })()
                           }
                         </span>
                       </DocumentActionButton>
@@ -1710,11 +1725,16 @@ export function AssetContent({
                         <span className="font-medium">
                           {(() => {
                             if (!documentExecutions) return 'v1';
+                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
+                            const targetId = selectedExecutionId || documentContent?.execution_id;
+                            const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
+                            if (selectedExecution?.name) {
+                              return selectedExecution.name.length > 20 ? `${selectedExecution.name.substring(0, 20)}...` : selectedExecution.name;
+                            }
+                            // Fallback to version number if no name
                             const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
                               parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                             );
-                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
-                            const targetId = selectedExecutionId || documentContent?.execution_id;
                             const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
                             return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
                           })()} 
