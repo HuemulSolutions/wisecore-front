@@ -273,7 +273,7 @@ export default function SectionExecution({
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {documentId && executionId && sectionIdForExecution && (accessLevels?.includes('approve') || !isExecutionApproved) && (
+                                {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
                                     <>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -315,7 +315,7 @@ export default function SectionExecution({
                                     </>
                                 )}
 
-                                {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
+                                {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -335,7 +335,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
+                                {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -355,7 +355,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && (accessLevels?.includes('delete') || !isExecutionApproved) && (
+                                {!isEditing && !isAiEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -398,7 +398,7 @@ export default function SectionExecution({
                                             Copy
                                         </DropdownMenuItem>
                                     </DocumentAccessControl>
-                                    {documentId && executionId && sectionIdForExecution && (accessLevels?.includes('approve') || !isExecutionApproved) && (
+                                    {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
                                         <>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
@@ -432,7 +432,7 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                         </>
                                     )}
-                                    {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
+                                    {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -446,7 +446,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && (accessLevels?.includes('edit') || !isExecutionApproved) && (
+                                    {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -460,7 +460,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && (accessLevels?.includes('delete') || !isExecutionApproved) && (
+                                    {!isEditing && !isAiEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="delete"
