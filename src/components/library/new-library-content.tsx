@@ -803,6 +803,17 @@ export function AssetContent({
       setSelectedExecutionId(null);
     }
   }, [selectedFile?.id]);
+
+  // Auto-initialize selectedExecutionId with documentContent.execution_id when loading for first time
+  useEffect(() => {
+    if (selectedFile?.type === 'document' && 
+        documentContent?.execution_id && 
+        !selectedExecutionId && 
+        !isLoadingContent) {
+      // Initialize selectedExecutionId with the current execution from API response
+      setSelectedExecutionId(documentContent.execution_id);
+    }
+  }, [documentContent?.execution_id, selectedExecutionId, selectedFile?.type, isLoadingContent]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
