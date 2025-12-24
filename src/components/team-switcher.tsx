@@ -143,22 +143,24 @@ export function TeamSwitcher() {
                   </div>
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault()
-                      setTimeout(() => setIsDialogOpen(true), 0)
-                    }}
-                    className="gap-2 p-2 hover:cursor-pointer"
-                  >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
-                      <Plus className="h-4 w-4" />
-                    </div>
-                    <div className="font-medium text-muted-foreground">Add Organization</div>
-                  </DropdownMenuItem>
-                </DialogTrigger>
+              {user?.is_root_admin === true && (
+                <>
+                  <DropdownMenuSeparator />
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          setTimeout(() => setIsDialogOpen(true), 0)
+                        }}
+                        className="gap-2 p-2 hover:cursor-pointer"
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
+                          <Plus className="h-4 w-4" />
+                        </div>
+                        <div className="font-medium text-muted-foreground">Add Organization</div>
+                      </DropdownMenuItem>
+                    </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader className="space-y-3">
                     <DialogTitle className="flex items-center gap-2">
@@ -222,7 +224,9 @@ export function TeamSwitcher() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
+                  </Dialog>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarMenuItem>
@@ -276,22 +280,24 @@ export function TeamSwitcher() {
                 )}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault()
-                    setTimeout(() => setIsDialogOpen(true), 0)
-                  }}
-                  className="gap-2 p-2 hover:cursor-pointer"
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
-                    <Plus className="h-4 w-4" />
-                  </div>
-                  <div className="font-medium text-muted-foreground">Add Organization</div>
-                </DropdownMenuItem>
-              </DialogTrigger>
+            {user?.is_root_admin === true && (
+              <>
+                <DropdownMenuSeparator />
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        setTimeout(() => setIsDialogOpen(true), 0)
+                      }}
+                      className="gap-2 p-2 hover:cursor-pointer"
+                    >
+                      <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                      <div className="font-medium text-muted-foreground">Add Organization</div>
+                    </DropdownMenuItem>
+                  </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader className="space-y-3">
                   <DialogTitle className="flex items-center gap-2">
@@ -355,7 +361,9 @@ export function TeamSwitcher() {
                   </Button>
                 </DialogFooter>
               </DialogContent>
-            </Dialog>
+                </Dialog>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
