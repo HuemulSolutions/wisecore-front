@@ -20,7 +20,7 @@ import Graph from "./pages/graph";
 import ModelsPage from "./pages/models";
 import AuthTypesPage from "./components/auth-types-page";
 import UsersPage from "./components/users-page";
-import RolesPage from "./components/roles-page";
+import RolesPage from "./components/roles/roles-page";
 import AssetTypesPage from "./components/asset-types-page";
 
 export default function App() {
