@@ -8,10 +8,10 @@ interface RolesEmptyStateProps {
 
 export default function RolesEmptyState({ hasSearchTerm, onCreateRole }: RolesEmptyStateProps) {
   return (
-    <div className="text-center py-8">
-      <Shield className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-      <h3 className="text-base font-medium text-foreground mb-2">No roles found</h3>
-      <p className="text-sm text-muted-foreground mb-3">
+    <div className="text-center py-4 sm:py-6 lg:py-8">
+      <Shield className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-muted-foreground mb-2 sm:mb-3" />
+      <h3 className="text-sm sm:text-base font-medium text-foreground mb-1 sm:mb-2">No roles found</h3>
+      <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 px-2">
         {hasSearchTerm 
           ? "Try adjusting your search criteria."
           : "No roles have been created yet."}
@@ -19,10 +19,10 @@ export default function RolesEmptyState({ hasSearchTerm, onCreateRole }: RolesEm
       {!hasSearchTerm && (
         <Button 
           onClick={onCreateRole}
-          className="hover:cursor-pointer"
+          className="hover:cursor-pointer text-xs sm:text-sm"
           size="sm"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
           Create First Role
         </Button>
       )}

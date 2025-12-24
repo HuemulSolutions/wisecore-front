@@ -18,7 +18,7 @@ import { type Role } from "@/services/rbac"
 import CreateRoleSheet from "@/components/create-role-sheet"
 import EditRoleSheet from "@/components/edit-role-sheet"
 import AssignRolesSheet from "@/components/assign-roles-sheet"
-import AssignRoleToUsersDialog from "@/components/assign-role-to-users-dialog"
+import AssignRoleToUsersDialog from "@/components/roles/assign-role-to-users-dialog"
 import UserSelectDialog from "@/components/roles/user-select-dialog"
 import RoleTableRow from "@/components/roles/role-table-row"
 import RolesEmptyState from "@/components/roles/roles-empty-state"
@@ -26,19 +26,19 @@ import RolesEmptyState from "@/components/roles/roles-empty-state"
 // Loading Component
 function RolesLoadingState() {
   return (
-    <div className="bg-background p-4 md:p-6">
+    <div className="bg-background p-2 sm:p-3 md:p-4 lg:p-6">
       <div className="mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
-          <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-10 w-32" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4 lg:mb-6">
+          <Skeleton className="h-7 sm:h-9 w-40 sm:w-48" />
+          <Skeleton className="h-8 sm:h-10 w-24 sm:w-32" />
         </div>
-        <div className="mb-4">
-          <Skeleton className="h-9 w-80" />
+        <div className="mb-3 sm:mb-4">
+          <Skeleton className="h-7 sm:h-9 w-60 sm:w-80" />
         </div>
         <Card className="overflow-hidden border border-border bg-card">
-          <div className="p-6 space-y-4">
+          <div className="p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
+              <Skeleton key={i} className="h-12 sm:h-16 w-full" />
             ))}
           </div>
         </Card>
@@ -50,10 +50,10 @@ function RolesLoadingState() {
 // Error Component
 function RolesErrorState({ error }: { error: any }) {
   return (
-    <div className="bg-background p-4 md:p-6 flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-lg font-semibold text-foreground mb-2">Error loading roles</div>
-        <p className="text-sm text-muted-foreground">{error.message}</p>
+    <div className="bg-background p-2 sm:p-3 md:p-4 lg:p-6 flex items-center justify-center">
+      <div className="text-center px-2">
+        <div className="text-base sm:text-lg font-semibold text-foreground mb-1 sm:mb-2">Error loading roles</div>
+        <p className="text-xs sm:text-sm text-muted-foreground">{error.message}</p>
       </div>
     </div>
   )
@@ -62,11 +62,11 @@ function RolesErrorState({ error }: { error: any }) {
 // Access Denied Component  
 function AccessDeniedState() {
   return (
-    <div className="bg-background p-4 md:p-6 flex items-center justify-center">
-      <div className="text-center">
-        <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-lg font-semibold text-foreground mb-2">Access Denied</h2>
-        <p className="text-sm text-muted-foreground">You don't have permission to access role management.</p>
+    <div className="bg-background p-2 sm:p-3 md:p-4 lg:p-6 flex items-center justify-center">
+      <div className="text-center px-2">
+        <Shield className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-2 sm:mb-4" />
+        <h2 className="text-base sm:text-lg font-semibold text-foreground mb-1 sm:mb-2">Access Denied</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground">You don't have permission to access role management.</p>
       </div>
     </div>
   )
@@ -163,48 +163,49 @@ export default function RolesPage() {
   )
 
   return (
-    <div className="bg-background p-4 md:p-6">
+    <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
       <div className="mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4 lg:mb-6">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            <h1 className="text-xl font-semibold text-foreground">Roles & Permissions</h1>
+            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground">Roles & Permissions</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2">
             <Button 
               onClick={handleRefresh}
               variant="outline"
               size="sm"
               disabled={isRefreshing}
-              className="hover:cursor-pointer"
+              className="hover:cursor-pointer text-xs sm:text-sm px-2 sm:px-3"
             >
-              <RefreshCw className={`w-4 h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
             </Button>
             <Button 
               onClick={openDialog.create}
-              className="hover:cursor-pointer"
+              className="hover:cursor-pointer text-xs sm:text-sm px-2 sm:px-3"
               size="sm"
             >
-              <Plus className="w-4 h-4 mr-1" />
-              Create Role
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              <span className="hidden sm:inline">Create Role</span>
+              <span className="sm:hidden">Create</span>
             </Button>
           </div>
         </div>
 
         {/* Search and filters */}
-        <div className="flex flex-col md:flex-row gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-3 sm:mb-4">
           <div className="relative flex-1">
-            <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1.5 sm:top-2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             <Input
               placeholder="Search roles..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 h-8 text-sm"
+              className="pl-7 sm:pl-8 h-7 sm:h-8 text-xs sm:text-sm"
             />
           </div>
-          <Badge variant="outline" className="text-xs px-2 py-1">
+          <Badge variant="outline" className="text-xs px-2 py-0.5 sm:py-1 self-start sm:self-center">
             {filteredRoles.length} roles
           </Badge>
         </div>
@@ -217,14 +218,14 @@ export default function RolesPage() {
                 <Table>
                   <TableHeader className="sticky top-0 z-10 bg-muted/30">
                     <TableRow>
-                      <TableHead className="w-[35%]">Role Name</TableHead>
-                      <TableHead className="w-[30%]">Permissions</TableHead>
-                      <TableHead className="w-[20%]">Created</TableHead>
-                      <TableHead className="w-[15%]">Actions</TableHead>
+                      <TableHead className="w-[40%] sm:w-[35%] text-xs sm:text-sm">Role Name</TableHead>
+                      <TableHead className="w-[35%] sm:w-[30%] text-xs sm:text-sm">Permissions</TableHead>
+                      <TableHead className="hidden sm:table-cell w-[20%] text-xs sm:text-sm">Created</TableHead>
+                      <TableHead className="w-[25%] sm:w-[15%] text-xs sm:text-sm">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                 </Table>
-                <div className="overflow-y-auto max-h-[60vh]">
+                <div className="overflow-y-auto max-h-[50vh] xl:max-h-[60vh]">
                   <Table>
                     <TableBody>
                       {filteredRoles.map((role) => (
@@ -243,12 +244,12 @@ export default function RolesPage() {
               </div>
 
               {/* Footer stats */}
-              <div className="flex items-center justify-between px-4 py-3 bg-muted/20 text-xs text-muted-foreground border-t">
-                <span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4 py-2 sm:py-3 bg-muted/20 text-xs text-muted-foreground border-t gap-1 sm:gap-0">
+                <span className="text-xs">
                   Showing {filteredRoles.length} of {roles.length} roles
                 </span>
-                <div className="flex items-center gap-4">
-                  <span>{totalPermissions} total permissions</span>
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <span className="text-xs">{totalPermissions} total permissions</span>
                 </div>
               </div>
             </>
