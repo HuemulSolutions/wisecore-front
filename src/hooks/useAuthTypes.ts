@@ -24,15 +24,17 @@ export function useAuthTypes() {
     queryKey: authTypeQueryKeys.list(),
     queryFn: getAuthTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 0, // No retries to avoid multiple error requests
   })
 }
 
 // Hook for fetching available auth type types
-export function useAuthTypeTypes() {
+export function useAuthTypeTypes(enabled: boolean = true) {
   return useQuery({
     queryKey: authTypeQueryKeys.types(),
     queryFn: getAuthTypeTypes,
     staleTime: 30 * 60 * 1000, // 30 minutes (types don't change frequently)
+    enabled,
   })
 }
 
@@ -66,7 +68,6 @@ export function useAuthTypeMutations() {
       updateAuthType(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
-      queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.all })
       toast.success('Authentication type updated successfully')
     },
     onError: (error) => {

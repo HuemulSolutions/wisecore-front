@@ -22,18 +22,18 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
     params: null,
   })
 
-  const { data: authTypeTypes } = useAuthTypeTypes()
+  const { data: authTypeTypes } = useAuthTypeTypes(open && !!authType)
   const { updateAuthType } = useAuthTypeMutations()
 
   useEffect(() => {
-    if (authType) {
+    if (authType && open) {
       setFormData({
         name: authType.name,
         type: authType.type,
         params: authType.params,
       })
     }
-  }, [authType])
+  }, [authType, open])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +75,7 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
               value={formData.type}
               onValueChange={(value) => handleInputChange("type", value as "internal" | "entra")}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select authentication type" />
               </SelectTrigger>
               <SelectContent>

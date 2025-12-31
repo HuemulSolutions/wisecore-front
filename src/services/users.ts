@@ -19,12 +19,14 @@ export interface User {
   external_id: string | null;
   auth_type_id: string;
   updated_at: string;
+  created_at: string;
   birthdate: string | null;
+  birth_day?: number;
+  birth_month?: number;
   is_root_admin: boolean;
   photo_url: string | null;
   user_metadata: any | null;
-  created_at: string;
-  roles?: UserRole[];
+  roles: UserRole[];
 }
 
 export interface UsersResponse {
@@ -63,18 +65,48 @@ export interface CreateUserData {
   name: string;
   last_name: string;
   email: string;
-  birthdate: string;
+  birth_day: number;
+  birth_month: number;
+  photo_file?: string;
 }
 
-// Get all users
-export const getUsers = async (): Promise<UsersResponse> => {
-  const response = await httpClient.get(`${backendUrl}/users/`);
+// Get all users with roles
+export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100): Promise<UsersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+
+  // Add organization header if provided
+  if (organizationId) {
+    headers['X-Org-Id'] = organizationId;
+  }
+
+  const response = await httpClient.get(`${backendUrl}/user_roles/users_with_roles?${params}`, {
+    headers
+  });
   
   if (!response.ok) {
     throw new Error('Failed to fetch users');
   }
   
   return response.json();
+};
+
+// Get user by ID
+export const getUserById = async (userId: string): Promise<User> => {
+  const response = await httpClient.get(`${backendUrl}/users/${userId}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch user');
+  }
+  
+  const data = await response.json();
+  return data.data;
 };
 
 // Approve user

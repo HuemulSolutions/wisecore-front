@@ -4,6 +4,7 @@ import {
   getAccessLevel, 
   getRolePermissions, 
   getDocumentTypePermissions,
+  getDocumentTypeRolesAccessLevels,
   grantAccess, 
   revokeAccess, 
   updateAccess,
@@ -18,13 +19,15 @@ export const roleDocumentTypeQueryKeys = {
   accessLevel: (roleId: string, documentTypeId: string) => [...roleDocumentTypeQueryKeys.all, 'access-level', roleId, documentTypeId] as const,
   rolePermissions: (roleId: string) => [...roleDocumentTypeQueryKeys.all, 'role-permissions', roleId] as const,
   documentTypePermissions: (documentTypeId: string) => [...roleDocumentTypeQueryKeys.all, 'document-type-permissions', documentTypeId] as const,
+  documentTypeRolesAccessLevels: (documentTypeId: string) => [...roleDocumentTypeQueryKeys.all, 'document-type-roles-access-levels', documentTypeId] as const,
 }
 
 // Hook for fetching access levels
-export function useAccessLevels() {
+export function useAccessLevels(enabled: boolean = true) {
   return useQuery({
     queryKey: roleDocumentTypeQueryKeys.accessLevels(),
     queryFn: getAccessLevels,
+    enabled,
     staleTime: 10 * 60 * 1000, // 10 minutes - access levels change rarely
   })
 }
@@ -59,6 +62,17 @@ export function useDocumentTypePermissions(documentTypeId: string) {
   })
 }
 
+// Hook for fetching all roles with access levels for a document type (combined endpoint)
+export function useDocumentTypeRolesAccessLevels(documentTypeId: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: roleDocumentTypeQueryKeys.documentTypeRolesAccessLevels(documentTypeId),
+    queryFn: () => getDocumentTypeRolesAccessLevels(documentTypeId),
+    enabled: !!documentTypeId && enabled,
+    staleTime: 0, // Always refetch to ensure fresh data
+    refetchOnMount: true,
+  })
+}
+
 // Hook for role document type mutations
 export function useRoleDocumentTypeMutations() {
   const queryClient = useQueryClient()
@@ -66,7 +80,9 @@ export function useRoleDocumentTypeMutations() {
   const grantAccessMutation = useMutation({
     mutationFn: grantAccess,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.documentTypePermissions('') })
+      queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
+      queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('Access granted successfully')
     },
     onError: (error) => {
@@ -78,7 +94,9 @@ export function useRoleDocumentTypeMutations() {
     mutationFn: ({ roleId, documentTypeId }: { roleId: string; documentTypeId: string }) => 
       revokeAccess(roleId, documentTypeId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.all })
+      // Don't invalidate documentTypeRolesAccessLevels - it should only refetch when dialog opens
+      queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
+      queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('Access revoked successfully')
     },
     onError: (error) => {
@@ -90,7 +108,8 @@ export function useRoleDocumentTypeMutations() {
     mutationFn: ({ roleDocTypeId, accessLevel }: { roleDocTypeId: string; accessLevel: string }) => 
       updateAccess(roleDocTypeId, accessLevel),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
+      queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('Access updated successfully')
     },
     onError: (error) => {
@@ -101,7 +120,9 @@ export function useRoleDocumentTypeMutations() {
   const bulkGrantAccessMutation = useMutation({
     mutationFn: bulkGrantAccess,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.all })
+      // Don't invalidate documentTypeRolesAccessLevels - it should only refetch when dialog opens
+      queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
+      queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('All permissions granted successfully')
     },
     onError: (error) => {

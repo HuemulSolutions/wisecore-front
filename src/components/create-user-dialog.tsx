@@ -3,9 +3,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ChevronDownIcon, UserPlus } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { UserPlus } from "lucide-react"
 import { useUserMutations } from "@/hooks/useUsers"
 
 interface CreateUserDialogProps {
@@ -21,11 +20,13 @@ export default function CreateUserDialog({
     name: '',
     last_name: '',
     email: '',
-    birthdate: undefined as Date | undefined
+    birth_day: '',
+    birth_month: '',
+    photo_file: ''
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [datePickerOpen, setDatePickerOpen] = useState(false)
+  const [selectedFileName, setSelectedFileName] = useState<string>('')
 
   const { createUser } = useUserMutations()
 
@@ -36,10 +37,12 @@ export default function CreateUserDialog({
         name: '',
         last_name: '',
         email: '',
-        birthdate: undefined
+        birth_day: '',
+        birth_month: '',
+        photo_file: ''
       })
       setErrors({})
-      setDatePickerOpen(false)
+      setSelectedFileName('')
     }
   }, [open])
 
@@ -60,12 +63,43 @@ export default function CreateUserDialog({
       newErrors.email = 'Please enter a valid email address'
     }
 
-    if (!formData.birthdate) {
-      newErrors.birthdate = 'Birthdate is required'
+    if (!formData.birth_day) {
+      newErrors.birth_day = 'Birth day is required'
+    }
+
+    if (!formData.birth_month) {
+      newErrors.birth_month = 'Birth month is required'
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, photo_file: 'Please select an image file' }))
+        return
+      }
+
+      // Clear previous error
+      setErrors(prev => {
+        const { photo_file, ...rest } = prev
+        return rest
+      })
+
+      setSelectedFileName(file.name)
+
+      // Convert to base64
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        setFormData(prev => ({ ...prev, photo_file: base64String }))
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,7 +113,9 @@ export default function CreateUserDialog({
       name: formData.name.trim(),
       last_name: formData.last_name.trim(),
       email: formData.email.trim(),
-      birthdate: formData.birthdate ? formData.birthdate.toISOString() : ''
+      birth_day: parseInt(formData.birth_day),
+      birth_month: parseInt(formData.birth_month),
+      ...(formData.photo_file && { photo_file: formData.photo_file })
     }
 
     createUser.mutate(submissionData, {
@@ -155,36 +191,87 @@ export default function CreateUserDialog({
               )}
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="birth_day">Birth Day *</Label>
+                <Select
+                  value={formData.birth_day}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, birth_day: value }))}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="birth_day" className={errors.birth_day ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="Select day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.birth_day && (
+                  <p className="text-sm text-destructive">{errors.birth_day}</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="birth_month">Birth Month *</Label>
+                <Select
+                  value={formData.birth_month}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, birth_month: value }))}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="birth_month" className={errors.birth_month ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      { value: '1', label: 'January' },
+                      { value: '2', label: 'February' },
+                      { value: '3', label: 'March' },
+                      { value: '4', label: 'April' },
+                      { value: '5', label: 'May' },
+                      { value: '6', label: 'June' },
+                      { value: '7', label: 'July' },
+                      { value: '8', label: 'August' },
+                      { value: '9', label: 'September' },
+                      { value: '10', label: 'October' },
+                      { value: '11', label: 'November' },
+                      { value: '12', label: 'December' }
+                    ].map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.birth_month && (
+                  <p className="text-sm text-destructive">{errors.birth_month}</p>
+                )}
+              </div>
+            </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="birthdate">Date of Birth *</Label>
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    id="birthdate"
-                    className={`w-full justify-between font-normal ${errors.birthdate ? 'border-destructive' : ''}`}
-                    disabled={isLoading}
-                  >
-                    {formData.birthdate ? formData.birthdate.toLocaleDateString() : "Select date"}
-                    <ChevronDownIcon className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.birthdate}
-                    captionLayout="dropdown"
-                    onSelect={(date) => {
-                      setFormData(prev => ({ ...prev, birthdate: date }))
-                      setDatePickerOpen(false)
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-              {errors.birthdate && (
-                <p className="text-sm text-destructive">{errors.birthdate}</p>
-              )}
+              <Label htmlFor="photo_file">Photo (Optional)</Label>
+              <div className="flex flex-col gap-2">
+                <Input
+                  id="photo_file"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  disabled={isLoading}
+                  className="hover:cursor-pointer"
+                />
+                {selectedFileName && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {selectedFileName}
+                  </p>
+                )}
+                {errors.photo_file && (
+                  <p className="text-sm text-destructive">{errors.photo_file}</p>
+                )}
+              </div>
             </div>
           </div>
 

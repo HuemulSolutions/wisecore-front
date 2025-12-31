@@ -153,7 +153,11 @@ export function UpdateProfileDialog({ open, onOpenChange }: UpdateProfileDialogP
           
           <DialogFooter className="mt-8 gap-3">
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="hover:cursor-pointer"
+              >
                 Cancel
               </Button>
             </DialogClose>

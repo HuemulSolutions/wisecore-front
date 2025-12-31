@@ -1,18 +1,22 @@
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 import { type User } from "@/services/users"
+import { Loader2 } from "lucide-react"
 
 interface UserDeleteDialogProps {
   user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (user: User) => void
+  isDeleting?: boolean
 }
 
 export default function UserDeleteDialog({
   user,
   open,
   onOpenChange,
-  onConfirm
+  onConfirm,
+  isDeleting = false
 }: UserDeleteDialogProps) {
   if (!user) return null
 
@@ -26,13 +30,24 @@ export default function UserDeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => onConfirm(user)}
-            className="bg-destructive hover:bg-destructive/90"
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <Button
+            onClick={(e) => {
+              e.preventDefault()
+              onConfirm(user)
+            }}
+            className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
+            disabled={isDeleting}
           >
-            Delete
-          </AlertDialogAction>
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

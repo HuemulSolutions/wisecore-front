@@ -6,8 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Shield } from "lucide-react"
-import { useRoles } from "@/hooks/useRbac"
-import { useAccessLevels, useDocumentTypePermissions, useRoleDocumentTypeMutations } from "@/hooks/useRoleDocumentType"
+import { useDocumentTypeRolesAccessLevels, useRoleDocumentTypeMutations } from "@/hooks/useRoleDocumentType"
 import { type DocumentType } from "@/services/document-types"
 
 interface RolePermissionsDialogProps {
@@ -24,45 +23,39 @@ export default function RolePermissionsDialog({
   const [searchRole, setSearchRole] = useState("")
   const [rolePermissions, setRolePermissions] = useState<Map<string, Set<string>>>(new Map())
 
-  const { data: rolesData, isLoading: loadingRoles } = useRoles()
-  const { data: accessLevelsData, isLoading: loadingAccessLevels } = useAccessLevels()
-  const { data: existingPermissionsData, isLoading: loadingExistingPermissions } = useDocumentTypePermissions(documentType?.id || '')
+  // Fetch all data from single endpoint
+  const { data: rolesAccessLevelsData, isLoading } = useDocumentTypeRolesAccessLevels(documentType?.id || '', open)
   const { bulkGrantAccess, revokeAccess } = useRoleDocumentTypeMutations()
 
-  const roles = rolesData?.data || []
-  const accessLevels = accessLevelsData?.data || []
+  const accessLevels = rolesAccessLevelsData?.data?.access_levels || []
+  const roles = rolesAccessLevelsData?.data?.roles || []
 
   // Filter roles based on search
   const filteredRoles = roles.filter((role) =>
-    role.name.toLowerCase().includes(searchRole.toLowerCase())
+    role.role_name.toLowerCase().includes(searchRole.toLowerCase())
   )
 
-  // Reset and load existing permissions when dialog opens or document type changes
+  // Reset and load existing permissions when dialog opens or data changes
   useEffect(() => {
-    if (open && documentType) {
+    if (open && documentType && rolesAccessLevelsData?.data) {
       setSearchRole("")
       
-      // Load existing permissions
-      if (existingPermissionsData?.data && Array.isArray(existingPermissionsData.data)) {
-        const existingMap = new Map<string, Set<string>>()
-        existingPermissionsData.data.forEach(permission => {
-          const existing = existingMap.get(permission.role_id) || new Set()
-          // Handle single access_level from API response
-          if (permission.access_level) {
-            existing.add(permission.access_level)
+      // Load existing permissions from roles data
+      const existingMap = new Map<string, Set<string>>()
+      rolesAccessLevelsData.data.roles.forEach(role => {
+        const assigned = new Set<string>()
+        role.access_levels.forEach(accessLevel => {
+          if (accessLevel.assigned) {
+            assigned.add(accessLevel.level)
           }
-          // Also handle array access_levels if present
-          if (permission.access_levels && Array.isArray(permission.access_levels)) {
-            permission.access_levels.forEach(level => existing.add(level))
-          }
-          existingMap.set(permission.role_id, existing)
         })
-        setRolePermissions(existingMap)
-      } else {
-        setRolePermissions(new Map())
-      }
+        if (assigned.size > 0) {
+          existingMap.set(role.role_id, assigned)
+        }
+      })
+      setRolePermissions(existingMap)
     }
-  }, [open, documentType, existingPermissionsData])
+  }, [open, documentType, rolesAccessLevelsData])
 
   const handlePermissionChange = (roleId: string, permission: string, checked: boolean) => {
     setRolePermissions(prev => {
@@ -86,9 +79,9 @@ export default function RolePermissionsDialog({
   }
 
   const handleSubmit = () => {
-    if (!documentType) return
+    if (!documentType || !rolesAccessLevelsData?.data) return
 
-    const currentPermissions = (existingPermissionsData?.data && Array.isArray(existingPermissionsData.data)) ? existingPermissionsData.data : []
+    const currentRoles = rolesAccessLevelsData.data.roles
     const rolesPermissions = Array.from(rolePermissions.entries())
       .filter(([_, permissions]) => permissions.size > 0)
       .map(([roleId, permissions]) => ({
@@ -97,9 +90,13 @@ export default function RolePermissionsDialog({
       }))
 
     // Find roles to revoke (had permissions before but not now)
-    const rolesToRevoke = currentPermissions
-      .filter(current => !rolePermissions.has(current.role_id) || rolePermissions.get(current.role_id)!.size === 0)
-      .map(current => ({ roleId: current.role_id, documentTypeId: documentType.id }))
+    const rolesToRevoke = currentRoles
+      .filter(role => {
+        const hasAssigned = role.access_levels.some(al => al.assigned)
+        const hasNew = rolePermissions.has(role.role_id) && rolePermissions.get(role.role_id)!.size > 0
+        return hasAssigned && !hasNew
+      })
+      .map(role => ({ roleId: role.role_id, documentTypeId: documentType.id }))
 
     // Revoke access for roles that should no longer have access
     const revokePromises = rolesToRevoke.map(({ roleId, documentTypeId }) => 
@@ -130,7 +127,6 @@ export default function RolePermissionsDialog({
     }
   }
 
-  const isLoading = loadingRoles || loadingAccessLevels || loadingExistingPermissions
   const isSaving = bulkGrantAccess.isPending || revokeAccess.isPending
 
   if (!documentType) return null
@@ -185,22 +181,21 @@ export default function RolePermissionsDialog({
                 </TableHeader>
                 <TableBody>
                   {filteredRoles.map((role) => (
-                    <TableRow key={role.id} className="hover:bg-muted/20">
+                    <TableRow key={role.role_id} className="hover:bg-muted/20">
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: role.color || '#6B7280' }}
+                            className="w-3 h-3 rounded-full bg-gray-400" 
                           />
-                          {role.name}
+                          {role.role_name}
                         </div>
                       </TableCell>
                       {accessLevels.map((level) => (
                         <TableCell key={level} className="text-center">
                           <Checkbox
-                            checked={isPermissionChecked(role.id, level)}
+                            checked={isPermissionChecked(role.role_id, level)}
                             onCheckedChange={(checked) => 
-                              handlePermissionChange(role.id, level, checked as boolean)
+                              handlePermissionChange(role.role_id, level, checked as boolean)
                             }
                             disabled={isSaving}
                           />

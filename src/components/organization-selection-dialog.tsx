@@ -76,7 +76,7 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
     if (organizationId && user?.id) {
       setIsGeneratingToken(true);
       try {
-        const tokenResponse = await generateOrganizationToken(user.id, organizationId);
+        const tokenResponse = await generateOrganizationToken(organizationId);
         const orgToken = tokenResponse.token || tokenResponse.data?.token;
         
         // Actualizar el contexto de organización

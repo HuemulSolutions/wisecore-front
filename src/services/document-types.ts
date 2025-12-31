@@ -10,6 +10,22 @@ export interface DocumentType {
   document_count: number;
 }
 
+export interface DocumentTypeDetail {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  role_count: number;
+  access_level: string[];
+}
+
+export interface DocumentTypeDetailResponse {
+  data: DocumentTypeDetail;
+  transaction_id: string;
+  timestamp: string;
+}
+
 export interface DocumentTypesResponse {
   data: DocumentType[];
   transaction_id: string;
@@ -70,6 +86,38 @@ export const createDocumentType = async (data: CreateDocumentTypeData): Promise<
   
   if (!response.ok) {
     throw new Error('Failed to create asset type');
+  }
+  
+  return response.json();
+};
+
+// Get document type by ID
+export const getDocumentTypeById = async (id: string): Promise<DocumentTypeDetailResponse> => {
+  const response = await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch document type');
+  }
+  
+  return response.json();
+};
+
+// Update document type
+export const updateDocumentType = async (id: string, data: UpdateDocumentTypeData): Promise<DocumentType> => {
+  const response = await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to update document type');
   }
   
   return response.json();

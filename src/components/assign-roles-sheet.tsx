@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { UserCheck, Shield } from "lucide-react"
-import { useRoles, useUserRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
+import { Card } from "@/components/ui/card"
+import { UserCheck, Shield, RefreshCw } from "lucide-react"
+import { useUserAllRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { type User } from "@/services/users"
 
@@ -20,30 +20,38 @@ interface AssignRolesSheetProps {
 
 export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }: AssignRolesSheetProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [, setHasInitialized] = useState(false)
   const queryClient = useQueryClient()
   
-  const { data: rolesResponse, isLoading: rolesLoading } = useRoles()
-  const { data: userRolesResponse, isLoading: userRolesLoading, refetch: refetchUserRoles } = useUserRoles(user?.id || '')
+  // Fetch all roles with user assignment status when sheet is open
+  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user)
   const { assignRoles } = useRoleMutations()
 
-  const roles = rolesResponse?.data || []
-  const userRoles = userRolesResponse?.data || []
+  const roles = userAllRolesResponse?.data || []
 
-  // Reset form when user changes or dialog opens and fetch fresh user roles
+  // Reset state when sheet closes or user changes
+  useEffect(() => {
+    if (!open || !user) {
+      setSelectedRoles([])
+      setHasInitialized(false)
+    }
+  }, [open, user?.id])
+
+  // Initialize selected roles when data loads or changes
+  useEffect(() => {
+    if (open && user && !rolesLoading && !rolesError && roles.length >= 0) {
+      const assignedRoleIds = roles.filter(role => role.has_role).map(role => role.id)
+      setSelectedRoles(assignedRoleIds)
+      setHasInitialized(true)
+    }
+  }, [open, user?.id, rolesLoading, rolesError, JSON.stringify(roles.map(r => ({ id: r.id, has_role: r.has_role })))])
+
+  // Invalidate queries when sheet opens
   useEffect(() => {
     if (open && user) {
-      // Invalidate and refetch user roles when sheet opens
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(user.id) })
-      refetchUserRoles()
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(user.id) })
     }
-  }, [open, user, queryClient, refetchUserRoles])
-
-  // Update selected roles when user roles data changes
-  useEffect(() => {
-    if (open && user && !userRolesLoading && userRoles) {
-      setSelectedRoles(userRoles.map(role => role.id))
-    }
-  }, [user, open, userRoles, userRolesLoading])
+  }, [open, user?.id, queryClient])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,8 +66,11 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
           queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
           // Call additional success callback if provided
           onSuccess?.()
-          // Close the sheet
+          // Close the sheet immediately
           onOpenChange(false)
+        },
+        onError: () => {
+          // Keep sheet open on error so user can retry
         }
       })
     }
@@ -73,13 +84,26 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
     )
   }
 
+  const handleRetry = async () => {
+    if (rolesError && user) {
+      await refetchRoles()
+    }
+  }
+
   const isLoading = assignRoles.isPending
+  const hasErrors = !!rolesError
+  const isDataLoading = rolesLoading
 
   if (!user) return null
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[600px] p-0">
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-[90vw] lg:max-w-[600px] p-0"
+        onPointerDownOutside={isLoading ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={isLoading ? (e) => e.preventDefault() : undefined}
+      >
         <div className="flex flex-col h-full">
           <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
             <div className="flex items-center justify-between">
@@ -107,7 +131,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                   type="submit"
                   className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
                   size="sm"
-                  disabled={isLoading}
+                  disabled={isLoading || hasErrors || roles.length === 0}
                 >
                   {isLoading ? 'Assigning...' : 'Assign Roles'}
                 </Button>
@@ -115,64 +139,102 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
             </div>
           </SheetHeader>
           
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <form id="assign-roles-form" onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 sm:py-3">
+            <form id="assign-roles-form" onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Available Roles</span>
-              <Badge variant="outline">
+              <Badge variant="outline" className="text-xs px-2 py-0.5">
                 {selectedRoles.length} selected
               </Badge>
             </div>
 
-            {rolesLoading || userRolesLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-3">
-                    <Skeleton className="h-4 w-4" />
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-48" />
+            {isDataLoading ? (
+              <div className="space-y-2">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="flex items-center space-x-3 p-2 border rounded-md">
+                    <Skeleton className="h-3 w-3 rounded" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-2 w-32" />
+                    </div>
+                    <div className="flex gap-1">
+                      <Skeleton className="h-4 w-6" />
+                      <Skeleton className="h-4 w-8" />
                     </div>
                   </div>
                 ))}
               </div>
+            ) : hasErrors ? (
+              <div className="flex flex-col items-center justify-center min-h-[300px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+                <p className="text-red-600 mb-4 font-medium">
+                  {rolesError?.message || 'Failed to load roles'}
+                </p>
+                <p className="text-sm text-muted-foreground mb-6">
+                  There was an error loading the roles data. Please try again.
+                </p>
+                <Button 
+                  onClick={handleRetry} 
+                  variant="outline" 
+                  className="hover:cursor-pointer"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+              </div>
+            ) : roles.length === 0 ? (
+              <Card className="p-6 text-center">
+                <Shield className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-sm font-semibold mb-2">No roles available</h3>
+                <p className="text-xs text-muted-foreground">
+                  No roles have been created yet.
+                </p>
+              </Card>
             ) : (
-              <ScrollArea className="h-[80vh] border rounded-md p-4">
-                <div className="space-y-4">
+              <div className="border rounded-md p-3">
+                <div className="space-y-2">
                   {roles.map((role) => (
-                    <div key={role.id} className="flex items-start space-x-3">
+                    <div key={role.id} className="flex items-center space-x-3 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/30 transition-colors">
                       <Checkbox
                         id={role.id}
                         checked={selectedRoles.includes(role.id)}
                         onCheckedChange={() => handleRoleToggle(role.id)}
+                        className="mt-0.5"
                       />
                       <div className="flex-1 min-w-0">
-                        <label
-                          htmlFor={role.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-                        >
-                          <Shield className="w-4 h-4 text-primary" />
-                          {role.name}
-                        </label>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {role.description}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="default" className="text-xs">
-                            {role.permission_num || role.permissions?.length || 0} permissions
-                          </Badge>
-                          {role.users_count !== undefined && (
-                            <Badge variant="outline" className="text-xs">
-                              {role.users_count} users
-                            </Badge>
-                          )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <label
+                              htmlFor={role.id}
+                              className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2 mb-1"
+                            >
+                              <Shield className="w-3 h-3 text-primary flex-shrink-0" />
+                              <span className="truncate">{role.name}</span>
+                            </label>
+                            {role.description && (
+                              <p className="text-xs text-muted-foreground leading-tight mb-1 line-clamp-2">
+                                {role.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {role.permission_num !== undefined && (
+                              <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
+                                {role.permission_num}
+                              </Badge>
+                            )}
+                            {role.users_count !== undefined && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                                {role.users_count} users
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             )}
           </div>
             </form>

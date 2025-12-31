@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { File, Plus, Network, Folder as FolderIcon, FileText, Search, FolderTree, MoreVertical } from "lucide-react"; 
+import { File, Plus, Network, Folder as FolderIcon, FileText, Search, FolderTree, MoreVertical, RefreshCw } from "lucide-react"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLibraryContent } from "@/services/library";
-import { FileTreeWithSearchAndContext } from "@/components/file tree/file-tree-with-search-and-context";
+import { FileTreeWithSearchAndContext, AssetContent, CreateFolderDialog, CreateAssetDialog } from "@/components/assets";
+import type { FileNode, LibraryItem, BreadcrumbItem, LibraryNavigationState } from "@/components/assets";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSidebar } from "@/components/ui/sidebar";
 
@@ -28,40 +29,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
-import type { FileNode } from "@/components/file tree/types";
-import { AssetContent } from "@/components/library/new-library-content";
 import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
-import { CreateFolderDialog } from "@/components/create_folder";
-import { CreateAssetDialog } from "@/components/create-asset-dialog";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { ExpandedFoldersProvider, useExpandedFolders } from "@/hooks/use-expanded-folders";
-
-// API response interface
-interface LibraryItem {
-  id: string;
-  name: string;
-  type: "folder" | "document";
-  document_type?: {
-    id: string;
-    name: string;
-    color: string;
-  };
-  access_levels?: string[];
-}
-
-interface BreadcrumbItem {
-  id: string;
-  name: string;
-}
-
-type LibraryNavigationState = {
-  selectedDocumentId?: string;
-  selectedDocumentName?: string;
-  selectedDocumentType?: "document" | "folder";
-  restoreBreadcrumb?: boolean;
-  breadcrumb?: BreadcrumbItem[];
-  fromLibrary?: boolean;
-};
 
 function AssetsContent() {
   const navigate = useNavigate();
@@ -246,26 +216,13 @@ function AssetsContent() {
   const currentFolderId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].id : undefined;
 
   // Fetch library content for current folder (optimized with staleTime)
-  const { data: libraryData, isLoading, error } = useQuery({
+  const { data: libraryData, isLoading, error, isFetching } = useQuery({
     queryKey: ['library', selectedOrganizationId, currentFolderId],
     queryFn: () => getLibraryContent(selectedOrganizationId!, currentFolderId),
     enabled: !!selectedOrganizationId,
     staleTime: 30000, // Cache for 30 seconds to avoid unnecessary refetches
     gcTime: 300000, // Keep in cache for 5 minutes
-    retry: (failureCount, error) => {
-      // No retry for authentication/authorization errors
-      if (error instanceof Error && 
-          (error.message.includes('401') || 
-           error.message.includes('403') ||
-           error.message.includes('Unauthorized') ||
-           error.message.includes('no tiene ningún rol') ||
-           error.message.includes('access denied'))) {
-        return false;
-      }
-      // Retry other errors up to 2 times (instead of default 3)
-      return failureCount < 2;
-    },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retry: false,
   });
 
   const currentItems = libraryData?.content || [];
@@ -829,70 +786,56 @@ function AssetsContent() {
   };
 
 
-  if (error) {
-    // Check if it's a role/permission error vs other errors
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const isPermissionError = errorMessage.includes('no tiene ningún rol') || 
-                             errorMessage.includes('no permission') ||
-                             errorMessage.includes('insufficient privileges') ||
-                             errorMessage.includes('access denied');
-    
-    if (isPermissionError) {
-      return (
-        <div className="flex items-center justify-center h-screen bg-gray-50">
-          <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-amber-100 rounded-full">
-              <File className="h-8 w-8 text-amber-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Restringido</h2>
-            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-              No tienes los permisos necesarios para acceder a los assets de esta organización.
-            </p>
-            <p className="text-xs text-gray-500 mb-6">
-              Por favor contacta a tu administrador para que te asigne el rol apropiado.
-            </p>
-            <div className="space-y-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Reset organization selection to allow user to choose a different one
-                  resetOrganizationContext();
-                }}
-                className="hover:cursor-pointer w-full"
-              >
-                Cambiar Organización
-              </Button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    
+  // Check for permission errors separately to show specific message
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  const isPermissionError = errorMessage.includes('no tiene ningún rol') || 
+                           errorMessage.includes('no permission') ||
+                           errorMessage.includes('insufficient privileges') ||
+                           errorMessage.includes('access denied');
+
+  if (!selectedOrganizationId) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-red-100 rounded-full">
-            <File className="h-8 w-8 text-red-600" />
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-blue-100 rounded-full">
+            <FolderIcon className="h-8 w-8 text-blue-600" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error al Cargar Assets</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Ocurrió un problema al cargar el contenido. Por favor intenta de nuevo.
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Organización Requerida</h2>
+          <p className="text-sm text-gray-600">
+            Por favor selecciona una organización para ver los assets.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPermissionError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-amber-100 rounded-full">
+            <File className="h-8 w-8 text-amber-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Restringido</h2>
+          <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+            No tienes los permisos necesarios para acceder a los assets de esta organización.
           </p>
           <p className="text-xs text-gray-500 mb-6">
-            {errorMessage}
+            Por favor contacta a tu administrador para que te asigne el rol apropiado.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              // Trigger a refetch
-              queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
-            }}
-            className="hover:cursor-pointer"
-          >
-            Intentar de Nuevo
-          </Button>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Reset organization selection to allow user to choose a different one
+                resetOrganizationContext();
+              }}
+              className="hover:cursor-pointer w-full"
+            >
+              Cambiar Organización
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -912,23 +855,6 @@ function AssetsContent() {
     }, 0)
   }
 
-  // Si no hay organización seleccionada, mostrar un placeholder
-  if (!selectedOrganizationId) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center max-w-md p-8 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-blue-100 rounded-full">
-            <FolderIcon className="h-8 w-8 text-blue-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Organización Requerida</h2>
-          <p className="text-sm text-gray-600">
-            Por favor selecciona una organización para ver los assets.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen bg-gray-50">
       {/* File Tree Sidebar */}
@@ -946,7 +872,7 @@ function AssetsContent() {
             <div className="p-4 flex-shrink-0">
               {/* Action Buttons */}
               <div className="flex items-center justify-start gap-2 md:justify-between mb-4">
-                <Tooltip>
+                {/* <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
@@ -959,46 +885,58 @@ function AssetsContent() {
                   <TooltipContent>
                     <p>Asset relationships</p>
                   </TooltipContent>
-                </Tooltip>
+                </Tooltip> */}
 
-                {(canAccessFolders && canCreate('folder')) || (canAccessAssets && canCreate('assets')) ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
+                <div className="flex items-center gap-2">
+                  {(canAccessFolders && canCreate('folder')) || (canAccessAssets && canCreate('assets')) ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Plus className="h-4 w-4 text-gray-600" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="min-w-40"
                       >
-                        <Plus className="h-4 w-4 text-gray-600" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="min-w-40"
-                    >
-                    {canAccessFolders && canCreate('folder') && (
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          className="hover:cursor-pointer"
-                          onSelect={handleCreateFolder}
-                        >
-                          <FolderIcon className="h-4 w-4 mr-2"></FolderIcon>
-                          Create Folder
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    )}
-                    {canAccessAssets && canCreate('assets') && (
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          className="hover:cursor-pointer"
-                          onSelect={handleCreateAsset}
-                        >
-                          <FileText className="h-4 w-4 mr-2"></FileText>
-                          Create Asset
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
+                      {canAccessFolders && canCreate('folder') && (
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem
+                            className="hover:cursor-pointer"
+                            onSelect={handleCreateFolder}
+                          >
+                            <FolderIcon className="h-4 w-4 mr-2"></FolderIcon>
+                            Create Folder
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      )}
+                      {canAccessAssets && canCreate('assets') && (
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem
+                            className="hover:cursor-pointer"
+                            onSelect={handleCreateAsset}
+                          >
+                            <FileText className="h-4 w-4 mr-2"></FileText>
+                            Create Asset
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isFetching}
+                    className="hover:cursor-pointer h-8 text-xs px-2"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
               
               <div className="relative">
@@ -1053,7 +991,25 @@ function AssetsContent() {
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div className="flex-1 p-2 overflow-auto min-h-[80vh] max-h-[80vh]">
-              {isLoading ? (
+              {error && !isPermissionError ? (
+                <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg p-8 mx-2">
+                  <p className="text-red-600 mb-4 font-medium text-sm">
+                    {'Failed to load assets'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    There was an error loading the content. Please try again.
+                  </p>
+                  <Button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId, currentFolderId] })} 
+                    variant="outline" 
+                    size="sm"
+                    className="hover:cursor-pointer h-8"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                    Try Again
+                  </Button>
+                </div>
+              ) : isLoading || isFetching ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-3">

@@ -1,29 +1,23 @@
 "use client"
 
 import * as React from "react"
-import { useState, useRef } from "react"
-import { Edit3 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Edit3, Sparkles, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
-    markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
-    BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
-    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage, 
-    CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
-} from '@mdxeditor/editor';
-import type { MDXEditorMethods } from '@mdxeditor/editor';
+import { redactPrompt } from "@/services/generate"
+import { useOrganization } from "@/contexts/organization-context"
 
 interface Item {
   id: string;
@@ -52,6 +46,7 @@ interface EditSectionDialogProps {
   item: Item
   onSave: (updatedItem: ItemForBackend) => void
   existingSections?: Section[]
+  onGeneratingChange?: (isGenerating: boolean) => void
 }
 
 export function EditSectionDialog({ 
@@ -59,14 +54,16 @@ export function EditSectionDialog({
   onOpenChange, 
   item, 
   onSave, 
-  existingSections = [] 
+  existingSections = [],
+  onGeneratingChange
 }: EditSectionDialogProps) {
+  const { selectedOrganizationId } = useOrganization()
   const [formData, setFormData] = useState<Item>({
     ...item,
     dependencies: [...item.dependencies]
   })
   const [selectValue, setSelectValue] = useState<string>("")
-  const editorRef = useRef<MDXEditorMethods>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   React.useEffect(() => {
     if (item) {
@@ -76,6 +73,40 @@ export function EditSectionDialog({
       })
     }
   }, [item])
+
+  // Notificar cambios en el estado de generación
+  useEffect(() => {
+    onGeneratingChange?.(isGenerating)
+  }, [isGenerating, onGeneratingChange])
+
+  const handleGeneratePrompt = async () => {
+    if (!formData.name.trim()) return
+    
+    setIsGenerating(true)
+    setFormData(prev => ({ ...prev, prompt: "" }))
+    
+    try {
+      let accumulatedText = ""
+      await redactPrompt({
+        name: formData.name.trim(),
+        organizationId: selectedOrganizationId!,
+        onData: (text: string) => {
+          accumulatedText += text
+          const formattedText = accumulatedText.replace(/\\n/g, '\n')
+          setFormData(prev => ({ ...prev, prompt: formattedText }))
+        },
+        onError: (error) => {
+          console.error('Error generating prompt:', error)
+        },
+        onClose: () => {
+          setIsGenerating(false)
+        }
+      })
+    } catch (error) {
+      console.error('Error in prompt generation:', error)
+      setIsGenerating(false)
+    }
+  }
 
   const handleInputChange = (field: keyof Item, value: string | number) => {
     setFormData(prev => ({
@@ -92,7 +123,7 @@ export function EditSectionDialog({
         dependencies: [...prev.dependencies, { id: sectionId, name: sectionInfo?.name || `Section ${sectionId}` }]
       }))
     }
-    setSelectValue("") // reset select
+    setSelectValue("")
   }
 
   const removeDependency = (sectionId: string) => {
@@ -109,7 +140,6 @@ export function EditSectionDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Enviar dependencies como array de strings (solo IDs) para compatibilidad con el backend
     const updatedItem: ItemForBackend = {
       ...formData,
       dependencies: formData.dependencies.map(dep => dep.id)
@@ -119,147 +149,117 @@ export function EditSectionDialog({
     onOpenChange(false)
   }
 
+  const isFormValid = formData.name.trim().length > 0 && formData.prompt.trim().length > 0 && !isGenerating
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto p-6">
-        <DialogHeader className="space-y-2">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Edit3 className="h-4 w-4 text-primary" />
-            Edit Section
-          </DialogTitle>
-          <DialogDescription className="text-sm">
-            Make changes to the section information and content.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col p-0">
+        <div className="px-6 pt-6 flex-shrink-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Edit3 className="h-4 w-4 text-[#4464f7]" />
+              Edit Section
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Make changes to the section information and content.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4 w-full">
-          <div className="grid gap-4 w-full">
-            {/* Name Field */}
-            <div className="grid gap-2 w-full">
-              <Label htmlFor="sectionName">Section Name *</Label>
+        <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+          <form id="edit-section-form" onSubmit={handleSubmit} className="space-y-4">
+            {/* Section Name */}
+            <div className="space-y-2">
+              <Label htmlFor="section-name" className="text-xs font-medium text-gray-700">Section Name</Label>
               <Input
-                id="sectionName"
+                id="section-name"
+                placeholder="Enter section name (e.g., Purpose, Scope, Procedure)"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Enter section name"
-                className="w-full"
-                required
+                autoComplete="off"
+                className="text-sm"
               />
             </div>
 
             {/* Prompt Field */}
-            <div className="grid gap-2 w-full">
-              <Label htmlFor="sectionPrompt">Prompt *</Label>
-              <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 w-full overflow-hidden">
-                <MDXEditor
-                  ref={editorRef}
-                  markdown={formData.prompt}
-                  onChange={(value) => handleInputChange('prompt', value)}
-                  contentEditableClassName='mdxeditor-content min-h-[120px] prose dark:prose-invert focus:outline-none p-2 text-sm'
-                  placeholder="Enter the prompt for this section"
-                  spellCheck={false}
-                  plugins={[
-                    headingsPlugin(), 
-                    listsPlugin(), 
-                    quotePlugin(), 
-                    tablePlugin(),
-                    thematicBreakPlugin(), 
-                    linkPlugin(),
-                    linkDialogPlugin(),
-                    imagePlugin({
-                      imageUploadHandler: async () => {
-                        return Promise.resolve('https://via.placeholder.com/400x300');
-                      }
-                    }),
-                    codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-                    codeMirrorPlugin({ codeBlockLanguages: { 
-                      js: 'JavaScript', 
-                      jsx: 'JavaScript (React)', 
-                      ts: 'TypeScript', 
-                      tsx: 'TypeScript (React)', 
-                      css: 'CSS', 
-                      html: 'HTML', 
-                      json: 'JSON',
-                      bash: 'Bash',
-                      sh: 'Shell',
-                      yaml: 'YAML',
-                      yml: 'YAML',
-                      xml: 'XML',
-                      sql: 'SQL',
-                      python: 'Python',
-                      go: 'Go',
-                      rust: 'Rust',
-                      java: 'Java',
-                      c: 'C',
-                      cpp: 'C++',
-                      php: 'PHP',
-                      ruby: 'Ruby',
-                      '': 'Plain text'
-                    }}),
-                    markdownShortcutPlugin(),
-                    toolbarPlugin({
-                      toolbarContents() {
-                        return (
-                          <>  
-                            <UndoRedo />
-                            <Separator />
-                            <BoldItalicUnderlineToggles />
-                            <CodeToggle />
-                            <Separator />
-                            <ListsToggle />
-                            <Separator />
-                            <BlockTypeSelect />
-                            <Separator />
-                            <CreateLink />
-                            <InsertImage />
-                            <Separator />
-                            <InsertTable />
-                            <InsertCodeBlock />
-                            <InsertThematicBreak />
-                          </>
-                        )
-                      },
-                    }),
-                  ]}
-                />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-gray-700">Prompt Content</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGeneratePrompt}
+                  disabled={!formData.name.trim() || isGenerating || !!formData.prompt.trim()}
+                  className="hover:cursor-pointer h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      Generate with AI
+                    </>
+                  )}
+                </Button>
+              </div>
+              <Textarea
+                placeholder="Enter the prompt content for this section or use AI generation"
+                value={formData.prompt}
+                onChange={(e) => handleInputChange('prompt', e.target.value)}
+                disabled={isGenerating}
+                rows={20}
+                className="text-sm resize-none min-h-[250px] max-h-[250px]"
+              />
+              <div className="min-h-[20px]">
+                {isGenerating && (
+                  <div className="text-xs text-blue-600 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    AI is generating content based on the section name...
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Dependencies Field */}
-            <div className="grid gap-2 w-full">
-              <Label className="text-sm font-medium text-gray-700">Internal Dependencies</Label>
+            {/* Dependencies */}
+            <div className="space-y-2 w-full">
+              <Label className="text-xs font-medium text-gray-700">Internal Dependencies</Label>
               {availableSections.length > 0 ? (
                 <Select value={selectValue} onValueChange={addDependency}>
-                  <SelectTrigger className="hover:cursor-pointer w-full">
-                    <SelectValue placeholder="Select a section to add as dependency" />
+                  <SelectTrigger className="hover:cursor-pointer text-sm w-full">
+                    <SelectValue placeholder="Select sections this depends on" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-full">
                     {availableSections.map(section => (
-                      <SelectItem key={section.id} value={section.id} className="hover:cursor-pointer">
+                      <SelectItem key={section.id} value={section.id} className="hover:cursor-pointer text-sm">
                         {section.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="text-sm text-gray-500 italic">
+                <p className="text-xs text-gray-500 italic">
                   No sections available to add as dependencies
                 </p>
               )}
+              
               {formData.dependencies.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-1 w-full">
                   {formData.dependencies.map(dep => {
                     const section = existingSections.find(s => s.id === dep.id)
                     return (
                       <span
                         key={dep.id}
-                        className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-md text-xs border border-orange-200"
                       >
                         {section?.name || `Section ${dep.id}`}
                         <button
                           type="button"
                           onClick={() => removeDependency(dep.id)}
-                          className="text-blue-600 hover:text-blue-800 hover:cursor-pointer"
+                          className="text-orange-600 hover:text-orange-800 hover:cursor-pointer ml-1"
                         >
                           ×
                         </button>
@@ -269,23 +269,46 @@ export function EditSectionDialog({
                 </div>
               )}
             </div>
-          </div>
-          
-          <DialogFooter className="mt-4 gap-2 flex-row justify-end">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" size="sm" className="hover:cursor-pointer">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button 
-              type="submit"
-              size="sm"
-              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </form>
+
+            {/* Validation Messages */}
+            <div className="min-h-[32px]">
+              {formData.name && !formData.prompt && (
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  💡 Consider using AI generation or add prompt content manually
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+        
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="hover:cursor-pointer"
+            disabled={isGenerating}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="edit-section-form"
+            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+            disabled={!isFormValid}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Edit3 className="mr-2 h-4 w-4" />
+                Save Changes
+              </>
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

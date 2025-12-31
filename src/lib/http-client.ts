@@ -66,16 +66,18 @@ export const httpClient = {
     
     // Determinar qué token usar basado en la URL
     const isTokenEndpoint = url.includes('/users/') && url.includes('/token');
+    const isUserRolesTokenEndpoint = url.includes('/user_roles/user_token');
     const isUserOrganizationsEndpoint = url.includes('/users/organizations');
     const isAuthEndpoint = url.includes('/auth/');
     const isOrganizationsEndpoint = url.includes('/organizations') && !url.includes('/users/organizations');
     
     // Usar loginToken para:
     // 1. Generar token organizacional (/users/{id}/token)
-    // 2. Obtener organizaciones del usuario (/users/organizations) 
-    // 3. Endpoints de auth (/auth/*)
-    // 4. Listar todas las organizaciones (/organizations)
-    const shouldUseLoginToken = isTokenEndpoint || isUserOrganizationsEndpoint || isAuthEndpoint || isOrganizationsEndpoint;
+    // 2. Generar token de usuario-rol (/user_roles/user_token)
+    // 3. Obtener organizaciones del usuario (/users/organizations) 
+    // 4. Endpoints de auth (/auth/*)
+    // 5. Listar todas las organizaciones (/organizations)
+    const shouldUseLoginToken = isTokenEndpoint || isUserRolesTokenEndpoint || isUserOrganizationsEndpoint || isAuthEndpoint || isOrganizationsEndpoint;
     const tokenToUse = shouldUseLoginToken ? loginToken : organizationToken;
     
     console.log(`[httpClient] ${options.method || 'GET'} ${url}`);

@@ -16,6 +16,13 @@ export const formatDate = (dateString: string) => {
   })
 }
 
+export const formatBirthday = (birthDay: number | null, birthMonth: number | null) => {
+  if (!birthDay || !birthMonth) return 'N/A'
+  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[birthMonth - 1]} ${birthDay}`
+}
+
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'active':
@@ -60,9 +67,9 @@ interface UserTableProps {
 
 export default function UserTable({
   users,
-  selectedUsers,
-  onUserSelection,
-  onSelectAll,
+  selectedUsers: _selectedUsers,
+  onUserSelection: _onUserSelection,
+  onSelectAll: _onSelectAll,
   onEditUser,
   onViewOrganizations,
   onAssignRoles,
@@ -84,99 +91,87 @@ export default function UserTable({
   }
 
   return (
-    <Card className="border border-border bg-card overflow-auto max-h-[70vh]">
+    <Card className="border border-border bg-card overflow-auto max-h-[75vh]">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="w-12 px-4 py-4 text-left">
-                <input 
-                  type="checkbox" 
-                  className="rounded" 
-                  checked={selectedUsers.size === users.length && users.length > 0}
-                  onChange={onSelectAll}
-                />
-              </th>
-              <th className="px-4 py-4 text-left text-sm font-semibold text-foreground">Name</th>
-              <th className="px-4 py-4 text-left text-sm font-semibold text-foreground">Email</th>
-              <th className="px-4 py-4 text-left text-sm font-semibold text-foreground">Roles</th>
-              <th className="px-4 py-4 text-left text-sm font-semibold text-foreground">Status</th>
-              <th className="px-4 py-4 text-left text-sm font-semibold text-foreground">Created</th>
-              <th className="px-4 py-4 text-right text-sm font-semibold text-foreground">Actions</th>
+          <thead className="sticky top-0 bg-muted z-10">
+            <tr className="border-b border-border">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Name</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Email</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Birthday</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Roles</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Status</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Created</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.id} className="border-b border-border hover:bg-muted/20 transition">
-                <td className="w-12 px-4 py-4">
-                  <input 
-                    type="checkbox" 
-                    className="rounded" 
-                    checked={selectedUsers.has(user.id)}
-                    onChange={() => onUserSelection(user.id)}
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
+                <td className="px-3 py-2">
+                  <div className="flex flex-col gap-0">
+                    <span className="text-xs font-medium text-foreground leading-tight">
                       {user.name} {user.last_name}
                     </span>
                     {user.activated_at && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground leading-tight">
                         Activated: {formatDate(user.activated_at)}
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-4 text-sm text-blue-600 font-medium">{user.email}</td>
-                <td className="px-4 py-4">
+                <td className="px-3 py-2 text-xs text-blue-600 font-medium">{user.email}</td>
+                <td className="px-3 py-2 text-xs text-foreground">
+                  {formatBirthday(user.birth_day || null, user.birth_month || null)}
+                </td>
+                <td className="px-3 py-2">
                   {user.roles && user.roles.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-0.5">
                       {user.is_root_admin && (
-                        <Badge variant="outline" className="text-xs">
-                          <Shield className="w-3 h-3 mr-1" />
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                          <Shield className="w-2 h-2 mr-0.5" />
                           Admin
                         </Badge>
                       )}
-                      {user.roles.slice(0, user.is_root_admin ? 1 : 2).map((role) => (
-                        <Badge key={role.id} className="text-xs">
-                          <Shield className="w-3 h-3 mr-1" />
+                      {user.roles.slice(0, user.is_root_admin ? 1 : 1).map((role) => (
+                        <Badge key={role.id} className="text-[10px] px-1.5 py-0 h-5">
+                          <Shield className="w-2 h-2 mr-0.5" />
                           {role.name}
                         </Badge>
                       ))}
-                      {user.roles.length > (user.is_root_admin ? 1 : 2) && (
-                        <Badge variant="outline" className="text-xs">
-                          +{user.roles.length - (user.is_root_admin ? 1 : 2)} more
+                      {user.roles.length > (user.is_root_admin ? 1 : 1) && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                          +{user.roles.length - (user.is_root_admin ? 1 : 1)}
                         </Badge>
                       )}
                     </div>
                   ) : user.is_root_admin ? (
-                    <div className="flex flex-wrap gap-1">
-                      <Badge variant="outline" className="text-xs">
-                        <Shield className="w-3 h-3 mr-1" />
+                    <div className="flex flex-wrap gap-0.5">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                        <Shield className="w-2 h-2 mr-0.5" />
                         Admin
                       </Badge>
                     </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground">No roles</span>
+                    <span className="text-[10px] text-muted-foreground">No roles</span>
                   )}
                 </td>
-                <td className="px-4 py-4">
-                  <Badge className={getStatusColor(user.status)}>
+                <td className="px-3 py-2">
+                  <Badge className={`text-[10px] px-1.5 py-0 h-5 ${getStatusColor(user.status)}`}>
                     {translateStatus(user.status)}
                   </Badge>
                 </td>
-                <td className="px-4 py-4 text-sm text-foreground">
+                <td className="px-3 py-2 text-xs text-foreground">
                   {formatDate(user.created_at)}
                 </td>
-                <td className="px-4 py-4 text-right">
+                <td className="px-3 py-2 text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="hover:cursor-pointer h-8 w-8 p-0"
+                        className="hover:cursor-pointer h-6 w-6 p-0"
                       >
-                        <MoreVertical className="h-4 w-4" />
+                        <MoreVertical className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -241,6 +236,16 @@ export default function UserTable({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Footer stats */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4 py-2 sm:py-3 bg-muted/20 text-xs text-muted-foreground border-t gap-1 sm:gap-0">
+        <span className="text-xs">
+          Showing {users.length} users
+        </span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="text-xs">{users.filter(u => u.status === 'active').length} active users</span>
+        </div>
       </div>
     </Card>
   )

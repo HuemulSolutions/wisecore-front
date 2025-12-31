@@ -145,7 +145,7 @@ export async function deleteLLM(llmId: string): Promise<void> {
 }
 
 export async function setDefaultLLM(llmId: string): Promise<void> {
-    const response = await httpClient.patch(`${backendUrl}/llms/set-default`, { llm_id: llmId });
+    const response = await httpClient.patch(`${backendUrl}/llms/${llmId}/set_default`, {});
 
     if (!response.ok) {
         throw new Error('Error al establecer el LLM por defecto');

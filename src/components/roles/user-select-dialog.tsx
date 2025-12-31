@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Search, Shield, Users } from "lucide-react"
 import { useUsers } from "@/hooks/useUsers"
+import { type UsersResponse, type User } from "@/services/users"
 
 interface UserSelectDialogProps {
   open: boolean
@@ -14,10 +15,14 @@ interface UserSelectDialogProps {
 
 export default function UserSelectDialog({ open, onOpenChange, onUserSelect }: UserSelectDialogProps) {
   const [searchTerm, setSearchTerm] = useState('')
-  const { data: usersResponse, isLoading } = useUsers()
+  // Only fetch users when the dialog is actually open
+  const { data: usersResponse, isLoading } = useUsers(open) as {
+    data: UsersResponse | undefined,
+    isLoading: boolean
+  }
   
   const users = usersResponse?.data || []
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter((user: User) => 
     `${user.name} ${user.last_name} ${user.email}`.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -60,7 +65,7 @@ export default function UserSelectDialog({ open, onOpenChange, onUserSelect }: U
                 </div>
               ))
             ) : filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
+              filteredUsers.map((user: User) => (
                 <div
                   key={user.id}
                   className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded-lg hover:cursor-pointer transition-colors"

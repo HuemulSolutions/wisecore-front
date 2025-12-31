@@ -14,6 +14,7 @@ export function useDocumentTypes() {
     queryKey: documentTypeQueryKeys.list(),
     queryFn: getDocumentTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 0,
   })
 }
 

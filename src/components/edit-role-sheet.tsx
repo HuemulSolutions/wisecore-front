@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Shield, Users, Database, FileText, Settings, Brain, Lock, Edit3, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react"
-import { usePermissions, useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
-import { type Role, type Permission } from "@/services/rbac"
+import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
+import { type Role, type PermissionWithStatus } from "@/services/rbac"
 
 interface EditRoleSheetProps {
   role: Role | null
@@ -48,21 +48,24 @@ const getCategoryIcon = (category: string) => {
 }
 
 export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleSheetProps) {
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [permissions, setPermissions] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions()
-  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '')
+  // Only fetch permissions with status when the sheet is actually open
+  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open)
   const { updateRole } = useRoleMutations()
 
-  const availablePermissions = permissionsResponse?.data || []
-  const currentRolePermissions = rolePermissionsResponse?.data || []
+  const allPermissions = rolePermissionsResponse?.data || []
 
   // Reset form when role changes or dialog opens
   useEffect(() => {
     if (open && role) {
       // Reset form state
+      setName(role.name || '')
+      setDescription(role.description || '')
       setSearchTerm('')
       setCollapsedCategories(new Set())
       
@@ -73,15 +76,23 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
       } else {
         setPermissions([])
       }
+    } else if (!open) {
+      // Reset when closed
+      setName('')
+      setDescription('')
+      setPermissions([])
+      setSearchTerm('')
+      setCollapsedCategories(new Set())
     }
   }, [role, open])
   
   // Update permissions when rolePermissions data is loaded
   useEffect(() => {
-    if (currentRolePermissions.length > 0 && open && role) {
-      setPermissions(currentRolePermissions.map(p => p.id))
+    if (allPermissions.length > 0 && open && role) {
+      // Filter only assigned permissions
+      setPermissions(allPermissions.filter(p => p.assigned).map(p => p.id))
     }
-  }, [currentRolePermissions.length, open, role?.id])
+  }, [allPermissions, open, role?.id])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,7 +100,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
     if (!role) return
 
     // Calculate permissions to add and remove using current role permissions from API
-    const currentPermissions = currentRolePermissions.map(p => p.id)
+    const currentPermissions = allPermissions.filter(p => p.assigned).map(p => p.id)
     const newPermissions = permissions
     
     const add_permissions = newPermissions.filter(pId => !currentPermissions.includes(pId))
@@ -99,11 +110,18 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
     updateRole.mutate({ 
       roleId: role.id, 
       data: {
+        name,
+        description,
         add_permissions,
         remove_permissions,
       }
     }, {
-      onSuccess: () => onOpenChange(false)
+      onSuccess: () => {
+        onOpenChange(false)
+      },
+      onError: () => {
+        // Keep sheet open on error so user can retry
+      }
     })
   }
 
@@ -127,7 +145,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
     })
   }
 
-  const handleCategorySelectAll = (_category: string, categoryPermissions: Permission[]) => {
+  const handleCategorySelectAll = (_category: string, categoryPermissions: PermissionWithStatus[]) => {
     const categoryPermissionIds = categoryPermissions.map(p => p.id)
     const allSelected = categoryPermissionIds.every(id => permissions.includes(id))
     
@@ -149,7 +167,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
   }
 
   // Filter and group permissions
-  const filteredPermissions = availablePermissions.filter(permission =>
+  const filteredPermissions = allPermissions.filter(permission =>
     permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     permission.description.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -161,31 +179,36 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
     }
     groups[category].push(permission)
     return groups
-  }, {} as Record<string, Permission[]>)
+  }, {} as Record<string, PermissionWithStatus[]>)
 
 
   if (!role) return null
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0">
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0"
+        onPointerDownOutside={updateRole.isPending ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={updateRole.isPending ? (e) => e.preventDefault() : undefined}
+      >
         <div className="flex flex-col h-full">
-          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
+          <SheetHeader className="px-4 sm:px-6 pt-3 sm:pt-4 pb-2 sm:pb-3 border-b border-gray-100">
             <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
-                  <Edit3 className="w-5 h-5 text-primary" />
+              <div className="flex flex-col gap-0.5">
+                <SheetTitle className="flex items-center gap-2 text-sm sm:text-base font-semibold">
+                  <Edit3 className="w-4 h-4 text-primary" />
                   Edit Permissions: {role?.name}
                 </SheetTitle>
-                <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
+                <SheetDescription className="text-[10px] sm:text-xs text-gray-500 mt-0">
                   Update the permissions assigned to this role.
                 </SheetDescription>
               </div>
-              <div className="flex items-center h-full gap-2 ml-4">
+              <div className="flex items-center h-full gap-1.5 ml-3">
                 <Button
                   variant="outline"
                   onClick={() => onOpenChange(false)}
-                  className="hover:cursor-pointer text-sm h-8"
+                  className="hover:cursor-pointer text-xs h-7"
                   size="sm"
                   disabled={updateRole.isPending}
                 >
@@ -194,27 +217,54 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
                 <Button
                   form="edit-role-form"
                   type="submit"
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
+                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-xs h-7"
                   size="sm"
                   disabled={updateRole.isPending}
                 >
-                  {updateRole.isPending ? "Updating..." : "Update Permissions"}
+                  {updateRole.isPending ? "Updating..." : "Update"}
                 </Button>
               </div>
             </div>
           </SheetHeader>
           
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <form id="edit-role-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 sm:py-3">
+            <form id="edit-role-form" onSubmit={handleSubmit} className="space-y-3">
+              {/* Role Details */}
+              <div className="space-y-3 pb-3 border-b">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-sm font-medium">
+                    Role Name
+                  </Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter role name"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="text-sm font-medium">
+                    Description
+                  </Label>
+                  <Input
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Enter role description"
+                  />
+                </div>
+              </div>
+
               {/* Header info */}
               <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">Role Permissions</Label>
-                <div className="flex gap-2">
-                  <Badge variant="outline">
+                <Label className="text-sm font-medium">Role Permissions</Label>
+                <div className="flex gap-1.5">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
                     {permissions.length} selected
                   </Badge>
-                  <Badge>
-                    {currentRolePermissions.length} current
+                  <Badge className="text-[10px] px-1.5 py-0.5">
+                    {allPermissions.filter(p => p.assigned).length} current
                   </Badge>
                 </div>
               </div>
@@ -232,7 +282,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
 
               {/* Content */}
               <div className="flex-1 min-h-0">
-            {(permissionsLoading || rolePermissionsLoading) ? (
+            {rolePermissionsLoading ? (
               <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="space-y-2">
@@ -247,7 +297,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
               </div>
             ) : (
               <ScrollArea className="h-full border rounded-lg">
-                <div className="p-4 space-y-6">
+                <div className="p-3 space-y-3">
                   {Object.entries(groupedPermissions).map(([category, categoryPermissions]) => {
                     const Icon = getCategoryIcon(category)
                     const isCollapsed = collapsedCategories.has(category)
@@ -256,50 +306,50 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
                     const someSelectedInCategory = selectedInCategory > 0 && selectedInCategory < categoryPermissions.length
                     
                     return (
-                      <div key={category} className="space-y-3 border-b border-border/40 pb-3 last:border-b-0">
+                      <div key={category} className="space-y-2 border-b border-border/40 pb-2 last:border-b-0">
                         {/* Category Header */}
-                        <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border">
+                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md border">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="p-1.5 h-auto hover:cursor-pointer hover:bg-background"
+                            className="p-1 h-auto hover:cursor-pointer hover:bg-background"
                             onClick={() => toggleCategory(category)}
                           >
                             {isCollapsed ? (
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="w-3 h-3" />
                             ) : (
-                              <ChevronDown className="w-4 h-4" />
+                              <ChevronDown className="w-3 h-3" />
                             )}
                           </Button>
                           
-                          <Icon className="w-5 h-5 text-muted-foreground" />
+                          <Icon className="w-4 h-4 text-muted-foreground" />
                           
-                          <span className="text-sm font-semibold capitalize flex-1">
+                          <span className="text-xs font-semibold capitalize flex-1">
                             {category.replace('_', ' ')}
                           </span>
                           
-                          <Badge className="text-xs font-medium">
+                          <Badge className="text-[10px] font-medium px-1.5 py-0.5">
                             {selectedInCategory}/{categoryPermissions.length}
                           </Badge>
                           
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground mr-1">Select all</span>
+                            <span className="text-[10px] text-muted-foreground">All</span>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              className="p-1.5 h-auto hover:cursor-pointer border-2"
+                              className="p-1 h-auto hover:cursor-pointer border"
                               onClick={() => handleCategorySelectAll(category, categoryPermissions)}
                             >
                               {allSelectedInCategory ? (
-                                <CheckSquare className="w-4 h-4 text-primary" />
+                                <CheckSquare className="w-3 h-3 text-primary" />
                               ) : someSelectedInCategory ? (
-                                <div className="w-4 h-4 border-2 border-primary bg-primary/20 rounded-sm flex items-center justify-center">
-                                  <div className="w-2 h-0.5 bg-primary rounded-full" />
+                                <div className="w-3 h-3 border border-primary bg-primary/20 rounded-sm flex items-center justify-center">
+                                  <div className="w-1.5 h-0.5 bg-primary rounded-full" />
                                 </div>
                               ) : (
-                                <Square className="w-4 h-4" />
+                                <Square className="w-3 h-3" />
                               )}
                             </Button>
                           </div>
@@ -307,23 +357,23 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
                         
                         {/* Category Permissions */}
                         {!isCollapsed && (
-                          <div className="space-y-2 ml-6 pl-4 border-l-2 border-muted">
+                          <div className="space-y-1 ml-4 pl-3 border-l border-muted">
                             {categoryPermissions.map((permission) => (
-                              <div key={permission.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
+                              <div key={permission.id} className="flex items-start space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
                                 <Checkbox
                                   id={permission.id}
                                   checked={permissions.includes(permission.id)}
                                   onCheckedChange={() => handlePermissionToggle(permission.id)}
-                                  className="mt-0.5"
+                                  className="mt-0.5 scale-90"
                                 />
                                 <div className="flex-1 min-w-0">
                                   <label
                                     htmlFor={permission.id}
-                                    className="text-sm font-medium leading-tight hover:cursor-pointer block"
+                                    className="text-xs font-medium leading-tight hover:cursor-pointer block"
                                   >
                                     {permission.description}
                                   </label>
-                                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                                  <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
                                     {permission.name}
                                   </p>
                                 </div>
@@ -336,10 +386,10 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
                   })}
 
                   {filteredPermissions.length === 0 && (
-                    <div className="text-center py-8">
-                      <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-medium text-foreground mb-2">No permissions found</h3>
-                      <p className="text-muted-foreground">
+                    <div className="text-center py-6">
+                      <Shield className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                      <h3 className="text-sm font-medium text-foreground mb-1">No permissions found</h3>
+                      <p className="text-xs text-muted-foreground">
                         {searchTerm 
                           ? "Try adjusting your search criteria."
                           : "No permissions are available."}
