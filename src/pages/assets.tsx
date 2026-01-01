@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { File, Plus, Network, Folder as FolderIcon, FileText, Search, FolderTree, MoreVertical, RefreshCw } from "lucide-react"; 
+import { File, Plus, Folder as FolderIcon, FileText, Search, FolderTree, MoreVertical, RefreshCw } from "lucide-react"; 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLibraryContent } from "@/services/library";
 import { FileTreeWithSearchAndContext, AssetContent, CreateFolderDialog, CreateAssetDialog } from "@/components/assets";
@@ -11,11 +11,6 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useOrganization } from "@/contexts/organization-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -367,20 +362,6 @@ function AssetsContent() {
   };
 
   // Handle navigation to graph
-  const handleGraphNavigation = () => {
-    sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
-    if (selectedFile) {
-      sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
-    }
-    
-    navigate('/graph', {
-      state: {
-        fromLibrary: true,
-        breadcrumb: breadcrumb,
-        selectedFile: selectedFile
-      }
-    });
-  };
 
   // Load folder hierarchy by reconstructing the path
   const loadFolderHierarchy = async (folderIds: string[]): Promise<BreadcrumbItem[]> => {
