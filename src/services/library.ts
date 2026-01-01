@@ -1,9 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function getLibraryContent(organizationId: string, folderId?: string) {
+export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000) {
     const folderPath = folderId || 'root';
-    const url = `${backendUrl}/folder/${folderPath}`;
+    const url = `${backendUrl}/folder/${folderPath}/get_content?page=${page}&page_size=${pageSize}`;
     const response = await httpClient.get(url, {
         headers: {
             'X-Org-Id': organizationId,
@@ -30,18 +30,16 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
 export async function createFolder(name: string, organizationId: string, parentId?: string) {
     const requestBody: {
         name: string;
-        organization_id: string;
         parent_folder_id?: string;
     } = {
         name,
-        organization_id: organizationId,
     };
     
     if (parentId) {
         requestBody.parent_folder_id = parentId;
     }
 
-    const response = await httpClient.post(`${backendUrl}/folder/create_folder`, requestBody, {
+    const response = await httpClient.post(`${backendUrl}/folder/`, requestBody, {
         headers: {
             'X-Org-Id': organizationId,
         },

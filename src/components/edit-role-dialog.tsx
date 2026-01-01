@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Shield, Users, Database, FileText, Settings, Brain, Lock, Edit3, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react"
-import { usePermissions, useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
-import { type Role, type Permission } from "@/services/rbac"
+import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
+import { type Role, type PermissionWithStatus } from "@/services/rbac"
 
 interface EditRoleDialogProps {
   role: Role | null
@@ -52,12 +52,11 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
   const [searchTerm, setSearchTerm] = useState('')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions()
-  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '')
+  // Only fetch permissions with status when the dialog is actually open
+  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open)
   const { updateRole } = useRoleMutations()
 
-  const availablePermissions = permissionsResponse?.data || []
-  const currentRolePermissions = rolePermissionsResponse?.data || []
+  const allPermissions = rolePermissionsResponse?.data || []
 
   // Reset form when role changes or dialog opens
   useEffect(() => {
@@ -78,10 +77,11 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
   
   // Update permissions when rolePermissions data is loaded
   useEffect(() => {
-    if (currentRolePermissions.length > 0 && open && role) {
-      setPermissions(currentRolePermissions.map(p => p.id))
+    if (allPermissions.length > 0 && open && role) {
+      // Filter only assigned permissions
+      setPermissions(allPermissions.filter(p => p.assigned).map(p => p.id))
     }
-  }, [currentRolePermissions.length, open, role?.id])
+  }, [allPermissions.length, open, role?.id])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,7 +89,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
     if (!role) return
 
     // Calculate permissions to add and remove using current role permissions from API
-    const currentPermissions = currentRolePermissions.map(p => p.id)
+    const currentPermissions = allPermissions.filter(p => p.assigned).map(p => p.id)
     const newPermissions = permissions
     
     const add_permissions = newPermissions.filter(pId => !currentPermissions.includes(pId))
@@ -103,7 +103,9 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
         remove_permissions,
       }
     }, {
-      onSuccess: () => onOpenChange(false)
+      onSuccess: () => {
+        onOpenChange(false)
+      }
     })
   }
 
@@ -127,7 +129,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
     })
   }
 
-  const handleCategorySelectAll = (_category: string, categoryPermissions: Permission[]) => {
+  const handleCategorySelectAll = (_category: string, categoryPermissions: PermissionWithStatus[]) => {
     const categoryPermissionIds = categoryPermissions.map(p => p.id)
     const allSelected = categoryPermissionIds.every(id => permissions.includes(id))
     
@@ -149,7 +151,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
   }
 
   // Filter and group permissions
-  const filteredPermissions = availablePermissions.filter(permission =>
+  const filteredPermissions = allPermissions.filter(permission =>
     permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     permission.description.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -161,7 +163,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
     }
     groups[category].push(permission)
     return groups
-  }, {} as Record<string, Permission[]>)
+  }, {} as Record<string, PermissionWithStatus[]>)
 
 
   if (!role) return null
@@ -214,7 +216,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
                     {permissions.length} selected
                   </Badge>
                   <Badge>
-                    {currentRolePermissions.length} current
+                    {allPermissions.filter(p => p.assigned).length} current
                   </Badge>
                 </div>
               </div>
@@ -232,7 +234,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
 
           {/* Content */}
           <div className="flex-1 min-h-0">
-            {(permissionsLoading || rolePermissionsLoading) ? (
+            {rolePermissionsLoading ? (
               <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="space-y-2">

@@ -1,15 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
-    markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
-    BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
-    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage, 
-    CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
- } from '@mdxeditor/editor';
-import type { MDXEditorMethods } from '@mdxeditor/editor';
 import { Sparkles, Loader2 } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
@@ -26,23 +20,22 @@ interface AddSectionFormSheetProps {
   isPending: boolean;
   existingSections?: Section[];
   onValidationChange?: (isValid: boolean) => void;
+  onGeneratingChange?: (isGenerating: boolean) => void;
 }
 
-export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPending, existingSections = [], onValidationChange }: AddSectionFormSheetProps) {
+export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPending, existingSections = [], onValidationChange, onGeneratingChange }: AddSectionFormSheetProps) {
   const { selectedOrganizationId } = useOrganization();
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [selectedDependencies, setSelectedDependencies] = useState<string[]>([]);
   const [selectValue, setSelectValue] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const editorRef = useRef<MDXEditorMethods>(null);
 
   const handleGeneratePrompt = async () => {
     if (!name.trim()) return;
     
     setIsGenerating(true);
     setPrompt("");
-    editorRef.current?.setMarkdown("");
     
     try {
       let accumulatedText = "";
@@ -53,7 +46,6 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
           accumulatedText += text;
           const formattedText = accumulatedText.replace(/\\n/g, '\n');
           setPrompt(formattedText);
-          editorRef.current?.setMarkdown(formattedText);
         },
         onError: (error) => {
           console.error('Error generating prompt:', error);
@@ -111,6 +103,11 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
     onValidationChange?.(isFormValid);
   }, [isFormValid, onValidationChange]);
 
+  // Notificar cambios en el estado de generación
+  useEffect(() => {
+    onGeneratingChange?.(isGenerating);
+  }, [isGenerating, onGeneratingChange]);
+
   return (
     <form id="add-section-form" onSubmit={handleSubmit} className="space-y-4">
       {/* Section Name */}
@@ -123,6 +120,7 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
           onChange={(e) => setName(e.target.value)}
           disabled={isPending}
           autoFocus
+          autoComplete="off"
           className="text-sm"
         />
       </div>
@@ -152,97 +150,33 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
             )}
           </Button>
         </div>
-        <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#4464f7] focus-within:border-[#4464f7]">
-          <MDXEditor
-            ref={editorRef}
-            markdown={prompt}
-            onChange={setPrompt}
-            contentEditableClassName='mdxeditor-content min-h-[100px] prose dark:prose-invert focus:outline-none p-3 text-sm'
-            readOnly={isPending || isGenerating}
-            placeholder="Enter the prompt content for this section or use AI generation"
-            spellCheck={false}
-            plugins={[
-              headingsPlugin(), 
-              listsPlugin(), 
-              quotePlugin(), 
-              tablePlugin(),
-              thematicBreakPlugin(), 
-              linkPlugin(),
-              linkDialogPlugin(),
-              imagePlugin({
-                imageUploadHandler: async () => {
-                  return Promise.resolve('https://via.placeholder.com/400x300');
-                }
-              }),
-              codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-              codeMirrorPlugin({ codeBlockLanguages: { 
-                js: 'JavaScript', 
-                jsx: 'JavaScript (React)', 
-                ts: 'TypeScript', 
-                tsx: 'TypeScript (React)', 
-                css: 'CSS', 
-                html: 'HTML', 
-                json: 'JSON',
-                bash: 'Bash',
-                sh: 'Shell',
-                yaml: 'YAML',
-                yml: 'YAML',
-                xml: 'XML',
-                sql: 'SQL',
-                python: 'Python',
-                go: 'Go',
-                rust: 'Rust',
-                java: 'Java',
-                c: 'C',
-                cpp: 'C++',
-                php: 'PHP',
-                ruby: 'Ruby',
-                '': 'Plain text'
-              }}),
-              markdownShortcutPlugin(),
-              toolbarPlugin({
-                toolbarContents() {
-                  return (
-                    <>  
-                      <UndoRedo />
-                      <Separator />
-                      <BoldItalicUnderlineToggles />
-                      <CodeToggle />
-                      <Separator />
-                      <ListsToggle />
-                      <Separator />
-                      <BlockTypeSelect />
-                      <Separator />
-                      <CreateLink />
-                      <InsertImage />
-                      <Separator />
-                      <InsertTable />
-                      <InsertCodeBlock />
-                      <InsertThematicBreak />
-                    </>
-                  )
-                },
-              }),
-            ]}
-          />
+        <Textarea
+          placeholder="Enter the prompt content for this section or use AI generation"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          disabled={isPending || isGenerating}
+          rows={20}
+          className="text-sm resize-none min-h-[250px] max-h-[250px]"
+        />
+        <div className="min-h-[20px]">
+          {isGenerating && (
+            <div className="text-xs text-blue-600 flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              AI is generating content based on the section name...
+            </div>
+          )}
         </div>
-        {isGenerating && (
-          <div className="text-xs text-blue-600 flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            AI is generating content based on the section name...
-          </div>
-        )}
       </div>
 
       {/* Dependencies */}
-      <div className="space-y-2">
+      <div className="space-y-2 w-full">
         <Label className="text-xs font-medium text-gray-700">Internal Dependencies</Label>
         {availableSections.length > 0 ? (
           <Select value={selectValue} onValueChange={addDependency} disabled={isPending}>
-            <SelectTrigger className="hover:cursor-pointer text-sm">
+            <SelectTrigger className="hover:cursor-pointer text-sm w-full">
               <SelectValue placeholder="Select sections this depends on" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="w-full">
               {availableSections.map(section => (
                 <SelectItem key={section.id} value={section.id} className="hover:cursor-pointer text-sm">
                   {section.name}
@@ -257,7 +191,7 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
         )}
         
         {selectedDependencies.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1 w-full">
             {selectedDependencies.map(depId => {
               const section = existingSections.find(s => s.id === depId);
               return (
@@ -282,11 +216,13 @@ export function AddSectionFormSheet({ documentId, templateId, onSubmit, isPendin
       </div>
 
       {/* Validation Messages */}
-      {name && !prompt && (
-        <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          💡 Consider using AI generation or add prompt content manually
-        </div>
-      )}
+      <div className="min-h-[32px]">
+        {name && !prompt && (
+          <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            💡 Consider using AI generation or add prompt content manually
+          </div>
+        )}
+      </div>
     </form>
   );
 }

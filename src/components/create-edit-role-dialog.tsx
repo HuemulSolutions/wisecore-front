@@ -56,7 +56,8 @@ export default function CreateEditRoleDialog({ role, open, onOpenChange }: Creat
   })
   const [searchTerm, setSearchTerm] = useState('')
   
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions()
+  // Only fetch permissions when the dialog is actually open
+  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
   const { createRole, updateRole } = useRoleMutations()
 
   const permissions = permissionsResponse?.data || []

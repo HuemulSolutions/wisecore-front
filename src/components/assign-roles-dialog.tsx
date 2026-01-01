@@ -18,8 +18,9 @@ interface AssignRolesDialogProps {
 export default function AssignRolesDialog({ user, open, onOpenChange }: AssignRolesDialogProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   
-  const { data: rolesResponse, isLoading: rolesLoading } = useRoles()
-  const { data: userRolesResponse, isLoading: userRolesLoading } = useUserRoles(user?.id || '')
+  // Only fetch roles and user roles when the dialog is actually open
+  const { data: rolesResponse, isLoading: rolesLoading } = useRoles(open)
+  const { data: userRolesResponse, isLoading: userRolesLoading } = useUserRoles(user?.id || '', open && !!user)
   const { assignRoles } = useRoleMutations()
 
   const roles = rolesResponse?.data || []

@@ -4,13 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search } from "lucide-react"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useRoles } from "@/hooks/useRbac"
-import { type AssetType } from "@/services/asset-types"
+import { type AssetType, type AssetTypeWithRoles } from "@/services/asset-types"
 
 // Access levels for asset types
 export const ACCESS_LEVELS = {
@@ -34,7 +33,7 @@ export const ASSET_PERMISSIONS = {
 type AssetPermission = typeof ASSET_PERMISSIONS[keyof typeof ASSET_PERMISSIONS]
 
 interface CreateEditAssetTypeDialogProps {
-  assetType: AssetType | null
+  assetType: AssetType | AssetTypeWithRoles | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -52,7 +51,8 @@ export default function CreateEditAssetTypeDialog({ assetType, open, onOpenChang
   const [rolePermissions, setRolePermissions] = useState<Map<string, Set<AssetPermission>>>(new Map())
   
   const { createAssetType, updateAssetType } = useAssetTypeMutations()
-  const { data: rolesData } = useRoles()
+  // Only fetch roles when the dialog is actually open
+  const { data: rolesData } = useRoles(open)
   
   const roles = rolesData?.data || []
 
@@ -64,9 +64,13 @@ export default function CreateEditAssetTypeDialog({ assetType, open, onOpenChang
       setRolePermissions(new Map())
       
       if (assetType) {
+        // Handle both AssetType and AssetTypeWithRoles
+        const name = 'name' in assetType ? assetType.name : assetType.document_type_name
+        const description = 'description' in assetType ? assetType.description : ''
+        
         setFormData({
-          name: assetType.name,
-          description: assetType.description,
+          name,
+          description,
           defaultAccessLevel: 'private' as AccessLevel,
         })
       } else {
@@ -96,9 +100,11 @@ export default function CreateEditAssetTypeDialog({ assetType, open, onOpenChang
     console.log('Asset Type Data:', submissionData)
     
     if (assetType) {
+      // Get the ID from either format
+      const id = 'id' in assetType ? assetType.id : assetType.document_type_id
       // Update existing asset type (for now just using basic data)
       updateAssetType.mutate({ 
-        id: assetType.id, 
+        id, 
         data: {
           name: formData.name,
           description: formData.description,
@@ -205,24 +211,6 @@ export default function CreateEditAssetTypeDialog({ assetType, open, onOpenChang
                 placeholder="Enter asset type description"
                 rows={3}
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="defaultAccessLevel">Default Access Level</Label>
-              <Select
-                value={formData.defaultAccessLevel}
-                onValueChange={(value) => handleInputChange('defaultAccessLevel', value as AccessLevel)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select default access level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="restricted">Restricted</SelectItem>
-                  <SelectItem value="confidential">Confidential</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             
             <DialogFooter>

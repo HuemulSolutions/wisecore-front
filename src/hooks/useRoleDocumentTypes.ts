@@ -11,7 +11,7 @@ interface DocumentTypeForRole {
   color?: string
 }
 
-export function useRoleDocumentTypes() {
+export function useRoleDocumentTypes(enableFetch: boolean = true) {
   const { selectedOrganizationId } = useOrganization()
   
   // Obtener el role_id del token de organización
@@ -63,7 +63,7 @@ export function useRoleDocumentTypes() {
       console.log("Filtered document types for creation:", filteredTypes)
       return filteredTypes
     },
-    enabled: !!selectedOrganizationId && (isRootAdmin() || !!getCurrentRoleId()),
+    enabled: enableFetch && !!selectedOrganizationId && (isRootAdmin() || !!getCurrentRoleId()),
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })

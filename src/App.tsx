@@ -7,7 +7,6 @@ import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/pr
 import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
-import ConfigTemplate from "./pages/template";
 import DocumentPage from "./pages/document";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
@@ -18,10 +17,10 @@ import Organizations from "./pages/organizations";
 import Assets from "./pages/assets";
 import Graph from "./pages/graph";
 import ModelsPage from "./pages/models";
-import AuthTypesPage from "./components/auth-types-page";
-import UsersPage from "./components/users-page";
-import RolesPage from "./components/roles-page";
-import AssetTypesPage from "./components/asset-types-page";
+import AuthTypes from "./pages/auth-types";
+import UsersPage from "./pages/users";
+import Roles from "./pages/roles";
+import AssetTypesPage from "./pages/asset-types";
 
 export default function App() {
   return (
@@ -67,7 +66,7 @@ export default function App() {
             } />
             <Route path="auth-types" element={
               <PermissionProtectedRoute requireRootAdmin>
-                <AuthTypesPage />
+                <AuthTypes />
               </PermissionProtectedRoute>
             } />
             <Route path="users" element={
@@ -77,17 +76,12 @@ export default function App() {
             } />
             <Route path="roles" element={
               <PermissionProtectedRoute permissions={["rbac:r", "rbac:manage"]}>
-                <RolesPage />
+                <Roles />
               </PermissionProtectedRoute>
             } />
             <Route path="asset-types" element={
               <PermissionProtectedRoute permissions={["document_type:r", "document_type:l"]}>
                 <AssetTypesPage />
-              </PermissionProtectedRoute>
-            } />
-            <Route path="configTemplate/:id" element={
-              <PermissionProtectedRoute permissions={["template:u", "template_section:r"]}>
-                <ConfigTemplate />
               </PermissionProtectedRoute>
             } />
             <Route path="document/:id" element={

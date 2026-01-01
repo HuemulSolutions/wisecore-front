@@ -56,7 +56,8 @@ export default function CreateEditRoleSheet({ role, open, onOpenChange }: Create
   })
   const [searchTerm, setSearchTerm] = useState('')
   
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions()
+  // Only fetch permissions when the sheet is actually open
+  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
   const { createRole, updateRole } = useRoleMutations()
 
   const permissions = permissionsResponse?.data || []

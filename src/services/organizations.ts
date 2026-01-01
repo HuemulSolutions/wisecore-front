@@ -17,25 +17,20 @@ export async function getUserOrganizations(userId: string) {
   return data.data;
 }
 
-export async function generateOrganizationToken(userId: string, organizationId: string) {
-  // Temporalmente configuramos el organization ID para esta request específica
-  const currentOrgId = httpClient.getOrganizationId();
-  httpClient.setOrganizationId(organizationId);
-  
-  try {
-    const response = await httpClient.post(`${backendUrl}/users/${userId}/token`);
-
-    if (!response.ok) {
-      throw new Error('Error generating organization token');
+export async function generateOrganizationToken(organizationId: string) {
+  const response = await httpClient.post(`${backendUrl}/user_roles/user_token`, null, {
+    headers: {
+      'X-Org-Id': organizationId
     }
+  });
 
-    const data = await response.json();
-    console.log('Organization token generated:', data);
-    return data;
-  } finally {
-    // Restauramos el organization ID anterior
-    httpClient.setOrganizationId(currentOrgId);
+  if (!response.ok) {
+    throw new Error('Error generating organization token');
   }
+
+  const data = await response.json();
+  console.log('Organization token generated:', data);
+  return data;
 }
 
 export async function getAllOrganizations() {
@@ -61,4 +56,29 @@ export async function addOrganization({ name, description }: { name: string; des
   const data = await response.json();
   console.log('Organization created:', data.data);
   return data.data;
+}
+
+export async function updateOrganization(organizationId: string, { name, description }: { name: string; description?: string }) {
+  const response = await httpClient.patch(`${backendUrl}/organizations/${organizationId}`, {
+    name,
+    description: description || null,
+  });
+
+  if (!response.ok) {
+    throw new Error('Error updating organization');
+  }
+
+  const data = await response.json();
+  console.log('Organization updated:', data.data);
+  return data.data;
+}
+
+export async function deleteOrganization(organizationId: string) {
+  const response = await httpClient.delete(`${backendUrl}/organizations/${organizationId}`);
+
+  if (!response.ok) {
+    throw new Error('Error deleting organization');
+  }
+
+  console.log('Organization deleted:', organizationId);
 }
