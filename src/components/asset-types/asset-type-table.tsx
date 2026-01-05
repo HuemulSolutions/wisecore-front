@@ -83,7 +83,7 @@ export default function AssetTypeTable({
                   <span className="text-xs font-medium text-foreground">{assetType.document_type_name}</span>
                 </td>
                 <td className="px-3 py-2">
-                  <Badge variant="default" className="text-[10px] px-1.5 py-0 h-5">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
                     {assetType.document_count || 0} assets
                   </Badge>
                 </td>

@@ -94,6 +94,7 @@ interface LibraryContentProps {
   currentFolderId?: string;
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
+  onPreserveScroll?: () => void;
 }
 
 // Function to extract headings from multiple content sections for table of contents
@@ -210,7 +211,8 @@ export function AssetContent({
   setSelectedFile,
   onRefresh,
   currentFolderId,
-  onToggleSidebar
+  onToggleSidebar,
+  onPreserveScroll
 }: LibraryContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -231,6 +233,9 @@ export function AssetContent({
   // Mutation for direct section creation
   const addSectionMutation = useMutation({
     mutationFn: async (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[]; order?: number }) => {
+      // Preserve scroll position before mutation
+      onPreserveScroll?.();
+      
       // First create the section
       const { order, ...createData } = sectionData;
       const newSection = await createSection(createData, selectedOrganizationId!);
@@ -347,6 +352,9 @@ export function AssetContent({
   // Mutation para ejecutar documento directamente
   const executeDocumentMutation = useMutation({
     mutationFn: async ({ documentId, instructions }: { documentId: string; instructions?: string }) => {
+      // Preserve scroll position before execution
+      onPreserveScroll?.();
+      
       if (!defaultLLM?.id) {
         throw new Error('No default LLM available');
       }
@@ -378,6 +386,9 @@ export function AssetContent({
   // Mutation for approve execution
   const approveMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before approval
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -399,6 +410,9 @@ export function AssetContent({
   // Mutation for disapprove execution
   const disapproveMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before disapproval
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -420,6 +434,9 @@ export function AssetContent({
   // Mutation for deleting execution
   const deleteExecutionMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before deletion
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -451,6 +468,9 @@ export function AssetContent({
   // Mutation for clone execution
   const cloneMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before cloning
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -556,6 +576,9 @@ export function AssetContent({
 
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => {
+    // Preserve scroll position before changing execution
+    onPreserveScroll?.();
+    
     setSelectedExecutionId(executionId);
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
@@ -580,6 +603,7 @@ export function AssetContent({
   // Handle add section
   const handleAddSection = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      onPreserveScroll?.();
       setIsSectionSheetOpen(true);
     }
   };
@@ -652,6 +676,7 @@ export function AssetContent({
   // Handle create new execution - abrir Execute Sheet
   const handleCreateExecution = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      onPreserveScroll?.();
       // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
@@ -925,6 +950,7 @@ export function AssetContent({
   };
 
   function openDeleteDialog(type: 'document' | 'execution') {
+    onPreserveScroll?.();
     setDeleteType(type);
     setIsDeleteDialogOpen(true);
   }
@@ -936,11 +962,14 @@ export function AssetContent({
 
   const handleDeleteDialogChange = (open: boolean) => {
     if (!open) {
+      // Preserve scroll when closing dialog
+      onPreserveScroll?.();
       closeDeleteDialog();
     }
   };
 
   function openCloneDialog() {
+    onPreserveScroll?.();
     setIsCloneDialogOpen(true);
   }
 
@@ -952,11 +981,13 @@ export function AssetContent({
     if (open) {
       openCloneDialog();
     } else {
+      onPreserveScroll?.();
       closeCloneDialog();
     }
   };
 
   function openApproveDialog() {
+    onPreserveScroll?.();
     setIsApproveDialogOpen(true);
   }
 
@@ -968,11 +999,13 @@ export function AssetContent({
     if (open) {
       openApproveDialog();
     } else {
+      onPreserveScroll?.();
       closeApproveDialog();
     }
   };
 
   function openDisapproveDialog() {
+    onPreserveScroll?.();
     setIsDisapproveDialogOpen(true);
   }
 
@@ -984,6 +1017,7 @@ export function AssetContent({
     if (open) {
       openDisapproveDialog();
     } else {
+      onPreserveScroll?.();
       closeDisapproveDialog();
     }
   };
@@ -1042,6 +1076,8 @@ export function AssetContent({
   // Open edit dialog and prefill values
   const openEditDialog = () => {
     if (!selectedFile || selectedFile.type !== 'document') return;
+    // Preserve scroll position before opening dialog
+    onPreserveScroll?.();
     // Apertura diferida para que primero se cierre el dropdown y no dispare outside click sobre el dialog recién montado
     setTimeout(() => setIsEditDialogOpen(true), 0);
   };
@@ -1063,6 +1099,7 @@ export function AssetContent({
     return (
       <Dialog open={isCreateTemplateSheetOpen} onOpenChange={(open) => {
         if (!open) {
+          onPreserveScroll?.();
           setIsCreateTemplateSheetOpen(false)
         }
       }}>
@@ -1162,7 +1199,10 @@ export function AssetContent({
               <EmptyActions>
                 {canAccessTemplates && canCreate('template') && (
                   <Button
-                    onClick={() => setIsCreateTemplateSheetOpen(true)}
+                    onClick={() => {
+                      onPreserveScroll?.();
+                      setIsCreateTemplateSheetOpen(true);
+                    }}
                     variant="outline"
                     className="hover:cursor-pointer"
                   >
@@ -1172,7 +1212,10 @@ export function AssetContent({
                 )}
                 {canAccessAssets && canCreate('assets') && (
                   <Button 
-                    onClick={() => setIsCreateAssetDialogOpen(true)}
+                    onClick={() => {
+                      onPreserveScroll?.();
+                      setIsCreateAssetDialogOpen(true);
+                    }}
                     className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                   >
                     <FileText className="h-4 w-4 mr-2" />
@@ -1324,7 +1367,10 @@ export function AssetContent({
                   selectedFile={selectedFile}
                   fullDocument={fullDocument}
                   isOpen={isSectionSheetOpen}
-                  onOpenChange={setIsSectionSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) onPreserveScroll?.();
+                    setIsSectionSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1338,7 +1384,10 @@ export function AssetContent({
                 <DependenciesSheet
                   selectedFile={selectedFile}
                   isOpen={isDependenciesSheetOpen}
-                  onOpenChange={setIsDependenciesSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) onPreserveScroll?.();
+                    setIsDependenciesSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1352,7 +1401,10 @@ export function AssetContent({
                 <ContextSheet
                   selectedFile={selectedFile}
                   isOpen={isContextSheetOpen}
-                  onOpenChange={setIsContextSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) onPreserveScroll?.();
+                    setIsContextSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1418,6 +1470,8 @@ export function AssetContent({
                               isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                             }`}
                             onClick={() => {
+                              // Preserve scroll position before changing execution
+                              onPreserveScroll?.();
                               setSelectedExecutionId(execution.id);
                               // Invalidate all document-content queries and refetch with new execution ID
                               queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1795,6 +1849,8 @@ export function AssetContent({
                                 isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                               }`}
                               onClick={() => {
+                                // Preserve scroll position before changing execution
+                                onPreserveScroll?.();
                                 setSelectedExecutionId(execution.id);
                                 // Invalidate all document-content queries and refetch with new execution ID
                                 queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -2060,6 +2116,8 @@ export function AssetContent({
                           setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
                         }}
                         onViewVersion={() => {
+                          // Preserve scroll position before changing execution
+                          onPreserveScroll?.();
                           setSelectedExecutionId(execution.id);
                           queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                         }}
@@ -2188,7 +2246,10 @@ export function AssetContent({
                                           )}
                                         </Button>
                                         <Button
-                                          onClick={() => setIsSectionSheetOpen(true)}
+                                          onClick={() => {
+                                            onPreserveScroll?.();
+                                            setIsSectionSheetOpen(true);
+                                          }}
                                           variant="outline"
                                           size="lg"
                                           className="hover:cursor-pointer border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
@@ -2253,7 +2314,10 @@ export function AssetContent({
                                             )}
                                           </Button>
                                           <Button
-                                            onClick={() => setIsSectionSheetOpen(true)}
+                                            onClick={() => {
+                                              onPreserveScroll?.();
+                                              setIsSectionSheetOpen(true);
+                                            }}
                                             variant="outline"
                                             className="hover:cursor-pointer"
                                           >
@@ -2805,7 +2869,10 @@ export function AssetContent({
 
       <EditDocumentDialog
         open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsEditDialogOpen(open);
+        }}
         documentId={selectedFile?.id || ''}
         currentName={selectedFile?.name || ''}
         currentDescription={documentContent?.description}
@@ -2823,8 +2890,14 @@ export function AssetContent({
         selectedFile={selectedFile}
         fullDocument={fullDocument}
         isOpen={isExecuteSheetOpen}
-        onOpenChange={setIsExecuteSheetOpen}
-        onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsExecuteSheetOpen(open);
+        }}
+        onSectionSheetOpen={() => {
+          onPreserveScroll?.();
+          setIsSectionSheetOpen(true);
+        }}
         onExecutionCreated={handleExecutionCreated}
         onExecutionComplete={handleExecutionComplete}
         isMobile={isMobile}
