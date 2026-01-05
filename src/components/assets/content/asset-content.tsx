@@ -1,11 +1,11 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import { createSectionExecution } from "@/services/section_execution";
 import { AddSectionExecutionForm } from "@/components/add-section-execution-form";
-import { ExecutionStatusBanner } from "@/components/execution-status-banner";
+import { ExecutionFeedback, SectionRegenerationFeedback, OtherVersionExecutionBanner, CurrentVersionExecutionBanner } from "@/components/execution-feedback";
 import {
   Tooltip,
   TooltipContent,
@@ -53,12 +53,12 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
 import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
-import EditDocumentDialog from "@/components/edit_document_dialog";
+import EditDocumentDialog from "@/components/assets/dialogs/edit_document_dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import { CreateAssetDialog } from "@/components/create-asset-dialog";
 import SectionExecution from "./library-section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
+import { CreateAssetDialog } from "../dialogs";
 
 // API response interface
 interface LibraryItem {
@@ -196,7 +196,7 @@ function SectionSeparator({
           `}
           title={`Add section ${isLastSection ? 'at the end' : index !== undefined && index >= 0 ? `after section ${index + 1}` : 'at the beginning'}`}
         >
-          <PlusCircle className="h-4 w-4" />
+          <BetweenHorizontalStart className="h-4 w-4" />
         </DocumentActionButton>
       </div>
     </div>
@@ -500,9 +500,14 @@ export function AssetContent({
   
   // State for tracking current execution for polling
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
+  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from'>('full');
+  const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
+  
+  // State for tracking active executions on other versions
+  const [dismissedExecutionBanners, setDismissedExecutionBanners] = useState<Set<string>>(new Set());
   
   // Estado para tracking de ejecuciones de secciones individuales
-  const [sectionExecutionId, setSectionExecutionId] = useState<string | null>(null);
+  const [, setSectionExecutionId] = useState<string | null>(null);
   
   // Direct section creation state
   const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
@@ -535,7 +540,10 @@ export function AssetContent({
   // Clear current execution ID when selectedFile changes to prevent showing banner for wrong file
   useEffect(() => {
     setCurrentExecutionId(null);
+    setCurrentExecutionMode('full');
+    setCurrentSectionIndex(undefined);
     setSectionExecutionId(null);
+    setDismissedExecutionBanners(new Set());
   }, [selectedFile?.id]);
 
 
@@ -547,9 +555,11 @@ export function AssetContent({
   };
 
   // Handle execution created from Execute Sheet
-  const handleExecutionCreated = (executionId: string) => {
+  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => {
     setSelectedExecutionId(executionId);
     setCurrentExecutionId(executionId);
+    setCurrentExecutionMode(mode);
+    setCurrentSectionIndex(sectionIndex);
     
     // Invalidate queries to refresh execution data (automatic refetch will occur)
     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -738,19 +748,42 @@ export function AssetContent({
   }, [documentContent?.executions, documentExecutions]);
 
   // Get the active execution ID (running, pending, or failed) from document executions
-  const activeExecutionId = useMemo(() => {
-    const executions = documentContent?.executions || documentExecutions;
-    if (!executions) return null;
-    const activeExecution = executions.find((execution: any) => 
-      ['running', 'pending', 'failed'].includes(execution.status)
-    );
-    return activeExecution?.id || null;
-  }, [documentContent?.executions, documentExecutions]);
 
   // Get the correct access levels - use documentContent first (authoritative), fallback to selectedFile
   const accessLevels = useMemo(() => {
     return documentContent?.access_levels || selectedFile?.access_levels || [];
   }, [documentContent?.access_levels, selectedFile?.access_levels]);
+
+  // Get active executions on other versions (not currently viewed)
+  const otherVersionActiveExecutions = useMemo(() => {
+    const executions = documentContent?.executions || documentExecutions;
+    
+    if (!executions || !selectedExecutionId) {
+      return [];
+    }
+
+    return executions.filter((execution: any) => 
+      execution.id !== selectedExecutionId && 
+      ['running', 'pending'].includes(execution.status) &&
+      !dismissedExecutionBanners.has(execution.id)
+    );
+  }, [documentContent?.executions, documentExecutions, selectedExecutionId, dismissedExecutionBanners]);
+
+  // Check if the currently selected version is actively executing
+  const isSelectedVersionExecuting = useMemo(() => {
+    const executions = documentContent?.executions || documentExecutions;
+    
+    if (!executions || !selectedExecutionId) {
+      return null;
+    }
+
+    const selectedExecution = executions.find((execution: any) => 
+      execution.id === selectedExecutionId && 
+      ['running', 'pending'].includes(execution.status)
+    );
+
+    return selectedExecution || null;
+  }, [documentContent?.executions, documentExecutions, selectedExecutionId]);
 
   // Get selected execution details for displaying version info (optimized)
   const selectedExecutionInfo = useMemo(() => {
@@ -1980,92 +2013,78 @@ export function AssetContent({
           <div className="py-4 md:py-5 px-4 md:px-6">
             {selectedFile.type === 'document' ? (
               <>
-                {/* Execution Status Banner - Show for any active execution */}
-                {(() => {
-                  // Show banner if user just started a new execution
-                  if (currentExecutionId) {
-                    return (
-                      <ExecutionStatusBanner
-                        executionId={currentExecutionId}
-                        onExecutionComplete={(completedExecutionId) => {
-                          console.log('🔄 Execution completed, updating to show new content...', completedExecutionId);
-                          
-                          // Clear the current execution ID since it's no longer running
-                          setCurrentExecutionId(null);
-                          
-                          // Update selectedExecutionId to the completed execution so user sees the new content
-                          if (completedExecutionId) {
-                            console.log('🎯 Switching to completed execution:', completedExecutionId);
-                            setSelectedExecutionId(completedExecutionId);
-                          }
-                          
-                          // Remove all cached queries aggressively
-                          queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                          queryClient.removeQueries({ queryKey: ['document', selectedFile?.id] });
-                          queryClient.removeQueries({ queryKey: ['executions', selectedFile?.id] });
-                          
-                          // Invalidate queries once - they will refetch automatically
-                          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                          queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-                        }}
-                        className="mb-4"
-                      />
-                    );
-                  }
-                  
-                  // Show banner for any active execution (not just selected one)
-                  const executions = documentContent?.executions || documentExecutions;
-                  if (executions && Array.isArray(executions)) {
-                    // Find any execution in active state (prioritize running > pending > queued)
-                    const runningExecution = executions.find((exec: any) => exec.status === 'running');
-                    const pendingExecution = executions.find((exec: any) => exec.status === 'pending');
-                    const queuedExecution = executions.find((exec: any) => exec.status === 'queued');
-                    const failedExecution = executions.find((exec: any) => exec.status === 'failed');
-                    
-                    const activeExecution = runningExecution || pendingExecution || queuedExecution || failedExecution;
-                    
-                    if (activeExecution && activeExecution.id !== currentExecutionId) {
-                      return (
-                        <ExecutionStatusBanner
-                          executionId={activeExecution.id}
-                          onExecutionComplete={(completedExecutionId) => {
-                            console.log('🔄 Active execution completed, ensuring content refresh...', completedExecutionId);
-                            
-                            // Si la ejecución completada es diferente a la seleccionada, cambiar a la completada
-                            if (completedExecutionId && completedExecutionId !== selectedExecutionId) {
-                              console.log('🎯 Switching to completed execution:', completedExecutionId);
-                              setSelectedExecutionId(completedExecutionId);
-                            }
-                            
-                            // Remove all cached queries aggressively
-                            queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                            queryClient.removeQueries({ queryKey: ['document', selectedFile?.id] });
-                            queryClient.removeQueries({ queryKey: ['executions', selectedFile?.id] });
-                            
-                            // Force multiple waves of refresh to ensure content updates
-                            // Invalidate queries once - they will refetch automatically
-                            queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                            queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-                          }}
-                          className="mb-4"
-                        />
-                      );
-                    }
-                  }
-                  
-                  return null;
-                })()}
-                
-                {/* Section Execution Status Banner - for individual section executions */}
-                {sectionExecutionId && sectionExecutionId !== (currentExecutionId || activeExecutionId) && (
-                  <ExecutionStatusBanner
-                    executionId={sectionExecutionId}
-                    onExecutionComplete={() => {
-                      setSectionExecutionId(null);
+                {/* Execution Feedback - Show overlay for full mode, inline for single/from */}
+                {currentExecutionId && (
+                  <ExecutionFeedback
+                    executionId={currentExecutionId}
+                    executionMode={currentExecutionMode}
+                    onComplete={() => {
+                      console.log('🔄 Execution completed, refreshing content...');
+                      
+                      // Clear the current execution tracking
+                      const completedMode = currentExecutionMode;
+                      const completedExecutionId = currentExecutionId;
+                      
+                      setCurrentExecutionId(null);
+                      setCurrentExecutionMode('full');
+                      setCurrentSectionIndex(undefined);
+                      
+                      // Invalidate and refetch all relevant queries
                       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
                       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['execution-status', completedExecutionId] });
+                      
+                      // For full mode, reload the page after invalidation to show the new version
+                      if (completedMode === 'full') {
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 1000);
+                      } else {
+                        // For partial modes, refetch immediately
+                        queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
+                      }
                     }}
-                    className="mb-4"
+                  />
+                )}
+                
+                {/* Other Version Execution Banners */}
+                {otherVersionActiveExecutions.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    {otherVersionActiveExecutions.map((execution: any) => (
+                      <OtherVersionExecutionBanner
+                        key={execution.id}
+                        executionId={execution.id}
+                        executionName={execution.name || `Version ${execution.id.substring(0, 8)}`}
+                        onDismiss={() => {
+                          setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
+                        }}
+                        onViewVersion={() => {
+                          setSelectedExecutionId(execution.id);
+                          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                {/* Current Version Execution Banner - when viewing the version being generated */}
+                {isSelectedVersionExecuting && !currentExecutionId && (
+                  <CurrentVersionExecutionBanner
+                    executionId={isSelectedVersionExecuting.id}
+                    executionName={isSelectedVersionExecuting.name || `Version ${isSelectedVersionExecuting.id.substring(0, 8)}`}
+                    onComplete={() => {
+                      console.log('🔄 Current version execution completed, refreshing content...');
+                      
+                      // Invalidate and refetch all relevant queries
+                      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+                      queryClient.invalidateQueries({ queryKey: ['execution-status', isSelectedVersionExecuting.id] });
+                      
+                      // Refetch immediately
+                      queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                    }}
                   />
                 )}
                 
@@ -2074,45 +2093,50 @@ export function AssetContent({
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                     <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                   </div>
+                ) : isSelectedVersionExecuting && !currentExecutionId ? (
+                  // Show skeleton when viewing a version that is currently executing
+                  <div className="space-y-6">
+                    {/* Skeleton for document content */}
+                    <div className="animate-pulse space-y-4">
+                      {/* Title skeleton */}
+                      <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                      
+                      {/* Paragraph skeletons */}
+                      <div className="space-y-3 pt-4">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                        <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+                      </div>
+                      
+                      {/* Section separator */}
+                      <div className="h-px bg-gray-200 my-8"></div>
+                      
+                      {/* Another section */}
+                      <div className="h-6 bg-gray-200 rounded w-2/3"></div>
+                      <div className="space-y-3 pt-4">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-4/5"></div>
+                        <div className="h-4 bg-gray-200 rounded w-3/5"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                      </div>
+                      
+                      {/* Section separator */}
+                      <div className="h-px bg-gray-200 my-8"></div>
+                      
+                      {/* Another section */}
+                      <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+                      <div className="space-y-3 pt-4">
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                        <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                        <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+                        <div className="h-4 bg-gray-200 rounded w-3/5"></div>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   // Lógica mejorada para manejar diferentes estados de ejecución
                   (() => {
-                    const executions = documentContent?.executions || documentExecutions;
-                    const currentExecution = executions?.find((exec: any) => exec.id === selectedExecutionId);
-                    
-                    // PRIORIDAD: Si hay una ejecución seleccionada que está pending/running, mostrar estado apropiado
-                    // independientemente de si hay contenido de otras ejecuciones
-                    if (currentExecution && ['pending', 'running'].includes(currentExecution.status)) {
-                      return (
-                        <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
-                          <Empty className="max-w-2xl">
-                            <div className="p-8 text-center">
-                              <EmptyIcon>
-                                {currentExecution.status === 'running' ? (
-                                  <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-                                ) : (
-                                  <Clock className="h-12 w-12 text-amber-500" />
-                                )}
-                              </EmptyIcon>
-                              <EmptyTitle>
-                                {currentExecution.status === 'running' 
-                                  ? 'Content is being generated' 
-                                  : 'Execution is pending'
-                                }
-                              </EmptyTitle>
-                              <EmptyDescription>
-                                {currentExecution.status === 'running'
-                                  ? 'Please wait while the document content is being generated. This may take a few minutes.'
-                                  : 'This execution is waiting to start. Content will be available once the execution begins.'
-                                }
-                              </EmptyDescription>
-                            </div>
-                          </Empty>
-                        </div>
-                      );
-                    }
-                    
-                    // Si no hay ejecuciones o no hay contenido (solo para casos sin execuciones activas)
+                    // Si no hay ejecuciones o no hay contenido
                     if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
                       return (
                         <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
@@ -2137,7 +2161,7 @@ export function AssetContent({
                                     onClick={() => setIsSectionSheetOpen(true)}
                                     className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                                   >
-                                    <Plus className="h-4 w-4 mr-2" />
+                                    <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                                     Add Sections
                                   </DocumentActionButton>
                                 ) : (
@@ -2205,7 +2229,7 @@ export function AssetContent({
                           
                           return (
                             <div key={section.id}>
-                              <div id={`section-${index}`}>
+                              <div id={`section-${index}`} className="relative">
                                 <SectionExecution 
                                   sectionExecution={{
                                     id: section.id, // This is the section_execution_id
@@ -2230,6 +2254,21 @@ export function AssetContent({
                                     }
                                   }}
                                 />
+                                
+                                {/* Show regeneration feedback for single/from modes */}
+                                {currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
+                                  // Show feedback if this is the selected section (single mode)
+                                  // or if this section is at or after the selected section (from mode)
+                                  (currentExecutionMode === 'single' && index === currentSectionIndex) ||
+                                  (currentExecutionMode === 'from' && currentSectionIndex !== undefined && index >= currentSectionIndex)
+                                ) && (
+                                  <SectionRegenerationFeedback
+                                    sectionIndex={index}
+                                    executionId={currentExecutionId}
+                                    executionMode={currentExecutionMode}
+                                    totalSections={documentContent.content.length}
+                                  />
+                                )}
                               </div>
                               
                               {/* Add separator after each section */}
@@ -2270,7 +2309,7 @@ export function AssetContent({
                               onClick={handleAddSection}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
                             >
-                              <Plus className="h-4 w-4 mr-2" />
+                              <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                               Add Section
                             </DocumentActionButton>
                             
@@ -2319,8 +2358,8 @@ export function AssetContent({
         </div>
       </div>
 
-      {/* Table of Contents Sidebar - only show for documents with content */}
-      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && (
+      {/* Table of Contents Sidebar - only show for documents with content and when version is not executing */}
+      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
         <CollapsibleSidebar
           isOpen={isTocSidebarOpen}
           onToggle={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
@@ -2472,7 +2511,7 @@ export function AssetContent({
                 </>
               ) : (
                 <>
-                  <PlusCircle className="mr-2 h-4 w-4" />
+                  <BetweenHorizontalStart className="mr-2 h-4 w-4" />
                   Add Section
                 </>
               )}

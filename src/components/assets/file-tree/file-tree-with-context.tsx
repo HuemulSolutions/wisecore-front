@@ -78,7 +78,7 @@ export function FileTreeWithContext({
 
       // Llamar a la API correspondiente según el tipo de item
       if (draggedItem.type === "folder") {
-        const { moveFolder } = await import("@/services/library");
+        const { moveFolder } = await import("@/services/folders");
         await moveFolder(draggedItem.id, targetFolder.id, selectedOrganizationId!);
       } else if (draggedItem.type === "file") {
         const { moveDocument } = await import("@/services/documents");

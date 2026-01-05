@@ -273,7 +273,7 @@ export default function SectionExecution({
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                {/* {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
                                     <>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -313,7 +313,7 @@ export default function SectionExecution({
                                             </TooltipContent>
                                         </Tooltip>
                                     </>
-                                )}
+                                )} */}
 
                                 {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                     <Tooltip>
