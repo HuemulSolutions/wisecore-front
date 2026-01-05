@@ -84,10 +84,28 @@ export function TeamSwitcher() {
       queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
       setDeletingOrg(null)
       setIsDeleteDialogOpen(false)
-      // If deleted org was selected, clear selection
+      // If deleted org was selected, clear selection and reset context
       if (deletingOrg && selectedOrganizationId === deletingOrg.id) {
         setSelectedOrganizationId('')
         setOrganizationToken('')
+        // Invalidar todas las queries de la organización eliminada
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const queryKey = query.queryKey
+            return Array.isArray(queryKey) && (
+              queryKey.includes('documents') ||
+              queryKey.includes('document-types') ||
+              queryKey.includes('roles') ||
+              queryKey.includes('permissions') ||
+              queryKey.includes('assets') ||
+              queryKey.includes('asset-types') ||
+              queryKey.includes('users') ||
+              queryKey.includes('knowledge') ||
+              queryKey.includes('library') ||
+              queryKey.some(key => typeof key === 'string' && key.includes('org'))
+            )
+          }
+        })
       }
     },
   })
@@ -103,17 +121,53 @@ export function TeamSwitcher() {
   const handleOrganizationChange = async (orgId: string) => {
     if (orgId && user?.id) {
       setIsGeneratingToken(true)
+      
       try {
+        // Limpiar estado anterior de la organización
+        setOrganizationToken('')
+        
+        // Generar nuevo token para la organización seleccionada PRIMERO
         const tokenResponse = await generateOrganizationToken(orgId)
         const orgToken = tokenResponse.token || tokenResponse.data?.token
         
+        if (!orgToken) {
+          throw new Error('No token received from server')
+        }
+        
+        // Actualizar el contexto con la nueva organización y token
         setSelectedOrganizationId(orgId)
         setOrganizationToken(orgToken)
         
-        console.log('Organization token generated successfully:', orgToken?.substring(0, 10) + '...')
+        console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...')
+        
+        // Esperar un poco más para que el contexto se propague completamente
+        await new Promise(resolve => setTimeout(resolve, 200))
+        
+        // SOLO DESPUÉS invalidar todas las queries que dependen de la organización
+        // Ahora que el nuevo token está disponible, las queries se ejecutarán correctamente
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            // Invalidar queries que contengan claves relacionadas con organizaciones
+            const queryKey = query.queryKey
+            return Array.isArray(queryKey) && (
+              queryKey.includes('documents') ||
+              queryKey.includes('document-types') ||
+              queryKey.includes('roles') ||
+              queryKey.includes('permissions') ||
+              queryKey.includes('assets') ||
+              queryKey.includes('asset-types') ||
+              queryKey.includes('users') ||
+              queryKey.includes('knowledge') ||
+              queryKey.includes('library') ||
+              queryKey.some(key => typeof key === 'string' && key.includes('org'))
+            )
+          }
+        })
         
       } catch (error) {
-        console.error('Error generating organization token:', error)
+        console.error('Error changing organization:', error)
+        // Mantener el estado anterior si hay error
+        // Podrías mostrar un toast de error aquí si tienes configurado
       } finally {
         setIsGeneratingToken(false)
       }
@@ -303,9 +357,16 @@ export function TeamSwitcher() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{org.name}</p>
+                  {isGeneratingToken && selectedOrganizationId !== org.id && (
+                    <p className="text-xs text-muted-foreground">Loading...</p>
+                  )}
                 </div>
-                {selectedOrganization.id === org.id && (
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                {isGeneratingToken && selectedOrganizationId !== org.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : (
+                  selectedOrganization.id === org.id && (
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  )
                 )}
                 {user?.is_root_admin && (
                   <div className="flex gap-1 ml-2 action-buttons">

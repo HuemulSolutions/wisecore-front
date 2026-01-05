@@ -169,6 +169,31 @@ function AssetsContent() {
     
     return path;
   }, []);
+
+  // Scroll preservation functions
+  const saveScrollPosition = useCallback(() => {
+    if (scrollContainerRef.current) {
+      scrollPositionRef.current = scrollContainerRef.current.scrollTop;
+    }
+  }, []);
+
+  const restoreScrollPosition = useCallback(() => {
+    if (scrollContainerRef.current && preserveScrollRef.current) {
+      const savedPosition = scrollPositionRef.current;
+      // Use requestAnimationFrame to ensure DOM updates are complete
+      requestAnimationFrame(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = savedPosition;
+        }
+        preserveScrollRef.current = false;
+      });
+    }
+  }, []);
+
+  const preserveScroll = useCallback(() => {
+    saveScrollPosition();
+    preserveScrollRef.current = true;
+  }, [saveScrollPosition]);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
@@ -176,8 +201,13 @@ function AssetsContent() {
 
   const isMobile = useIsMobile();
   const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
-  const { selectedOrganizationId, resetOrganizationContext } = useOrganization();
+  const { selectedOrganizationId, organizationToken, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
+  
+  // Scroll preservation
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef<number>(0);
+  const preserveScrollRef = useRef<boolean>(false);
 
   // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
   useEffect(() => {
@@ -186,6 +216,35 @@ function AssetsContent() {
     }
   }, [isMobile, setOpenMobile]);
 
+  // Set up scroll listener para guardar posición periódicamente
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let scrollTimer: number;
+    const handleScroll = () => {
+      // Debounce scroll saving to avoid too many updates
+      clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(() => {
+        saveScrollPosition();
+      }, 100);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimer);
+    };
+  }, [saveScrollPosition]);
+
+  // Restore scroll after content updates
+  useEffect(() => {
+    if (preserveScrollRef.current) {
+      const timeoutId = setTimeout(restoreScrollPosition, 50);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [restoreScrollPosition, selectedFile, selectedExecutionId]);
+
   // Get current folder ID (last item in breadcrumb or undefined for root)
   const currentFolderId = breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1].id : undefined;
 
@@ -193,7 +252,7 @@ function AssetsContent() {
   const { error } = useQuery({
     queryKey: ['library', selectedOrganizationId, currentFolderId],
     queryFn: () => getLibraryContent(selectedOrganizationId!, currentFolderId),
-    enabled: !!selectedOrganizationId,
+    enabled: !!selectedOrganizationId && !!organizationToken, // Esperar a que tanto org como token estén disponibles
     staleTime: 30000, // Cache for 30 seconds to avoid unnecessary refetches
     gcTime: 300000, // Keep in cache for 5 minutes
     retry: false,
@@ -263,7 +322,7 @@ function AssetsContent() {
 
   // Initialize from URL on mount and when URL changes
   useEffect(() => {
-    if (!selectedOrganizationId) return;
+    if (!selectedOrganizationId || !organizationToken) return; // Esperar a que tanto org como token estén disponibles
     
     const initializeFromUrl = async () => {
       try {
@@ -390,7 +449,7 @@ function AssetsContent() {
       // URL changed after initial load - always reinitialize from URL
       initializeFromUrl();
     }
-  }, [selectedOrganizationId, location.pathname]);
+  }, [selectedOrganizationId, organizationToken, location.pathname]); // Agregar organizationToken como dependencia
 
   // Sync sessionStorage when breadcrumb or selectedFile changes
   useEffect(() => {
@@ -411,7 +470,17 @@ function AssetsContent() {
     setSelectedFile(null);
     setSelectedExecutionId(null);
     hasRestoredRef.current = false; // Reset so it can initialize again
-  }, [selectedOrganizationId]);
+    
+    // Clear session storage for the previous organization
+    sessionStorage.removeItem('library-breadcrumb');
+    sessionStorage.removeItem('library-selectedFile');
+    
+    // Navigate to root assets page if we're currently on a specific document/folder path
+    if (location.pathname !== '/asset') {
+      console.log('Organization changed, navigating to assets root');
+      navigate('/asset', { replace: true });
+    }
+  }, [selectedOrganizationId, location.pathname, navigate]);
 
   // Handle navigation state to restore selected document and breadcrumb
   useEffect(() => {
@@ -557,7 +626,7 @@ function AssetsContent() {
             </div>
           </div>
         )}
-        <div className="flex-1 overflow-auto bg-white min-w-0">
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white min-w-0">
           <AssetContent
             selectedFile={selectedFile}
             breadcrumb={breadcrumb}
@@ -568,6 +637,7 @@ function AssetsContent() {
             currentFolderId={currentFolderId}
             isSidebarOpen={false}
             onToggleSidebar={() => {}}
+            onPreserveScroll={preserveScroll}
           />
         </div>
       </div>
