@@ -1,17 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { httpClient } from '@/lib/http-client';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  last_name: string;
-  status: string;
-  auth_type_id: string;
-  birthdate?: string;
-  is_root_admin: boolean;
-}
+import type { User } from '@/services/users';
 
 export interface AuthContextType {
   user: User | null;
