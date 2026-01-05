@@ -34,6 +34,7 @@ export function NavMain({
     }[]
   }[]
 }) {
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Navigation</SidebarGroupLabel>

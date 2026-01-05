@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, 
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DocumentTreeSelector } from "@/components/document-tree-selector";
+import { FileTree, type FileNode, type FileTreeRef } from "@/components/assets/assets-file-tree";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getDocumentDependencies, addDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
-// Document services no longer needed as tree selector handles library structure
+import { getLibraryContent } from "@/services/folders";
 import { getAllDocumentTypes } from "@/services/document_type";
 import { useOrganization } from "@/contexts/organization-context";
 import { toast } from "sonner";
@@ -47,9 +47,9 @@ interface AddDependencySheetProps {
 }
 
 export default function AddDependencySheet({ id, isSheetOpen = true }: AddDependencySheetProps) {
-    const [selectedDocumentTypes, setSelectedDocumentTypes] = useState<string[]>([]);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);
+    const fileTreeRef = useRef<FileTreeRef>(null);
     const queryClient = useQueryClient();
     const { selectedOrganizationId } = useOrganization();
 
@@ -59,7 +59,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         enabled: !!id && !!selectedOrganizationId && isSheetOpen,
     });
 
-    const { data: documentTypes = [] } = useQuery<DocumentType[]>({
+    useQuery<DocumentType[]>({
         queryKey: ['documentTypes', selectedOrganizationId],
         queryFn: () => getAllDocumentTypes(selectedOrganizationId!),
         enabled: !!selectedOrganizationId,
@@ -67,9 +67,12 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
 
     const addDependencyMutation = useMutation({
         mutationFn: (dependsOnDocumentId: string) => addDocumentDependency(id, dependsOnDocumentId, selectedOrganizationId!),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['documentDependencies', id] });
+        onSuccess: async () => {
+            // Wait for the dependencies to be reloaded
+            await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
             toast.success("Dependency added successfully");
+            // Refresh the file tree to update disabled states after dependencies are updated
+            await fileTreeRef.current?.refresh();
         },
         onError: (error) => {
             console.error('Error adding dependency:', error);
@@ -79,11 +82,14 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
 
     const removeDependencyMutation = useMutation({
         mutationFn: (dependencyId: string) => removeDocumentDependency(id, dependencyId, selectedOrganizationId!),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['documentDependencies', id] });
+        onSuccess: async () => {
+            // Wait for the dependencies to be reloaded
+            await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
             toast.success("Dependency removed successfully");
             setDeleteDialogOpen(false);
             setDependencyToDelete(null);
+            // Refresh the file tree to update disabled states after dependencies are updated
+            await fileTreeRef.current?.refresh();
         },
         onError: (error) => {
             console.error('Error removing dependency:', error);
@@ -91,9 +97,35 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         },
     });
 
-    const handleSelectDocument = (document: { id: string; name: string; type: "document" }) => {
-        if (document.id) {
-            addDependencyMutation.mutate(document.id);
+    const handleSelectDocument = async (node: FileNode) => {
+        if (node.type === "document" && node.id) {
+            addDependencyMutation.mutate(node.id);
+        }
+    };
+
+    const handleLoadChildren = async (folderId: string | null): Promise<FileNode[]> => {
+        if (!selectedOrganizationId) return [];
+        
+        try {
+            const response = await getLibraryContent(selectedOrganizationId, folderId || undefined);
+            
+            // Get current dependencies from queryClient to ensure we have the latest data
+            const currentDependencies = queryClient.getQueryData<Dependency[]>(['documentDependencies', id]) || [];
+            const excludedIds = new Set([id, ...currentDependencies.map(dep => dep.document_id)]);
+            
+            return response.content.map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                type: item.type as "document" | "folder",
+                document_type: item.document_type,
+                access_levels: item.access_levels,
+                hasChildren: item.type === "folder",
+                disabled: item.type === "document" && excludedIds.has(item.id),
+            }));
+        } catch (error) {
+            console.error('Error loading folder content:', error);
+            toast.error("Failed to load folder content");
+            return [];
         }
     };
 
@@ -142,24 +174,21 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
 
                     {/* Content */}
                     <div className="p-4">
-                        <DocumentTreeSelector
-                            documentTypes={documentTypes}
-                            selectedDocumentTypes={selectedDocumentTypes}
-                            onDocumentSelect={handleSelectDocument}
-                            onFilterChange={setSelectedDocumentTypes}
-                            placeholder="Search and select a document to add as dependency..."
-                            // disabled={addDependencyMutation.isPending}
-                            excludeDocumentIds={[id, ...dependencies.map(dep => dep.document_id)]}
-                            showContainer={true}
-                            customPadding="p-4"
+                        <FileTree
+                            ref={fileTreeRef}
+                            onLoadChildren={handleLoadChildren}
+                            onFileClick={handleSelectDocument}
+                            showCreateButtons={false}
+                            showBorder={false}
+                            showDefaultActions={{ create: false, delete: false, share: false }}
                         />
                         
-                        {/* {addDependencyMutation.isPending && (
+                        {addDependencyMutation.isPending && (
                             <div className="flex items-center gap-2 text-sm text-blue-600 mt-3 p-3 bg-blue-50 rounded-lg">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Adding dependency...
                             </div>
-                        )} */}
+                        )}
                     </div>
                 </div>
 
