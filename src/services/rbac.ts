@@ -41,7 +41,14 @@ export interface PermissionsResponse {
 }
 
 export interface PermissionsWithStatusResponse {
-  data: PermissionWithStatus[];
+  data: {
+    role: {
+      id: string;
+      name: string;
+      description: string;
+    };
+    permissions: PermissionWithStatus[];
+  };
   transaction_id: string;
   timestamp: string;
 }

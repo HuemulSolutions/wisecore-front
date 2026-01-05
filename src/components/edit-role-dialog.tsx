@@ -56,7 +56,7 @@ export default function EditRoleDialog({ role, open, onOpenChange }: EditRoleDia
   const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open)
   const { updateRole } = useRoleMutations()
 
-  const allPermissions = rolePermissionsResponse?.data || []
+  const allPermissions = Array.isArray(rolePermissionsResponse?.data?.permissions) ? rolePermissionsResponse.data.permissions : []
 
   // Reset form when role changes or dialog opens
   useEffect(() => {
