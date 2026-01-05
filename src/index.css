@@ -123,3 +123,76 @@
     line-height: 2;
   }
 }
+
+/* Markdown content styles for section content dialog */
+.markdown-content {
+  @apply text-foreground;
+}
+
+.markdown-content h1 {
+  @apply text-xl font-bold mt-6 mb-3 text-foreground;
+}
+
+.markdown-content h2 {
+  @apply text-lg font-semibold mt-5 mb-3 text-foreground;
+}
+
+.markdown-content h3 {
+  @apply text-base font-medium mt-4 mb-2 text-foreground;
+}
+
+.markdown-content p {
+  @apply mb-3 text-sm leading-6 text-foreground/90;
+}
+
+.markdown-content ul, .markdown-content ol {
+  @apply mb-3 ml-4;
+}
+
+.markdown-content li {
+  @apply mb-1 text-sm leading-6 text-foreground/90;
+}
+
+.markdown-content ul li {
+  @apply list-disc;
+}
+
+.markdown-content ol li {
+  @apply list-decimal;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-border pl-4 italic mb-3 text-muted-foreground;
+}
+
+.markdown-content code {
+  @apply bg-muted px-1 py-0.5 rounded text-xs font-mono;
+}
+
+.markdown-content pre {
+  @apply bg-muted p-3 rounded-md overflow-x-auto mb-3;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent px-0 py-0 text-xs;
+}
+
+.markdown-content strong {
+  @apply font-semibold;
+}
+
+.markdown-content em {
+  @apply italic;
+}
+
+.markdown-content a {
+  @apply text-primary underline hover:cursor-pointer;
+}
+
+.markdown-content mark {
+  @apply bg-yellow-200 dark:bg-yellow-800 px-1 rounded;
+}
+
+.markdown-content mark.bg-blue-100 {
+  @apply bg-blue-100 dark:bg-blue-900 px-0.5 rounded;
+}
