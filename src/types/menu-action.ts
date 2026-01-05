@@ -1,4 +1,4 @@
-import type { FileNode } from "@/components/assets/assets-file-tree"
+import type { FileNode } from "@/components/assets/content/assets-file-tree"
 
 export interface MenuAction {
   variant: string

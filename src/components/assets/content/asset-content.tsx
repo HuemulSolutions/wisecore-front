@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -2136,67 +2136,136 @@ export function AssetContent({
                 ) : (
                   // Lógica mejorada para manejar diferentes estados de ejecución
                   (() => {
+                    // Check if the current execution has failed
+                    const hasFailedExecution = selectedExecutionInfo?.status === 'failed';
+                    
                     // Si no hay ejecuciones o no hay contenido
                     if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
                       return (
                         <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
                           <Empty className="max-w-2xl">
                             <div className="p-8 text-center">
-                              <EmptyIcon>
-                                <Zap className="h-12 w-12" />
-                              </EmptyIcon>
-                              <EmptyTitle>Setup {selectedFile.name}</EmptyTitle>
-                              <EmptyDescription>
-                                {fullDocument?.sections?.length > 0 
-                                  ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
-                                  : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
-                                }
-                              </EmptyDescription>
-                              <EmptyActions>
-                                {fullDocument?.sections?.length === 0 ? (
-                                  <DocumentActionButton
-                                    accessLevels={accessLevels}
-                                    requiredAccess={["edit", "create"]}
-                                    requireAll={false}
-                                    onClick={() => setIsSectionSheetOpen(true)}
-                                    className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
-                                  >
-                                    <BetweenHorizontalStart className="h-4 w-4 mr-2" />
-                                    Add Sections
-                                  </DocumentActionButton>
-                                ) : (
-                                  <>
-                                    <Button
-                                      onClick={handleCreateExecution}
-                                      disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                                      className={executeDocumentMutation.isPending || hasExecutionInProcess
-                                        ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
-                                        : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
-                                      }
-                                    >
-                                      {executeDocumentMutation.isPending ? (
-                                        <>
-                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                          Executing...
-                                        </>
+                              {hasFailedExecution ? (
+                                <>
+                                  <div className="max-w-xl mx-auto">
+                                    <div className="bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
+                                      {/* Icon Container with Animation */}
+                                      <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
+                                        <AlertCircle className="h-8 w-8 text-red-600 animate-pulse" />
+                                      </div>
+                                      
+                                      {/* Title */}
+                                      <h3 className="text-2xl font-bold text-red-900 mb-3">
+                                        Execution Failed
+                                      </h3>
+                                      
+                                      {/* Description */}
+                                      <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-md mx-auto">
+                                        The AI couldn't generate content for this document. Please try again or check your sections configuration.
+                                      </p>
+                                      
+                                      {/* Action Buttons */}
+                                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <Button
+                                          onClick={handleCreateExecution}
+                                          disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                                          size="lg"
+                                          className={executeDocumentMutation.isPending || hasExecutionInProcess
+                                            ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                            : "hover:cursor-pointer bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
+                                          }
+                                        >
+                                          {executeDocumentMutation.isPending ? (
+                                            <>
+                                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                              Retrying...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <RefreshCw className="h-5 w-5 mr-2" />
+                                              Retry Execution
+                                            </>
+                                          )}
+                                        </Button>
+                                        <Button
+                                          onClick={() => setIsSectionSheetOpen(true)}
+                                          variant="outline"
+                                          size="lg"
+                                          className="hover:cursor-pointer border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
+                                        >
+                                          <Edit3 className="h-5 w-5 mr-2" />
+                                          Edit Sections
+                                        </Button>
+                                      </div>
+                                      
+                                      {/* Additional Help Text */}
+                                      <p className="text-xs text-red-600/70 mt-6">
+                                        Common issues: API errors, invalid prompts, or missing dependencies
+                                      </p>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <EmptyIcon>
+                                    <Zap className="h-12 w-12" />
+                                  </EmptyIcon>
+                                  <EmptyTitle>Setup {selectedFile.name}</EmptyTitle>
+                                  <EmptyDescription>
+                                    {fullDocument?.sections?.length > 0 
+                                      ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
+                                      : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
+                                    }
+                                  </EmptyDescription>
+                                  {!hasFailedExecution && (
+                                    <EmptyActions>
+                                      {fullDocument?.sections?.length === 0 ? (
+                                        <DocumentActionButton
+                                          accessLevels={accessLevels}
+                                          requiredAccess={["edit", "create"]}
+                                          requireAll={false}
+                                          onClick={() => setIsSectionSheetOpen(true)}
+                                          className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                        >
+                                          <BetweenHorizontalStart className="h-4 w-4 mr-2" />
+                                          Add Sections
+                                        </DocumentActionButton>
                                       ) : (
                                         <>
-                                          <Zap className="h-4 w-4 mr-2" />
-                                          {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                          <Button
+                                            onClick={handleCreateExecution}
+                                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                                            className={executeDocumentMutation.isPending || hasExecutionInProcess
+                                              ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
+                                              : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                            }
+                                          >
+                                            {executeDocumentMutation.isPending ? (
+                                              <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Executing...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Zap className="h-4 w-4 mr-2" />
+                                                {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                              </>
+                                            )}
+                                          </Button>
+                                          <Button
+                                            onClick={() => setIsSectionSheetOpen(true)}
+                                            variant="outline"
+                                            className="hover:cursor-pointer"
+                                          >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Add More Sections
+                                          </Button>
                                         </>
                                       )}
-                                    </Button>
-                                    <Button
-                                      onClick={() => setIsSectionSheetOpen(true)}
-                                      variant="outline"
-                                      className="hover:cursor-pointer"
-                                    >
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Add More Sections
-                                    </Button>
-                                  </>
-                                )}
-                              </EmptyActions>
+                                    </EmptyActions>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </Empty>
                         </div>
