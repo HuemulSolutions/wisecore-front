@@ -18,16 +18,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { CreateFolderDialog } from "@/components/create_folder"
-import { CreateAssetDialog } from "@/components/create-asset-dialog"
-import EditFolder from "@/components/edit_folder"
-import { deleteFolder } from "@/services/library"
+import EditFolder from "@/components/assets/dialogs/edit_folder"
+import { deleteFolder } from "@/services/folders"
 import { toast } from "sonner"
 import type { FileNode } from "./types"
 import { useOrganization } from "@/contexts/organization-context"
 import { useExpandedFolders } from "@/hooks/use-expanded-folders"
+import { CreateFolderDialog, CreateAssetDialog, DeleteFolderDialog } from "../dialogs"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -165,7 +163,6 @@ export function FileTreeItemWithContext({
   const [isLoading, setIsLoading] = useState(false)
   const [localChildren, setLocalChildren] = useState<FileNode[]>(item.children || [])
   const [deletingFolder, setDeletingFolder] = useState<FileNode | null>(null)
-  const [isDeletingFolder, setIsDeletingFolder] = useState(false)
   const [isEditFolderOpen, setIsEditFolderOpen] = useState(false)
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [isCreateAssetOpen, setIsCreateAssetOpen] = useState(false)
@@ -360,17 +357,14 @@ export function FileTreeItemWithContext({
   const handleDeleteConfirm = async () => {
     if (!deletingFolder) return;
     
-    setIsDeletingFolder(true);
     try {
       await deleteFolder(deletingFolder.id, selectedOrganizationId!);
       toast.success(`Folder "${deletingFolder.name}" deleted successfully`);
-      onRefresh?.();
       setDeletingFolder(null);
-      setIsDeletingFolder(false);
+      onRefresh?.();
     } catch (error) {
       console.error('Error deleting folder:', error);
       toast.error(`Failed to delete folder. Please try again.`);
-      setIsDeletingFolder(false);
     }
   };
 
@@ -638,43 +632,16 @@ export function FileTreeItemWithContext({
             onOpenChange={setIsEditFolderOpen}
           />
           
-          <AlertDialog 
-            open={!!deletingFolder} 
+          <DeleteFolderDialog
+            open={!!deletingFolder}
             onOpenChange={(open) => {
-              if (!open && !isDeletingFolder) {
+              if (!open) {
                 setDeletingFolder(null)
               }
             }}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{deletingFolder?.name}"? All files and subfolders will be permanently deleted and this action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeletingFolder}>Cancel</AlertDialogCancel>
-                <Button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    handleDeleteConfirm()
-                  }}
-                  className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
-                  disabled={isDeletingFolder}
-                >
-                  {isDeletingFolder ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    "Delete"
-                  )}
-                </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            folderName={deletingFolder?.name || ""}
+            onConfirm={handleDeleteConfirm}
+          />
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, List, PlusCircle, Sparkles } from "lucide-react";
+import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentActionButton } from "@/components/document-access-control";
 import { useOrganization } from "@/contexts/organization-context";
@@ -181,8 +181,8 @@ export function SectionSheet({
           }
           title="Add Section"
         >
-          <Plus className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
-          {!isMobile && "Section"}
+          <BetweenHorizontalStart className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
+          {!isMobile && "Sections"}
         </DocumentActionButton>
       </SheetTrigger>
       

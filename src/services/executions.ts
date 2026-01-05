@@ -223,7 +223,7 @@ export async function exportExecutionCustomWord(executionId: string, organizatio
 
 export async function approveExecution(executionId: string, organizationId: string) {
     console.log(`Approving execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/approve/${executionId}`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/approve`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -238,7 +238,7 @@ export async function approveExecution(executionId: string, organizationId: stri
 
 export async function disapproveExecution(executionId: string, organizationId: string) {
     console.log(`Disapproving execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/disapprove/${executionId}`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/dissapprove`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -253,7 +253,7 @@ export async function disapproveExecution(executionId: string, organizationId: s
 
 export async function cloneExecution(executionId: string, organizationId: string) {
     console.log(`Cloning execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/clone/${executionId}`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/clone`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },

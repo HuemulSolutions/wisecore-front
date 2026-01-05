@@ -60,7 +60,7 @@ export default function CreateEditRoleSheet({ role, open, onOpenChange }: Create
   const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
   const { createRole, updateRole } = useRoleMutations()
 
-  const permissions = permissionsResponse?.data || []
+  const permissions = Array.isArray(permissionsResponse?.data) ? permissionsResponse.data : []
 
   // Reset form when role changes or dialog opens
   useEffect(() => {

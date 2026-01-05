@@ -12,7 +12,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 // Note: ScrollArea component not available, using div with scroll
 import { useQuery } from "@tanstack/react-query";
-import { getLibraryContent } from "@/services/library";
+import { getLibraryContent } from "@/services/folders";
 import { useOrganization } from "@/contexts/organization-context";
 
 interface Document {

@@ -28,6 +28,14 @@ import {
     AlertDialogCancel,
     AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogClose,
+} from "@/components/ui/dialog";
 import { fixSection, executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
@@ -62,7 +70,7 @@ export default function SectionExecution({
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
-    const [isAiEditing, setIsAiEditing] = useState(false);
+    const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [aiPrompt, setAiPrompt] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
@@ -228,6 +236,36 @@ export default function SectionExecution({
         }
     };
 
+    const handleAiEditDialogChange = (open: boolean) => {
+        setIsAiEditDialogOpen(open);
+        if (!open) {
+            setAiPrompt('');
+        }
+    };
+
+    const handleSendAiEdit = () => {
+        setIsAiProcessing(true);
+        setAiPreview('');
+        fixSection({
+            instructions: aiPrompt,
+            content: sectionExecution.output.replace(/\\n/g, "\n"),
+            organizationId: selectedOrganizationId!,
+            onData: (chunk: string) => {
+                const normalized = chunk.replace(/\\n/g, "\n");
+                setAiPreview(prev => (prev ?? '') + normalized);
+            },
+            onError: (e: Event) => {
+                console.error('AI edit error', e);
+                setIsAiProcessing(false);
+            },
+            onClose: () => {
+                setIsAiProcessing(false);
+            }
+        });
+        setIsAiEditDialogOpen(false);
+        setAiPrompt('');
+    };
+
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
@@ -273,7 +311,7 @@ export default function SectionExecution({
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                {/* {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
                                     <>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -313,9 +351,9 @@ export default function SectionExecution({
                                             </TooltipContent>
                                         </Tooltip>
                                     </>
-                                )}
+                                )} */}
 
-                                {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -335,7 +373,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -344,7 +382,7 @@ export default function SectionExecution({
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
-                                                onClick={() => setIsAiEditing(true)}
+                                                onClick={() => setIsAiEditDialogOpen(true)}
                                             >
                                                 <Bot className="h-3.5 w-3.5 text-blue-600" />
                                             </DocumentActionButton>
@@ -355,7 +393,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && !isAiEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
+                                {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -432,7 +470,7 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                         </>
                                     )}
-                                    {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -446,21 +484,23 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
                                         >
                                             <DropdownMenuItem 
                                                 className="hover:cursor-pointer"
-                                                onClick={() => setIsAiEditing(true)}
+                                                onSelect={() => {
+                                                    setTimeout(() => setIsAiEditDialogOpen(true), 0);
+                                                }}
                                             >
                                                 <Bot className="h-4 w-4 mr-2" />
                                                 Ask AI to Edit
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && !isAiEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
+                                    {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="delete"
@@ -504,65 +544,6 @@ export default function SectionExecution({
                 </div>
             )}
             
-            {isAiEditing && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Bot className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-800">Ask AI to Edit</span>
-                    </div>
-                    <Textarea
-                        placeholder="Describe how you want to modify this content..."
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        className="mb-3"
-                        rows={3}
-                    />
-                    <div className="flex gap-2">
-                        <Button 
-                            size="sm" 
-                            onClick={() => {
-                                setIsAiProcessing(true);
-                                setAiPreview('');
-                                fixSection({
-                                    instructions: aiPrompt,
-                                    content: sectionExecution.output.replace(/\\n/g, "\n"),
-                                    organizationId: selectedOrganizationId!,
-                                    onData: (chunk: string) => {
-                                        const normalized = chunk.replace(/\\n/g, "\n");
-                                        setAiPreview(prev => (prev ?? '') + normalized);
-                                    },
-                                    onError: (e: Event) => {
-                                        console.error('AI edit error', e);
-                                        setIsAiProcessing(false);
-                                    },
-                                    onClose: () => {
-                                        setIsAiProcessing(false);
-                                    }
-                                });
-                                setIsAiEditing(false);
-                                setAiPrompt('');
-                            }}
-                            disabled={!aiPrompt.trim() || isAiProcessing}
-                            className="hover:cursor-pointer"
-                        >
-                            <Send className="h-4 w-4 mr-2" />
-                            Send
-                        </Button>
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => {
-                                setIsAiEditing(false);
-                                setAiPrompt('');
-                            }}
-                            className="hover:cursor-pointer"
-                        >
-                            Cancel
-                        </Button>
-                    </div>
-                </div>
-            )}
-
             {aiPreview !== null && !isAiProcessing && (
                 <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
                     <span className="text-sm text-amber-800">Vista previa de edición por IA lista. ¿Guardar cambios?</span>
@@ -649,6 +630,45 @@ export default function SectionExecution({
             onExecute={handleExecuteWithConfig}
             isExecuting={isExecuting}
         />
+
+        {/* AI Edit Dialog */}
+        <Dialog open={isAiEditDialogOpen} onOpenChange={handleAiEditDialogChange}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Bot className="h-5 w-5 text-blue-600" />
+                        Ask AI to Edit
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Textarea
+                        placeholder="Describe how you want to modify this content..."
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        className="min-h-[120px]"
+                        rows={5}
+                    />
+                </div>
+                <DialogFooter className="gap-2">
+                    <DialogClose asChild>
+                        <Button 
+                            variant="outline" 
+                            className="hover:cursor-pointer"
+                        >
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <Button 
+                        onClick={handleSendAiEdit}
+                        disabled={!aiPrompt.trim() || isAiProcessing}
+                        className="hover:cursor-pointer"
+                    >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
         </div>
     );
 

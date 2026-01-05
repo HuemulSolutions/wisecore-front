@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createFolder } from "@/services/library"
+import { createFolder } from "@/services/folders"
 import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
 

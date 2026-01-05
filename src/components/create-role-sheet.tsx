@@ -60,7 +60,7 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
   const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
   const { createRole } = useRoleMutations()
 
-  const availablePermissions = permissionsResponse?.data || []
+  const availablePermissions = Array.isArray(permissionsResponse?.data) ? permissionsResponse.data : []
 
   // Reset form when dialog opens
   useEffect(() => {

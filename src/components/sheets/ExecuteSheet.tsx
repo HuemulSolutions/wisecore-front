@@ -3,20 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Play, 
   Loader2, 
-  CircleCheck, 
   CircleX,
   Plus 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import SectionExecutionSheet from "@/components/section_execution_sheet";
-import EditDocumentDialog from "@/components/edit_document_dialog";
-import { 
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Card, CardContent } from "@/components/ui/card";
+import EditDocumentDialog from "@/components/assets/dialogs/edit_document_dialog";
 import {
     Select,
     SelectContent,
@@ -33,11 +25,9 @@ import {
 } from "../ui/sheet";
 import { 
   getExecutionById, 
-  approveExecution, 
-  disapproveExecution,
   executeDocument 
 } from "@/services/executions";
-import { getLLMs, updateExecutionLLM, getDefaultLLM } from "@/services/llms";
+import { getLLMs, getDefaultLLM } from "@/services/llms";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
@@ -53,7 +43,7 @@ interface ExecuteSheetProps {
   onOpenChange: (open: boolean) => void;
   onSectionSheetOpen: () => void;
   onExecutionComplete?: () => void;
-  onExecutionCreated?: (executionId: string) => void;
+  onExecutionCreated?: (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => void;
   isMobile?: boolean;
   disabled?: boolean;
   disabledReason?: string;
@@ -74,7 +64,7 @@ export function ExecuteSheet({
   const [isGeneratingInSheet, setIsGeneratingInSheet] = useState(false);
   const [sheetInstructions, setSheetInstructions] = useState("");
   const [sheetSelectedLLM, setSheetSelectedLLM] = useState<string>("");
-  const [isApproving, setIsApproving] = useState(false);
+  const [] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
   const [executionType, setExecutionType] = useState<'full' | 'single' | 'from'>('full');
@@ -88,14 +78,14 @@ export function ExecuteSheet({
   const instructionsInitialized = useRef<boolean>(false);
 
   // Fetch executions for the document to check for existing pending executions
-  const { data: documentExecutions } = useExecutionsByDocumentId(
+  useExecutionsByDocumentId(
     selectedFile?.id || '',
     selectedOrganizationId || '',
     selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && isOpen
   );
 
   // Query para obtener detalles de la ejecución actual
-  const { data: currentExecution, refetch: refetchExecution } = useQuery({
+  const { data: currentExecution } = useQuery({
     queryKey: ["execution", currentExecutionId],
     queryFn: () => getExecutionById(currentExecutionId!, selectedOrganizationId!),
     enabled: !!currentExecutionId && !!selectedOrganizationId,
@@ -139,8 +129,11 @@ export function ExecuteSheet({
       toast.success("Document execution started successfully");
       setCurrentExecutionId(executionData.id);
       setHasAttemptedCreation(false);
-      // Siempre notificar el ID de la ejecución que se está usando/creando
-      onExecutionCreated?.(executionData.id);
+      // Notificar el ID de la ejecución con el modo y sección si aplica
+      const sectionIdx = selectedSectionId && fullDocument?.sections 
+        ? fullDocument.sections.findIndex((s: any) => s.id === selectedSectionId)
+        : undefined;
+      onExecutionCreated?.(executionData.id, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
       onExecutionComplete?.();
       onOpenChange(false); // Cerrar el sheet inmediatamente
     },
@@ -154,16 +147,6 @@ export function ExecuteSheet({
 
 
   // Mutation para actualizar LLM
-  const updateLLMMutation = useMutation({
-    mutationFn: (llmId: string) => updateExecutionLLM(currentExecutionId!, llmId),
-    onSuccess: () => {
-      toast.success("Model updated");
-      refetchExecution();
-    },
-    onError: () => {
-      toast.error("Failed to update model");
-    }
-  });
 
 
 
@@ -198,32 +181,32 @@ export function ExecuteSheet({
       // Ejecutar todo el documento
       executionData.singleSectionMode = false;
     } else if (executionType === 'single') {
-      // Ejecutar solo una sección específica (requiere ejecución existente)
-      const executionIdToUse = currentExecutionId || selectedExecutionId;
-      if (!executionIdToUse) {
-        toast.error("Single section execution requires an existing execution");
-        return;
-      }
+      // Ejecutar solo una sección específica
       executionData.startSectionId = selectedSectionId;
       executionData.singleSectionMode = true;
-      executionData.executionId = executionIdToUse;
-      // Notificar inmediatamente que vamos a usar esta ejecución
-      if (!currentExecutionId) {
-        onExecutionCreated?.(executionIdToUse);
+      // Si hay una ejecución existente, usarla
+      const executionIdToUse = currentExecutionId || selectedExecutionId;
+      if (executionIdToUse) {
+        executionData.executionId = executionIdToUse;
+        // Notificar que vamos a usar esta ejecución
+        if (!currentExecutionId) {
+          const sectionIdx = fullDocument?.sections?.findIndex((s: any) => s.id === selectedSectionId);
+          onExecutionCreated?.(executionIdToUse, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
+        }
       }
     } else if (executionType === 'from') {
-      // Ejecutar desde una sección en adelante (requiere ejecución existente)
-      const executionIdToUse = currentExecutionId || selectedExecutionId;
-      if (!executionIdToUse) {
-        toast.error("Execute from section requires an existing execution");
-        return;
-      }
+      // Ejecutar desde una sección en adelante
       executionData.startSectionId = selectedSectionId;
       executionData.singleSectionMode = false;
-      executionData.executionId = executionIdToUse;
-      // Notificar inmediatamente que vamos a usar esta ejecución
-      if (!currentExecutionId) {
-        onExecutionCreated?.(executionIdToUse);
+      // Si hay una ejecución existente, usarla
+      const executionIdToUse = currentExecutionId || selectedExecutionId;
+      if (executionIdToUse) {
+        executionData.executionId = executionIdToUse;
+        // Notificar que vamos a usar esta ejecución
+        if (!currentExecutionId) {
+          const sectionIdx = fullDocument?.sections?.findIndex((s: any) => s.id === selectedSectionId);
+          onExecutionCreated?.(executionIdToUse, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
+        }
       }
     }
 
@@ -232,40 +215,7 @@ export function ExecuteSheet({
 
 
 
-  const handleApproveInSheet = async () => {
-    if (!currentExecutionId) return;
-    
-    setIsApproving(true);
-    try {
-      await approveExecution(currentExecutionId, selectedOrganizationId!);
-      refetchExecution();
-      toast.success("Execution approved successfully");
-      
-      // Call the completion callback to refresh the main content
-      onExecutionComplete?.();
-    } catch (error) {
-      console.error('Error approving execution:', error);
-      toast.error("Error approving execution. Please try again.");
-    } finally {
-      setIsApproving(false);
-    }
-  };
 
-  const handleDisapproveInSheet = async () => {
-    if (!currentExecutionId) return;
-    
-    setIsApproving(true);
-    try {
-      await disapproveExecution(currentExecutionId, selectedOrganizationId!);
-      refetchExecution();
-      toast.success("Execution disapproved successfully");
-    } catch (error) {
-      console.error('Error disapproving execution:', error);
-      toast.error("Error disapproving execution. Please try again.");
-    } finally {
-      setIsApproving(false);
-    }
-  };
 
   // Effect para inicializar datos de la ejecución en el sheet
   useEffect(() => {
@@ -290,21 +240,7 @@ export function ExecuteSheet({
     }
   }, [currentExecution?.status]);
 
-  // Effect para buscar ejecuciones existentes cuando se abre el sheet
-  useEffect(() => {
-    if (isOpen && selectedFile && !currentExecutionId && documentExecutions) {
-      // Buscar si ya existe una ejecución en proceso o pendiente
-      const existingActiveExecution = documentExecutions?.find((execution: any) => 
-        execution.status === 'pending' || execution.status === 'running'
-      );
-      
-      if (existingActiveExecution) {
-        console.log('Found existing active execution:', existingActiveExecution.id);
-        setCurrentExecutionId(existingActiveExecution.id);
-        onExecutionCreated?.(existingActiveExecution.id);
-      }
-    }
-  }, [isOpen, selectedFile, currentExecutionId, documentExecutions]);
+  // No longer auto-selecting existing executions on sheet open
 
   // Helper function to determine if execution is actively running
   const isExecutionRunning = () => {
@@ -312,13 +248,6 @@ export function ExecuteSheet({
   };
 
   // Helper function to determine if a pending execution is new (never executed) or paused
-  const isPendingExecutionNew = () => {
-    if (currentExecution?.status !== 'pending') return false;
-    // Check if any section has generated content (output)
-    return !currentExecution.sections?.some((section: any) => 
-      section.output && section.output.trim().length > 0
-    );
-  };
 
   // Effect para inicializar el LLM por defecto cuando se abre el sheet
   useEffect(() => {
@@ -346,7 +275,9 @@ export function ExecuteSheet({
 
   // Effect para resetear executionType cuando no hay ejecución actual ni seleccionada
   useEffect(() => {
-    if (!currentExecutionId && !selectedExecutionId && (executionType === 'single' || executionType === 'from')) {
+    // Solo resetear si realmente no hay ninguna ejecución disponible
+    const hasAvailableExecution = currentExecutionId || selectedExecutionId;
+    if (!hasAvailableExecution && (executionType === 'single' || executionType === 'from')) {
       setExecutionType('full');
       setSelectedSectionId("");
     }
@@ -367,188 +298,43 @@ export function ExecuteSheet({
                 <div className="flex flex-col gap-1">
                   <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                     <Play className="h-4 w-4" />
-                    {currentExecution ? 
-                      (currentExecution.status === 'pending' ? 
-                        (isPendingExecutionNew() ? 'Ready to Execute' : 'Continue Execution')
-                        : 'Execute Document'
-                      ) : 'Create New Execution'
-                    }
+                    Execute Document
                   </SheetTitle>
                   <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                    {currentExecution ? 
-                      (currentExecution.status === 'pending' ? 
-                        (isPendingExecutionNew() ? 
-                          'Execution created successfully. Configure it and press Generate to start content creation.' 
-                          : 'You have a pending execution. Configure it and generate content when ready.'
-                        ) : 'Configure and execute this document to generate content.'
-                      ) : 'Execute this document to generate new content based on its sections and context.'
-                    }
+                    Configure and execute this document to generate content based on its sections.
                   </SheetDescription>
                 </div>
                 {/* Botón de acción centrado verticalmente */}
                 <div className="flex items-center h-full gap-2 ml-4">
-                  {currentExecution ? (
-                    <Button 
-                      size="sm"
-                      onClick={() => {
-                        if (currentExecution.status === "completed") {
-                          handleApproveInSheet();
-                        } else if (currentExecution.status === "approved") {
-                          handleDisapproveInSheet();
-                        }
-                      }}
-                      disabled={isExecutionRunning() || (currentExecution.status !== "completed" && currentExecution.status !== "approved") || isApproving}
-                      className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
-                      style={{ alignSelf: 'center' }}
-                    >
-                      {isExecutionRunning() ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                          Processing...
-                        </>
-                      ) : currentExecution.status === "completed" ? (
-                        isApproving ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                            Approving...
-                          </>
-                        ) : (
-                          <>
-                            <CircleCheck className="h-3.5 w-3.5 mr-1.5" />
-                            Approve
-                          </>
-                        )
-                      ) : currentExecution.status === "approved" ? (
-                        isApproving ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                            Disapproving...
-                          </>
-                        ) : (
-                          <>
-                            <CircleX className="h-3.5 w-3.5 mr-1.5" />
-                            Disapprove
-                          </>
-                        )
-                      ) : null}
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={handleExecuteDocument}
-                      disabled={
-                        !fullDocument?.sections || 
-                        fullDocument.sections.length === 0 || 
-                        executeDocumentMutation.isPending || 
-                        (!sheetSelectedLLM && !defaultLLM?.id) ||
-                        ((executionType === 'single' || executionType === 'from') && !selectedSectionId)
-                      }
-                      className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-                      style={{ alignSelf: 'center' }}
-                    >
-                      {executeDocumentMutation.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Execute Document
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <Button 
+                    onClick={handleExecuteDocument}
+                    disabled={
+                      !fullDocument?.sections || 
+                      fullDocument.sections.length === 0 || 
+                      executeDocumentMutation.isPending || 
+                      (!sheetSelectedLLM && !defaultLLM?.id) ||
+                      ((executionType === 'single' || executionType === 'from') && !selectedSectionId)
+                    }
+                    className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
+                    style={{ alignSelf: 'center' }}
+                  >
+                    {executeDocumentMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Execute Document
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
               <div className="space-y-6">
-              {currentExecution ? (
-                <>
-                  {/* Execution Configuration */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Execution Configuration</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <label htmlFor="sheet-instructions" className="block text-sm font-medium text-gray-700 mb-2">
-                            Execution Instructions:
-                          </label>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <textarea
-                                  id="sheet-instructions"
-                                  value={sheetInstructions}
-                                  onChange={(e) => setSheetInstructions(e.target.value)}
-                                  placeholder="Describe any specific requirements, constraints, or instructions for this execution..."
-                                  className={`w-full min-h-[100px] p-3 border rounded-md resize-vertical transition-colors ${
-                                    currentExecution?.status !== "pending" || isExecutionRunning()
-                                      ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
-                                      : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  }`}
-                                  rows={4}
-                                  disabled={currentExecution?.status !== "pending" || isExecutionRunning()}
-                                  readOnly={currentExecution?.status !== "pending"}
-                                />
-                              </TooltipTrigger>
-                              {currentExecution?.status !== "pending" && (
-                                <TooltipContent>
-                                  <p>Instructions cannot be edited after execution has started</p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={sheetSelectedLLM}
-                            onValueChange={(v) => {
-                              setSheetSelectedLLM(v);
-                              updateLLMMutation.mutate(v);
-                            }}
-                            disabled={isExecutionRunning() || currentExecution?.status !== "pending" || updateLLMMutation.isPending}
-                          >
-                            <SelectTrigger className="w-full sm:w-[200px] hover:cursor-pointer">
-                              <SelectValue placeholder={updateLLMMutation.isPending ? "Updating..." : "Select model"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {llms?.map((m: any) => (
-                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Execution Sections */}
-                  {currentExecution?.sections && currentExecution.sections.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Document Sections</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          {currentExecution.sections.map((section: any) => (
-                            <SectionExecutionSheet
-                              key={section.id}
-                              sectionExecution={section}
-                              onUpdate={refetchExecution}
-                              readyToEdit={currentExecution.status === "completed" && !isExecutionRunning()}
-                            />
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </>
-              ) : (
-                <>
                   {/* Estado de carga mientras se ejecuta el documento */}
                   {executeDocumentMutation.isPending ? (
                     <Card className="border-0 shadow-sm border-l-4 border-l-[#4464f7]">
@@ -754,8 +540,6 @@ export function ExecuteSheet({
                       </div>
                     </div>
                   )}
-                </>
-              )}
             </div>
           </div>
           

@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { editFolder } from "@/services/library"
+import { editFolder } from "@/services/folders"
 import { toast } from "sonner"
 import { useOrganizationId } from "@/hooks/use-organization"
 
