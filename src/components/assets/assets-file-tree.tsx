@@ -76,6 +76,7 @@ interface FileTreeProps {
   initialFolderId?: string | null
   showBorder?: boolean
   showRefreshButton?: boolean
+  minHeight?: string
 }
 
 export interface FileTreeRef {
@@ -100,6 +101,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       initialFolderId = null,
       showBorder = true,
       showRefreshButton = false,
+      minHeight = "530px",
     },
     ref,
   ) => {
@@ -679,11 +681,12 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
         <div
           className={cn(
-            "relative rounded-lg min-h-[530px] transition-colors",
+            "relative rounded-lg transition-colors",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
             dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",
           )}
+          style={{ minHeight }}
           onDragOver={(e) => handleDragOver(e, null)}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, null)}

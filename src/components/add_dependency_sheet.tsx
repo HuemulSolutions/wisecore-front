@@ -173,7 +173,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                     </div>
 
                     {/* Content */}
-                    <div className="p-4">
+                    <div className="p-4 max overflow-y-auto max-h-[350px]">
                         <FileTree
                             ref={fileTreeRef}
                             onLoadChildren={handleLoadChildren}
@@ -181,6 +181,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                             showCreateButtons={false}
                             showBorder={false}
                             showDefaultActions={{ create: false, delete: false, share: false }}
+                            minHeight="350px"
                         />
                         
                         {addDependencyMutation.isPending && (
