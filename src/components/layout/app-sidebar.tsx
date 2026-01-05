@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NavMain } from "@/components/nav-main"
+import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent } from "@/components/nav-knowledge"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
@@ -151,45 +152,51 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <TeamSwitcher />
-      </SidebarHeader>
-      <SidebarContent>
-        {!menuReady ? (
-          <div className="space-y-1 px-2 pt-2">
-            <div className="space-y-0.5">
-              <div className="text-xs font-semibold text-sidebar-foreground/70 px-2 mb-1">
-                Navigation
-              </div>
-              {/* Home */}
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-3 w-10" />
-              </div>
-              {/* Search */}
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-3 w-14" />
-              </div>
-              {/* Loading placeholders para otros elementos */}
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-3 w-16" />
-              </div>
-              <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-3 w-20" />
+      <NavKnowledgeProvider>
+        <SidebarHeader>
+          <TeamSwitcher />
+          {!menuReady ? (
+            <div className="space-y-1 px-2 pt-2">
+              <div className="space-y-0.5">
+                <div className="text-xs font-semibold text-sidebar-foreground/70 px-2 mb-1">
+                  Navigation
+                </div>
+                {/* Home */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                {/* Search */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                {/* Loading placeholders para otros elementos */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <NavMain items={filteredNavigationItems} />
-        )}
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
-      <SidebarRail />
+          ) : (
+            <>
+              <NavMain items={filteredNavigationItems} />
+              <NavKnowledgeHeader />
+            </>
+          )}
+        </SidebarHeader>
+        <SidebarContent>
+          {menuReady && <NavKnowledgeContent />}
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
+        <SidebarRail />
+      </NavKnowledgeProvider>
     </Sidebar>
   )
 }
