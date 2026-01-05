@@ -55,7 +55,7 @@ import { TableOfContents } from "@/components/table-of-contents";
 import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/edit_document_dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
-import SectionExecution from "./library-section";
+import SectionExecution from "./asset-section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CreateAssetDialog } from "../dialogs";

@@ -552,8 +552,8 @@ function AssetsContent() {
                   <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce"></div>
                 </div>
               </div>
-              <p className="text-sm font-medium text-gray-700">Cargando documento...</p>
-              <p className="text-xs text-gray-500 mt-1">Por favor espera un momento</p>
+              <p className="text-sm font-medium text-gray-700">Loading document...</p>
+              <p className="text-xs text-gray-500 mt-1">Please wait a moment</p>
             </div>
           </div>
         )}
