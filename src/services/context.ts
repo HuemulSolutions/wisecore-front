@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
 export async function getContext(documentId: string, organizationId: string) {
-  const response = await httpClient.get(`${backendUrl}/context/${documentId}`, {
+  const response = await httpClient.get(`${backendUrl}/context/${documentId}/get_context`, {
     headers: {
       'X-Org-Id': organizationId
     }
