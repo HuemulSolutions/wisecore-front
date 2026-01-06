@@ -665,7 +665,7 @@ function AssetsContent() {
             </div>
           </div>
         )}
-        <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white min-w-0">
+        <div ref={scrollContainerRef} className="flex-1 overflow-hidden max-h-[calc(100vh-64px)] bg-white min-w-0">
           <AssetContent
             selectedFile={selectedFile}
             breadcrumb={breadcrumb}

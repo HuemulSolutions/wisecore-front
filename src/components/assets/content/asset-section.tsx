@@ -88,33 +88,42 @@ export default function SectionExecution({
     // Solucion temporal: usar el ID de la sección como fallback si section_id no existe
     const sectionIdForExecution = sectionExecution.section_id || sectionExecution.id;
     
-    // Refs and state for maintaining scroll position
+    // Refs and state for maintaining scroll position - Updated for ScrollArea
     const containerRef = useRef<HTMLDivElement>(null);
     const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0);
 
-    // Removed debug logging for performance optimization
+    // Helper function to find the ScrollArea viewport
+    const getScrollAreaViewport = () => {
+        // Find the closest ScrollArea viewport (it should have the scroll functionality)
+        const viewport = containerRef.current?.closest('[data-radix-scroll-area-viewport]') as HTMLDivElement;
+        return viewport;
+    };
 
-    // Handle entering edit mode with scroll position preservation
+    // Handle entering edit mode with scroll position preservation - Updated for ScrollArea
     const handleStartEditing = () => {
-        // Save current scroll position relative to the container
-        if (containerRef.current) {
+        // Save current scroll position relative to the ScrollArea viewport
+        const viewport = getScrollAreaViewport();
+        if (viewport && containerRef.current) {
             const containerRect = containerRef.current.getBoundingClientRect();
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const relativePosition = scrollTop - containerRect.top + window.innerHeight / 2; // Center of viewport relative to container
+            const viewportRect = viewport.getBoundingClientRect();
+            const scrollTop = viewport.scrollTop;
+            const relativePosition = scrollTop + (containerRect.top - viewportRect.top) + viewport.clientHeight / 2;
             setSavedScrollPosition(Math.max(0, relativePosition));
         }
         setIsEditing(true);
     };
 
-    // Handle exiting edit mode
+    // Handle exiting edit mode - Updated for ScrollArea
     const handleCancelEdit = () => {
         setIsEditing(false);
         // Restore scroll position after a brief delay to allow DOM to update
         setTimeout(() => {
-            if (containerRef.current && savedScrollPosition > 0) {
+            const viewport = getScrollAreaViewport();
+            if (viewport && containerRef.current && savedScrollPosition > 0) {
                 const containerRect = containerRef.current.getBoundingClientRect();
-                const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
-                window.scrollTo({
+                const viewportRect = viewport.getBoundingClientRect();
+                const targetScrollTop = savedScrollPosition - (containerRect.top - viewportRect.top) - viewport.clientHeight / 2;
+                viewport.scrollTo({
                     top: Math.max(0, targetScrollTop),
                     behavior: 'smooth'
                 });
@@ -130,12 +139,14 @@ export default function SectionExecution({
             setAiPreview(null);
             onUpdate?.();
             
-            // Restore scroll position after save
+            // Restore scroll position after save - Updated for ScrollArea
             setTimeout(() => {
-                if (containerRef.current && savedScrollPosition > 0) {
+                const viewport = getScrollAreaViewport();
+                if (viewport && containerRef.current && savedScrollPosition > 0) {
                     const containerRect = containerRef.current.getBoundingClientRect();
-                    const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
-                    window.scrollTo({
+                    const viewportRect = viewport.getBoundingClientRect();
+                    const targetScrollTop = savedScrollPosition - (containerRect.top - viewportRect.top) - viewport.clientHeight / 2;
+                    viewport.scrollTo({
                         top: Math.max(0, targetScrollTop),
                         behavior: 'smooth'
                     });
@@ -148,14 +159,16 @@ export default function SectionExecution({
         }
     };
 
-    // Effect to restore scroll position when entering edit mode
+    // Effect to restore scroll position when entering edit mode - Updated for ScrollArea
     useEffect(() => {
         if (isEditing && savedScrollPosition > 0 && containerRef.current) {
             setTimeout(() => {
-                if (containerRef.current) {
+                const viewport = getScrollAreaViewport();
+                if (viewport && containerRef.current) {
                     const containerRect = containerRef.current.getBoundingClientRect();
-                    const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
-                    window.scrollTo({
+                    const viewportRect = viewport.getBoundingClientRect();
+                    const targetScrollTop = savedScrollPosition - (containerRect.top - viewportRect.top) - viewport.clientHeight / 2;
+                    viewport.scrollTo({
                         top: Math.max(0, targetScrollTop),
                         behavior: 'smooth'
                     });

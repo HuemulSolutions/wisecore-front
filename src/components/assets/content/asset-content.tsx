@@ -60,6 +60,8 @@ import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CreateAssetDialog } from "../dialogs";
 import { CustomWordExportSheet } from "@/components/sheets/CustomWordExportSheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // API response interface
 interface LibraryItem {
@@ -220,6 +222,9 @@ export function AssetContent({
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
   
+  // Hook de restauración de scroll usando el ID del archivo seleccionado como clave única
+  const scrollRestoration = useScrollRestoration(selectedFile?.id ? `asset-content-${selectedFile.id}` : 'asset-content-default');
+  
   // States to control on-demand loading
   const [needsFullDocument, setNeedsFullDocument] = useState(false);
   const [needsDefaultLLM, setNeedsDefaultLLM] = useState(false);
@@ -235,7 +240,7 @@ export function AssetContent({
   const addSectionMutation = useMutation({
     mutationFn: async (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[]; order?: number }) => {
       // Preserve scroll position before mutation
-      onPreserveScroll?.();
+      preserveScrollPosition();
       
       // First create the section
       const { order, ...createData } = sectionData;
@@ -354,7 +359,7 @@ export function AssetContent({
   const executeDocumentMutation = useMutation({
     mutationFn: async ({ documentId, instructions }: { documentId: string; instructions?: string }) => {
       // Preserve scroll position before execution
-      onPreserveScroll?.();
+      preserveScrollPosition();
       
       if (!defaultLLM?.id) {
         throw new Error('No default LLM available');
@@ -388,7 +393,7 @@ export function AssetContent({
   const approveMutation = useMutation({
     mutationFn: async () => {
       // Preserve scroll position before approval
-      onPreserveScroll?.();
+      preserveScrollPosition();
       
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
@@ -412,7 +417,7 @@ export function AssetContent({
   const disapproveMutation = useMutation({
     mutationFn: async () => {
       // Preserve scroll position before disapproval
-      onPreserveScroll?.();
+      preserveScrollPosition();
       
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
@@ -436,7 +441,7 @@ export function AssetContent({
   const deleteExecutionMutation = useMutation({
     mutationFn: async () => {
       // Preserve scroll position before deletion
-      onPreserveScroll?.();
+      preserveScrollPosition();
       
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
@@ -470,7 +475,7 @@ export function AssetContent({
   const cloneMutation = useMutation({
     mutationFn: async () => {
       // Preserve scroll position before cloning
-      onPreserveScroll?.();
+      preserveScrollPosition();
       
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
@@ -493,7 +498,10 @@ export function AssetContent({
     },
   });
 
-  // Estados principales
+  // Función para preservar scroll - ahora usa el hook de restauración de scroll
+  const preserveScrollPosition = () => {
+    scrollRestoration.saveScrollPosition();
+  };
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -583,7 +591,7 @@ export function AssetContent({
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
     // Preserve scroll position before changing execution
-    onPreserveScroll?.();
+    preserveScrollPosition();
     
     setSelectedExecutionId(executionId);
     setCurrentExecutionId(executionId);
@@ -609,7 +617,7 @@ export function AssetContent({
   // Handle add section
   const handleAddSection = () => {
     if (selectedFile && selectedFile.type === 'document') {
-      onPreserveScroll?.();
+      preserveScrollPosition();
       setIsSectionSheetOpen(true);
     }
   };
@@ -682,7 +690,7 @@ export function AssetContent({
   // Handle create new execution - abrir Execute Sheet
   const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
     if (selectedFile && selectedFile.type === 'document') {
-      onPreserveScroll?.();
+      preserveScrollPosition();
       // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
@@ -994,7 +1002,7 @@ export function AssetContent({
   };
 
   function openDeleteDialog(type: 'document' | 'execution') {
-    onPreserveScroll?.();
+    preserveScrollPosition();
     setDeleteType(type);
     setIsDeleteDialogOpen(true);
   }
@@ -1013,7 +1021,7 @@ export function AssetContent({
   };
 
   function openCloneDialog() {
-    onPreserveScroll?.();
+    preserveScrollPosition();
     setIsCloneDialogOpen(true);
   }
 
@@ -1031,7 +1039,7 @@ export function AssetContent({
   };
 
   function openApproveDialog() {
-    onPreserveScroll?.();
+    preserveScrollPosition();
     setIsApproveDialogOpen(true);
   }
 
@@ -1049,7 +1057,7 @@ export function AssetContent({
   };
 
   function openDisapproveDialog() {
-    onPreserveScroll?.();
+    preserveScrollPosition();
     setIsDisapproveDialogOpen(true);
   }
 
@@ -1121,7 +1129,7 @@ export function AssetContent({
   const openEditDialog = () => {
     if (!selectedFile || selectedFile.type !== 'document') return;
     // Preserve scroll position before opening dialog
-    onPreserveScroll?.();
+    preserveScrollPosition();
     // Apertura diferida para que primero se cierre el dropdown y no dispare outside click sobre el dialog recién montado
     setTimeout(() => setIsEditDialogOpen(true), 0);
   };
@@ -1406,7 +1414,7 @@ export function AssetContent({
                   fullDocument={fullDocument}
                   isOpen={isSectionSheetOpen}
                   onOpenChange={(open) => {
-                    if (!open) onPreserveScroll?.();
+                    if (!open) preserveScrollPosition();
                     setIsSectionSheetOpen(open);
                   }}
                   isMobile={isMobile}
@@ -1423,7 +1431,7 @@ export function AssetContent({
                   selectedFile={selectedFile}
                   isOpen={isDependenciesSheetOpen}
                   onOpenChange={(open) => {
-                    if (!open) onPreserveScroll?.();
+                    if (!open) preserveScrollPosition();
                     setIsDependenciesSheetOpen(open);
                   }}
                   isMobile={isMobile}
@@ -1440,7 +1448,7 @@ export function AssetContent({
                   selectedFile={selectedFile}
                   isOpen={isContextSheetOpen}
                   onOpenChange={(open) => {
-                    if (!open) onPreserveScroll?.();
+                    if (!open) preserveScrollPosition();
                     setIsContextSheetOpen(open);
                   }}
                   isMobile={isMobile}
@@ -1509,7 +1517,7 @@ export function AssetContent({
                             }`}
                             onClick={() => {
                               // Preserve scroll position before changing execution
-                              onPreserveScroll?.();
+                              preserveScrollPosition();
                               setSelectedExecutionId(execution.id);
                               // Invalidate all document-content queries and refetch with new execution ID
                               queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -2171,9 +2179,13 @@ export function AssetContent({
         </div>
         )}
 
-        {/* Content Section - Now with its own scroll */}
-        <div className="flex-1 bg-white min-w-0 overflow-auto" style={{ scrollPaddingTop: '100px' }}>
-          <div className="py-4 md:py-5 px-4 md:px-6">
+        {/* Content Section - Now with ScrollArea and scroll restoration */}
+        <div className="flex-1 bg-white min-w-0 h-full">
+          <ScrollArea className="h-full w-full">
+            <div 
+              ref={scrollRestoration.viewportRef}
+              className="py-4 md:py-5 px-4 md:px-6"
+            >
             {selectedFile.type === 'document' ? (
               <>
                 {/* Execution Feedback - Show overlay for full mode, inline for single/from */}
@@ -2224,7 +2236,7 @@ export function AssetContent({
                         }}
                         onViewVersion={() => {
                           // Preserve scroll position before changing execution
-                          onPreserveScroll?.();
+                          preserveScrollPosition();
                           setSelectedExecutionId(execution.id);
                           queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                         }}
@@ -2354,7 +2366,7 @@ export function AssetContent({
                                         </Button>
                                         <Button
                                           onClick={() => {
-                                            onPreserveScroll?.();
+                                            preserveScrollPosition();
                                             setIsSectionSheetOpen(true);
                                           }}
                                           variant="outline"
@@ -2595,7 +2607,8 @@ export function AssetContent({
                 </p>
               </div>
             )}
-          </div>
+            </div>
+          </ScrollArea>
         </div>
       </div>
 
