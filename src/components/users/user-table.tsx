@@ -134,7 +134,7 @@ export default function UserTable({
                         </Badge>
                       )}
                       {user.roles.slice(0, user.is_root_admin ? 1 : 1).map((role) => (
-                        <Badge key={role.id} className="text-[10px] px-1.5 py-0 h-5">
+                        <Badge key={role.id} className="text-[10px] px-1.5 py-0 h-5" variant="outline">
                           <Shield className="w-2 h-2 mr-0.5" />
                           {role.name}
                         </Badge>

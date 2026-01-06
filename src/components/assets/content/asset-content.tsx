@@ -59,6 +59,7 @@ import SectionExecution from "./asset-section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CreateAssetDialog } from "../dialogs";
+import { CustomWordExportSheet } from "@/components/sheets/CustomWordExportSheet";
 
 // API response interface
 interface LibraryItem {
@@ -94,6 +95,7 @@ interface LibraryContentProps {
   currentFolderId?: string;
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
+  onPreserveScroll?: () => void;
 }
 
 // Function to extract headings from multiple content sections for table of contents
@@ -210,7 +212,8 @@ export function AssetContent({
   setSelectedFile,
   onRefresh,
   currentFolderId,
-  onToggleSidebar
+  onToggleSidebar,
+  onPreserveScroll
 }: LibraryContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -231,6 +234,9 @@ export function AssetContent({
   // Mutation for direct section creation
   const addSectionMutation = useMutation({
     mutationFn: async (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[]; order?: number }) => {
+      // Preserve scroll position before mutation
+      onPreserveScroll?.();
+      
       // First create the section
       const { order, ...createData } = sectionData;
       const newSection = await createSection(createData, selectedOrganizationId!);
@@ -347,6 +353,9 @@ export function AssetContent({
   // Mutation para ejecutar documento directamente
   const executeDocumentMutation = useMutation({
     mutationFn: async ({ documentId, instructions }: { documentId: string; instructions?: string }) => {
+      // Preserve scroll position before execution
+      onPreserveScroll?.();
+      
       if (!defaultLLM?.id) {
         throw new Error('No default LLM available');
       }
@@ -378,6 +387,9 @@ export function AssetContent({
   // Mutation for approve execution
   const approveMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before approval
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -399,6 +411,9 @@ export function AssetContent({
   // Mutation for disapprove execution
   const disapproveMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before disapproval
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -420,6 +435,9 @@ export function AssetContent({
   // Mutation for deleting execution
   const deleteExecutionMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before deletion
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -451,6 +469,9 @@ export function AssetContent({
   // Mutation for clone execution
   const cloneMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before cloning
+      onPreserveScroll?.();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -500,7 +521,7 @@ export function AssetContent({
   
   // State for tracking current execution for polling
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
-  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from'>('full');
+  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from' | 'full-single'>('full');
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
   
   // State for tracking active executions on other versions
@@ -529,6 +550,10 @@ export function AssetContent({
   
   // Execute sheet state
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
+  const [executionContext, setExecutionContext] = useState<{ type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null>(null);
+  
+  // Custom Word Export dialog state
+  const [isCustomWordExportDialogOpen, setIsCustomWordExportDialogOpen] = useState(false);
   
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -544,6 +569,7 @@ export function AssetContent({
     setCurrentSectionIndex(undefined);
     setSectionExecutionId(null);
     setDismissedExecutionBanners(new Set());
+    setExecutionContext(null);
   }, [selectedFile?.id]);
 
 
@@ -555,7 +581,10 @@ export function AssetContent({
   };
 
   // Handle execution created from Execute Sheet
-  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => {
+  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
+    // Preserve scroll position before changing execution
+    onPreserveScroll?.();
+    
     setSelectedExecutionId(executionId);
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
@@ -580,6 +609,7 @@ export function AssetContent({
   // Handle add section
   const handleAddSection = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      onPreserveScroll?.();
       setIsSectionSheetOpen(true);
     }
   };
@@ -650,14 +680,22 @@ export function AssetContent({
   };
 
   // Handle create new execution - abrir Execute Sheet
-  const handleCreateExecution = () => {
+  const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
     if (selectedFile && selectedFile.type === 'document') {
+      onPreserveScroll?.();
       // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
+      // Store execution context
+      setExecutionContext(context || { type: 'header' });
       setIsExecuteSheetOpen(true);
     }
   };
+
+  // Wrapper functions for different contexts
+  const handleCreateExecutionFromHeader = () => handleCreateExecution({ type: 'header' });
+  const handleCreateExecutionFromSection = (sectionIndex: number, sectionId?: string) => 
+    () => handleCreateExecution({ type: 'section', sectionIndex, sectionId });
 
   // Fetch document content when a document is selected
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
@@ -847,6 +885,32 @@ export function AssetContent({
       setSelectedExecutionId(documentContent.execution_id);
     }
   }, [documentContent?.execution_id, selectedExecutionId, selectedFile?.type, isLoadingContent]);
+
+  // Additional fallback: if we have executions but no selectedExecutionId, select the appropriate one
+  useEffect(() => {
+    if (selectedFile?.type === 'document' && 
+        documentExecutions?.length > 0 && 
+        !selectedExecutionId && 
+        !isLoadingContent) {
+      
+      // First try to use execution_id from documentContent if available
+      if (documentContent?.execution_id) {
+        const matchingExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+        if (matchingExecution) {
+          setSelectedExecutionId(documentContent.execution_id);
+          return;
+        }
+      }
+      
+      // Otherwise, select approved execution or the first one as fallback
+      const approvedExecution = documentExecutions.find((e: any) => e.status === 'approved');
+      const executionToSelect = approvedExecution || documentExecutions[0];
+      
+      if (executionToSelect) {
+        setSelectedExecutionId(executionToSelect.id);
+      }
+    }
+  }, [documentExecutions, selectedExecutionId, selectedFile?.type, isLoadingContent, documentContent?.execution_id]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -923,8 +987,14 @@ export function AssetContent({
       }
     }
   };
+  
+  // Handle export to custom word
+  const handleExportCustomWord = () => {
+    setIsCustomWordExportDialogOpen(true);
+  };
 
   function openDeleteDialog(type: 'document' | 'execution') {
+    onPreserveScroll?.();
     setDeleteType(type);
     setIsDeleteDialogOpen(true);
   }
@@ -936,11 +1006,14 @@ export function AssetContent({
 
   const handleDeleteDialogChange = (open: boolean) => {
     if (!open) {
+      // Preserve scroll when closing dialog
+      onPreserveScroll?.();
       closeDeleteDialog();
     }
   };
 
   function openCloneDialog() {
+    onPreserveScroll?.();
     setIsCloneDialogOpen(true);
   }
 
@@ -952,11 +1025,13 @@ export function AssetContent({
     if (open) {
       openCloneDialog();
     } else {
+      onPreserveScroll?.();
       closeCloneDialog();
     }
   };
 
   function openApproveDialog() {
+    onPreserveScroll?.();
     setIsApproveDialogOpen(true);
   }
 
@@ -968,11 +1043,13 @@ export function AssetContent({
     if (open) {
       openApproveDialog();
     } else {
+      onPreserveScroll?.();
       closeApproveDialog();
     }
   };
 
   function openDisapproveDialog() {
+    onPreserveScroll?.();
     setIsDisapproveDialogOpen(true);
   }
 
@@ -984,6 +1061,7 @@ export function AssetContent({
     if (open) {
       openDisapproveDialog();
     } else {
+      onPreserveScroll?.();
       closeDisapproveDialog();
     }
   };
@@ -1042,6 +1120,8 @@ export function AssetContent({
   // Open edit dialog and prefill values
   const openEditDialog = () => {
     if (!selectedFile || selectedFile.type !== 'document') return;
+    // Preserve scroll position before opening dialog
+    onPreserveScroll?.();
     // Apertura diferida para que primero se cierre el dropdown y no dispare outside click sobre el dialog recién montado
     setTimeout(() => setIsEditDialogOpen(true), 0);
   };
@@ -1063,6 +1143,7 @@ export function AssetContent({
     return (
       <Dialog open={isCreateTemplateSheetOpen} onOpenChange={(open) => {
         if (!open) {
+          onPreserveScroll?.();
           setIsCreateTemplateSheetOpen(false)
         }
       }}>
@@ -1162,7 +1243,10 @@ export function AssetContent({
               <EmptyActions>
                 {canAccessTemplates && canCreate('template') && (
                   <Button
-                    onClick={() => setIsCreateTemplateSheetOpen(true)}
+                    onClick={() => {
+                      onPreserveScroll?.();
+                      setIsCreateTemplateSheetOpen(true);
+                    }}
                     variant="outline"
                     className="hover:cursor-pointer"
                   >
@@ -1172,7 +1256,10 @@ export function AssetContent({
                 )}
                 {canAccessAssets && canCreate('assets') && (
                   <Button 
-                    onClick={() => setIsCreateAssetDialogOpen(true)}
+                    onClick={() => {
+                      onPreserveScroll?.();
+                      setIsCreateAssetDialogOpen(true);
+                    }}
                     className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                   >
                     <FileText className="h-4 w-4 mr-2" />
@@ -1194,13 +1281,7 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-        {/* Create Asset Dialog */}
-        <CreateAssetDialog
-          open={isCreateAssetDialogOpen}
-          onOpenChange={setIsCreateAssetDialogOpen}
-          folderId={currentFolderId}
-          onAssetCreated={handleDocumentCreated}
-        />
+
       </>
     );
   }
@@ -1297,7 +1378,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
-                onClick={handleCreateExecution}
+                onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
@@ -1324,7 +1405,10 @@ export function AssetContent({
                   selectedFile={selectedFile}
                   fullDocument={fullDocument}
                   isOpen={isSectionSheetOpen}
-                  onOpenChange={setIsSectionSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) onPreserveScroll?.();
+                    setIsSectionSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1338,7 +1422,10 @@ export function AssetContent({
                 <DependenciesSheet
                   selectedFile={selectedFile}
                   isOpen={isDependenciesSheetOpen}
-                  onOpenChange={setIsDependenciesSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) onPreserveScroll?.();
+                    setIsDependenciesSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1352,7 +1439,10 @@ export function AssetContent({
                 <ContextSheet
                   selectedFile={selectedFile}
                   isOpen={isContextSheetOpen}
-                  onOpenChange={setIsContextSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) onPreserveScroll?.();
+                    setIsContextSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1418,6 +1508,8 @@ export function AssetContent({
                               isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                             }`}
                             onClick={() => {
+                              // Preserve scroll position before changing execution
+                              onPreserveScroll?.();
                               setSelectedExecutionId(execution.id);
                               // Invalidate all document-content queries and refetch with new execution ID
                               queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1506,13 +1598,17 @@ export function AssetContent({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportMarkdown(), 0)}>
                       <FileText className="mr-2 h-4 w-4" />
                       Export as Markdown
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportWord(), 0)}>
                       <FileCode className="mr-2 h-4 w-4" />
                       Export as Word
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                      <FileCode className="mr-2 h-4 w-4" />
+                      Export as Custom Word
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1557,13 +1653,31 @@ export function AssetContent({
 
               {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
               {(() => {
-                if (!selectedExecutionId) return null;
+                // Determine the current execution to show buttons for
+                let currentExecution = null;
+                let actualStatus = null;
                 
-                // Check execution status from multiple sources to ensure reliability
-                const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                const statusFromDocumentExecutions = currentExecution?.status;
-                const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                if (selectedExecutionId) {
+                  // User has manually selected a specific execution
+                  currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                  const statusFromDocumentExecutions = currentExecution?.status;
+                  actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                } else if (documentExecutions?.length > 0) {
+                  // No specific execution selected, determine which execution to show buttons for
+                  // Priority: execution_id from documentContent -> approved execution -> first execution
+                  if (documentContent?.execution_id) {
+                    currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+                  }
+                  if (!currentExecution) {
+                    currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
+                  }
+                  actualStatus = currentExecution?.status;
+                }
+                
+                if (!currentExecution || !actualStatus) {
+                  return null;
+                }
                 
                 // Show Approve button when status is 'completed'
                 if (actualStatus === 'completed') {
@@ -1571,7 +1685,13 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
-                      onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                      onClick={() => {
+                        // Ensure selectedExecutionId is set to the current execution before opening dialog
+                        if (!selectedExecutionId && currentExecution) {
+                          setSelectedExecutionId(currentExecution.id);
+                        }
+                        setTimeout(() => openApproveDialog(), 0);
+                      }}
                       size="sm"
                       variant="ghost"
                       disabled={approveMutation.isPending}
@@ -1597,7 +1717,13 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
-                      onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                      onClick={() => {
+                        // Ensure selectedExecutionId is set to the current execution before opening dialog
+                        if (!selectedExecutionId && currentExecution) {
+                          setSelectedExecutionId(currentExecution.id);
+                        }
+                        setTimeout(() => openDisapproveDialog(), 0);
+                      }}
                       size="sm"
                       variant="ghost"
                       disabled={disapproveMutation.isPending}
@@ -1678,7 +1804,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
-                onClick={handleCreateExecution}
+                onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
@@ -1795,6 +1921,8 @@ export function AssetContent({
                                 isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                               }`}
                               onClick={() => {
+                                // Preserve scroll position before changing execution
+                                onPreserveScroll?.();
                                 setSelectedExecutionId(execution.id);
                                 // Invalidate all document-content queries and refetch with new execution ID
                                 queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1838,12 +1966,31 @@ export function AssetContent({
                 
                 {/* Approve/Disapprove Buttons - Desktop Version - show conditionally based on execution status */}
                 {(() => {
-                  if (!selectedExecutionId) return null;
+                  // Determine the current execution to show buttons for
+                  let currentExecution = null;
+                  let actualStatus = null;
                   
-                  const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                  const statusFromDocumentExecutions = currentExecution?.status;
-                  const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  if (selectedExecutionId) {
+                    // User has manually selected a specific execution
+                    currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                    const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                    const statusFromDocumentExecutions = currentExecution?.status;
+                    actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  } else if (documentExecutions?.length > 0) {
+                    // No specific execution selected, determine which execution to show buttons for
+                    // Priority: execution_id from documentContent -> approved execution -> first execution
+                    if (documentContent?.execution_id) {
+                      currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+                    }
+                    if (!currentExecution) {
+                      currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
+                    }
+                    actualStatus = currentExecution?.status;
+                  }
+                  
+                  if (!currentExecution || !actualStatus) {
+                    return null;
+                  }
                   
                   // Show Approve button when status is 'completed'
                   if (actualStatus === 'completed') {
@@ -1851,7 +1998,13 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
-                        onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                        onClick={() => {
+                          // Ensure selectedExecutionId is set to the current execution before opening dialog
+                          if (!selectedExecutionId && currentExecution) {
+                            setSelectedExecutionId(currentExecution.id);
+                          }
+                          setTimeout(() => openApproveDialog(), 0);
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={approveMutation.isPending}
@@ -1877,7 +2030,13 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
-                        onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                        onClick={() => {
+                          // Ensure selectedExecutionId is set to the current execution before opening dialog
+                          if (!selectedExecutionId && currentExecution) {
+                            setSelectedExecutionId(currentExecution.id);
+                          }
+                          setTimeout(() => openDisapproveDialog(), 0);
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={disapproveMutation.isPending}
@@ -1960,6 +2119,10 @@ export function AssetContent({
                       <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
                         <FileCode className="mr-2 h-4 w-4" />
                         Export as Word
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                        <FileCode className="mr-2 h-4 w-4" />
+                        Export as Custom Word
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -2060,6 +2223,8 @@ export function AssetContent({
                           setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
                         }}
                         onViewVersion={() => {
+                          // Preserve scroll position before changing execution
+                          onPreserveScroll?.();
                           setSelectedExecutionId(execution.id);
                           queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                         }}
@@ -2167,7 +2332,7 @@ export function AssetContent({
                                       {/* Action Buttons */}
                                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                         <Button
-                                          onClick={handleCreateExecution}
+                                          onClick={handleCreateExecutionFromHeader}
                                           disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                           size="lg"
                                           className={executeDocumentMutation.isPending || hasExecutionInProcess
@@ -2188,7 +2353,10 @@ export function AssetContent({
                                           )}
                                         </Button>
                                         <Button
-                                          onClick={() => setIsSectionSheetOpen(true)}
+                                          onClick={() => {
+                                            onPreserveScroll?.();
+                                            setIsSectionSheetOpen(true);
+                                          }}
                                           variant="outline"
                                           size="lg"
                                           className="hover:cursor-pointer border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
@@ -2233,7 +2401,7 @@ export function AssetContent({
                                       ) : (
                                         <>
                                           <Button
-                                            onClick={handleCreateExecution}
+                                            onClick={handleCreateExecutionFromHeader}
                                             disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                             className={executeDocumentMutation.isPending || hasExecutionInProcess
                                               ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
@@ -2253,7 +2421,10 @@ export function AssetContent({
                                             )}
                                           </Button>
                                           <Button
-                                            onClick={() => setIsSectionSheetOpen(true)}
+                                            onClick={() => {
+                                              onPreserveScroll?.();
+                                              setIsSectionSheetOpen(true);
+                                            }}
                                             variant="outline"
                                             className="hover:cursor-pointer"
                                           >
@@ -2322,6 +2493,7 @@ export function AssetContent({
                                       console.log('Section execution started:', executionIdForSection);
                                     }
                                   }}
+                                  onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                 />
                                 
                                 {/* Show regeneration feedback for single/from modes */}
@@ -2387,7 +2559,7 @@ export function AssetContent({
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
                               variant="outline" 
-                              onClick={handleCreateExecution}
+                              onClick={handleCreateExecutionFromHeader}
                               disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -2805,7 +2977,10 @@ export function AssetContent({
 
       <EditDocumentDialog
         open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsEditDialogOpen(open);
+        }}
         documentId={selectedFile?.id || ''}
         currentName={selectedFile?.name || ''}
         currentDescription={documentContent?.description}
@@ -2823,12 +2998,20 @@ export function AssetContent({
         selectedFile={selectedFile}
         fullDocument={fullDocument}
         isOpen={isExecuteSheetOpen}
-        onOpenChange={setIsExecuteSheetOpen}
-        onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsExecuteSheetOpen(open);
+          if (!open) setExecutionContext(null); // Clear context when closing
+        }}
+        onSectionSheetOpen={() => {
+          onPreserveScroll?.();
+          setIsSectionSheetOpen(true);
+        }}
         onExecutionCreated={handleExecutionCreated}
         onExecutionComplete={handleExecutionComplete}
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
+        executionContext={executionContext}
         disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
           hasExecutionInProcess 
@@ -2847,6 +3030,17 @@ export function AssetContent({
         onOpenChange={setIsCreateAssetDialogOpen}
         folderId={currentFolderId}
         onAssetCreated={handleDocumentCreated}
+      />
+      
+      {/* Custom Word Export Dialog */}
+      <CustomWordExportSheet
+        selectedFile={selectedFile}
+        selectedExecutionId={selectedExecutionId}
+        isOpen={isCustomWordExportDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsCustomWordExportDialogOpen(open);
+        }}
       />
     </div>
   );

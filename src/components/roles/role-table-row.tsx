@@ -46,7 +46,7 @@ export default function RoleTableRow({
       </TableCell>
       <TableCell className="w-[35%] sm:w-[30%]">
         <div className="flex flex-wrap gap-0.5 sm:gap-1">
-          <Badge variant="default" className="text-xs px-1 sm:px-1.5 py-0.5">
+          <Badge variant="outline" className="text-xs px-1 sm:px-1.5 py-0.5">
             {permissionCount}
           </Badge>
           {visiblePermissions.map((permission) => (

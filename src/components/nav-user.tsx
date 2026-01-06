@@ -30,7 +30,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { UpdateProfileDialog } from "@/components/update-profile-dialog"
+import EditUserDialog from "@/components/users/edit-user-dialog"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
@@ -46,17 +46,6 @@ export function NavUser() {
     const last = lastName?.charAt(0) || ''
     return (first + last).toUpperCase()
   }
-
-  // // User actions
-  // const handleProfileClick = () => {
-  //   console.log('Navigate to profile')
-  //   // TODO: Navigate to profile page
-  // }
-
-  // const handleSettingsClick = () => {
-  //   console.log('Navigate to settings')
-  //   // TODO: Navigate to settings page
-  // }
 
   const handleSignOut = () => {
     logout()
@@ -129,7 +118,8 @@ export function NavUser() {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-      <UpdateProfileDialog 
+      <EditUserDialog 
+        user={user}
         open={profileDialogOpen} 
         onOpenChange={setProfileDialogOpen} 
       />

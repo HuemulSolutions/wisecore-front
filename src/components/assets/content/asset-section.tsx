@@ -55,6 +55,7 @@ interface SectionExecutionProps {
     onExecutionStart?: (executionId?: string) => void;
     executionStatus?: string;
     accessLevels?: string[];
+    onOpenExecuteSheet?: () => void;
 }
 
 export default function SectionExecution({ 
@@ -66,7 +67,8 @@ export default function SectionExecution({
     executionId, 
     onExecutionStart, 
     executionStatus,
-    accessLevels
+    accessLevels,
+    onOpenExecuteSheet
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -293,82 +295,22 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <DocumentActionButton
-                                            accessLevels={accessLevels}
-                                            requiredAccess="read"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                            onClick={handleCopy}
-                                        >
-                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                        </DocumentActionButton>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Copy content</p>
-                                    </TooltipContent>
-                                </Tooltip>
-
-                                {/* {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
-                                    <>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <DocumentActionButton
-                                                    accessLevels={accessLevels}
-                                                    requiredAccess="approve"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
-                                                    onClick={() => handleOpenExecutionConfig('single')}
-                                                    disabled={isExecuting}
-                                                >
-                                                    <Play className="h-3.5 w-3.5 text-green-600" />
-                                                </DocumentActionButton>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Execute this section</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <DocumentActionButton
-                                                    accessLevels={accessLevels}
-                                                    requiredAccess="approve"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
-                                                    onClick={() => handleOpenExecutionConfig('from')}
-                                                    disabled={isExecuting}
-                                                >
-                                                    <FastForward className="h-3.5 w-3.5 text-purple-600" />
-                                                </DocumentActionButton>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Execute from this section</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </>
-                                )} */}
-
-                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="edit"
+                                                requiredAccess="approve"
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                                onClick={handleStartEditing}
+                                                className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
+                                                onClick={onOpenExecuteSheet}
                                             >
-                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
+                                                <Play className="h-3.5 w-3.5 text-blue-600" />
                                             </DocumentActionButton>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Edit section</p>
+                                            <p>Open Execute Sheet</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
@@ -392,6 +334,44 @@ export default function SectionExecution({
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
+
+                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="edit"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                                onClick={handleStartEditing}
+                                            >
+                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
+                                            </DocumentActionButton>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Edit section</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DocumentActionButton
+                                            accessLevels={accessLevels}
+                                            requiredAccess="read"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                            onClick={handleCopy}
+                                        >
+                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
+                                        </DocumentActionButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Copy content</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
                                 {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
                                     <Tooltip>
@@ -514,6 +494,22 @@ export default function SectionExecution({
                                             >
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Delete
+                                            </DropdownMenuItem>
+                                        </DocumentAccessControl>
+                                    )}
+                                    {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="approve"
+                                        >
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onSelect={() => {
+                                                    setTimeout(() => onOpenExecuteSheet(), 0);
+                                                }}
+                                            >
+                                                <Play className="h-4 w-4 mr-2 text-blue-600" />
+                                                Open Execute Sheet
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}

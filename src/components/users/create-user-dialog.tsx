@@ -129,7 +129,7 @@ export default function CreateUserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader className="space-y-3">
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
@@ -140,9 +140,9 @@ export default function CreateUserDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-6">
-            <div className="grid gap-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="name">First Name *</Label>
               <Input
                 id="name"
@@ -158,7 +158,7 @@ export default function CreateUserDialog({
               )}
             </div>
 
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="last_name">Last Name *</Label>
               <Input
                 id="last_name"
@@ -173,33 +173,34 @@ export default function CreateUserDialog({
                 <p className="text-sm text-destructive">{errors.last_name}</p>
               )}
             </div>
+          </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email Address *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="Enter email address"
-                className={errors.email ? 'border-destructive' : ''}
-                disabled={isLoading}
-                required
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address *</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="Enter email address"
+              className={errors.email ? 'border-destructive' : ''}
+              disabled={isLoading}
+              required
+            />
+            {errors.email && (
+              <p className="text-sm text-destructive">{errors.email}</p>
+            )}
+          </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="birth_day">Birth Day *</Label>
                 <Select
                   value={formData.birth_day}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, birth_day: value }))}
                   disabled={isLoading}
                 >
-                  <SelectTrigger id="birth_day" className={errors.birth_day ? 'border-destructive' : ''}>
+                  <SelectTrigger id="birth_day" className={errors.birth_day ? 'border-destructive w-full' : 'w-full'}>
                     <SelectValue placeholder="Select day" />
                   </SelectTrigger>
                   <SelectContent>
@@ -215,14 +216,14 @@ export default function CreateUserDialog({
                 )}
               </div>
 
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="birth_month">Birth Month *</Label>
                 <Select
                   value={formData.birth_month}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, birth_month: value }))}
                   disabled={isLoading}
                 >
-                  <SelectTrigger id="birth_month" className={errors.birth_month ? 'border-destructive' : ''}>
+                  <SelectTrigger id="birth_month" className={errors.birth_month ? 'border-destructive w-full' : 'w-full'}>
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -252,7 +253,7 @@ export default function CreateUserDialog({
               </div>
             </div>
 
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="photo_file">Photo (Optional)</Label>
               <div className="flex flex-col gap-2">
                 <Input
@@ -273,9 +274,8 @@ export default function CreateUserDialog({
                 )}
               </div>
             </div>
-          </div>
 
-          <DialogFooter className="mt-8 gap-3">
+          <DialogFooter>
             <DialogClose asChild>
               <Button 
                 type="button" 
