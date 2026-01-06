@@ -885,6 +885,32 @@ export function AssetContent({
       setSelectedExecutionId(documentContent.execution_id);
     }
   }, [documentContent?.execution_id, selectedExecutionId, selectedFile?.type, isLoadingContent]);
+
+  // Additional fallback: if we have executions but no selectedExecutionId, select the appropriate one
+  useEffect(() => {
+    if (selectedFile?.type === 'document' && 
+        documentExecutions?.length > 0 && 
+        !selectedExecutionId && 
+        !isLoadingContent) {
+      
+      // First try to use execution_id from documentContent if available
+      if (documentContent?.execution_id) {
+        const matchingExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+        if (matchingExecution) {
+          setSelectedExecutionId(documentContent.execution_id);
+          return;
+        }
+      }
+      
+      // Otherwise, select approved execution or the first one as fallback
+      const approvedExecution = documentExecutions.find((e: any) => e.status === 'approved');
+      const executionToSelect = approvedExecution || documentExecutions[0];
+      
+      if (executionToSelect) {
+        setSelectedExecutionId(executionToSelect.id);
+      }
+    }
+  }, [documentExecutions, selectedExecutionId, selectedFile?.type, isLoadingContent, documentContent?.execution_id]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -1633,13 +1659,31 @@ export function AssetContent({
 
               {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
               {(() => {
-                if (!selectedExecutionId) return null;
+                // Determine the current execution to show buttons for
+                let currentExecution = null;
+                let actualStatus = null;
                 
-                // Check execution status from multiple sources to ensure reliability
-                const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                const statusFromDocumentExecutions = currentExecution?.status;
-                const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                if (selectedExecutionId) {
+                  // User has manually selected a specific execution
+                  currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                  const statusFromDocumentExecutions = currentExecution?.status;
+                  actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                } else if (documentExecutions?.length > 0) {
+                  // No specific execution selected, determine which execution to show buttons for
+                  // Priority: execution_id from documentContent -> approved execution -> first execution
+                  if (documentContent?.execution_id) {
+                    currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+                  }
+                  if (!currentExecution) {
+                    currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
+                  }
+                  actualStatus = currentExecution?.status;
+                }
+                
+                if (!currentExecution || !actualStatus) {
+                  return null;
+                }
                 
                 // Show Approve button when status is 'completed'
                 if (actualStatus === 'completed') {
@@ -1647,7 +1691,13 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
-                      onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                      onClick={() => {
+                        // Ensure selectedExecutionId is set to the current execution before opening dialog
+                        if (!selectedExecutionId && currentExecution) {
+                          setSelectedExecutionId(currentExecution.id);
+                        }
+                        setTimeout(() => openApproveDialog(), 0);
+                      }}
                       size="sm"
                       variant="ghost"
                       disabled={approveMutation.isPending}
@@ -1673,7 +1723,13 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
-                      onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                      onClick={() => {
+                        // Ensure selectedExecutionId is set to the current execution before opening dialog
+                        if (!selectedExecutionId && currentExecution) {
+                          setSelectedExecutionId(currentExecution.id);
+                        }
+                        setTimeout(() => openDisapproveDialog(), 0);
+                      }}
                       size="sm"
                       variant="ghost"
                       disabled={disapproveMutation.isPending}
@@ -1916,12 +1972,31 @@ export function AssetContent({
                 
                 {/* Approve/Disapprove Buttons - Desktop Version - show conditionally based on execution status */}
                 {(() => {
-                  if (!selectedExecutionId) return null;
+                  // Determine the current execution to show buttons for
+                  let currentExecution = null;
+                  let actualStatus = null;
                   
-                  const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                  const statusFromDocumentExecutions = currentExecution?.status;
-                  const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  if (selectedExecutionId) {
+                    // User has manually selected a specific execution
+                    currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                    const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                    const statusFromDocumentExecutions = currentExecution?.status;
+                    actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  } else if (documentExecutions?.length > 0) {
+                    // No specific execution selected, determine which execution to show buttons for
+                    // Priority: execution_id from documentContent -> approved execution -> first execution
+                    if (documentContent?.execution_id) {
+                      currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+                    }
+                    if (!currentExecution) {
+                      currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
+                    }
+                    actualStatus = currentExecution?.status;
+                  }
+                  
+                  if (!currentExecution || !actualStatus) {
+                    return null;
+                  }
                   
                   // Show Approve button when status is 'completed'
                   if (actualStatus === 'completed') {
@@ -1929,7 +2004,13 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
-                        onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                        onClick={() => {
+                          // Ensure selectedExecutionId is set to the current execution before opening dialog
+                          if (!selectedExecutionId && currentExecution) {
+                            setSelectedExecutionId(currentExecution.id);
+                          }
+                          setTimeout(() => openApproveDialog(), 0);
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={approveMutation.isPending}
@@ -1955,7 +2036,13 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
-                        onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                        onClick={() => {
+                          // Ensure selectedExecutionId is set to the current execution before opening dialog
+                          if (!selectedExecutionId && currentExecution) {
+                            setSelectedExecutionId(currentExecution.id);
+                          }
+                          setTimeout(() => openDisapproveDialog(), 0);
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={disapproveMutation.isPending}
