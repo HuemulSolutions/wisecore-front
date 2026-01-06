@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -26,7 +25,8 @@ import {
   ChevronUp,
   MoreVertical,
   Edit,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { EditSectionDialog } from "./edit-section-dialog";
 
@@ -53,6 +53,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -74,13 +75,31 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
     if (open) {
       openDeleteDialog();
     } else {
-      closeDeleteDialog();
+      if (!isDeleting) {
+        closeDeleteDialog();
+      }
     }
   };
 
-  const handleDelete = () => {
-    onDelete(item.id);
-    closeDeleteDialog();
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    
+    // Crear una promesa con delay mínimo de 800ms
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800));
+    
+    try {
+      // Ejecutar la mutación y esperar ambas promesas
+      await Promise.all([
+        new Promise<void>((resolve) => {
+          onDelete(item.id);
+          resolve();
+        }),
+        minDelay
+      ]);
+    } finally {
+      setIsDeleting(false);
+      closeDeleteDialog();
+    }
   };
 
   const handleEditSave = (sectionData: object) => {
@@ -285,23 +304,32 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
       {/* Delete Confirmation AlertDialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={handleDeleteDialogChange}>
-        <AlertDialogContent className="sm:max-w-[425px]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Section</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete the section "{item.name}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="hover:cursor-pointer">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="hover:cursor-pointer bg-red-600 text-white hover:bg-red-700"
-              onClick={handleDelete}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
+              disabled={isDeleting}
             >
-              Delete
-            </AlertDialogAction>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

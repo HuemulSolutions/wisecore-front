@@ -34,6 +34,7 @@ export function NavMain({
     }[]
   }[]
 }) {
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Navigation</SidebarGroupLabel>
@@ -65,7 +66,7 @@ export function NavMain({
                       }
                     >
                       {item.icon && <item.icon />}
-                      <span>{item.title}</span>
+                      <span className="text-sm">{item.title}</span>
                     </NavLink>
                   )}
                 </SidebarMenuButton>

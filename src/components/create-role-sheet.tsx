@@ -56,10 +56,11 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
   const [searchTerm, setSearchTerm] = useState('')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   
-  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions()
+  // Only fetch permissions when the sheet is actually open
+  const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
   const { createRole } = useRoleMutations()
 
-  const availablePermissions = permissionsResponse?.data || []
+  const availablePermissions = Array.isArray(permissionsResponse?.data) ? permissionsResponse.data : []
 
   // Reset form when dialog opens
   useEffect(() => {

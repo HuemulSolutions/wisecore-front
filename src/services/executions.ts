@@ -35,7 +35,7 @@ export async function getExecutionById(executionId: string, organizationId: stri
 export async function getExecutionStatus(executionId: string, organizationId: string) {
     console.log(`Fetching execution status with ID: ${executionId}`);
     try {
-        const response = await httpClient.get(`${backendUrl}/execution/status/${executionId}`, {
+        const response = await httpClient.get(`${backendUrl}/execution/${executionId}/status`, {
             headers: {
                 'X-Org-Id': organizationId,
             },
@@ -75,20 +75,45 @@ export async function executeDocument({
     documentId,
     llmId,
     instructions,
-    organizationId
+    organizationId,
+    singleSectionMode,
+    startSectionId,
+    executionId
 }: {
     documentId: string;
     llmId: string;
     instructions?: string;
     organizationId: string;
+    singleSectionMode?: boolean;
+    startSectionId?: string;
+    executionId?: string;
 }) {
     console.log(`Executing document with ID: ${documentId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/generate`, {
+    
+    const requestBody: any = {
         document_id: documentId,
-        llm_id: llmId,
-        instructions: instructions || "",
-        single_section_mode: false
-    }, {
+        llm_id: llmId
+    };
+    
+    // Add optional parameters only when they have values
+    if (instructions) {
+        requestBody.instructions = instructions;
+    }
+    
+    if (executionId) {
+        requestBody.execution_id = executionId;
+    }
+    
+    if (startSectionId) {
+        requestBody.start_section_id = startSectionId;
+    }
+    
+    // Only include single_section_mode when startSectionId is provided
+    if (startSectionId !== undefined) {
+        requestBody.single_section_mode = singleSectionMode ?? false;
+    }
+    
+    const response = await httpClient.post(`${backendUrl}/execution/generate`, requestBody, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -198,7 +223,7 @@ export async function exportExecutionCustomWord(executionId: string, organizatio
 
 export async function approveExecution(executionId: string, organizationId: string) {
     console.log(`Approving execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/approve/${executionId}`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/approve`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -213,7 +238,7 @@ export async function approveExecution(executionId: string, organizationId: stri
 
 export async function disapproveExecution(executionId: string, organizationId: string) {
     console.log(`Disapproving execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/disapprove/${executionId}`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/dissapprove`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -228,7 +253,7 @@ export async function disapproveExecution(executionId: string, organizationId: s
 
 export async function cloneExecution(executionId: string, organizationId: string) {
     console.log(`Cloning execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/clone/${executionId}`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/clone`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },

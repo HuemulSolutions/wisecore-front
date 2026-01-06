@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, BookText, Shield, Package } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
 
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NavMain } from "@/components/nav-main"
+import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent } from "@/components/nav-knowledge"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { useOrganization } from "@/contexts/organization-context"
@@ -44,40 +45,6 @@ const navigationItems = [
     url: "/templates",
     icon: LayoutTemplate,
   },
-  {
-    title: "Asset Management",
-    url: "#",
-    icon: Package,
-    items: [
-      {
-        title: "Asset Types",
-        url: "/asset-types",
-      },
-    ],
-  },
-  {
-    title: "Administration",
-    url: "#",
-    icon: Shield,
-    items: [
-      {
-        title: "Users",
-        url: "/users",
-      },
-      {
-        title: "Roles",
-        url: "/roles",
-      },
-      {
-        title: "Models",
-        url: "/models",
-      },
-      {
-        title: "Auth Types",
-        url: "/auth-types",
-      },
-    ],
-  },
 ]
 
 // Mock user data - replace with real user context when available
@@ -93,12 +60,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isMobile = useIsMobile()
   const {
     isRootAdmin,
-    canAccessUsers,
-    canAccessRoles,
     canAccessAssets,
-    canAccessModels,
     canAccessTemplates,
-    canAccessDocumentTypes,
     isLoading: permissionsLoading,
   } = useUserPermissions()
   
@@ -173,112 +136,67 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           // Mostrar Templates si tiene cualquier permiso relacionado con templates
           shouldShowItem = canAccessTemplates || isRootAdmin;
           break;
-        case "Asset Management":
-          // Mostrar Asset Management si tiene acceso a document types o asset types
-          shouldShowItem = canAccessDocumentTypes || isRootAdmin;
-          break;
-        case "Administration":
-          // Mostrar Administration si tiene acceso a cualquier función administrativa
-          shouldShowItem = canAccessUsers || canAccessRoles || canAccessModels || isRootAdmin;
-          break;
         default:
           // Home y Search son accesibles para todos los usuarios autenticados
           shouldShowItem = true;
       }
 
-      if (!shouldShowItem) {
-        return null;
-      }
-
-      // Si el item tiene subitems, filtrarlos también
-      if (item.items) {
-        const filteredSubItems = item.items.filter(subItem => {
-          switch (subItem.title) {
-            case "Asset Types":
-              // Solo mostrar si tiene permisos para gestionar tipos de documentos/assets
-              return canAccessDocumentTypes || isRootAdmin;
-            case "Users":
-              // Solo mostrar si tiene permisos para gestionar usuarios
-              return canAccessUsers || isRootAdmin;
-            case "Roles":
-              // Solo mostrar si tiene permisos para gestionar roles
-              return canAccessRoles || isRootAdmin;
-            case "Models":
-              // Solo mostrar si tiene permisos para gestionar modelos LLM
-              return canAccessModels || isRootAdmin;
-            case "Auth Types":
-              // Solo root admin puede gestionar tipos de autenticación
-              return isRootAdmin;
-            default:
-              return true;
-          }
-        });
-
-        // Si no tiene subitems visibles, no mostrar el item principal
-        if (filteredSubItems.length === 0) {
-          return null;
-        }
-
-        return {
-          ...item,
-          items: filteredSubItems
-        };
-      }
-
-      return item;
+      return shouldShowItem ? item : null;
     }).filter(Boolean) as typeof navigationItems;
   }, [
     menuReady,
     canAccessAssets,
-    canAccessTemplates, 
-    canAccessDocumentTypes,
-    canAccessUsers,
-    canAccessRoles,
-    canAccessModels,
+    canAccessTemplates,
     isRootAdmin
   ])
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <TeamSwitcher />
-      </SidebarHeader>
-      <SidebarContent>
-        {!menuReady ? (
-          <div className="space-y-2 px-2 pt-4">
-            <div className="space-y-1">
-              <div className="text-xs font-semibold text-sidebar-foreground/70 px-2 mb-2">
-                Navigation
-              </div>
-              {/* Home */}
-              <div className="flex items-center gap-3 rounded-md px-3 py-2">
-                <Skeleton className="h-5 w-5" />
-                <Skeleton className="h-4 w-12" />
-              </div>
-              {/* Search */}
-              <div className="flex items-center gap-3 rounded-md px-3 py-2">
-                <Skeleton className="h-5 w-5" />
-                <Skeleton className="h-4 w-16" />
-              </div>
-              {/* Loading placeholders para otros elementos */}
-              <div className="flex items-center gap-3 rounded-md px-3 py-2">
-                <Skeleton className="h-5 w-5" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-              <div className="flex items-center gap-3 rounded-md px-3 py-2">
-                <Skeleton className="h-5 w-5" />
-                <Skeleton className="h-4 w-24" />
+      <NavKnowledgeProvider>
+        <SidebarHeader>
+          <TeamSwitcher />
+          {!menuReady ? (
+            <div className="space-y-1 px-2 pt-2">
+              <div className="space-y-0.5">
+                <div className="text-xs font-semibold text-sidebar-foreground/70 px-2 mb-1">
+                  Navigation
+                </div>
+                {/* Home */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                {/* Search */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                {/* Loading placeholders para otros elementos */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <NavMain items={filteredNavigationItems} />
-        )}
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
-      <SidebarRail />
+          ) : (
+            <>
+              <NavMain items={filteredNavigationItems} />
+              <NavKnowledgeHeader />
+            </>
+          )}
+        </SidebarHeader>
+        <SidebarContent>
+          {menuReady && <NavKnowledgeContent />}
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
+        <SidebarRail />
+      </NavKnowledgeProvider>
     </Sidebar>
   )
 }

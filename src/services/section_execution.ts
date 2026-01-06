@@ -48,3 +48,33 @@ export async function createSectionExecution(executionId: string, sectionData: {
     console.log('Section execution created:', data.data);
     return data.data;
 }
+
+export async function getSectionExecutionContent(sectionExecutionId: string, organizationId?: string) {
+    console.log(`Getting content for section execution ID: ${sectionExecutionId}`);
+    
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    
+    const response = await httpClient.get(`${backendUrl}/section_executions/${sectionExecutionId}/content`, {
+        headers,
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error getting section execution content:', errorResponse);
+        throw new Error(errorResponse.detail?.error || 'Error getting section execution content');
+    }
+
+    const data = await response.json();
+    console.log('Section execution content:', data.data);
+    
+    // Extract the actual content from the response
+    if (data.data && typeof data.data === 'object' && data.data.output) {
+        return data.data.output;
+    }
+    
+    // Fallback in case the structure is different
+    return data.data || '';
+}

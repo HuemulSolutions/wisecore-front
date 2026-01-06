@@ -84,8 +84,7 @@ export async function createDocument(documentData: { name: string; description?:
 }
 
 export async function getDocumentContent(documentId: string, organizationId: string, executionId?: string) {
-  const url = new URL(`${backendUrl}/documents/content`);
-  url.searchParams.append('document_id', documentId);
+  const url = new URL(`${backendUrl}/documents/${documentId}/content`);
   if (executionId) {
     url.searchParams.append('execution_id', executionId);
   }

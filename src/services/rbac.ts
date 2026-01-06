@@ -9,6 +9,13 @@ export interface Permission {
   updated_at: string;
 }
 
+export interface PermissionWithStatus {
+  id: string;
+  name: string;
+  description: string;
+  assigned: boolean;
+}
+
 export interface Role {
   id: string;
   name: string;
@@ -33,8 +40,61 @@ export interface PermissionsResponse {
   timestamp: string;
 }
 
+export interface PermissionsWithStatusResponse {
+  data: {
+    role: {
+      id: string;
+      name: string;
+      description: string;
+    };
+    permissions: PermissionWithStatus[];
+  };
+  transaction_id: string;
+  timestamp: string;
+}
+
 export interface UserRolesResponse {
   data: Role[];
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface RoleWithAssignment {
+  id: string;
+  name: string;
+  description: string;
+  color?: string;
+  created_at: string;
+  updated_at: string;
+  has_role: boolean;
+  permission_num?: number;
+  users_count?: number;
+}
+
+export interface UserAllRolesResponse {
+  data: RoleWithAssignment[];
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface UserWithAssignment {
+  id: string;
+  name: string;
+  last_name: string;
+  email: string;
+  has_role: boolean;
+  status: string;
+  is_root_admin: boolean;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleWithAllUsersResponse {
+  data: {
+    role: Role;
+    users: UserWithAssignment[];
+  };
   transaction_id: string;
   timestamp: string;
 }
@@ -68,7 +128,7 @@ const getHeaders = (): Record<string, string> => {
 
 // Get all roles
 export const getRoles = async (): Promise<RolesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/rbac/roles`, {
+  const response = await httpClient.get(`${backendUrl}/rbac/roles/with_perm_count`, {
     headers: getHeaders(),
   });
   
@@ -122,9 +182,26 @@ export const getUserRoles = async (userId: string): Promise<UserRolesResponse> =
   return response.json();
 };
 
+// Get all roles with user assignment status
+export const getUserAllRoles = async (userId: string): Promise<UserAllRolesResponse> => {
+  if (!userId || userId.trim() === '') {
+    throw new Error('User ID is required');
+  }
+  
+  const response = await httpClient.get(`${backendUrl}/user_roles/user_all_roles/${userId}`, {
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch user all roles');
+  }
+  
+  return response.json();
+};
+
 // Assign roles to user using bulk endpoint
 export const assignRolesToUser = async (userId: string, data: AssignRolesData): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/rbac/users/${userId}/bulk_roles`, data, {
+  const response = await httpClient.post(`${backendUrl}/user_roles/bulk_role_assign/${userId}`, data, {
     headers: getHeaders(),
   });
   
@@ -149,9 +226,9 @@ export const assignRoleToUser = async (userId: string, roleIds: string[]): Promi
   }
 };
 
-// Get permissions for a specific role
-export const getRolePermissions = async (roleId: string): Promise<PermissionsResponse> => {
-  const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions`, {
+// Get permissions for a specific role with assignment status
+export const getRolePermissions = async (roleId: string): Promise<PermissionsWithStatusResponse> => {
+  const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions_with_status`, {
     headers: getHeaders(),
   });
   
@@ -185,5 +262,40 @@ export const deleteRole = async (roleId: string): Promise<void> => {
   
   if (!response.ok) {
     throw new Error('Failed to delete role');
+  }
+};
+
+// Get role with all users and their assignment status
+export const getRoleWithAllUsers = async (
+  roleId: string,
+  page?: number,
+  pageSize?: number
+): Promise<RoleWithAllUsersResponse> => {
+  const params = new URLSearchParams();
+  params.append('role_id', roleId);
+  if (page) params.append('page', page.toString());
+  if (pageSize) params.append('page_size', pageSize.toString());
+
+  const response = await httpClient.get(`${backendUrl}/user_roles/role_with_all_users?${params.toString()}`, {
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch role with users');
+  }
+  
+  return response.json();
+};
+
+// Assign users to a role
+export const assignUsersToRole = async (roleId: string, userIds: string[]): Promise<void> => {
+  const response = await httpClient.post(`${backendUrl}/user_roles/${roleId}/bulk_users`, {
+    user_ids: userIds
+  }, {
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to assign users to role');
   }
 };

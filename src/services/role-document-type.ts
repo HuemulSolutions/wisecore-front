@@ -7,6 +7,28 @@ export interface AccessLevelsResponse {
   timestamp: string;
 }
 
+export interface RoleAccessLevel {
+  level: string;
+  assigned: boolean;
+}
+
+export interface RoleWithAccessLevels {
+  role_id: string;
+  role_name: string;
+  access_levels: RoleAccessLevel[];
+}
+
+export interface DocumentTypeRolesAccessLevelsResponse {
+  data: {
+    document_type_id: string;
+    document_type_name: string;
+    access_levels: string[];
+    roles: RoleWithAccessLevels[];
+  };
+  transaction_id: string;
+  timestamp: string;
+}
+
 export interface RoleDocumentTypePermission {
   id?: string;
   role_id: string;
@@ -101,6 +123,20 @@ export const getDocumentTypePermissions = async (documentTypeId: string): Promis
   
   if (!response.ok) {
     throw new Error('Failed to fetch asset type permissions');
+  }
+  
+  return response.json();
+};
+
+// Get all roles with access levels for a document type (combined endpoint)
+export const getDocumentTypeRolesAccessLevels = async (documentTypeId: string): Promise<DocumentTypeRolesAccessLevelsResponse> => {
+  const response = await httpClient.fetch(`${backendUrl}/role-doctype/document-types/${documentTypeId}/roles-access-levels`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch document type roles and access levels');
   }
   
   return response.json();

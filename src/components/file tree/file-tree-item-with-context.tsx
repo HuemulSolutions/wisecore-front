@@ -18,16 +18,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { CreateFolderDialog } from "@/components/create_folder"
-import { CreateAssetDialog } from "@/components/create-asset-dialog"
-import EditFolder from "@/components/edit_folder"
-import { deleteFolder } from "@/services/library"
+import EditFolder from "@/components/assets/dialogs/edit_folder"
+import { deleteFolder } from "@/services/folders"
 import { toast } from "sonner"
 import type { FileNode } from "./types"
 import { useOrganization } from "@/contexts/organization-context"
 import { useExpandedFolders } from "@/hooks/use-expanded-folders"
+import { CreateFolderDialog, CreateAssetDialog, DeleteFolderDialog } from "../assets"
 
 // Función para obtener el icono y color basado en el tipo de archivo
 const getFileIconAndColor = (fileName: string) => {
@@ -634,32 +632,16 @@ export function FileTreeItemWithContext({
             onOpenChange={setIsEditFolderOpen}
           />
           
-          <AlertDialog 
-            open={!!deletingFolder} 
+          <DeleteFolderDialog
+            open={!!deletingFolder}
             onOpenChange={(open) => {
               if (!open) {
                 setDeletingFolder(null)
               }
             }}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{deletingFolder?.name}"? All files and subfolders will be permanently deleted and this action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteConfirm}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            folderName={deletingFolder?.name || ''}
+            onConfirm={handleDeleteConfirm}
+          />
         </>
       )}
     </div>

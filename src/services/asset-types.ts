@@ -16,6 +16,29 @@ export interface AssetTypesResponse {
   timestamp: string;
 }
 
+// Role access information
+export interface RoleAccess {
+  role_id: string;
+  role_name: string;
+  access_levels: string[];
+}
+
+// Asset type with roles
+export interface AssetTypeWithRoles {
+  document_type_id: string;
+  document_type_name: string;
+  document_type_color: string;
+  document_type_created_date: string;
+  document_count: number;
+  roles: RoleAccess[];
+}
+
+export interface AssetTypesWithRolesResponse {
+  data: AssetTypeWithRoles[];
+  transaction_id: string;
+  timestamp: string;
+}
+
 export interface CreateAssetTypeData {
   name: string;
   description: string;
@@ -45,7 +68,7 @@ const getHeaders = (): Record<string, string> => {
 
 // Get all asset types
 export const getAssetTypes = async (): Promise<AssetTypesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/asset-types`, {
+  const response = await httpClient.get(`${backendUrl}/document_types`, {
     headers: getHeaders(),
   });
   
@@ -56,9 +79,22 @@ export const getAssetTypes = async (): Promise<AssetTypesResponse> => {
   return response.json();
 };
 
+// Get all asset types with roles
+export const getAssetTypesWithRoles = async (): Promise<AssetTypesWithRolesResponse> => {
+  const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles`, {
+    headers: getHeaders(),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch asset types with roles');
+  }
+  
+  return response.json();
+};
+
 // Get single asset type
 export const getAssetType = async (id: string): Promise<AssetType> => {
-  const response = await httpClient.get(`${backendUrl}/asset-types/${id}`, {
+  const response = await httpClient.get(`${backendUrl}/document_types/${id}`, {
     headers: getHeaders(),
   });
   
@@ -71,7 +107,7 @@ export const getAssetType = async (id: string): Promise<AssetType> => {
 
 // Create new asset type
 export const createAssetType = async (data: CreateAssetTypeData): Promise<AssetType> => {
-  const response = await httpClient.post(`${backendUrl}/asset-types`, data, {
+  const response = await httpClient.post(`${backendUrl}/document_types`, data, {
     headers: getHeaders(),
   });
   
@@ -84,7 +120,7 @@ export const createAssetType = async (data: CreateAssetTypeData): Promise<AssetT
 
 // Update asset type
 export const updateAssetType = async (id: string, data: UpdateAssetTypeData): Promise<AssetType> => {
-  const response = await httpClient.put(`${backendUrl}/asset-types/${id}`, data, {
+  const response = await httpClient.put(`${backendUrl}/document_types/${id}`, data, {
     headers: getHeaders(),
   });
   
@@ -97,7 +133,7 @@ export const updateAssetType = async (id: string, data: UpdateAssetTypeData): Pr
 
 // Delete asset type
 export const deleteAssetType = async (id: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/asset-types/${id}`, {
+  const response = await httpClient.delete(`${backendUrl}/document_types/${id}`, {
     headers: getHeaders(),
   });
   

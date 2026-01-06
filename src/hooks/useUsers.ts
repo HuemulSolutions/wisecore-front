@@ -11,11 +11,15 @@ export const userQueryKeys = {
 }
 
 // Hook for fetching users
-export function useUsers(enabled: boolean = true) {
+export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100) {
   return useQuery({
     queryKey: userQueryKeys.list(),
-    queryFn: getUsers,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryFn: () => getUsers(organizationId, page, pageSize),
+    staleTime: 2 * 60 * 1000, // 2 minutes - reasonable cache time
+    gcTime: 5 * 60 * 1000, // 5 minutes cache (formerly cacheTime)
+    refetchOnMount: true, // Refetch on mount to ensure fresh data
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches on window focus
+    retry: 0, // No retries to avoid multiple error requests
     enabled,
   })
 }
