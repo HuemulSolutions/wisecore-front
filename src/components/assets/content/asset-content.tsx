@@ -59,6 +59,7 @@ import SectionExecution from "./asset-section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CreateAssetDialog } from "../dialogs";
+import { CustomWordExportSheet } from "@/components/sheets/CustomWordExportSheet";
 
 // API response interface
 interface LibraryItem {
@@ -520,7 +521,7 @@ export function AssetContent({
   
   // State for tracking current execution for polling
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
-  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from'>('full');
+  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from' | 'full-single'>('full');
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
   
   // State for tracking active executions on other versions
@@ -551,6 +552,9 @@ export function AssetContent({
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
   const [executionContext, setExecutionContext] = useState<{ type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null>(null);
   
+  // Custom Word Export dialog state
+  const [isCustomWordExportDialogOpen, setIsCustomWordExportDialogOpen] = useState(false);
+  
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
     if (createdTemplate && selectedFile) {
@@ -577,7 +581,7 @@ export function AssetContent({
   };
 
   // Handle execution created from Execute Sheet
-  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => {
+  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
     // Preserve scroll position before changing execution
     onPreserveScroll?.();
     
@@ -956,6 +960,11 @@ export function AssetContent({
         console.error('Error exporting to word:', error);
       }
     }
+  };
+  
+  // Handle export to custom word
+  const handleExportCustomWord = () => {
+    setIsCustomWordExportDialogOpen(true);
   };
 
   function openDeleteDialog(type: 'document' | 'execution') {
@@ -1569,13 +1578,17 @@ export function AssetContent({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportMarkdown(), 0)}>
                       <FileText className="mr-2 h-4 w-4" />
                       Export as Markdown
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportWord(), 0)}>
                       <FileCode className="mr-2 h-4 w-4" />
                       Export as Word
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                      <FileCode className="mr-2 h-4 w-4" />
+                      Export as Custom Word
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -2025,6 +2038,10 @@ export function AssetContent({
                       <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
                         <FileCode className="mr-2 h-4 w-4" />
                         Export as Word
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                        <FileCode className="mr-2 h-4 w-4" />
+                        Export as Custom Word
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -2932,6 +2949,17 @@ export function AssetContent({
         onOpenChange={setIsCreateAssetDialogOpen}
         folderId={currentFolderId}
         onAssetCreated={handleDocumentCreated}
+      />
+      
+      {/* Custom Word Export Dialog */}
+      <CustomWordExportSheet
+        selectedFile={selectedFile}
+        selectedExecutionId={selectedExecutionId}
+        isOpen={isCustomWordExportDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsCustomWordExportDialogOpen(open);
+        }}
       />
     </div>
   );
