@@ -18,7 +18,10 @@ export function useRoleDocumentTypes(enableFetch: boolean = true) {
   const getCurrentRoleId = (): string | null => {
     const tokenInfo = getOrganizationTokenInfo()
     if (!tokenInfo?.roles?.length) {
-      console.warn("No roles found in organization token")
+      // Solo loggear si estamos habilitados para hacer fetch y no somos admin
+      if (enableFetch && !isRootAdmin()) {
+        console.warn("No roles found in organization token")
+      }
       return null
     }
     // Usar el primer rol disponible en el token
@@ -63,8 +66,18 @@ export function useRoleDocumentTypes(enableFetch: boolean = true) {
       console.log("Filtered document types for creation:", filteredTypes)
       return filteredTypes
     },
-    enabled: enableFetch && !!selectedOrganizationId && (isRootAdmin() || !!getCurrentRoleId()),
-    retry: 3,
+    enabled: enableFetch && 
+             !!selectedOrganizationId && 
+             (isRootAdmin() || (!!getCurrentRoleId() && !!getOrganizationTokenInfo())),
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    gcTime: 10 * 60 * 1000, // 10 minutos
+    retry: (failureCount, error) => {
+      // No reintentar si no hay roles válidos
+      if (error.message?.includes("No role found")) {
+        return false
+      }
+      return failureCount < 2
+    },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
 }

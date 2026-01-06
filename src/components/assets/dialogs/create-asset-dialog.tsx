@@ -72,8 +72,8 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     }
   }, [open, selectedOrganizationId, queryClient])
 
-  // Fetch document types based on current user's role
-  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes(open)
+  // Fetch document types based on current user's role - solo cuando el diálogo esté abierto
+  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes(open && !!selectedOrganizationId)
 
   // Fetch templates
   const { data: templates = [] } = useQuery({

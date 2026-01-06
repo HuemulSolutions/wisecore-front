@@ -34,10 +34,12 @@ interface Organization {
 
 interface OrganizationSelectionDialogProps {
   open: boolean;
+  onOpenChange?: (open: boolean) => void;
+  preselectedOrganizationId?: string;
 }
 
-export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialogProps) {
-  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrganizationId }: OrganizationSelectionDialogProps) {
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(preselectedOrganizationId || '');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
@@ -71,23 +73,67 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
     }
   }, [organizationsData, setOrganizations]);
 
+  React.useEffect(() => {
+    if (preselectedOrganizationId) {
+      setSelectedOrgId(preselectedOrganizationId);
+    }
+  }, [preselectedOrganizationId]);
+
   const handleSelectOrganization = async (orgId?: string) => {
     const organizationId = orgId || selectedOrgId;
     if (organizationId && user?.id) {
       setIsGeneratingToken(true);
       try {
+        // Limpiar estado anterior de la organización
+        setOrganizationToken('');
+        
+        // Generar nuevo token para la organización seleccionada PRIMERO
         const tokenResponse = await generateOrganizationToken(organizationId);
         const orgToken = tokenResponse.token || tokenResponse.data?.token;
         
-        // Actualizar el contexto de organización
+        if (!orgToken) {
+          throw new Error('No token received from server');
+        }
+        
+        // Actualizar el contexto con la nueva organización y token
         setSelectedOrganizationId(organizationId);
         setOrganizationToken(orgToken);
         
-        console.log('Organization token generated successfully:', orgToken?.substring(0, 10) + '...');
+        console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
+        
+        // Esperar un poco más para que el contexto se propague completamente
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // SOLO DESPUÉS invalidar todas las queries que dependen de la organización
+        // Ahora que el nuevo token está disponible, las queries se ejecutarán correctamente
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            // Invalidar queries que contengan claves relacionadas con organizaciones
+            const queryKey = query.queryKey;
+            return Array.isArray(queryKey) && (
+              queryKey.includes('documents') ||
+              queryKey.includes('document-types') ||
+              queryKey.includes('roles') ||
+              queryKey.includes('permissions') ||
+              queryKey.includes('assets') ||
+              queryKey.includes('asset-types') ||
+              queryKey.includes('users') ||
+              queryKey.includes('knowledge') ||
+              queryKey.includes('library') ||
+              queryKey.some(key => typeof key === 'string' && key.includes('org'))
+            );
+          }
+        });
+        
+        // Cerrar el dialog después de seleccionar la organización
+        if (onOpenChange) {
+          onOpenChange(false);
+        }
         
       } catch (error) {
-        console.error('Error generating organization token:', error);
-        // Aquí podrías mostrar un toast de error
+        console.error('Error changing organization:', error);
+        // Mantener el estado anterior si hay error
+        // Podrías mostrar un toast de error aquí si tienes configurado
       } finally {
         setIsGeneratingToken(false);
       }
@@ -104,12 +150,9 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
   };
 
   return (
-    <Dialog open={open} modal>
+    <Dialog open={open} onOpenChange={onOpenChange} modal>
       <DialogContent 
         className="sm:max-w-[500px]"
-        showCloseButton={false}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader className="space-y-3">
           <DialogTitle className="flex items-center gap-2 text-xl">
@@ -191,6 +234,16 @@ export function OrganizationSelectionDialog({ open }: OrganizationSelectionDialo
                   <Plus className="w-4 h-4 mr-2" />
                   Create New Organization
                 </Button>
+                
+                {onOpenChange && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => onOpenChange(false)}
+                    className="w-full hover:cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                )}
               </div>
             </>
           ) : (

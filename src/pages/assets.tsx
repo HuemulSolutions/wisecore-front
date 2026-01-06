@@ -198,6 +198,7 @@ function AssetsContent() {
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
+  const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
 
   const isMobile = useIsMobile();
   const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
@@ -322,7 +323,11 @@ function AssetsContent() {
 
   // Initialize from URL on mount and when URL changes
   useEffect(() => {
-    if (!selectedOrganizationId || !organizationToken) return; // Esperar a que tanto org como token estén disponibles
+    if (!selectedOrganizationId || !organizationToken) return; // Skip if no organization context
+    if (isUpdatingUrl) {
+      console.log('Skipping URL initialization - currently updating URL');
+      return; // Skip if we're updating URL programmatically
+    }
     
     const initializeFromUrl = async () => {
       try {
@@ -449,7 +454,7 @@ function AssetsContent() {
       // URL changed after initial load - always reinitialize from URL
       initializeFromUrl();
     }
-  }, [selectedOrganizationId, organizationToken, location.pathname]); // Agregar organizationToken como dependencia
+  }, [selectedOrganizationId, organizationToken, location.pathname]); // Remover isUpdatingUrl de las dependencias
 
   // Sync sessionStorage when breadcrumb or selectedFile changes
   useEffect(() => {
@@ -464,23 +469,57 @@ function AssetsContent() {
     }
   }, [breadcrumb, selectedFile]);
 
-  // Reset state when organization changes
+  // Update URL when selected file or breadcrumb changes (debounced to avoid rapid changes)
   useEffect(() => {
-    setBreadcrumb([]);
-    setSelectedFile(null);
-    setSelectedExecutionId(null);
-    hasRestoredRef.current = false; // Reset so it can initialize again
+    // Solo actualizar si ya hemos restaurado y tenemos contexto organizacional
+    if (!hasRestoredRef.current || !selectedOrganizationId || !organizationToken) return;
     
-    // Clear session storage for the previous organization
-    sessionStorage.removeItem('library-breadcrumb');
-    sessionStorage.removeItem('library-selectedFile');
+    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
     
-    // Navigate to root assets page if we're currently on a specific document/folder path
-    if (location.pathname !== '/asset') {
-      console.log('Organization changed, navigating to assets root');
-      navigate('/asset', { replace: true });
+    // Solo actualizar URL si es diferente de la actual y no estamos ya actualizando
+    if (location.pathname !== newUrl && !isUpdatingUrl) {
+      console.log('Updating URL to reflect current state:', newUrl);
+      setIsUpdatingUrl(true);
+      navigate(newUrl, { replace: true });
+      
+      // Reset flag después de un breve delay
+      setTimeout(() => {
+        setIsUpdatingUrl(false);
+      }, 200); // Aumentar el timeout ligeramente
     }
-  }, [selectedOrganizationId, location.pathname, navigate]);
+  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current]);
+
+  // Ref para rastrear la organización anterior y evitar resets innecesarios
+  const prevOrganizationIdRef = useRef<string | null>(null);
+  
+  // Reset state when organization actually changes (not just re-renders)
+  useEffect(() => {
+    // Solo resetear si la organización realmente cambió (no solo re-renderizado)
+    if (prevOrganizationIdRef.current !== null && 
+        prevOrganizationIdRef.current !== selectedOrganizationId) {
+      
+      console.log('Organization actually changed, resetting state');
+      setBreadcrumb([]);
+      setSelectedFile(null);
+      setSelectedExecutionId(null);
+      hasRestoredRef.current = false; // Reset so it can initialize again
+      
+      // Clear session storage for the previous organization
+      sessionStorage.removeItem('library-breadcrumb');
+      sessionStorage.removeItem('library-selectedFile');
+      
+      // Navigate to root assets page if we're currently on a specific document/folder path
+      if (location.pathname !== '/asset') {
+        console.log('Organization changed, navigating to assets root');
+        setIsUpdatingUrl(true);
+        navigate('/asset', { replace: true });
+        setTimeout(() => setIsUpdatingUrl(false), 200);
+      }
+    }
+    
+    // Actualizar la referencia de la organización anterior
+    prevOrganizationIdRef.current = selectedOrganizationId;
+  }, [selectedOrganizationId, navigate, location.pathname]);
 
   // Handle navigation state to restore selected document and breadcrumb
   useEffect(() => {

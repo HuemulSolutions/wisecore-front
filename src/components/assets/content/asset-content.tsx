@@ -1281,13 +1281,7 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-        {/* Create Asset Dialog */}
-        <CreateAssetDialog
-          open={isCreateAssetDialogOpen}
-          onOpenChange={setIsCreateAssetDialogOpen}
-          folderId={currentFolderId}
-          onAssetCreated={handleDocumentCreated}
-        />
+
       </>
     );
   }

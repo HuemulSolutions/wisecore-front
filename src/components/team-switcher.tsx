@@ -1,29 +1,21 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus, Check, Pencil, Trash2, Loader2 } from "lucide-react"
+import { ChevronsUpDown, Plus, Loader2, Pencil } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { OrganizationSelectionDialog } from '@/components/organization-selection-dialog'
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { getUserOrganizations, generateOrganizationToken, addOrganization, updateOrganization, deleteOrganization } from '@/services/organizations'
+import { getUserOrganizations, addOrganization, updateOrganization, deleteOrganization } from '@/services/organizations'
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -37,15 +29,14 @@ interface Organization {
 }
 
 export function TeamSwitcher() {
-  const { isMobile } = useSidebar()
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [isOrgSelectionOpen, setIsOrgSelectionOpen] = React.useState(false)
   const [newOrgName, setNewOrgName] = React.useState('')
   const [newOrgDescription, setNewOrgDescription] = React.useState('')
   const [editingOrg, setEditingOrg] = React.useState<Organization | null>(null)
   const [deletingOrg, setDeletingOrg] = React.useState<Organization | null>(null)
-  const [isGeneratingToken, setIsGeneratingToken] = React.useState(false)
   
   const { selectedOrganizationId, organizations, setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization()
   const { user } = useAuth()
@@ -61,7 +52,7 @@ export function TeamSwitcher() {
     mutationFn: addOrganization,
     onSuccess: (newOrg) => {
       queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
-      handleOrganizationChange(newOrg.id)
+      setSelectedOrganizationId(newOrg.id)
       setNewOrgName('')
       setNewOrgDescription('')
       setIsDialogOpen(false)
@@ -118,62 +109,6 @@ export function TeamSwitcher() {
 
   const selectedOrganization = organizations?.find(org => org.id === selectedOrganizationId)
 
-  const handleOrganizationChange = async (orgId: string) => {
-    if (orgId && user?.id) {
-      setIsGeneratingToken(true)
-      
-      try {
-        // Limpiar estado anterior de la organización
-        setOrganizationToken('')
-        
-        // Generar nuevo token para la organización seleccionada PRIMERO
-        const tokenResponse = await generateOrganizationToken(orgId)
-        const orgToken = tokenResponse.token || tokenResponse.data?.token
-        
-        if (!orgToken) {
-          throw new Error('No token received from server')
-        }
-        
-        // Actualizar el contexto con la nueva organización y token
-        setSelectedOrganizationId(orgId)
-        setOrganizationToken(orgToken)
-        
-        console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...')
-        
-        // Esperar un poco más para que el contexto se propague completamente
-        await new Promise(resolve => setTimeout(resolve, 200))
-        
-        // SOLO DESPUÉS invalidar todas las queries que dependen de la organización
-        // Ahora que el nuevo token está disponible, las queries se ejecutarán correctamente
-        queryClient.invalidateQueries({ 
-          predicate: (query) => {
-            // Invalidar queries que contengan claves relacionadas con organizaciones
-            const queryKey = query.queryKey
-            return Array.isArray(queryKey) && (
-              queryKey.includes('documents') ||
-              queryKey.includes('document-types') ||
-              queryKey.includes('roles') ||
-              queryKey.includes('permissions') ||
-              queryKey.includes('assets') ||
-              queryKey.includes('asset-types') ||
-              queryKey.includes('users') ||
-              queryKey.includes('knowledge') ||
-              queryKey.includes('library') ||
-              queryKey.some(key => typeof key === 'string' && key.includes('org'))
-            )
-          }
-        })
-        
-      } catch (error) {
-        console.error('Error changing organization:', error)
-        // Mantener el estado anterior si hay error
-        // Podrías mostrar un toast de error aquí si tienes configurado
-      } finally {
-        setIsGeneratingToken(false)
-      }
-    }
-  }
-
   const handleCreateOrganization = () => {
     if (newOrgName.trim()) {
       createOrgMutation.mutate({ 
@@ -199,111 +134,25 @@ export function TeamSwitcher() {
     }
   }
 
-  const openCreateDialog = () => {
-    setTimeout(() => {
-      setIsDialogOpen(true)
-    }, 0)
-  }
-
-  const openEditDialog = (org: Organization) => {
-    // Use setTimeout so the dropdown menu fully closes before the dialog appears
-    setTimeout(() => {
-      setEditingOrg({ ...org })
-      setIsEditDialogOpen(true)
-    }, 0)
-  }
-
-  const openDeleteDialog = (org: Organization) => {
-    // Use setTimeout so the dropdown menu fully closes before the dialog appears
-    setTimeout(() => {
-      setDeletingOrg(org)
-      setIsDeleteDialogOpen(true)
-    }, 0)
-  }
-
   const renderSidebarMenu = () => {
     if (!selectedOrganization) {
       return (
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs flex-shrink-0">
-                    --
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium text-gray-500">Select Organization</span>
-                  <span className="truncate text-xs text-muted-foreground">Choose from list</span>
-                </div>
-                <ChevronsUpDown className="ml-auto" />
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-              align="start"
-              side={isMobile ? "bottom" : "right"}
-              sideOffset={4}
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:cursor-pointer"
+              onClick={() => setIsOrgSelectionOpen(true)}
             >
-              <DropdownMenuLabel className="text-muted-foreground text-xs">
-                Organizations
-              </DropdownMenuLabel>
-              {organizationsData?.map((org: Organization) => (
-                <DropdownMenuItem
-                  key={org.id}
-                  onSelect={() => {
-                    handleOrganizationChange(org.id)
-                  }}
-                  className="gap-2 p-2 hover:cursor-pointer"
-                  disabled={isGeneratingToken}
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
-                    {org.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{org.name}</p>
-                  </div>
-                  {user?.is_root_admin && (
-                    <div className="flex gap-1 ml-2 action-buttons">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:bg-blue-100 hover:cursor-pointer"
-                        onClick={() => openEditDialog(org)}
-                      >
-                        <Pencil className="h-3 w-3 text-blue-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:bg-red-100 hover:cursor-pointer"
-                        onClick={() => openDeleteDialog(org)}
-                      >
-                        <Trash2 className="h-3 w-3 text-red-600" />
-                      </Button>
-                    </div>
-                  )}
-                </DropdownMenuItem>
-              ))}
-              {user?.is_root_admin === true && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={openCreateDialog}
-                    className="gap-2 p-2 hover:cursor-pointer"
-                  >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
-                      <Plus className="h-4 w-4" />
-                    </div>
-                    <div className="font-medium text-muted-foreground">Add Organization</div>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs flex-shrink-0">
+                --
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium text-gray-500">Select Organization</span>
+              <span className="truncate text-xs text-muted-foreground">Choose from list</span>
+            </div>
+            <ChevronsUpDown className="ml-auto" />
+          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
       )
@@ -312,100 +161,20 @@ export function TeamSwitcher() {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs flex-shrink-0">
-                  {selectedOrganization.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{selectedOrganization.name}</span>
-                <span className="truncate text-xs text-muted-foreground">Organization</span>
-              </div>
-              <ChevronsUpDown className="ml-auto" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            align="start"
-            side={isMobile ? "bottom" : "right"}
-            sideOffset={4}
+          <SidebarMenuButton
+            size="lg"
+            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:cursor-pointer"
+            onClick={() => setIsOrgSelectionOpen(true)}
           >
-            <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Organizations
-            </DropdownMenuLabel>
-            {organizationsData?.map((org: Organization) => (
-              <DropdownMenuItem
-                key={org.id}
-                onSelect={(e) => {
-                  // Check if the click came from edit/delete buttons
-                  const target = e.target as HTMLElement
-                  if (target.closest('.action-buttons')) {
-                    e.preventDefault() // Prevent dropdown from closing
-                    return
-                  }
-                  handleOrganizationChange(org.id)
-                }}
-                className="gap-2 p-2 hover:cursor-pointer"
-                disabled={isGeneratingToken}
-              >
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
-                  {org.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{org.name}</p>
-                  {isGeneratingToken && selectedOrganizationId !== org.id && (
-                    <p className="text-xs text-muted-foreground">Loading...</p>
-                  )}
-                </div>
-                {isGeneratingToken && selectedOrganizationId !== org.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : (
-                  selectedOrganization.id === org.id && (
-                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  )
-                )}
-                {user?.is_root_admin && (
-                  <div className="flex gap-1 ml-2 action-buttons">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 hover:bg-blue-100 hover:cursor-pointer"
-                      onClick={() => openEditDialog(org)}
-                    >
-                      <Pencil className="h-3 w-3 text-blue-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 hover:bg-red-100 hover:cursor-pointer"
-                      onClick={() => openDeleteDialog(org)}
-                    >
-                      <Trash2 className="h-3 w-3 text-red-600" />
-                    </Button>
-                  </div>
-                )}
-              </DropdownMenuItem>
-            ))}
-            {user?.is_root_admin === true && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={openCreateDialog}
-                  className="gap-2 p-2 hover:cursor-pointer"
-                >
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md border bg-transparent">
-                    <Plus className="h-4 w-4" />
-                  </div>
-                  <div className="font-medium text-muted-foreground">Add Organization</div>
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs flex-shrink-0">
+              {selectedOrganization.name.substring(0, 2).toUpperCase()}
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{selectedOrganization.name}</span>
+            <span className="truncate text-xs text-muted-foreground">Organization</span>
+          </div>
+          <ChevronsUpDown className="ml-auto" />
+        </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
     )
@@ -414,6 +183,12 @@ export function TeamSwitcher() {
   return (
     <>
       {renderSidebarMenu()}
+      
+      <OrganizationSelectionDialog 
+        open={isOrgSelectionOpen} 
+        onOpenChange={setIsOrgSelectionOpen}
+        preselectedOrganizationId={selectedOrganizationId || undefined}
+      />
       
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[500px]">
