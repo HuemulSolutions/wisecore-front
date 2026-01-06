@@ -549,6 +549,7 @@ export function AssetContent({
   
   // Execute sheet state
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
+  const [executionContext, setExecutionContext] = useState<{ type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null>(null);
   
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -564,6 +565,7 @@ export function AssetContent({
     setCurrentSectionIndex(undefined);
     setSectionExecutionId(null);
     setDismissedExecutionBanners(new Set());
+    setExecutionContext(null);
   }, [selectedFile?.id]);
 
 
@@ -674,15 +676,22 @@ export function AssetContent({
   };
 
   // Handle create new execution - abrir Execute Sheet
-  const handleCreateExecution = () => {
+  const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
     if (selectedFile && selectedFile.type === 'document') {
       onPreserveScroll?.();
       // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
+      // Store execution context
+      setExecutionContext(context || { type: 'header' });
       setIsExecuteSheetOpen(true);
     }
   };
+
+  // Wrapper functions for different contexts
+  const handleCreateExecutionFromHeader = () => handleCreateExecution({ type: 'header' });
+  const handleCreateExecutionFromSection = (sectionIndex: number, sectionId?: string) => 
+    () => handleCreateExecution({ type: 'section', sectionIndex, sectionId });
 
   // Fetch document content when a document is selected
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
@@ -1340,7 +1349,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
-                onClick={handleCreateExecution}
+                onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
@@ -1732,7 +1741,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
-                onClick={handleCreateExecution}
+                onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
@@ -2225,7 +2234,7 @@ export function AssetContent({
                                       {/* Action Buttons */}
                                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                         <Button
-                                          onClick={handleCreateExecution}
+                                          onClick={handleCreateExecutionFromHeader}
                                           disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                           size="lg"
                                           className={executeDocumentMutation.isPending || hasExecutionInProcess
@@ -2294,7 +2303,7 @@ export function AssetContent({
                                       ) : (
                                         <>
                                           <Button
-                                            onClick={handleCreateExecution}
+                                            onClick={handleCreateExecutionFromHeader}
                                             disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                             className={executeDocumentMutation.isPending || hasExecutionInProcess
                                               ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
@@ -2386,6 +2395,7 @@ export function AssetContent({
                                       console.log('Section execution started:', executionIdForSection);
                                     }
                                   }}
+                                  onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                 />
                                 
                                 {/* Show regeneration feedback for single/from modes */}
@@ -2451,7 +2461,7 @@ export function AssetContent({
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
                               variant="outline" 
-                              onClick={handleCreateExecution}
+                              onClick={handleCreateExecutionFromHeader}
                               disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -2893,6 +2903,7 @@ export function AssetContent({
         onOpenChange={(open) => {
           if (!open) onPreserveScroll?.();
           setIsExecuteSheetOpen(open);
+          if (!open) setExecutionContext(null); // Clear context when closing
         }}
         onSectionSheetOpen={() => {
           onPreserveScroll?.();
@@ -2902,6 +2913,7 @@ export function AssetContent({
         onExecutionComplete={handleExecutionComplete}
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
+        executionContext={executionContext}
         disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
           hasExecutionInProcess 

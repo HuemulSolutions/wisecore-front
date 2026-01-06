@@ -108,9 +108,9 @@ export async function executeDocument({
         requestBody.start_section_id = startSectionId;
     }
     
-    // Only include single_section_mode when startSectionId is provided
-    if (startSectionId !== undefined) {
-        requestBody.single_section_mode = singleSectionMode ?? false;
+    // Include single_section_mode when explicitly provided
+    if (singleSectionMode !== undefined) {
+        requestBody.single_section_mode = singleSectionMode;
     }
     
     const response = await httpClient.post(`${backendUrl}/execution/generate`, requestBody, {
