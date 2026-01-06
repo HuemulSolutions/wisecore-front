@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 interface ExecutionFeedbackProps {
   executionId: string | null;
-  executionMode: 'full' | 'single' | 'from';
+  executionMode: 'full' | 'single' | 'from' | 'full-single';
   onComplete?: () => void;
   className?: string;
 }
