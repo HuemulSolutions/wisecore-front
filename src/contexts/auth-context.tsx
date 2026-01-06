@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 import { httpClient } from '@/lib/http-client';
 import type { User } from '@/services/users';
 
+// Re-export User type for external consumption
+export type { User };
+
 export interface AuthContextType {
   user: User | null;
   token: string | null;

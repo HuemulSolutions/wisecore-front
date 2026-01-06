@@ -43,7 +43,7 @@ interface ExecuteSheetProps {
   onOpenChange: (open: boolean) => void;
   onSectionSheetOpen: () => void;
   onExecutionComplete?: () => void;
-  onExecutionCreated?: (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => void;
+  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void;
   isMobile?: boolean;
   disabled?: boolean;
   disabledReason?: string;
@@ -69,7 +69,7 @@ export function ExecuteSheet({
   const [] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
-  const [executionType, setExecutionType] = useState<'full' | 'single' | 'from'>('full');
+  const [executionType, setExecutionType] = useState<'full' | 'full-single' | 'single' | 'from'>('full');
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
   // Query client para invalidar queries
@@ -165,13 +165,25 @@ export function ExecuteSheet({
       return;
     }
 
-    // Validar que se haya seleccionado una sección si el tipo lo requiere
-    if ((executionType === 'single' || executionType === 'from')) {
-      // Si viene del contexto de header y es single, no necesita selectedSectionId (usa primera sección)
-      if (executionContext?.type === 'header' && executionType === 'single') {
-        // OK - ejecutará primera sección
-      } else if (!selectedSectionId) {
+    // Validar según el tipo de ejecución
+    if (executionType === 'single') {
+      // Single: requiere ejecución existente y sección seleccionada
+      if (!selectedSectionId) {
         toast.error("Please select a section");
+        return;
+      }
+      if (!currentExecutionId && !selectedExecutionId) {
+        toast.error("Please select an existing execution to modify");
+        return;
+      }
+    } else if (executionType === 'from') {
+      // From: requiere ejecución existente y sección seleccionada  
+      if (!selectedSectionId) {
+        toast.error("Please select a section");
+        return;
+      }
+      if (!currentExecutionId && !selectedExecutionId) {
+        toast.error("Please select an existing execution to modify");
         return;
       }
     }
@@ -185,40 +197,30 @@ export function ExecuteSheet({
 
     // Configurar parámetros según el tipo de ejecución
     if (executionType === 'full') {
-      // Ejecutar todo el documento
+      // VERSIÓN NUEVA: Ejecutar todo el documento
       executionData.singleSectionMode = false;
+    } else if (executionType === 'full-single') {
+      // VERSIÓN NUEVA: Ejecutar solo la primera sección
+      executionData.singleSectionMode = true;
     } else if (executionType === 'single') {
-      // Ejecutar solo una sección específica
-      if (executionContext?.type === 'header') {
-        // Desde header: ejecutar primera sección únicamente
-        executionData.singleSectionMode = true;
-        // No se especifica startSectionId para ejecutar primera sección
-      } else {
-        // Desde sección: ejecutar sección específica
-        executionData.startSectionId = selectedSectionId;
-        executionData.singleSectionMode = true;
-      }
-      
-      // Si hay una ejecución existente, usarla
+      // MODIFICAR EXISTENTE: Ejecutar solo una sección específica
+      executionData.startSectionId = selectedSectionId;
+      executionData.singleSectionMode = true;
+      // Usar ejecución existente
       const executionIdToUse = currentExecutionId || selectedExecutionId;
       if (executionIdToUse) {
         executionData.executionId = executionIdToUse;
         // Notificar que vamos a usar esta ejecución
         if (!currentExecutionId) {
-          let sectionIdx;
-          if (executionContext?.type === 'header') {
-            sectionIdx = 0; // Primera sección
-          } else {
-            sectionIdx = fullDocument?.sections?.findIndex((s: any) => s.id === selectedSectionId);
-          }
+          const sectionIdx = fullDocument?.sections?.findIndex((s: any) => s.id === selectedSectionId);
           onExecutionCreated?.(executionIdToUse, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
         }
       }
     } else if (executionType === 'from') {
-      // Ejecutar desde una sección en adelante
+      // MODIFICAR EXISTENTE: Ejecutar desde una sección en adelante
       executionData.startSectionId = selectedSectionId;
       executionData.singleSectionMode = false;
-      // Si hay una ejecución existente, usarla
+      // Usar ejecución existente
       const executionIdToUse = currentExecutionId || selectedExecutionId;
       if (executionIdToUse) {
         executionData.executionId = executionIdToUse;
@@ -358,10 +360,8 @@ export function ExecuteSheet({
                       fullDocument.sections.length === 0 || 
                       executeDocumentMutation.isPending || 
                       (!sheetSelectedLLM && !defaultLLM?.id) ||
-                      // Validación específica por contexto
-                      ((executionType === 'single' || executionType === 'from') && 
-                       !(executionContext?.type === 'header' && executionType === 'single') && 
-                       !selectedSectionId)
+                      // Validación específica: solo validar sección para single y from
+                      ((executionType === 'single' || executionType === 'from') && !selectedSectionId)
                     }
                     className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                     style={{ alignSelf: 'center' }}
@@ -461,7 +461,7 @@ export function ExecuteSheet({
                           </label>
                           <Select
                             value={executionType}
-                            onValueChange={(value: 'full' | 'single' | 'from') => {
+                            onValueChange={(value: 'full' | 'full-single' | 'single' | 'from') => {
                               setExecutionType(value);
                               // Solo resetear section selection si no viene del contexto de sección
                               if (executionContext?.type !== 'section') {
@@ -474,60 +474,51 @@ export function ExecuteSheet({
                               <SelectValue placeholder="Select execution scope" />
                             </SelectTrigger>
                             <SelectContent>
-                              {/* Mostrar "Execute Entire Document" solo si viene del header o si no hay contexto */}
+                              {/* Opciones disponibles desde header */}
                               {(!executionContext || executionContext.type === 'header') && (
-                                <SelectItem value="full" className="cursor-pointer">
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">Execute Entire Document</span>
-                                    <span className="text-xs text-gray-500">Generate content for all sections</span>
-                                  </div>
-                                </SelectItem>
+                                <>
+                                  <SelectItem value="full" className="cursor-pointer">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">Execute Entire Document</span>
+                                      <span className="text-xs text-gray-500">Generate content for all sections (new version)</span>
+                                    </div>
+                                  </SelectItem>
+                                  
+                                  <SelectItem value="full-single" className="cursor-pointer">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">Execute First Section Only</span>
+                                      <span className="text-xs text-gray-500">Generate content for the first section only (new version)</span>
+                                    </div>
+                                  </SelectItem>
+                                </>
                               )}
                               
-                              <SelectItem 
-                                value="single" 
-                                className="cursor-pointer" 
-                                disabled={executionContext?.type === 'header' && !currentExecutionId && !selectedExecutionId}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">
-                                    {executionContext?.type === 'header' 
-                                      ? 'Execute First Section Only' 
-                                      : 'Execute This Section Only'
-                                    }
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {executionContext?.type === 'header'
-                                      ? (!currentExecutionId && !selectedExecutionId)
-                                        ? 'Requires an existing execution'
-                                        : 'Generate content for the first section only'
-                                      : 'Generate content for this specific section'
-                                    }
-                                  </span>
-                                </div>
-                              </SelectItem>
-                              
-                              {/* Mostrar "Execute From Section Onwards" solo si viene de sección */}
+                              {/* Opciones disponibles desde sección */}
                               {executionContext?.type === 'section' && (
-                                <SelectItem value="from" className="cursor-pointer">
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">Execute From This Section Onwards</span>
-                                    <span className="text-xs text-gray-500">Generate from this section to the end</span>
-                                  </div>
-                                </SelectItem>
+                                <>
+                                  <SelectItem value="single" className="cursor-pointer">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">Execute This Section Only</span>
+                                      <span className="text-xs text-gray-500">Generate content for this specific section (modifies existing)</span>
+                                    </div>
+                                  </SelectItem>
+                                  
+                                  <SelectItem value="from" className="cursor-pointer">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">Execute From This Section Onwards</span>
+                                      <span className="text-xs text-gray-500">Generate from this section to the end (modifies existing)</span>
+                                    </div>
+                                  </SelectItem>
+                                </>
                               )}
                             </SelectContent>
                           </Select>
                         </div>
 
-                        {(executionType === 'single' || executionType === 'from') && 
-                         !(executionContext?.type === 'header' && executionType === 'single') && (
+                        {(executionType === 'single' || executionType === 'from') && (
                           <div className="space-y-3">
                             <label className="block text-sm font-medium text-gray-900">
-                              {executionContext?.type === 'header' 
-                                ? (executionType === 'single' ? 'Select Section' : 'Start From Section')
-                                : 'Selected Section'
-                              } 
+                              Selected Section
                               <span className="text-red-500">*</span>
                             </label>
                             
@@ -571,10 +562,7 @@ export function ExecuteSheet({
                             
                             <p className="text-xs text-gray-500">
                               {executionType === 'single' 
-                                ? (executionContext?.type === 'header' 
-                                    ? 'Only the selected section will be executed'
-                                    : 'Only this section will be executed'
-                                  )
+                                ? 'Only this section will be executed'
                                 : 'All sections from this one onwards will be executed'
                               }
                             </p>
