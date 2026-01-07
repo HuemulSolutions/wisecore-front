@@ -590,18 +590,33 @@ export function AssetContent({
 
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
-    // Preserve scroll position before changing execution
+    // Preserve scroll position before any changes
     preserveScrollPosition();
     
-    setSelectedExecutionId(executionId);
+    // Set tracking variables for the new execution
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
     setCurrentSectionIndex(sectionIndex);
     
-    // Invalidate queries to refresh execution data (automatic refetch will occur)
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+    // Determine behavior based on execution mode:
+    // - full/full-single: Creates NEW version, user stays on current version
+    // - single/from: Modifies EXISTING version, user stays to see the changes
+    if (mode === 'full' || mode === 'full-single') {
+      // NEW VERSION: Don't automatically switch to the new execution
+      // The user decides if they want to switch to the new version
+      console.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
+      
+      // Just invalidate queries to refresh execution list and show banners
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+    } else if (mode === 'single' || mode === 'from') {
+      // EDIT EXISTING: Stay on the same version but refresh its content
+      console.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
+      
+      // Invalidate all related queries to refresh content
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+    }
   };
 
   // Handle execution complete from Execute Sheet
@@ -707,7 +722,9 @@ export function AssetContent({
 
   // Fetch document content when a document is selected
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
-    queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
+    queryKey: selectedExecutionId 
+      ? ['document-content', selectedFile?.id, selectedExecutionId]
+      : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
     // Remove automatic polling - let the ExecutionStatusBanner handle status updates
@@ -877,7 +894,7 @@ export function AssetContent({
     }
 
     // Reset selectedExecutionId when switching to a different document
-    // This allows the default call (without execution_id) to return the approved execution
+    // This allows the default call (without execution_id) to return the approved/latest execution
     if (selectedExecutionId) {
       setSelectedExecutionId(null);
     }
@@ -890,6 +907,7 @@ export function AssetContent({
         !selectedExecutionId && 
         !isLoadingContent) {
       // Initialize selectedExecutionId with the current execution from API response
+      console.log('Auto-initializing execution ID from API response:', documentContent.execution_id);
       setSelectedExecutionId(documentContent.execution_id);
     }
   }, [documentContent?.execution_id, selectedExecutionId, selectedFile?.type, isLoadingContent]);
@@ -901,10 +919,13 @@ export function AssetContent({
         !selectedExecutionId && 
         !isLoadingContent) {
       
+      console.log('Fallback execution selection - available executions:', documentExecutions.length);
+      
       // First try to use execution_id from documentContent if available
       if (documentContent?.execution_id) {
         const matchingExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
         if (matchingExecution) {
+          console.log('Using execution from documentContent:', documentContent.execution_id);
           setSelectedExecutionId(documentContent.execution_id);
           return;
         }
@@ -915,6 +936,7 @@ export function AssetContent({
       const executionToSelect = approvedExecution || documentExecutions[0];
       
       if (executionToSelect) {
+        console.log('Fallback selected execution:', executionToSelect.id, 'status:', executionToSelect.status);
         setSelectedExecutionId(executionToSelect.id);
       }
     }
@@ -2180,7 +2202,7 @@ export function AssetContent({
         )}
 
         {/* Content Section - Now with ScrollArea and scroll restoration */}
-        <div className="flex-1 bg-white min-w-0 h-full">
+        <div className="flex-1 bg-white min-w-0 overflow-hidden">
           <ScrollArea className="h-full w-full">
             <div 
               ref={scrollRestoration.viewportRef}

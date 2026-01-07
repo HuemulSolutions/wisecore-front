@@ -131,10 +131,13 @@ export function ExecuteSheet({
       toast.success("Document execution started successfully");
       setCurrentExecutionId(executionData.id);
       setHasAttemptedCreation(false);
-      // Notificar el ID de la ejecución con el modo y sección si aplica
+      
+      // Determinar el índice de la sección si aplica
       const sectionIdx = selectedSectionId && fullDocument?.sections 
         ? fullDocument.sections.findIndex((s: any) => s.id === selectedSectionId)
         : undefined;
+      
+      // Siempre notificar la ejecución creada - el comportamiento se maneja en asset-content
       onExecutionCreated?.(executionData.id, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
       onExecutionComplete?.();
       onOpenChange(false); // Cerrar el sheet inmediatamente
@@ -197,38 +200,28 @@ export function ExecuteSheet({
 
     // Configurar parámetros según el tipo de ejecución
     if (executionType === 'full') {
-      // VERSIÓN NUEVA: Ejecutar todo el documento
+      // NUEVA VERSIÓN: Ejecutar todo el documento (nueva versión)
       executionData.singleSectionMode = false;
     } else if (executionType === 'full-single') {
-      // VERSIÓN NUEVA: Ejecutar solo la primera sección
+      // NUEVA VERSIÓN: Ejecutar solo la primera sección (nueva versión)
       executionData.singleSectionMode = true;
     } else if (executionType === 'single') {
-      // MODIFICAR EXISTENTE: Ejecutar solo una sección específica
+      // EDITAR EXISTENTE: Ejecutar solo una sección específica en la versión actual
       executionData.startSectionId = selectedSectionId;
       executionData.singleSectionMode = true;
-      // Usar ejecución existente
+      // Usar ejecución existente (la que está seleccionada actualmente)
       const executionIdToUse = currentExecutionId || selectedExecutionId;
       if (executionIdToUse) {
         executionData.executionId = executionIdToUse;
-        // Notificar que vamos a usar esta ejecución
-        if (!currentExecutionId) {
-          const sectionIdx = fullDocument?.sections?.findIndex((s: any) => s.id === selectedSectionId);
-          onExecutionCreated?.(executionIdToUse, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
-        }
       }
     } else if (executionType === 'from') {
-      // MODIFICAR EXISTENTE: Ejecutar desde una sección en adelante
+      // EDITAR EXISTENTE: Ejecutar desde una sección en adelante en la versión actual
       executionData.startSectionId = selectedSectionId;
       executionData.singleSectionMode = false;
-      // Usar ejecución existente
+      // Usar ejecución existente (la que está seleccionada actualmente)
       const executionIdToUse = currentExecutionId || selectedExecutionId;
       if (executionIdToUse) {
         executionData.executionId = executionIdToUse;
-        // Notificar que vamos a usar esta ejecución
-        if (!currentExecutionId) {
-          const sectionIdx = fullDocument?.sections?.findIndex((s: any) => s.id === selectedSectionId);
-          onExecutionCreated?.(executionIdToUse, executionType, sectionIdx !== undefined && sectionIdx >= 0 ? sectionIdx : undefined);
-        }
       }
     }
 
