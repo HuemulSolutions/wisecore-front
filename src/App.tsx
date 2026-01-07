@@ -21,6 +21,7 @@ import AuthTypes from "./pages/auth-types";
 import UsersPage from "./pages/users";
 import Roles from "./pages/roles";
 import AssetTypesPage from "./pages/asset-types";
+import CustomFieldsPage from "./pages/custom-fields";
 
 export default function App() {
   return (
@@ -82,6 +83,11 @@ export default function App() {
             <Route path="asset-types" element={
               <PermissionProtectedRoute permissions={["document_type:r", "document_type:l"]}>
                 <AssetTypesPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="custom-fields" element={
+              <PermissionProtectedRoute permissions={["document_type:r", "document_type:l"]}>
+                <CustomFieldsPage />
               </PermissionProtectedRoute>
             } />
             <Route path="document/:id" element={

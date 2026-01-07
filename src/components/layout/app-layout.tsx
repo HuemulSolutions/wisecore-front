@@ -55,6 +55,7 @@ export default function AppLayout() {
       '/roles': 'Roles',
       '/auth-types': 'Authentication Types',
       '/asset-types': 'Asset Types',
+      '/custom-fields': 'Custom Fields',
     }
     
     // Handle dynamic routes
@@ -146,6 +147,13 @@ export default function AppLayout() {
                           <DropdownMenuItem asChild>
                             <Link to="/asset-types" className="hover:cursor-pointer">
                               Asset Types
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {(canAccessDocumentTypes || isRootAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to="/custom-fields" className="hover:cursor-pointer">
+                              Custom Fields
                             </Link>
                           </DropdownMenuItem>
                         )}
