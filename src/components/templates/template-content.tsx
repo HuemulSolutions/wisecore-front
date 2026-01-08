@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getTemplateById, generateTemplateSections } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ import { DeleteTemplateDialog } from "./delete-template-dialog";
 import { AddSectionDialog } from "./add-section-dialog";
 import { TemplateSectionsList } from "./template-sections-list";
 import { TemplateEmptyState } from "./template-empty-state";
+import { TemplateCustomFields } from "./template-custom-fields";
 
 interface TemplateItem {
   id: string;
@@ -142,22 +144,49 @@ export function TemplateContent({
                 <span className="ml-2 text-xs text-gray-500">Loading template...</span>
               </div>
             ) : (
-              <div className="max-w-full">
-                {orderedSections && orderedSections.length > 0 ? (
-                  <TemplateSectionsList
-                    sections={orderedSections}
-                    templateId={selectedTemplate.id}
-                    organizationId={selectedOrganizationId!}
-                    onSectionsReorder={setOrderedSections}
-                  />
-                ) : (
-                  <TemplateEmptyState
-                    isGenerating={isGenerating}
-                    onAddSection={() => setIsAddingSectionOpen(true)}
-                    onGenerateWithAI={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
-                  />
-                )}
-              </div>
+              <Tabs defaultValue="sections" className="w-full">
+                <div className="border-b border-border mb-6">
+                  <TabsList className="h-auto w-full justify-start bg-transparent p-0">
+                    <TabsTrigger 
+                      value="sections" 
+                      className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                    >
+                      Sections
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="custom-fields" 
+                      className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                    >
+                      Custom Fields
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="sections" className="mt-0">
+                  <div className="max-w-full">
+                    {orderedSections && orderedSections.length > 0 ? (
+                      <TemplateSectionsList
+                        sections={orderedSections}
+                        templateId={selectedTemplate.id}
+                        organizationId={selectedOrganizationId!}
+                        onSectionsReorder={setOrderedSections}
+                      />
+                    ) : (
+                      <TemplateEmptyState
+                        isGenerating={isGenerating}
+                        onAddSection={() => setIsAddingSectionOpen(true)}
+                        onGenerateWithAI={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
+                      />
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="custom-fields" className="mt-0">
+                  {selectedTemplate && (
+                    <TemplateCustomFields templateId={selectedTemplate.id} />
+                  )}
+                </TabsContent>
+              </Tabs>
             )}
           </div>
         </div>
