@@ -1,10 +1,11 @@
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
     markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
     BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
-    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage, 
-    CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
+    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, 
+    CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator,
+    type MDXEditorMethods
  } from '@mdxeditor/editor'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Check, X, Loader2 } from 'lucide-react'
 
@@ -22,10 +23,12 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
     const dirty = value !== content
     const handleSave = () => dirty && !isSaving && onSave(sectionId, value)
     const handleCancel = () => !isSaving && onCancel()
+    const editorRef = useRef<MDXEditorMethods | null>(null);
     return (
-        <div className="w-full bg-gray-50 rounded-lg border">
+        <div className="w-full bg-gray-50 rounded-lg border z-10">
             {/* Top Action Buttons - Sticky */}
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+            <div className="sticky top-0 flex z-50 items-center justify-between p-4 border-gray-200 rounded-t-lg bg-gray-50"
+                 style={{ zIndex: 9000 }}>
                 <h3 className="text-sm font-medium text-gray-900">Edit Content</h3>
                 <div className="flex gap-2">
                     <Button 
@@ -54,15 +57,21 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                     .mdxeditor .mdxeditor-toolbar {
                         position: sticky !important;
                         top: 60px !important;
-                        z-index: 5 !important;
-                        background: white !important;
+                        z-index: 51 !important;
                         border-bottom: 1px solid #e5e7eb !important;
                         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
                     }
+
+                    /* ✅ Popovers/menus del toolbar (BlockTypeSelect, link dialog, etc.) por encima del header sticky */
+                    .mdxeditor [data-radix-popper-content-wrapper] {
+                        z-index: 10050 !important;
+                    }
                 `}</style>
                 <MDXEditor
+                ref={editorRef}
                 markdown={value}
                 onChange={setValue}
+                overlayContainer={document.body}
                 spellCheck={false}
                 contentEditableClassName='mdxeditor-content min-h-[240px] prose dark:prose-invert focus:outline-none p-3'
                 plugins={[
@@ -106,6 +115,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                     }}),
                     markdownShortcutPlugin(),
                     toolbarPlugin({
+                        toolbarClassName: 'mdxeditor-toolbar',
                         toolbarContents() {
                             return (
                                 <>  
@@ -116,10 +126,10 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                                     <Separator />
                                     <ListsToggle />
                                     <Separator />
-                                    <BlockTypeSelect />
+                                    <BlockTypeSelect/>
                                     <Separator />
                                     <CreateLink />
-                                    <InsertImage />
+                                    {/* <InsertImage /> */}
                                     <Separator />
                                     <InsertTable />
                                     <InsertCodeBlock />

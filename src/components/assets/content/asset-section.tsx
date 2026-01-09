@@ -302,12 +302,12 @@ export default function SectionExecution({
         <div ref={containerRef} className="p-2 relative">
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-20 flex justify-end p-2 bg-white -mx-2 -mt-2 mb-4">
+                <div className="sticky top-0 z-20 flex justify-end p-2 bg-transparent -mx-2 -mt-2 mb-4">
                     {!isEditing && (
                     <>
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 bg-white">
                                 {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
