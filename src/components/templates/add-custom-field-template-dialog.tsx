@@ -556,17 +556,19 @@ export function AddCustomFieldTemplateDialog({
                 />
               </div>
 
-              {/* Prompt */}
-              <div className="space-y-2">
-                <Label htmlFor="existing-prompt">Prompt (Optional)</Label>
-                <Textarea
-                  id="existing-prompt"
-                  placeholder="Enter prompt for this custom field"
-                  rows={3}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
-              </div>
+              {/* Prompt - only show when source is inferred */}
+              {selectedSource === "inferred" && (
+                <div className="space-y-2">
+                  <Label htmlFor="existing-prompt">Prompt (Required for Inferred)</Label>
+                  <Textarea
+                    id="existing-prompt"
+                    placeholder="Enter prompt for this custom field"
+                    rows={3}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                  />
+                </div>
+              )}
 
               {/* Value */}
               {selectedSource !== "inferred" && (
@@ -668,7 +670,7 @@ export function AddCustomFieldTemplateDialog({
                 />
               </div>
 
-              {/* Prompt */}
+              {/* Prompt - only show when source would be inferred */}
               <div className="space-y-2">
                 <Label htmlFor="new-prompt">Prompt (Optional)</Label>
                 <Textarea
@@ -678,6 +680,9 @@ export function AddCustomFieldTemplateDialog({
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  This will be used if the source is set to 'inferred'
+                </p>
               </div>
 
               {/* Value */}

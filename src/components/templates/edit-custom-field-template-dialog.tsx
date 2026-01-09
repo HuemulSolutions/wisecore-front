@@ -377,17 +377,19 @@ export function EditCustomFieldTemplateDialog({
               />
             </div>
 
-            {/* Prompt */}
-            <div className="space-y-2">
-              <Label htmlFor="prompt">Prompt (Optional)</Label>
-              <Textarea
-                id="prompt"
-                placeholder="Enter prompt for this custom field"
-                rows={3}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
-            </div>
+            {/* Prompt - only show when source is inferred */}
+            {selectedSource === "inferred" && (
+              <div className="space-y-2">
+                <Label htmlFor="prompt">Prompt (Required for Inferred)</Label>
+                <Textarea
+                  id="prompt"
+                  placeholder="Enter prompt for this custom field"
+                  rows={3}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+              </div>
+            )}
 
             {/* Value */}
             {selectedSource !== "inferred" && (

@@ -85,7 +85,7 @@ const renderValueDisplay = (template: CustomFieldTemplate) => {
   
   if (dataType === "bool") {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Switch 
           checked={template.value_bool === true}
           disabled
@@ -97,10 +97,37 @@ const renderValueDisplay = (template: CustomFieldTemplate) => {
       </div>
     )
   }
+
+  if (dataType === "image") {
+    const imageUrl = template.value
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+      return (
+        <div className="flex items-center gap-1.5">
+          <img 
+            src={imageUrl} 
+            alt={template.name || 'Image'} 
+            className="w-8 h-8 object-cover rounded border border-gray-200"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          <span className="text-xs text-gray-600 hidden">
+            Error loading image
+          </span>
+        </div>
+      )
+    }
+    return (
+      <div className="text-xs text-muted-foreground">
+        No image
+      </div>
+    )
+  }
   
   const displayValue = getValueForDisplay(template)
   return (
-    <div className="text-sm text-foreground max-w-xs truncate" title={displayValue}>
+    <div className="text-xs text-foreground max-w-xs truncate" title={displayValue}>
       {displayValue || "No value set"}
     </div>
   )
@@ -160,22 +187,22 @@ export function CustomFieldTemplateTable({
         <table className="w-full">
           <thead className="sticky top-0 bg-muted z-10">
             <tr className="border-b border-border">
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <th className="px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Field Name
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <th className="px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Type
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <th className="px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Values
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <th className="px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Required
               </th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <th className="px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Prompt
               </th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <th className="px-2 py-1.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Actions
               </th>
             </tr>
@@ -183,31 +210,31 @@ export function CustomFieldTemplateTable({
           <tbody>
             {customFieldTemplates.map((template) => (
               <tr key={template.id} className="border-b border-border hover:bg-muted/20 transition">
-                <td className="px-3 py-2">
-                  <div className="text-sm font-medium text-foreground">
+                <td className="px-2 py-1.5">
+                  <div className="text-xs font-medium text-foreground">
                     {template.name} {/* This should be the custom field name, might need to join data */}
                   </div>
                 </td>
-                <td className="px-3 py-2">
-                  <Badge variant="outline" className="text-xs">
+                <td className="px-2 py-1.5">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5">
                     {formatDataType(template.data_type)}
                   </Badge>
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   {renderValueDisplay(template)}
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-2 py-1.5">
                   <Switch 
                     checked={template.required} 
                     disabled
-                    className="data-[state=checked]:bg-primary"
+                    className="data-[state=checked]:bg-primary scale-75"
                   />
                 </td>
-                <td className="px-3 py-2">
-                  <div className="text-sm text-foreground max-w-xs truncate" title={template.prompt}>
+                <td className="px-2 py-1.5">
+                  <div className="text-xs text-foreground max-w-xs truncate" title={template.prompt}>
                     {template.prompt ? (
                       <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                         {template.prompt}
                       </span>
                     ) : (
@@ -215,7 +242,7 @@ export function CustomFieldTemplateTable({
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-2 py-1.5 text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -254,11 +281,11 @@ export function CustomFieldTemplateTable({
 
       {/* Footer stats */}
       {customFieldTemplates.length > 0 && (
-        <div className="flex items-center justify-between px-4 py-2 bg-muted/20 text-xs text-muted-foreground border-t">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20 text-xs text-muted-foreground border-t">
           <span>
-            Showing {customFieldTemplates.length} custom field{customFieldTemplates.length !== 1 ? 's' : ''}
+            {customFieldTemplates.length} field{customFieldTemplates.length !== 1 ? 's' : ''}
           </span>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span>
               {customFieldTemplates.filter(t => t.required).length} required
             </span>
