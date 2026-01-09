@@ -117,6 +117,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
               queryKey.includes('permissions') ||
               queryKey.includes('assets') ||
               queryKey.includes('asset-types') ||
+              queryKey.includes('custom-fields') ||
               queryKey.includes('users') ||
               queryKey.includes('knowledge') ||
               queryKey.includes('library') ||
