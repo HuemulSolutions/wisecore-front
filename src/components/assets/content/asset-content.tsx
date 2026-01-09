@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
+// Import necesario para el icono Plus
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Edit2, MoreVertical } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -22,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -48,6 +50,10 @@ import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, appr
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { addTemplate, getTemplateById } from "@/services/templates";
+import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
+import type { CustomFieldDocument } from "@/types/custom-fields-documents";
+import { AddCustomFieldDocumentDialog } from "@/components/assets/dialogs/add-custom-field-document-dialog";
+import { EditCustomFieldDocumentDialog } from "@/components/assets/dialogs/edit-custom-field-document-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -202,6 +208,223 @@ function SectionSeparator({
         >
           <BetweenHorizontalStart className="h-4 w-4" />
         </DocumentActionButton>
+      </div>
+    </div>
+  );
+}
+
+// Custom Fields List Component
+interface CustomFieldsListProps {
+  customFields: CustomFieldDocument[];
+  isLoading: boolean;
+  onAdd: () => void;
+  onEdit: (field: CustomFieldDocument) => void;
+  onDelete: (field: CustomFieldDocument) => void;
+}
+
+function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete }: CustomFieldsListProps) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+          <Button size="sm" variant="outline" disabled>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Field
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-16 bg-muted/50 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!customFields || customFields.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">No custom fields available</p>
+          <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Field
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const formatValue = (field: CustomFieldDocument) => {
+    // If no value is set, show "Vacío"
+    if (!field.value || (typeof field.value === 'string' && field.value.trim() === '')) {
+      return 'Vacío';
+    }
+
+    // Based on data type, format the value appropriately
+    switch (field.data_type) {
+      case 'date':
+        if (field.value_date) {
+          return new Date(field.value_date).toLocaleDateString();
+        }
+        return String(field.value);
+      case 'datetime':
+        if (field.value_datetime) {
+          return new Date(field.value_datetime).toLocaleString();
+        }
+        return String(field.value);
+      case 'time':
+        if (field.value_time) {
+          return field.value_time;
+        }
+        return String(field.value);
+      case 'url':
+        if (field.value_url) {
+          return field.value_url;
+        }
+        return String(field.value);
+      case 'number':
+        if (field.value_number !== null && field.value_number !== undefined) {
+          return field.value_number.toString();
+        }
+        return String(field.value);
+      case 'bool':
+        // For boolean fields, return the boolean value to be handled in render
+        return field.value_bool;
+      case 'image':
+        // For image fields, return the URL to be handled in render
+        return String(field.value);
+      default:
+        return String(field.value);
+    }
+  };
+
+  const renderValue = (field: CustomFieldDocument) => {
+    const value = formatValue(field);
+    
+    // Special handling for boolean fields
+    if (field.data_type === 'bool') {
+      const isChecked = field.value_bool === true;
+      return (
+        <div className="flex items-center">
+          <div className={`
+            relative inline-flex h-3 w-6 items-center rounded-full transition-colors
+            ${isChecked ? 'bg-[#4464f7]' : 'bg-gray-300'}
+          `}>
+            <span className={`
+              inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform
+              ${isChecked ? 'translate-x-3' : 'translate-x-0.5'}
+            `} />
+          </div>
+        </div>
+      );
+    }
+    
+    // Special handling for image fields
+    if (field.data_type === 'image') {
+      const imageUrl = String(value);
+      if (imageUrl && imageUrl !== 'Vacío') {
+        return (
+          <div className="flex items-center gap-1.5">
+            <img 
+              src={imageUrl} 
+              alt={field.name || 'Image'}
+              className="w-8 h-8 object-cover rounded border border-gray-200"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <span className="text-xs text-gray-600 hidden">
+              Error loading image
+            </span>
+          </div>
+        );
+      }
+      return (
+        <span className="text-xs text-gray-600">
+          No image
+        </span>
+      );
+    }
+    
+    // For non-boolean and non-image fields, return text
+    return (
+      <span className="text-xs text-gray-600">
+        {String(value)}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-2 pt-2">
+      {/* Header with Add button */}
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Fields</h4>
+        <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer h-7 text-xs px-2">
+          <Plus className="h-3 w-3 mr-1" />
+          Add
+        </Button>
+      </div>
+      
+      {/* Fields List */}
+      <div className="space-y-1.5">
+        {customFields.map((field) => {
+          return (
+            <div key={field.id} className="flex items-start justify-between p-2 border rounded bg-card">
+              <div className="flex-1 min-w-0 mr-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-foreground truncate">
+                      {field.name || 'Unknown Field'}
+                    </span>
+                    {field.required && (
+                      <span className="text-xs text-destructive">*</span>
+                    )}
+                  </div>
+                  {field.source && (
+                    <span className="text-xs text-muted-foreground capitalize ml-2">
+                      {field.source}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {renderValue(field)}
+                </div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="hover:cursor-pointer h-5 w-5 p-0 text-muted-foreground hover:text-foreground flex-shrink-0"
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => {
+                    setTimeout(() => {
+                      onEdit(field)
+                    }, 0)
+                  }} className="hover:cursor-pointer">
+                    <Edit2 className="mr-2 h-3 w-3" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => {
+                    setTimeout(() => {
+                      onDelete(field)
+                    }, 0)
+                  }} className="hover:cursor-pointer text-destructive focus:text-destructive">
+                    <Trash2 className="mr-2 h-3 w-3" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -498,6 +721,59 @@ export function AssetContent({
     },
   });
 
+  // Mutation for creating custom field document
+  const createCustomFieldDocumentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return createCustomFieldDocument(data);
+    },
+    onSuccess: () => {
+      // Refresh custom fields data
+      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      setIsAddCustomFieldDocumentDialogOpen(false);
+      toast.success('Custom field document created successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error creating custom field document:', error);
+      toast.error('Failed to create custom field document. Please try again.');
+    },
+  });
+
+  // Mutation for updating custom field document
+  const updateCustomFieldDocumentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return updateCustomFieldDocument(id, data);
+    },
+    onSuccess: () => {
+      // Refresh custom fields data
+      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      setIsEditCustomFieldDocumentDialogOpen(false);
+      setSelectedCustomFieldDocument(null);
+      toast.success('Custom field document updated successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error updating custom field document:', error);
+      toast.error('Failed to update custom field document. Please try again.');
+    },
+  });
+
+  // Mutation for deleting custom field document
+  const deleteCustomFieldDocumentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return deleteCustomFieldDocument(id);
+    },
+    onSuccess: () => {
+      // Refresh custom fields data
+      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      setIsDeleteCustomFieldDocumentDialogOpen(false);
+      setCustomFieldDocumentToDelete(null);
+      toast.success('Custom field document deleted successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error deleting custom field document:', error);
+      toast.error('Failed to delete custom field document. Please try again.');
+    },
+  });
+
   // Función para preservar scroll - ahora usa el hook de restauración de scroll
   const preserveScrollPosition = () => {
     scrollRestoration.saveScrollPosition();
@@ -508,6 +784,7 @@ export function AssetContent({
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -562,6 +839,14 @@ export function AssetContent({
   
   // Custom Word Export dialog state
   const [isCustomWordExportDialogOpen, setIsCustomWordExportDialogOpen] = useState(false);
+  
+  // Custom Field Document Dialog states
+  const [isAddCustomFieldDocumentDialogOpen, setIsAddCustomFieldDocumentDialogOpen] = useState(false);
+  const [isEditCustomFieldDocumentDialogOpen, setIsEditCustomFieldDocumentDialogOpen] = useState(false);
+  const [selectedCustomFieldDocument, setSelectedCustomFieldDocument] = useState<CustomFieldDocument | null>(null);
+  const [isDeleteCustomFieldDocumentDialogOpen, setIsDeleteCustomFieldDocumentDialogOpen] = useState(false);
+  const [customFieldDocumentToDelete, setCustomFieldDocumentToDelete] = useState<CustomFieldDocument | null>(null);
+  const [isDeletingCustomFieldDocument, setIsDeletingCustomFieldDocument] = useState(false);
   
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -755,6 +1040,18 @@ export function AssetContent({
     queryFn: getDefaultLLM,
     enabled: !!selectedOrganizationId && needsDefaultLLM, // Solo cargar cuando se necesite ejecutar
     staleTime: 300000, // Cache for 5 minutes
+  });
+
+  // Fetch custom fields for the document
+  const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
+    queryKey: ['custom-field-documents', selectedFile?.id],
+    queryFn: () => getCustomFieldDocumentsByDocument({
+      document_id: selectedFile!.id,
+      page: 1,
+      page_size: 100
+    }),
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields',
+    staleTime: 60000, // Cache for 1 minute
   });
 
   // Fetch executions for the document to check for running executions
@@ -1021,6 +1318,58 @@ export function AssetContent({
   // Handle export to custom word
   const handleExportCustomWord = () => {
     setIsCustomWordExportDialogOpen(true);
+  };
+
+  // Handle add custom field document
+  const handleAddCustomFieldDocument = () => {
+    setIsAddCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle edit custom field document
+  const handleEditCustomFieldDocument = (field: CustomFieldDocument) => {
+    setSelectedCustomFieldDocument(field);
+    setIsEditCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle create custom field document submission
+  const handleCreateCustomFieldDocument = async (data: any) => {
+    return createCustomFieldDocumentMutation.mutateAsync(data);
+  };
+
+  // Handle update custom field document submission
+  const handleUpdateCustomFieldDocument = async (id: string, data: any) => {
+    return updateCustomFieldDocumentMutation.mutateAsync({ id, data });
+  };
+
+  // Handle delete custom field document
+  const handleDeleteCustomFieldDocument = (field: CustomFieldDocument) => {
+    setCustomFieldDocumentToDelete(field);
+    setIsDeleteCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle confirm delete custom field document
+  const handleConfirmDeleteCustomFieldDocument = async () => {
+    if (!customFieldDocumentToDelete) return;
+
+    setIsDeletingCustomFieldDocument(true);
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      await Promise.all([
+        deleteCustomFieldDocumentMutation.mutateAsync(customFieldDocumentToDelete.id),
+        minDelay
+      ]);
+    } finally {
+      setIsDeletingCustomFieldDocument(false);
+    }
+  };
+
+  // Handle cancel delete custom field document
+  const handleCancelDeleteCustomFieldDocument = () => {
+    if (!isDeletingCustomFieldDocument) {
+      setIsDeleteCustomFieldDocumentDialogOpen(false);
+      setCustomFieldDocumentToDelete(null);
+    }
   };
 
   function openDeleteDialog(type: 'document' | 'execution') {
@@ -1394,7 +1743,7 @@ export function AssetContent({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}</p>
+                      <p>{isTocSidebarOpen ? "Hide sidebar" : "Show sidebar"}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -2640,20 +2989,53 @@ export function AssetContent({
           isOpen={isTocSidebarOpen}
           onToggle={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
           position="right"
-          toggleAriaLabel={isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}
+          toggleAriaLabel={isTocSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
           showToggleButton={!isMobile} // Only show internal button on mobile
           customToggleIcon={<List className="h-4 w-4" />}
           customToggleIconMobile={<List className="h-5 w-5" />}
           header={
-            <div className="p-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-gray-900">Table of Contents</h3>
+            <div className="flex flex-col pt-3">
+              <div className="px-2 pb-2">
+                <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
+                  <button 
+                    onClick={() => setActiveTab('toc')}
+                    className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
+                      activeTab === 'toc' 
+                        ? 'bg-white shadow-sm text-gray-900' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Content
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('custom-fields')}
+                    className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
+                      activeTab === 'custom-fields' 
+                        ? 'bg-white shadow-sm text-gray-900' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Custom Fields
+                  </button>
+                </div>
               </div>
             </div>
           }
         >
-          <div className="p-4">
-            <TableOfContents items={tocItems} />
+          <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-3">
+              {activeTab === 'toc' ? (
+                <TableOfContents items={tocItems} />
+              ) : (
+                <CustomFieldsList 
+                  customFields={customFieldsData?.data || []} 
+                  isLoading={isLoadingCustomFields}
+                  onAdd={handleAddCustomFieldDocument}
+                  onEdit={handleEditCustomFieldDocument}
+                  onDelete={handleDeleteCustomFieldDocument}
+                />
+              )}
+            </div>
           </div>
         </CollapsibleSidebar>
       )}
@@ -3077,6 +3459,65 @@ export function AssetContent({
           setIsCustomWordExportDialogOpen(open);
         }}
       />
+
+      {/* Add Custom Field Document Dialog */}
+      <AddCustomFieldDocumentDialog
+        isOpen={isAddCustomFieldDocumentDialogOpen}
+        onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
+        documentId={selectedFile.id}
+        onAdd={handleCreateCustomFieldDocument}
+      />
+
+      {/* Edit Custom Field Document Dialog */}
+      <EditCustomFieldDocumentDialog
+        isOpen={isEditCustomFieldDocumentDialogOpen}
+        onClose={() => {
+          setIsEditCustomFieldDocumentDialogOpen(false);
+          setSelectedCustomFieldDocument(null);
+        }}
+        customFieldDocument={selectedCustomFieldDocument}
+        onUpdate={handleUpdateCustomFieldDocument}
+      />
+
+      {/* Delete Custom Field Document Confirmation Dialog */}
+      <AlertDialog open={isDeleteCustomFieldDocumentDialogOpen} onOpenChange={(open) => {
+        if (!open && !isDeletingCustomFieldDocument) {
+          setIsDeleteCustomFieldDocumentDialogOpen(false);
+          setCustomFieldDocumentToDelete(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Custom Field Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the custom field "{customFieldDocumentToDelete?.name}"? 
+              This action cannot be undone and will remove this field data from the document.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDeleteCustomFieldDocument} className="hover:cursor-pointer" disabled={isDeletingCustomFieldDocument}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmDeleteCustomFieldDocument()
+              }}
+              className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
+              disabled={isDeletingCustomFieldDocument}
+            >
+              {isDeletingCustomFieldDocument ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
