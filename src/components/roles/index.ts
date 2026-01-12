@@ -1,7 +1,6 @@
 export { RolesLoadingState } from './roles-loading-state'
 export { RolesContentEmptyState } from './roles-content-empty-state'
 export { RolesAccessDenied } from './roles-access-denied'
-export { RolesHeader } from './roles-header'
 export { RolesSearch } from './roles-search'
 export { RolesTable } from './roles-table'
 export { DeleteRoleDialog } from './delete-role-dialog'
