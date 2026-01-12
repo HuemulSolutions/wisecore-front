@@ -20,21 +20,9 @@ import { Label } from "@/components/ui/label"
 import { createFolder } from "@/services/folders"
 import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
+import type { CreateFolderRequest, CreateFolderDialogProps } from "@/types/assets"
 
-interface CreateFolderRequest {
-  name: string;
-  organization_id: string;
-  parent_folder_id?: string;
-}
-
-interface CreateFolderProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  parentFolder?: string;
-  onFolderCreated?: () => void;
-}
-
-export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderCreated }: CreateFolderProps) {
+export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderCreated }: CreateFolderDialogProps) {
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
   const [name, setName] = useState("")

@@ -7,15 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { FileText, Edit3 } from 'lucide-react';
-
-interface EditDocumentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  documentId: string;
-  currentName: string;
-  currentDescription?: string;
-  onUpdated: (newName: string, newDescription?: string) => void;
-}
+import type { EditDocumentDialogProps } from "@/types/assets";
 
 const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({ open, onOpenChange, documentId, currentName, currentDescription, onUpdated }) => {
   const { selectedOrganizationId } = useOrganization();

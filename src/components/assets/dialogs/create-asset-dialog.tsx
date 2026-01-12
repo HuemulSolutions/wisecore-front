@@ -32,21 +32,7 @@ import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
 import { isRootAdmin } from "@/lib/jwt-utils"
 import { toast } from "sonner"
 import CreateDocumentType from "@/components/create_doc_type"
-
-interface CreateAssetRequest {
-  name: string;
-  description: string;
-  document_type_id: string;
-  template_id?: string;
-  folder_id?: string;
-}
-
-interface CreateAssetDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  folderId?: string;
-  onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
-}
+import type { CreateAssetRequest, CreateAssetDialogProps } from "@/types/assets"
 
 export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
   const { selectedOrganizationId } = useOrganization()

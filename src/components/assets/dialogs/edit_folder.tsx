@@ -19,15 +19,7 @@ import { Label } from "@/components/ui/label"
 import { editFolder } from "@/services/folders"
 import { toast } from "sonner"
 import { useOrganizationId } from "@/hooks/use-organization"
-
-interface EditFolderProps {
-  trigger?: React.ReactNode
-  folderId: string
-  currentName: string
-  onFolderEdited?: () => void
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+import type { EditFolderDialogProps } from "@/types/assets"
 
 export default function EditFolder({ 
   folderId, 
@@ -35,7 +27,7 @@ export default function EditFolder({
   onFolderEdited,
   open,
   onOpenChange
-}: EditFolderProps) {
+}: EditFolderDialogProps) {
   const [name, setName] = useState(currentName)
 
   // Reset name when currentName changes or dialog opens

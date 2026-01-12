@@ -10,13 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-
-interface DeleteDocumentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  documentName: string
-  onConfirm: () => Promise<void> | void
-}
+import type { DeleteDocumentDialogProps } from "@/types/assets"
 
 export function DeleteDocumentDialog({
   open,

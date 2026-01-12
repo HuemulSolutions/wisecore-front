@@ -68,43 +68,7 @@ import { CreateAssetDialog } from "../dialogs";
 import { CustomWordExportSheet } from "@/components/sheets/CustomWordExportSheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
-
-// API response interface
-interface LibraryItem {
-  id: string;
-  name: string;
-  type: "folder" | "document";
-  document_type?: {
-    id: string;
-    name: string;
-    color: string;
-  };
-  access_levels?: string[];
-}
-
-interface BreadcrumbItem {
-  id: string;
-  name: string;
-}
-
-// Interface for content sections
-interface ContentSection {
-  id: string;
-  content: string;
-}
-
-interface LibraryContentProps {
-  selectedFile: LibraryItem | null;
-  breadcrumb: BreadcrumbItem[];
-  selectedExecutionId: string | null;
-  setSelectedExecutionId: (id: string | null) => void;
-  setSelectedFile: (file: LibraryItem | null) => void;
-  onRefresh: () => void;
-  currentFolderId?: string;
-  onToggleSidebar?: () => void;
-  isSidebarOpen?: boolean;
-  onPreserveScroll?: () => void;
-}
+import type { ContentSection, LibraryContentProps } from '@/types/assets';
 
 // Function to extract headings from multiple content sections for table of contents
 function extractHeadingsFromSections(sections: ContentSection[]) {

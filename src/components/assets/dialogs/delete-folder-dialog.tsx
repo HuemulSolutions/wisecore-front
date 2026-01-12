@@ -10,13 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-
-interface DeleteFolderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  folderName: string
-  onConfirm: () => Promise<void> | void
-}
+import type { DeleteFolderDialogProps } from "@/types/assets"
 
 export function DeleteFolderDialog({
   open,
