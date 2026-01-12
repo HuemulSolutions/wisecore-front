@@ -1,6 +1,7 @@
-import { Card } from "@/components/ui/card"
+import { Edit2, Trash2 } from "lucide-react"
 import type { AuthType } from "@/services/auth-types"
-import { AuthTypeTableRow } from "./auth-type-table-row"
+import { DataTable } from "@/components/ui/data-table"
+import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
 
 interface AuthTypesTableProps {
   authTypes: AuthType[]
@@ -9,49 +10,97 @@ interface AuthTypesTableProps {
   onDelete: (authType: AuthType) => void
 }
 
+const getTypeDisplayName = (type: string) => {
+  switch (type) {
+    case "internal":
+      return "Internal"
+    case "entra":
+      return "Entra ID (SAML2)"
+    default:
+      return type
+  }
+}
+
 export function AuthTypesTable({ 
   authTypes, 
   filteredAuthTypes, 
   onEdit, 
   onDelete 
 }: AuthTypesTableProps) {
-  return (
-    <Card className="border border-border bg-card overflow-auto max-h-[70vh]">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="sticky top-0 bg-muted z-10">
-            <tr className="border-b border-border">
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Name</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Type</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Created</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">Updated</th>
-              <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAuthTypes.map((authType) => (
-              <AuthTypeTableRow
-                key={authType.id}
-                authType={authType}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+  // Define columns
+  const columns: TableColumn<AuthType>[] = [
+    {
+      key: "name",
+      label: "Name",
+      render: (authType) => (
+        <span className="text-xs font-medium text-foreground">{authType.name}</span>
+      )
+    },
+    {
+      key: "type",
+      label: "Type",
+      render: (authType) => (
+        <span className="text-xs text-foreground">{getTypeDisplayName(authType.type)}</span>
+      )
+    },
+    {
+      key: "created",
+      label: "Created",
+      render: (authType) => (
+        <span className="text-xs text-foreground">
+          {new Date(authType.created_at).toLocaleDateString()}
+        </span>
+      )
+    },
+    {
+      key: "updated",
+      label: "Updated",
+      render: (authType) => (
+        <span className="text-xs text-foreground">
+          {new Date(authType.updated_at).toLocaleDateString()}
+        </span>
+      )
+    }
+  ]
 
-      {/* Footer stats */}
-      {filteredAuthTypes.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4 py-2 sm:py-3 bg-muted/20 text-xs text-muted-foreground border-t gap-1 sm:gap-0">
-          <span className="text-xs">
-            Showing {filteredAuthTypes.length} of {authTypes.length} authentication types
-          </span>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <span className="text-xs">{authTypes.filter(a => a.type === 'internal').length} internal types</span>
-          </div>
-        </div>
-      )}
-    </Card>
+  // Define actions
+  const actions: TableAction<AuthType>[] = [
+    {
+      key: "edit",
+      label: "Edit Auth Type",
+      icon: Edit2,
+      onClick: onEdit,
+      separator: true
+    },
+    {
+      key: "delete",
+      label: "Delete Auth Type",
+      icon: Trash2,
+      onClick: onDelete,
+      destructive: true
+    }
+  ]
+
+  // Define footer stats
+  const footerStats: FooterStat[] = [
+    {
+      label: `Showing ${filteredAuthTypes.length} of ${authTypes.length} authentication types`,
+      value: ''
+    },
+    {
+      label: 'internal types',
+      value: authTypes.filter(a => a.type === 'internal').length
+    }
+  ]
+
+  return (
+    <DataTable
+      data={filteredAuthTypes}
+      columns={columns}
+      actions={actions}
+      getRowKey={(authType) => authType.id}
+      footerStats={footerStats}
+      maxHeight="max-h-[70vh]"
+    />
   )
 }

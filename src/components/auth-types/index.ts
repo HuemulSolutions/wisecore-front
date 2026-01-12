@@ -1,7 +1,5 @@
-export { AuthTypesHeader } from './auth-types-header'
 export { AuthTypesSearch } from './auth-types-search'
 export { AuthTypesTable } from './auth-types-table'
-export { AuthTypeTableRow } from './auth-type-table-row'
 export { AuthTypesEmptyState } from './auth-types-empty-state'
 export { AuthTypesLoadingState } from './auth-types-loading-state'
 export { AuthTypesErrorState } from './auth-types-error-state'
