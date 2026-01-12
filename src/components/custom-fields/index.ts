@@ -11,7 +11,6 @@ export interface CustomFieldPageState {
 
 // Re-export components
 export { CustomFieldPageHeader } from "./custom-field-page-header";
-export { CustomFieldFilters } from "./custom-field-filters";
 export { CustomFieldTable } from "./custom-field-table";
 export { CustomFieldPageSkeleton } from "./custom-field-page-skeleton";
 export { CustomFieldPageEmptyState } from "./custom-field-page-empty-state";
