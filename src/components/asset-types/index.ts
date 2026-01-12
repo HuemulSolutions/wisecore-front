@@ -1,7 +1,6 @@
 // Re-export all asset-type-related components for easier imports
 export { default as AssetTypeTable } from './asset-type-table'
 export { default as AssetTypePageHeader } from './asset-type-page-header'
-export { default as AssetTypeFilters } from './asset-type-filters'
 export { default as AssetTypePageSkeleton } from './asset-type-page-skeleton'
 export { default as AssetTypePageEmptyState } from './asset-type-page-empty-state'
 export { default as AssetTypePageDialogs } from './asset-type-page-dialogs'
