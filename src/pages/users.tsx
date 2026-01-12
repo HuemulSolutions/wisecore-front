@@ -13,7 +13,6 @@ import {
   UserTable,
   UserBulkActions,
   UserPageHeader,
-  UserFilters,
   UserPageSkeleton,
   UserPageEmptyState,
   UserPageDialogs,
@@ -33,6 +32,8 @@ export default function UsersPage() {
     deletingUser: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Get permissions and organization context
   const { canAccessUsers } = useUserPermissions()
@@ -42,7 +43,9 @@ export default function UsersPage() {
   // Fetch users and mutations
   const { data: usersResponse, isLoading, error, refetch } = useUsers(
     !!selectedOrganizationId && !!organizationToken,
-    selectedOrganizationId || undefined
+    selectedOrganizationId || undefined,
+    page,
+    pageSize
   ) as {
     data: UsersResponse | undefined,
     isLoading: boolean,
@@ -150,10 +153,6 @@ export default function UsersPage() {
           onRefresh={handleRefresh}
           isLoading={isLoading || isRefreshing}
           hasError={!!error}
-        />
-
-        {/* Filters */}
-        <UserFilters
           searchTerm={state.searchTerm}
           onSearchChange={(value) => updateState({ searchTerm: value })}
           filterStatus={state.filterStatus}
@@ -191,6 +190,18 @@ export default function UsersPage() {
             onAssignRoles={handleAssignRoles}
             onDeleteUser={handleDeleteUser}
             userMutations={userMutations}
+            showFooterStats={false}
+            pagination={{
+              page: page,
+              pageSize: pageSize,
+              totalItems: usersResponse?.total || filteredUsers.length,
+              onPageChange: (newPage) => setPage(newPage),
+              onPageSizeChange: (newPageSize) => {
+                setPageSize(newPageSize)
+                setPage(1)
+              },
+              pageSizeOptions: [10, 25, 50, 100]
+            }}
           />
         )}
 

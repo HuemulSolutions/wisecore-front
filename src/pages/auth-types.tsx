@@ -7,7 +7,6 @@ import { DeleteAuthTypeDialog } from "@/components/auth-types/delete-auth-type-d
 import { toast } from "sonner"
 import type { AuthType } from "@/services/auth-types"
 
-import { AuthTypesHeader } from "@/components/auth-types/auth-types-header"
 import { AuthTypesSearch } from "@/components/auth-types/auth-types-search"
 import { AuthTypesTable } from "@/components/auth-types/auth-types-table"
 import { AuthTypesEmptyState } from "@/components/auth-types/auth-types-empty-state"
@@ -62,17 +61,14 @@ export default function AuthTypes() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="mx-auto">
-        <AuthTypesHeader
+        <AuthTypesSearch
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
           authTypesCount={error ? 0 : authTypes.length}
           isLoading={isLoading || isRefreshing}
           onRefresh={handleRefresh}
           onCreateClick={() => setIsCreateDialogOpen(true)}
           hasError={!!error}
-        />
-
-        <AuthTypesSearch
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
         />
 
         {error ? (

@@ -1,6 +1,6 @@
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";
@@ -85,25 +85,17 @@ export default function SearchPage() {
     <div className="bg-background p-6 md:p-8">
       <div className="mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground">Search</h1>
-          </div>
-        </div>
-
-        {/* Search Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6 md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Enter your search query..."
-              value={query}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="pl-8 h-8 text-xs"
-            />
-          </div>
+        <PageHeader
+          icon={Search}
+          title="Search"
+          showRefresh={false}
+          searchConfig={{
+            placeholder: "Enter your search query...",
+            value: query,
+            onChange: setQuery,
+            onKeyDown: handleKeyDown
+          }}
+        >
           <div className="flex gap-2">
             <Select value={mode} onValueChange={setMode}>
               <SelectTrigger className="w-full md:w-32 h-8 hover:cursor-pointer text-xs">
@@ -116,7 +108,7 @@ export default function SearchPage() {
             </Select>
             <Button 
               onClick={handleSearch} 
-              className="hover:cursor-pointer h-9 text-xs px-3" 
+              className="hover:cursor-pointer h-8 text-xs px-3" 
               disabled={!query.trim() || isLoading}
             >
               {isLoading ? (
@@ -138,7 +130,7 @@ export default function SearchPage() {
               </Button>
             )}
           </div>
-        </div>
+        </PageHeader>
 
         {/* Search Results */}
         {searchQuery && (

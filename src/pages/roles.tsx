@@ -17,7 +17,6 @@ import {
   RolesLoadingState, 
   RolesContentEmptyState, 
   RolesAccessDenied, 
-  RolesHeader, 
   RolesSearch, 
   RolesTable,
   DeleteRoleDialog
@@ -41,12 +40,14 @@ export default function Roles() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Permissions check
   const { canAccessRoles } = useUserPermissions()
 
   // Data fetching
-  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles()
+  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(true, page, pageSize)
   const { deleteRole } = useRoleMutations()
   // Users data - we'll use refetch to load on demand, so disable automatic fetching
   const { data: usersResponse, refetch: refetchUsers } = useUsers(false)
@@ -141,17 +142,13 @@ export default function Roles() {
   return (
     <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
       <div className="mx-auto">
-        <RolesHeader
-          isRefreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          onCreateRole={openDialog.create}
-          hasError={!!error}
-        />
-
         <RolesSearch
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           rolesCount={filteredRoles.length}
+          isRefreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          onCreateRole={openDialog.create}
           hasError={!!error}
         />
 
@@ -169,6 +166,18 @@ export default function Roles() {
             onAssignToUsers={openDialog.assignToUsers}
             onEditRole={openDialog.edit}
             onDeleteRole={openDialog.delete}
+            showFooterStats={false}
+            pagination={{
+              page: page,
+              pageSize: pageSize,
+              totalItems: rolesResponse?.total || roles.length,
+              onPageChange: (newPage) => setPage(newPage),
+              onPageSizeChange: (newPageSize) => {
+                setPageSize(newPageSize)
+                setPage(1)
+              },
+              pageSizeOptions: [10, 25, 50, 100]
+            }}
           />
         )}
 

@@ -11,7 +11,6 @@ import { toast } from "sonner"
 import {
   AssetTypeTable,
   AssetTypePageHeader,
-  AssetTypeFilters,
   AssetTypePageSkeleton,
   AssetTypePageEmptyState,
   AssetTypePageDialogs,
@@ -29,13 +28,15 @@ export default function AssetTypesPage() {
     rolePermissionsAssetType: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Get auth context
   const { user: currentUser } = useAuth()
   const queryClient = useQueryClient()
   
   // Fetch asset types and mutations
-  const { data: assetTypesResponse, isLoading, error } = useAssetTypesWithRoles()
+  const { data: assetTypesResponse, isLoading, error } = useAssetTypesWithRoles(page, pageSize)
   const assetTypeMutations = useAssetTypeMutations()
 
   // Access check
@@ -120,10 +121,6 @@ export default function AssetTypesPage() {
           onRefresh={handleRefresh}
           isLoading={isLoading || isRefreshing}
           hasError={!!error}
-        />
-
-        {/* Filters */}
-        <AssetTypeFilters
           searchTerm={state.searchTerm}
           onSearchChange={(value) => updateState({ searchTerm: value })}
         />
@@ -150,6 +147,18 @@ export default function AssetTypesPage() {
             onManagePermissions={handleManagePermissions}
             onDeleteAssetType={handleDeleteAssetType}
             assetTypeMutations={assetTypeMutations}
+            showFooterStats={false}
+            pagination={{
+              page: page,
+              pageSize: pageSize,
+              totalItems: assetTypesResponse?.total || assetTypes.length,
+              onPageChange: (newPage: number) => setPage(newPage),
+              onPageSizeChange: (newPageSize: number) => {
+                setPageSize(newPageSize)
+                setPage(1)
+              },
+              pageSizeOptions: [10, 25, 50, 100]
+            }}
           />
         )}
 
