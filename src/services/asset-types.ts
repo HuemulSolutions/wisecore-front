@@ -35,6 +35,7 @@ export interface AssetTypeWithRoles {
 
 export interface AssetTypesWithRolesResponse {
   data: AssetTypeWithRoles[];
+  total?: number;
   transaction_id: string;
   timestamp: string;
 }
@@ -80,8 +81,13 @@ export const getAssetTypes = async (): Promise<AssetTypesResponse> => {
 };
 
 // Get all asset types with roles
-export const getAssetTypesWithRoles = async (): Promise<AssetTypesWithRolesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles`, {
+export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number = 10): Promise<AssetTypesWithRolesResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+
+  const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles?${params.toString()}`, {
     headers: getHeaders(),
   });
   
