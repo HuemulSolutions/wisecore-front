@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileTree, type FileNode, type FileTreeRef } from "@/components/assets/content/assets-file-tree";
+import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree";
+import type { FileNode } from "@/types/assets";
 import { 
   AlertDialog,
   AlertDialogAction,

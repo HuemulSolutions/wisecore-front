@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-
-interface TocItem {
-    id: string;
-    title: string;
-    level: number;
-}
-
-interface TableOfContentsProps {
-    items: TocItem[];
-}
+import type { TableOfContentsProps } from "@/types/table-of-contents";
 
 export function TableOfContents({ items }: TableOfContentsProps) {
     const [activeId, setActiveId] = useState<string | null>(null);

@@ -3,16 +3,9 @@ import { useSortable } from "@dnd-kit/sortable";
 import Section from "./section";
 import { GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { SortableSectionItem } from "@/types/sections";
 
-type Dependency = { id: string; name: string };
-
-export interface SortableSectionItem {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: Dependency[];
-}
+export type { SortableSectionItem } from "@/types/sections";
 
 interface SortableSectionProps {
   item: SortableSectionItem;

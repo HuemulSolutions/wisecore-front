@@ -17,7 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { FileTree, type FileNode, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
+import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
+import type { FileNode } from "@/types/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
 import { moveDocument, deleteDocument } from "@/services/documents"

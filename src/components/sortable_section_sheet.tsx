@@ -29,16 +29,9 @@ import {
   Loader2
 } from "lucide-react";
 import { EditSectionDialog } from "./edit-section-dialog";
+import type { SortableSectionSheetItem } from "@/types/sections";
 
-type Dependency = { id: string; name: string };
-
-export interface SortableSectionSheetItem {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: Dependency[];
-}
+export type { SortableSectionSheetItem } from "@/types/sections";
 
 interface SortableSectionSheetProps {
   item: SortableSectionSheetItem;
