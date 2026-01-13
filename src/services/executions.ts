@@ -108,9 +108,9 @@ export async function executeDocument({
         requestBody.start_section_id = startSectionId;
     }
     
-    // Only include single_section_mode when startSectionId is provided
-    if (startSectionId !== undefined) {
-        requestBody.single_section_mode = singleSectionMode ?? false;
+    // Include single_section_mode when explicitly provided
+    if (singleSectionMode !== undefined) {
+        requestBody.single_section_mode = singleSectionMode;
     }
     
     const response = await httpClient.post(`${backendUrl}/execution/generate`, requestBody, {
@@ -164,9 +164,9 @@ export async function updateLLM(executionId: string, llmId: string, organization
 
 async function exportExecutionFile(executionId: string, exportType: 'markdown' | 'word' | 'custom_word', organizationId: string) {
     const endpoints = {
-        markdown: 'export_markdown',
-        word: 'export_word',
-        custom_word: 'export_custom_word'
+        markdown: `execution/${executionId}/export_markdown`,
+        word: `execution/${executionId}/export_word`,
+        custom_word: `execution/${executionId}/export_custom_word`
     };
     
     const extensions = {
@@ -176,7 +176,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     };
     
     console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
-    const response = await httpClient.get(`${backendUrl}/execution/${endpoints[exportType]}/${executionId}`, {
+    const response = await httpClient.get(`${backendUrl}/${endpoints[exportType]}`, {
         headers: {
             'X-Org-Id': organizationId,
         },

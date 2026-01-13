@@ -55,6 +55,7 @@ interface SectionExecutionProps {
     onExecutionStart?: (executionId?: string) => void;
     executionStatus?: string;
     accessLevels?: string[];
+    onOpenExecuteSheet?: () => void;
 }
 
 export default function SectionExecution({ 
@@ -66,7 +67,8 @@ export default function SectionExecution({
     executionId, 
     onExecutionStart, 
     executionStatus,
-    accessLevels
+    accessLevels,
+    onOpenExecuteSheet
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -86,33 +88,42 @@ export default function SectionExecution({
     // Solucion temporal: usar el ID de la sección como fallback si section_id no existe
     const sectionIdForExecution = sectionExecution.section_id || sectionExecution.id;
     
-    // Refs and state for maintaining scroll position
+    // Refs and state for maintaining scroll position - Updated for ScrollArea
     const containerRef = useRef<HTMLDivElement>(null);
     const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0);
 
-    // Removed debug logging for performance optimization
+    // Helper function to find the ScrollArea viewport
+    const getScrollAreaViewport = () => {
+        // Find the closest ScrollArea viewport (it should have the scroll functionality)
+        const viewport = containerRef.current?.closest('[data-radix-scroll-area-viewport]') as HTMLDivElement;
+        return viewport;
+    };
 
-    // Handle entering edit mode with scroll position preservation
+    // Handle entering edit mode with scroll position preservation - Updated for ScrollArea
     const handleStartEditing = () => {
-        // Save current scroll position relative to the container
-        if (containerRef.current) {
+        // Save current scroll position relative to the ScrollArea viewport
+        const viewport = getScrollAreaViewport();
+        if (viewport && containerRef.current) {
             const containerRect = containerRef.current.getBoundingClientRect();
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const relativePosition = scrollTop - containerRect.top + window.innerHeight / 2; // Center of viewport relative to container
+            const viewportRect = viewport.getBoundingClientRect();
+            const scrollTop = viewport.scrollTop;
+            const relativePosition = scrollTop + (containerRect.top - viewportRect.top) + viewport.clientHeight / 2;
             setSavedScrollPosition(Math.max(0, relativePosition));
         }
         setIsEditing(true);
     };
 
-    // Handle exiting edit mode
+    // Handle exiting edit mode - Updated for ScrollArea
     const handleCancelEdit = () => {
         setIsEditing(false);
         // Restore scroll position after a brief delay to allow DOM to update
         setTimeout(() => {
-            if (containerRef.current && savedScrollPosition > 0) {
+            const viewport = getScrollAreaViewport();
+            if (viewport && containerRef.current && savedScrollPosition > 0) {
                 const containerRect = containerRef.current.getBoundingClientRect();
-                const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
-                window.scrollTo({
+                const viewportRect = viewport.getBoundingClientRect();
+                const targetScrollTop = savedScrollPosition - (containerRect.top - viewportRect.top) - viewport.clientHeight / 2;
+                viewport.scrollTo({
                     top: Math.max(0, targetScrollTop),
                     behavior: 'smooth'
                 });
@@ -128,12 +139,14 @@ export default function SectionExecution({
             setAiPreview(null);
             onUpdate?.();
             
-            // Restore scroll position after save
+            // Restore scroll position after save - Updated for ScrollArea
             setTimeout(() => {
-                if (containerRef.current && savedScrollPosition > 0) {
+                const viewport = getScrollAreaViewport();
+                if (viewport && containerRef.current && savedScrollPosition > 0) {
                     const containerRect = containerRef.current.getBoundingClientRect();
-                    const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
-                    window.scrollTo({
+                    const viewportRect = viewport.getBoundingClientRect();
+                    const targetScrollTop = savedScrollPosition - (containerRect.top - viewportRect.top) - viewport.clientHeight / 2;
+                    viewport.scrollTo({
                         top: Math.max(0, targetScrollTop),
                         behavior: 'smooth'
                     });
@@ -146,14 +159,16 @@ export default function SectionExecution({
         }
     };
 
-    // Effect to restore scroll position when entering edit mode
+    // Effect to restore scroll position when entering edit mode - Updated for ScrollArea
     useEffect(() => {
         if (isEditing && savedScrollPosition > 0 && containerRef.current) {
             setTimeout(() => {
-                if (containerRef.current) {
+                const viewport = getScrollAreaViewport();
+                if (viewport && containerRef.current) {
                     const containerRect = containerRef.current.getBoundingClientRect();
-                    const targetScrollTop = containerRect.top + window.pageYOffset + savedScrollPosition - window.innerHeight / 2;
-                    window.scrollTo({
+                    const viewportRect = viewport.getBoundingClientRect();
+                    const targetScrollTop = savedScrollPosition - (containerRect.top - viewportRect.top) - viewport.clientHeight / 2;
+                    viewport.scrollTo({
                         top: Math.max(0, targetScrollTop),
                         behavior: 'smooth'
                     });
@@ -293,82 +308,22 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <DocumentActionButton
-                                            accessLevels={accessLevels}
-                                            requiredAccess="read"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                            onClick={handleCopy}
-                                        >
-                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                        </DocumentActionButton>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Copy content</p>
-                                    </TooltipContent>
-                                </Tooltip>
-
-                                {/* {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
-                                    <>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <DocumentActionButton
-                                                    accessLevels={accessLevels}
-                                                    requiredAccess="approve"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-green-50 hover:cursor-pointer"
-                                                    onClick={() => handleOpenExecutionConfig('single')}
-                                                    disabled={isExecuting}
-                                                >
-                                                    <Play className="h-3.5 w-3.5 text-green-600" />
-                                                </DocumentActionButton>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Execute this section</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <DocumentActionButton
-                                                    accessLevels={accessLevels}
-                                                    requiredAccess="approve"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 hover:bg-purple-50 hover:cursor-pointer"
-                                                    onClick={() => handleOpenExecutionConfig('from')}
-                                                    disabled={isExecuting}
-                                                >
-                                                    <FastForward className="h-3.5 w-3.5 text-purple-600" />
-                                                </DocumentActionButton>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Execute from this section</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </>
-                                )} */}
-
-                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="edit"
+                                                requiredAccess="approve"
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                                onClick={handleStartEditing}
+                                                className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
+                                                onClick={onOpenExecuteSheet}
                                             >
-                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
+                                                <Play className="h-3.5 w-3.5 text-blue-600" />
                                             </DocumentActionButton>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Edit section</p>
+                                            <p>Open Execute Sheet</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
@@ -392,6 +347,44 @@ export default function SectionExecution({
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
+
+                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DocumentActionButton
+                                                accessLevels={accessLevels}
+                                                requiredAccess="edit"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                                onClick={handleStartEditing}
+                                            >
+                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
+                                            </DocumentActionButton>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Edit section</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DocumentActionButton
+                                            accessLevels={accessLevels}
+                                            requiredAccess="read"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
+                                            onClick={handleCopy}
+                                        >
+                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
+                                        </DocumentActionButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Copy content</p>
+                                    </TooltipContent>
+                                </Tooltip>
 
                                 {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
                                     <Tooltip>
@@ -514,6 +507,22 @@ export default function SectionExecution({
                                             >
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Delete
+                                            </DropdownMenuItem>
+                                        </DocumentAccessControl>
+                                    )}
+                                    {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                        <DocumentAccessControl
+                                            accessLevels={accessLevels}
+                                            requiredAccess="approve"
+                                        >
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onSelect={() => {
+                                                    setTimeout(() => onOpenExecuteSheet(), 0);
+                                                }}
+                                            >
+                                                <Play className="h-4 w-4 mr-2 text-blue-600" />
+                                                Open Execute Sheet
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}

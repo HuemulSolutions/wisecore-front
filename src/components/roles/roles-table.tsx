@@ -59,7 +59,7 @@ export function RolesTable({
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-0.5">
-                      <Badge className="text-[10px] px-1.5 py-0 h-5">
+                      <Badge className="text-[10px] px-1.5 py-0 h-5" variant="outline">
                         {permissionCount}
                       </Badge>
                       {visiblePermissions.map((permission) => (

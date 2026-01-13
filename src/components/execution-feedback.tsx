@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 interface ExecutionFeedbackProps {
   executionId: string | null;
-  executionMode: 'full' | 'single' | 'from';
+  executionMode: 'full' | 'single' | 'from' | 'full-single';
   onComplete?: () => void;
   className?: string;
 }
@@ -49,23 +49,46 @@ export function ExecutionFeedback({
 
     const status = execution.status;
 
-    if (status === 'completed') {
-      console.log('✅ Execution completed!');
+    // Terminal states that should stop polling
+    const terminalStates = ['completed', 'failed', 'cancelled'];
+    
+    if (terminalStates.includes(status)) {
+      console.log(`🛑 Execution finished with status: ${status}`);
       setPollingInterval(false);
-      toast.success('Content generation completed!');
-      onComplete?.();
-    } else if (status === 'failed') {
-      console.log('❌ Execution failed!');
-      setPollingInterval(false);
-      toast.error('Content generation failed');
-      onComplete?.();
+      
+      // Show appropriate toast and call completion callback
+      if (status === 'completed') {
+        console.log('✅ Execution completed!');
+        toast.success('Content generation completed!');
+        onComplete?.();
+      } else if (status === 'failed') {
+        console.log('❌ Execution failed!');
+        toast.error('Content generation failed');
+        onComplete?.();
+      } else if (status === 'cancelled') {
+        console.log('🚫 Execution cancelled!');
+        toast.info('Content generation was cancelled');
+        onComplete?.();
+      }
+    } else if (status === 'running' || status === 'pending') {
+      // Ensure polling is active for active states
+      if (pollingInterval === false) {
+        console.log('🔄 Restarting polling for active execution');
+        setPollingInterval(2000);
+      }
     }
-  }, [execution?.status, onComplete]);
+  }, [execution?.status, onComplete, pollingInterval]);
 
   const handleRefresh = () => {
     console.log('🔄 Manual refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
+    
+    // Restart polling if it was stopped
+    if (pollingInterval === false) {
+      console.log('🔄 Restarting polling after manual refresh');
+      setPollingInterval(2000);
+    }
   };
 
   // Show different UI for full mode (overlay)
@@ -141,6 +164,41 @@ export function ExecutionFeedback({
                 </p>
               </>
             )}
+            {execution.status === 'cancelled' && (
+              <>
+                <div className="w-16 h-16 mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                  <XCircle className="h-8 w-8 text-gray-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Generation Cancelled
+                </h3>
+                <p className="text-sm text-gray-600">
+                  The content generation was cancelled.
+                </p>
+              </>
+            )}
+            {execution.status === 'paused' && (
+              <>
+                <div className="w-16 h-16 mb-4 bg-amber-100 rounded-full flex items-center justify-center">
+                  <Clock className="h-8 w-8 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Generation Paused
+                </h3>
+                <p className="text-sm text-gray-600">
+                  The generation has been temporarily paused.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  className="hover:cursor-pointer mt-4"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Check Status
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -162,7 +220,8 @@ interface SectionRegenerationFeedbackProps {
 export function SectionRegenerationFeedback({
   sectionIndex,
   executionId,
-  executionMode}: SectionRegenerationFeedbackProps) {
+  executionMode,
+  totalSections}: SectionRegenerationFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
@@ -180,16 +239,30 @@ export function SectionRegenerationFeedback({
   });
 
   useEffect(() => {
-    if (execution?.status === 'completed' || execution?.status === 'failed') {
+    const terminalStates = ['completed', 'failed', 'cancelled'];
+    if (execution?.status && terminalStates.includes(execution.status)) {
       console.log('🛑 Section execution stopped polling:', execution.status);
       setPollingInterval(false);
+    } else if (execution?.status === 'running' || execution?.status === 'pending') {
+      // Ensure polling is active for active states
+      if (pollingInterval === false) {
+        console.log('🔄 Restarting section polling for active execution');
+        setPollingInterval(2000);
+      }
     }
-  }, [execution?.status]);
+  }, [execution?.status, pollingInterval]);
 
   const handleRefresh = () => {
     console.log('🔄 Manual section refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
+    queryClient.invalidateQueries({ queryKey: ['document-content'] });
+    
+    // Restart polling if it was stopped
+    if (pollingInterval === false) {
+      console.log('🔄 Restarting section polling after manual refresh');
+      setPollingInterval(2000);
+    }
   };
 
   if (!execution || execution.status === 'completed') {
@@ -206,8 +279,8 @@ export function SectionRegenerationFeedback({
         <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-3" />
         <p className="text-sm font-medium text-gray-900">
           {executionMode === 'single' 
-            ? 'Regenerating this section...'
-            : `Regenerating from section ${sectionIndex + 1}...`
+            ? `Regenerating section ${sectionIndex + 1}${totalSections ? ` of ${totalSections}` : ''}...`
+            : `Regenerating from section ${sectionIndex + 1}${totalSections ? ` of ${totalSections}` : ''}...`
           }
         </p>
         <p className="text-xs text-gray-600 mt-1 mb-3">
@@ -259,11 +332,18 @@ export function OtherVersionExecutionBanner({
   });
 
   useEffect(() => {
-    if (execution?.status === 'completed' || execution?.status === 'failed') {
+    const terminalStates = ['completed', 'failed', 'cancelled'];
+    if (execution?.status && terminalStates.includes(execution.status)) {
       console.log('🛑 Other version execution stopped polling:', execution.status);
       setPollingInterval(false);
+    } else if (execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused') {
+      // Ensure polling is active for active states (including paused to check for resume)
+      if (pollingInterval === false && !isDismissed) {
+        console.log('🔄 Restarting other version polling for active execution');
+        setPollingInterval(2000);
+      }
     }
-  }, [execution?.status]);
+  }, [execution?.status, pollingInterval, isDismissed]);
 
   const handleDismiss = () => {
     setIsDismissed(true);
@@ -274,6 +354,12 @@ export function OtherVersionExecutionBanner({
     console.log('🔄 Manual other version refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
+    
+    // Restart polling if it was stopped and not dismissed
+    if (pollingInterval === false && !isDismissed) {
+      console.log('🔄 Restarting other version polling after manual refresh');
+      setPollingInterval(2000);
+    }
   };
 
   if (isDismissed || !execution) {
@@ -314,6 +400,22 @@ export function OtherVersionExecutionBanner({
           borderColor: 'border-red-200',
           textColor: 'text-red-800'
         };
+      case 'cancelled':
+        return {
+          icon: <XCircle className="h-5 w-5 text-gray-600" />,
+          text: 'cancelled',
+          bgColor: 'bg-gray-50',
+          borderColor: 'border-gray-200',
+          textColor: 'text-gray-800'
+        };
+      case 'paused':
+        return {
+          icon: <Clock className="h-5 w-5 text-amber-600" />,
+          text: 'paused',
+          bgColor: 'bg-amber-50',
+          borderColor: 'border-amber-200',
+          textColor: 'text-amber-800'
+        };
       default:
         return {
           icon: <Clock className="h-5 w-5 text-gray-600" />,
@@ -347,6 +449,8 @@ export function OtherVersionExecutionBanner({
               {execution.status === 'pending' && 'Waiting in queue to start generation...'}
               {execution.status === 'completed' && 'Generation completed successfully!'}
               {execution.status === 'failed' && 'Generation encountered an error.'}
+              {execution.status === 'cancelled' && 'Generation was cancelled.'}
+              {execution.status === 'paused' && 'Generation is paused.'}
             </p>
           </div>
         </div>
@@ -413,7 +517,8 @@ export function CurrentVersionExecutionBanner({
   });
 
   useEffect(() => {
-    if (execution?.status === 'completed' || execution?.status === 'failed') {
+    const terminalStates = ['completed', 'failed', 'cancelled'];
+    if (execution?.status && terminalStates.includes(execution.status)) {
       console.log('🛑 Current version execution stopped polling:', execution.status);
       setPollingInterval(false);
       
@@ -421,15 +526,31 @@ export function CurrentVersionExecutionBanner({
       if (execution?.status === 'completed') {
         console.log('✅ Current version completed, triggering refresh...');
         onComplete?.();
+      } else if (execution?.status === 'failed' || execution?.status === 'cancelled') {
+        console.log(`❌ Current version ${execution.status}, triggering cleanup...`);
+        onComplete?.();
+      }
+    } else if (execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused') {
+      // Ensure polling is active for active states (including paused to check for resume)
+      if (pollingInterval === false) {
+        console.log('🔄 Restarting current version polling for active execution');
+        setPollingInterval(2000);
       }
     }
-  }, [execution?.status, onComplete]);
+  }, [execution?.status, onComplete, pollingInterval]);
 
   const handleRefresh = () => {
     console.log('🔄 Manual current version refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
     queryClient.invalidateQueries({ queryKey: ['document-content'] });
+    queryClient.invalidateQueries({ queryKey: ['executions'] });
+    
+    // Restart polling if it was stopped
+    if (pollingInterval === false) {
+      console.log('🔄 Restarting current version polling after manual refresh');
+      setPollingInterval(2000);
+    }
   };
 
   if (!execution) {
@@ -473,6 +594,24 @@ export function CurrentVersionExecutionBanner({
           borderColor: 'border-red-200',
           textColor: 'text-red-800',
           description: 'There was an error generating the content.'
+        };
+      case 'cancelled':
+        return {
+          icon: <XCircle className="h-5 w-5 text-gray-600" />,
+          text: 'Generation cancelled',
+          bgColor: 'bg-gray-50',
+          borderColor: 'border-gray-200',
+          textColor: 'text-gray-800',
+          description: 'The content generation was cancelled.'
+        };
+      case 'paused':
+        return {
+          icon: <Clock className="h-5 w-5 text-amber-600" />,
+          text: 'Generation paused',
+          bgColor: 'bg-amber-50',
+          borderColor: 'border-amber-200',
+          textColor: 'text-amber-800',
+          description: 'The content generation has been paused temporarily.'
         };
       default:
         return {

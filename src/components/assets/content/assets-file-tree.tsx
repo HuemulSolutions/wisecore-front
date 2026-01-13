@@ -491,7 +491,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       await refresh()
     }
 
-    const renderNode = (node: FileNode, level = 0) => {
+    const renderNode = (node: FileNode, level = 0, isLastChild = false) => {
       const isFolder = node.type === "folder"
       const isExpanded = node.isExpanded
       const isCreating = creatingNode?.parentId === node.id
@@ -505,16 +505,30 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
         menuActions.some((action) => (action.show ? action.show(node) : true))
 
       return (
-        <div key={node.id}>
+        <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
+          {level > 0 && (
+            <div 
+              className="absolute left-0 top-0 bottom-0 w-px bg-border"
+              style={{ 
+                left: `${level * 12 - 14}px`,
+                height: isLastChild ? '1.25rem' : '100%'
+              }}
+            />
+          )}
+          {level > 0 && (
+            <div 
+              className="absolute top-5 w-3 h-px bg-border"
+              style={{ left: `${level * 12 - 14}px` }}
+            />
+          )}
           <div
             className={cn(
-              "group flex items-center gap-1 py-1 px-2 rounded-md transition-colors",
+              "group flex items-center gap-1 py-1 px-2 rounded-md transition-colors relative",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent cursor-pointer",
-              level > 0 && "",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
             )}
-            style={{ paddingLeft: `${level * 16 + 8}px` }}
+            style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
             onDragOver={(e) =>
@@ -640,9 +654,17 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
           {isCreating && (
             <div
-              className="flex items-center gap-2 py-1 px-2 ml-4"
-              style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}
+              className="flex items-center gap-2 py-1 px-2 ml-4 relative"
+              style={{ paddingLeft: `${(level + 1) * 12 + 6}px` }}
             >
+              <div 
+                className="absolute left-0 top-0 bottom-0 w-px bg-border"
+                style={{ left: `${(level + 1) * 12 - 14}px` }}
+              />
+              <div 
+                className="absolute top-5 w-3 h-px bg-border"
+                style={{ left: `${(level + 1) * 12 - 14}px` }}
+              />
               {creatingNode.type === "folder" ? (
                 <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
               ) : (
@@ -663,7 +685,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
             </div>
           )}
 
-          {isExpanded && node.children && node.children.map((child) => renderNode(child, level + 1))}
+          {isExpanded && node.children && node.children.map((child, index) => 
+            renderNode(child, level + 1, index === node.children!.length - 1)
+          )}
         </div>
       )
     }
@@ -714,7 +738,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           )}
 
           {creatingNode?.parentId === null && (
-            <div className="flex items-center gap-2 py-1 px-2 mb-2">
+            <div className="flex items-center gap-2 py-1 px-2 mb-2 relative">
               {creatingNode.type === "folder" ? (
                 <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
               ) : (
@@ -739,7 +763,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
             {nodes.length === 0 && !isLoading && (
               <p className="text-sm text-muted-foreground text-center py-8">No hay archivos ni carpetas</p>
             )}
-            {nodes.map((node) => renderNode(node))}
+            {nodes.map((node, index) => renderNode(node, 0, index === nodes.length - 1))}
           </div>
         </div>
 

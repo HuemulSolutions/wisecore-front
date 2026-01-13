@@ -5,11 +5,19 @@ export async function uploadDocxTemplate(documentId: string, file: File, organiz
   const formData = new FormData();
   formData.append('file', file);
 
+  console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
+  console.log('FormData entries:');
+  for (const [key, value] of formData.entries()) {
+    console.log(key, value);
+  }
+
+  // Don't set Content-Type header for FormData - let the browser set it with proper boundary
   const response = await httpClient.fetch(`${backendUrl}/docx_template/${documentId}`, {
     method: 'POST',
     body: formData,
     headers: {
       'X-Org-Id': organizationId,
+      // Explicitly remove Content-Type to let browser handle FormData boundary
     },
   });
 

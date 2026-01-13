@@ -16,7 +16,7 @@ export async function getContext(documentId: string, organizationId: string) {
 }
 
 export async function addTextContext(documentId: string, name: string, content: string, organizationId: string) {
-  const response = await httpClient.post(`${backendUrl}/context/${documentId}/text`, 
+  const response = await httpClient.post(`${backendUrl}/context/${documentId}/add_text`, 
     {
       name,
       content,
@@ -41,7 +41,7 @@ export async function addDocumentContext(documentId: string, file: File, organiz
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await httpClient.fetch(`${backendUrl}/context/${documentId}/file`, {
+  const response = await httpClient.fetch(`${backendUrl}/context/${documentId}/add_file`, {
     method: 'POST',
     body: formData,
     headers: {

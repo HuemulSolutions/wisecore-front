@@ -95,8 +95,8 @@ export const httpClient = {
       console.log(`[httpClient] Using organization ID:`, organizationId);
     }
 
-    // Ensure Content-Type is set for requests with body
-    if (options.body && !headers.has('Content-Type')) {
+    // Ensure Content-Type is set for requests with body (except FormData)
+    if (options.body && !headers.has('Content-Type') && !(options.body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
 

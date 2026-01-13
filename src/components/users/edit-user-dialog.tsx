@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { updateUser, getUserById, type User, type UpdateUserData } from "@/services/users"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2, UserPen } from "lucide-react"
 
 interface EditUserDialogProps {
   user: User | null
@@ -134,19 +134,13 @@ export default function EditUserDialog({ user, open, onOpenChange }: EditUserDia
     }
     
     if (user) {
-      // Create birthdate from birth_day and birth_month if provided
-      let birthdateValue = undefined
-      if (formData.birth_day && formData.birth_month) {
-        const year = new Date().getFullYear()
-        const date = new Date(year, parseInt(formData.birth_month) - 1, parseInt(formData.birth_day))
-        birthdateValue = date.toISOString()
-      }
-      
       const updateData: UpdateUserData = {
         name: formData.name.trim(),
         last_name: formData.last_name.trim(),
         email: formData.email.trim(),
-        birthdate: birthdateValue
+        ...(formData.birth_day && { birth_day: parseInt(formData.birth_day) }),
+        ...(formData.birth_month && { birth_month: parseInt(formData.birth_month) }),
+        ...(formData.photo_file && { photo_file: formData.photo_file })
       }
       
       updateUserMutation.mutate({ userId: user.id, data: updateData })
@@ -157,9 +151,12 @@ export default function EditUserDialog({ user, open, onOpenChange }: EditUserDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPen className="h-5 w-5 text-primary" />
+            Edit User
+          </DialogTitle>
           <DialogDescription>
             Update user information. Changes will be saved when you click save.
           </DialogDescription>
@@ -230,7 +227,7 @@ export default function EditUserDialog({ user, open, onOpenChange }: EditUserDia
                 onValueChange={(value) => setFormData(prev => ({ ...prev, birth_day: value }))}
                 disabled={updateUserMutation.isPending}
               >
-                <SelectTrigger id="birth_day">
+                <SelectTrigger id="birth_day" className="w-full">
                   <SelectValue placeholder="Select day" />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,7 +247,7 @@ export default function EditUserDialog({ user, open, onOpenChange }: EditUserDia
                 onValueChange={(value) => setFormData(prev => ({ ...prev, birth_month: value }))}
                 disabled={updateUserMutation.isPending}
               >
-                <SelectTrigger id="birth_month">
+                <SelectTrigger id="birth_month" className="w-full">
                   <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>

@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from "react";
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
+// Import necesario para el icono Plus
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, PlusCircle, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Edit2, MoreVertical } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
@@ -22,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -48,6 +50,10 @@ import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, appr
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { addTemplate, getTemplateById } from "@/services/templates";
+import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
+import type { CustomFieldDocument } from "@/types/custom-fields-documents";
+import { AddCustomFieldDocumentDialog } from "@/components/assets/dialogs/add-custom-field-document-dialog";
+import { EditCustomFieldDocumentDialog } from "@/components/assets/dialogs/edit-custom-field-document-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -59,6 +65,9 @@ import SectionExecution from "./asset-section";
 import { AddSectionFormSheet } from "@/components/add_section_form_sheet";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CreateAssetDialog } from "../dialogs";
+import { CustomWordExportSheet } from "@/components/sheets/CustomWordExportSheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // API response interface
 interface LibraryItem {
@@ -94,6 +103,7 @@ interface LibraryContentProps {
   currentFolderId?: string;
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
+  onPreserveScroll?: () => void;
 }
 
 // Function to extract headings from multiple content sections for table of contents
@@ -203,6 +213,223 @@ function SectionSeparator({
   );
 }
 
+// Custom Fields List Component
+interface CustomFieldsListProps {
+  customFields: CustomFieldDocument[];
+  isLoading: boolean;
+  onAdd: () => void;
+  onEdit: (field: CustomFieldDocument) => void;
+  onDelete: (field: CustomFieldDocument) => void;
+}
+
+function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete }: CustomFieldsListProps) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+          <Button size="sm" variant="outline" disabled>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Field
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-16 bg-muted/50 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!customFields || customFields.length === 0) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">No custom fields available</p>
+          <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Field
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const formatValue = (field: CustomFieldDocument) => {
+    // If no value is set, show "Vacío"
+    if (!field.value || (typeof field.value === 'string' && field.value.trim() === '')) {
+      return 'Vacío';
+    }
+
+    // Based on data type, format the value appropriately
+    switch (field.data_type) {
+      case 'date':
+        if (field.value_date) {
+          return new Date(field.value_date).toLocaleDateString();
+        }
+        return String(field.value);
+      case 'datetime':
+        if (field.value_datetime) {
+          return new Date(field.value_datetime).toLocaleString();
+        }
+        return String(field.value);
+      case 'time':
+        if (field.value_time) {
+          return field.value_time;
+        }
+        return String(field.value);
+      case 'url':
+        if (field.value_url) {
+          return field.value_url;
+        }
+        return String(field.value);
+      case 'number':
+        if (field.value_number !== null && field.value_number !== undefined) {
+          return field.value_number.toString();
+        }
+        return String(field.value);
+      case 'bool':
+        // For boolean fields, return the boolean value to be handled in render
+        return field.value_bool;
+      case 'image':
+        // For image fields, return the URL to be handled in render
+        return String(field.value);
+      default:
+        return String(field.value);
+    }
+  };
+
+  const renderValue = (field: CustomFieldDocument) => {
+    const value = formatValue(field);
+    
+    // Special handling for boolean fields
+    if (field.data_type === 'bool') {
+      const isChecked = field.value_bool === true;
+      return (
+        <div className="flex items-center">
+          <div className={`
+            relative inline-flex h-3 w-6 items-center rounded-full transition-colors
+            ${isChecked ? 'bg-[#4464f7]' : 'bg-gray-300'}
+          `}>
+            <span className={`
+              inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform
+              ${isChecked ? 'translate-x-3' : 'translate-x-0.5'}
+            `} />
+          </div>
+        </div>
+      );
+    }
+    
+    // Special handling for image fields
+    if (field.data_type === 'image') {
+      const imageUrl = String(value);
+      if (imageUrl && imageUrl !== 'Vacío') {
+        return (
+          <div className="flex items-center gap-1.5">
+            <img 
+              src={imageUrl} 
+              alt={field.name || 'Image'}
+              className="w-8 h-8 object-cover rounded border border-gray-200"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <span className="text-xs text-gray-600 hidden">
+              Error loading image
+            </span>
+          </div>
+        );
+      }
+      return (
+        <span className="text-xs text-gray-600">
+          No image
+        </span>
+      );
+    }
+    
+    // For non-boolean and non-image fields, return text
+    return (
+      <span className="text-xs text-gray-600">
+        {String(value)}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-2 pt-2">
+      {/* Header with Add button */}
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Fields</h4>
+        <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer h-7 text-xs px-2">
+          <Plus className="h-3 w-3 mr-1" />
+          Add
+        </Button>
+      </div>
+      
+      {/* Fields List */}
+      <div className="space-y-1.5">
+        {customFields.map((field) => {
+          return (
+            <div key={field.id} className="flex items-start justify-between p-2 border rounded bg-card">
+              <div className="flex-1 min-w-0 mr-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-foreground truncate">
+                      {field.name || 'Unknown Field'}
+                    </span>
+                    {field.required && (
+                      <span className="text-xs text-destructive">*</span>
+                    )}
+                  </div>
+                  {field.source && (
+                    <span className="text-xs text-muted-foreground capitalize ml-2">
+                      {field.source}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {renderValue(field)}
+                </div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="hover:cursor-pointer h-5 w-5 p-0 text-muted-foreground hover:text-foreground flex-shrink-0"
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => {
+                    setTimeout(() => {
+                      onEdit(field)
+                    }, 0)
+                  }} className="hover:cursor-pointer">
+                    <Edit2 className="mr-2 h-3 w-3" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => {
+                    setTimeout(() => {
+                      onDelete(field)
+                    }, 0)
+                  }} className="hover:cursor-pointer text-destructive focus:text-destructive">
+                    <Trash2 className="mr-2 h-3 w-3" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function AssetContent({ 
   selectedFile, 
   selectedExecutionId, 
@@ -210,12 +437,16 @@ export function AssetContent({
   setSelectedFile,
   onRefresh,
   currentFolderId,
-  onToggleSidebar
+  onToggleSidebar,
+  onPreserveScroll
 }: LibraryContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  
+  // Hook de restauración de scroll usando el ID del archivo seleccionado como clave única
+  const scrollRestoration = useScrollRestoration(selectedFile?.id ? `asset-content-${selectedFile.id}` : 'asset-content-default');
   
   // States to control on-demand loading
   const [needsFullDocument, setNeedsFullDocument] = useState(false);
@@ -231,6 +462,9 @@ export function AssetContent({
   // Mutation for direct section creation
   const addSectionMutation = useMutation({
     mutationFn: async (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[]; order?: number }) => {
+      // Preserve scroll position before mutation
+      preserveScrollPosition();
+      
       // First create the section
       const { order, ...createData } = sectionData;
       const newSection = await createSection(createData, selectedOrganizationId!);
@@ -347,6 +581,9 @@ export function AssetContent({
   // Mutation para ejecutar documento directamente
   const executeDocumentMutation = useMutation({
     mutationFn: async ({ documentId, instructions }: { documentId: string; instructions?: string }) => {
+      // Preserve scroll position before execution
+      preserveScrollPosition();
+      
       if (!defaultLLM?.id) {
         throw new Error('No default LLM available');
       }
@@ -378,6 +615,9 @@ export function AssetContent({
   // Mutation for approve execution
   const approveMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before approval
+      preserveScrollPosition();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -399,6 +639,9 @@ export function AssetContent({
   // Mutation for disapprove execution
   const disapproveMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before disapproval
+      preserveScrollPosition();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -420,6 +663,9 @@ export function AssetContent({
   // Mutation for deleting execution
   const deleteExecutionMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before deletion
+      preserveScrollPosition();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -451,6 +697,9 @@ export function AssetContent({
   // Mutation for clone execution
   const cloneMutation = useMutation({
     mutationFn: async () => {
+      // Preserve scroll position before cloning
+      preserveScrollPosition();
+      
       if (!selectedExecutionId || !selectedOrganizationId) {
         throw new Error('Missing execution ID or organization ID');
       }
@@ -472,13 +721,70 @@ export function AssetContent({
     },
   });
 
-  // Estados principales
+  // Mutation for creating custom field document
+  const createCustomFieldDocumentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return createCustomFieldDocument(data);
+    },
+    onSuccess: () => {
+      // Refresh custom fields data
+      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      setIsAddCustomFieldDocumentDialogOpen(false);
+      toast.success('Custom field document created successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error creating custom field document:', error);
+      toast.error('Failed to create custom field document. Please try again.');
+    },
+  });
+
+  // Mutation for updating custom field document
+  const updateCustomFieldDocumentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return updateCustomFieldDocument(id, data);
+    },
+    onSuccess: () => {
+      // Refresh custom fields data
+      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      setIsEditCustomFieldDocumentDialogOpen(false);
+      setSelectedCustomFieldDocument(null);
+      toast.success('Custom field document updated successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error updating custom field document:', error);
+      toast.error('Failed to update custom field document. Please try again.');
+    },
+  });
+
+  // Mutation for deleting custom field document
+  const deleteCustomFieldDocumentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return deleteCustomFieldDocument(id);
+    },
+    onSuccess: () => {
+      // Refresh custom fields data
+      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      setIsDeleteCustomFieldDocumentDialogOpen(false);
+      setCustomFieldDocumentToDelete(null);
+      toast.success('Custom field document deleted successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error deleting custom field document:', error);
+      toast.error('Failed to delete custom field document. Please try again.');
+    },
+  });
+
+  // Función para preservar scroll - ahora usa el hook de restauración de scroll
+  const preserveScrollPosition = () => {
+    scrollRestoration.saveScrollPosition();
+  };
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
@@ -500,7 +806,7 @@ export function AssetContent({
   
   // State for tracking current execution for polling
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
-  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from'>('full');
+  const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from' | 'full-single'>('full');
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
   
   // State for tracking active executions on other versions
@@ -529,6 +835,18 @@ export function AssetContent({
   
   // Execute sheet state
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
+  const [executionContext, setExecutionContext] = useState<{ type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null>(null);
+  
+  // Custom Word Export dialog state
+  const [isCustomWordExportDialogOpen, setIsCustomWordExportDialogOpen] = useState(false);
+  
+  // Custom Field Document Dialog states
+  const [isAddCustomFieldDocumentDialogOpen, setIsAddCustomFieldDocumentDialogOpen] = useState(false);
+  const [isEditCustomFieldDocumentDialogOpen, setIsEditCustomFieldDocumentDialogOpen] = useState(false);
+  const [selectedCustomFieldDocument, setSelectedCustomFieldDocument] = useState<CustomFieldDocument | null>(null);
+  const [isDeleteCustomFieldDocumentDialogOpen, setIsDeleteCustomFieldDocumentDialogOpen] = useState(false);
+  const [customFieldDocumentToDelete, setCustomFieldDocumentToDelete] = useState<CustomFieldDocument | null>(null);
+  const [isDeletingCustomFieldDocument, setIsDeletingCustomFieldDocument] = useState(false);
   
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -544,6 +862,7 @@ export function AssetContent({
     setCurrentSectionIndex(undefined);
     setSectionExecutionId(null);
     setDismissedExecutionBanners(new Set());
+    setExecutionContext(null);
   }, [selectedFile?.id]);
 
 
@@ -555,16 +874,34 @@ export function AssetContent({
   };
 
   // Handle execution created from Execute Sheet
-  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from', sectionIndex?: number) => {
-    setSelectedExecutionId(executionId);
+  const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
+    // Preserve scroll position before any changes
+    preserveScrollPosition();
+    
+    // Set tracking variables for the new execution
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
     setCurrentSectionIndex(sectionIndex);
     
-    // Invalidate queries to refresh execution data (automatic refetch will occur)
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-    queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+    // Determine behavior based on execution mode:
+    // - full/full-single: Creates NEW version, user stays on current version
+    // - single/from: Modifies EXISTING version, user stays to see the changes
+    if (mode === 'full' || mode === 'full-single') {
+      // NEW VERSION: Don't automatically switch to the new execution
+      // The user decides if they want to switch to the new version
+      console.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
+      
+      // Just invalidate queries to refresh execution list and show banners
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+    } else if (mode === 'single' || mode === 'from') {
+      // EDIT EXISTING: Stay on the same version but refresh its content
+      console.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
+      
+      // Invalidate all related queries to refresh content
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+    }
   };
 
   // Handle execution complete from Execute Sheet
@@ -580,6 +917,7 @@ export function AssetContent({
   // Handle add section
   const handleAddSection = () => {
     if (selectedFile && selectedFile.type === 'document') {
+      preserveScrollPosition();
       setIsSectionSheetOpen(true);
     }
   };
@@ -650,18 +988,28 @@ export function AssetContent({
   };
 
   // Handle create new execution - abrir Execute Sheet
-  const handleCreateExecution = () => {
+  const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
     if (selectedFile && selectedFile.type === 'document') {
+      preserveScrollPosition();
       // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
+      // Store execution context
+      setExecutionContext(context || { type: 'header' });
       setIsExecuteSheetOpen(true);
     }
   };
 
+  // Wrapper functions for different contexts
+  const handleCreateExecutionFromHeader = () => handleCreateExecution({ type: 'header' });
+  const handleCreateExecutionFromSection = (sectionIndex: number, sectionId?: string) => 
+    () => handleCreateExecution({ type: 'section', sectionIndex, sectionId });
+
   // Fetch document content when a document is selected
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
-    queryKey: ['document-content', selectedFile?.id, selectedExecutionId],
+    queryKey: selectedExecutionId 
+      ? ['document-content', selectedFile?.id, selectedExecutionId]
+      : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
     // Remove automatic polling - let the ExecutionStatusBanner handle status updates
@@ -692,6 +1040,18 @@ export function AssetContent({
     queryFn: getDefaultLLM,
     enabled: !!selectedOrganizationId && needsDefaultLLM, // Solo cargar cuando se necesite ejecutar
     staleTime: 300000, // Cache for 5 minutes
+  });
+
+  // Fetch custom fields for the document
+  const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
+    queryKey: ['custom-field-documents', selectedFile?.id],
+    queryFn: () => getCustomFieldDocumentsByDocument({
+      document_id: selectedFile!.id,
+      page: 1,
+      page_size: 100
+    }),
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields',
+    staleTime: 60000, // Cache for 1 minute
   });
 
   // Fetch executions for the document to check for running executions
@@ -831,7 +1191,7 @@ export function AssetContent({
     }
 
     // Reset selectedExecutionId when switching to a different document
-    // This allows the default call (without execution_id) to return the approved execution
+    // This allows the default call (without execution_id) to return the approved/latest execution
     if (selectedExecutionId) {
       setSelectedExecutionId(null);
     }
@@ -844,9 +1204,40 @@ export function AssetContent({
         !selectedExecutionId && 
         !isLoadingContent) {
       // Initialize selectedExecutionId with the current execution from API response
+      console.log('Auto-initializing execution ID from API response:', documentContent.execution_id);
       setSelectedExecutionId(documentContent.execution_id);
     }
   }, [documentContent?.execution_id, selectedExecutionId, selectedFile?.type, isLoadingContent]);
+
+  // Additional fallback: if we have executions but no selectedExecutionId, select the appropriate one
+  useEffect(() => {
+    if (selectedFile?.type === 'document' && 
+        documentExecutions?.length > 0 && 
+        !selectedExecutionId && 
+        !isLoadingContent) {
+      
+      console.log('Fallback execution selection - available executions:', documentExecutions.length);
+      
+      // First try to use execution_id from documentContent if available
+      if (documentContent?.execution_id) {
+        const matchingExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+        if (matchingExecution) {
+          console.log('Using execution from documentContent:', documentContent.execution_id);
+          setSelectedExecutionId(documentContent.execution_id);
+          return;
+        }
+      }
+      
+      // Otherwise, select approved execution or the first one as fallback
+      const approvedExecution = documentExecutions.find((e: any) => e.status === 'approved');
+      const executionToSelect = approvedExecution || documentExecutions[0];
+      
+      if (executionToSelect) {
+        console.log('Fallback selected execution:', executionToSelect.id, 'status:', executionToSelect.status);
+        setSelectedExecutionId(executionToSelect.id);
+      }
+    }
+  }, [documentExecutions, selectedExecutionId, selectedFile?.type, isLoadingContent, documentContent?.execution_id]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -923,8 +1314,66 @@ export function AssetContent({
       }
     }
   };
+  
+  // Handle export to custom word
+  const handleExportCustomWord = () => {
+    setIsCustomWordExportDialogOpen(true);
+  };
+
+  // Handle add custom field document
+  const handleAddCustomFieldDocument = () => {
+    setIsAddCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle edit custom field document
+  const handleEditCustomFieldDocument = (field: CustomFieldDocument) => {
+    setSelectedCustomFieldDocument(field);
+    setIsEditCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle create custom field document submission
+  const handleCreateCustomFieldDocument = async (data: any) => {
+    return createCustomFieldDocumentMutation.mutateAsync(data);
+  };
+
+  // Handle update custom field document submission
+  const handleUpdateCustomFieldDocument = async (id: string, data: any) => {
+    return updateCustomFieldDocumentMutation.mutateAsync({ id, data });
+  };
+
+  // Handle delete custom field document
+  const handleDeleteCustomFieldDocument = (field: CustomFieldDocument) => {
+    setCustomFieldDocumentToDelete(field);
+    setIsDeleteCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle confirm delete custom field document
+  const handleConfirmDeleteCustomFieldDocument = async () => {
+    if (!customFieldDocumentToDelete) return;
+
+    setIsDeletingCustomFieldDocument(true);
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      await Promise.all([
+        deleteCustomFieldDocumentMutation.mutateAsync(customFieldDocumentToDelete.id),
+        minDelay
+      ]);
+    } finally {
+      setIsDeletingCustomFieldDocument(false);
+    }
+  };
+
+  // Handle cancel delete custom field document
+  const handleCancelDeleteCustomFieldDocument = () => {
+    if (!isDeletingCustomFieldDocument) {
+      setIsDeleteCustomFieldDocumentDialogOpen(false);
+      setCustomFieldDocumentToDelete(null);
+    }
+  };
 
   function openDeleteDialog(type: 'document' | 'execution') {
+    preserveScrollPosition();
     setDeleteType(type);
     setIsDeleteDialogOpen(true);
   }
@@ -936,11 +1385,14 @@ export function AssetContent({
 
   const handleDeleteDialogChange = (open: boolean) => {
     if (!open) {
+      // Preserve scroll when closing dialog
+      onPreserveScroll?.();
       closeDeleteDialog();
     }
   };
 
   function openCloneDialog() {
+    preserveScrollPosition();
     setIsCloneDialogOpen(true);
   }
 
@@ -952,11 +1404,13 @@ export function AssetContent({
     if (open) {
       openCloneDialog();
     } else {
+      onPreserveScroll?.();
       closeCloneDialog();
     }
   };
 
   function openApproveDialog() {
+    preserveScrollPosition();
     setIsApproveDialogOpen(true);
   }
 
@@ -968,11 +1422,13 @@ export function AssetContent({
     if (open) {
       openApproveDialog();
     } else {
+      onPreserveScroll?.();
       closeApproveDialog();
     }
   };
 
   function openDisapproveDialog() {
+    preserveScrollPosition();
     setIsDisapproveDialogOpen(true);
   }
 
@@ -984,6 +1440,7 @@ export function AssetContent({
     if (open) {
       openDisapproveDialog();
     } else {
+      onPreserveScroll?.();
       closeDisapproveDialog();
     }
   };
@@ -1042,6 +1499,8 @@ export function AssetContent({
   // Open edit dialog and prefill values
   const openEditDialog = () => {
     if (!selectedFile || selectedFile.type !== 'document') return;
+    // Preserve scroll position before opening dialog
+    preserveScrollPosition();
     // Apertura diferida para que primero se cierre el dropdown y no dispare outside click sobre el dialog recién montado
     setTimeout(() => setIsEditDialogOpen(true), 0);
   };
@@ -1063,6 +1522,7 @@ export function AssetContent({
     return (
       <Dialog open={isCreateTemplateSheetOpen} onOpenChange={(open) => {
         if (!open) {
+          onPreserveScroll?.();
           setIsCreateTemplateSheetOpen(false)
         }
       }}>
@@ -1162,7 +1622,10 @@ export function AssetContent({
               <EmptyActions>
                 {canAccessTemplates && canCreate('template') && (
                   <Button
-                    onClick={() => setIsCreateTemplateSheetOpen(true)}
+                    onClick={() => {
+                      onPreserveScroll?.();
+                      setIsCreateTemplateSheetOpen(true);
+                    }}
                     variant="outline"
                     className="hover:cursor-pointer"
                   >
@@ -1172,7 +1635,10 @@ export function AssetContent({
                 )}
                 {canAccessAssets && canCreate('assets') && (
                   <Button 
-                    onClick={() => setIsCreateAssetDialogOpen(true)}
+                    onClick={() => {
+                      onPreserveScroll?.();
+                      setIsCreateAssetDialogOpen(true);
+                    }}
                     className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                   >
                     <FileText className="h-4 w-4 mr-2" />
@@ -1194,13 +1660,7 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-        {/* Create Asset Dialog */}
-        <CreateAssetDialog
-          open={isCreateAssetDialogOpen}
-          onOpenChange={setIsCreateAssetDialogOpen}
-          folderId={currentFolderId}
-          onAssetCreated={handleDocumentCreated}
-        />
+
       </>
     );
   }
@@ -1283,7 +1743,7 @@ export function AssetContent({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}</p>
+                      <p>{isTocSidebarOpen ? "Hide sidebar" : "Show sidebar"}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -1297,7 +1757,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
-                onClick={handleCreateExecution}
+                onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 w-8 p-0 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm rounded-full" 
@@ -1324,7 +1784,10 @@ export function AssetContent({
                   selectedFile={selectedFile}
                   fullDocument={fullDocument}
                   isOpen={isSectionSheetOpen}
-                  onOpenChange={setIsSectionSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) preserveScrollPosition();
+                    setIsSectionSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1338,7 +1801,10 @@ export function AssetContent({
                 <DependenciesSheet
                   selectedFile={selectedFile}
                   isOpen={isDependenciesSheetOpen}
-                  onOpenChange={setIsDependenciesSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) preserveScrollPosition();
+                    setIsDependenciesSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1352,7 +1818,10 @@ export function AssetContent({
                 <ContextSheet
                   selectedFile={selectedFile}
                   isOpen={isContextSheetOpen}
-                  onOpenChange={setIsContextSheetOpen}
+                  onOpenChange={(open) => {
+                    if (!open) preserveScrollPosition();
+                    setIsContextSheetOpen(open);
+                  }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
                 />
@@ -1418,6 +1887,8 @@ export function AssetContent({
                               isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                             }`}
                             onClick={() => {
+                              // Preserve scroll position before changing execution
+                              preserveScrollPosition();
                               setSelectedExecutionId(execution.id);
                               // Invalidate all document-content queries and refetch with new execution ID
                               queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1506,13 +1977,17 @@ export function AssetContent({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportMarkdown(), 0)}>
                       <FileText className="mr-2 h-4 w-4" />
                       Export as Markdown
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportWord(), 0)}>
                       <FileCode className="mr-2 h-4 w-4" />
                       Export as Word
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                      <FileCode className="mr-2 h-4 w-4" />
+                      Export as Custom Word
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1557,13 +2032,31 @@ export function AssetContent({
 
               {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
               {(() => {
-                if (!selectedExecutionId) return null;
+                // Determine the current execution to show buttons for
+                let currentExecution = null;
+                let actualStatus = null;
                 
-                // Check execution status from multiple sources to ensure reliability
-                const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                const statusFromDocumentExecutions = currentExecution?.status;
-                const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                if (selectedExecutionId) {
+                  // User has manually selected a specific execution
+                  currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                  const statusFromDocumentExecutions = currentExecution?.status;
+                  actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                } else if (documentExecutions?.length > 0) {
+                  // No specific execution selected, determine which execution to show buttons for
+                  // Priority: execution_id from documentContent -> approved execution -> first execution
+                  if (documentContent?.execution_id) {
+                    currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+                  }
+                  if (!currentExecution) {
+                    currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
+                  }
+                  actualStatus = currentExecution?.status;
+                }
+                
+                if (!currentExecution || !actualStatus) {
+                  return null;
+                }
                 
                 // Show Approve button when status is 'completed'
                 if (actualStatus === 'completed') {
@@ -1571,7 +2064,13 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
-                      onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                      onClick={() => {
+                        // Ensure selectedExecutionId is set to the current execution before opening dialog
+                        if (!selectedExecutionId && currentExecution) {
+                          setSelectedExecutionId(currentExecution.id);
+                        }
+                        setTimeout(() => openApproveDialog(), 0);
+                      }}
                       size="sm"
                       variant="ghost"
                       disabled={approveMutation.isPending}
@@ -1597,7 +2096,13 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
-                      onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                      onClick={() => {
+                        // Ensure selectedExecutionId is set to the current execution before opening dialog
+                        if (!selectedExecutionId && currentExecution) {
+                          setSelectedExecutionId(currentExecution.id);
+                        }
+                        setTimeout(() => openDisapproveDialog(), 0);
+                      }}
                       size="sm"
                       variant="ghost"
                       disabled={disapproveMutation.isPending}
@@ -1678,7 +2183,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 size="sm"
-                onClick={handleCreateExecution}
+                onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
                   ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
@@ -1795,6 +2300,8 @@ export function AssetContent({
                                 isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                               }`}
                               onClick={() => {
+                                // Preserve scroll position before changing execution
+                                onPreserveScroll?.();
                                 setSelectedExecutionId(execution.id);
                                 // Invalidate all document-content queries and refetch with new execution ID
                                 queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1838,12 +2345,31 @@ export function AssetContent({
                 
                 {/* Approve/Disapprove Buttons - Desktop Version - show conditionally based on execution status */}
                 {(() => {
-                  if (!selectedExecutionId) return null;
+                  // Determine the current execution to show buttons for
+                  let currentExecution = null;
+                  let actualStatus = null;
                   
-                  const currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                  const statusFromDocumentExecutions = currentExecution?.status;
-                  const actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  if (selectedExecutionId) {
+                    // User has manually selected a specific execution
+                    currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
+                    const statusFromExecutionInfo = selectedExecutionInfo?.status;
+                    const statusFromDocumentExecutions = currentExecution?.status;
+                    actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
+                  } else if (documentExecutions?.length > 0) {
+                    // No specific execution selected, determine which execution to show buttons for
+                    // Priority: execution_id from documentContent -> approved execution -> first execution
+                    if (documentContent?.execution_id) {
+                      currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
+                    }
+                    if (!currentExecution) {
+                      currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
+                    }
+                    actualStatus = currentExecution?.status;
+                  }
+                  
+                  if (!currentExecution || !actualStatus) {
+                    return null;
+                  }
                   
                   // Show Approve button when status is 'completed'
                   if (actualStatus === 'completed') {
@@ -1851,7 +2377,13 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
-                        onClick={() => setTimeout(() => openApproveDialog(), 0)}
+                        onClick={() => {
+                          // Ensure selectedExecutionId is set to the current execution before opening dialog
+                          if (!selectedExecutionId && currentExecution) {
+                            setSelectedExecutionId(currentExecution.id);
+                          }
+                          setTimeout(() => openApproveDialog(), 0);
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={approveMutation.isPending}
@@ -1877,7 +2409,13 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
-                        onClick={() => setTimeout(() => openDisapproveDialog(), 0)}
+                        onClick={() => {
+                          // Ensure selectedExecutionId is set to the current execution before opening dialog
+                          if (!selectedExecutionId && currentExecution) {
+                            setSelectedExecutionId(currentExecution.id);
+                          }
+                          setTimeout(() => openDisapproveDialog(), 0);
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={disapproveMutation.isPending}
@@ -1961,6 +2499,10 @@ export function AssetContent({
                         <FileCode className="mr-2 h-4 w-4" />
                         Export as Word
                       </DropdownMenuItem>
+                      <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                        <FileCode className="mr-2 h-4 w-4" />
+                        Export as Custom Word
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </DocumentAccessControl>
@@ -2008,9 +2550,13 @@ export function AssetContent({
         </div>
         )}
 
-        {/* Content Section - Now with its own scroll */}
-        <div className="flex-1 bg-white min-w-0 overflow-auto" style={{ scrollPaddingTop: '100px' }}>
-          <div className="py-4 md:py-5 px-4 md:px-6">
+        {/* Content Section - Now with ScrollArea and scroll restoration */}
+        <div className="flex-1 bg-white min-w-0 overflow-hidden">
+          <ScrollArea className="h-full w-full">
+            <div 
+              ref={scrollRestoration.viewportRef}
+              className="py-4 md:py-5 px-4 md:px-6"
+            >
             {selectedFile.type === 'document' ? (
               <>
                 {/* Execution Feedback - Show overlay for full mode, inline for single/from */}
@@ -2060,6 +2606,8 @@ export function AssetContent({
                           setDismissedExecutionBanners(prev => new Set(prev).add(execution.id));
                         }}
                         onViewVersion={() => {
+                          // Preserve scroll position before changing execution
+                          preserveScrollPosition();
                           setSelectedExecutionId(execution.id);
                           queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
                         }}
@@ -2167,7 +2715,7 @@ export function AssetContent({
                                       {/* Action Buttons */}
                                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                         <Button
-                                          onClick={handleCreateExecution}
+                                          onClick={handleCreateExecutionFromHeader}
                                           disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                           size="lg"
                                           className={executeDocumentMutation.isPending || hasExecutionInProcess
@@ -2188,7 +2736,10 @@ export function AssetContent({
                                           )}
                                         </Button>
                                         <Button
-                                          onClick={() => setIsSectionSheetOpen(true)}
+                                          onClick={() => {
+                                            preserveScrollPosition();
+                                            setIsSectionSheetOpen(true);
+                                          }}
                                           variant="outline"
                                           size="lg"
                                           className="hover:cursor-pointer border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
@@ -2233,7 +2784,7 @@ export function AssetContent({
                                       ) : (
                                         <>
                                           <Button
-                                            onClick={handleCreateExecution}
+                                            onClick={handleCreateExecutionFromHeader}
                                             disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                             className={executeDocumentMutation.isPending || hasExecutionInProcess
                                               ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
@@ -2253,7 +2804,10 @@ export function AssetContent({
                                             )}
                                           </Button>
                                           <Button
-                                            onClick={() => setIsSectionSheetOpen(true)}
+                                            onClick={() => {
+                                              onPreserveScroll?.();
+                                              setIsSectionSheetOpen(true);
+                                            }}
                                             variant="outline"
                                             className="hover:cursor-pointer"
                                           >
@@ -2322,6 +2876,7 @@ export function AssetContent({
                                       console.log('Section execution started:', executionIdForSection);
                                     }
                                   }}
+                                  onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                 />
                                 
                                 {/* Show regeneration feedback for single/from modes */}
@@ -2387,7 +2942,7 @@ export function AssetContent({
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
                               variant="outline" 
-                              onClick={handleCreateExecution}
+                              onClick={handleCreateExecutionFromHeader}
                               disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -2423,7 +2978,8 @@ export function AssetContent({
                 </p>
               </div>
             )}
-          </div>
+            </div>
+          </ScrollArea>
         </div>
       </div>
 
@@ -2433,20 +2989,53 @@ export function AssetContent({
           isOpen={isTocSidebarOpen}
           onToggle={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
           position="right"
-          toggleAriaLabel={isTocSidebarOpen ? "Hide Table of Contents" : "Show Table of Contents"}
+          toggleAriaLabel={isTocSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
           showToggleButton={!isMobile} // Only show internal button on mobile
           customToggleIcon={<List className="h-4 w-4" />}
           customToggleIconMobile={<List className="h-5 w-5" />}
           header={
-            <div className="p-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-gray-900">Table of Contents</h3>
+            <div className="flex flex-col pt-3">
+              <div className="px-2 pb-2">
+                <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
+                  <button 
+                    onClick={() => setActiveTab('toc')}
+                    className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
+                      activeTab === 'toc' 
+                        ? 'bg-white shadow-sm text-gray-900' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Content
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('custom-fields')}
+                    className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
+                      activeTab === 'custom-fields' 
+                        ? 'bg-white shadow-sm text-gray-900' 
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Custom Fields
+                  </button>
+                </div>
               </div>
             </div>
           }
         >
-          <div className="p-4">
-            <TableOfContents items={tocItems} />
+          <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-3">
+              {activeTab === 'toc' ? (
+                <TableOfContents items={tocItems} />
+              ) : (
+                <CustomFieldsList 
+                  customFields={customFieldsData?.data || []} 
+                  isLoading={isLoadingCustomFields}
+                  onAdd={handleAddCustomFieldDocument}
+                  onEdit={handleEditCustomFieldDocument}
+                  onDelete={handleDeleteCustomFieldDocument}
+                />
+              )}
+            </div>
           </div>
         </CollapsibleSidebar>
       )}
@@ -2805,7 +3394,10 @@ export function AssetContent({
 
       <EditDocumentDialog
         open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsEditDialogOpen(open);
+        }}
         documentId={selectedFile?.id || ''}
         currentName={selectedFile?.name || ''}
         currentDescription={documentContent?.description}
@@ -2823,12 +3415,20 @@ export function AssetContent({
         selectedFile={selectedFile}
         fullDocument={fullDocument}
         isOpen={isExecuteSheetOpen}
-        onOpenChange={setIsExecuteSheetOpen}
-        onSectionSheetOpen={() => setIsSectionSheetOpen(true)}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsExecuteSheetOpen(open);
+          if (!open) setExecutionContext(null); // Clear context when closing
+        }}
+        onSectionSheetOpen={() => {
+          onPreserveScroll?.();
+          setIsSectionSheetOpen(true);
+        }}
         onExecutionCreated={handleExecutionCreated}
         onExecutionComplete={handleExecutionComplete}
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
+        executionContext={executionContext}
         disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
           hasExecutionInProcess 
@@ -2848,6 +3448,76 @@ export function AssetContent({
         folderId={currentFolderId}
         onAssetCreated={handleDocumentCreated}
       />
+      
+      {/* Custom Word Export Dialog */}
+      <CustomWordExportSheet
+        selectedFile={selectedFile}
+        selectedExecutionId={selectedExecutionId}
+        isOpen={isCustomWordExportDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) onPreserveScroll?.();
+          setIsCustomWordExportDialogOpen(open);
+        }}
+      />
+
+      {/* Add Custom Field Document Dialog */}
+      <AddCustomFieldDocumentDialog
+        isOpen={isAddCustomFieldDocumentDialogOpen}
+        onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
+        documentId={selectedFile.id}
+        onAdd={handleCreateCustomFieldDocument}
+      />
+
+      {/* Edit Custom Field Document Dialog */}
+      <EditCustomFieldDocumentDialog
+        isOpen={isEditCustomFieldDocumentDialogOpen}
+        onClose={() => {
+          setIsEditCustomFieldDocumentDialogOpen(false);
+          setSelectedCustomFieldDocument(null);
+        }}
+        customFieldDocument={selectedCustomFieldDocument}
+        onUpdate={handleUpdateCustomFieldDocument}
+      />
+
+      {/* Delete Custom Field Document Confirmation Dialog */}
+      <AlertDialog open={isDeleteCustomFieldDocumentDialogOpen} onOpenChange={(open) => {
+        if (!open && !isDeletingCustomFieldDocument) {
+          setIsDeleteCustomFieldDocumentDialogOpen(false);
+          setCustomFieldDocumentToDelete(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Custom Field Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the custom field "{customFieldDocumentToDelete?.name}"? 
+              This action cannot be undone and will remove this field data from the document.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDeleteCustomFieldDocument} className="hover:cursor-pointer" disabled={isDeletingCustomFieldDocument}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmDeleteCustomFieldDocument()
+              }}
+              className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
+              disabled={isDeletingCustomFieldDocument}
+            >
+              {isDeletingCustomFieldDocument ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
