@@ -62,7 +62,7 @@ export function DocumentResult({ document }: DocumentResultProps) {
                 className="hover:cursor-pointer h-8 text-xs px-2"
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
-                Abrir documento
+                Open Asset
               </Button>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="hover:cursor-pointer h-8 w-8 p-0">

@@ -1211,10 +1211,14 @@ export function AssetContent({
     }
   }, [selectedFile?.id]);
 
-  // Note: We intentionally do NOT auto-initialize selectedExecutionId
-  // When selectedExecutionId is null, the API automatically returns the approved or most recent execution
-  // Auto-initializing would cause a redundant second API call with the execution_id parameter
-  // The user can manually select a different version from the dropdown if needed
+  // Auto-set selectedExecutionId when document content loads
+  // This ensures that execution actions (like executing a specific section) work correctly
+  useEffect(() => {
+    if (selectedFile?.type === 'document' && !selectedExecutionId && documentContent?.execution_id) {
+      // Set to the execution that was loaded by the API (approved or most recent)
+      setSelectedExecutionId(documentContent.execution_id);
+    }
+  }, [selectedFile?.type, selectedExecutionId, documentContent?.execution_id]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 

@@ -151,6 +151,7 @@ function AssetsContent() {
   const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
   const { selectedOrganizationId, organizationToken, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
+  const lastProcessedUrlRef = useRef<string>(''); // Track last processed URL to avoid re-processing
   
   // Scroll preservation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -271,15 +272,20 @@ function AssetsContent() {
   // Initialize from URL on mount and when URL changes
   useEffect(() => {
     if (!selectedOrganizationId || !organizationToken) return; // Skip if no organization context
-    if (isUpdatingUrl) {
-      console.log('Skipping URL initialization - currently updating URL');
-      return; // Skip if we're updating URL programmatically
+    
+    // Skip if this URL has already been processed
+    if (lastProcessedUrlRef.current === location.pathname) {
+      console.log('URL already processed, skipping:', location.pathname);
+      return;
     }
     
     const initializeFromUrl = async () => {
       try {
         console.log('Initializing from URL:', location.pathname);
         setIsLoadingDocument(true);
+        
+        // Mark this URL as processed
+        lastProcessedUrlRef.current = location.pathname;
         
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
@@ -416,18 +422,25 @@ function AssetsContent() {
     
     const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
     
-    // Solo actualizar URL si es diferente de la actual y no estamos ya actualizando
+    // Solo actualizar URL si es diferente de la actual
+    // Pero no actualizar si acabamos de cargar desde URL (para evitar ciclos)
     if (location.pathname !== newUrl && !isUpdatingUrl) {
       console.log('Updating URL to reflect current state:', newUrl);
       setIsUpdatingUrl(true);
-      navigate(newUrl, { replace: true });
       
-      // Reset flag después de un breve delay
+      // Mark the new URL as processed to avoid re-processing it
+      lastProcessedUrlRef.current = newUrl;
+      
+      // Usar un timeout para asegurar que el flag se establezca antes de navegar
       setTimeout(() => {
-        setIsUpdatingUrl(false);
-      }, 200); // Aumentar el timeout ligeramente
+        navigate(newUrl, { replace: true });
+        // Reset flag después de que la navegación se complete
+        setTimeout(() => {
+          setIsUpdatingUrl(false);
+        }, 100);
+      }, 0);
     }
-  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current]);
+  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current, isUpdatingUrl]);
 
   // Ref para rastrear la organización anterior y evitar resets innecesarios
   const prevOrganizationIdRef = useRef<string | null>(null);
@@ -443,6 +456,7 @@ function AssetsContent() {
       setSelectedFile(null);
       setSelectedExecutionId(null);
       hasRestoredRef.current = false; // Reset so it can initialize again
+      lastProcessedUrlRef.current = ''; // Reset URL tracking
       
       // Clear session storage for the previous organization
       sessionStorage.removeItem('library-breadcrumb');

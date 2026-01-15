@@ -374,8 +374,11 @@ export function ExecuteSheet({
                       fullDocument.sections.length === 0 || 
                       executeDocumentMutation.isPending || 
                       (!sheetSelectedLLM && !defaultLLM?.id) ||
-                      // Validación específica: solo validar sección para single y from
-                      ((executionType === 'single' || executionType === 'from') && !selectedSectionId)
+                      // Validación específica para single y from:
+                      // - Necesitan una sección seleccionada
+                      // - Necesitan una ejecución existente (currentExecutionId o selectedExecutionId)
+                      ((executionType === 'single' || executionType === 'from') && 
+                        (!selectedSectionId || (!currentExecutionId && !selectedExecutionId)))
                     }
                     className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                     style={{ alignSelf: 'center' }}
