@@ -9,6 +9,11 @@ export interface SortableSectionItem {
   prompt: string
   order: number
   dependencies: Dependency[]
+  type?: "ai" | "manual" | "reference"
+  manual_input?: string
+  reference_section_id?: string
+  reference_mode?: "latest" | "specific"
+  reference_execution_id?: string
 }
 
 export interface SortableSectionSheetItem {
@@ -17,4 +22,9 @@ export interface SortableSectionSheetItem {
   prompt: string
   order: number
   dependencies: Dependency[]
+  type?: "ai" | "manual" | "reference"
+  manual_input?: string
+  reference_section_id?: string
+  reference_mode?: "latest" | "specific"
+  reference_execution_id?: string
 }

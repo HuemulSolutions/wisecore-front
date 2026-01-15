@@ -42,6 +42,9 @@ export interface LibraryNavigationState {
   restoreBreadcrumb?: boolean;
   breadcrumb?: BreadcrumbItem[];
   fromLibrary?: boolean;
+  fromFileTree?: boolean; // Flag to indicate navigation from FileTree sidebar
+  documentType?: DocumentType;
+  accessLevels?: string[];
 }
 
 // ========================================
@@ -203,6 +206,7 @@ export interface EditDocumentDialogProps {
   documentId: string;
   currentName: string;
   currentDescription?: string;
+  currentDocumentTypeId?: string;
   onUpdated: (newName: string, newDescription?: string) => void;
 }
 
@@ -241,6 +245,7 @@ export interface EditCustomFieldDocumentDialogProps {
 export interface CreateAssetRequest {
   name: string;
   description: string;
+  internal_code?: string;
   document_type_id: string;
   template_id?: string;
   folder_id?: string;

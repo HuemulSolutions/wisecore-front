@@ -1,5 +1,7 @@
 // Re-export all types from their respective files
+export * from './assets-types'
 export * from './assets'
+export * from './auth'
 export * from './custom-fields'
 export type { 
   CustomFieldDocument, 
@@ -28,3 +30,4 @@ export * from './menu-action'
 export * from './page-header'
 export * from './sections'
 export * from './table-of-contents'
+export * from './users'
