@@ -1,13 +1,13 @@
 // Re-export all user-related components for easier imports
-export { default as UserTable } from './user-table'
-export { default as UserBulkActions } from './user-bulk-actions'
-export { default as UserDeleteDialog } from './user-delete-dialog'
-export { default as UserPageHeader } from './user-page-header'
-export { default as UserPageSkeleton } from './user-page-skeleton'
-export { default as UserPageEmptyState } from './user-page-empty-state'
-export { default as UserPageDialogs } from './user-page-dialogs'
-export { UserContentEmptyState } from './user-content-empty-state'
-export type { UserPageState, UserPageActions } from './types'
+export { default as UserTable } from './users-table'
+export { default as UserDeleteDialog } from './users-delete-dialog'
+export { default as UserPageHeader } from './users-page-header'
+export { default as UserPageSkeleton } from './users-page-skeleton'
+export { default as UserPageEmptyState } from './users-page-empty-state'
+export { default as UserPageDialogs } from './users-page-dialogs'
+export { default as RootAdminDialog } from './users-root-admin-dialog'
+export { UserContentEmptyState } from './users-content-empty-state'
+export type { UserPageState, UserPageActions } from '@/types/users'
 
 // Re-export utility functions
-export { formatDate, getStatusColor, translateStatus } from './user-table'
+export { formatDate, getStatusColor, translateStatus } from './users-table'
