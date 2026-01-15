@@ -24,10 +24,12 @@ export const customFieldsQueryKeys = {
 }
 
 // Hook for fetching custom fields list
-export function useCustomFields(params?: PaginationParams) {
+export function useCustomFields(options?: PaginationParams & { enabled?: boolean }) {
+  const { enabled = true, ...params } = options || {}
   return useQuery({
     queryKey: customFieldsQueryKeys.list(params),
     queryFn: () => getCustomFields(params),
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
@@ -42,10 +44,11 @@ export function useCustomField(id: string, enabled = true) {
 }
 
 // Hook for fetching custom field data types
-export function useCustomFieldDataTypes() {
+export function useCustomFieldDataTypes(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: customFieldsQueryKeys.dataTypes(),
     queryFn: getCustomFieldDataTypes,
+    enabled: options?.enabled !== false,
     staleTime: 30 * 60 * 1000, // 30 minutes - data types don't change often
   })
 }

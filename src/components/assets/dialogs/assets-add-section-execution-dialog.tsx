@@ -44,8 +44,8 @@ export function AddSectionExecutionDialog({
           : "Add new content at the beginning of this execution."
       }
       icon={PlusCircle}
-      maxWidth="lg"
-      maxHeight="80vh"
+      maxWidth="xl"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={handleCancel}
       submitLabel="Add Section"

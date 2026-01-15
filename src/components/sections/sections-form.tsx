@@ -11,6 +11,7 @@ import { useOrganization } from "@/contexts/organization-context";
 import { FileTree } from "@/components/assets/content/assets-file-tree";
 import { getLibraryContent } from "@/services/folders";
 import { getExecutionsByDocumentId } from "@/services/executions";
+import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
@@ -32,6 +33,7 @@ interface SectionItem {
   prompt: string;
   order: number;
   dependencies: { id: string; name: string }[];
+  referenced_document_id?: string;
 }
 
 interface SectionFormProps {
@@ -67,6 +69,7 @@ export function SectionForm({
 }: SectionFormProps) {
   const { selectedOrganizationId } = useOrganization();
   const editorRef = useRef<MDXEditorMethods>(null);
+  const manualEditorRef = useRef<MDXEditorMethods>(null);
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
@@ -86,23 +89,63 @@ export function SectionForm({
   
   // Estados para Reference Type con FileTree
   const [selectedAsset, setSelectedAsset] = useState<{ id: string; name: string } | null>(null);
+  const [selectedSection, setSelectedSection] = useState<{ id: string; name: string } | null>(null);
+
+  // Query para obtener información del asset referenciado (solo en modo edit)
+  const { data: referencedDocument } = useQuery({
+    queryKey: ['referenced-document', selectedAsset?.id],
+    queryFn: () => getDocumentById(selectedAsset!.id, selectedOrganizationId!),
+    enabled: mode === 'edit' && type === 'reference' && !!selectedAsset?.id && !!selectedOrganizationId,
+    staleTime: 30000,
+  });
+
+  // Query para obtener las secciones del asset seleccionado
+  const { data: assetSections, isLoading: isLoadingSections } = useQuery({
+    queryKey: ['asset-sections', selectedAsset?.id],
+    queryFn: () => getDocumentSections(selectedAsset!.id, selectedOrganizationId!),
+    enabled: type === 'reference' && !!selectedAsset?.id && !!selectedOrganizationId,
+    staleTime: 30000,
+  });
 
   // Query para obtener las ejecuciones del asset seleccionado (solo cuando sea modo specific)
   const { data: assetExecutions, isLoading: isLoadingExecutions } = useQuery({
-    queryKey: ['asset-executions', referenceSectionId],
-    queryFn: () => getExecutionsByDocumentId(referenceSectionId, selectedOrganizationId!),
-    enabled: type === 'reference' && referenceMode === 'specific' && !!referenceSectionId && !!selectedOrganizationId,
+    queryKey: ['asset-executions', selectedAsset?.id],
+    queryFn: () => getExecutionsByDocumentId(selectedAsset!.id, selectedOrganizationId!),
+    enabled: type === 'reference' && referenceMode === 'specific' && !!selectedAsset?.id && !!selectedOrganizationId,
     staleTime: 30000,
   });
+
+  // Actualizar nombre del asset cuando se cargue el documento (modo edit)
+  useEffect(() => {
+    if (mode === 'edit' && referencedDocument && selectedAsset) {
+      const documentName = referencedDocument.name || referencedDocument.title;
+      if (documentName && selectedAsset.name !== documentName) {
+        setSelectedAsset({ id: selectedAsset.id, name: documentName });
+      }
+    }
+  }, [referencedDocument, selectedAsset, mode]);
+
+  // Actualizar nombre de la sección cuando se carguen las secciones del asset (modo edit)
+  useEffect(() => {
+    if (mode === 'edit' && assetSections && referenceSectionId && selectedSection) {
+      const section = assetSections.find((s: any) => s.id === referenceSectionId);
+      if (section && section.name) {
+        setSelectedSection({ id: section.id, name: section.name });
+      }
+    }
+  }, [assetSections, referenceSectionId, mode]);
 
   // Debug: log de los datos recibidos
   useEffect(() => {
     console.log('assetExecutions:', assetExecutions);
+    console.log('assetSections:', assetSections);
     console.log('isLoadingExecutions:', isLoadingExecutions);
+    console.log('isLoadingSections:', isLoadingSections);
     console.log('type:', type);
     console.log('referenceMode:', referenceMode);
+    console.log('selectedAsset:', selectedAsset);
     console.log('referenceSectionId:', referenceSectionId);
-  }, [assetExecutions, isLoadingExecutions, type, referenceMode, referenceSectionId]);
+  }, [assetExecutions, assetSections, isLoadingExecutions, isLoadingSections, type, referenceMode, selectedAsset, referenceSectionId]);
 
   // Lista de ejecuciones disponibles (todas las que tengan status completed o approved)
   const availableExecutions = useMemo(() => {
@@ -153,8 +196,9 @@ export function SectionForm({
   const handleAssetSelect = (node: FileNode) => {
     if (node.type === 'document') {
       setSelectedAsset({ id: node.id, name: node.name });
-      setReferenceSectionId(node.id);
-      // Resetear execution ID cuando cambie el asset
+      // Resetear sección y execution ID cuando cambie el asset
+      setSelectedSection(null);
+      setReferenceSectionId("");
       setReferenceExecutionId("");
     }
   };
@@ -165,22 +209,30 @@ export function SectionForm({
       setName(item.name);
       setType((item as any).type || "ai");
       setPrompt(item.prompt);
-      setManualInput((item as any).manual_input || "");
+      const manualInputValue = (item as any).manual_input || "";
+      setManualInput(manualInputValue);
       const refSectionId = (item as any).reference_section_id || "";
+      const refDocumentId = (item as any).referenced_document_id || "";
       setReferenceSectionId(refSectionId);
       setReferenceMode((item as any).reference_mode || "latest");
       setReferenceExecutionId((item as any).reference_execution_id || "");
       setSelectedDependencies([...item.dependencies]);
       
-      // Si hay un reference_section_id, establecer como selectedAsset
-      // Nota: En modo edit, asumimos que reference_section_id es el ID del asset
-      if (refSectionId && (item as any).type === 'reference') {
-        // Intentar obtener el nombre del asset desde las secciones existentes o establecer un placeholder
-        setSelectedAsset({ id: refSectionId, name: `Asset ${refSectionId.slice(0, 8)}...` });
+      // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
+      if (refSectionId && refDocumentId && (item as any).type === 'reference') {
+        // Establecer el asset seleccionado usando referenced_document_id
+        setSelectedAsset({ id: refDocumentId, name: `Asset ${refDocumentId.slice(0, 8)}...` });
+        // Establecer la sección seleccionada usando reference_section_id
+        setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
       }
       
       if (editorType === 'rich' && editorRef.current) {
         editorRef.current.setMarkdown(item.prompt);
+      }
+      
+      // Sincronizar el editor manual cuando el tipo sea manual
+      if ((item as any).type === 'manual' && manualEditorRef.current) {
+        manualEditorRef.current.setMarkdown(manualInputValue);
       }
     }
   }, [item, mode, editorType]);
@@ -582,18 +634,83 @@ export function SectionForm({
       {/* Campos específicos para tipo Manual */}
       {type === "manual" && (
         <div className="space-y-2">
-          <Label htmlFor="manual-input" className="text-xs font-medium text-gray-700">
+          <Label className="text-xs font-medium text-gray-700">
             Manual Input (Optional)
           </Label>
-          <Textarea
-            id="manual-input"
-            placeholder="Enter initial content for this section (optional)"
-            value={manualInput}
-            onChange={(e) => setManualInput(e.target.value)}
-            disabled={isPending}
-            rows={10}
-            className="text-sm resize-none min-h-[200px]"
-          />
+          <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#4464f7] focus-within:border-transparent">
+            <MDXEditor
+              ref={manualEditorRef}
+              markdown={manualInput}
+              onChange={(value) => setManualInput(value)}
+              contentEditableClassName='mdxeditor-content min-h-[200px] prose dark:prose-invert focus:outline-none p-3'
+              readOnly={isPending}
+              placeholder="Enter initial content for this section (optional)"
+              spellCheck={false}
+              plugins={[
+                headingsPlugin(),
+                listsPlugin(),
+                quotePlugin(),
+                tablePlugin(),
+                thematicBreakPlugin(),
+                linkPlugin(),
+                linkDialogPlugin(),
+                imagePlugin({
+                  imageUploadHandler: async () => {
+                    return Promise.resolve('https://via.placeholder.com/400x300');
+                  }
+                }),
+                codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
+                codeMirrorPlugin({ codeBlockLanguages: { 
+                  js: 'JavaScript', 
+                  jsx: 'JavaScript (React)', 
+                  ts: 'TypeScript', 
+                  tsx: 'TypeScript (React)', 
+                  css: 'CSS', 
+                  html: 'HTML', 
+                  json: 'JSON',
+                  bash: 'Bash',
+                  sh: 'Shell',
+                  yaml: 'YAML',
+                  yml: 'YAML',
+                  xml: 'XML',
+                  sql: 'SQL',
+                  python: 'Python',
+                  go: 'Go',
+                  rust: 'Rust',
+                  java: 'Java',
+                  c: 'C',
+                  cpp: 'C++',
+                  php: 'PHP',
+                  ruby: 'Ruby',
+                  '': 'Plain text'
+                }}),
+                markdownShortcutPlugin(),
+                toolbarPlugin({
+                  toolbarContents() {
+                    return (
+                      <>
+                        <UndoRedo />
+                        <Separator />
+                        <BoldItalicUnderlineToggles />
+                        <CodeToggle />
+                        <Separator />
+                        <BlockTypeSelect />
+                        <Separator />
+                        <ListsToggle />
+                        <Separator />
+                        <CreateLink />
+                        <InsertImage />
+                        <Separator />
+                        <InsertTable />
+                        <InsertCodeBlock />
+                        <InsertThematicBreak />
+                      </>
+                    )
+                  },
+                }),
+              ]}
+            />
+          </div>
           <p className="text-xs text-gray-500">
             This content can be edited later when working with the document
           </p>
@@ -605,7 +722,7 @@ export function SectionForm({
         <>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-gray-700">
-              Select Asset to Reference <span className="text-red-500">*</span>
+              Select Asset <span className="text-red-500">*</span>
             </Label>
             
             {selectedAsset ? (
@@ -620,6 +737,7 @@ export function SectionForm({
                   size="sm"
                   onClick={() => {
                     setSelectedAsset(null);
+                    setSelectedSection(null);
                     setReferenceSectionId("");
                     setReferenceExecutionId("");
                   }}
@@ -643,9 +761,62 @@ export function SectionForm({
             )}
             
             <p className="text-xs text-gray-500">
-              Select an asset whose content will be referenced in this section
+              Select an asset to reference
             </p>
           </div>
+
+          {/* Selector de Sección */}
+          {selectedAsset && (
+            <div className="space-y-2">
+              <Label htmlFor="section-reference" className="text-xs font-medium text-gray-700">
+                Select Section to Reference <span className="text-red-500">*</span>
+              </Label>
+              
+              {isLoadingSections ? (
+                <div className="flex items-center justify-center p-4 border rounded-md">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm text-gray-500">Loading sections...</span>
+                </div>
+              ) : assetSections && assetSections.length > 0 ? (
+                <Select 
+                  value={referenceSectionId} 
+                  onValueChange={(value) => {
+                    setReferenceSectionId(value);
+                    const section = assetSections.find((s: any) => s.id === value);
+                    if (section) {
+                      setSelectedSection({ id: section.id, name: section.name });
+                    }
+                  }} 
+                  disabled={isPending}
+                >
+                  <SelectTrigger className="hover:cursor-pointer text-sm w-full">
+                    <SelectValue placeholder="Select a section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assetSections.map((section: any) => (
+                      <SelectItem 
+                        key={section.id} 
+                        value={section.id} 
+                        className="hover:cursor-pointer"
+                      >
+                        {section.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-4 border border-amber-200 bg-amber-50 rounded-md">
+                  <p className="text-sm text-amber-800">
+                    No sections found for this asset. Please select a different asset.
+                  </p>
+                </div>
+              )}
+              
+              <p className="text-xs text-gray-500">
+                Select a section from the asset to reference
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="reference-mode" className="text-xs font-medium text-gray-700">
@@ -660,7 +831,7 @@ export function SectionForm({
                   setReferenceExecutionId("");
                 }
               }} 
-              disabled={isPending || !selectedAsset}
+              disabled={isPending || !selectedAsset || !referenceSectionId}
             >
               <SelectTrigger className="hover:cursor-pointer text-sm w-full">
                 <SelectValue placeholder="Select reference mode" />
@@ -680,7 +851,7 @@ export function SectionForm({
             </p>
           </div>
 
-          {referenceMode === "specific" && referenceSectionId && (
+          {referenceMode === "specific" && selectedAsset && (
             <div className="space-y-2">
               <Label htmlFor="reference-execution" className="text-xs font-medium text-gray-700">
                 Execution <span className="text-red-500">*</span>
@@ -774,6 +945,11 @@ export function SectionForm({
         {type === "reference" && !selectedAsset && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
             ⚠️ Please select an asset to reference
+          </div>
+        )}
+        {type === "reference" && selectedAsset && !referenceSectionId && (
+          <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            ⚠️ Please select a section to reference
           </div>
         )}
         {type === "reference" && referenceMode === "specific" && selectedAsset && !referenceExecutionId && (

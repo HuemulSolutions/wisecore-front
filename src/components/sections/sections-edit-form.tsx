@@ -11,6 +11,7 @@ interface Item {
   reference_section_id?: string;
   reference_mode?: "latest" | "specific";
   reference_execution_id?: string;
+  referenced_document_id?: string;
 }
 
 interface ItemForBackend {

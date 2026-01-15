@@ -35,8 +35,8 @@ export function CreateEditCustomFieldDialog({
 
   const isEditing = !!customField
 
-  // Fetch data types
-  const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes()
+  // Fetch data types (lazy loading: only when dialog is open)
+  const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: open })
   const dataTypes = dataTypesResponse?.data || []
 
   // Reset form when dialog opens/closes or customField changes

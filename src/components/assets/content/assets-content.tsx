@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 // Import necesario para el icono Plus
 import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Edit2, MoreVertical } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
@@ -170,9 +170,12 @@ interface CustomFieldsListProps {
   onAdd: () => void;
   onEdit: (field: CustomFieldDocument) => void;
   onDelete: (field: CustomFieldDocument) => void;
+  onRefresh: () => void;
+  uploadingImageFieldId?: string | null;
+  isRefreshing?: boolean;
 }
 
-function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete }: CustomFieldsListProps) {
+function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete, onRefresh, uploadingImageFieldId, isRefreshing }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
   if (isLoading) {
@@ -315,18 +318,32 @@ function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete }: 
 
   return (
     <div className="space-y-2 pt-2">
-      {/* Header with Add button */}
+      {/* Header with Refresh and Add buttons */}
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Fields</h4>
-        <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer h-7 text-xs px-2">
-          <Plus className="h-3 w-3 mr-1" />
-          Add
-        </Button>
+        <div className="flex gap-1">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={onRefresh} 
+            disabled={isRefreshing}
+            className={`hover:cursor-pointer h-7 w-7 p-0 ${
+              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer h-7 text-xs px-2">
+            <Plus className="h-3 w-3 mr-1" />
+            Add
+          </Button>
+        </div>
       </div>
       
       {/* Fields List */}
       <div className="space-y-1.5">
         {customFields.map((field) => {
+          const isUploadingThisField = uploadingImageFieldId === field.id;
           return (
             <div key={field.id} className="flex items-start justify-between p-2 border rounded bg-card">
               <div className="flex-1 min-w-0 mr-2">
@@ -346,7 +363,14 @@ function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete }: 
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {renderValue(field)}
+                  {isUploadingThisField && field.data_type === 'image' ? (
+                    <div className="flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Uploading image...</span>
+                    </div>
+                  ) : (
+                    renderValue(field)
+                  )}
                 </div>
               </div>
               <DropdownMenu>
@@ -425,6 +449,9 @@ export function AssetContent({
   // States to control on-demand loading
   const [needsFullDocument, setNeedsFullDocument] = useState(false);
   const [needsDefaultLLM, setNeedsDefaultLLM] = useState(false);
+  
+  // Ref to track if we've already synced selectedExecutionId for this document
+  const hasInitializedExecutionRef = useRef<string | null>(null);
   
   // Removed debug logging to improve performance
 
@@ -670,11 +697,14 @@ export function AssetContent({
     mutationFn: async (data: any) => {
       return createCustomFieldDocument(data);
     },
-    onSuccess: () => {
-      // Refresh custom fields data
-      queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
-      setIsAddCustomFieldDocumentDialogOpen(false);
-      toast.success('Custom field document created successfully!');
+    onSuccess: (createdField) => {
+      // Don't close dialog or show success yet - wait for image upload if needed
+      // Refresh will happen after image upload completes
+      if (createdField.data_type !== 'image') {
+        queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+        setIsAddCustomFieldDocumentDialogOpen(false);
+        toast.success('Custom field document created successfully!');
+      }
     },
     onError: (error: Error) => {
       console.error('Error creating custom field document:', error);
@@ -789,6 +819,8 @@ export function AssetContent({
   const [isDeleteCustomFieldDocumentDialogOpen, setIsDeleteCustomFieldDocumentDialogOpen] = useState(false);
   const [customFieldDocumentToDelete, setCustomFieldDocumentToDelete] = useState<CustomFieldDocument | null>(null);
   const [isDeletingCustomFieldDocument, setIsDeletingCustomFieldDocument] = useState(false);
+  const [uploadingImageFieldId, setUploadingImageFieldId] = useState<string | null>(null);
+  const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
   
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
@@ -811,8 +843,12 @@ export function AssetContent({
 
   // Handle document creation
   const handleDocumentCreated = (createdDocument: { id: string; name: string; type: "document" }) => {
+    console.log('📥 [ASSETS-CONTENT] handleDocumentCreated called:', createdDocument)
+    console.log('🔄 [ASSETS-CONTENT] Calling onRefresh')
     onRefresh();
+    console.log('📄 [ASSETS-CONTENT] Setting selected file')
     setSelectedFile(createdDocument);
+    console.log('✓ [ASSETS-CONTENT] Document set as selected')
   };
 
   // Handle execution created from Execute Sheet
@@ -956,9 +992,11 @@ export function AssetContent({
     () => handleCreateExecution({ type: 'section', sectionIndex, sectionId });
 
   // Fetch document content when a document is selected
+  // Note: The backend automatically returns the approved execution or the latest one if none is approved
+  // When selectedExecutionId is provided, it fetches that specific historical version
   const { data: documentContent, isLoading: isLoadingContent } = useQuery({
     queryKey: selectedExecutionId 
-      ? ['document-content', selectedFile?.id, selectedExecutionId]
+      ? ['document-content', selectedFile?.id, selectedExecutionId] 
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
@@ -969,7 +1007,7 @@ export function AssetContent({
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
-  const { data: fullDocument } = useQuery({
+  const { data: fullDocument, isLoading: isLoadingFullDocument } = useQuery({
     queryKey: ['document', selectedFile?.id],
     queryFn: () => getDocumentById(selectedFile!.id, selectedOrganizationId!),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && needsFullDocument,
@@ -1201,6 +1239,7 @@ export function AssetContent({
       if (selectedExecutionId) {
         setSelectedExecutionId(null);
       }
+      hasInitializedExecutionRef.current = null; // Reset ref when leaving document
       return;
     }
 
@@ -1209,16 +1248,36 @@ export function AssetContent({
     if (selectedExecutionId) {
       setSelectedExecutionId(null);
     }
+    
+    // Reset the initialization ref when document changes
+    hasInitializedExecutionRef.current = null;
   }, [selectedFile?.id]);
 
-  // Auto-set selectedExecutionId when document content loads
-  // This ensures that execution actions (like executing a specific section) work correctly
+  // Sync selectedExecutionId with the execution that was loaded by the backend
+  // This only happens ONCE per document to set the initial state, preventing duplicate API calls
   useEffect(() => {
-    if (selectedFile?.type === 'document' && !selectedExecutionId && documentContent?.execution_id) {
-      // Set to the execution that was loaded by the API (approved or most recent)
+    // Only sync if:
+    // 1. We have document content with an execution_id
+    // 2. selectedExecutionId is currently null (no manual selection yet)
+    // 3. We haven't already initialized for this document
+    if (
+      selectedFile?.type === 'document' &&
+      documentContent?.execution_id &&
+      !selectedExecutionId &&
+      hasInitializedExecutionRef.current !== selectedFile.id
+    ) {
+      console.log('🔄 Syncing selectedExecutionId with loaded execution:', documentContent.execution_id);
+      
+      // Copy the already-loaded data to the new queryKey to prevent duplicate API call
+      queryClient.setQueryData(
+        ['document-content', selectedFile.id, documentContent.execution_id],
+        documentContent
+      );
+      
       setSelectedExecutionId(documentContent.execution_id);
+      hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.type, selectedExecutionId, documentContent?.execution_id]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, selectedExecutionId, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -1306,6 +1365,17 @@ export function AssetContent({
     setIsAddCustomFieldDocumentDialogOpen(true);
   };
 
+  // Handle refresh custom fields
+  const handleRefreshCustomFields = async () => {
+    setIsRefreshingCustomFields(true);
+    try {
+      await queryClient.refetchQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+      toast.success('Custom fields refreshed');
+    } finally {
+      setIsRefreshingCustomFields(false);
+    }
+  };
+
   // Handle edit custom field document
   const handleEditCustomFieldDocument = (field: CustomFieldDocument) => {
     setSelectedCustomFieldDocument(field);
@@ -1314,12 +1384,28 @@ export function AssetContent({
 
   // Handle create custom field document submission
   const handleCreateCustomFieldDocument = async (data: any) => {
-    return createCustomFieldDocumentMutation.mutateAsync(data);
+    const result = await createCustomFieldDocumentMutation.mutateAsync(data);
+    // If it's an image type, keep dialog open for upload, but return the created field
+    return result;
   };
 
   // Handle update custom field document submission
   const handleUpdateCustomFieldDocument = async (id: string, data: any) => {
     return updateCustomFieldDocumentMutation.mutateAsync({ id, data });
+  };
+
+  // Handle image upload tracking
+  const handleImageUploadStart = (fieldId: string) => {
+    setUploadingImageFieldId(fieldId);
+  };
+
+  const handleImageUploadComplete = () => {
+    setUploadingImageFieldId(null);
+    // Refresh custom fields data to show the uploaded image
+    queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
+    // Close the dialog and show success message
+    setIsAddCustomFieldDocumentDialogOpen(false);
+    toast.success('Custom field document created successfully!');
   };
 
   // Handle delete custom field document
@@ -1597,7 +1683,7 @@ export function AssetContent({
                 </TooltipProvider>
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-medium text-gray-900">
-                    {selectedFile ? selectedFile.name : 'Asset'}
+                    {documentContent?.document_name || selectedFile.name}
                   </span>
                   {/* Always reserve space for execution info to prevent layout shift */}
                   <div className="flex items-center gap-1 text-xs text-gray-500 min-h-[18px]">
@@ -1632,6 +1718,24 @@ export function AssetContent({
                       </div>
                     )}
                   </div>
+                  {/* Document metadata for mobile */}
+                  {(documentContent?.internal_code || documentContent?.created_by_user || documentContent?.updated_by_user) && (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                      {documentContent?.internal_code && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-xs text-gray-700">
+                          <FileText className="w-2.5 h-2.5" />
+                          <span className="font-medium">Code:</span>
+                          <span>{documentContent.internal_code}</span>
+                        </div>
+                      )}
+                      {documentContent?.created_by_user && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-xs text-purple-700">
+                          <span className="font-medium">By:</span>
+                          <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -2043,7 +2147,7 @@ export function AssetContent({
             {!isMobile && (
               <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
                 <div className="flex flex-col gap-2 flex-1">
-                  <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{selectedFile.name}</h1>
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{documentContent?.document_name || selectedFile.name}</h1>
                   {/* Always reserve space for execution info to prevent layout shift */}
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 min-h-[20px]">
                     {selectedExecutionInfo && (
@@ -2059,6 +2163,28 @@ export function AssetContent({
                           </span>
                         )}
                       </>
+                    )}
+                  </div>
+                  {/* Document metadata row */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {documentContent?.internal_code && (
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 text-xs text-gray-700">
+                        <FileText className="w-3 h-3" />
+                        <span className="font-medium">Code:</span>
+                        <span>{documentContent.internal_code}</span>
+                      </div>
+                    )}
+                    {documentContent?.created_by_user && (
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-50 text-xs text-purple-700">
+                        <span className="font-medium">Created by:</span>
+                        <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
+                      </div>
+                    )}
+                    {documentContent?.updated_by_user && (
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-50 text-xs text-amber-700">
+                        <span className="font-medium">Updated by:</span>
+                        <span>{documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}</span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2691,7 +2817,7 @@ export function AssetContent({
                                   <EmptyIcon>
                                     <Zap className="h-12 w-12" />
                                   </EmptyIcon>
-                                  <EmptyTitle>Setup {selectedFile.name}</EmptyTitle>
+                                  <EmptyTitle>Setup {documentContent?.document_name || selectedFile.name}</EmptyTitle>
                                   <EmptyDescription>
                                     {fullDocument?.sections?.length > 0 
                                       ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
@@ -2841,6 +2967,7 @@ export function AssetContent({
                                     }
                                   }}
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
+                                  sectionType={(section as any).section_type as 'ai' | 'manual' | 'reference' | undefined}
                                 />
                               </div>
                               
@@ -2982,6 +3109,9 @@ export function AssetContent({
                   onAdd={handleAddCustomFieldDocument}
                   onEdit={handleEditCustomFieldDocument}
                   onDelete={handleDeleteCustomFieldDocument}
+                  onRefresh={handleRefreshCustomFields}
+                  uploadingImageFieldId={uploadingImageFieldId}
+                  isRefreshing={isRefreshingCustomFields}
                 />
               )}
             </div>
@@ -3124,7 +3254,7 @@ export function AssetContent({
           setIsEditDialogOpen(open);
         }}
         documentId={selectedFile?.id || ''}
-        currentName={selectedFile?.name || ''}
+        currentName={documentContent?.document_name || selectedFile?.name || ''}
         currentDescription={documentContent?.description}
         onUpdated={(newName) => {
           if (selectedFile) {
@@ -3139,6 +3269,7 @@ export function AssetContent({
       <ExecuteSheet
         selectedFile={selectedFile}
         fullDocument={fullDocument}
+        isLoadingFullDocument={isLoadingFullDocument}
         isOpen={isExecuteSheetOpen}
         onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
           if (!open) onPreserveScroll?.();
@@ -3191,6 +3322,8 @@ export function AssetContent({
         onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
         documentId={selectedFile.id}
         onAdd={handleCreateCustomFieldDocument}
+        onImageUploadStart={handleImageUploadStart}
+        onImageUploadComplete={handleImageUploadComplete}
       />
 
       {/* Edit Custom Field Document Dialog */}

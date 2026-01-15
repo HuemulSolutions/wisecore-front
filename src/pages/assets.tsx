@@ -292,6 +292,7 @@ function AssetsContent() {
         if (navState?.fromFileTree && navState.selectedDocumentId) {
           console.log('✅ Navigation from FileTree detected, using provided context');
           // Use the data provided by FileTree, no need to parse URL or load folders
+          setSelectedExecutionId(null); // Reset execution ID for new document
           setSelectedFile({
             id: navState.selectedDocumentId,
             name: navState.selectedDocumentName || 'Document',
@@ -351,6 +352,7 @@ function AssetsContent() {
           console.log('Loading selected file details...');
           // Set file with minimal info, the document content query will handle the rest
           // This avoids an extra API call to get folder content
+          setSelectedExecutionId(null); // Reset execution ID for new document
           setSelectedFile({
             id: selectedFileId,
             name: `Document ${selectedFileId.substring(0, 8)}...`,
@@ -422,10 +424,17 @@ function AssetsContent() {
     
     const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
     
+    // Don't update URL if navigation came from FileTree (it already handles the URL)
+    const navigationState = location.state as any;
+    if (navigationState?.fromFileTree) {
+      console.log('⏭️ [ASSETS] Skipping URL update - navigation from FileTree');
+      return;
+    }
+    
     // Solo actualizar URL si es diferente de la actual
     // Pero no actualizar si acabamos de cargar desde URL (para evitar ciclos)
     if (location.pathname !== newUrl && !isUpdatingUrl) {
-      console.log('Updating URL to reflect current state:', newUrl);
+      console.log('🔄 [ASSETS] Updating URL to reflect current state:', newUrl);
       setIsUpdatingUrl(true);
       
       // Mark the new URL as processed to avoid re-processing it
@@ -440,7 +449,7 @@ function AssetsContent() {
         }, 100);
       }, 0);
     }
-  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current, isUpdatingUrl]);
+  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current, isUpdatingUrl, location.state]);
 
   // Ref para rastrear la organización anterior y evitar resets innecesarios
   const prevOrganizationIdRef = useRef<string | null>(null);
@@ -481,6 +490,7 @@ function AssetsContent() {
 
     if (navigationState?.selectedDocumentId && navigationState?.selectedDocumentName) {
       // Restore selected file
+      setSelectedExecutionId(null); // Reset execution ID for document restoration
       setSelectedFile({
         id: navigationState.selectedDocumentId,
         name: navigationState.selectedDocumentName,
@@ -523,6 +533,7 @@ function AssetsContent() {
       if (savedSelectedFile) {
         try {
           const parsedSelectedFile = JSON.parse(savedSelectedFile);
+          setSelectedExecutionId(null); // Reset execution ID when restoring from session
           setSelectedFile(parsedSelectedFile);
         } catch (error) {
           console.error('Error parsing saved selected file:', error);

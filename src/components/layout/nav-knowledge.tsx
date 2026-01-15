@@ -42,6 +42,7 @@ const NavKnowledgeContext = React.createContext<{
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate()
   const fileTreeRef = useRef<FileTreeRef>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
@@ -70,9 +71,24 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }, 0)
   }, [])
 
-  const handleAssetCreated = useCallback(() => {
+  const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
+    console.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
+    console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
     fileTreeRef.current?.refresh()
-  }, [])
+    // Navigate to the newly created asset
+    if (createdAsset) {
+      console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
+      navigate(`/asset/${createdAsset.id}`, {
+        state: {
+          selectedDocumentId: createdAsset.id,
+          selectedDocumentName: createdAsset.name,
+          selectedDocumentType: createdAsset.type,
+          fromFileTree: true,
+        }
+      })
+      console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
+    }
+  }, [navigate])
 
   const handleFolderCreated = useCallback(() => {
     fileTreeRef.current?.refresh()
@@ -146,12 +162,17 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }
   }, [documentToDelete, selectedOrganizationId])
 
+  const handleCreateAssetDialogChange = useCallback((open: boolean) => {
+    console.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
+    setCreateAssetDialogOpen(open)
+  }, [])
+
   return (
     <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument }}>
       {children}
       <CreateAssetDialog
         open={createAssetDialogOpen}
-        onOpenChange={setCreateAssetDialogOpen}
+        onOpenChange={handleCreateAssetDialogChange}
         folderId={currentFolderId}
         onAssetCreated={handleAssetCreated}
       />

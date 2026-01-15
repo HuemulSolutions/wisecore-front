@@ -144,10 +144,11 @@ export interface AssetContentResponse {
     execution_name: string;
     document_type: DocumentType;
     executions: ExecutionInfo[];
+    internal_code: string | null;
     access_levels: string[];
     content: ContentSection[];
-    created_by_user: UserInfo;
-    updated_by_user: UserInfo;
+    created_by_user: UserInfo | null;
+    updated_by_user: UserInfo | null;
   };
   transaction_id: string;
   timestamp: string;

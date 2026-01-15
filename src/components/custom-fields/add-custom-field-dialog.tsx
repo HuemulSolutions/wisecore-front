@@ -24,6 +24,8 @@ interface AddCustomFieldDialogProps {
   uploadImageFn: (entityCustomFieldId: string, file: File, organizationId: string) => Promise<void>
   sources: string[]
   isLoadingSources: boolean
+  onImageUploadStart?: (fieldId: string) => void
+  onImageUploadComplete?: () => void
 }
 
 export function AddCustomFieldDialog({
@@ -35,6 +37,8 @@ export function AddCustomFieldDialog({
   uploadImageFn,
   sources,
   isLoadingSources,
+  onImageUploadStart,
+  onImageUploadComplete,
 }: AddCustomFieldDialogProps) {
   const [fieldType, setFieldType] = useState<"existing" | "new">("existing")
   const [selectedCustomFieldId, setSelectedCustomFieldId] = useState<string>("")
@@ -53,16 +57,16 @@ export function AddCustomFieldDialog({
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  // Fetch existing custom fields
+  // Fetch existing custom fields (lazy loading: only when dialog is open)
   const {
     data: customFieldsResponse,
     isLoading: isLoadingCustomFields,
-  } = useCustomFields()
+  } = useCustomFields({ enabled: isOpen })
 
   const customFields = customFieldsResponse?.data || []
 
-  // Fetch data types for new custom field creation
-  const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes()
+  // Fetch data types for new custom field creation (lazy loading: only when dialog is open)
+  const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: isOpen })
   const dataTypes = dataTypesResponse?.data || []
 
   // Custom field mutations for creating new custom fields
@@ -107,12 +111,15 @@ export function AddCustomFieldDialog({
   const handleImageUpload = async (entityCustomFieldId: string, file: File) => {
     console.log(`Starting image upload for ${entityType} field ID:`, entityCustomFieldId, "file:", file.name)
     setIsUploadingImage(true)
+    onImageUploadStart?.(entityCustomFieldId)
     try {
       await uploadImageFn(entityCustomFieldId, file, selectedOrganizationId!)
       console.log("Image uploaded successfully")
+      onImageUploadComplete?.()
     } catch (error) {
       console.error("Error uploading image:", error)
       setFormErrors(prev => ({ ...prev, value: "Failed to upload image" }))
+      onImageUploadComplete?.()
     } finally {
       setIsUploadingImage(false)
     }

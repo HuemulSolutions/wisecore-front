@@ -39,6 +39,7 @@ interface ExecuteSheetProps {
     type: "folder" | "document";
   } | null;
   fullDocument?: any;
+  isLoadingFullDocument?: boolean;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSectionSheetOpen: () => void;
@@ -54,6 +55,7 @@ interface ExecuteSheetProps {
 export function ExecuteSheet({
   selectedFile,
   fullDocument,
+  isLoadingFullDocument,
   isOpen,
   onOpenChange,
   onSectionSheetOpen,
@@ -78,6 +80,10 @@ export function ExecuteSheet({
   
   // Refs para la inicialización
   const instructionsInitialized = useRef<boolean>(false);
+  
+  // Determinar si realmente estamos cargando el documento completo
+  // Si el sheet está abierto pero no tenemos fullDocument, asumimos que está cargando
+  const isActuallyLoadingFullDocument = isLoadingFullDocument || (isOpen && !fullDocument);
 
   // Fetch executions for the document to check for existing pending executions
   useExecutionsByDocumentId(
@@ -95,16 +101,20 @@ export function ExecuteSheet({
     refetchOnReconnect: false,
   });
 
-  // Query para obtener LLMs
+  // Query para obtener LLMs (lazy loading: only when sheet is open)
   const { data: llms } = useQuery({
     queryKey: ["llms"],
     queryFn: getLLMs,
+    enabled: isOpen, // Only fetch when sheet is actually open
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Query para obtener LLM por defecto
-  const { data: defaultLLM } = useQuery({
+  // Query para obtener LLM por defecto (lazy loading: only when sheet is open)
+  const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
     queryKey: ["default-llm"],
     queryFn: getDefaultLLM,
+    enabled: isOpen, // Only fetch when sheet is actually open
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   // Mutation para ejecutar documento (crear y ejecutar en una operación)
@@ -326,23 +336,75 @@ export function ExecuteSheet({
     }
   }, [isOpen, executionContext]);
 
+  // Effect para actualizar selectedSectionId cuando fullDocument se carga
+  // Si tenemos sectionIndex pero no sectionId en el contexto, obtener el ID del fullDocument
+  useEffect(() => {
+    if (isOpen && 
+        executionContext?.type === 'section' && 
+        executionContext.sectionIndex !== undefined && 
+        !executionContext.sectionId && 
+        fullDocument?.sections?.[executionContext.sectionIndex]?.id &&
+        !selectedSectionId) {
+      const sectionId = fullDocument.sections[executionContext.sectionIndex].id;
+      console.log('🔄 [ExecuteSheet] Updating selectedSectionId from fullDocument:', sectionId);
+      setSelectedSectionId(sectionId);
+    }
+  }, [isOpen, executionContext, fullDocument, selectedSectionId]);
+
   // Effect para resetear executionType cuando no hay ejecución actual ni seleccionada
+  // SOLO aplica si el tipo ya era 'single' o 'from' y ya no hay ejecución disponible
   useEffect(() => {
     // Solo resetear si realmente no hay ninguna ejecución disponible
     const hasAvailableExecution = currentExecutionId || selectedExecutionId;
     if (!hasAvailableExecution && (executionType === 'single' || executionType === 'from')) {
-      // Si viene del contexto de sección, mantener 'single', sino 'full'
-      if (executionContext?.type === 'section') {
+      // Si viene del contexto de sección con sectionId, mantener 'single', sino 'full'
+      if (executionContext?.type === 'section' && executionContext?.sectionId) {
         setExecutionType('single');
-        if (executionContext.sectionId) {
-          setSelectedSectionId(executionContext.sectionId);
-        }
+        setSelectedSectionId(executionContext.sectionId);
       } else {
         setExecutionType('full');
         setSelectedSectionId("");
       }
     }
   }, [currentExecutionId, selectedExecutionId, executionType, executionContext]);
+
+  // Debug logging para entender el estado del botón
+  useEffect(() => {
+    if (isOpen) {
+      const disabledReasons: string[] = [];
+      
+      if (isActuallyLoadingFullDocument) disabledReasons.push('Loading fullDocument');
+      if (isLoadingDefaultLLM) disabledReasons.push('Loading defaultLLM');
+      if (!fullDocument?.sections) disabledReasons.push('No fullDocument.sections');
+      if (fullDocument?.sections && fullDocument.sections.length === 0) disabledReasons.push('Empty sections');
+      if (executeDocumentMutation.isPending) disabledReasons.push('Mutation pending');
+      if (!sheetSelectedLLM && !defaultLLM?.id) disabledReasons.push('No LLM selected/available');
+      if ((executionType === 'single' || executionType === 'from') && !selectedSectionId) disabledReasons.push('Single/From mode without section');
+      if ((executionType === 'single' || executionType === 'from') && !currentExecutionId && !selectedExecutionId) disabledReasons.push('Single/From mode without execution');
+      
+      console.log('🔍 [ExecuteSheet] Estado del botón:', {
+        executionType,
+        selectedSectionId,
+        currentExecutionId,
+        selectedExecutionId: selectedExecutionId,
+        fullDocument_exists: !!fullDocument,
+        fullDocument_sections: fullDocument?.sections?.length,
+        defaultLLM_id: defaultLLM?.id,
+        sheetSelectedLLM,
+        isLoadingDefaultLLM,
+        isLoadingFullDocument_raw: isLoadingFullDocument,
+        isActuallyLoadingFullDocument,
+        buttonDisabled: disabledReasons.length > 0,
+        executionContext,
+      });
+      
+      if (disabledReasons.length > 0) {
+        console.log('🚫 [ExecuteSheet] Button DISABLED. Reasons:', disabledReasons);
+      } else {
+        console.log('✅ [ExecuteSheet] Button ENABLED');
+      }
+    }
+  }, [isOpen, executionType, selectedSectionId, currentExecutionId, selectedExecutionId, fullDocument?.sections, fullDocument, defaultLLM?.id, sheetSelectedLLM, executeDocumentMutation.isPending, isLoadingDefaultLLM, isLoadingFullDocument, isActuallyLoadingFullDocument, executionContext]);
 
   return (
     <>
@@ -367,16 +429,18 @@ export function ExecuteSheet({
                 </div>
                 {/* Botón de acción centrado verticalmente */}
                 <div className="flex items-center h-full gap-2 ml-4">
-                  <Button 
+                  <Button
                     onClick={handleExecuteDocument}
                     disabled={
-                      !fullDocument?.sections || 
-                      fullDocument.sections.length === 0 || 
-                      executeDocumentMutation.isPending || 
-                      (!sheetSelectedLLM && !defaultLLM?.id) ||
-                      // Validación específica para single y from:
-                      // - Necesitan una sección seleccionada
-                      // - Necesitan una ejecución existente (currentExecutionId o selectedExecutionId)
+                      // Prioridad 1: Estados de carga - mantener deshabilitado durante carga
+                      isActuallyLoadingFullDocument ||
+                      isLoadingDefaultLLM ||
+                      // Prioridad 2: Mutation en proceso
+                      executeDocumentMutation.isPending ||
+                      // Prioridad 3: Validaciones de datos (solo si NO está cargando)
+                      (!isActuallyLoadingFullDocument && (!fullDocument?.sections || fullDocument.sections.length === 0)) ||
+                      (!isLoadingDefaultLLM && !sheetSelectedLLM && !defaultLLM?.id) ||
+                      // Prioridad 4: Validación específica para single y from
                       ((executionType === 'single' || executionType === 'from') && 
                         (!selectedSectionId || (!currentExecutionId && !selectedExecutionId)))
                     }
@@ -387,6 +451,11 @@ export function ExecuteSheet({
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Creating...
+                      </>
+                    ) : (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
                       </>
                     ) : (
                       <>
@@ -426,7 +495,7 @@ export function ExecuteSheet({
                           </p>
                         <Button
                           onClick={handleExecuteDocument}
-                          disabled={!sheetSelectedLLM && !defaultLLM?.id}
+                          disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || (!sheetSelectedLLM && !defaultLLM?.id)}
                           className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer px-6"
                         >
                           <Play className="h-4 w-4 mr-2" />

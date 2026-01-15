@@ -26,6 +26,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
   const [showCreateDocTypeDialog, setShowCreateDocTypeDialog] = useState(false)
 
   React.useEffect(() => {
+    console.log('🔔 [CREATE-DIALOG] Open state changed:', open)
     if (open) {
       setName("")
       setDescription("")
@@ -81,16 +82,29 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
   const createAssetMutation = useMutation({
     mutationFn: async (data: CreateAssetRequest) => {
       if (!selectedOrganizationId) throw new Error("Organization ID not found")
+      console.log('🚀 [CREATE-DIALOG] Starting asset creation:', data.name)
       return createDocument(data, selectedOrganizationId)
     },
     onSuccess: (createdAsset) => {
-      onAssetCreated?.({
-        id: createdAsset.id,
-        name: createdAsset.name,
-        type: "document"
-      })
+      console.log('✅ [CREATE-DIALOG] Asset created successfully:', createdAsset)
       toast.success("Asset created successfully")
+      
+      // Store the callback to execute after dialog closes
+      const executeCallback = () => {
+        console.log('📞 [CREATE-DIALOG] Calling onAssetCreated callback')
+        onAssetCreated?.({
+          id: createdAsset.id,
+          name: createdAsset.name,
+          type: "document"
+        })
+      }
+      
+      // Close dialog first
+      console.log('🚪 [CREATE-DIALOG] Closing dialog')
       onOpenChange(false)
+      
+      // Wait for dialog to fully close before navigating
+      setTimeout(executeCallback, 300)
     },
     onError: (error) => {
       console.error("Create asset error:", error)

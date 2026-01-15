@@ -42,6 +42,7 @@ interface SectionExecutionProps {
     onOpenExecuteSheet?: () => void;
     executionMode?: 'single' | 'from' | 'full' | 'full-single';
     showExecutionFeedback?: boolean;
+    sectionType?: 'ai' | 'manual' | 'reference';
 }
 
 export default function SectionExecution({ 
@@ -56,7 +57,8 @@ export default function SectionExecution({
     accessLevels,
     onOpenExecuteSheet,
     executionMode = 'single',
-    showExecutionFeedback = false
+    showExecutionFeedback = false,
+    sectionType = 'ai'
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -71,6 +73,12 @@ export default function SectionExecution({
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
     const isExecutionApproved = executionStatus === 'approved';
+    
+    // Determine which actions are available based on section type
+    const canExecute = sectionType === 'ai'; // Solo AI sections pueden ejecutarse
+    const canEdit = sectionType !== 'reference'; // Manual y AI pueden editarse, reference no
+    const canAiEdit = sectionType !== 'reference'; // Manual y AI pueden usar AI edit, reference no
+    const canDelete = sectionType !== 'reference'; // Manual y AI pueden eliminarse, reference no
     
     // Solucion temporal: usar el ID de la sección como fallback si section_id no existe
     const sectionIdForExecution = sectionExecution.section_id || sectionExecution.id;
@@ -300,7 +308,7 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1 bg-white">
-                                {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -320,7 +328,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canAiEdit && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -340,7 +348,7 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canEdit && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -378,7 +386,7 @@ export default function SectionExecution({
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
+                                {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && canDelete && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
@@ -421,7 +429,7 @@ export default function SectionExecution({
                                             Copy
                                         </DropdownMenuItem>
                                     </DocumentAccessControl>
-                                    {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                    {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
                                         <>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
@@ -455,7 +463,7 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                         </>
                                     )}
-                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canEdit && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -469,7 +477,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && (
+                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canAiEdit && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
@@ -485,7 +493,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && (
+                                    {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && canDelete && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="delete"
@@ -502,7 +510,7 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && (
+                                    {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="approve"
