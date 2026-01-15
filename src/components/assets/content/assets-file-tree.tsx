@@ -682,10 +682,10 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           onDrop={(e) => handleDrop(e, null)}
         >
           {isLoading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 rounded-lg">
               <div className="flex flex-col items-center gap-2">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Procesando...</p>
+                <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
             </div>
           )}
