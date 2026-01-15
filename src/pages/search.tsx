@@ -7,7 +7,7 @@ import { search } from "@/services/search";
 import { Loader2, Search, FileText, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/contexts/organization-context";
-import { DocumentResult } from "@/components/search/document-result";
+import { DocumentResult } from "@/components/search/search-document-result";
 import { SearchResultsSkeleton } from "@/components/search/search-results-skeleton";
 
 interface SearchResultSection {

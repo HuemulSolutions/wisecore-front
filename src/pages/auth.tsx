@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { LoginForm } from "@/components/auth/login-form"
-import { SignupForm } from "@/components/auth/signup-form"
-import { OTPForm } from "@/components/auth/otp-form"
+import { LoginForm } from "@/components/auth/auth-login-form"
+import { SignupForm } from "@/components/auth/auth-signup-form"
+import { OTPForm } from "@/components/auth/auth-otp-form"
 import { useAuth } from "@/contexts/auth-context"
 
 type AuthStep = 'login' | 'signup' | 'otp'

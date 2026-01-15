@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import ExecutionInfo from "@/components/execution_info";
-import SectionExecution from "@/components/section_execution";
+import ExecutionInfo from "@/components/execution/execution_info";
+import SectionExecution from "@/components/sections/sections_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Chatbot from "@/components/chatbot/chatbot";
 import { 
@@ -11,7 +11,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, WandSparkles, Loader2, CircleCheck, CircleX } from "lucide-react";
-import { TableOfContents } from "@/components/table-of-contents";
+import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { getExecutionById, approveExecution, disapproveExecution } from "@/services/executions";
 import { getLLMs, updateExecutionLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";

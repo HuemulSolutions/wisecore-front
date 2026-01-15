@@ -29,67 +29,14 @@ function AssetsContent() {
     
     if (segments.length === 0) return { folderPath: [], selectedFileId: null };
     
-    // Special case: if we have only one segment, try to find document globally first
+    // Special case: if we have only one segment, assume it's a document in root
+    // Avoid recursive search as FileTree navigation already knows the location
     if (segments.length === 1) {
       const possibleFileId = segments[0];
-      console.log('🔍 Single segment detected, trying global document search:', possibleFileId);
+      console.log('🔍 Single segment detected, assuming document in root:', possibleFileId);
       
-      // Try to find the document in root first
-      try {
-        const rootContent = await getLibraryContent(selectedOrganizationId!, undefined);
-        const rootItems = rootContent?.content || [];
-        const foundInRoot = rootItems.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
-        
-        if (foundInRoot) {
-          console.log('✅ Found document in root:', foundInRoot.name);
-          return { 
-            folderPath: [], 
-            selectedFileId: possibleFileId 
-          };
-        }
-      } catch (error) {
-        console.log('Root search failed:', error instanceof Error ? error.message : 'Unknown error');
-      }
-      
-      // If not in root, search recursively through folders
-      const searchInFolder = async (folderId?: string, currentPath: string[] = []): Promise<{ folderPath: string[], selectedFileId: string } | null> => {
-        try {
-          const content = await getLibraryContent(selectedOrganizationId!, folderId);
-          const items = content?.content || [];
-          
-          // Check if document is in current folder
-          const foundFile = items.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
-          if (foundFile) {
-            console.log('✅ Found document in folder path:', currentPath, 'document:', foundFile.name);
-            return {
-              folderPath: currentPath,
-              selectedFileId: possibleFileId
-            };
-          }
-          
-          // Search in subfolders (limit depth to avoid infinite loops)
-          if (currentPath.length < 10) {
-            const folders = items.filter((item: LibraryItem) => item.type === 'folder');
-            for (const folder of folders) {
-              const result = await searchInFolder(folder.id, [...currentPath, folder.id]);
-              if (result) return result;
-            }
-          }
-          
-          return null;
-        } catch (error) {
-          console.log(`Error searching in folder ${folderId}:`, error instanceof Error ? error.message : 'Unknown error');
-          return null;
-        }
-      };
-      
-      console.log('🔄 Searching in subfolders...');
-      const searchResult = await searchInFolder();
-      if (searchResult) {
-        return searchResult;
-      }
-      
-      console.log('⚠️ Document not found, treating as file in root');
+      // Simply return as root-level document
+      // The document loading will fail gracefully if it doesn't exist
       return { 
         folderPath: [], 
         selectedFileId: possibleFileId 
@@ -333,6 +280,24 @@ function AssetsContent() {
       try {
         console.log('Initializing from URL:', location.pathname);
         setIsLoadingDocument(true);
+        
+        // Check if we're coming from FileTree navigation with full context
+        const navState = location.state as LibraryNavigationState | undefined;
+        if (navState?.fromFileTree && navState.selectedDocumentId) {
+          console.log('✅ Navigation from FileTree detected, using provided context');
+          // Use the data provided by FileTree, no need to parse URL or load folders
+          setSelectedFile({
+            id: navState.selectedDocumentId,
+            name: navState.selectedDocumentName || 'Document',
+            type: 'document',
+            document_type: navState.documentType,
+            access_levels: navState.accessLevels,
+          });
+          setBreadcrumb([]); // FileTree click assumes root for now
+          setIsLoadingDocument(false);
+          return;
+        }
+        
         const { folderPath, selectedFileId } = await parseUrlPath();
         console.log('Parsed URL result:', { folderPath, selectedFileId });
         
@@ -377,39 +342,14 @@ function AssetsContent() {
         }
         
         if (selectedFileId) {
-          try {
-            console.log('Loading selected file details...');
-            // Load the current folder content to find the selected file details
-            const currentFolderId = folderPath.length > 0 ? folderPath[folderPath.length - 1] : undefined;
-            const data = await getLibraryContent(selectedOrganizationId!, currentFolderId);
-            const files = data?.content || [];
-            console.log('Files in current folder:', files);
-            
-            // Find the selected file to get its proper name and type
-            const selectedDoc = files.find((item: LibraryItem) => item.id === selectedFileId);
-            console.log('Found selected document:', selectedDoc);
-            
-            if (selectedDoc) {
-              setSelectedFile(selectedDoc);
-              console.log('Selected file set to:', selectedDoc);
-            } else {
-              console.warn('Selected file not found in folder, using fallback');
-              // Fallback if file not found
-              setSelectedFile({
-                id: selectedFileId,
-                name: `Document ${selectedFileId.substring(0, 8)}...`,
-                type: 'document'
-              });
-            }
-          } catch (error) {
-            console.error('Error loading selected file details:', error);
-            // Try to set file anyway as fallback
-            setSelectedFile({
-              id: selectedFileId,
-              name: `Document ${selectedFileId.substring(0, 8)}...`,
-              type: 'document'
-            });
-          }
+          console.log('Loading selected file details...');
+          // Set file with minimal info, the document content query will handle the rest
+          // This avoids an extra API call to get folder content
+          setSelectedFile({
+            id: selectedFileId,
+            name: `Document ${selectedFileId.substring(0, 8)}...`,
+            type: 'document'
+          });
         } else {
           // Clear selected file if no file in URL
           setSelectedFile(null);

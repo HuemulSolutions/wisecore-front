@@ -5,7 +5,7 @@ import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSidebar } from "@/components/ui/sidebar";
-import { TemplateContent } from "@/components/templates/template-content";
+import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 
 interface TemplateItem {

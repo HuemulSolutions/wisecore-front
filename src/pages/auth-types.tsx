@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { CreateAuthTypeDialog } from "@/components/auth-types/create-auth-type-dialog"
-import { EditAuthTypeDialog } from "@/components/auth-types/edit-auth-type-dialog"
-import { DeleteAuthTypeDialog } from "@/components/auth-types/delete-auth-type-dialog"
+import { CreateAuthTypeDialog } from "@/components/auth-types/auth-types-create-dialog"
+import { EditAuthTypeDialog } from "@/components/auth-types/auth-types-edit-dialog"
+import { DeleteAuthTypeDialog } from "@/components/auth-types/auth-types-delete-dialog"
 import { toast } from "sonner"
 import type { AuthType } from "@/services/auth-types"
 

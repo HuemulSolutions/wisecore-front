@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import SortableSection from "@/components/sortable_section";
-import { AddSectionForm } from "@/components/add_document_section";
+import SortableSection from "@/components/sections/sortable_section";
+import { AddSectionForm } from "@/components/assets/content/assets-add-section";
 import { PlusCircle, ArrowLeft, Sparkles } from "lucide-react";
-import { getDocumentById, generateDocumentStructure } from "@/services/documents";
+import { getDocumentById, generateDocumentStructure } from "@/services/assets";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -40,7 +40,7 @@ export default function ConfigDocumentPage() {
   });
 
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
+    mutationFn: (sectionData: any) =>
       createSection(sectionData, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document", id] });

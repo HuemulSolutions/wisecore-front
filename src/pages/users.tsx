@@ -4,14 +4,13 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { type User, type UsersResponse } from "@/services/users"
+import { type User, type UsersResponse } from "@/types/users"
 import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
 import { toast } from "sonner"
 
 // Components
 import {
   UserTable,
-  UserBulkActions,
   UserPageHeader,
   UserPageSkeleton,
   UserPageEmptyState,
@@ -29,14 +28,15 @@ export default function UsersPage() {
     organizationUser: null,
     showCreateDialog: false,
     assigningRoleUser: null,
-    deletingUser: null
+    deletingUser: null,
+    rootAdminUser: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
   // Get permissions and organization context
-  const { canAccessUsers } = useUserPermissions()
+  const { canAccessUsers, isRootAdmin } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
   
@@ -135,6 +135,11 @@ export default function UsersPage() {
     updateState({ deletingUser: user })
   }
 
+  const handleManageRootAdmin = async (user: User) => {
+    // Set the user and let the dialog handle the admin status
+    updateState({ rootAdminUser: user })
+  }
+
   const handleSelectAll = () => {
     if (state.selectedUsers.size === filteredUsers.length) {
       updateState({ selectedUsers: new Set() })
@@ -159,15 +164,6 @@ export default function UsersPage() {
           onStatusFilterChange={(value) => updateState({ filterStatus: value })}
         />
 
-        {/* Bulk Actions */}
-        {state.selectedUsers.size > 0 && (
-          <UserBulkActions
-            selectedUsers={state.selectedUsers}
-            onClearSelection={() => updateState({ selectedUsers: new Set() })}
-            deleteUserMutation={userMutations.deleteUser}
-          />
-        )}
-
         {/* Content Area - Table or Error */}
         {error ? (
           <UserContentEmptyState 
@@ -189,6 +185,8 @@ export default function UsersPage() {
             onViewOrganizations={handleViewOrganizations}
             onAssignRoles={handleAssignRoles}
             onDeleteUser={handleDeleteUser}
+            onManageRootAdmin={handleManageRootAdmin}
+            isCurrentUserRootAdmin={isRootAdmin}
             userMutations={userMutations}
             showFooterStats={false}
             pagination={{
