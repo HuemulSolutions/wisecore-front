@@ -12,7 +12,7 @@ import {
 import { deleteTemplate } from "@/services/templates";
 import { Plus, FileText, Loader2, Search, FolderTree, Edit3, Trash2, FileCode, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { CreateTemplateDialog } from "./create-template-dialog";
+import { CreateTemplateDialog } from "./templates-create-dialog";
 
 interface TemplateItem {
   id: string;
