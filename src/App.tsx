@@ -2,8 +2,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth-context";
 import { OrganizationProvider } from "./contexts/organization-context";
 import { PermissionsProvider } from "./contexts/permissions-context";
-import { ProtectedRoute } from "./components/auth/protected-route";
-import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/protected-route-with-permissions";
+import { ProtectedRoute } from "./components/auth/auth-protected-route";
+import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/auth-protected-route-with-permissions";
 import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
@@ -11,7 +11,6 @@ import DocumentPage from "./pages/document";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
-import DocDependPage from "./pages/doc_depend";
 import Organizations from "./pages/organizations";
 // import Library from "./pages/library"; // Hidden - library functionality disabled
 import Assets from "./pages/assets";
@@ -20,7 +19,7 @@ import ModelsPage from "./pages/models";
 import AuthTypes from "./pages/auth-types";
 import UsersPage from "./pages/users";
 import Roles from "./pages/roles";
-import AssetTypesPage from "./pages/asset-types";
+import AssetTypesPage from "./pages/assets-types";
 import CustomFieldsPage from "./pages/custom-fields";
 
 export default function App() {
@@ -105,7 +104,6 @@ export default function App() {
                 <ExecutionPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="docDepend/:id" element={<DocDependPage />} />
           </Route>
             </Routes>
         </ProtectedRoute>

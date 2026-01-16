@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { OrganizationSelectionDialog } from "@/components/organization-selection-dialog"
+import { OrganizationSelectionDialog } from "@/components/organization/organization-selection-dialog"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 

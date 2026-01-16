@@ -1,6 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ModelActions } from "./model-actions"
+import { ModelActions } from "./models-actions"
 import type { LLM } from "@/services/llms"
 
 interface ModelsTableProps {

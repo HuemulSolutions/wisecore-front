@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CheckCircle, Circle, ChevronUp, ChevronDown, Plus, Settings } from "lucide-react"
-import { ProviderActions } from "./provider-actions"
+import { ProviderActions } from "./models-provider-actions"
 import { ModelsTable } from "./models-table"
 import type { LLM } from "@/services/llms"
 

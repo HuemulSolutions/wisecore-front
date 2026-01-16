@@ -2,6 +2,7 @@
 
 import type React from "react"
 import type { MenuAction } from "@/types/menu-action"
+import type { FileNode } from "@/types/assets"
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react"
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, RefreshCw, MoreVertical, Trash2, Share } from "lucide-react"
@@ -15,41 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-
-export interface DocumentType {
-  id: string
-  name: string
-  color: string
-}
-
-export interface FileNode {
-  id: string
-  name: string
-  type: "document" | "folder"
-  document_type?: DocumentType
-  access_levels?: string[]
-  children?: FileNode[]
-  isExpanded?: boolean
-  isLoading?: boolean
-  hasChildren?: boolean
-  disabled?: boolean
-}
-
-export interface FolderContentResponse {
-  data: {
-    folder_name: string
-    parent_id: string | null
-    content: Array<{
-      id: string
-      name: string
-      type: "document" | "folder"
-      document_type?: DocumentType
-      access_levels?: string[]
-    }>
-  }
-  transaction_id: string
-  timestamp: string
-}
 
 interface FileTreeProps {
   onLoadChildren?: (folderId: string | null) => Promise<FileNode[]>
@@ -716,10 +682,10 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           onDrop={(e) => handleDrop(e, null)}
         >
           {isLoading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 rounded-lg">
               <div className="flex flex-col items-center gap-2">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Procesando...</p>
+                <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
             </div>
           )}

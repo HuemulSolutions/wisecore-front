@@ -54,6 +54,28 @@ export async function getExecutionStatus(executionId: string, organizationId: st
     }
 }
 
+export async function getExecutionSectionsStatus(executionId: string, organizationId: string) {
+    console.log(`Fetching sections status for execution ID: ${executionId}`);
+    try {
+        const response = await httpClient.get(`${backendUrl}/execution/${executionId}/sections_status`, {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Sections status fetched:', data.data);
+        return data.data;
+    } catch (error) {
+        console.error('Error fetching sections status:', error);
+        throw new Error('Error al obtener el estado de las secciones');
+    }
+}
+
 export async function createExecution(documentId: string, organizationId: string) {
     console.log(`Creating execution for document ID: ${documentId}`);
     const response = await httpClient.post(`${backendUrl}/execution/${documentId}`, {}, {

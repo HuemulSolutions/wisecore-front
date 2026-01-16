@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { httpClient } from '@/lib/http-client';
-import type { User } from '@/services/users';
+import type { User } from '@/types/users';
 
 // Re-export User type for external consumption
 export type { User };

@@ -28,6 +28,7 @@ export interface PaginationParams {
 
 export interface ApiResponse<T> {
   data: T;
+  total?: number;
   transaction_id: string;
   timestamp: string;
 }

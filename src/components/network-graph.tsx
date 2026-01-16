@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { getDocumentDependencies } from "@/services/dependencies"
-import { getDocumentSections } from "@/services/documents"
+import { getDocumentSections } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import {
   File,

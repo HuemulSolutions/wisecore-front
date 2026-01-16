@@ -29,67 +29,14 @@ function AssetsContent() {
     
     if (segments.length === 0) return { folderPath: [], selectedFileId: null };
     
-    // Special case: if we have only one segment, try to find document globally first
+    // Special case: if we have only one segment, assume it's a document in root
+    // Avoid recursive search as FileTree navigation already knows the location
     if (segments.length === 1) {
       const possibleFileId = segments[0];
-      console.log('🔍 Single segment detected, trying global document search:', possibleFileId);
+      console.log('🔍 Single segment detected, assuming document in root:', possibleFileId);
       
-      // Try to find the document in root first
-      try {
-        const rootContent = await getLibraryContent(selectedOrganizationId!, undefined);
-        const rootItems = rootContent?.content || [];
-        const foundInRoot = rootItems.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
-        
-        if (foundInRoot) {
-          console.log('✅ Found document in root:', foundInRoot.name);
-          return { 
-            folderPath: [], 
-            selectedFileId: possibleFileId 
-          };
-        }
-      } catch (error) {
-        console.log('Root search failed:', error instanceof Error ? error.message : 'Unknown error');
-      }
-      
-      // If not in root, search recursively through folders
-      const searchInFolder = async (folderId?: string, currentPath: string[] = []): Promise<{ folderPath: string[], selectedFileId: string } | null> => {
-        try {
-          const content = await getLibraryContent(selectedOrganizationId!, folderId);
-          const items = content?.content || [];
-          
-          // Check if document is in current folder
-          const foundFile = items.find((item: LibraryItem) => item.id === possibleFileId && item.type === 'document');
-          if (foundFile) {
-            console.log('✅ Found document in folder path:', currentPath, 'document:', foundFile.name);
-            return {
-              folderPath: currentPath,
-              selectedFileId: possibleFileId
-            };
-          }
-          
-          // Search in subfolders (limit depth to avoid infinite loops)
-          if (currentPath.length < 10) {
-            const folders = items.filter((item: LibraryItem) => item.type === 'folder');
-            for (const folder of folders) {
-              const result = await searchInFolder(folder.id, [...currentPath, folder.id]);
-              if (result) return result;
-            }
-          }
-          
-          return null;
-        } catch (error) {
-          console.log(`Error searching in folder ${folderId}:`, error instanceof Error ? error.message : 'Unknown error');
-          return null;
-        }
-      };
-      
-      console.log('🔄 Searching in subfolders...');
-      const searchResult = await searchInFolder();
-      if (searchResult) {
-        return searchResult;
-      }
-      
-      console.log('⚠️ Document not found, treating as file in root');
+      // Simply return as root-level document
+      // The document loading will fail gracefully if it doesn't exist
       return { 
         folderPath: [], 
         selectedFileId: possibleFileId 
@@ -204,6 +151,7 @@ function AssetsContent() {
   const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
   const { selectedOrganizationId, organizationToken, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
+  const lastProcessedUrlRef = useRef<string>(''); // Track last processed URL to avoid re-processing
   
   // Scroll preservation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -324,15 +272,39 @@ function AssetsContent() {
   // Initialize from URL on mount and when URL changes
   useEffect(() => {
     if (!selectedOrganizationId || !organizationToken) return; // Skip if no organization context
-    if (isUpdatingUrl) {
-      console.log('Skipping URL initialization - currently updating URL');
-      return; // Skip if we're updating URL programmatically
+    
+    // Skip if this URL has already been processed
+    if (lastProcessedUrlRef.current === location.pathname) {
+      console.log('URL already processed, skipping:', location.pathname);
+      return;
     }
     
     const initializeFromUrl = async () => {
       try {
         console.log('Initializing from URL:', location.pathname);
         setIsLoadingDocument(true);
+        
+        // Mark this URL as processed
+        lastProcessedUrlRef.current = location.pathname;
+        
+        // Check if we're coming from FileTree navigation with full context
+        const navState = location.state as LibraryNavigationState | undefined;
+        if (navState?.fromFileTree && navState.selectedDocumentId) {
+          console.log('✅ Navigation from FileTree detected, using provided context');
+          // Use the data provided by FileTree, no need to parse URL or load folders
+          setSelectedExecutionId(null); // Reset execution ID for new document
+          setSelectedFile({
+            id: navState.selectedDocumentId,
+            name: navState.selectedDocumentName || 'Document',
+            type: 'document',
+            document_type: navState.documentType,
+            access_levels: navState.accessLevels,
+          });
+          setBreadcrumb([]); // FileTree click assumes root for now
+          setIsLoadingDocument(false);
+          return;
+        }
+        
         const { folderPath, selectedFileId } = await parseUrlPath();
         console.log('Parsed URL result:', { folderPath, selectedFileId });
         
@@ -377,39 +349,15 @@ function AssetsContent() {
         }
         
         if (selectedFileId) {
-          try {
-            console.log('Loading selected file details...');
-            // Load the current folder content to find the selected file details
-            const currentFolderId = folderPath.length > 0 ? folderPath[folderPath.length - 1] : undefined;
-            const data = await getLibraryContent(selectedOrganizationId!, currentFolderId);
-            const files = data?.content || [];
-            console.log('Files in current folder:', files);
-            
-            // Find the selected file to get its proper name and type
-            const selectedDoc = files.find((item: LibraryItem) => item.id === selectedFileId);
-            console.log('Found selected document:', selectedDoc);
-            
-            if (selectedDoc) {
-              setSelectedFile(selectedDoc);
-              console.log('Selected file set to:', selectedDoc);
-            } else {
-              console.warn('Selected file not found in folder, using fallback');
-              // Fallback if file not found
-              setSelectedFile({
-                id: selectedFileId,
-                name: `Document ${selectedFileId.substring(0, 8)}...`,
-                type: 'document'
-              });
-            }
-          } catch (error) {
-            console.error('Error loading selected file details:', error);
-            // Try to set file anyway as fallback
-            setSelectedFile({
-              id: selectedFileId,
-              name: `Document ${selectedFileId.substring(0, 8)}...`,
-              type: 'document'
-            });
-          }
+          console.log('Loading selected file details...');
+          // Set file with minimal info, the document content query will handle the rest
+          // This avoids an extra API call to get folder content
+          setSelectedExecutionId(null); // Reset execution ID for new document
+          setSelectedFile({
+            id: selectedFileId,
+            name: `Document ${selectedFileId.substring(0, 8)}...`,
+            type: 'document'
+          });
         } else {
           // Clear selected file if no file in URL
           setSelectedFile(null);
@@ -476,18 +424,32 @@ function AssetsContent() {
     
     const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
     
-    // Solo actualizar URL si es diferente de la actual y no estamos ya actualizando
-    if (location.pathname !== newUrl && !isUpdatingUrl) {
-      console.log('Updating URL to reflect current state:', newUrl);
-      setIsUpdatingUrl(true);
-      navigate(newUrl, { replace: true });
-      
-      // Reset flag después de un breve delay
-      setTimeout(() => {
-        setIsUpdatingUrl(false);
-      }, 200); // Aumentar el timeout ligeramente
+    // Don't update URL if navigation came from FileTree (it already handles the URL)
+    const navigationState = location.state as any;
+    if (navigationState?.fromFileTree) {
+      console.log('⏭️ [ASSETS] Skipping URL update - navigation from FileTree');
+      return;
     }
-  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current]);
+    
+    // Solo actualizar URL si es diferente de la actual
+    // Pero no actualizar si acabamos de cargar desde URL (para evitar ciclos)
+    if (location.pathname !== newUrl && !isUpdatingUrl) {
+      console.log('🔄 [ASSETS] Updating URL to reflect current state:', newUrl);
+      setIsUpdatingUrl(true);
+      
+      // Mark the new URL as processed to avoid re-processing it
+      lastProcessedUrlRef.current = newUrl;
+      
+      // Usar un timeout para asegurar que el flag se establezca antes de navegar
+      setTimeout(() => {
+        navigate(newUrl, { replace: true });
+        // Reset flag después de que la navegación se complete
+        setTimeout(() => {
+          setIsUpdatingUrl(false);
+        }, 100);
+      }, 0);
+    }
+  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, hasRestoredRef.current, isUpdatingUrl, location.state]);
 
   // Ref para rastrear la organización anterior y evitar resets innecesarios
   const prevOrganizationIdRef = useRef<string | null>(null);
@@ -503,6 +465,7 @@ function AssetsContent() {
       setSelectedFile(null);
       setSelectedExecutionId(null);
       hasRestoredRef.current = false; // Reset so it can initialize again
+      lastProcessedUrlRef.current = ''; // Reset URL tracking
       
       // Clear session storage for the previous organization
       sessionStorage.removeItem('library-breadcrumb');
@@ -527,6 +490,7 @@ function AssetsContent() {
 
     if (navigationState?.selectedDocumentId && navigationState?.selectedDocumentName) {
       // Restore selected file
+      setSelectedExecutionId(null); // Reset execution ID for document restoration
       setSelectedFile({
         id: navigationState.selectedDocumentId,
         name: navigationState.selectedDocumentName,
@@ -569,6 +533,7 @@ function AssetsContent() {
       if (savedSelectedFile) {
         try {
           const parsedSelectedFile = JSON.parse(savedSelectedFile);
+          setSelectedExecutionId(null); // Reset execution ID when restoring from session
           setSelectedFile(parsedSelectedFile);
         } catch (error) {
           console.error('Error parsing saved selected file:', error);

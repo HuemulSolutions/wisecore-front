@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations } from "@/services/users"
+import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
 import { toast } from "sonner"
 
 // Query keys
@@ -93,11 +93,24 @@ export function useUserMutations() {
     },
   })
 
+  const updateRootAdminMutation = useMutation({
+    mutationFn: ({ userId, isRootAdmin }: { userId: string; isRootAdmin: boolean }) =>
+      updateUserRootAdmin(userId, isRootAdmin),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      toast.success('Root admin status updated successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to update root admin status: ' + error.message)
+    },
+  })
+
   return {
     approveUser: approveUserMutation,
     rejectUser: rejectUserMutation,
     deleteUser: deleteUserMutation,
     updateUser: updateUserMutation,
     createUser: createUserMutation,
+    updateRootAdmin: updateRootAdminMutation,
   }
 }

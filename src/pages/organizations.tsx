@@ -5,12 +5,8 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { ReusableDialog } from "@/components/ui/reusable-dialog";
 import { getAllOrganizations, addOrganization } from "@/services/organizations";
 import { Plus, Building2 } from "lucide-react";
 
@@ -50,6 +46,13 @@ export default function Organizations() {
     mutation.mutate({ name, description });
   };
 
+  const handleCancel = () => {
+    setIsDialogOpen(false);
+    setName("");
+    setDescription("");
+    setError(null);
+  };
+
   if (isLoading) return <div>Loading...</div>;
   if (queryError) return <div>Error: {(queryError as Error).message}</div>;
 
@@ -64,15 +67,23 @@ export default function Organizations() {
               <Plus className="w-4 h-4" />
             </Button>
           </DialogTrigger>
+        </Dialog>
 
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Organization</DialogTitle>
-              <DialogDescription>
-                Fill in the fields to create a new organization.
-              </DialogDescription>
-            </DialogHeader>
-
+        <ReusableDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          title="New Organization"
+          description="Fill in the fields to create a new organization."
+          icon={Building2}
+          showDefaultFooter
+          onCancel={handleCancel}
+          onSubmit={handleSave}
+          submitLabel="Save"
+          cancelLabel="Cancel"
+          isSubmitting={mutation.isPending}
+          isValid={name.trim().length > 0}
+        >
+          <div className="space-y-4">
             <Input
               type="text"
               value={name}
@@ -86,7 +97,7 @@ export default function Organizations() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description (optional)"
-              className="w-full mt-2"
+              className="w-full"
             />
 
             {error && (
@@ -94,30 +105,8 @@ export default function Organizations() {
                 {error}
               </div>
             )}
-
-            <DialogFooter className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsDialogOpen(false);
-                  setName("");
-                  setDescription("");
-                  setError(null);
-                }}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={!name.trim() || mutation.isPending}
-                className="hover:cursor-pointer"
-              >
-                {mutation.isPending ? "Creating..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </ReusableDialog>
       </div>
 
       <ul className="space-y-2">

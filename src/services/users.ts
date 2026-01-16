@@ -1,74 +1,13 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-
-export interface UserRole {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  last_name: string;
-  status: 'active' | 'inactive' | 'pending';
-  activated_at: string | null;
-  external_id: string | null;
-  auth_type_id: string;
-  updated_at: string;
-  created_at: string;
-  birthdate: string | null;
-  birth_day?: number;
-  birth_month?: number;
-  is_root_admin: boolean;
-  photo_url: string | null;
-  user_metadata: any | null;
-  roles: UserRole[];
-}
-
-export interface UsersResponse {
-  data: User[];
-  transaction_id: string;
-  timestamp: string;
-}
-
-export interface UserOrganization {
-  id: string;
-  name: string;
-  db_name: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface UserOrganizationsResponse {
-  data: UserOrganization[];
-  transaction_id: string;
-  timestamp: string;
-}
-
-export interface AssignUserToOrganizationData {
-  user_id: string;
-}
-
-export interface UpdateUserData {
-  name?: string;
-  last_name?: string;
-  email?: string;
-  birthdate?: string | null;
-}
-
-export interface CreateUserData {
-  name: string;
-  last_name: string;
-  email: string;
-  birth_day: number;
-  birth_month: number;
-  photo_file?: string;
-}
+import type {
+  User,
+  UsersResponse,
+  UserOrganizationsResponse,
+  AssignUserToOrganizationData,
+  UpdateUserData,
+  CreateUserData
+} from '@/types/users';
 
 // Get all users with roles
 export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100): Promise<UsersResponse> => {
@@ -197,4 +136,21 @@ export const removeUserFromOrganization = async (organizationId: string, userId:
   if (!response.ok) {
     throw new Error('Failed to remove user from organization');
   }
+};
+
+// Update user root admin status
+export const updateUserRootAdmin = async (userId: string, isRootAdmin: boolean): Promise<User> => {
+  const response = await httpClient.fetch(`${backendUrl}/users/${userId}/root-admin`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ is_root_admin: isRootAdmin }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to update root admin status');
+  }
+  
+  return response.json();
 };

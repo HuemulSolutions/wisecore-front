@@ -2,8 +2,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Plus, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MessageBubble } from "./bubble";
-import type { Message } from "./bubble";
+import { MessageBubble } from "./chatbot-bubble";
+import type { Message } from "./chatbot-bubble";
 import { chatbot } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
 
