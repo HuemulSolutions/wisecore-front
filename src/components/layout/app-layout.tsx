@@ -137,7 +137,7 @@ export default function AppLayout() {
         <div className="flex flex-col h-screen overflow-hidden">
           <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
             {/* Left section: Organization Switcher */}
-            <div className="flex items-center gap-2 min-w-[180px]">
+            <div className="flex items-center gap-2 min-w-45">
               <OrganizationSwitcher />
             </div>
             
@@ -149,25 +149,19 @@ export default function AppLayout() {
                   (item.url !== '/home' && location.pathname.startsWith(item.url))
                 
                 return (
-                  <Tooltip key={item.title}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to={item.url}
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
-                          isActive 
-                            ? "bg-accent text-accent-foreground" 
-                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{item.title}</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <Link
+                    key={item.title}
+                    to={item.url}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
+                      isActive 
+                        ? "bg-accent text-accent-foreground" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </Link>
                 )
               })}
             </nav>

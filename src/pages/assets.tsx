@@ -80,7 +80,7 @@ function AssetsContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {isLoadingDocument && <LoadingOverlay />}
       
       <ResizablePanelGroup direction="horizontal" className="h-full w-full">
