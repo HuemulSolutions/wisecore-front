@@ -8,6 +8,12 @@ import { useOrganization } from "@/contexts/organization-context";
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
+import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 
 /**
  * Main content component for the Assets page
@@ -75,24 +81,39 @@ function AssetsContent() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <div className="flex-1 flex min-w-0 h-full relative">
-        {isLoadingDocument && <LoadingOverlay />}
+      {isLoadingDocument && <LoadingOverlay />}
+      
+      <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+        <ResizablePanel defaultSize={15} minSize={15} maxSize={30}>
+          <div className="flex flex-col h-full bg-white border-r">
+            <div className="p-4">
+              <NavKnowledgeHeader />
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <NavKnowledgeContent />
+            </div>
+          </div>
+        </ResizablePanel>
         
-        <div ref={scrollContainerRef} className="flex-1 bg-white min-w-0 h-full">
-          <AssetContent
-            selectedFile={selectedFile}
-            breadcrumb={breadcrumb}
-            selectedExecutionId={selectedExecutionId}
-            setSelectedExecutionId={setSelectedExecutionId}
-            setSelectedFile={setSelectedFile}
-            onRefresh={handleRefresh}
-            currentFolderId={currentFolderId}
-            isSidebarOpen={false}
-            onToggleSidebar={() => {}}
-            onPreserveScroll={preserveScroll}
-          />
-        </div>
-      </div>
+        <ResizableHandle />
+        
+        <ResizablePanel defaultSize={80}>
+          <div ref={scrollContainerRef} className="h-full bg-white">
+            <AssetContent
+              selectedFile={selectedFile}
+              breadcrumb={breadcrumb}
+              selectedExecutionId={selectedExecutionId}
+              setSelectedExecutionId={setSelectedExecutionId}
+              setSelectedFile={setSelectedFile}
+              onRefresh={handleRefresh}
+              currentFolderId={currentFolderId}
+              isSidebarOpen={false}
+              onToggleSidebar={() => {}}
+              onPreserveScroll={preserveScroll}
+            />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
@@ -100,8 +121,10 @@ function AssetsContent() {
 // Componente envoltorio que provee el contexto de carpetas expandidas
 export default function Assets() {
   return (
-    <ExpandedFoldersProvider>
-      <AssetsContent />
-    </ExpandedFoldersProvider>
+    <NavKnowledgeProvider>
+      <ExpandedFoldersProvider>
+        <AssetsContent />
+      </ExpandedFoldersProvider>
+    </NavKnowledgeProvider>
   );
 }

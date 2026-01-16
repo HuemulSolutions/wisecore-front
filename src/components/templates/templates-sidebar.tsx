@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -10,7 +9,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { deleteTemplate } from "@/services/templates";
-import { Plus, FileText, Loader2, Search, FolderTree, Edit3, Trash2, FileCode, RefreshCw } from "lucide-react";
+import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 
@@ -21,9 +20,6 @@ interface TemplateItem {
 }
 
 interface TemplatesSidebarProps {
-  isOpen: boolean;
-  onToggle: () => void;
-  isMobile: boolean;
   templates: TemplateItem[];
   isLoading: boolean;
   error?: Error | unknown | null;
@@ -34,9 +30,6 @@ interface TemplatesSidebarProps {
 }
 
 export function TemplatesSidebar({
-  isOpen,
-  onToggle,
-  isMobile,
   templates,
   isLoading,
   error,
@@ -77,54 +70,46 @@ export function TemplatesSidebar({
 
   return (
     <>
-      <CollapsibleSidebar
-        isOpen={isOpen}
-        onToggle={onToggle}
-        position="left"
-        toggleAriaLabel={isOpen ? "Hide templates" : "Show templates"}
-        mobileTitle="Templates Navigator"
-        customToggleIcon={<FolderTree className="h-4 w-4" />}
-        customToggleIconMobile={<FolderTree className="h-5 w-5" />}
-        showToggleButton={!isMobile}
-        header={
-          <div className="px-3 py-2 border-b border-gray-200">
-            <div className="flex items-center gap-2 pr-12 sm:pr-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <Input
-                  placeholder="Search templates..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-7 text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onRefresh?.()}
-                disabled={isLoading}
-                className="h-7 w-7 p-0 hover:cursor-pointer hover:bg-gray-100 transition-colors duration-200 flex-shrink-0"
-              >
-                {isLoading ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin text-gray-600" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5 text-gray-600" />
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDialogOpen(true)}
-                className="h-7 w-7 p-0 hover:cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200 flex-shrink-0"
-              >
-                <Plus className="h-3.5 w-3.5 text-gray-600" />
-              </Button>
+      <div className="flex flex-col h-full bg-white border-r border-gray-200">
+        {/* Header */}
+        <div className="px-3 py-2 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <Input
+                placeholder="Search templates..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 h-7 text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              />
             </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onRefresh?.()}
+              disabled={isLoading}
+              className="h-7 w-7 p-0 hover:cursor-pointer hover:bg-gray-100 transition-colors duration-200 flex-shrink-0"
+            >
+              {isLoading ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-gray-600" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 text-gray-600" />
+              )}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+              className="h-7 w-7 p-0 hover:cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200 flex-shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5 text-gray-600" />
+            </Button>
           </div>
-        }
-      >
+        </div>
+
+        {/* Content */}
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div className="flex-1 overflow-y-auto p-1.5 min-h-0">
@@ -235,7 +220,7 @@ export function TemplatesSidebar({
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
-      </CollapsibleSidebar>
+      </div>
 
       <CreateTemplateDialog
         open={isDialogOpen}

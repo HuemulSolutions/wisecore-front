@@ -3,7 +3,11 @@ import { useMemo, useEffect, useState, useRef } from "react";
 import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Edit2, MoreVertical } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
-import { CollapsibleSidebar } from "@/components/ui/collapsible-sidebar";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { createSectionExecution } from "@/services/section_execution";
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
@@ -1656,9 +1660,11 @@ export function AssetContent({
   }
 
   return (
-    <div className="flex h-full bg-gray-50">
+    <>
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full bg-gray-50">
       {/* Document Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <ResizablePanel defaultSize={selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting ? 80 : 100}>
+        <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && (
           <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 flex-shrink-0 min-h-[80px]" data-mobile-header>
@@ -3057,67 +3063,62 @@ export function AssetContent({
             </div>
           </ScrollArea>
         </div>
-      </div>
+        </div>
+      </ResizablePanel>
 
       {/* Table of Contents Sidebar - only show for documents with content and when version is not executing */}
       {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
-        <CollapsibleSidebar
-          isOpen={isTocSidebarOpen}
-          onToggle={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
-          position="right"
-          toggleAriaLabel={isTocSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
-          showToggleButton={!isMobile} // Only show internal button on mobile
-          customToggleIcon={<List className="h-4 w-4" />}
-          customToggleIconMobile={<List className="h-5 w-5" />}
-          header={
-            <div className="flex flex-col pt-3">
-              <div className="px-2 pb-2">
-                <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
-                  <button 
-                    onClick={() => setActiveTab('toc')}
-                    className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                      activeTab === 'toc' 
-                        ? 'bg-white shadow-sm text-gray-900' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Content
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('custom-fields')}
-                    className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                      activeTab === 'custom-fields' 
-                        ? 'bg-white shadow-sm text-gray-900' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Custom Fields
-                  </button>
+        <>
+          <ResizableHandle/>
+          <ResizablePanel defaultSize={20} minSize={19} maxSize={40}>
+            <div className="flex flex-col h-full bg-white border-l">
+              <div className="flex flex-col pt-3">
+                <div className="px-2 pb-2">
+                  <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
+                    <button 
+                      onClick={() => setActiveTab('toc')}
+                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
+                        activeTab === 'toc' 
+                          ? 'bg-white shadow-sm text-gray-900' 
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Content
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab('custom-fields')}
+                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
+                        activeTab === 'custom-fields' 
+                          ? 'bg-white shadow-sm text-gray-900' 
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Custom Fields
+                    </button>
+                  </div>
                 </div>
               </div>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+                {activeTab === 'toc' ? (
+                  <TableOfContents items={tocItems} />
+                ) : (
+                  <CustomFieldsList 
+                    customFields={customFieldsData?.data || []} 
+                    isLoading={isLoadingCustomFields}
+                    onAdd={handleAddCustomFieldDocument}
+                    onEdit={handleEditCustomFieldDocument}
+                    onDelete={handleDeleteCustomFieldDocument}
+                    onRefresh={handleRefreshCustomFields}
+                    uploadingImageFieldId={uploadingImageFieldId}
+                    isRefreshing={isRefreshingCustomFields}
+                  />
+                )}
+              </div>
             </div>
-          }
-        >
-          <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-3">
-              {activeTab === 'toc' ? (
-                <TableOfContents items={tocItems} />
-              ) : (
-                <CustomFieldsList 
-                  customFields={customFieldsData?.data || []} 
-                  isLoading={isLoadingCustomFields}
-                  onAdd={handleAddCustomFieldDocument}
-                  onEdit={handleEditCustomFieldDocument}
-                  onDelete={handleDeleteCustomFieldDocument}
-                  onRefresh={handleRefreshCustomFields}
-                  uploadingImageFieldId={uploadingImageFieldId}
-                  isRefreshing={isRefreshingCustomFields}
-                />
-              )}
-            </div>
-          </div>
-        </CollapsibleSidebar>
+          </ResizablePanel>
+        </>
       )}
+    </ResizablePanelGroup>
 
       {documentContent && documentContent.content && (
         <Chatbot executionId={documentContent.execution_id} />
@@ -3352,7 +3353,7 @@ export function AssetContent({
         isProcessing={isDeletingCustomFieldDocument}
         variant="destructive"
       />
-    </div>
+    </>
   );
 }
 
