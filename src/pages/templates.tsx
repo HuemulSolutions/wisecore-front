@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSidebar } from "@/components/ui/sidebar";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 
@@ -20,7 +19,6 @@ export default function Templates() {
   const { id: templateId } = useParams<{ id?: string }>();
   const { selectedOrganizationId } = useOrganization();
   const isMobile = useIsMobile();
-  const { setOpenMobile } = useSidebar();
 
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
@@ -56,13 +54,6 @@ export default function Templates() {
 
     hasRestoredRef.current = true;
   }, [selectedOrganizationId, templates, templateId]);
-
-  // Cerrar app sidebar automáticamente en móvil cuando se accede a Templates
-  useEffect(() => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }, [isMobile, setOpenMobile]);
 
   // Reset cuando cambia la organización
   useEffect(() => {

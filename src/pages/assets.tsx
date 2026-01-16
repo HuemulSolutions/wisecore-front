@@ -5,8 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getLibraryContent } from "@/services/folders";
 import { AssetContent } from "@/components/assets";
 import type { LibraryItem, BreadcrumbItem, LibraryNavigationState } from "@/components/assets";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useSidebar } from "@/components/ui/sidebar";
 
 import { useOrganization } from "@/contexts/organization-context";
 import { Button } from "@/components/ui/button";
@@ -147,8 +145,6 @@ function AssetsContent() {
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
 
-  const isMobile = useIsMobile();
-  const { setOpenMobile } = useSidebar(); // Hook para controlar el app sidebar
   const { selectedOrganizationId, organizationToken, resetOrganizationContext } = useOrganization();
   const hasRestoredRef = useRef(false);
   const lastProcessedUrlRef = useRef<string>(''); // Track last processed URL to avoid re-processing
@@ -157,13 +153,6 @@ function AssetsContent() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
   const preserveScrollRef = useRef<boolean>(false);
-
-  // Cerrar app sidebar automáticamente en móvil cuando se accede a Asset
-  useEffect(() => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }, [isMobile, setOpenMobile]);
 
   // Set up scroll listener para guardar posición periódicamente
   useEffect(() => {
