@@ -146,7 +146,7 @@ export default function AppLayout() {
               {filteredNavigationItems.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.url || 
-                  (item.url !== '/home' && location.pathname.startsWith(item.url))
+                  (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
                 
                 return (
                   <Link
@@ -180,7 +180,7 @@ export default function AppLayout() {
                     {filteredNavigationItems.map((item) => {
                       const Icon = item.icon
                       const isActive = location.pathname === item.url || 
-                        (item.url !== '/home' && location.pathname.startsWith(item.url))
+                      (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
                       
                       return (
                         <Link
