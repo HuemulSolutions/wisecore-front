@@ -82,7 +82,7 @@ export default function Templates() {
 
         {/* Main Content */}
         <ResizablePanel defaultSize={80}>
-          <div className="h-full overflow-auto bg-white">
+          <div className="h-full bg-white">
             <TemplateContent
               selectedTemplate={selectedTemplate}
               onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
