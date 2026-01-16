@@ -13,6 +13,10 @@ interface CustomFieldTemplateTableProps {
   customFieldTemplates: CustomFieldTemplate[]
   onEditCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
   onDeleteCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
+  page?: number
+  pageSize?: number
+  onPageChange?: (page: number) => void
+  onPageSizeChange?: (pageSize: number) => void
 }
 
 const formatDataType = (dataType: string) => {
@@ -68,14 +72,24 @@ export function CustomFieldTemplateTable({
   customFieldTemplates,
   onEditCustomFieldTemplate,
   onDeleteCustomFieldTemplate,
+  page: externalPage,
+  pageSize: externalPageSize,
+  onPageChange: externalOnPageChange,
+  onPageSizeChange: externalOnPageSizeChange,
 }: CustomFieldTemplateTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customFieldToDelete, setCustomFieldToDelete] = useState<CustomFieldTemplate | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [internalPage, setInternalPage] = useState(1)
+  const [internalPageSize, setInternalPageSize] = useState(10)
   const [imageDialogOpen, setImageDialogOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null)
+
+  // Use external pagination if provided, otherwise use internal
+  const page = externalPage ?? internalPage
+  const pageSize = externalPageSize ?? internalPageSize
+  const setPage = externalOnPageChange ?? setInternalPage
+  const setPageSize = externalOnPageSizeChange ?? setInternalPageSize
 
   const renderValueDisplay = (template: CustomFieldTemplate) => {
     const dataType = template.data_type
@@ -180,7 +194,6 @@ export function CustomFieldTemplateTable({
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize)
-    setPage(1) // Reset to first page when page size changes
   }
 
   // Define columns
@@ -282,7 +295,7 @@ export function CustomFieldTemplateTable({
           totalItems,
           onPageChange: handlePageChange,
           onPageSizeChange: handlePageSizeChange,
-          pageSizeOptions: [5, 10, 20, 50],
+          pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
         }}
         showFooterStats={false}
       />

@@ -31,10 +31,24 @@ export function useCustomFieldTemplateSources() {
 }
 
 // Hook for fetching custom field templates by template ID
-export function useCustomFieldTemplatesByTemplate(templateId: string, options?: { enabled?: boolean }) {
+export function useCustomFieldTemplatesByTemplate(
+  templateId: string, 
+  options?: { 
+    enabled?: boolean
+    page?: number
+    page_size?: number
+  }
+) {
+  const page = options?.page ?? 1
+  const page_size = options?.page_size ?? 1000
+  
   return useQuery({
-    queryKey: customFieldTemplatesQueryKeys.byTemplate(templateId),
-    queryFn: () => getCustomFieldTemplatesByTemplate({ template_id: templateId }),
+    queryKey: [...customFieldTemplatesQueryKeys.byTemplate(templateId), page, page_size],
+    queryFn: () => getCustomFieldTemplatesByTemplate({ 
+      template_id: templateId,
+      page,
+      page_size
+    }),
     enabled: options?.enabled !== false && !!templateId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     select: (data) => data.data, // Extract the data array from the API response
