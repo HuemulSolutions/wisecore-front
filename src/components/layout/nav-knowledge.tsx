@@ -229,9 +229,9 @@ export function NavKnowledgeHeader() {
   }
 
   return (
-    <SidebarGroup>
+    <SidebarGroup className="py-0">
       <div className="flex items-center justify-between">
-        <SidebarGroupLabel>Knowledge</SidebarGroupLabel>
+        <SidebarGroupLabel className="py-0 text-xs">Knowledge</SidebarGroupLabel>
         <div className="flex items-center gap-1">
           <Button 
             variant="ghost" 

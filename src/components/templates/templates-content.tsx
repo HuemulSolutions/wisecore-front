@@ -124,7 +124,7 @@ export function TemplateContent({
         <div className="flex-1 bg-white min-w-0 overflow-auto">
           <div className="py-1.5 md:py-2 px-1.5 sm:px-2 md:px-3">
             {templateError ? (
-              <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8 mx-4">
+              <div className="flex flex-col items-center justify-center min-h-100 text-center rounded-lg border border-dashed bg-muted/50 p-8 mx-4">
                 <p className="text-red-600 mb-4 font-medium">{(templateError as Error).message || 'Failed to load template'}</p>
                 <p className="text-sm text-muted-foreground mb-6">
                   There was an error loading the template details. Please try again.

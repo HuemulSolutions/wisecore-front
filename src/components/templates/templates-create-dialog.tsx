@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
@@ -24,24 +25,47 @@ export function CreateTemplateDialog({
   const [newDescription, setNewDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const createTemplateMutation = useMutation({
-    mutationFn: (newData: { name: string; description: string; organization_id: string }) =>
-      addTemplate(newData),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
-      onTemplateCreated({ id: created.id, name: created.name, description: created.description });
+  React.useEffect(() => {
+    console.log('🔔 [CREATE-TEMPLATE-DIALOG] Open state changed:', open);
+    if (open) {
       setNewName("");
       setNewDescription("");
       setError(null);
-      onOpenChange(false);
+    }
+  }, [open]);
+
+  const createTemplateMutation = useMutation({
+    mutationFn: (newData: { name: string; description: string; organization_id: string }) => {
+      console.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
+      return addTemplate(newData);
+    },
+    onSuccess: (created) => {
+      console.log('✅ [CREATE-TEMPLATE-DIALOG] Template created successfully:', created);
       toast.success("Template created successfully");
+      queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
+      
+      // Store the callback to execute after dialog closes
+      const executeCallback = () => {
+        console.log('📞 [CREATE-TEMPLATE-DIALOG] Calling onTemplateCreated callback');
+        onTemplateCreated({ id: created.id, name: created.name, description: created.description });
+      };
+      
+      // Close dialog first
+      console.log('🚪 [CREATE-TEMPLATE-DIALOG] Closing dialog');
+      onOpenChange(false);
+      
+      // Wait for dialog to fully close before executing callback
+      setTimeout(executeCallback, 300);
     },
     onError: (error: Error) => {
+      console.error("Create template error:", error);
       setError(error.message || "An error occurred while creating the template");
     },
   });
 
-  const handleCreateTemplate = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!newName.trim()) {
       setError("Name is required");
       return;
@@ -58,13 +82,6 @@ export function CreateTemplateDialog({
     });
   };
 
-  const handleClose = () => {
-    setNewName("");
-    setNewDescription("");
-    setError(null);
-    onOpenChange(false);
-  };
-
   return (
     <ReusableDialog
       open={open}
@@ -72,23 +89,26 @@ export function CreateTemplateDialog({
       title="New Template"
       description="Complete the fields below to create a new template."
       icon={FileCode}
-      onCancel={handleClose}
-      onSubmit={handleCreateTemplate}
+      maxWidth="lg"
+      showDefaultFooter
+      onCancel={() => onOpenChange(false)}
       submitLabel="Create Template"
+      cancelLabel="Cancel"
       isSubmitting={createTemplateMutation.isPending}
       isValid={!!newName.trim() && !!organizationId}
-      showDefaultFooter
+      formId="create-template-form"
     >
-      <div>
-        {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
-      </div>
-      
-      <div className="space-y-4">
+      <form id="create-template-form" onSubmit={handleSubmit}>
+        <div>
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="space-y-4">
         <div>
           <label htmlFor="template-name" className="text-sm font-medium text-gray-900 block mb-2">
             Template Name *
@@ -114,9 +134,11 @@ export function CreateTemplateDialog({
             onChange={(e) => setNewDescription(e.target.value)}
             placeholder="Enter template description (optional)..."
             className="w-full"
+            disabled={createTemplateMutation.isPending}
           />
         </div>
       </div>
+      </form>
     </ReusableDialog>
   );
 }

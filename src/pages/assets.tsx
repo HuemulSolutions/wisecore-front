@@ -86,7 +86,7 @@ function AssetsContent() {
       <ResizablePanelGroup direction="horizontal" className="h-full w-full">
         <ResizablePanel defaultSize={15} minSize={15} maxSize={30}>
           <div className="flex flex-col h-full bg-white border-r">
-            <div className="p-4">
+            <div className="py-2">
               <NavKnowledgeHeader />
             </div>
             <div className="flex-1 overflow-y-auto">

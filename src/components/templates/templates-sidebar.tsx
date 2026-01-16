@@ -3,11 +3,21 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  SidebarGroup,
+  SidebarGroupLabel,
+} from "@/components/ui/sidebar";
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { deleteTemplate } from "@/services/templates";
 import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -72,49 +82,64 @@ export function TemplatesSidebar({
     <>
       <div className="flex flex-col h-full bg-white border-r border-gray-200">
         {/* Header */}
-        <div className="px-3 py-2 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+        <div className="py-2">
+          <SidebarGroup className="py-0">
+            <div className="flex items-center justify-between">
+              <SidebarGroupLabel className="py-0 text-xs">Templates</SidebarGroupLabel>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6 hover:cursor-pointer"
+                  onClick={() => onRefresh?.()}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => {
+                      setTimeout(() => setIsDialogOpen(true), 0);
+                    }} className="hover:cursor-pointer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      New Template
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </SidebarGroup>
+          
+          {/* Search bar */}
+          <div className="mt-2 px-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
               <Input
                 placeholder="Search templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-7 text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                className="pl-7 h-7 text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onRefresh?.()}
-              disabled={isLoading}
-              className="h-7 w-7 p-0 hover:cursor-pointer hover:bg-gray-100 transition-colors duration-200 flex-shrink-0"
-            >
-              {isLoading ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin text-gray-600" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5 text-gray-600" />
-              )}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDialogOpen(true)}
-              className="h-7 w-7 p-0 hover:cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors duration-200 flex-shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5 text-gray-600" />
-            </Button>
           </div>
         </div>
 
         {/* Content */}
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <div className="flex-1 overflow-y-auto p-1.5 min-h-0">
-              {error ? (
-                <div className="flex flex-col items-center justify-center min-h-[300px] text-center rounded-lg border border-dashed p-6 mx-2">
+        <div className="flex-1 overflow-y-auto px-2 min-h-0">
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div className="pt-1">
+                  {error ? (
+                <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed p-6">
                   <p className="text-red-600 mb-3 font-medium text-sm">
                     {(error as Error).message || 'Failed to load templates'}
                   </p>
@@ -147,20 +172,20 @@ export function TemplatesSidebar({
                   )}
                 </div>
               ) : (
-                <div className="space-y-0.5">
+                <div className="space-y-0">
                   {filteredTemplates.map((template) => (
                     <ContextMenu key={template.id}>
                       <ContextMenuTrigger asChild>
                         <div
-                          className={`p-1.5 rounded-md cursor-pointer transition-colors border ${
+                          className={`p-1 rounded-md cursor-pointer transition-colors border ${
                             selectedTemplateId === template.id
                               ? 'bg-blue-50 border-blue-200'
                               : 'border-transparent hover:bg-gray-50 hover:border-gray-200'
                           }`}
                           onClick={() => onTemplateSelect(template)}
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="flex-shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <div className="shrink-0">
                               <FileCode className={`h-3.5 w-3.5 ${
                                 selectedTemplateId === template.id
                                   ? 'text-blue-600'
@@ -207,19 +232,22 @@ export function TemplatesSidebar({
                     </ContextMenu>
                   ))}
                 </div>
-              )}
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem
-              className="hover:cursor-pointer"
-              onClick={() => setIsDialogOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Template
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
+                  )}
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem
+                className="hover:cursor-pointer"
+                onClick={() => {
+                  setTimeout(() => setIsDialogOpen(true), 0);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New Template
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        </div>
       </div>
 
       <CreateTemplateDialog

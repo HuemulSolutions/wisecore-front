@@ -489,7 +489,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           )}
           <div
             className={cn(
-              "group flex items-center gap-1 py-1 px-2 rounded-md transition-colors relative",
+              "group flex items-center gap-1 py-0.5 px-2 rounded-md transition-colors relative",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
@@ -507,34 +507,34 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-4 w-4 p-0 hover:bg-transparent"
+                className="h-3 w-3 p-0 hover:bg-transparent"
                 onClick={() => handleToggle(node)}
                 disabled={node.disabled}
               >
                 {node.isLoading ? (
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                  <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                 ) : isExpanded ? (
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-2.5 w-2.5" />
                 ) : (
-                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-2.5 w-2.5" />
                 )}
               </Button>
             )}
 
             <div
-              className="flex items-center gap-2 flex-1 min-w-0"
+              className="flex items-center gap-1.5 flex-1 min-w-0"
               onClick={() => (isFolder ? handleToggle(node) : handleFileClick(node))}
             >
               {isFolder ? (
                 isExpanded ? (
-                  <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <FolderOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 ) : (
-                  <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 )
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <File
-                    className="h-4 w-4 flex-shrink-0"
+                    className="h-3.5 w-3.5 shrink-0"
                     style={{ color: node.document_type?.color || "currentColor" }}
                   />
                 </div>
@@ -620,7 +620,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
           {isCreating && (
             <div
-              className="flex items-center gap-2 py-1 px-2 ml-4 relative"
+              className="flex items-center gap-1.5 py-0.5 px-2 ml-4 relative"
               style={{ paddingLeft: `${(level + 1) * 12 + 6}px` }}
             >
               <div 
@@ -632,9 +632,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                 style={{ left: `${(level + 1) * 12 - 14}px` }}
               />
               {creatingNode.type === "folder" ? (
-                <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <Folder className="h-4 w-4 text-blue-500 shrink-0" />
               ) : (
-                <File className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-4" />
+                <File className="h-4 w-4 text-muted-foreground shrink-0 ml-4" />
               )}
               <Input
                 value={newNodeName}
@@ -706,9 +706,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           {creatingNode?.parentId === null && (
             <div className="flex items-center gap-2 py-1 px-2 mb-2 relative">
               {creatingNode.type === "folder" ? (
-                <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <Folder className="h-4 w-4 text-blue-500 shrink-0" />
               ) : (
-                <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <File className="h-4 w-4 text-muted-foreground shrink-0" />
               )}
               <Input
                 value={newNodeName}
