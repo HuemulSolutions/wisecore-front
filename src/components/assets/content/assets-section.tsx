@@ -603,7 +603,7 @@ export default function SectionExecution({
             {/* Content area - conditional padding based on editing state */}
             {isEditing ? (
                 /* Editor takes full width when editing */
-                <div className="pt-8">
+                <div className="pt-8 pr-0">
                     <Editor
                         sectionId={sectionExecution.id}
                         content={sectionExecution.output.replace(/\\n/g, "\n")}

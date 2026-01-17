@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Edit2, MoreVertical } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,11 +26,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
@@ -59,6 +57,7 @@ import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-expor
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import type { ContentSection, LibraryContentProps } from '@/types/assets';
+import { CustomFieldsList } from './assets-custom-fields-list';
 
 // Function to extract headings from multiple content sections for table of contents
 function extractHeadingsFromSections(sections: ContentSection[]) {
@@ -163,271 +162,6 @@ function SectionSeparator({
           <BetweenHorizontalStart className="h-4 w-4" />
         </DocumentActionButton>
       </div>
-    </div>
-  );
-}
-
-// Custom Fields List Component
-interface CustomFieldsListProps {
-  customFields: CustomFieldDocument[];
-  isLoading: boolean;
-  onAdd: () => void;
-  onEdit: (field: CustomFieldDocument) => void;
-  onDelete: (field: CustomFieldDocument) => void;
-  onRefresh: () => void;
-  uploadingImageFieldId?: string | null;
-  isRefreshing?: boolean;
-}
-
-function CustomFieldsList({ customFields, isLoading, onAdd, onEdit, onDelete, onRefresh, uploadingImageFieldId, isRefreshing }: CustomFieldsListProps) {
-  const [imageDialogOpen, setImageDialogOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-          <Button size="sm" variant="outline" disabled>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Field
-          </Button>
-        </div>
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-16 bg-muted/50 rounded animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!customFields || customFields.length === 0) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">No custom fields available</p>
-          <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Field
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const formatValue = (field: CustomFieldDocument) => {
-    // If no value is set, show "Vacío"
-    if (!field.value || (typeof field.value === 'string' && field.value.trim() === '')) {
-      return 'Vacío';
-    }
-
-    // Based on data type, format the value appropriately
-    switch (field.data_type) {
-      case 'date':
-        if (field.value_date) {
-          return new Date(field.value_date).toLocaleDateString();
-        }
-        return String(field.value);
-      case 'datetime':
-        if (field.value_datetime) {
-          return new Date(field.value_datetime).toLocaleString();
-        }
-        return String(field.value);
-      case 'time':
-        if (field.value_time) {
-          return field.value_time;
-        }
-        return String(field.value);
-      case 'url':
-        if (field.value_url) {
-          return field.value_url;
-        }
-        return String(field.value);
-      case 'number':
-        if (field.value_number !== null && field.value_number !== undefined) {
-          return field.value_number.toString();
-        }
-        return String(field.value);
-      case 'bool':
-        // For boolean fields, return the boolean value to be handled in render
-        return field.value_bool;
-      case 'image':
-        // For image fields, return the URL to be handled in render
-        return String(field.value);
-      default:
-        return String(field.value);
-    }
-  };
-
-  const renderValue = (field: CustomFieldDocument) => {
-    const value = formatValue(field);
-    
-    // Special handling for boolean fields
-    if (field.data_type === 'bool') {
-      const isChecked = field.value_bool === true;
-      return (
-        <div className="flex items-center">
-          <div className={`
-            relative inline-flex h-3 w-6 items-center rounded-full transition-colors
-            ${isChecked ? 'bg-[#4464f7]' : 'bg-gray-300'}
-          `}>
-            <span className={`
-              inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform
-              ${isChecked ? 'translate-x-3' : 'translate-x-0.5'}
-            `} />
-          </div>
-        </div>
-      );
-    }
-    
-    // Special handling for image fields
-    if (field.data_type === 'image') {
-      const imageUrl = String(value);
-      if (imageUrl && imageUrl !== 'Vacío') {
-        return (
-          <div className="flex items-center gap-1.5">
-            <img 
-              src={imageUrl} 
-              alt={field.name || 'Image'}
-              className="w-8 h-8 object-cover rounded border border-gray-200 hover:cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => {
-                setSelectedImage({ url: imageUrl, name: field.name || 'Image' });
-                setImageDialogOpen(true);
-              }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-            <span className="text-xs text-gray-600 hidden">
-              Error loading image
-            </span>
-          </div>
-        );
-      }
-      return (
-        <span className="text-xs text-gray-600">
-          No image
-        </span>
-      );
-    }
-    
-    // For non-boolean and non-image fields, return text
-    return (
-      <span className="text-xs text-gray-600">
-        {String(value)}
-      </span>
-    );
-  };
-
-  return (
-    <div className="space-y-2 pt-2">
-      {/* Header with Refresh and Add buttons */}
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Fields</h4>
-        <div className="flex gap-1">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onRefresh} 
-            disabled={isRefreshing}
-            className={`hover:cursor-pointer h-7 w-7 p-0 ${
-              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer h-7 text-xs px-2">
-            <Plus className="h-3 w-3 mr-1" />
-            Add
-          </Button>
-        </div>
-      </div>
-      
-      {/* Fields List */}
-      <div className="space-y-1.5">
-        {customFields.map((field) => {
-          const isUploadingThisField = uploadingImageFieldId === field.id;
-          return (
-            <div key={field.id} className="flex items-start justify-between p-2 border rounded bg-card">
-              <div className="flex-1 min-w-0 mr-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {field.name || 'Unknown Field'}
-                    </span>
-                    {field.required && (
-                      <span className="text-xs text-destructive">*</span>
-                    )}
-                  </div>
-                  {field.source && (
-                    <span className="text-xs text-muted-foreground capitalize ml-2">
-                      {field.source}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {isUploadingThisField && field.data_type === 'image' ? (
-                    <div className="flex items-center gap-1.5">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Uploading image...</span>
-                    </div>
-                  ) : (
-                    renderValue(field)
-                  )}
-                </div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="hover:cursor-pointer h-5 w-5 p-0 text-muted-foreground hover:text-foreground flex-shrink-0"
-                  >
-                    <MoreVertical className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => {
-                    setTimeout(() => {
-                      onEdit(field)
-                    }, 0)
-                  }} className="hover:cursor-pointer">
-                    <Edit2 className="mr-2 h-3 w-3" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => {
-                    setTimeout(() => {
-                      onDelete(field)
-                    }, 0)
-                  }} className="hover:cursor-pointer text-destructive focus:text-destructive">
-                    <Trash2 className="mr-2 h-3 w-3" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Image preview dialog */}
-      <ReusableDialog
-        open={imageDialogOpen}
-        onOpenChange={setImageDialogOpen}
-        title={selectedImage?.name || "Image Preview"}
-        maxWidth="2xl"
-      >
-        <div className="flex justify-center">
-          {selectedImage && (
-            <img
-              src={selectedImage.url}
-              alt={selectedImage.name}
-              className="max-h-[70vh] w-auto object-contain rounded"
-            />
-          )}
-        </div>
-      </ReusableDialog>
     </div>
   );
 }
@@ -1667,7 +1401,7 @@ export function AssetContent({
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && (
-          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 flex-shrink-0 min-h-[80px]" data-mobile-header>
+          <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <TooltipProvider>
@@ -1692,7 +1426,7 @@ export function AssetContent({
                     {documentContent?.document_name || selectedFile.name}
                   </span>
                   {/* Always reserve space for execution info to prevent layout shift */}
-                  <div className="flex items-center gap-1 text-xs text-gray-500 min-h-[18px]">
+                  <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                     {selectedExecutionInfo && (
                       <>
                         <span className="font-medium text-xs text-gray-900">{selectedExecutionInfo.name}</span>
@@ -2147,78 +1881,79 @@ export function AssetContent({
         
         {/* Header Section */}
         {!isMobile && (
-        <div className="bg-white border-b border-gray-200 shadow-sm py-4 px-5 md:px-6 z-10 flex-shrink-0 min-h-[140px]" data-desktop-header>
-          <div className="space-y-3 md:space-y-4">
+        <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-10 shrink-0" data-desktop-header>
+          <div className="space-y-2.5">
             {/* Title and Type Section */}
             {!isMobile && (
-              <div className="flex items-start md:items-center gap-3 md:gap-4 flex-col md:flex-row">
-                <div className="flex flex-col gap-2 flex-1">
-                  <h1 className="text-lg md:text-xl font-bold text-gray-900 break-words min-w-0">{documentContent?.document_name || selectedFile.name}</h1>
-                  {/* Always reserve space for execution info to prevent layout shift */}
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500 min-h-[20px]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
+                    {documentContent?.document_type && (
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                        <div 
+                          className="w-1.5 h-1.5 rounded-full" 
+                          style={{ backgroundColor: documentContent.document_type.color }}
+                        />
+                        {documentContent.document_type.name}
+                      </div>
+                    )}
+                    {fullDocument?.template_name && (
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
+                        <FileCode className="w-3 h-3" />
+                        {fullDocument.template_name}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Metadata Row - Combined */}
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
                     {selectedExecutionInfo && (
                       <>
                         <span className="font-medium text-gray-900">
                           {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
                         </span>
-                        <span>•</span>
+                        <span className="text-gray-400">•</span>
                         <span>{selectedExecutionInfo.formattedDate}</span>
                         {selectedExecutionInfo.isLatest && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
                             Latest
                           </span>
                         )}
+                        {(documentContent?.internal_code || documentContent?.created_by_user) && (
+                          <span className="text-gray-400">•</span>
+                        )}
+                      </>
+                    )}
+                    {documentContent?.internal_code && (
+                      <>
+                        <span className="font-medium">Code:</span>
+                        <span>{documentContent.internal_code}</span>
+                      </>
+                    )}
+                    {documentContent?.created_by_user && (
+                      <>
+                        {documentContent?.internal_code && <span className="text-gray-400">•</span>}
+                        <span className="font-medium">By:</span>
+                        <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
+                      </>
+                    )}
+                    {documentContent?.updated_by_user && documentContent?.updated_by_user.id !== documentContent?.created_by_user?.id && (
+                      <>
+                        <span className="text-gray-400">•</span>
+                        <span className="font-medium">Updated:</span>
+                        <span>{documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}</span>
                       </>
                     )}
                   </div>
-                  {/* Document metadata row */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {documentContent?.internal_code && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-100 text-xs text-gray-700">
-                        <FileText className="w-3 h-3" />
-                        <span className="font-medium">Code:</span>
-                        <span>{documentContent.internal_code}</span>
-                      </div>
-                    )}
-                    {documentContent?.created_by_user && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-50 text-xs text-purple-700">
-                        <span className="font-medium">Created by:</span>
-                        <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
-                      </div>
-                    )}
-                    {documentContent?.updated_by_user && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-50 text-xs text-amber-700">
-                        <span className="font-medium">Updated by:</span>
-                        <span>{documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {documentContent?.document_type && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                      <div 
-                        className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: documentContent.document_type.color }}
-                      />
-                      {documentContent.document_type.name}
-                    </div>
-                  )}
-                  {fullDocument?.template_name && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
-                      <FileCode className="w-2 h-2" />
-                      {fullDocument.template_name}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
             
-            
             {/* Action Buttons Section */}
-            <div className="flex items-start gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Primary Actions Group */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
               <DocumentActionButton
                 accessLevels={accessLevels}
                 requiredAccess={["create"]}
@@ -2227,8 +1962,8 @@ export function AssetContent({
                 onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                 className={executeDocumentMutation.isPending || hasExecutionInProcess
-                  ? "h-8 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed shadow-sm text-xs"
-                  : "h-8 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm text-xs"
+                  ? "h-7 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed text-xs"
+                  : "h-7 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer text-xs"
                 }
                 title={executeDocumentMutation.isPending || hasExecutionInProcess 
                   ? "Cannot execute document" 
@@ -2237,12 +1972,12 @@ export function AssetContent({
               >
                 {executeDocumentMutation.isPending ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
                     Executing...
                   </>
                 ) : (
                   <>
-                    <Play className="h-3.5 w-3.5 mr-1.5" />
+                    <Play className="h-3 w-3 mr-1.5" />
                     Execute
                   </>
                 )}
@@ -2290,7 +2025,7 @@ export function AssetContent({
               </div>
               
               {/* Secondary Actions Group */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded-lg flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
                 {/* Execution Dropdown - only show for documents with executions */}
                 {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
                   <DropdownMenu>
@@ -2298,7 +2033,7 @@ export function AssetContent({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
                         title="Switch Version"
                       >
                         <span className="font-medium">
@@ -2500,7 +2235,7 @@ export function AssetContent({
 
                 {/* Separator between execution and document actions */}
                 {selectedExecutionId && (
-                  <div className="h-6 w-px bg-gray-200 mx-2"></div>
+                  <div className="h-5 w-px bg-gray-200 mx-1.5"></div>
                 )}
 
                 {/* Document Actions Group */}
@@ -2510,10 +2245,10 @@ export function AssetContent({
                   onClick={openEditDialog}
                   size="sm"
                   variant="ghost"
-                  className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                  className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                   title="Edit Document"
                 >
-                  <Edit3 className="h-3.5 w-3.5" />
+                  <Edit3 className="h-3 w-3" />
                 </DocumentActionButton>
                 
                 <DocumentAccessControl
@@ -2525,10 +2260,10 @@ export function AssetContent({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                         title="Export Options"
                       >
-                        <Download className="h-3.5 w-3.5" />
+                        <Download className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -2558,10 +2293,10 @@ export function AssetContent({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
+                        className="h-7 px-2 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
                         title="Delete Options"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
@@ -2645,7 +2380,7 @@ export function AssetContent({
                 
                 {isLoadingContent ? (
                   // Show skeleton loader with consistent height to prevent layout shift
-                  <div className="space-y-6 animate-pulse min-h-[600px]">
+                  <div className="space-y-6 animate-pulse min-h-150">
                     {/* Title skeleton */}
                     <div className="h-8 bg-gray-200 rounded w-3/4"></div>
                     
@@ -2688,7 +2423,7 @@ export function AssetContent({
                   </div>
                 ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) ? (
                   // Show skeleton when viewing a version that is currently executing (full/full-single mode)
-                  <div className="space-y-6 min-h-[600px]">
+                  <div className="space-y-6 min-h-150">
                     {/* Skeleton for document content */}
                     <div className="animate-pulse space-y-4">
                       {/* Title skeleton */}
@@ -2758,7 +2493,7 @@ export function AssetContent({
                               {hasFailedExecution ? (
                                 <>
                                   <div className="max-w-xl mx-auto">
-                                    <div className="bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
+                                    <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
                                       {/* Icon Container with Animation */}
                                       <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
                                         <AlertCircle className="h-8 w-8 text-red-600 animate-pulse" />
@@ -3000,7 +2735,7 @@ export function AssetContent({
                     
                     // Si no hay contenido disponible, mostrar mensaje
                     return (
-                      <div className="flex items-center justify-center h-full min-h-[400px]">
+                      <div className="flex items-center justify-center h-full min-h-100">
                         <div className="text-center">
                           <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
                           <p className="text-lg font-medium text-gray-500">No content available</p>
