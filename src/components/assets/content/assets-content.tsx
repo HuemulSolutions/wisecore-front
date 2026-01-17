@@ -1397,7 +1397,7 @@ export function AssetContent({
     <>
     <ResizablePanelGroup direction="horizontal" className="h-full w-full bg-gray-50">
       {/* Document Content */}
-      <ResizablePanel defaultSize={selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting ? 80 : 100}>
+      <ResizablePanel maxSize={90} defaultSize={80} minSize={70}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && (
@@ -2805,7 +2805,7 @@ export function AssetContent({
       {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20} minSize={19} maxSize={40}>
+          <ResizablePanel defaultSize={20} minSize={19} maxSize={30}>
             <div className="flex flex-col h-full bg-white border-l">
               <div className="flex flex-col pt-3">
                 <div className="px-2 pb-2">
