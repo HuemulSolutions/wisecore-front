@@ -302,7 +302,7 @@ export default function SectionExecution({
         <div ref={containerRef} className="p-2 relative">
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-20 flex justify-end p-2 bg-transparent -mx-2 -mt-2 mb-4">
+                <div className="sticky top-0 z-20 justify-end p-2 bg-transparent -mx-2 -mt-2 mb-4 max-w-full w-full flex">
                     {!isEditing && (
                     <>
                         {/* Desktop: Direct Action Buttons */}

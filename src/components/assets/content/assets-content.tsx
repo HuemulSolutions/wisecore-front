@@ -59,113 +59,22 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import type { ContentSection, LibraryContentProps } from '@/types/assets';
 import { CustomFieldsList } from './assets-custom-fields-list';
 
-// Function to extract headings from multiple content sections for table of contents
-function extractHeadingsFromSections(sections: ContentSection[]) {
-  const headings: Array<{
-    id: string;
-    title: string;
-    level: number;
-    sectionId: string;
-    sectionIndex: number;
-  }> = [];
-  
-  sections.forEach((section, sectionIndex) => {
-    const headingRegex = /^(#{1,6})\s+(.*)$/gm;
-    let match;
+// Utilities and hooks
+import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
+import { SectionSeparator } from './components/SectionSeparator';
+// TODO: Integrate these hooks gradually to replace inline mutations
+// import { useDocumentMutations } from './hooks/useDocumentMutations';
+// import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
+// import { useExecutionState } from './hooks/useExecutionState';
 
-    while ((match = headingRegex.exec(section.content)) !== null) {
-      const level = match[1].length;
-      const title = match[2].trim();
-      // Generate the same ID as the Markdown component
-      const id = `section-${sectionIndex}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
-      
-      headings.push({
-        id,
-        title,
-        level,
-        sectionId: section.id,
-        sectionIndex,
-      });
-    }
-  });
 
-  return headings;
-}
 
-// Legacy function for backward compatibility
-function extractHeadings(markdown: string) {
-  const headingRegex = /^(#{1,6})\s+(.*)$/gm;
-  const headings = [];
-  let match;
-
-  while ((match = headingRegex.exec(markdown)) !== null) {
-    const level = match[1].length;
-    const title = match[2].trim();
-    const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    
-    headings.push({
-      id,
-      title,
-      level,
-    });
-  }
-
-  return headings;
-}
-
-// Section Separator Component with hover add button
-function SectionSeparator({ 
-  onAddSection, 
-  index, 
-  isLastSection = false,
-  isMobile = false,
-  accessLevels
-}: { 
-  onAddSection: (afterIndex?: number) => void;
-  index?: number;
-  isLastSection?: boolean;
-  isMobile?: boolean;
-  selectedFile?: { id: string; name: string; type: "folder" | "document"; access_levels?: string[] } | null;
-  accessLevels?: string[];
-}) {
-  return (
-    <div className="group relative flex items-center justify-center my-4 px-4">
-      {/* Divider line */}
-      <div className="absolute inset-0 flex items-center">
-        <div className="w-full border-t border-gray-200 group-hover:border-gray-300 transition-colors duration-200" />
-      </div>
-      
-      {/* Add section button - appears on hover on desktop, always visible on mobile */}
-      <div className="relative bg-white px-6">
-        <DocumentActionButton
-          accessLevels={accessLevels}
-          requiredAccess={["edit", "create"]}
-          requireAll={false}
-          onClick={() => onAddSection(index)}
-          variant="ghost"
-          size="sm"
-          className={`
-            h-8 w-8 p-0 rounded-full 
-            ${isMobile 
-              ? 'opacity-100' 
-              : 'opacity-0 group-hover:opacity-100'
-            }
-            transition-all duration-300 ease-in-out
-            hover:bg-[#4464f7] hover:text-white
-            text-gray-400 hover:cursor-pointer
-            border border-gray-200 bg-white
-            shadow-sm hover:shadow-lg
-            transform hover:scale-110 active:scale-95
-          `}
-          title={`Add section ${isLastSection ? 'at the end' : index !== undefined && index >= 0 ? `after section ${index + 1}` : 'at the beginning'}`}
-        >
-          <BetweenHorizontalStart className="h-4 w-4" />
-        </DocumentActionButton>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * AssetContent Component
+ * 
+ * Main component for displaying and managing document/template content.
+ * Handles content rendering, version management, executions, and user interactions.
+ */
 export function AssetContent({ 
   selectedFile, 
   selectedExecutionId, 
@@ -176,15 +85,22 @@ export function AssetContent({
   onToggleSidebar,
   onPreserveScroll
 }: LibraryContentProps) {
+  // ============================================================================
+  // HOOKS AND CONTEXT
+  // ============================================================================
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
   
-  // Hook de restauración de scroll usando el ID del archivo seleccionado como clave única
-  const scrollRestoration = useScrollRestoration(selectedFile?.id ? `asset-content-${selectedFile.id}` : 'asset-content-default');
+  // Scroll restoration hook - maintains scroll position across re-renders
+  const scrollRestoration = useScrollRestoration(
+    selectedFile?.id ? `asset-content-${selectedFile.id}` : 'asset-content-default'
+  );
   
-  // States to control on-demand loading
+  // ============================================================================
+  // STATE - ON-DEMAND LOADING
+  // ============================================================================
   const [needsFullDocument, setNeedsFullDocument] = useState(false);
   const [needsDefaultLLM, setNeedsDefaultLLM] = useState(false);
   
@@ -486,16 +402,23 @@ export function AssetContent({
     },
   });
 
-  // Función para preservar scroll - ahora usa el hook de restauración de scroll
+  // Helper function to preserve scroll position
   const preserveScrollPosition = () => {
     scrollRestoration.saveScrollPosition();
   };
+
+  // ============================================================================
+  // STATE - DIALOG AND SHEET VISIBILITY
+  // ============================================================================
+  // Confirmation dialogs
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
+
+  // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
@@ -516,41 +439,53 @@ export function AssetContent({
     setNeedsDefaultLLM(false);
   }, [selectedFile?.id]);
   
-  // State for tracking current execution for polling
+  // ============================================================================
+  // STATE - EXECUTION TRACKING
+  // ============================================================================
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [currentExecutionMode, setCurrentExecutionMode] = useState<'full' | 'single' | 'from' | 'full-single'>('full');
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
-  
-  // State for tracking active executions on other versions
   const [dismissedExecutionBanners, setDismissedExecutionBanners] = useState<Set<string>>(new Set());
-  
-  // Estado para tracking de ejecuciones de secciones individuales
   const [, setSectionExecutionId] = useState<string | null>(null);
   
-  // Direct section creation state
+  // ============================================================================
+  // STATE - SECTION MANAGEMENT
+  // ============================================================================
   const [isDirectSectionDialogOpen, setIsDirectSectionDialogOpen] = useState(false);
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
-  
-  // Section execution creation state
   const [isSectionExecutionDialogOpen, setIsSectionExecutionDialogOpen] = useState(false);
   const [afterFromSectionId, setAfterFromSectionId] = useState<string | null>(null);
   
-  // Template creation states
+  // ============================================================================
+  // STATE - TEMPLATE MANAGEMENT
+  // ============================================================================
   const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
   const [createdTemplate, setCreatedTemplate] = useState<{ id: string; name: string } | null>(null);
   const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
   
-  // Asset creation state
+  // ============================================================================
+  // STATE - ASSET CREATION
+  // ============================================================================
   const [isCreateAssetDialogOpen, setIsCreateAssetDialogOpen] = useState(false);
   
-  // Execute sheet state
+  // ============================================================================
+  // STATE - EXECUTION SHEET
+  // ============================================================================
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
-  const [executionContext, setExecutionContext] = useState<{ type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null>(null);
+  const [executionContext, setExecutionContext] = useState<{ 
+    type: 'header' | 'section'; 
+    sectionIndex?: number; 
+    sectionId?: string;
+  } | null>(null);
   
-  // Custom Word Export dialog state
+  // ============================================================================
+  // STATE - EXPORT
+  // ============================================================================
   const [isCustomWordExportDialogOpen, setIsCustomWordExportDialogOpen] = useState(false);
   
-  // Custom Field Document Dialog states
+  // ============================================================================
+  // STATE - CUSTOM FIELDS
+  // ============================================================================
   const [isAddCustomFieldDocumentDialogOpen, setIsAddCustomFieldDocumentDialogOpen] = useState(false);
   const [isEditCustomFieldDocumentDialogOpen, setIsEditCustomFieldDocumentDialogOpen] = useState(false);
   const [selectedCustomFieldDocument, setSelectedCustomFieldDocument] = useState<CustomFieldDocument | null>(null);
@@ -1395,7 +1330,7 @@ export function AssetContent({
 
   return (
     <>
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full bg-gray-50">
+    <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
       <ResizablePanel maxSize={90} defaultSize={80} minSize={70}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
@@ -2328,7 +2263,7 @@ export function AssetContent({
 
         {/* Content Section - Now with ScrollArea and scroll restoration */}
         <div className="flex-1 bg-white min-w-0 overflow-hidden">
-          <ScrollArea className="h-full w-full">
+          <ScrollArea className="h-full max-w-full">
             <div 
               ref={scrollRestoration.viewportRef}
               className="py-4 md:py-5 px-4 md:px-6"
@@ -2626,7 +2561,7 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
-                        <div className="prose prose-gray max-w-full prose-sm md:prose-base">
+                        <div className="prose prose-gray prose-sm md:prose-base max-w-[1350px]">
                           {Array.isArray(documentContent.content) ? (
                             // New format: array of sections with separators
                             <>
@@ -2635,7 +2570,6 @@ export function AssetContent({
                                 onAddSection={() => handleAddSectionAtPosition(-1)} 
                                 index={-1}
                                 isMobile={isMobile}
-                                selectedFile={selectedFile}
                                 accessLevels={accessLevels}
                               />
                               
@@ -2713,12 +2647,11 @@ export function AssetContent({
                               </div>
                               
                               {/* Add separator after each section */}
-                              <SectionSeparator 
-                                onAddSection={handleAddSectionAtPosition} 
+                              <SectionSeparator
+                                onAddSection={handleAddSectionAtPosition}
                                 index={index}
                                 isLastSection={index === documentContent.content.length - 1}
                                 isMobile={isMobile}
-                                selectedFile={selectedFile}
                                 accessLevels={accessLevels}
                               />
                             </div>
@@ -2805,7 +2738,7 @@ export function AssetContent({
       {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20} minSize={19} maxSize={30}>
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
             <div className="flex flex-col h-full bg-white border-l">
               <div className="flex flex-col pt-3">
                 <div className="px-2 pb-2">
