@@ -115,17 +115,17 @@ export function TemplateSectionsList({
   };
 
   return (
-    <div className="p-1.5 sm:p-2 md:p-2.5 relative">
-      <div className="flex items-center justify-between mb-1.5 sm:mb-2 pb-1.5">
+    <div className="relative">
+      {/* <div className="flex items-center justify-between mb-1.5 sm:mb-2 pb-1.5">
         <h3 className="text-xs sm:text-sm font-semibold text-gray-900">
           Template Sections ({sections.length})
         </h3>
-      </div>
+      </div> */}
 
       <div className="relative isolate">
         {/* Loading Overlay */}
         {isReordering && (
-          <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-[9999] flex items-center justify-center rounded-lg">
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-9999 flex items-center justify-center rounded-lg">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-[#4464f7]" />
               <span className="text-sm text-gray-600 font-medium">Reordering sections...</span>
@@ -140,7 +140,7 @@ export function TemplateSectionsList({
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-            <div className={`space-y-1.5 sm:space-y-2 overflow-visible max-h-[75vh] overflow-y-auto pb-24 ${isReordering ? 'opacity-0' : ''}`}>
+            <div className={`space-y-1.5 sm:space-y-2 ${isReordering ? 'opacity-0' : ''}`}>
               {sections.map((section: any) => (
                 <div key={section.id}>
                   <SortableSectionSheet

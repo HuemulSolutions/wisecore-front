@@ -19,6 +19,8 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedCustomFieldTemplate, setSelectedCustomFieldTemplate] = useState<CustomFieldTemplate | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const {
     data: customFieldTemplates = [],
@@ -27,6 +29,8 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
     refetch
   } = useCustomFieldTemplatesByTemplate(templateId, {
     enabled: !!templateId,
+    page,
+    page_size: pageSize,
   })
 
   const mutations = useCustomFieldTemplateMutations()
@@ -84,9 +88,9 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
 
   if (isLoadingCustomFieldTemplates) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
+      <div className="px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-1">
             <h2 className="text-base font-semibold text-foreground">Custom Fields</h2>
             <p className="text-xs text-muted-foreground">
               Manage custom fields for this template
@@ -95,15 +99,15 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
           <Button
             disabled
             size="sm"
-            className="hover:cursor-pointer h-7 text-xs px-2"
+            className="hover:cursor-pointer h-8 text-xs px-3"
           >
-            <Plus className="mr-1.5 h-3 w-3" />
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add Field
           </Button>
         </div>
         
         <div className="animate-pulse">
-          <div className="h-24 bg-muted rounded"></div>
+          <div className="h-32 bg-muted rounded"></div>
         </div>
       </div>
     )
@@ -111,9 +115,9 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
 
   if (error) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
+      <div className="px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-1">
             <h2 className="text-base font-semibold text-foreground">Custom Fields</h2>
             <p className="text-xs text-muted-foreground">
               Manage custom fields for this template
@@ -123,14 +127,14 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
             onClick={() => refetch()}
             size="sm"
             variant="outline"
-            className="hover:cursor-pointer h-7 text-xs px-2"
+            className="hover:cursor-pointer h-8 text-xs px-3"
           >
             Retry
           </Button>
         </div>
         
-        <div className="text-center py-6">
-          <p className="text-xs text-destructive">
+        <div className="text-center py-8">
+          <p className="text-sm text-destructive">
             Error loading custom fields. Please try again.
           </p>
         </div>
@@ -141,9 +145,9 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
   const hasCustomFieldTemplates = customFieldTemplates.length > 0
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
+    <div className="px-4 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Custom Fields</h2>
           <p className="text-xs text-muted-foreground">
             Manage custom fields for this template
@@ -151,23 +155,23 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
         </div>
         
         {hasCustomFieldTemplates && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <Button
               onClick={handleRefresh}
               size="sm"
               variant="outline"
-              className="hover:cursor-pointer h-7 text-xs px-2"
+              className="hover:cursor-pointer h-8 text-xs px-3"
               disabled={isRefreshing}
             >
-              <RefreshCw className={`mr-1.5 h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button
               onClick={handleAddCustomFieldTemplate}
               size="sm"
-              className="hover:cursor-pointer h-7 text-xs px-2"
+              className="hover:cursor-pointer h-8 text-xs px-3"
             >
-              <Plus className="mr-1.5 h-3 w-3" />
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
               Add Field
             </Button>
           </div>
@@ -179,6 +183,13 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
           customFieldTemplates={customFieldTemplates}
           onEditCustomFieldTemplate={handleEditCustomFieldTemplate}
           onDeleteCustomFieldTemplate={handleDeleteCustomFieldTemplate}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(newPageSize) => {
+            setPageSize(newPageSize)
+            setPage(1)
+          }}
         />
       ) : (
         <CustomFieldTemplateEmptyState

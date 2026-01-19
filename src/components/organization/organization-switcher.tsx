@@ -8,11 +8,7 @@ import { CreateOrganizationDialog } from '@/components/organization/organization
 import { EditOrganizationDialog } from '@/components/organization/organization-edit-dialog'
 import { DeleteOrganizationDialog } from '@/components/organization/organization-delete-dialog'
 
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 import { getUserOrganizations, addOrganization, updateOrganization, deleteOrganization } from '@/services/organizations'
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
@@ -103,55 +99,47 @@ export function OrganizationSwitcher() {
 
   const selectedOrganization = organizations?.find(org => org.id === selectedOrganizationId)
 
-  const renderSidebarMenu = () => {
+  const renderButton = () => {
     if (!selectedOrganization) {
       return (
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:cursor-pointer"
-              onClick={() => setIsOrgSelectionOpen(true)}
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs flex-shrink-0">
-                --
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium text-gray-500">Select Organization</span>
-              <span className="truncate text-xs text-muted-foreground">Choose from list</span>
-            </div>
-            <ChevronsUpDown className="ml-auto" />
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2 px-2 h-12 hover:cursor-pointer hover:bg-accent hover:text-accent-foreground"
+          onClick={() => setIsOrgSelectionOpen(true)}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs shrink-0">
+            --
+          </div>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-medium text-gray-500">Select Organization</span>
+            <span className="truncate text-xs text-muted-foreground">Choose from list</span>
+          </div>
+          <ChevronsUpDown className="ml-auto h-4 w-4" />
+        </Button>
       )
     }
 
     return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            size="lg"
-            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:cursor-pointer"
-            onClick={() => setIsOrgSelectionOpen(true)}
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs flex-shrink-0">
-              {selectedOrganization.name.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{selectedOrganization.name}</span>
-            <span className="truncate text-xs text-muted-foreground">Organization</span>
-          </div>
-          <ChevronsUpDown className="ml-auto" />
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
+      <Button
+        variant="ghost"
+        className="w-full justify-start gap-2 px-2 h-12 hover:cursor-pointer hover:bg-accent hover:text-accent-foreground"
+        onClick={() => setIsOrgSelectionOpen(true)}
+      >
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs shrink-0">
+          {selectedOrganization.name.substring(0, 2).toUpperCase()}
+        </div>
+        <div className="grid flex-1 text-left text-sm leading-tight">
+          <span className="truncate font-medium">{selectedOrganization.name}</span>
+          <span className="truncate text-xs text-muted-foreground">Organization</span>
+        </div>
+        <ChevronsUpDown className="ml-auto h-4 w-4" />
+      </Button>
     )
   }
 
   return (
     <>
-      {renderSidebarMenu()}
+      {renderButton()}
       
       <OrganizationSelectionDialog 
         open={isOrgSelectionOpen} 

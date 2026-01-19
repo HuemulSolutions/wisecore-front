@@ -157,7 +157,7 @@ export default function AssetTypesPage() {
                 setPageSize(newPageSize)
                 setPage(1)
               },
-              pageSizeOptions: [10, 25, 50, 100]
+              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
             }}
           />
         )}

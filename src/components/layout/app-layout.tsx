@@ -1,8 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom"
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
-import { AppSidebar } from "./app-sidebar"
-import { ChevronRight, Settings } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu } from "lucide-react"
+import { useState, useMemo } from "react"
 import packageInfo from "../../../package.json"
 import {
   Tooltip,
@@ -18,21 +16,62 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { OrganizationSelectionDialog } from "@/components/organization/organization-selection-dialog"
+import { OrganizationSwitcher } from "@/components/organization/organization-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useAuth } from "@/contexts/auth-context"
+import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
+import EditUserDialog from "@/components/users/users-edit-dialog"
+import { cn } from "@/lib/utils"
+
+// Navigation items
+const navigationItems = [
+  {
+    title: "Home",
+    url: "/home",
+    icon: Home,
+  },
+  {
+    title: "Assets",
+    url: "/asset", 
+    icon: BookText,
+  },
+  {
+    title: "Search",
+    url: "/search",
+    icon: Search,
+  },
+  {
+    title: "Templates",
+    url: "/templates",
+    icon: LayoutTemplate,
+  },
+]
 
 export default function AppLayout() {
   const location = useLocation()
   const { requiresOrganizationSelection, organizationToken } = useOrganization()
   const { isLoading: permissionsLoading } = useUserPermissions()
+  const { user, logout } = useAuth()
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  
   const {
     isRootAdmin,
     canAccessUsers,
     canAccessRoles,
     canAccessModels,
     canAccessDocumentTypes,
+    canAccessAssets,
+    canAccessTemplates,
   } = useUserPermissions()
   
   // El diálogo debe mantenerse abierto si:
@@ -40,88 +79,138 @@ export default function AppLayout() {
   // 2. Tenemos token de organización pero los permisos aún están cargando
   const shouldShowDialog = requiresOrganizationSelection || (!!organizationToken && permissionsLoading)
   
-  // Map routes to display names
-  const getPageName = (pathname: string): string => {
-    const routes: { [key: string]: string } = {
-      '/home': 'Home',
-      '/asset': 'Assets',
-      '/editor': 'Editor',
-      '/search': 'Search',
-      '/templates': 'Templates',
-      '/organizations': 'Organizations',
-      '/graph': 'Graph',
-      '/models': 'Models',
-      '/users': 'Users',
-      '/roles': 'Roles',
-      '/auth-types': 'Authentication Types',
-      '/asset-types': 'Asset Types',
-      '/custom-fields': 'Custom Fields',
-    }
-    
-    // Handle dynamic routes
-    if (pathname.startsWith('/asset/')) return 'Asset'
-    if (pathname.startsWith('/document/')) return 'Document'
-    if (pathname.startsWith('/configTemplate/')) return 'Template Configuration'
-    if (pathname.startsWith('/configDocument/')) return 'Document Configuration'
-    if (pathname.startsWith('/execution/')) return 'Execution'
-    if (pathname.startsWith('/docDepend/')) return 'Document Dependencies'
-    
-    return routes[pathname] || 'Dashboard'
-  }
-
-  const currentPage = getPageName(location.pathname)
-  const isHomePage = location.pathname === '/home'
-
   // Filtrar opciones del menú de configuración basándose en permisos
   const hasAssetManagementAccess = canAccessDocumentTypes || isRootAdmin
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess
 
+  // Generate initials from user name
+  const getUserInitials = (firstName: string, lastName: string): string => {
+    const first = firstName?.charAt(0) || ''
+    const last = lastName?.charAt(0) || ''
+    return (first + last).toUpperCase()
+  }
+
+  const handleSignOut = () => {
+    logout()
+  }
+
+  const handleUpdateProfile = () => {
+    setTimeout(() => {
+      setProfileDialogOpen(true)
+    }, 0)
+  }
+
+  // Filtrar navigationItems basándose en permisos del usuario
+  const filteredNavigationItems = useMemo(() => {
+    if (!organizationToken || permissionsLoading) {
+      return []
+    }
+
+    return navigationItems.map(item => {
+      let shouldShowItem = true
+      
+      switch (item.title) {
+        case "Assets":
+          shouldShowItem = canAccessAssets || isRootAdmin
+          break
+        case "Templates":
+          shouldShowItem = canAccessTemplates || isRootAdmin
+          break
+        default:
+          shouldShowItem = true
+      }
+
+      return shouldShowItem ? item : null
+    }).filter(Boolean) as typeof navigationItems
+  }, [
+    organizationToken,
+    permissionsLoading,
+    canAccessAssets,
+    canAccessTemplates,
+    isRootAdmin
+  ])
+
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset className="flex flex-col h-screen overflow-hidden">
-          <header className="sticky top-0 z-50 flex h-14 shrink-0 items-center justify-between gap-1 transition-[width,height] ease-linear group-has-[collapsible=icon]/sidebar-wrapper:h-10 border-b border-sidebar-border bg-background">
-            <div className="flex items-center gap-1 px-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <SidebarTrigger className="hover:cursor-pointer -ml-1" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Toggle sidebar</p>
-                </TooltipContent>
-              </Tooltip>
-              <Separator orientation="vertical" className="mr-1 h-3" />
-              
-              {/* Breadcrumb navigation */}
-              <nav className="flex items-center gap-0.5 text-sm" aria-label="Breadcrumb">
-                {isHomePage ? (
-                  <span className="font-semibold text-foreground px-1 py-1">
-                    Wisecore
-                  </span>
-                ) : (
-                  <>
-                    <Link
-                      to="/home"
-                      className="text-sm font-semibold text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors px-1 py-1 rounded-md hover:bg-muted/50"
-                    >
-                      Wisecore
-                    </Link>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/60 mx-0.5" />
-                    <span className="font-medium text-foreground px-1 py-1 text-sm">
-                      {currentPage}
-                    </span>
-                  </>
-                )}
-              </nav>
+      <NavKnowledgeProvider>
+        <div className="flex flex-col h-screen overflow-hidden">
+          <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
+            {/* Left section: Organization Switcher */}
+            <div className="flex items-center gap-2 min-w-45">
+              <OrganizationSwitcher />
             </div>
             
-            {/* Version indicator and settings */}
-            <div className="flex items-center gap-1 px-3">
+            {/* Center section: Navigation Menu */}
+            <nav className="hidden md:flex items-center justify-center gap-1 flex-1">
+              {filteredNavigationItems.map((item) => {
+                const Icon = item.icon
+                const isActive = location.pathname === item.url || 
+                  (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
+                
+                return (
+                  <Link
+                    key={item.title}
+                    to={item.url}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
+                      isActive 
+                        ? "bg-accent text-accent-foreground" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="md:hidden hover:cursor-pointer">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64">
+                <div className="flex flex-col gap-4 py-4">
+                  <div className="px-2 text-lg font-semibold">Navigation</div>
+                  <nav className="flex flex-col gap-1">
+                    {filteredNavigationItems.map((item) => {
+                      const Icon = item.icon
+                      const isActive = location.pathname === item.url || 
+                      (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
+                      
+                      return (
+                        <Link
+                          key={item.title}
+                          to={item.url}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
+                            isActive 
+                              ? "bg-accent text-accent-foreground" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      )
+                    })}
+                  </nav>
+                </div>
+              </SheetContent>
+            </Sheet>
+            
+            {/* Right section: Version + Settings + User (initials only) */}
+            <div className="flex items-center gap-2">
+
+              {/* Version indicator */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="bg-muted/50 text-muted-foreground text-xs font-mono px-1.5 py-0.5 rounded text-[10px] border">
+                  <div className="hidden md:flex bg-muted/50 text-muted-foreground text-xs font-mono px-2 py-1 rounded border">
                     v{packageInfo.version}
                   </div>
                 </TooltipTrigger>
@@ -134,8 +223,8 @@ export default function AppLayout() {
               {hasSettingsAccess && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:cursor-pointer">
-                      <Settings className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:cursor-pointer">
+                      <Settings className="h-4 w-4" />
                       <span className="sr-only">Settings menu</span>
                     </Button>
                   </DropdownMenuTrigger>
@@ -197,17 +286,63 @@ export default function AppLayout() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+
+              {/* User menu (initials only) */}
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="hover:cursor-pointer">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src="" alt={`${user.name} ${user.last_name}`} />
+                        <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
+                          {getUserInitials(user.name, user.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium">{user.name} {user.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="hover:cursor-pointer" 
+                      onSelect={handleUpdateProfile}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Update Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </header>
-          <div className="flex-1">
-            {/* <PermissionsDebugger /> */}
+          
+          <div className="flex-1 overflow-auto">
             <Outlet />
           </div>
-        </SidebarInset>
+        </div>
         
         {/* Dialog de selección de organización */}
         <OrganizationSelectionDialog open={shouldShowDialog} />
-      </SidebarProvider>
+        
+        {/* Edit profile dialog */}
+        {user && (
+          <EditUserDialog 
+            user={user}
+            open={profileDialogOpen} 
+            onOpenChange={setProfileDialogOpen} 
+          />
+        )}
+      </NavKnowledgeProvider>
     </TooltipProvider>
   )
 }

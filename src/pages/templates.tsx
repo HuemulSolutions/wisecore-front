@@ -3,10 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useSidebar } from "@/components/ui/sidebar";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface TemplateItem {
   id: string;
@@ -19,12 +22,8 @@ export default function Templates() {
   const navigate = useNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
   const { selectedOrganizationId } = useOrganization();
-  const isMobile = useIsMobile();
-  const { setOpenMobile } = useSidebar();
-
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobile);
   const hasRestoredRef = useRef(false);
 
   // Query para listar templates
@@ -57,13 +56,6 @@ export default function Templates() {
     hasRestoredRef.current = true;
   }, [selectedOrganizationId, templates, templateId]);
 
-  // Cerrar app sidebar automáticamente en móvil cuando se accede a Templates
-  useEffect(() => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }, [isMobile, setOpenMobile]);
-
   // Reset cuando cambia la organización
   useEffect(() => {
     setSelectedTemplate(null);
@@ -72,35 +64,36 @@ export default function Templates() {
 
   return (
     <div className="flex h-full bg-gray-50">
-      {/* Templates Sidebar */}
-      <TemplatesSidebar
-        isOpen={isSidebarOpen}
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-        isMobile={isMobile}
-        templates={templates}
-        isLoading={isFetching}
-        error={queryError}
-        selectedTemplateId={selectedTemplate?.id || null}
-        onTemplateSelect={handleTemplateSelect}
-        organizationId={selectedOrganizationId}
-        onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex min-w-0">
-        <div className="flex-1 overflow-auto bg-white min-w-0">
-          <TemplateContent
-            selectedTemplate={selectedTemplate}
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        {/* Templates Sidebar */}
+        <ResizablePanel defaultSize={15} minSize={15} maxSize={30}>
+          <TemplatesSidebar
+            templates={templates}
+            isLoading={isFetching}
+            error={queryError}
+            selectedTemplateId={selectedTemplate?.id || null}
+            onTemplateSelect={handleTemplateSelect}
+            organizationId={selectedOrganizationId}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
-            onTemplateDeleted={() => {
-              setSelectedTemplate(null);
-              navigate('/templates', { replace: true });
-            }}
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-        </div>
-      </div>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        {/* Main Content */}
+        <ResizablePanel defaultSize={80}>
+          <div className="h-full bg-white">
+            <TemplateContent
+              selectedTemplate={selectedTemplate}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
+              onTemplateDeleted={() => {
+                setSelectedTemplate(null);
+                navigate('/templates', { replace: true });
+              }}
+            />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
