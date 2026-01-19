@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Plus, List, RefreshCw, Edit3, Trash2 } from "lucide-react";
+import { Plus, List, RefreshCw } from "lucide-react";
 
 interface TemplateHeaderProps {
   templateName: string;
@@ -23,12 +23,9 @@ export function TemplateHeader({
   isMobile,
   isGenerating,
   isRefreshing = false,
-  activeTab = "sections",
   onToggleSidebar,
   onAddSection,
   onRefresh,
-  onEdit,
-  onDelete,
 }: TemplateHeaderProps) {
   if (isMobile) {
     return (
