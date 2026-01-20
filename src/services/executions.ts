@@ -196,10 +196,14 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
         word: 'docx',
         custom_word: 'docx'
     };
-    
+        
     console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
-    const response = await httpClient.get(`${backendUrl}/${endpoints[exportType]}`, {
+    
+    // Usar fetch nativo para tener acceso completo a los headers
+    const orgToken = httpClient.getOrganizationToken();
+    const response = await fetch(`${backendUrl}/${endpoints[exportType]}`, {
         headers: {
+            'Authorization': `Bearer ${orgToken}`,
             'X-Org-Id': organizationId,
         },
     });
@@ -210,8 +214,18 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
 
     // Obtener el contenido del archivo y el nombre del archivo desde los headers
     const blob = await response.blob();
-    const contentDisposition = response.headers.get('Content-Disposition');
-    const filename = contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] || `execution_${executionId}.${extensions[exportType]}`;
+    
+    const contentDisposition = response.headers.get('content-disposition');
+    
+    // Extraer el nombre del archivo del header content-disposition
+    let filename = `execution_${executionId}.${extensions[exportType]}`;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/) || 
+                             contentDisposition.match(/filename=([^;]+)/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].trim();
+        }
+    }
     
     // Crear el enlace de descarga
     const url = window.URL.createObjectURL(blob);
@@ -228,7 +242,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     window.URL.revokeObjectURL(url);
     
     console.log(`Execution exported successfully as: ${filename}`);
-    return { filename, success: true };
+    return { success: true };
 }
 
 export async function exportExecutionToMarkdown(executionId: string, organizationId: string) {
