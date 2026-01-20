@@ -650,12 +650,22 @@ export function AssetContent({
   const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
     if (selectedFile && selectedFile.type === 'document') {
       preserveScrollPosition();
-      // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
-      // Store execution context
-      setExecutionContext(context || { type: 'header' });
-      setIsExecuteSheetOpen(true);
+
+      // Si se ejecuta desde una sección, asegurar que el índice y modo estén bien definidos para el feedback
+      if (context?.type === 'section' && typeof context.sectionIndex === 'number') {
+        setCurrentSectionIndex(context.sectionIndex);
+        setCurrentExecutionMode('single'); // O 'from' si aplica, según la acción
+        // setExecutionContext y setIsExecuteSheetOpen deben ejecutarse después para asegurar el render correcto
+        setTimeout(() => {
+          setExecutionContext(context);
+          setIsExecuteSheetOpen(true);
+        }, 0);
+      } else {
+        setExecutionContext(context || { type: 'header' });
+        setIsExecuteSheetOpen(true);
+      }
     }
   };
 
@@ -2596,18 +2606,16 @@ export function AssetContent({
                               <div id={`section-${index}`} className="relative">
                                 <SectionExecution 
                                   sectionExecution={{
-                                    id: section.id, // This is the section_execution_id
+                                    id: section.id,
                                     output: section.content,
-                                    section_id: realSectionId // This is the real section_id from the document structure
+                                    section_id: realSectionId
                                   }}
                                   onUpdate={() => {
-                                    // Refresh document content when section is updated
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
                                   }}
                                   readyToEdit={true}
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
-                                  // Use currentExecutionId if there's an active single/from execution, otherwise use selectedExecutionId
                                   executionId={
                                     (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
                                       ? currentExecutionId
@@ -2615,40 +2623,21 @@ export function AssetContent({
                                   }
                                   executionStatus={
                                     (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? 'running' // Mark as running when there's an active execution
+                                      ? 'running'
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}
                                   showExecutionFeedback={
-                                    (() => {
-                                      const shouldShow = !!(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
-                                        currentExecutionMode === 'single' 
-                                          ? index === currentSectionIndex // Show feedback only on the executing section for 'single'
-                                          : currentSectionIndex !== undefined && index >= currentSectionIndex // Show feedback from the start section onwards for 'from'
-                                      ));
-                                      
-                                      // Log only for sections that should potentially show feedback
-                                      if (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
-                                        console.log(`📊 Section ${index} feedback decision:`, {
-                                          currentExecutionId,
-                                          currentExecutionMode,
-                                          currentSectionIndex,
-                                          sectionIndex: index,
-                                          shouldShow,
-                                          matchesIndex: index === currentSectionIndex,
-                                          isInRange: currentSectionIndex !== undefined && index >= currentSectionIndex
-                                        });
-                                      }
-                                      
-                                      return shouldShow;
-                                    })()
+                                    !!(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
+                                      currentExecutionMode === 'single'
+                                        ? index === currentSectionIndex
+                                        : currentSectionIndex !== undefined && index >= currentSectionIndex
+                                    ))
                                   }
                                   accessLevels={accessLevels}
                                   onExecutionStart={(executionIdForSection) => {
-                                    // Set section execution for polling banner
                                     if (executionIdForSection) {
                                       setSectionExecutionId(executionIdForSection);
-                                      console.log('Section execution started:', executionIdForSection);
                                     }
                                   }}
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
