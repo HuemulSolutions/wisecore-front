@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, RefreshCw, Edit3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { getTemplateById, generateTemplateSections } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { AddSectionDialog } from "./templates-add-section-dialog";
 import { TemplateSectionsList } from "./templates-sections-list";
 import { TemplateEmptyState } from "./templates-empty-state";
 import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
+import { CreateTemplateDialog } from "./templates-create-dialog";
 
 interface TemplateItem {
   id: string;
@@ -25,6 +27,7 @@ interface TemplateContentProps {
   selectedTemplate: TemplateItem | null;
   onRefresh: () => void;
   onTemplateDeleted?: () => void;
+  onTemplateCreated?: (template: TemplateItem) => void;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -33,6 +36,7 @@ export function TemplateContent({
   selectedTemplate, 
   onRefresh,
   onTemplateDeleted,
+  onTemplateCreated,
   onToggleSidebar
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
@@ -43,6 +47,7 @@ export function TemplateContent({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddingSectionOpen, setIsAddingSectionOpen] = useState(false);
+  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isGeneratingIndividual, setIsGeneratingIndividual] = useState(false);
   const [activeTab, setActiveTab] = useState("sections");
@@ -89,13 +94,44 @@ export function TemplateContent({
 
   if (!selectedTemplate) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center">
-          <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-base font-medium text-gray-900 mb-1.5">No Template Selected</h3>
-          <p className="text-sm text-gray-500">Select a template from the sidebar to view and edit its sections.</p>
+      <>
+        <div className="flex items-center justify-center h-full bg-gray-50">
+          <Empty>
+            <div className="p-8 text-center">
+              <EmptyIcon>
+                <FileText className="h-12 w-12" />
+              </EmptyIcon>
+              <EmptyTitle>No Template Selected</EmptyTitle>
+              <EmptyDescription>
+                Select a template from the sidebar to view and edit its sections, or create a new template to get started.
+              </EmptyDescription>
+              <EmptyActions>
+                <Button
+                  onClick={() => setIsCreateTemplateDialogOpen(true)}
+                  className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Create Template
+                </Button>
+              </EmptyActions>
+            </div>
+          </Empty>
         </div>
-      </div>
+
+        {/* Create Template Dialog */}
+        <CreateTemplateDialog
+          open={isCreateTemplateDialogOpen}
+          onOpenChange={setIsCreateTemplateDialogOpen}
+          organizationId={selectedOrganizationId!}
+          onTemplateCreated={(template) => {
+            // Don't close dialog here - CreateTemplateDialog handles it
+            // Refresh the templates list
+            onRefresh();
+            // Select the newly created template
+            onTemplateCreated?.(template);
+          }}
+        />
+      </>
     );
   }
 
@@ -201,7 +237,7 @@ export function TemplateContent({
                 </div>
               </div>
 
-              <TabsContent value="sections" className="mt-0 flex-1 flex flex-col overflow-hidden">
+              <TabsContent value="sections" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
                 {/* Fixed Header */}
                 <div className="px-4 pt-6 pb-4 shrink-0">
                   <div className="flex items-center justify-between">
@@ -271,7 +307,7 @@ export function TemplateContent({
                 </div>
               </TabsContent>
 
-              <TabsContent value="custom-fields" className="mt-0 flex-1 overflow-auto">
+              <TabsContent value="custom-fields" className="mt-0 flex-1 overflow-auto bg-gray-50">
                 {selectedTemplate && (
                   <TemplateCustomFields templateId={selectedTemplate.id} />
                 )}
