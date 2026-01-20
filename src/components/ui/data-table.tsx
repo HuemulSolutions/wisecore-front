@@ -44,10 +44,10 @@ export function DataTable<T>({
     <Card className={`border border-border bg-card overflow-auto ${maxHeight}`}>
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="sticky top-0 bg-muted z-10">
+          <thead className="sticky top-0 bg-white z-10">
             <tr className="border-b border-border">
               {showCheckbox && (
-                <th className="px-3 py-2 text-left text-xs font-semibold text-foreground w-8">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground w-12">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -65,7 +65,7 @@ export function DataTable<T>({
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`px-3 py-2 text-${column.align || "left"} text-xs font-semibold text-foreground ${
+                  className={`px-6 py-3 text-${column.align || "left"} text-xs font-medium text-muted-foreground ${
                     column.width || ""
                   } ${column.hideOnMobile ? "hidden sm:table-cell" : ""}`}
                 >
@@ -73,11 +73,11 @@ export function DataTable<T>({
                 </th>
               ))}
               {actions && actions.length > 0 && (
-                <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">Actions</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground w-20">Actions</th>
               )}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-background divide-y divide-border">
             {data.map((item) => {
               const rowKey = getRowKey(item)
               const isSelected = selectedItems?.has(rowKey)
@@ -85,10 +85,10 @@ export function DataTable<T>({
               return (
                 <tr
                   key={rowKey}
-                  className={`border-b border-border hover:bg-muted/20 transition ${rowClassName || ""}`}
+                  className={`hover:bg-muted/30 transition-colors ${rowClassName || ""}`}
                 >
                   {showCheckbox && onItemSelection && (
-                    <td className="px-3 py-2">
+                    <td className="px-6 py-4">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -101,17 +101,17 @@ export function DataTable<T>({
                   {columns.map((column) => (
                     <td
                       key={column.key}
-                      className={`px-3 py-2 ${column.hideOnMobile ? "hidden sm:table-cell" : ""}`}
+                      className={`px-6 py-4 text-sm ${column.hideOnMobile ? "hidden sm:table-cell" : ""}`}
                     >
                       {column.render(item)}
                     </td>
                   ))}
                   {actions && actions.length > 0 && (
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-6 py-4 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="hover:cursor-pointer h-6 w-6 p-0">
-                            <MoreVertical className="h-3 w-3" />
+                          <Button variant="ghost" className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-muted">
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -137,7 +137,7 @@ export function DataTable<T>({
                                       : ""
                                   } ${action.className || ""}`}
                                 >
-                                  <ActionIcon className="mr-2 h-3 w-3" />
+                                  <ActionIcon className="mr-2 h-4 w-4" />
                                   {action.label}
                                 </DropdownMenuItem>
                                 {action.separator && <DropdownMenuSeparator />}
@@ -168,7 +168,7 @@ export function DataTable<T>({
 
       {/* Pagination */}
       {pagination && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2 sm:px-4 py-2 sm:py-3 bg-muted/20 border-t">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2 sm:px-4 py-2 sm:py-3 bg-white border-t">
           {/* Items per page selector */}
           {pagination.onPageSizeChange && pagination.pageSizeOptions && (
             <div className="flex items-center gap-2">

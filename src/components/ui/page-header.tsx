@@ -120,7 +120,7 @@ export function PageHeader({
               value={searchConfig.value}
               onChange={(e) => searchConfig.onChange(e.target.value)}
               onKeyDown={searchConfig.onKeyDown}
-              className="pl-7 h-8 text-xs"
+              className="pl-7 h-8 text-xs bg-white"
             />
           </div>
           {children}
