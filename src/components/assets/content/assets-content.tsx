@@ -1363,9 +1363,29 @@ export function AssetContent({
                   </Tooltip>
                 </TooltipProvider>
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    {documentContent?.document_name || selectedFile.name}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {documentContent?.document_name || selectedFile.name}
+                    </span>
+                    {/* Document Type and Template badges for mobile */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {documentContent?.document_type && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                          <div 
+                            className="w-1.5 h-1.5 rounded-full" 
+                            style={{ backgroundColor: documentContent.document_type.color }}
+                          />
+                          {documentContent.document_type.name}
+                        </div>
+                      )}
+                      {fullDocument?.template_name && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
+                          <FileCode className="w-1.5 h-1.5" />
+                          {fullDocument.template_name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   {/* Always reserve space for execution info to prevent layout shift */}
                   <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                     {selectedExecutionInfo && (
@@ -1379,24 +1399,6 @@ export function AssetContent({
                           </span>
                         )}
                       </>
-                    )}
-                  </div>
-                  {/* Document Type and Template badges for mobile */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {documentContent?.document_type && (
-                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                        <div 
-                          className="w-1.5 h-1.5 rounded-full" 
-                          style={{ backgroundColor: documentContent.document_type.color }}
-                        />
-                        {documentContent.document_type.name}
-                      </div>
-                    )}
-                    {fullDocument?.template_name && (
-                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
-                        <FileCode className="w-1.5 h-1.5" />
-                        {fullDocument.template_name}
-                      </div>
                     )}
                   </div>
                   {/* Document metadata for mobile */}
@@ -1828,23 +1830,25 @@ export function AssetContent({
             {!isMobile && (
               <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center justify-between gap-2.5 flex-wrap">
                     <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
-                    {documentContent?.document_type && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                        <div 
-                          className="w-1.5 h-1.5 rounded-full" 
-                          style={{ backgroundColor: documentContent.document_type.color }}
-                        />
-                        {documentContent.document_type.name}
-                      </div>
-                    )}
-                    {fullDocument?.template_name && (
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
-                        <FileCode className="w-3 h-3" />
-                        {fullDocument.template_name}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {documentContent?.document_type && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                          <div 
+                            className="w-1.5 h-1.5 rounded-full" 
+                            style={{ backgroundColor: documentContent.document_type.color }}
+                          />
+                          {documentContent.document_type.name}
+                        </div>
+                      )}
+                      {fullDocument?.template_name && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
+                          <FileCode className="w-3 h-3" />
+                          {fullDocument.template_name}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Metadata Row - Combined */}

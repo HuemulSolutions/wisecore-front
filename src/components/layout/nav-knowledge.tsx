@@ -282,13 +282,23 @@ export function NavKnowledgeContent() {
   const { fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
+  const previousOrgId = React.useRef<string | null>(null)
 
-  // Refresh file tree when organization changes
+  // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
-    if (selectedOrganizationId) {
+    // If previousOrgId is null, this is the initial mount - skip refresh
+    // FileTree will handle its own initial load via loadInitialData
+    if (previousOrgId.current === null) {
+      previousOrgId.current = selectedOrganizationId
+      return
+    }
+    
+    // Only refresh if organization actually changed
+    if (selectedOrganizationId && selectedOrganizationId !== previousOrgId.current) {
+      previousOrgId.current = selectedOrganizationId
       fileTreeRef.current?.refresh()
     }
-  }, [selectedOrganizationId])
+  }, [selectedOrganizationId, fileTreeRef])
 
   const handleLoadChildren = useCallback(
     async (folderId: string | null): Promise<FileNode[]> => {

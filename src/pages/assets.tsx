@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getLibraryContent } from "@/services/folders";
+import { useQueryClient } from "@tanstack/react-query";
 import { AssetContent } from "@/components/assets";
 import { EmptyState } from "@/components/assets/empty-state";
 import { LoadingOverlay } from "@/components/assets/loading-overlay";
@@ -8,7 +7,7 @@ import { useOrganization } from "@/contexts/organization-context";
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
-import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh } from "@/components/layout/nav-knowledge";
+import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh } from "@/components/layout/nav-knowledge";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -21,7 +20,7 @@ import {
  */
 function AssetsContent() {
   const queryClient = useQueryClient();
-  const { selectedOrganizationId, organizationToken, resetOrganizationContext } = useOrganization();
+  const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
@@ -44,41 +43,15 @@ function AssetsContent() {
     return () => clearTimeout(timeoutId);
   }, [restoreScrollPosition, selectedFile, selectedExecutionId]);
 
-  // Fetch library content for current folder
-  const { error } = useQuery({
-    queryKey: ['library', selectedOrganizationId, currentFolderId],
-    queryFn: () => getLibraryContent(selectedOrganizationId!, currentFolderId),
-    enabled: !!selectedOrganizationId && !!organizationToken,
-    staleTime: 30000,
-    gcTime: 300000,
-    retry: false,
-  });
-
   // Handle refresh library content
   const handleRefresh = async () => {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
     refreshFileTree();
   };
 
-  // Check for permission errors
-  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-  const isPermissionError = errorMessage.includes('no tiene ningún rol') || 
-                           errorMessage.includes('no permission') ||
-                           errorMessage.includes('insufficient privileges') ||
-                           errorMessage.includes('access denied');
-
   // Empty states
   if (!selectedOrganizationId) {
     return <EmptyState type="no-organization" />;
-  }
-
-  if (isPermissionError) {
-    return (
-      <EmptyState 
-        type="permission-error" 
-        onChangeOrganization={resetOrganizationContext}
-      />
-    );
   }
 
   return (
@@ -123,10 +96,8 @@ function AssetsContent() {
 // Componente envoltorio que provee el contexto de carpetas expandidas
 export default function Assets() {
   return (
-    <NavKnowledgeProvider>
-      <ExpandedFoldersProvider>
-        <AssetsContent />
-      </ExpandedFoldersProvider>
-    </NavKnowledgeProvider>
+    <ExpandedFoldersProvider>
+      <AssetsContent />
+    </ExpandedFoldersProvider>
   );
 }
