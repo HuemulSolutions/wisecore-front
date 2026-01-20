@@ -82,7 +82,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="bg-background p-6 md:p-8">
+    <div className="bg-gray-50 p-6 md:p-8 h-full w-full">
       <div className="mx-auto">
         {/* Header */}
         <PageHeader

@@ -90,6 +90,11 @@ export default function Templates() {
                 setSelectedTemplate(null);
                 navigate('/templates', { replace: true });
               }}
+              onTemplateCreated={(template) => {
+                // Select the newly created template
+                setSelectedTemplate(template);
+                navigate(`/templates/${template.id}`, { replace: true });
+              }}
             />
           </div>
         </ResizablePanel>

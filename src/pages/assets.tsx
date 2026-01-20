@@ -8,7 +8,7 @@ import { useOrganization } from "@/contexts/organization-context";
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
-import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge";
+import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh } from "@/components/layout/nav-knowledge";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -22,6 +22,7 @@ import {
 function AssetsContent() {
   const queryClient = useQueryClient();
   const { selectedOrganizationId, organizationToken, resetOrganizationContext } = useOrganization();
+  const refreshFileTree = useNavKnowledgeRefresh();
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -56,6 +57,7 @@ function AssetsContent() {
   // Handle refresh library content
   const handleRefresh = async () => {
     queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
+    refreshFileTree();
   };
 
   // Check for permission errors
@@ -84,7 +86,7 @@ function AssetsContent() {
       {isLoadingDocument && <LoadingOverlay />}
       
       <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-        <ResizablePanel defaultSize={15} minSize={15} maxSize={25}>
+        <ResizablePanel defaultSize={15}>
           <div className="flex flex-col h-full bg-white border-r">
             <div className="py-2">
               <NavKnowledgeHeader />
@@ -97,7 +99,7 @@ function AssetsContent() {
         
         <ResizableHandle />
         
-        <ResizablePanel defaultSize={80} maxSize={90} minSize={70}>
+        <ResizablePanel defaultSize={80}>
           <div ref={scrollContainerRef} className="h-full bg-white">
             <AssetContent
               selectedFile={selectedFile}
