@@ -634,8 +634,9 @@ export default function SectionExecution({
                         isSaving={isSaving}
                     />
                 </div>
-            ) : showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') ? (
-                /* Show skeleton when section is being executed */
+            ) : showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
+                 executionStatus && !['completed', 'done', 'failed', 'cancelled'].includes(executionStatus) ? (
+                /* Show skeleton ONLY when section is actively being executed (not when completed) */
                 <div className="pt-8 pr-12">
                     <div className="animate-pulse space-y-4">
                         {/* Title skeleton */}

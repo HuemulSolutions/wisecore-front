@@ -107,6 +107,9 @@ export function AssetContent({
   // Ref to track if we've already synced selectedExecutionId for this document
   const hasInitializedExecutionRef = useRef<string | null>(null);
   
+  // Ref to track if we're currently creating a new execution (to prevent premature state reset)
+  const isCreatingExecutionRef = useRef<boolean>(false);
+  
   // Removed debug logging to improve performance
 
   // Si no hay organización seleccionada, no renderizar nada
@@ -502,15 +505,18 @@ export function AssetContent({
     }
   }, [selectedFile, createdTemplate]);
 
-  // Clear current execution ID when selectedFile changes to prevent showing banner for wrong file
+  // Clear current execution ID when selectedFile or selectedExecutionId changes to prevent showing banner for wrong file/version
+  // BUT: Don't reset if we're in the middle of creating a new execution
   useEffect(() => {
-    setCurrentExecutionId(null);
-    setCurrentExecutionMode('full');
-    setCurrentSectionIndex(undefined);
-    setSectionExecutionId(null);
-    setDismissedExecutionBanners(new Set());
-    setExecutionContext(null);
-  }, [selectedFile?.id]);
+    if (!isCreatingExecutionRef.current) {
+      setCurrentExecutionId(null);
+      setCurrentExecutionMode('full');
+      setCurrentSectionIndex(undefined);
+      setSectionExecutionId(null);
+      setDismissedExecutionBanners(new Set());
+      setExecutionContext(null);
+    }
+  }, [selectedFile?.id, selectedExecutionId]);
 
 
 
@@ -536,7 +542,10 @@ export function AssetContent({
       willShowSectionFeedback: mode === 'single' || mode === 'from'
     });
     
-    // Set tracking variables for the new execution
+    // CRITICAL: Set tracking variables FIRST, before any query operations
+    // Mark that we're done creating the execution
+    isCreatingExecutionRef.current = false;
+    
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
     setCurrentSectionIndex(sectionIndex);
@@ -648,6 +657,8 @@ export function AssetContent({
 
   // Handle create new execution - abrir Execute Sheet
   const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
+    // Mark that we're starting to create an execution
+    isCreatingExecutionRef.current = true;
     if (selectedFile && selectedFile.type === 'document') {
       preserveScrollPosition();
       setNeedsFullDocument(true);
@@ -744,30 +755,24 @@ export function AssetContent({
     refetchOnWindowFocus: false,
   });
 
-  // Effect to clear currentExecutionId when 'single' or 'from' execution completes
+  // Effect to refresh content when 'single' or 'from' execution completes
+  // BUT keep tracking states so feedback can still display
   useEffect(() => {
     if (currentExecutionStatus && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
       const status = currentExecutionStatus.status;
       if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-        console.log(`🎯 Section execution finished with status: ${status}, clearing tracking state`);
-        
-        // Store the execution ID before clearing it
-        const completedExecutionId = currentExecutionId;
+        console.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
         
         // Preserve scroll position before refreshing content
         preserveScrollPosition();
         
-        // Clear tracking immediately since SectionExecutionFeedback automatically hides when status is 'done'
-        setCurrentExecutionId(null);
-        setCurrentSectionIndex(undefined);
-        // Keep currentExecutionMode as-is to prevent full overlay from appearing
-        
         // Add to dismissed banners to prevent ExecutionStatusBanner from showing for this execution
-        if (completedExecutionId) {
-          setDismissedExecutionBanners(prev => new Set([...prev, completedExecutionId]));
+        if (currentExecutionId) {
+          setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
         }
         
-        // Refresh content
+        // Refresh content - but DON'T clear tracking states
+        // The SectionExecutionFeedback needs these states to continue showing the feedback
         queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       }
@@ -2313,7 +2318,10 @@ export function AssetContent({
                 )}
                 
                 {/* Current Version Execution Banner - when viewing the version being generated */}
-                {isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && (
+                {/* Don't show banner for single/from modes - they use section feedback instead */}
+                {isSelectedVersionExecuting && 
+                 !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && 
+                 !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) && (
                   <div className="sticky top-0 z-50 mb-4">
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
@@ -2376,8 +2384,8 @@ export function AssetContent({
                       <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                     </div>
                   </div>
-                ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) ? (
-                  // Show skeleton when viewing a version that is currently executing (full/full-single mode)
+                ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
+                  // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY)
                   <div className="space-y-6 min-h-150">
                     {/* Skeleton for document content */}
                     <div className="animate-pulse space-y-4">
@@ -2623,7 +2631,7 @@ export function AssetContent({
                                   }
                                   executionStatus={
                                     (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? 'running'
+                                      ? (currentExecutionStatus?.status || 'running')
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}
@@ -2734,8 +2742,9 @@ export function AssetContent({
         </div>
       </ResizablePanel>
 
-      {/* Table of Contents Sidebar - only show for documents with content and when version is not executing */}
-      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
+      {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
+      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && 
+       (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
           <ResizableHandle/>
           <ResizablePanel defaultSize={20}>
