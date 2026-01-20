@@ -43,6 +43,7 @@ interface SectionExecutionProps {
     executionMode?: 'single' | 'from' | 'full' | 'full-single';
     showExecutionFeedback?: boolean;
     sectionType?: 'ai' | 'manual' | 'reference';
+    sectionName?: string;
 }
 
 export default function SectionExecution({ 
@@ -58,7 +59,8 @@ export default function SectionExecution({
     onOpenExecuteSheet,
     executionMode = 'single',
     showExecutionFeedback = false,
-    sectionType = 'ai'
+    sectionType = 'ai',
+    sectionName
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -302,12 +304,32 @@ export default function SectionExecution({
         <div ref={containerRef} className="p-2 relative">
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-20 justify-end p-2 bg-transparent -mx-2 -mt-2 mb-4 max-w-full w-full flex">
+                <div className="sticky top-0 z-20 justify-between py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
+                    {/* Section Info */}
+                    {(sectionName || sectionType) && (
+                        <div className="flex items-center gap-1.5">
+                            {sectionName && (
+                                <span className="text-xs font-medium text-gray-500">{sectionName}</span>
+                            )}
+                            {sectionType && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    sectionType === 'ai' 
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : sectionType === 'manual'
+                                        ? 'bg-green-50 text-green-600'
+                                        : 'bg-purple-50 text-purple-600'
+                                }`}>
+                                    {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                    
                     {!isEditing && (
                     <>
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
-                            <div className="flex items-center gap-1 bg-white">
+                            <div className="flex items-center gap-1">
                                 {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>

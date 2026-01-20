@@ -1248,7 +1248,7 @@ export function AssetContent({
   if (!selectedFile) {
     return (
       <>
-        <div className="h-full bg-white flex items-center justify-center p-4">
+        <div className="h-full bg-gray-50 flex items-center justify-center p-4">
           <Empty>
             <div className="p-8 text-center">
               <EmptyIcon>
@@ -1323,7 +1323,13 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-
+        {/* Create Asset Dialog */}
+        <CreateAssetDialog
+          open={isCreateAssetDialogOpen}
+          onOpenChange={setIsCreateAssetDialogOpen}
+          folderId={currentFolderId}
+          onAssetCreated={handleDocumentCreated}
+        />
       </>
     );
   }
@@ -1332,7 +1338,7 @@ export function AssetContent({
     <>
     <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
-      <ResizablePanel maxSize={90} defaultSize={80} minSize={70}>
+      <ResizablePanel defaultSize={80}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && (
@@ -2423,11 +2429,11 @@ export function AssetContent({
                     if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
                       return (
                         <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
-                          <Empty className="max-w-2xl">
+                          <Empty className="max-w-full">
                             <div className="p-8 text-center">
                               {hasFailedExecution ? (
                                 <>
-                                  <div className="max-w-xl mx-auto">
+                                  <div className="max-w-full mx-auto">
                                     <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
                                       {/* Icon Container with Animation */}
                                       <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
@@ -2440,7 +2446,7 @@ export function AssetContent({
                                       </h3>
                                       
                                       {/* Description */}
-                                      <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-md mx-auto">
+                                      <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
                                         The AI couldn't generate content for this document. Please try again or check your sections configuration.
                                       </p>
                                       
@@ -2561,7 +2567,7 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
-                        <div className="prose prose-gray prose-sm md:prose-base max-w-[1350px]">
+                        <div className="prose prose-gray prose-sm md:prose-base max-w-full">
                           {Array.isArray(documentContent.content) ? (
                             // New format: array of sections with separators
                             <>
@@ -2642,7 +2648,8 @@ export function AssetContent({
                                     }
                                   }}
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
-                                  sectionType={(section as any).section_type as 'ai' | 'manual' | 'reference' | undefined}
+                                  sectionType={section.section_type}
+                                  sectionName={section.section_name}
                                 />
                               </div>
                               
@@ -2738,7 +2745,7 @@ export function AssetContent({
       {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+          <ResizablePanel defaultSize={20}>
             <div className="flex flex-col h-full bg-white border-l">
               <div className="flex flex-col pt-3">
                 <div className="px-2 pb-2">

@@ -325,7 +325,7 @@ export function EditCustomFieldAssetDialog({
             disabled={!isValid}
             className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
           >
-            Update Document
+            Update Custom Field
           </Button>
         </>
       }
