@@ -1378,10 +1378,10 @@ export function AssetContent({
                           {documentContent.document_type.name}
                         </div>
                       )}
-                      {fullDocument?.template_name && (
+                      {documentContent?.template_name && (
                         <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
                           <FileCode className="w-1.5 h-1.5" />
-                          {fullDocument.template_name}
+                          {documentContent.template_name}
                         </div>
                       )}
                     </div>
@@ -1842,10 +1842,10 @@ export function AssetContent({
                           {documentContent.document_type.name}
                         </div>
                       )}
-                      {fullDocument?.template_name && (
+                      {documentContent?.template_name && (
                         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
                           <FileCode className="w-3 h-3" />
-                          {fullDocument.template_name}
+                          {documentContent.template_name}
                         </div>
                       )}
                     </div>
