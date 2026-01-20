@@ -106,9 +106,15 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
       // Wait for dialog to fully close before navigating
       setTimeout(executeCallback, 300)
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Create asset error:", error)
-      toast.error("Failed to create asset")
+      
+      // Extract error message from response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.message || 
+                          "Failed to create asset"
+      
+      toast.error(errorMessage)
     },
   })
 
