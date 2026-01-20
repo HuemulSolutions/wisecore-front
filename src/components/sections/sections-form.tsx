@@ -12,6 +12,7 @@ import { FileTree } from "@/components/assets/content/assets-file-tree";
 import { getLibraryContent } from "@/services/folders";
 import { getExecutionsByDocumentId } from "@/services/executions";
 import { getDocumentSections, getDocumentById } from "@/services/assets";
+import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
@@ -21,6 +22,7 @@ import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugi
   CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
 } from '@mdxeditor/editor';
 import type { MDXEditorMethods } from '@mdxeditor/editor';
+import Markdown from "@/components/ui/markdown";
 
 interface Section {
   id: string;
@@ -112,6 +114,18 @@ export function SectionForm({
     queryKey: ['asset-executions', selectedAsset?.id],
     queryFn: () => getExecutionsByDocumentId(selectedAsset!.id, selectedOrganizationId!),
     enabled: type === 'reference' && referenceMode === 'specific' && !!selectedAsset?.id && !!selectedOrganizationId,
+    staleTime: 30000,
+  });
+
+  // Query para obtener el preview del contenido de la sección referenced
+  const { data: sectionPreview, isLoading: isLoadingPreview } = useQuery({
+    queryKey: ['section-preview', referenceSectionId, referenceExecutionId, referenceMode],
+    queryFn: () => getSectionContent(
+      referenceSectionId, 
+      selectedOrganizationId!,
+      referenceMode === 'specific' ? referenceExecutionId : undefined
+    ),
+    enabled: type === 'reference' && !!referenceSectionId && !!selectedOrganizationId && (referenceMode === 'latest' || !!referenceExecutionId),
     staleTime: 30000,
   });
 
@@ -765,91 +779,125 @@ export function SectionForm({
             </p>
           </div>
 
-          {/* Selector de Sección */}
+          {/* Selector de Sección y Reference Mode en la misma línea */}
           {selectedAsset && (
-            <div className="space-y-2">
-              <Label htmlFor="section-reference" className="text-xs font-medium text-gray-700">
-                Select Section to Reference <span className="text-red-500">*</span>
-              </Label>
-              
-              {isLoadingSections ? (
-                <div className="flex items-center justify-center p-4 border rounded-md">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-gray-500">Loading sections...</span>
-                </div>
-              ) : assetSections && assetSections.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Selector de Sección */}
+              <div className="space-y-2">
+                <Label htmlFor="section-reference" className="text-xs font-medium text-gray-700">
+                  Select Section to Reference <span className="text-red-500">*</span>
+                </Label>
+                
+                {isLoadingSections ? (
+                  <div className="flex items-center justify-center p-4 border rounded-md">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm text-gray-500">Loading sections...</span>
+                  </div>
+                ) : assetSections && assetSections.length > 0 ? (
+                  <Select 
+                    value={referenceSectionId} 
+                    onValueChange={(value) => {
+                      setReferenceSectionId(value);
+                      const section = assetSections.find((s: any) => s.id === value);
+                      if (section) {
+                        setSelectedSection({ id: section.id, name: section.name });
+                      }
+                    }} 
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="hover:cursor-pointer text-sm w-full">
+                      <SelectValue placeholder="Select a section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assetSections.map((section: any) => (
+                        <SelectItem 
+                          key={section.id} 
+                          value={section.id} 
+                          className="hover:cursor-pointer"
+                        >
+                          {section.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="p-4 border border-amber-200 bg-amber-50 rounded-md">
+                    <p className="text-sm text-amber-800">
+                      No sections found for this asset. Please select a different asset.
+                    </p>
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-500">
+                  Select a section from the asset to reference
+                </p>
+              </div>
+
+              {/* Reference Mode */}
+              <div className="space-y-2">
+                <Label htmlFor="reference-mode" className="text-xs font-medium text-gray-700">
+                  Reference Mode <span className="text-red-500">*</span>
+                </Label>
                 <Select 
-                  value={referenceSectionId} 
-                  onValueChange={(value) => {
-                    setReferenceSectionId(value);
-                    const section = assetSections.find((s: any) => s.id === value);
-                    if (section) {
-                      setSelectedSection({ id: section.id, name: section.name });
+                  value={referenceMode} 
+                  onValueChange={(value: "latest" | "specific") => {
+                    setReferenceMode(value);
+                    // Resetear execution ID cuando cambie el modo
+                    if (value === "latest") {
+                      setReferenceExecutionId("");
                     }
                   }} 
-                  disabled={isPending}
+                  disabled={isPending || !selectedAsset || !referenceSectionId}
                 >
                   <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-                    <SelectValue placeholder="Select a section" />
+                    <SelectValue placeholder="Select reference mode" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assetSections.map((section: any) => (
-                      <SelectItem 
-                        key={section.id} 
-                        value={section.id} 
-                        className="hover:cursor-pointer"
-                      >
-                        {section.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="latest" className="hover:cursor-pointer text-sm">
+                      Latest Version
+                    </SelectItem>
+                    <SelectItem value="specific" className="hover:cursor-pointer text-sm">
+                      Specific Version
+                    </SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-500">
+                  {referenceMode === "latest" && "Always use the most recent execution of the referenced asset"}
+                  {referenceMode === "specific" && "Use a specific execution of the referenced asset"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Preview del contenido de la sección */}
+          {referenceSectionId && (referenceMode === 'latest' || (referenceMode === 'specific' && referenceExecutionId)) && (
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-gray-700">
+                Section Content Preview
+              </Label>
+              
+              {isLoadingPreview ? (
+                <div className="flex items-center justify-center p-4 border rounded-md bg-gray-50">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm text-gray-500">Loading preview...</span>
+                </div>
+              ) : sectionPreview?.content ? (
+                <div className="border rounded-md p-4 bg-white max-h-[400px] overflow-y-auto">
+                  <Markdown>{sectionPreview.content}</Markdown>
+                </div>
               ) : (
-                <div className="p-4 border border-amber-200 bg-amber-50 rounded-md">
-                  <p className="text-sm text-amber-800">
-                    No sections found for this asset. Please select a different asset.
+                <div className="p-4 border border-blue-200 bg-blue-50 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    No content available for preview. This section may not have been executed yet.
                   </p>
                 </div>
               )}
               
               <p className="text-xs text-gray-500">
-                Select a section from the asset to reference
+                Preview of the content that will be referenced
               </p>
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor="reference-mode" className="text-xs font-medium text-gray-700">
-              Reference Mode <span className="text-red-500">*</span>
-            </Label>
-            <Select 
-              value={referenceMode} 
-              onValueChange={(value: "latest" | "specific") => {
-                setReferenceMode(value);
-                // Resetear execution ID cuando cambie el modo
-                if (value === "latest") {
-                  setReferenceExecutionId("");
-                }
-              }} 
-              disabled={isPending || !selectedAsset || !referenceSectionId}
-            >
-              <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-                <SelectValue placeholder="Select reference mode" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="latest" className="hover:cursor-pointer text-sm">
-                  Latest Execution
-                </SelectItem>
-                <SelectItem value="specific" className="hover:cursor-pointer text-sm">
-                  Specific Execution
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-500">
-              {referenceMode === "latest" && "Always use the most recent execution of the referenced asset"}
-              {referenceMode === "specific" && "Use a specific execution of the referenced asset"}
-            </p>
-          </div>
 
           {referenceMode === "specific" && selectedAsset && (
             <div className="space-y-2">

@@ -78,7 +78,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <div className={`w-full min-w-0 py-4 px-4 border-b border-gray-200 hover:bg-gray-50 transition-colors ${isDragging ? 'bg-blue-50 border-blue-300' : ''}`}>
+      <div className={`w-full min-w-0 py-4 px-4 bg-white border-b border-gray hover:bg-blue-50 transition-colors ${isDragging ? 'bg-blue-50 border-blue-300' : ''}`}>
         <div className="flex items-start gap-3">
           {/* Drag handle */}
           {!isOverlay && (
