@@ -101,3 +101,31 @@ export async function deleteSection(sectionId: string, organizationId: string) {
     console.log('Section deleted:', sectionId);
     return sectionId;
 }
+
+export async function getSectionContent(
+    sectionId: string, 
+    organizationId: string,
+    executionId?: string
+) {
+    const params = new URLSearchParams();
+    if (executionId) {
+        params.append('execution_id', executionId);
+    }
+    
+    const url = `${backendUrl}/sections/${sectionId}/content${params.toString() ? `?${params.toString()}` : ''}`;
+    
+    const response = await httpClient.get(url, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error getting section content:', errorResponse);
+        throw new Error(errorResponse.detail?.error || 'Error loading section content');
+    }
+
+    const data = await response.json();
+    return data.data;
+}
