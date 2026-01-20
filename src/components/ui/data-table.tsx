@@ -194,49 +194,91 @@ export function DataTable<T>({
           {/* Page info */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              Page {pagination.page} of {Math.ceil(pagination.totalItems / pagination.pageSize) || 1}
-              {" "}({pagination.totalItems} items)
+              {pagination.totalItems !== undefined ? (
+                <>
+                  Page {pagination.page} of {Math.ceil(pagination.totalItems / pagination.pageSize) || 1}
+                  {" "}({pagination.totalItems} items)
+                </>
+              ) : (
+                <>
+                  Page {pagination.page} ({data.length} items)
+                </>
+              )}
             </span>
           </div>
 
           {/* Navigation buttons */}
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => pagination.onPageChange(1)}
-              disabled={pagination.page === 1}
-              className="h-8 w-8 p-0 hover:cursor-pointer"
-            >
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => pagination.onPageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="h-8 w-8 p-0 hover:cursor-pointer"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => pagination.onPageChange(pagination.page + 1)}
-              disabled={pagination.page >= Math.ceil(pagination.totalItems / pagination.pageSize)}
-              className="h-8 w-8 p-0 hover:cursor-pointer"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => pagination.onPageChange(Math.ceil(pagination.totalItems / pagination.pageSize))}
-              disabled={pagination.page >= Math.ceil(pagination.totalItems / pagination.pageSize)}
-              className="h-8 w-8 p-0 hover:cursor-pointer"
-            >
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
+            {pagination.totalItems !== undefined ? (
+              // Full pagination with totalItems
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(1)}
+                  disabled={pagination.page === 1}
+                  className="h-8 w-8 p-0 hover:cursor-pointer"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="h-8 w-8 p-0 hover:cursor-pointer"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(pagination.page + 1)}
+                  disabled={pagination.page >= Math.ceil(pagination.totalItems / pagination.pageSize)}
+                  className="h-8 w-8 p-0 hover:cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (pagination.totalItems !== undefined) {
+                      pagination.onPageChange(Math.ceil(pagination.totalItems / pagination.pageSize))
+                    }
+                  }}
+                  disabled={
+                    pagination.totalItems === undefined ||
+                    pagination.page >= Math.ceil((pagination.totalItems ?? 1) / pagination.pageSize)
+                  }
+                  className="h-8 w-8 p-0 hover:cursor-pointer"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              // Cursor-based pagination with hasNext/hasPrevious
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1 || pagination.hasPrevious === false}
+                  className="h-8 w-8 p-0 hover:cursor-pointer"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(pagination.page + 1)}
+                  disabled={pagination.hasNext === false}
+                  className="h-8 w-8 p-0 hover:cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

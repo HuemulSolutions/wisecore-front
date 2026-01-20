@@ -7,9 +7,8 @@ import type {
   ApiResponse,
   CreateCustomFieldRequest,
   UpdateCustomFieldRequest,
+  CustomFieldsResponse,
 } from "@/types/custom-fields";
-
-export interface CustomFieldsResponse extends ApiResponse<CustomField[]> {}
 
 export interface CustomFieldResponse extends ApiResponse<CustomField> {}
 

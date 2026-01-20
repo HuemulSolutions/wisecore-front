@@ -28,8 +28,10 @@ export interface User {
 
 export interface UsersResponse {
   data: User[]
-  total?: number
   transaction_id: string
+  page: number
+  page_size: number
+  has_next: boolean
   timestamp: string
 }
 
