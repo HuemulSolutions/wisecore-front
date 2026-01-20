@@ -3,6 +3,8 @@ import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugi
     BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
     linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage,
     CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator,
+    diffSourcePlugin, 
+    // DiffSourceToggleWrapper,
     type MDXEditorMethods
  } from '@mdxeditor/editor'
 import { useRef, useState } from 'react'
@@ -20,10 +22,17 @@ interface EditorProps {
 
 export default function Editor({ sectionId, content, onSave, onCancel, isSaving = false }: EditorProps) {
     const [value, setValue] = useState(content)
+    const [, setError] = useState<string | null>(null)
     const dirty = value !== content
     const handleSave = () => dirty && !isSaving && onSave(sectionId, value)
     const handleCancel = () => !isSaving && onCancel()
     const editorRef = useRef<MDXEditorMethods | null>(null);
+    
+    const handleError = (payload: { error: string; source: string }) => {
+        console.error('MDXEditor error:', payload);
+        setError(payload.error);
+    }
+
     return (
         <div className="w-full z-10">
             {/* Top Action Buttons - Sticky */}
@@ -63,9 +72,11 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                 ref={editorRef}
                 markdown={value}
                 onChange={setValue}
+                onError={handleError}
                 spellCheck={false}
                 contentEditableClassName='mdxeditor-content min-h-[240px] focus:outline-none px-4 py-3'
                 plugins={[
+                    diffSourcePlugin({ viewMode: 'rich-text', diffMarkdown: content }),
                     headingsPlugin(), 
                     listsPlugin(), 
                     quotePlugin(), 
@@ -110,21 +121,23 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                         toolbarContents() {
                             return (
                                 <>  
-                                    <UndoRedo />
-                                    <Separator />
-                                    <BoldItalicUnderlineToggles />
-                                    <CodeToggle />
-                                    <Separator />
-                                    <ListsToggle />
-                                    <Separator />
-                                    <BlockTypeSelect/>
-                                    <Separator />
-                                    <CreateLink />
-                                    <InsertImage />
-                                    <Separator />
-                                    <InsertTable />
-                                    <InsertCodeBlock />
-                                    <InsertThematicBreak />
+                                    {/* <DiffSourceToggleWrapper> */}
+                                        <UndoRedo />
+                                        <Separator />
+                                        <BoldItalicUnderlineToggles />
+                                        <CodeToggle />
+                                        <Separator />
+                                        <ListsToggle />
+                                        <Separator />
+                                        <BlockTypeSelect/>
+                                        <Separator />
+                                        <CreateLink />
+                                        <InsertImage />
+                                        <Separator />
+                                        <InsertTable />
+                                        <InsertCodeBlock />
+                                        <InsertThematicBreak />
+                                    {/* </DiffSourceToggleWrapper> */}
                                 </>
                             )
                         },
