@@ -2988,7 +2988,7 @@ export function AssetContent({
       {/* Custom Word Export Dialog */}
       <CustomWordExportDialog
         selectedFile={selectedFile}
-        selectedExecutionId={selectedExecutionId}
+        selectedExecutionId={selectedExecutionId || documentContent?.execution_id || null}
         isOpen={isCustomWordExportDialogOpen}
         onOpenChange={(open) => {
           if (!open) onPreserveScroll?.();
