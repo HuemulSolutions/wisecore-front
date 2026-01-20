@@ -39,6 +39,7 @@ const NavKnowledgeContext = React.createContext<{
   handleEditFolder: (folderId: string, currentName: string) => void
   handleDeleteDocument: (documentId: string, documentName: string) => void
   handleEditDocument: (documentId: string, currentName: string) => void
+  refreshFileTree: () => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
@@ -167,8 +168,13 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     setCreateAssetDialogOpen(open)
   }, [])
 
+  const refreshFileTree = useCallback(() => {
+    console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+    fileTreeRef.current?.refresh()
+  }, [])
+
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree }}>
       {children}
       <CreateAssetDialog
         open={createAssetDialogOpen}
@@ -218,6 +224,12 @@ function useNavKnowledge() {
     throw new Error('useNavKnowledge must be used within NavKnowledgeProvider')
   }
   return context
+}
+
+// Export hook for external use
+export function useNavKnowledgeRefresh() {
+  const context = React.useContext(NavKnowledgeContext)
+  return context?.refreshFileTree || (() => {})
 }
 
 export function NavKnowledgeHeader() {
@@ -270,6 +282,13 @@ export function NavKnowledgeContent() {
   const { fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
+
+  // Refresh file tree when organization changes
+  React.useEffect(() => {
+    if (selectedOrganizationId) {
+      fileTreeRef.current?.refresh()
+    }
+  }, [selectedOrganizationId])
 
   const handleLoadChildren = useCallback(
     async (folderId: string | null): Promise<FileNode[]> => {
@@ -450,6 +469,7 @@ export function NavKnowledgeContent() {
   return (
     <SidebarGroup>
       <FileTree
+        key={selectedOrganizationId}
         ref={fileTreeRef}
         onLoadChildren={handleLoadChildren}
         onFileClick={handleFileClick}

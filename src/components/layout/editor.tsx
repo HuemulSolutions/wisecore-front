@@ -1,7 +1,7 @@
 import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
     markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
     BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
-    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, 
+    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage,
     CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator,
     type MDXEditorMethods
  } from '@mdxeditor/editor'
@@ -27,8 +27,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
     return (
         <div className="w-full z-10">
             {/* Top Action Buttons - Sticky */}
-            <div className="sticky top-0 flex z-50 items-center justify-end gap-2 py-2 px-1 bg-white/95 backdrop-blur-sm"
-                 style={{ zIndex: 9000 }}>
+            <div className="sticky top-0 flex z-50 items-center justify-end gap-2 py-2 px-1 bg-white/95 backdrop-blur-sm">
                 <Button 
                     variant="ghost" 
                     onClick={handleCancel} 
@@ -48,8 +47,9 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                 </Button>
             </div>
             
-            <div className="border border-gray-200 rounded-md focus-within:ring-1 focus-within:ring-blue-400 focus-within:border-blue-400 transition-all">
+            <div className="border border-gray-200 rounded-md focus-within:ring-1 focus-within:ring-[#4464f7] focus-within:border-[#4464f7] transition-all">
                 <style>{`
+                    /* Toolbar sticky positioning */
                     .mdxeditor .mdxeditor-toolbar {
                         position: sticky !important;
                         top: 32px !important;
@@ -58,19 +58,13 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                         border-bottom: 1px solid #e5e7eb !important;
                         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
                     }
-
-                    /* ✅ Popovers/menus del toolbar (BlockTypeSelect, link dialog, etc.) por encima del header sticky */
-                    .mdxeditor [data-radix-popper-content-wrapper] {
-                        z-index: 10050 !important;
-                    }
                 `}</style>
                 <MDXEditor
                 ref={editorRef}
                 markdown={value}
                 onChange={setValue}
-                overlayContainer={document.body}
                 spellCheck={false}
-                contentEditableClassName='mdxeditor-content min-h-[240px] prose dark:prose-invert focus:outline-none px-4 py-3'
+                contentEditableClassName='mdxeditor-content min-h-[240px] focus:outline-none px-4 py-3'
                 plugins={[
                     headingsPlugin(), 
                     listsPlugin(), 
@@ -126,7 +120,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                                     <BlockTypeSelect/>
                                     <Separator />
                                     <CreateLink />
-                                    {/* <InsertImage /> */}
+                                    <InsertImage />
                                     <Separator />
                                     <InsertTable />
                                     <InsertCodeBlock />
