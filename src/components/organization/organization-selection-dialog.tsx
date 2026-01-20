@@ -17,6 +17,7 @@ import { getUserOrganizations, generateOrganizationToken, addOrganization } from
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import ProtectedComponent from '../protected-component';
 
 interface Organization {
   id: string;
@@ -178,23 +179,25 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                 </div>
               )}
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+              <ProtectedComponent requireRootAdmin>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or</span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or</span>
-                </div>
-              </div>
 
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateForm(true)}
-                className="w-full hover:cursor-pointer"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create New Organization
-              </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateForm(true)}
+                  className="w-full hover:cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Organization
+                </Button>
+              </ProtectedComponent>
               
               {onOpenChange && (
                 <Button
