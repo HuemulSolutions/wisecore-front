@@ -15,14 +15,9 @@ import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
-import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
-  markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
-  BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
-  linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage, 
-  CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
-} from '@mdxeditor/editor';
 import type { MDXEditorMethods } from '@mdxeditor/editor';
 import Markdown from "@/components/ui/markdown";
+import MdxEditor from "../layout/mdx-editor";
 
 interface Section {
   id: string;
@@ -56,7 +51,7 @@ interface SectionFormProps {
 
 export function SectionForm({ 
   mode,
-  editorType = 'simple',
+  editorType = 'rich',
   formId = 'section-form',
   documentId, 
   templateId, 
@@ -77,6 +72,8 @@ export function SectionForm({
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
   const [type, setType] = useState<"ai" | "manual" | "reference">(mode === 'edit' && item ? (item as any).type || "ai" : "ai");
   const [prompt, setPrompt] = useState(mode === 'edit' && item ? item.prompt : "");
+  // Key para forzar el render del editor cuando cambia el prompt generado
+  const [editorKey, setEditorKey] = useState(0);
   const [manualInput, setManualInput] = useState(mode === 'edit' && item ? (item as any).manual_input || "" : "");
   const [referenceSectionId, setReferenceSectionId] = useState(mode === 'edit' && item ? (item as any).reference_section_id || "" : "");
   const [referenceMode, setReferenceMode] = useState<"latest" | "specific">(mode === 'edit' && item ? (item as any).reference_mode || "latest" : "latest");
@@ -255,13 +252,8 @@ export function SectionForm({
     if (!name.trim()) return;
     
     setIsGenerating(true);
-    setPrompt("");
-    if (editorType === 'rich' && editorRef.current) {
-      editorRef.current.setMarkdown("");
-    }
-    
+    let accumulatedText = "";
     try {
-      let accumulatedText = "";
       await redactPrompt({
         name: name.trim(),
         organizationId: selectedOrganizationId!,
@@ -269,20 +261,20 @@ export function SectionForm({
           accumulatedText += text;
           const formattedText = accumulatedText.replace(/\\n/g, '\n');
           setPrompt(formattedText);
-          if (editorType === 'rich' && editorRef.current) {
-            editorRef.current.setMarkdown(formattedText);
-          }
         },
         onError: (error) => {
           console.error('Error generating prompt:', error);
         },
         onClose: () => {
           setIsGenerating(false);
+          // Forzar render del editor cambiando la key
+          setEditorKey(prev => prev + 1);
         }
       });
     } catch (error) {
       console.error('Error in prompt generation:', error);
       setIsGenerating(false);
+      setEditorKey(prev => prev + 1);
     }
   };
 
@@ -508,80 +500,13 @@ export function SectionForm({
                 className="text-sm resize-none min-h-[250px] max-h-[250px]"
               />
             ) : (
-              <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#4464f7] focus-within:border-transparent">
-                <MDXEditor
-                  ref={editorRef}
-                  markdown={prompt}
-                  onChange={handlePromptChange}
-                  contentEditableClassName='mdxeditor-content min-h-[250px] prose dark:prose-invert focus:outline-none p-3'
-                  readOnly={isPending || isGenerating}
-                  placeholder="Enter the prompt for this section"
-                  spellCheck={false}
-                  plugins={[
-                    headingsPlugin(), 
-                    listsPlugin(), 
-                    quotePlugin(), 
-                    tablePlugin(),
-                    thematicBreakPlugin(), 
-                    linkPlugin(),
-                    linkDialogPlugin(),
-                    imagePlugin({
-                      imageUploadHandler: async () => {
-                        return Promise.resolve('https://via.placeholder.com/400x300');
-                      }
-                    }),
-                    codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-                    codeMirrorPlugin({ codeBlockLanguages: { 
-                      js: 'JavaScript', 
-                      jsx: 'JavaScript (React)', 
-                      ts: 'TypeScript', 
-                      tsx: 'TypeScript (React)', 
-                      css: 'CSS', 
-                      html: 'HTML', 
-                      json: 'JSON',
-                      bash: 'Bash',
-                      sh: 'Shell',
-                      yaml: 'YAML',
-                      yml: 'YAML',
-                      xml: 'XML',
-                      sql: 'SQL',
-                      python: 'Python',
-                      go: 'Go',
-                      rust: 'Rust',
-                      java: 'Java',
-                      c: 'C',
-                      cpp: 'C++',
-                      php: 'PHP',
-                      ruby: 'Ruby',
-                      '': 'Plain text'
-                    }}),
-                    markdownShortcutPlugin(),
-                    toolbarPlugin({
-                      toolbarContents() {
-                        return (
-                          <>  
-                            <UndoRedo />
-                            <Separator />
-                            <BoldItalicUnderlineToggles />
-                            <CodeToggle />
-                            <Separator />
-                            <ListsToggle />
-                            <Separator />
-                            <BlockTypeSelect />
-                            <Separator />
-                            <CreateLink />
-                            <InsertImage />
-                            <Separator />
-                            <InsertTable />
-                            <InsertCodeBlock />
-                            <InsertThematicBreak />
-                          </>
-                        )
-                      },
-                    }),
-                  ]}
-                />
-              </div>
+              <MdxEditor
+                key={editorKey}
+                stickyToolbar={false}
+                value={prompt}
+                onChange={handlePromptChange}
+                diffMarkdown={mode === 'edit' && item ? item.prompt : ''}
+              />
             )}
 
             <div className="min-h-[20px]">
@@ -651,80 +576,12 @@ export function SectionForm({
           <Label className="text-xs font-medium text-gray-700">
             Manual Input (Optional)
           </Label>
-          <div className="border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-[#4464f7] focus-within:border-transparent">
-            <MDXEditor
-              ref={manualEditorRef}
-              markdown={manualInput}
-              onChange={(value) => setManualInput(value)}
-              contentEditableClassName='mdxeditor-content min-h-[200px] prose dark:prose-invert focus:outline-none p-3'
-              readOnly={isPending}
-              placeholder="Enter initial content for this section (optional)"
-              spellCheck={false}
-              plugins={[
-                headingsPlugin(),
-                listsPlugin(),
-                quotePlugin(),
-                tablePlugin(),
-                thematicBreakPlugin(),
-                linkPlugin(),
-                linkDialogPlugin(),
-                imagePlugin({
-                  imageUploadHandler: async () => {
-                    return Promise.resolve('https://via.placeholder.com/400x300');
-                  }
-                }),
-                codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-                codeMirrorPlugin({ codeBlockLanguages: { 
-                  js: 'JavaScript', 
-                  jsx: 'JavaScript (React)', 
-                  ts: 'TypeScript', 
-                  tsx: 'TypeScript (React)', 
-                  css: 'CSS', 
-                  html: 'HTML', 
-                  json: 'JSON',
-                  bash: 'Bash',
-                  sh: 'Shell',
-                  yaml: 'YAML',
-                  yml: 'YAML',
-                  xml: 'XML',
-                  sql: 'SQL',
-                  python: 'Python',
-                  go: 'Go',
-                  rust: 'Rust',
-                  java: 'Java',
-                  c: 'C',
-                  cpp: 'C++',
-                  php: 'PHP',
-                  ruby: 'Ruby',
-                  '': 'Plain text'
-                }}),
-                markdownShortcutPlugin(),
-                toolbarPlugin({
-                  toolbarContents() {
-                    return (
-                      <>
-                        <UndoRedo />
-                        <Separator />
-                        <BoldItalicUnderlineToggles />
-                        <CodeToggle />
-                        <Separator />
-                        <BlockTypeSelect />
-                        <Separator />
-                        <ListsToggle />
-                        <Separator />
-                        <CreateLink />
-                        <InsertImage />
-                        <Separator />
-                        <InsertTable />
-                        <InsertCodeBlock />
-                        <InsertThematicBreak />
-                      </>
-                    )
-                  },
-                }),
-              ]}
-            />
-          </div>
+          <MdxEditor
+            value={manualInput}
+            stickyToolbar={false}
+            onChange={setManualInput}
+            diffMarkdown={mode === 'edit' && item ? (item as any).manual_input || '' : ''}
+          />
           <p className="text-xs text-gray-500">
             This content can be edited later when working with the document
           </p>

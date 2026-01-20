@@ -27,7 +27,7 @@ export function AddSectionFormSheet({
   return (
     <SectionForm
       mode="create"
-      editorType="simple"
+      editorType="rich"
       formId="add-section-form"
       documentId={documentId}
       templateId={templateId}

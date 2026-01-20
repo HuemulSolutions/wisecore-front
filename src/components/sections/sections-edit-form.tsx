@@ -56,7 +56,7 @@ export function EditSectionForm({
   return (
     <SectionForm
       mode="edit"
-      editorType="simple"
+      editorType="rich"
       formId="edit-section-form"
       item={item}
       onSubmit={onSubmit}

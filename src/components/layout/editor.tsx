@@ -1,13 +1,5 @@
-import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugin,
-    markdownShortcutPlugin, UndoRedo, BoldItalicUnderlineToggles, toolbarPlugin,
-    BlockTypeSelect, tablePlugin, InsertTable, codeBlockPlugin, codeMirrorPlugin,
-    linkPlugin, linkDialogPlugin, CreateLink, imagePlugin, InsertImage,
-    CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator,
-    diffSourcePlugin, 
-    // DiffSourceToggleWrapper,
-    type MDXEditorMethods
- } from '@mdxeditor/editor'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import MdxEditor from './mdx-editor'
 import { Button } from '@/components/ui/button'
 import { Check, X, Loader2 } from 'lucide-react'
 
@@ -26,8 +18,6 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
     const dirty = value !== content
     const handleSave = () => dirty && !isSaving && onSave(sectionId, value)
     const handleCancel = () => !isSaving && onCancel()
-    const editorRef = useRef<MDXEditorMethods | null>(null);
-    
     const handleError = (payload: { error: string; source: string }) => {
         console.error('MDXEditor error:', payload);
         setError(payload.error);
@@ -55,95 +45,12 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
                     {isSaving ? <Loader2 className='h-4 w-4 animate-spin' /> : <Check className='h-4 w-4' />}
                 </Button>
             </div>
-            
-            <div className="border border-gray-200 rounded-md focus-within:ring-1 focus-within:ring-[#4464f7] focus-within:border-[#4464f7] transition-all">
-                <style>{`
-                    /* Toolbar sticky positioning */
-                    .mdxeditor .mdxeditor-toolbar {
-                        position: sticky !important;
-                        top: 32px !important;
-                        z-index: 51 !important;
-                        background: white !important;
-                        border-bottom: 1px solid #e5e7eb !important;
-                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-                    }
-                `}</style>
-                <MDXEditor
-                ref={editorRef}
-                markdown={value}
+            <MdxEditor
+                value={value}
                 onChange={setValue}
                 onError={handleError}
-                spellCheck={false}
-                contentEditableClassName='mdxeditor-content min-h-[240px] focus:outline-none px-4 py-3'
-                plugins={[
-                    diffSourcePlugin({ viewMode: 'rich-text', diffMarkdown: content }),
-                    headingsPlugin(), 
-                    listsPlugin(), 
-                    quotePlugin(), 
-                    tablePlugin(),
-                    thematicBreakPlugin(), 
-                    linkPlugin(),
-                    linkDialogPlugin(),
-                    imagePlugin({
-                        imageUploadHandler: async () => {
-                            // Placeholder - returns a sample image URL
-                            return Promise.resolve('https://via.placeholder.com/400x300');
-                        }
-                    }),
-                    codeBlockPlugin({ defaultCodeBlockLanguage: 'js' }),
-                    codeMirrorPlugin({ codeBlockLanguages: { 
-                        js: 'JavaScript', 
-                        jsx: 'JavaScript (React)', 
-                        ts: 'TypeScript', 
-                        tsx: 'TypeScript (React)', 
-                        css: 'CSS', 
-                        html: 'HTML', 
-                        json: 'JSON',
-                        bash: 'Bash',
-                        sh: 'Shell',
-                        yaml: 'YAML',
-                        yml: 'YAML',
-                        xml: 'XML',
-                        sql: 'SQL',
-                        python: 'Python',
-                        go: 'Go',
-                        rust: 'Rust',
-                        java: 'Java',
-                        c: 'C',
-                        cpp: 'C++',
-                        php: 'PHP',
-                        ruby: 'Ruby',
-                        '': 'Plain text'
-                    }}),
-                    markdownShortcutPlugin(),
-                    toolbarPlugin({
-                        toolbarClassName: 'mdxeditor-toolbar',
-                        toolbarContents() {
-                            return (
-                                <>  
-                                    {/* <DiffSourceToggleWrapper> */}
-                                        <UndoRedo />
-                                        <Separator />
-                                        <BoldItalicUnderlineToggles />
-                                        <CodeToggle />
-                                        <Separator />
-                                        <ListsToggle />
-                                        <Separator />
-                                        <BlockTypeSelect/>
-                                        <Separator />
-                                        <CreateLink />
-                                        <InsertImage />
-                                        <Separator />
-                                        <InsertTable />
-                                        <InsertCodeBlock />
-                                        <InsertThematicBreak />
-                                    {/* </DiffSourceToggleWrapper> */}
-                                </>
-                            )
-                        },
-                    }), ]}
-                />
-            </div>
+                diffMarkdown={content}
+            />
         </div>
     )
 }
