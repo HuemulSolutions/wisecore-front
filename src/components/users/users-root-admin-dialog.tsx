@@ -48,6 +48,7 @@ export default function RootAdminDialog({
       description={`Configure root admin permissions for ${user.name} ${user.last_name}`}
       icon={Shield}
       maxWidth="md"
+      maxHeight="90vh"
       formId="root-admin-form"
       submitLabel="Update Status"
       isSubmitting={isLoading}

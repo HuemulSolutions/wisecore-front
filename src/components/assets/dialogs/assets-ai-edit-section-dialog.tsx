@@ -38,6 +38,7 @@ export function AiEditSectionDialog({
       title="Ask AI to Edit"
       icon={Bot}
       maxWidth="md"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
       onSubmit={handleSubmit}

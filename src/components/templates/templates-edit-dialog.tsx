@@ -69,6 +69,7 @@ export function EditTemplateDialog({
       isSubmitting={updateTemplateMutation.isPending}
       isValid={!!editName.trim()}
       showDefaultFooter
+      maxHeight="90vh"
     >
       <div className="space-y-3">
         <div>

@@ -82,6 +82,7 @@ export default function Organizations() {
           cancelLabel="Cancel"
           isSubmitting={mutation.isPending}
           isValid={name.trim().length > 0}
+          maxHeight="90vh"
         >
           <div className="space-y-4">
             <Input

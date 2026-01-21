@@ -43,6 +43,7 @@ export function ModelDialog({
       submitLabel={isEdit ? "Update Model" : "Save Model"}
       isSubmitting={isCreating || isUpdating}
       showDefaultFooter
+      maxHeight="90vh"
     >
       <form id="model-form" onSubmit={onSubmit}>
         <input type="hidden" name="displayName" value={displayName} />

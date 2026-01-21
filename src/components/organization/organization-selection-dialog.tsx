@@ -155,6 +155,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
         description={!showCreateForm ? "Please select an organization to continue using Wisecore. You can create a new organization if needed." : "Enter the details for your new organization."}
         icon={Building2}
         maxWidth="md"
+        maxHeight="90vh"
         footer={
           !showCreateForm ? (
             <div className="flex flex-col gap-3 w-full">

@@ -99,6 +99,7 @@ export default function ExecutionConfigDialog({
                 description={description}
                 icon={Icon}
                 maxWidth="md"
+                maxHeight="90vh"
                 footer={
                     <div className="flex items-center justify-end gap-3 w-full">
                         <DialogClose asChild>

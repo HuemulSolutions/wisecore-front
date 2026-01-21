@@ -56,6 +56,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; name: string } | null>(null)
   const [folderToEdit, setFolderToEdit] = useState<{ id: string; name: string } | null>(null)
   const [documentToEdit, setDocumentToEdit] = useState<{ id: string; name: string } | null>(null)
+  const [isDeletingDocument, setIsDeletingDocument] = useState(false)
   const { selectedOrganizationId } = useOrganization()
 
   const handleCreateAsset = useCallback((folderId?: string) => {
@@ -135,21 +136,37 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }
   }, [folderToDelete, selectedOrganizationId])
 
+  function closeDeleteDocumentDialog() {
+    setDeleteDocumentDialogOpen(false)
+    setDocumentToDelete(null)
+  }
+
+  const handleDeleteDocumentDialogChange = (open: boolean) => {
+    if (!open) {
+      closeDeleteDocumentDialog()
+    }
+  }
+
   const handleDocumentDeleted = useCallback(async () => {
     if (!documentToDelete || !selectedOrganizationId) return
 
+    setIsDeletingDocument(true)
     try {
       await deleteDocument(documentToDelete.id, selectedOrganizationId)
       toast.success(`Document "${documentToDelete.name}" deleted successfully`)
-      setDeleteDocumentDialogOpen(false)
-      setDocumentToDelete(null)
+      closeDeleteDocumentDialog()
+      
+      // Navigate to root to clear URL and prevent showing deleted document
+      navigate('/asset', { replace: true })
+      
       fileTreeRef.current?.refresh()
     } catch (error) {
       console.error('Error deleting document:', error)
       toast.error('Failed to delete document. Please try again.')
-      throw error
+    } finally {
+      setIsDeletingDocument(false)
     }
-  }, [documentToDelete, selectedOrganizationId])
+  }, [documentToDelete, selectedOrganizationId, navigate])
 
   const handleCreateAssetDialogChange = useCallback((open: boolean) => {
     console.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
@@ -191,9 +208,10 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
       />
       <DeleteDocumentDialog
         open={deleteDocumentDialogOpen}
-        onOpenChange={setDeleteDocumentDialogOpen}
+        onOpenChange={(open) => !isDeletingDocument && handleDeleteDocumentDialogChange(open)}
         documentName={documentToDelete?.name || ""}
         onConfirm={handleDocumentDeleted}
+        isDeleting={isDeletingDocument}
       />
       <EditDocumentDialog
         open={editDocumentDialogOpen}

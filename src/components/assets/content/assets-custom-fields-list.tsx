@@ -276,6 +276,7 @@ export function CustomFieldsList({
         onOpenChange={setImageDialogOpen}
         title={selectedImage?.name || "Image Preview"}
         maxWidth="2xl"
+        maxHeight="90vh"
       >
         <div className="flex justify-center">
           {selectedImage && (

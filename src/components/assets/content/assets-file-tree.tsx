@@ -383,13 +383,14 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       }
     }
 
-    const handleMenuAction = async (action: MenuAction, nodeId: string) => {
-      setIsLoading(true)
-      try {
-        await action.onClick(nodeId)
-      } finally {
-        setIsLoading(false)
-      }
+    const handleMenuAction = (action: MenuAction, nodeId: string) => {
+      // Use setTimeout to allow dropdown to close before executing action
+      setTimeout(() => {
+        setIsLoading(true)
+        Promise.resolve(action.onClick(nodeId)).finally(() => {
+          setIsLoading(false)
+        })
+      }, 0)
     }
 
     const handleDragStart = (e: React.DragEvent, nodeId: string, node: FileNode) => {
@@ -568,11 +569,21 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                 <DropdownMenuContent align="end">
                   {isFolder && showDefaultActions.create && (
                     <>
-                      <DropdownMenuItem onSelect={() => handleCreate(node.id, "document")} className="hover:cursor-pointer">
+                      <DropdownMenuItem 
+                        onSelect={() => {
+                          setTimeout(() => handleCreate(node.id, "document"), 0)
+                        }} 
+                        className="hover:cursor-pointer"
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         New File
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleCreate(node.id, "folder")} className="hover:cursor-pointer">
+                      <DropdownMenuItem 
+                        onSelect={() => {
+                          setTimeout(() => handleCreate(node.id, "folder"), 0)
+                        }} 
+                        className="hover:cursor-pointer"
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         New Folder
                       </DropdownMenuItem>
@@ -598,7 +609,12 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                   )}
 
                   {showDefaultActions.share && (
-                    <DropdownMenuItem onSelect={() => handleShare(node.id)} className="hover:cursor-pointer">
+                    <DropdownMenuItem 
+                      onSelect={() => {
+                        setTimeout(() => handleShare(node.id), 0)
+                      }} 
+                      className="hover:cursor-pointer"
+                    >
                       <Share className="mr-2 h-4 w-4" />
                       Share Link
                     </DropdownMenuItem>
@@ -606,7 +622,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
                   {showDefaultActions.delete && (
                     <DropdownMenuItem
-                      onSelect={() => handleDelete(node.id, node.type)}
+                      onSelect={() => {
+                        setTimeout(() => handleDelete(node.id, node.type), 0)
+                      }}
                       className="text-destructive focus:text-destructive hover:cursor-pointer"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />

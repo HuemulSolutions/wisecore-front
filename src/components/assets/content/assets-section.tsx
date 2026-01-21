@@ -60,7 +60,7 @@ export default function SectionExecution({
     executionMode = 'single',
     showExecutionFeedback = false,
     sectionType = 'ai',
-    sectionName
+    // sectionName
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -304,9 +304,9 @@ export default function SectionExecution({
         <div ref={containerRef} className="p-2 relative">
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-20 justify-between py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
+                <div className="sticky top-0 z-20 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
                     {/* Section Info */}
-                    {(sectionName || sectionType) && (
+                    {/* {(sectionName || sectionType) && (
                         <div className="flex items-center gap-1.5">
                             {sectionName && (
                                 <span className="text-xs font-medium text-gray-500">{sectionName}</span>
@@ -323,7 +323,7 @@ export default function SectionExecution({
                                 </span>
                             )}
                         </div>
-                    )}
+                    )} */}
                     
                     {!isEditing && (
                     <>

@@ -72,6 +72,7 @@ export default function EditFolder({
       description={`Change the name of the folder "${currentName}".`}
       icon={Edit3}
       maxWidth="md"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
       submitLabel="Save Changes"

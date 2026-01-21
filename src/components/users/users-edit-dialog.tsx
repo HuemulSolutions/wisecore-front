@@ -155,6 +155,7 @@ export default function EditUserDialog({ user, open, onOpenChange }: EditUserDia
       description="Update user information. Changes will be saved when you click save."
       icon={UserPen}
       maxWidth="lg"
+      maxHeight="90vh"
       formId="edit-user-form"
       submitLabel="Save Changes"
       isSubmitting={updateUserMutation.isPending}

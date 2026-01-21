@@ -124,6 +124,7 @@ export default function CreateUserDialog({
       description="Add a new user to the system. They will receive an invitation email."
       icon={UserPlus}
       maxWidth="lg"
+      maxHeight="90vh"
       formId="create-user-form"
       submitLabel="Create User"
       isSubmitting={isLoading}

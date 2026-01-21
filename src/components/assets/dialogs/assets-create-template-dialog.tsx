@@ -45,6 +45,7 @@ export function CreateTemplateDialog({
       description="Create a reusable template that can be used to generate documents with predefined sections."
       icon={FileCode}
       maxWidth="md"
+      maxHeight="90vh"
       formId="create-template-form"
       isValid={isValid}
       isSubmitting={isPending}
