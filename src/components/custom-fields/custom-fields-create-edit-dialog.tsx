@@ -163,6 +163,7 @@ export function CreateEditCustomFieldDialog({
       }
       icon={isEditing ? PenLine : Plus}
       maxWidth="lg"
+      maxHeight="90vh"
       formId="custom-field-form"
       submitLabel={isEditing ? "Update Custom Field" : "Create Custom Field"}
       cancelLabel="Cancel"

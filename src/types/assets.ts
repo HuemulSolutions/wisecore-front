@@ -186,6 +186,7 @@ export interface DeleteDocumentDialogProps {
   onOpenChange: (open: boolean) => void;
   documentName: string;
   onConfirm: () => Promise<void> | void;
+  isDeleting?: boolean;
 }
 
 /**

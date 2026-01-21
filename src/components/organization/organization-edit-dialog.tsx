@@ -49,6 +49,7 @@ export function EditOrganizationDialog({
       isValid={isValid}
       isSubmitting={isSaving}
       submitLabel="Save Changes"
+      maxHeight="90vh"
     >
       <form id="edit-organization-form" onSubmit={handleSubmit} className="grid gap-6">
         <NameDescriptionFields

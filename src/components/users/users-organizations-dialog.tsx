@@ -74,6 +74,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
         description="Organizations that this user belongs to and their roles."
         icon={Building}
         maxWidth="md"
+        maxHeight="90vh"
         showDefaultFooter={false}
       >
         <div className="space-y-4">

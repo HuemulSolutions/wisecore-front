@@ -58,7 +58,7 @@ export function AddSectionDialog({
       description={getDescription()}
       icon={PlusCircle}
       maxWidth="lg"
-      maxHeight="80vh"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={() => {
         onOpenChange(false)

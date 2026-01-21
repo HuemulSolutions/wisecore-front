@@ -310,7 +310,7 @@ export function EditCustomFieldAssetDialog({
       description="Update the configuration for this custom field document."
       icon={Edit2}
       maxWidth="lg"
-      maxHeight="80vh"
+      maxHeight="90vh"
       footer={
         <>
           <Button 

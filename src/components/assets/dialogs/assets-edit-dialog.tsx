@@ -115,6 +115,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       description="Update the asset information."
       icon={Edit3}
       maxWidth="lg"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
       submitLabel="Update Asset"

@@ -43,6 +43,7 @@ export function EditProviderDialog({
       submitLabel={isConfiguring ? 'Configure Provider' : 'Update Configuration'}
       isSubmitting={isUpdating || isCreating}
       showDefaultFooter
+      maxHeight="90vh"
     >
       <form id="edit-provider-form" onSubmit={onSubmit}>
         <ProviderFormFields

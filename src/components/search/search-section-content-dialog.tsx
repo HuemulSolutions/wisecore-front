@@ -86,7 +86,7 @@ export function SectionContentDialog({
       description={dialogDescription}
       icon={FileText}
       maxWidth="2xl"
-      maxHeight="85vh"
+      maxHeight="90vh"
     >
       <div 
         ref={contentRef}

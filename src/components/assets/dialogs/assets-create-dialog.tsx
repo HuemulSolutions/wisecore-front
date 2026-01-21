@@ -156,6 +156,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
         description="Enter the asset information to create a new document."
         icon={Plus}
         maxWidth="lg"
+        maxHeight="90vh"
         showDefaultFooter
         onCancel={() => onOpenChange(false)}
         submitLabel="Create Asset"

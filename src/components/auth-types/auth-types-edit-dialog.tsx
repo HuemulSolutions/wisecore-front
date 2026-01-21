@@ -56,6 +56,7 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
       title="Edit Authentication Type"
       icon={Edit}
       maxWidth="sm"
+      maxHeight="90vh"
       onSubmit={handleSubmit}
       submitLabel="Update"
       isSubmitting={updateAuthType.isPending}

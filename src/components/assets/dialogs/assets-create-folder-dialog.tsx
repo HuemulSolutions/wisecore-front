@@ -68,6 +68,7 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
       description="Enter the folder name to create a new folder."
       icon={Plus}
       maxWidth="lg"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
       submitLabel="Create Folder"

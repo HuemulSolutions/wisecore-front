@@ -439,7 +439,7 @@ export function AddCustomFieldDialog({
       description={`Add an existing custom field to this ${entityLabel} or create a new one.`}
       icon={Plus}
       maxWidth="lg"
-      maxHeight="80vh"
+      maxHeight="90vh"
       footer={
         <>
           <Button 

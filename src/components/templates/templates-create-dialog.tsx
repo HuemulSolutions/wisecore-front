@@ -90,6 +90,7 @@ export function CreateTemplateDialog({
       description="Complete the fields below to create a new template."
       icon={FileCode}
       maxWidth="lg"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
       submitLabel="Create Template"

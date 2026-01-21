@@ -125,6 +125,7 @@ export default function CreateDocumentType({
         description={isEditing ? `Update the ${typeLabel.toLowerCase()} name and color.` : `Create a new ${typeLabel.toLowerCase()} with a name and color.`}
         icon={Plus}
         maxWidth="lg"
+        maxHeight="90vh"
         onSubmit={handleAccept}
         submitLabel={isEditing ? 'Update' : 'Create'}
         cancelLabel="Cancel"

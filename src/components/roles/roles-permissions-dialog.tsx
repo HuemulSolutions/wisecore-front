@@ -138,7 +138,7 @@ export default function RolePermissionsDialog({
       description="Configure access levels for each role for this asset type."
       icon={Shield}
       maxWidth="2xl"
-      maxHeight="80vh"
+      maxHeight="90vh"
       onSubmit={handleSubmit}
       submitLabel={isSaving ? 'Saving...' : 'Save Permissions'}
       cancelLabel="Cancel"

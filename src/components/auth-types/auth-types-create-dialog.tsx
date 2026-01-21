@@ -58,6 +58,7 @@ export function CreateAuthTypeDialog({ open: externalOpen, onOpenChange, childre
         title="Create Authentication Type"
         icon={Plus}
         maxWidth="sm"
+        maxHeight="90vh"
         onSubmit={handleSubmit}
         submitLabel="Create"
         isSubmitting={createAuthType.isPending}
@@ -113,6 +114,7 @@ export function CreateAuthTypeDialog({ open: externalOpen, onOpenChange, childre
         title="Create Authentication Type"
         icon={Plus}
         maxWidth="sm"
+        maxHeight="90vh"
         onSubmit={handleSubmit}
         submitLabel="Create"
         isSubmitting={createAuthType.isPending}

@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 // Import necesario para el icono Plus
 import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
@@ -89,6 +90,7 @@ export function AssetContent({
   // HOOKS AND CONTEXT
   // ============================================================================
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
@@ -1219,6 +1221,9 @@ export function AssetContent({
         
         // Clear selected file
         setSelectedFile(null);
+        
+        // Navigate to root to clear URL and prevent showing deleted document
+        navigate('/asset', { replace: true });
         
         // Refresh library content to update sidebar
         onRefresh();

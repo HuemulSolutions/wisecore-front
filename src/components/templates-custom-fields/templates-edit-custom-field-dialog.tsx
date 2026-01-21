@@ -302,7 +302,7 @@ export function EditCustomFieldTemplateDialog({
       description="Update the configuration for this custom field template."
       icon={Edit2}
       maxWidth="lg"
-      maxHeight="80vh"
+      maxHeight="90vh"
       showDefaultFooter
       onCancel={handleClose}
       onSubmit={handleSubmit}
