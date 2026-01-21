@@ -60,7 +60,7 @@ export default function SectionExecution({
     executionMode = 'single',
     showExecutionFeedback = false,
     sectionType = 'ai',
-    sectionName
+    // sectionName
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
