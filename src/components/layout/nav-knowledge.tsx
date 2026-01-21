@@ -59,17 +59,13 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const { selectedOrganizationId } = useOrganization()
 
   const handleCreateAsset = useCallback((folderId?: string) => {
-    setTimeout(() => {
-      setCurrentFolderId(folderId)
-      setCreateAssetDialogOpen(true)
-    }, 0)
+    setCurrentFolderId(folderId)
+    setCreateAssetDialogOpen(true)
   }, [])
 
   const handleCreateFolder = useCallback((folderId?: string) => {
-    setTimeout(() => {
-      setCurrentFolderId(folderId)
-      setCreateFolderDialogOpen(true)
-    }, 0)
+    setCurrentFolderId(folderId)
+    setCreateFolderDialogOpen(true)
   }, [])
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
@@ -96,31 +92,23 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const handleDeleteFolder = useCallback((folderId: string, folderName: string) => {
-    setTimeout(() => {
-      setFolderToDelete({ id: folderId, name: folderName })
-      setDeleteFolderDialogOpen(true)
-    }, 0)
+    setFolderToDelete({ id: folderId, name: folderName })
+    setDeleteFolderDialogOpen(true)
   }, [])
 
   const handleEditFolder = useCallback((folderId: string, currentName: string) => {
-    setTimeout(() => {
-      setFolderToEdit({ id: folderId, name: currentName })
-      setEditFolderDialogOpen(true)
-    }, 0)
+    setFolderToEdit({ id: folderId, name: currentName })
+    setEditFolderDialogOpen(true)
   }, [])
 
   const handleDeleteDocument = useCallback((documentId: string, documentName: string) => {
-    setTimeout(() => {
-      setDocumentToDelete({ id: documentId, name: documentName })
-      setDeleteDocumentDialogOpen(true)
-    }, 0)
+    setDocumentToDelete({ id: documentId, name: documentName })
+    setDeleteDocumentDialogOpen(true)
   }, [])
 
   const handleEditDocument = useCallback((documentId: string, currentName: string) => {
-    setTimeout(() => {
-      setDocumentToEdit({ id: documentId, name: currentName })
-      setEditDocumentDialogOpen(true)
-    }, 0)
+    setDocumentToEdit({ id: documentId, name: currentName })
+    setEditDocumentDialogOpen(true)
   }, [])
 
   const handleFolderEdited = useCallback(() => {
@@ -260,11 +248,21 @@ export function NavKnowledgeHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => handleCreateAsset()} className="hover:cursor-pointer">
+              <DropdownMenuItem 
+                onSelect={() => {
+                  setTimeout(() => handleCreateAsset(), 0)
+                }} 
+                className="hover:cursor-pointer"
+              >
                 <File className="mr-2 h-4 w-4" />
                 New Asset
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleCreateFolder()} className="hover:cursor-pointer">
+              <DropdownMenuItem 
+                onSelect={() => {
+                  setTimeout(() => handleCreateFolder(), 0)
+                }} 
+                className="hover:cursor-pointer"
+              >
                 <Folder className="mr-2 h-4 w-4" />
                 New Folder
               </DropdownMenuItem>
