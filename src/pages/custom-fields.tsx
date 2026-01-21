@@ -154,9 +154,10 @@ export default function CustomFieldsPage() {
             customFieldMutations={customFieldMutations}
             showFooterStats={false}
             pagination={{
-              page: page,
-              pageSize: pageSize,
-              totalItems: customFieldsResponse?.total || customFields.length,
+              page: customFieldsResponse?.page || page,
+              pageSize: customFieldsResponse?.page_size || pageSize,
+              hasNext: customFieldsResponse?.has_next,
+              hasPrevious: (customFieldsResponse?.page || page) > 1,
               onPageChange: (newPage) => setPage(newPage),
               onPageSizeChange: (newPageSize) => {
                 setPageSize(newPageSize)

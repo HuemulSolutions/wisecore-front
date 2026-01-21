@@ -5,7 +5,7 @@ import { toast } from "sonner"
 // Query keys
 export const userQueryKeys = {
   all: ['users'] as const,
-  list: () => [...userQueryKeys.all, 'list'] as const,
+  list: (page?: number, pageSize?: number) => [...userQueryKeys.all, 'list', page, pageSize] as const,
   detail: (id: string) => [...userQueryKeys.all, 'detail', id] as const,
   organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
 }
@@ -13,7 +13,7 @@ export const userQueryKeys = {
 // Hook for fetching users
 export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100) {
   return useQuery({
-    queryKey: userQueryKeys.list(),
+    queryKey: userQueryKeys.list(page, pageSize),
     queryFn: () => getUsers(organizationId, page, pageSize),
     staleTime: 2 * 60 * 1000, // 2 minutes - reasonable cache time
     gcTime: 5 * 60 * 1000, // 5 minutes cache (formerly cacheTime)
@@ -21,6 +21,7 @@ export function useUsers(enabled: boolean = true, organizationId?: string, page:
     refetchOnWindowFocus: false, // Prevent unnecessary refetches on window focus
     retry: 0, // No retries to avoid multiple error requests
     enabled,
+    placeholderData: (prev) => prev, // Keep previous data while loading new page
   })
 }
 

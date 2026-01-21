@@ -78,7 +78,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <div className={`w-full min-w-0 py-4 px-4 border-b border-gray-200 hover:bg-gray-50 transition-colors ${isDragging ? 'bg-blue-50 border-blue-300' : ''}`}>
+      <div className={`w-full min-w-0 py-4 px-4 bg-white border-b border-gray hover:bg-blue-50 transition-colors ${isDragging ? 'bg-blue-50 border-blue-300' : ''}`}>
         <div className="flex items-start gap-3">
           {/* Drag handle */}
           {!isOverlay && (
@@ -163,7 +163,10 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                 {!isExpanded && item.dependencies && item.dependencies.length > 0 && (
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide">Depends on:</span>
-                    <span className="text-xs text-gray-700">{item.dependencies.map(d => d.name).join(', ')}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {item.dependencies.map(d => d.name).join(', ')}
+                    </Badge>
+                    {/* <span className="text-xs text-gray-700">{item.dependencies.map(d => d.name).join(', ')}</span> */}
                   </div>
                 )}
               </div>

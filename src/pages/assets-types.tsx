@@ -149,9 +149,10 @@ export default function AssetTypesPage() {
             assetTypeMutations={assetTypeMutations}
             showFooterStats={false}
             pagination={{
-              page: page,
-              pageSize: pageSize,
-              totalItems: assetTypesResponse?.total || assetTypes.length,
+              page: assetTypesResponse?.page || page,
+              pageSize: assetTypesResponse?.page_size || pageSize,
+              hasNext: assetTypesResponse?.has_next,
+              hasPrevious: (assetTypesResponse?.page || page) > 1,
               onPageChange: (newPage: number) => setPage(newPage),
               onPageSizeChange: (newPageSize: number) => {
                 setPageSize(newPageSize)

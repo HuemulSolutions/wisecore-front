@@ -56,8 +56,12 @@ export interface PaginationConfig {
   page: number
   /** Number of items per page */
   pageSize: number
-  /** Total number of items across all pages */
-  totalItems: number
+  /** Total number of items across all pages (optional, for full pagination) */
+  totalItems?: number
+  /** Whether there is a next page (for cursor-based pagination) */
+  hasNext?: boolean
+  /** Whether there is a previous page (for cursor-based pagination) */
+  hasPrevious?: boolean
   /** Handler for page change */
   onPageChange: (page: number) => void
   /** Handler for page size change */

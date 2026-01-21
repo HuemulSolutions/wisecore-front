@@ -140,7 +140,7 @@ export function TemplateSectionsList({
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={sections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-            <div className={`space-y-1.5 sm:space-y-2 ${isReordering ? 'opacity-0' : ''}`}>
+            <div className={`space-y-3 sm:space-y-3 ${isReordering ? 'opacity-0' : ''}`}>
               {sections.map((section: any) => (
                 <div key={section.id}>
                   <SortableSectionSheet

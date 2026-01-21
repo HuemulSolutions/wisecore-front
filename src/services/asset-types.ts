@@ -35,8 +35,10 @@ export interface AssetTypeWithRoles {
 
 export interface AssetTypesWithRolesResponse {
   data: AssetTypeWithRoles[];
-  total?: number;
   transaction_id: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
   timestamp: string;
 }
 

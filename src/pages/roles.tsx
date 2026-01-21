@@ -153,9 +153,10 @@ export default function Roles() {
             onDeleteRole={openDialog.delete}
             showFooterStats={false}
             pagination={{
-              page: page,
-              pageSize: pageSize,
-              totalItems: rolesResponse?.total || roles.length,
+              page: rolesResponse?.page || page,
+              pageSize: rolesResponse?.page_size || pageSize,
+              hasNext: rolesResponse?.has_next,
+              hasPrevious: (rolesResponse?.page || page) > 1,
               onPageChange: (newPage) => setPage(newPage),
               onPageSizeChange: (newPageSize) => {
                 setPageSize(newPageSize)

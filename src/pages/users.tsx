@@ -190,9 +190,10 @@ export default function UsersPage() {
             userMutations={userMutations}
             showFooterStats={false}
             pagination={{
-              page: page,
-              pageSize: pageSize,
-              totalItems: usersResponse?.total || filteredUsers.length,
+              page: usersResponse?.page || page,
+              pageSize: usersResponse?.page_size || pageSize,
+              hasNext: usersResponse?.has_next,
+              hasPrevious: (usersResponse?.page || page) > 1,
               onPageChange: (newPage) => setPage(newPage),
               onPageSizeChange: (newPageSize) => {
                 setPageSize(newPageSize)

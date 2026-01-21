@@ -30,7 +30,7 @@ const extractTextFromChildren = (children: React.ReactNode): string => {
 
 const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full max-w-full overflow-x-auto">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}

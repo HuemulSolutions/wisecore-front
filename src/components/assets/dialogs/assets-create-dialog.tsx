@@ -89,26 +89,27 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
       console.log('✅ [CREATE-DIALOG] Asset created successfully:', createdAsset)
       toast.success("Asset created successfully")
       
-      // Store the callback to execute after dialog closes
-      const executeCallback = () => {
-        console.log('📞 [CREATE-DIALOG] Calling onAssetCreated callback')
-        onAssetCreated?.({
-          id: createdAsset.id,
-          name: createdAsset.name,
-          type: "document"
-        })
-      }
-      
-      // Close dialog first
+      // Close dialog and execute callback immediately
+      // Radix will handle the unmounting and animation properly
       console.log('🚪 [CREATE-DIALOG] Closing dialog')
       onOpenChange(false)
       
-      // Wait for dialog to fully close before navigating
-      setTimeout(executeCallback, 300)
+      console.log('📞 [CREATE-DIALOG] Calling onAssetCreated callback')
+      onAssetCreated?.({
+        id: createdAsset.id,
+        name: createdAsset.name,
+        type: "document"
+      })
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Create asset error:", error)
-      toast.error("Failed to create asset")
+      
+      // Extract error message from response
+      const errorMessage = error?.response?.data?.error || 
+                          error?.message || 
+                          "Failed to create asset"
+      
+      toast.error(errorMessage)
     },
   })
 

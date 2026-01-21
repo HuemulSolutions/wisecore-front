@@ -107,6 +107,9 @@ export function AssetContent({
   // Ref to track if we've already synced selectedExecutionId for this document
   const hasInitializedExecutionRef = useRef<string | null>(null);
   
+  // Ref to track if we're currently creating a new execution (to prevent premature state reset)
+  const isCreatingExecutionRef = useRef<boolean>(false);
+  
   // Removed debug logging to improve performance
 
   // Si no hay organización seleccionada, no renderizar nada
@@ -502,15 +505,18 @@ export function AssetContent({
     }
   }, [selectedFile, createdTemplate]);
 
-  // Clear current execution ID when selectedFile changes to prevent showing banner for wrong file
+  // Clear current execution ID when selectedFile or selectedExecutionId changes to prevent showing banner for wrong file/version
+  // BUT: Don't reset if we're in the middle of creating a new execution
   useEffect(() => {
-    setCurrentExecutionId(null);
-    setCurrentExecutionMode('full');
-    setCurrentSectionIndex(undefined);
-    setSectionExecutionId(null);
-    setDismissedExecutionBanners(new Set());
-    setExecutionContext(null);
-  }, [selectedFile?.id]);
+    if (!isCreatingExecutionRef.current) {
+      setCurrentExecutionId(null);
+      setCurrentExecutionMode('full');
+      setCurrentSectionIndex(undefined);
+      setSectionExecutionId(null);
+      setDismissedExecutionBanners(new Set());
+      setExecutionContext(null);
+    }
+  }, [selectedFile?.id, selectedExecutionId]);
 
 
 
@@ -536,7 +542,10 @@ export function AssetContent({
       willShowSectionFeedback: mode === 'single' || mode === 'from'
     });
     
-    // Set tracking variables for the new execution
+    // CRITICAL: Set tracking variables FIRST, before any query operations
+    // Mark that we're done creating the execution
+    isCreatingExecutionRef.current = false;
+    
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
     setCurrentSectionIndex(sectionIndex);
@@ -648,14 +657,26 @@ export function AssetContent({
 
   // Handle create new execution - abrir Execute Sheet
   const handleCreateExecution = (context?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string }) => {
+    // Mark that we're starting to create an execution
+    isCreatingExecutionRef.current = true;
     if (selectedFile && selectedFile.type === 'document') {
       preserveScrollPosition();
-      // Load necessary data for execution
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
-      // Store execution context
-      setExecutionContext(context || { type: 'header' });
-      setIsExecuteSheetOpen(true);
+
+      // Si se ejecuta desde una sección, asegurar que el índice y modo estén bien definidos para el feedback
+      if (context?.type === 'section' && typeof context.sectionIndex === 'number') {
+        setCurrentSectionIndex(context.sectionIndex);
+        setCurrentExecutionMode('single'); // O 'from' si aplica, según la acción
+        // setExecutionContext y setIsExecuteSheetOpen deben ejecutarse después para asegurar el render correcto
+        setTimeout(() => {
+          setExecutionContext(context);
+          setIsExecuteSheetOpen(true);
+        }, 0);
+      } else {
+        setExecutionContext(context || { type: 'header' });
+        setIsExecuteSheetOpen(true);
+      }
     }
   };
 
@@ -734,30 +755,24 @@ export function AssetContent({
     refetchOnWindowFocus: false,
   });
 
-  // Effect to clear currentExecutionId when 'single' or 'from' execution completes
+  // Effect to refresh content when 'single' or 'from' execution completes
+  // BUT keep tracking states so feedback can still display
   useEffect(() => {
     if (currentExecutionStatus && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
       const status = currentExecutionStatus.status;
       if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-        console.log(`🎯 Section execution finished with status: ${status}, clearing tracking state`);
-        
-        // Store the execution ID before clearing it
-        const completedExecutionId = currentExecutionId;
+        console.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
         
         // Preserve scroll position before refreshing content
         preserveScrollPosition();
         
-        // Clear tracking immediately since SectionExecutionFeedback automatically hides when status is 'done'
-        setCurrentExecutionId(null);
-        setCurrentSectionIndex(undefined);
-        // Keep currentExecutionMode as-is to prevent full overlay from appearing
-        
         // Add to dismissed banners to prevent ExecutionStatusBanner from showing for this execution
-        if (completedExecutionId) {
-          setDismissedExecutionBanners(prev => new Set([...prev, completedExecutionId]));
+        if (currentExecutionId) {
+          setDismissedExecutionBanners(prev => new Set([...prev, currentExecutionId]));
         }
         
-        // Refresh content
+        // Refresh content - but DON'T clear tracking states
+        // The SectionExecutionFeedback needs these states to continue showing the feedback
         queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       }
@@ -1248,7 +1263,7 @@ export function AssetContent({
   if (!selectedFile) {
     return (
       <>
-        <div className="h-full bg-white flex items-center justify-center p-4">
+        <div className="h-full bg-gray-50 flex items-center justify-center p-4">
           <Empty>
             <div className="p-8 text-center">
               <EmptyIcon>
@@ -1323,7 +1338,13 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-
+        {/* Create Asset Dialog */}
+        <CreateAssetDialog
+          open={isCreateAssetDialogOpen}
+          onOpenChange={setIsCreateAssetDialogOpen}
+          folderId={currentFolderId}
+          onAssetCreated={handleDocumentCreated}
+        />
       </>
     );
   }
@@ -1332,7 +1353,7 @@ export function AssetContent({
     <>
     <ResizablePanelGroup direction="horizontal" className=" bg-gray-50">
       {/* Document Content */}
-      <ResizablePanel maxSize={90} defaultSize={80} minSize={70}>
+      <ResizablePanel defaultSize={80}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
         {isMobile && (
@@ -1357,9 +1378,29 @@ export function AssetContent({
                   </Tooltip>
                 </TooltipProvider>
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    {documentContent?.document_name || selectedFile.name}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {documentContent?.document_name || selectedFile.name}
+                    </span>
+                    {/* Document Type and Template badges for mobile */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {documentContent?.document_type && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                          <div 
+                            className="w-1.5 h-1.5 rounded-full" 
+                            style={{ backgroundColor: documentContent.document_type.color }}
+                          />
+                          {documentContent.document_type.name}
+                        </div>
+                      )}
+                      {documentContent?.template_name && (
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
+                          <FileCode className="w-1.5 h-1.5" />
+                          {documentContent.template_name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   {/* Always reserve space for execution info to prevent layout shift */}
                   <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                     {selectedExecutionInfo && (
@@ -1373,24 +1414,6 @@ export function AssetContent({
                           </span>
                         )}
                       </>
-                    )}
-                  </div>
-                  {/* Document Type and Template badges for mobile */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {documentContent?.document_type && (
-                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                        <div 
-                          className="w-1.5 h-1.5 rounded-full" 
-                          style={{ backgroundColor: documentContent.document_type.color }}
-                        />
-                        {documentContent.document_type.name}
-                      </div>
-                    )}
-                    {fullDocument?.template_name && (
-                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
-                        <FileCode className="w-1.5 h-1.5" />
-                        {fullDocument.template_name}
-                      </div>
                     )}
                   </div>
                   {/* Document metadata for mobile */}
@@ -1822,23 +1845,25 @@ export function AssetContent({
             {!isMobile && (
               <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center justify-between gap-2.5 flex-wrap">
                     <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
-                    {documentContent?.document_type && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                        <div 
-                          className="w-1.5 h-1.5 rounded-full" 
-                          style={{ backgroundColor: documentContent.document_type.color }}
-                        />
-                        {documentContent.document_type.name}
-                      </div>
-                    )}
-                    {fullDocument?.template_name && (
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
-                        <FileCode className="w-3 h-3" />
-                        {fullDocument.template_name}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {documentContent?.document_type && (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                          <div 
+                            className="w-1.5 h-1.5 rounded-full" 
+                            style={{ backgroundColor: documentContent.document_type.color }}
+                          />
+                          {documentContent.document_type.name}
+                        </div>
+                      )}
+                      {documentContent?.template_name && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
+                          <FileCode className="w-3 h-3" />
+                          {documentContent.template_name}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Metadata Row - Combined */}
@@ -2293,7 +2318,10 @@ export function AssetContent({
                 )}
                 
                 {/* Current Version Execution Banner - when viewing the version being generated */}
-                {isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && (
+                {/* Don't show banner for single/from modes - they use section feedback instead */}
+                {isSelectedVersionExecuting && 
+                 !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && 
+                 !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) && (
                   <div className="sticky top-0 z-50 mb-4">
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
@@ -2356,8 +2384,8 @@ export function AssetContent({
                       <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                     </div>
                   </div>
-                ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) ? (
-                  // Show skeleton when viewing a version that is currently executing (full/full-single mode)
+                ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
+                  // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY)
                   <div className="space-y-6 min-h-150">
                     {/* Skeleton for document content */}
                     <div className="animate-pulse space-y-4">
@@ -2423,11 +2451,11 @@ export function AssetContent({
                     if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
                       return (
                         <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
-                          <Empty className="max-w-2xl">
+                          <Empty className="max-w-full">
                             <div className="p-8 text-center">
                               {hasFailedExecution ? (
                                 <>
-                                  <div className="max-w-xl mx-auto">
+                                  <div className="max-w-full mx-auto">
                                     <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
                                       {/* Icon Container with Animation */}
                                       <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
@@ -2440,7 +2468,7 @@ export function AssetContent({
                                       </h3>
                                       
                                       {/* Description */}
-                                      <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-md mx-auto">
+                                      <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
                                         The AI couldn't generate content for this document. Please try again or check your sections configuration.
                                       </p>
                                       
@@ -2561,7 +2589,7 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
-                        <div className="prose prose-gray prose-sm md:prose-base max-w-[1350px]">
+                        <div className="prose prose-gray prose-sm md:prose-base max-w-full">
                           {Array.isArray(documentContent.content) ? (
                             // New format: array of sections with separators
                             <>
@@ -2586,18 +2614,16 @@ export function AssetContent({
                               <div id={`section-${index}`} className="relative">
                                 <SectionExecution 
                                   sectionExecution={{
-                                    id: section.id, // This is the section_execution_id
+                                    id: section.id,
                                     output: section.content,
-                                    section_id: realSectionId // This is the real section_id from the document structure
+                                    section_id: realSectionId
                                   }}
                                   onUpdate={() => {
-                                    // Refresh document content when section is updated
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
                                   }}
                                   readyToEdit={true}
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
-                                  // Use currentExecutionId if there's an active single/from execution, otherwise use selectedExecutionId
                                   executionId={
                                     (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
                                       ? currentExecutionId
@@ -2605,44 +2631,26 @@ export function AssetContent({
                                   }
                                   executionStatus={
                                     (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? 'running' // Mark as running when there's an active execution
+                                      ? (currentExecutionStatus?.status || 'running')
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}
                                   showExecutionFeedback={
-                                    (() => {
-                                      const shouldShow = !!(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
-                                        currentExecutionMode === 'single' 
-                                          ? index === currentSectionIndex // Show feedback only on the executing section for 'single'
-                                          : currentSectionIndex !== undefined && index >= currentSectionIndex // Show feedback from the start section onwards for 'from'
-                                      ));
-                                      
-                                      // Log only for sections that should potentially show feedback
-                                      if (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
-                                        console.log(`📊 Section ${index} feedback decision:`, {
-                                          currentExecutionId,
-                                          currentExecutionMode,
-                                          currentSectionIndex,
-                                          sectionIndex: index,
-                                          shouldShow,
-                                          matchesIndex: index === currentSectionIndex,
-                                          isInRange: currentSectionIndex !== undefined && index >= currentSectionIndex
-                                        });
-                                      }
-                                      
-                                      return shouldShow;
-                                    })()
+                                    !!(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
+                                      currentExecutionMode === 'single'
+                                        ? index === currentSectionIndex
+                                        : currentSectionIndex !== undefined && index >= currentSectionIndex
+                                    ))
                                   }
                                   accessLevels={accessLevels}
                                   onExecutionStart={(executionIdForSection) => {
-                                    // Set section execution for polling banner
                                     if (executionIdForSection) {
                                       setSectionExecutionId(executionIdForSection);
-                                      console.log('Section execution started:', executionIdForSection);
                                     }
                                   }}
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
-                                  sectionType={(section as any).section_type as 'ai' | 'manual' | 'reference' | undefined}
+                                  sectionType={section.section_type}
+                                  sectionName={section.section_name}
                                 />
                               </div>
                               
@@ -2734,11 +2742,12 @@ export function AssetContent({
         </div>
       </ResizablePanel>
 
-      {/* Table of Contents Sidebar - only show for documents with content and when version is not executing */}
-      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && !isSelectedVersionExecuting && (
+      {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
+      {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && 
+       (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
           <ResizableHandle/>
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+          <ResizablePanel defaultSize={20}>
             <div className="flex flex-col h-full bg-white border-l">
               <div className="flex flex-col pt-3">
                 <div className="px-2 pb-2">
@@ -2977,7 +2986,7 @@ export function AssetContent({
       {/* Custom Word Export Dialog */}
       <CustomWordExportDialog
         selectedFile={selectedFile}
-        selectedExecutionId={selectedExecutionId}
+        selectedExecutionId={selectedExecutionId || documentContent?.execution_id || null}
         isOpen={isCustomWordExportDialogOpen}
         onOpenChange={(open) => {
           if (!open) onPreserveScroll?.();

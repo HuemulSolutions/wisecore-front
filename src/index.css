@@ -196,3 +196,127 @@
 .markdown-content mark.bg-blue-100 {
   @apply bg-blue-100 dark:bg-blue-900 px-0.5 rounded;
 }
+
+/* MDXEditor global styles - matching shadcn/ui design system */
+
+/* Popup container z-index override for dialogs and dropdowns */
+.mdxeditor-popup-container {
+  z-index: 100000 !important;
+}
+
+/* Select/Dropdown content styling - matching shadcn Select component */
+.mdxeditor-select-content {
+  z-index: 100000 !important;
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.375rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
+  max-height: var(--radix-select-content-available-height, 300px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: 0.25rem !important;
+  animation: fade-in 0.2s ease-out !important;
+}
+
+/* Select items styling - matching shadcn SelectItem */
+.mdxeditor-select-content [role="option"] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.125rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  cursor: default;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mdxeditor-select-content [role="option"]:hover,
+.mdxeditor-select-content [role="option"][data-highlighted] {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.mdxeditor-select-content [role="option"][aria-selected="true"] {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  font-weight: 500;
+}
+
+.mdxeditor-select-content [role="option"][aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Toolbar button states - matching app button styles */
+.mdxeditor-toolbar button {
+  transition: background-color 0.15s ease, color 0.15s ease;
+  border-radius: 0.25rem;
+}
+
+.mdxeditor-toolbar button:hover:not([data-state="on"]):not(:disabled) {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.mdxeditor-toolbar button[data-state="on"] {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  font-weight: 500;
+}
+
+.mdxeditor-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dialog styling - matching shadcn Dialog */
+.mdxeditor [role="dialog"] {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  padding: 1rem !important;
+}
+
+/* Link dialog input styling */
+.mdxeditor [role="dialog"] input {
+  width: 100%;
+  height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--input);
+  border-radius: 0.375rem;
+  background: transparent;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mdxeditor [role="dialog"] input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+/* Separator styling */
+.mdxeditor-toolbar [role="separator"] {
+  background-color: var(--border) !important;
+  margin: 0 0.25rem;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -270,7 +270,16 @@ export interface CreateFolderRequest {
  */
 export interface ContentSection {
   id: string;
+  section_id?: string;
+  section_name?: string;
+  section_type?: 'ai' | 'manual' | 'reference';
   content: string;
+  source_section_id?: string | null;
+  source_execution_id?: string | null;
+  source_mode?: string | null;
+  status?: string;
+  referenced_content?: string;
+  referenced_document_id?: string | null;
 }
 
 /**

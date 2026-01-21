@@ -32,6 +32,9 @@ export interface RolesResponse {
   data: Role[];
   total?: number;
   transaction_id: string;
+  page: number
+  page_size: number
+  has_next: boolean
   timestamp: string;
 }
 
