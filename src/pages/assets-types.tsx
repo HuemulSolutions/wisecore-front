@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth } from "@/contexts/auth-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { useQueryClient } from "@tanstack/react-query"
@@ -31,16 +31,27 @@ export default function AssetTypesPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  // Get auth context
-  const { user: currentUser } = useAuth()
+  // Permisos
+  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
   
-  // Fetch asset types and mutations
-  const { data: assetTypesResponse, isLoading, error } = useAssetTypesWithRoles(page, pageSize)
+  // Permisos específicos
+  const canListDocumentTypes = isRootAdmin || hasAnyPermission(['document_type:l', 'document_type:r'])
+  const canCreateDocumentType = isRootAdmin || hasPermission('document_type:c')
+  const canUpdateDocumentType = isRootAdmin || hasPermission('document_type:u')
+  const canDeleteDocumentType = isRootAdmin || hasPermission('document_type:d')
+  
+  // Fetch asset types and mutations - solo si tiene permisos
+  const { data: assetTypesResponse, isLoading, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes)
   const assetTypeMutations = useAssetTypeMutations()
 
+  // Loading permissions check
+  if (isLoadingPermissions) {
+    return <AssetTypePageSkeleton />
+  }
+
   // Access check
-  if (!currentUser?.is_root_admin) {
+  if (!canListDocumentTypes) {
     return <AssetTypePageEmptyState type="access-denied" />
   }
 
@@ -123,6 +134,7 @@ export default function AssetTypesPage() {
           hasError={!!error}
           searchTerm={state.searchTerm}
           onSearchChange={(value) => updateState({ searchTerm: value })}
+          canCreate={canCreateDocumentType}
         />
 
         {/* Content Area - Table or Error */}
@@ -148,6 +160,8 @@ export default function AssetTypesPage() {
             onDeleteAssetType={handleDeleteAssetType}
             assetTypeMutations={assetTypeMutations}
             showFooterStats={false}
+            canUpdate={canUpdateDocumentType}
+            canDelete={canDeleteDocumentType}
             pagination={{
               page: assetTypesResponse?.page || page,
               pageSize: assetTypesResponse?.page_size || pageSize,

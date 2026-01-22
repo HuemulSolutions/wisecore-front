@@ -1530,6 +1530,8 @@ export function AssetContent({
                 accessLevels={accessLevels}
                 requiredAccess={["create"]}
                 requireAll={false}
+                checkGlobalPermissions={true}
+                resource="assets"
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
@@ -1553,6 +1555,8 @@ export function AssetContent({
                 accessLevels={accessLevels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
+                checkGlobalPermissions={true}
+                resource="assets"
               >
                 <SectionSheet
                   selectedFile={selectedFile}
@@ -1571,6 +1575,8 @@ export function AssetContent({
                 accessLevels={accessLevels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
+                checkGlobalPermissions={true}
+                resource="assets"
               >
                 <DependenciesSheet
                   selectedFile={selectedFile}
@@ -1588,6 +1594,8 @@ export function AssetContent({
                 accessLevels={accessLevels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
+                checkGlobalPermissions={true}
+                resource="assets"
               >
                 <ContextSheet
                   selectedFile={selectedFile}
@@ -1709,6 +1717,8 @@ export function AssetContent({
               <DocumentActionButton
                 accessLevels={accessLevels}
                 requiredAccess="edit"
+                checkGlobalPermissions={true}
+                resource="assets"
                 onClick={openEditDialog}
                 size="sm"
                 variant="ghost"
@@ -1724,6 +1734,8 @@ export function AssetContent({
                   accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
+                  checkGlobalPermissions={true}
+                  resource="assets"
                   onClick={() => setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
                   variant="ghost"
@@ -1771,6 +1783,8 @@ export function AssetContent({
               <DocumentAccessControl
                 accessLevels={accessLevels}
                 requiredAccess="delete"
+                checkGlobalPermissions={true}
+                resource="assets"
               >
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -1838,6 +1852,8 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
+                      checkGlobalPermissions={true}
+                      resource="assets"
                       onClick={() => {
                         // Ensure selectedExecutionId is set to the current execution before opening dialog
                         if (!selectedExecutionId && currentExecution) {
@@ -1870,6 +1886,8 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
+                      checkGlobalPermissions={true}
+                      resource="assets"
                       size="sm"
                       variant="ghost"
                       disabled={true}
@@ -1887,6 +1905,8 @@ export function AssetContent({
                     <DocumentActionButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
+                      checkGlobalPermissions={true}
+                      resource="assets"
                       onClick={() => {
                         // Ensure selectedExecutionId is set to the current execution before opening dialog
                         if (!selectedExecutionId && currentExecution) {
@@ -2194,6 +2214,8 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
+                        checkGlobalPermissions={true}
+                        resource="assets"
                         onClick={() => {
                           // Ensure selectedExecutionId is set to the current execution before opening dialog
                           if (!selectedExecutionId && currentExecution) {
@@ -2226,6 +2248,8 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
+                        checkGlobalPermissions={true}
+                        resource="assets"
                         size="sm"
                         variant="ghost"
                         disabled={true}
@@ -2243,6 +2267,8 @@ export function AssetContent({
                       <DocumentActionButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
+                        checkGlobalPermissions={true}
+                        resource="assets"
                         onClick={() => {
                           // Ensure selectedExecutionId is set to the current execution before opening dialog
                           if (!selectedExecutionId && currentExecution) {
@@ -2279,6 +2305,8 @@ export function AssetContent({
                     accessLevels={accessLevels}
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
+                    checkGlobalPermissions={true}
+                    resource="assets"
                     onClick={() => setTimeout(() => openCloneDialog(), 0)}
                     size="sm"
                     variant="ghost"
@@ -2300,6 +2328,8 @@ export function AssetContent({
                 <DocumentActionButton
                   accessLevels={accessLevels}
                   requiredAccess="edit"
+                  checkGlobalPermissions={true}
+                  resource="assets"
                   onClick={openEditDialog}
                   size="sm"
                   variant="ghost"
@@ -2345,6 +2375,8 @@ export function AssetContent({
                 <DocumentAccessControl
                   accessLevels={accessLevels}
                   requiredAccess="delete"
+                  checkGlobalPermissions={true}
+                  resource="assets"
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -2572,7 +2604,10 @@ export function AssetContent({
                                       
                                       {/* Action Buttons */}
                                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                        <Button
+                                        <DocumentActionButton
+                                          accessLevels={accessLevels}
+                                          requiredAccess={["create"]}
+                                          requireAll={false}
                                           onClick={handleCreateExecutionFromHeader}
                                           disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                           size="lg"
@@ -2592,19 +2627,22 @@ export function AssetContent({
                                               Retry Execution
                                             </>
                                           )}
-                                        </Button>
-                                        <Button
+                                        </DocumentActionButton>
+                                        <DocumentActionButton
+                                          accessLevels={accessLevels}
+                                          requiredAccess={["edit", "create"]}
+                                          requireAll={false}
                                           onClick={() => {
                                             preserveScrollPosition();
                                             setIsSectionSheetOpen(true);
                                           }}
                                           variant="outline"
                                           size="lg"
-                                          className="hover:cursor-pointer border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
+                                          className="border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
                                         >
                                           <Edit3 className="h-5 w-5 mr-2" />
                                           Edit Sections
-                                        </Button>
+                                        </DocumentActionButton>
                                       </div>
                                       
                                       {/* Additional Help Text */}
@@ -2641,12 +2679,15 @@ export function AssetContent({
                                         </DocumentActionButton>
                                       ) : (
                                         <>
-                                          <Button
+                                          <DocumentActionButton
+                                            accessLevels={accessLevels}
+                                            requiredAccess={["create"]}
+                                            requireAll={false}
                                             onClick={handleCreateExecutionFromHeader}
                                             disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                             className={executeDocumentMutation.isPending || hasExecutionInProcess
                                               ? "hover:cursor-not-allowed bg-gray-300 text-gray-500" 
-                                              : "hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
+                                              : "bg-[#4464f7] hover:bg-[#3451e6]"
                                             }
                                           >
                                             {executeDocumentMutation.isPending ? (
@@ -2660,18 +2701,20 @@ export function AssetContent({
                                                 {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
                                               </>
                                             )}
-                                          </Button>
-                                          <Button
+                                          </DocumentActionButton>
+                                          <DocumentActionButton
+                                            accessLevels={accessLevels}
+                                            requiredAccess={["edit", "create"]}
+                                            requireAll={false}
                                             onClick={() => {
                                               onPreserveScroll?.();
                                               setIsSectionSheetOpen(true);
                                             }}
                                             variant="outline"
-                                            className="hover:cursor-pointer"
                                           >
                                             <Plus className="h-4 w-4 mr-2" />
                                             Add More Sections
-                                          </Button>
+                                          </DocumentActionButton>
                                         </>
                                       )}
                                     </EmptyActions>
@@ -2886,6 +2929,7 @@ export function AssetContent({
                     onRefresh={handleRefreshCustomFields}
                     uploadingImageFieldId={uploadingImageFieldId}
                     isRefreshing={isRefreshingCustomFields}
+                    accessLevels={accessLevels}
                   />
                 )}
               </div>
