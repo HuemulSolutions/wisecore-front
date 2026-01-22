@@ -335,7 +335,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="approve"
+                                                requiredAccess={["approve", "create"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
@@ -467,7 +467,7 @@ export default function SectionExecution({
                                         <>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
-                                                requiredAccess="approve"
+                                                requiredAccess={["approve", "create"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                             >
@@ -484,7 +484,7 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
-                                                requiredAccess="approve"
+                                                requiredAccess={["approve", "create"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                             >
@@ -557,7 +557,7 @@ export default function SectionExecution({
                                     {onOpenExecuteSheet && !isExecutionApproved && canExecute && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
-                                            requiredAccess="approve"
+                                            requiredAccess={["approve", "create"]}
                                             checkGlobalPermissions={true}
                                             resource="assets"
                                         >
