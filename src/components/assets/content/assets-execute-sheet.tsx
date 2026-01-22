@@ -52,6 +52,7 @@ interface ExecuteSheetProps {
   disabledReason?: string;
   selectedExecutionId?: string | null;
   executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null;
+  accessLevels?: string[];
 }
 
 export function ExecuteSheet({
@@ -64,7 +65,8 @@ export function ExecuteSheet({
   onExecutionComplete,
   onExecutionCreated,
   selectedExecutionId,
-  executionContext}: ExecuteSheetProps) {
+  executionContext,
+  accessLevels}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [isGeneratingInSheet, setIsGeneratingInSheet] = useState(false);
@@ -432,7 +434,7 @@ export function ExecuteSheet({
                 {/* Botón de acción centrado verticalmente */}
                 <div className="flex items-center h-full gap-2 ml-4">
                   <DocumentActionButton
-                    accessLevels={selectedFile?.access_levels || []}
+                    accessLevels={accessLevels || selectedFile?.access_levels || []}
                     requiredAccess={["create", "edit"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
