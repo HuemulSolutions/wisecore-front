@@ -449,12 +449,12 @@ export default function SectionExecution({
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DocumentAccessControl
+                                    {/* <DocumentAccessControl
                                         accessLevels={accessLevels}
-                                        requiredAccess="read"
-                                        checkGlobalPermissions={true}
+                                        requiredAccess=""
+                                        checkGlobalPermissions={false}
                                         resource="assets"
-                                    >
+                                    > */}
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'
                                             onClick={handleCopy}
@@ -462,7 +462,7 @@ export default function SectionExecution({
                                             <Copy className="h-4 w-4 mr-2" />
                                             Copy
                                         </DropdownMenuItem>
-                                    </DocumentAccessControl>
+                                    {/* </DocumentAccessControl> */}
                                     {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && (
                                         <>
                                             <DocumentAccessControl
