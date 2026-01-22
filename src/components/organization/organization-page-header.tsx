@@ -1,11 +1,11 @@
 "use client"
 
-import { Plus, Settings2 } from "lucide-react"
+import { Plus, Building2 } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
 
-interface CustomFieldPageHeaderProps {
-  customFieldCount: number
-  onCreateCustomField: () => void
+interface OrganizationPageHeaderProps {
+  organizationCount: number
+  onCreateOrganization: () => void
   onRefresh: () => void
   isLoading?: boolean
   searchTerm: string
@@ -13,31 +13,31 @@ interface CustomFieldPageHeaderProps {
   canManage?: boolean
 }
 
-export function CustomFieldPageHeader({
-  customFieldCount,
-  onCreateCustomField,
+export function OrganizationPageHeader({
+  organizationCount,
+  onCreateOrganization,
   onRefresh,
   isLoading = false,
   searchTerm,
   onSearchChange,
   canManage = false
-}: CustomFieldPageHeaderProps) {
+}: OrganizationPageHeaderProps) {
   return (
     <PageHeader
-      icon={Settings2}
-      title="Custom Fields"
+      icon={Building2}
+      title="Organizations"
       badges={[
-        { label: "", value: isLoading ? "..." : customFieldCount }
+        { label: "", value: isLoading ? "..." : organizationCount }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       primaryAction={canManage ? {
-        label: "Create Custom Field",
+        label: "Create Organization",
         icon: Plus,
-        onClick: onCreateCustomField
+        onClick: onCreateOrganization
       } : undefined}
       searchConfig={{
-        placeholder: "Search custom fields...",
+        placeholder: "Search organizations...",
         value: searchTerm,
         onChange: onSearchChange
       }}

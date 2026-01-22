@@ -72,9 +72,12 @@ export async function getSectionExecutionContent(sectionExecutionId: string, org
     
     // Extract the actual content from the response
     if (data.data && typeof data.data === 'object' && data.data.output) {
-        return data.data.output;
+        const output = data.data.output;
+        console.log('Returning output, type:', typeof output, 'length:', output?.length || 0);
+        return output;
     }
     
     // Fallback in case the structure is different
+    console.warn('Unexpected data structure, returning fallback:', data.data);
     return data.data || '';
 }

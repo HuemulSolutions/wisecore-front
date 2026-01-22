@@ -14,6 +14,7 @@ interface UserPageHeaderProps {
   onSearchChange: (value: string) => void
   filterStatus: string
   onStatusFilterChange: (value: string) => void
+  canCreate?: boolean
 }
 
 export default function UserPageHeader({ 
@@ -25,7 +26,8 @@ export default function UserPageHeader({
   searchTerm,
   onSearchChange,
   filterStatus,
-  onStatusFilterChange
+  onStatusFilterChange,
+  canCreate = false
 }: UserPageHeaderProps) {
   return (
     <PageHeader
@@ -37,7 +39,7 @@ export default function UserPageHeader({
       onRefresh={onRefresh}
       isLoading={isLoading}
       hasError={hasError}
-      primaryAction={{
+      primaryAction={canCreate ? {
         label: "Add User",
         icon: Plus,
         onClick: onCreateUser,
@@ -54,7 +56,7 @@ export default function UserPageHeader({
             </Button>
           </ProtectedComponent>
         )
-      }}
+      } : undefined}
       searchConfig={{
         placeholder: "Search users...",
         value: searchTerm,

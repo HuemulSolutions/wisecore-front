@@ -14,6 +14,7 @@ interface RolesTableProps {
   onDeleteRole: (role: Role) => void
   pagination?: PaginationConfig
   showFooterStats?: boolean
+  canManage?: boolean
 }
 
 export function RolesTable({ 
@@ -26,6 +27,7 @@ export function RolesTable({
   onDeleteRole,
   pagination,
   showFooterStats,
+  canManage = false
 }: RolesTableProps) {
   // Define columns
   const columns: TableColumn<Role>[] = [
@@ -89,8 +91,8 @@ export function RolesTable({
     }
   ]
 
-  // Define actions
-  const actions: TableAction<Role>[] = [
+  // Define actions - solo si tiene permisos de manage
+  const actions: TableAction<Role>[] = canManage ? [
     {
       key: "assign",
       label: isLoadingUsers ? 'Loading users...' : 'Assign to Users',
@@ -112,7 +114,7 @@ export function RolesTable({
       onClick: onDeleteRole,
       destructive: true
     }
-  ]
+  ] : []
 
   // Define footer stats
   const footerStats: FooterStat[] = [

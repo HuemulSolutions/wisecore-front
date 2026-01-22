@@ -12,6 +12,8 @@ interface TemplateSectionsListProps {
   templateId: string;
   organizationId: string;
   onSectionsReorder: (newSections: any[]) => void;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
 export function TemplateSectionsList({
@@ -19,6 +21,8 @@ export function TemplateSectionsList({
   templateId,
   organizationId,
   onSectionsReorder,
+  canUpdate = true,
+  canDelete = true,
 }: TemplateSectionsListProps) {
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<any>(null);
@@ -151,6 +155,8 @@ export function TemplateSectionsList({
                     }
                     onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
                     isTemplateSection={true}
+                    canUpdate={canUpdate}
+                    canDelete={canDelete}
                   />
                 </div>
               ))}

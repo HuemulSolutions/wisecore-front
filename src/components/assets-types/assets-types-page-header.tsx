@@ -9,6 +9,7 @@ interface AssetTypePageHeaderProps {
   hasError?: boolean
   searchTerm: string
   onSearchChange: (value: string) => void
+  canCreate?: boolean
 }
 
 export default function AssetTypePageHeader({ 
@@ -18,7 +19,8 @@ export default function AssetTypePageHeader({
   isLoading, 
   hasError,
   searchTerm,
-  onSearchChange
+  onSearchChange,
+  canCreate = true
 }: AssetTypePageHeaderProps) {
   return (
     <PageHeader
@@ -30,11 +32,11 @@ export default function AssetTypePageHeader({
       onRefresh={onRefresh}
       isLoading={isLoading}
       hasError={hasError}
-      primaryAction={{
+      primaryAction={canCreate ? {
         label: "Create Asset Type",
         icon: Plus,
         onClick: onCreateAssetType
-      }}
+      } : undefined}
       searchConfig={{
         placeholder: "Search asset types...",
         value: searchTerm,

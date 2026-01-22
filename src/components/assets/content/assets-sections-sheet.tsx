@@ -176,6 +176,8 @@ export function SectionSheet({
           accessLevels={accessLevels || selectedFile?.access_levels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
+          checkGlobalPermissions={true}
+          resource="assets"
           size="sm"
           variant="ghost"
           className={isMobile 
@@ -207,6 +209,8 @@ export function SectionSheet({
                   accessLevels={accessLevels || selectedFile?.access_levels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
+                  checkGlobalPermissions={true}
+                  resource="assets"
                   type="button"
                   size="sm"
                   className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
@@ -225,6 +229,8 @@ export function SectionSheet({
                     accessLevels={accessLevels || selectedFile?.access_levels}
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
+                    checkGlobalPermissions={true}
+                    resource="assets"
                     type="button"
                     size="sm"
                     variant="outline"

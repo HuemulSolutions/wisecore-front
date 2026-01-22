@@ -32,6 +32,8 @@ export function SectionSeparator({
           accessLevels={accessLevels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
+          checkGlobalPermissions={true}
+          resource="assets"
           onClick={() => onAddSection(index)}
           variant="ghost"
           size="sm"

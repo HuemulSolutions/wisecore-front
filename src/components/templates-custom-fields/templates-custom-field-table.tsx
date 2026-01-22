@@ -9,14 +9,21 @@ import { ReusableDialog } from "@/components/ui/reusable-dialog"
 import { Edit2, Trash2 } from "lucide-react"
 import type { CustomFieldTemplate } from "@/types/custom-fields-templates"
 
+interface PaginationConfig {
+  page: number
+  pageSize: number
+  hasNext?: boolean
+  hasPrevious?: boolean
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
+  pageSizeOptions?: number[]
+}
+
 interface CustomFieldTemplateTableProps {
   customFieldTemplates: CustomFieldTemplate[]
   onEditCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
   onDeleteCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
-  page?: number
-  pageSize?: number
-  onPageChange?: (page: number) => void
-  onPageSizeChange?: (pageSize: number) => void
+  pagination?: PaginationConfig
 }
 
 const formatDataType = (dataType: string) => {
@@ -72,24 +79,15 @@ export function CustomFieldTemplateTable({
   customFieldTemplates,
   onEditCustomFieldTemplate,
   onDeleteCustomFieldTemplate,
-  page: externalPage,
-  pageSize: externalPageSize,
-  onPageChange: externalOnPageChange,
-  onPageSizeChange: externalOnPageSizeChange,
+  pagination,
 }: CustomFieldTemplateTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customFieldToDelete, setCustomFieldToDelete] = useState<CustomFieldTemplate | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [internalPage, setInternalPage] = useState(1)
-  const [internalPageSize, setInternalPageSize] = useState(10)
   const [imageDialogOpen, setImageDialogOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null)
 
-  // Use external pagination if provided, otherwise use internal
-  const page = externalPage ?? internalPage
-  const pageSize = externalPageSize ?? internalPageSize
-  const setPage = externalOnPageChange ?? setInternalPage
-  const setPageSize = externalOnPageSizeChange ?? setInternalPageSize
+  // No need for local pagination anymore - data comes paginated from server
 
   const renderValueDisplay = (template: CustomFieldTemplate) => {
     const dataType = template.data_type
@@ -182,20 +180,6 @@ export function CustomFieldTemplateTable({
     return null
   }
 
-  // Pagination logic
-  const totalItems = customFieldTemplates.length
-  const startIndex = (page - 1) * pageSize
-  const endIndex = startIndex + pageSize
-  const paginatedData = customFieldTemplates.slice(startIndex, endIndex)
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage)
-  }
-
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPageSize(newPageSize)
-  }
-
   // Define columns
   const columns: TableColumn<CustomFieldTemplate>[] = [
     {
@@ -283,20 +267,21 @@ export function CustomFieldTemplateTable({
   return (
     <>
       <DataTable
-        data={paginatedData}
+        data={customFieldTemplates}
         columns={columns}
         actions={actions}
         getRowKey={(template) => template.id.toString()}
         footerStats={footerStats}
         maxHeight="max-h-[600px]"
-        pagination={{
-          page,
-          pageSize,
-          totalItems,
-          onPageChange: handlePageChange,
-          onPageSizeChange: handlePageSizeChange,
-          pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
-        }}
+        pagination={pagination ? {
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          hasNext: pagination.hasNext,
+          hasPrevious: pagination.hasPrevious,
+          onPageChange: pagination.onPageChange,
+          onPageSizeChange: pagination.onPageSizeChange,
+          pageSizeOptions: pagination.pageSizeOptions || [10, 25, 50, 100, 250, 500, 1000]
+        } : undefined}
         showFooterStats={false}
       />
 

@@ -37,6 +37,8 @@ export function ContextSheet({
           accessLevels={accessLevels || selectedFile?.access_levels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
+          checkGlobalPermissions={true}
+          resource="assets"
           size="sm"
           variant="ghost"
           className={isMobile 

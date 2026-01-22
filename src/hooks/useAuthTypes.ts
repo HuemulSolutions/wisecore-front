@@ -19,12 +19,13 @@ export const authTypeQueryKeys = {
 }
 
 // Hook for fetching auth types
-export function useAuthTypes() {
+export function useAuthTypes(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: authTypeQueryKeys.list(),
     queryFn: getAuthTypes,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0, // No retries to avoid multiple error requests
+    enabled: options?.enabled ?? true,
   })
 }
 

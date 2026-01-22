@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { List, PlusCircle, Sparkles, FileCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
 import {
   Sheet,
   SheetContent,
@@ -169,7 +170,11 @@ export function TemplateConfigSheet({
                 </SheetDescription>
               </div>
               <div className="flex items-center h-full gap-2">
-                <Button
+                <DocumentActionButton
+                  accessLevels={[]}  // Templates don't have document-level access
+                  requiredAccess="create"
+                  checkGlobalPermissions={true}
+                  resource="template"
                   type="button"
                   className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
                   onClick={() => setIsAddingSection(true)}
@@ -178,9 +183,13 @@ export function TemplateConfigSheet({
                 >
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Add Section
-                </Button>
+                </DocumentActionButton>
                 {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
-                  <Button
+                  <DocumentActionButton
+                    accessLevels={[]}  // Templates don't have document-level access
+                    requiredAccess="create"
+                    checkGlobalPermissions={true}
+                    resource="template"
                     type="button"
                     variant="outline"
                     className="hover:cursor-pointer"
@@ -190,7 +199,7 @@ export function TemplateConfigSheet({
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     {generateSectionsMutation.isPending ? "Generating..." : "Generate with AI"}
-                  </Button>
+                  </DocumentActionButton>
                 )}
               </div>
             </div>

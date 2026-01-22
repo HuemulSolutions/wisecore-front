@@ -9,6 +9,7 @@ interface RolesSearchProps {
   onRefresh: () => void
   onCreateRole: () => void
   hasError?: boolean
+  canManage?: boolean
 }
 
 export function RolesSearch({ 
@@ -18,7 +19,8 @@ export function RolesSearch({
   isRefreshing,
   onRefresh,
   onCreateRole,
-  hasError 
+  hasError,
+  canManage = false
 }: RolesSearchProps) {
   return (
     <PageHeader
@@ -30,11 +32,11 @@ export function RolesSearch({
       onRefresh={onRefresh}
       isLoading={isRefreshing}
       hasError={hasError}
-      primaryAction={{
+      primaryAction={canManage ? {
         label: "Create Role",
         icon: Plus,
         onClick: onCreateRole
-      }}
+      } : undefined}
       searchConfig={{
         placeholder: "Search roles...",
         value: searchTerm,

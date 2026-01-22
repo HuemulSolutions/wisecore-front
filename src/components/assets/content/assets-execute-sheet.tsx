@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
+import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
 import {
     Select,
     SelectContent,
@@ -37,6 +38,7 @@ interface ExecuteSheetProps {
     id: string;
     name: string;
     type: "folder" | "document";
+    access_levels?: string[];
   } | null;
   fullDocument?: any;
   isLoadingFullDocument?: boolean;
@@ -50,6 +52,7 @@ interface ExecuteSheetProps {
   disabledReason?: string;
   selectedExecutionId?: string | null;
   executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null;
+  accessLevels?: string[];
 }
 
 export function ExecuteSheet({
@@ -62,7 +65,8 @@ export function ExecuteSheet({
   onExecutionComplete,
   onExecutionCreated,
   selectedExecutionId,
-  executionContext}: ExecuteSheetProps) {
+  executionContext,
+  accessLevels}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
   const [isGeneratingInSheet, setIsGeneratingInSheet] = useState(false);
@@ -71,7 +75,7 @@ export function ExecuteSheet({
   const [] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
-  const [executionType, setExecutionType] = useState<'full' | 'full-single' | 'single' | 'from'>('full');
+  const [executionType, setExecutionType] = useState<'full' | 'full-single' | 'single' | 'from'>('full-single');
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
   // Query client para invalidar queries
@@ -309,7 +313,7 @@ export function ExecuteSheet({
       setSheetInstructions("");
       setSheetSelectedLLM("");
       setHasAttemptedCreation(false); // Reset the attempt flag when closing
-      setExecutionType('full'); // Siempre resetear a 'full'
+      setExecutionType('full-single'); // Siempre resetear a 'full-single'
       setSelectedSectionId("");
       // No resetear isGeneratingInSheet aquí si la ejecución sigue corriendo
       if (currentExecution?.status !== "running") {
@@ -329,8 +333,8 @@ export function ExecuteSheet({
           setSelectedSectionId(executionContext.sectionId);
         }
       } else {
-        // Desde header: inicializar con full
-        setExecutionType('full');
+        // Desde header: inicializar con full-single
+        setExecutionType('full-single');
         setSelectedSectionId("");
       }
     }
@@ -362,7 +366,7 @@ export function ExecuteSheet({
         setExecutionType('single');
         setSelectedSectionId(executionContext.sectionId);
       } else {
-        setExecutionType('full');
+        setExecutionType('full-single');
         setSelectedSectionId("");
       }
     }
@@ -421,7 +425,7 @@ export function ExecuteSheet({
                 <div className="flex flex-col gap-1">
                   <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                     <Play className="h-4 w-4" />
-                    Execute Document
+                    Execute Version
                   </SheetTitle>
                   <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
                     Configure and execute this document to generate content based on its sections.
@@ -429,7 +433,12 @@ export function ExecuteSheet({
                 </div>
                 {/* Botón de acción centrado verticalmente */}
                 <div className="flex items-center h-full gap-2 ml-4">
-                  <Button
+                  <DocumentActionButton
+                    accessLevels={accessLevels || selectedFile?.access_levels || []}
+                    requiredAccess={["create", "edit"]}
+                    requireAll={false}
+                    checkGlobalPermissions={true}
+                    resource="assets"
                     onClick={handleExecuteDocument}
                     disabled={
                       // Prioridad 1: Estados de carga - mantener deshabilitado durante carga
@@ -460,10 +469,10 @@ export function ExecuteSheet({
                     ) : (
                       <>
                         <Play className="h-4 w-4 mr-2" />
-                        Execute Document
+                        Execute Version
                       </>
                     )}
-                  </Button>
+                  </DocumentActionButton>
                 </div>
               </div>
             </SheetHeader>
@@ -489,7 +498,7 @@ export function ExecuteSheet({
                           <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
                             <CircleX className="h-8 w-8 text-red-500" />
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Execute Document</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Execute a New Version</h3>
                           <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
                             There was an error executing the document. Please check your configuration and try again.
                           </p>
@@ -563,12 +572,12 @@ export function ExecuteSheet({
                               {/* Opciones disponibles desde header */}
                               {(!executionContext || executionContext.type === 'header') && (
                                 <>
-                                  <SelectItem value="full" className="cursor-pointer">
-                                    <span className="font-medium">Execute Entire Document</span>
-                                  </SelectItem>
-                                  
                                   <SelectItem value="full-single" className="cursor-pointer">
                                     <span className="font-medium">Execute First Section Only</span>
+                                  </SelectItem>
+
+                                  <SelectItem value="full" className="cursor-pointer">
+                                    <span className="font-medium">Execute Entire Document</span>
                                   </SelectItem>
                                 </>
                               )}

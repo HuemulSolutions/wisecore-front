@@ -72,6 +72,8 @@ export default function AppLayout() {
     canAccessDocumentTypes,
     canAccessAssets,
     canAccessTemplates,
+    // hasPermission,
+    hasAnyPermission,
   } = useUserPermissions()
   
   // El diálogo debe mantenerse abierto si:
@@ -81,7 +83,8 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   const hasAssetManagementAccess = canAccessDocumentTypes || isRootAdmin
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || isRootAdmin
+  const canAccessOrganizations = isRootAdmin || hasAnyPermission(['organization:l', 'organization:r'])
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess
 
   // Generate initials from user name
@@ -253,6 +256,13 @@ export default function AppLayout() {
                     {hasAdministrationAccess && (
                       <>
                         <DropdownMenuLabel>Administration</DropdownMenuLabel>
+                        {(canAccessOrganizations || isRootAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to="/organizations" className="hover:cursor-pointer">
+                              Organizations
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
                         {(canAccessUsers || isRootAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/users" className="hover:cursor-pointer">

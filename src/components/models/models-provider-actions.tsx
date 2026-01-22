@@ -10,6 +10,8 @@ interface ProviderActionsProps {
   isDeleting: boolean
   dropdownOpen: boolean
   onDropdownChange: (open: boolean) => void
+  canUpdate: boolean
+  canDelete: boolean
 }
 
 export function ProviderActions({ 
@@ -18,11 +20,18 @@ export function ProviderActions({
   onDelete, 
   isDeleting,
   dropdownOpen,
-  onDropdownChange
+  onDropdownChange,
+  canUpdate,
+  canDelete
 }: ProviderActionsProps) {
   const isMobile = useIsMobile()
 
   if (!provider.isConfigured) {
+    return null
+  }
+
+  // Si no tiene ningún permiso, no mostrar nada
+  if (!canUpdate && !canDelete) {
     return null
   }
 
@@ -44,21 +53,25 @@ export function ProviderActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => onEdit(provider)}
-            className="hover:cursor-pointer text-xs"
-          >
-            <Edit className="h-3 w-3 mr-2 text-blue-600" />
-            Edit Provider
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onDelete(provider)}
-            className="hover:cursor-pointer text-red-600 text-xs"
-            disabled={isDeleting}
-          >
-            <Trash2 className="h-3 w-3 mr-2" />
-            {isDeleting ? 'Deleting...' : 'Delete Provider'}
-          </DropdownMenuItem>
+          {canUpdate && (
+            <DropdownMenuItem
+              onClick={() => onEdit(provider)}
+              className="hover:cursor-pointer text-xs"
+            >
+              <Edit className="h-3 w-3 mr-2 text-blue-600" />
+              Edit Provider
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <DropdownMenuItem
+              onClick={() => onDelete(provider)}
+              className="hover:cursor-pointer text-red-600 text-xs"
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-3 w-3 mr-2" />
+              {isDeleting ? 'Deleting...' : 'Delete Provider'}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     )
@@ -66,29 +79,33 @@ export function ProviderActions({
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation()
-          onEdit(provider)
-        }}
-        className="hover:cursor-pointer h-6 w-6 p-0"
-      >
-        <Edit className="h-3 w-3 text-blue-600" />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation()
-          onDelete(provider)
-        }}
-        className="hover:cursor-pointer h-6 w-6 p-0"
-        disabled={isDeleting}
-      >
-        <Trash2 className="h-3 w-3 text-destructive" />
-      </Button>
+      {canUpdate && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit(provider)
+          }}
+          className="hover:cursor-pointer h-6 w-6 p-0"
+        >
+          <Edit className="h-3 w-3 text-blue-600" />
+        </Button>
+      )}
+      {canDelete && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(provider)
+          }}
+          className="hover:cursor-pointer h-6 w-6 p-0"
+          disabled={isDeleting}
+        >
+          <Trash2 className="h-3 w-3 text-destructive" />
+        </Button>
+      )}
     </>
   )
 }

@@ -33,14 +33,14 @@ export async function generateOrganizationToken(organizationId: string) {
   return data;
 }
 
-export async function getAllOrganizations() {
-  const response = await httpClient.get(`${backendUrl}/organizations`);
+export async function getAllOrganizations(page = 1, pageSize = 10) {
+  const response = await httpClient.get(`${backendUrl}/organizations?page=${page}&page_size=${pageSize}`);
   if (!response.ok) {
     throw new Error('Error fetching organizations');
   }
   const data = await response.json();
-  console.log('Organizations fetched:', data.data);
-  return data.data;
+  console.log('Organizations fetched:', data);
+  return data;
 }
 
 export async function addOrganization({ name, description }: { name: string; description?: string }) {

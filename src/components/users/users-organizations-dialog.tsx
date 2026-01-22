@@ -28,7 +28,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   const { data: organizationsResponse, isLoading, error } = useUserOrganizations(user?.id)
   const { data: allOrganizations } = useQuery({
     queryKey: ['organizations'],
-    queryFn: getAllOrganizations,
+    queryFn: () => getAllOrganizations(),
     enabled: open,
   })
 
@@ -61,9 +61,9 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   if (!user) return null
 
   const organizations = organizationsResponse?.data || []
-  const availableOrganizations = allOrganizations?.filter(
+  const availableOrganizations = (allOrganizations?.data || []).filter(
     (org: any) => !organizations.find(userOrg => userOrg.id === org.id)
-  ) || []
+  )
 
   return (
     <>

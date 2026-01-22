@@ -33,8 +33,25 @@ export function useDocumentAccess(documentAccessLevels?: string[]) {
     
     // Función para validar múltiples access levels (debe tener todos)
     hasAllAccess: (accessLevels: string[]) => 
-      accessLevels.every(level => documentAccessLevels?.includes(level)) ?? false
+      accessLevels.every(level => documentAccessLevels?.includes(level)) ?? false,
+    
+    // Función para verificar si el usuario puede leer el documento
+    // Retorna true si tiene al menos uno de: read, edit, create, approve
+    canReadDocument: () => 
+      documentAccessLevels?.some(level => 
+        ['read', 'edit', 'create', 'approve'].includes(level)
+      ) ?? false
   }
   
   return result
+}
+
+/**
+ * Función helper para verificar si un array de access levels permite lectura
+ * Útil para usar fuera del contexto de un hook de React
+ */
+export function canReadDocument(accessLevels?: string[]): boolean {
+  return accessLevels?.some(level => 
+    ['read', 'edit', 'create', 'approve'].includes(level)
+  ) ?? false
 }

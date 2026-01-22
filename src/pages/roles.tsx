@@ -42,10 +42,14 @@ export default function Roles() {
   const [pageSize, setPageSize] = useState(10)
 
   // Permissions check
-  const { canAccessRoles } = useUserPermissions()
+  const { canAccessRoles, hasPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
+  
+  // Permisos específicos
+  const canReadRbac = isRootAdmin || hasPermission('rbac:r')
+  const canManageRbac = isRootAdmin || hasPermission('rbac:manage')
 
-  // Data fetching
-  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(true, page, pageSize)
+  // Data fetching - solo si tiene permisos de lectura
+  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize)
   const { deleteRole } = useRoleMutations()
   // Users data - we'll use refetch to load on demand, so disable automatic fetching
   const { data: usersResponse } = useUsers(false)
@@ -116,6 +120,7 @@ export default function Roles() {
   }
 
   // Early returns for different states
+  if (isLoadingPermissions) return <RolesLoadingState />
   if (!canAccessRoles) return <RolesAccessDenied />
   if (isLoading) return <RolesLoadingState />
 
@@ -135,6 +140,7 @@ export default function Roles() {
           onRefresh={handleRefresh}
           onCreateRole={openDialog.create}
           hasError={!!error}
+          canManage={canManageRbac}
         />
 
         {/* Show error state or content */}
@@ -152,6 +158,7 @@ export default function Roles() {
             onEditRole={openDialog.edit}
             onDeleteRole={openDialog.delete}
             showFooterStats={false}
+            canManage={canManageRbac}
             pagination={{
               page: rolesResponse?.page || page,
               pageSize: rolesResponse?.page_size || pageSize,

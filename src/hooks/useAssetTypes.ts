@@ -24,10 +24,11 @@ export function useAssetTypes() {
 }
 
 // Hook for fetching asset types with roles
-export function useAssetTypesWithRoles(page: number = 1, pageSize: number = 10) {
+export function useAssetTypesWithRoles(page: number = 1, pageSize: number = 10, enabled: boolean = true) {
   return useQuery({
     queryKey: [...assetTypeQueryKeys.listWithRoles(), page, pageSize],
     queryFn: () => getAssetTypesWithRoles(page, pageSize),
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnMount: true, // Refetch on mount to ensure fresh data

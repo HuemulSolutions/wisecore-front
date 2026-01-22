@@ -62,8 +62,8 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
         roleIds: selectedRoles 
       }, {
         onSuccess: () => {
-          // Invalidate users query to refresh the users list
-          queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+          // Invalidate all users queries to refresh the users list (including paginated queries)
+          queryClient.invalidateQueries({ queryKey: userQueryKeys.all })
           // Call additional success callback if provided
           onSuccess?.()
           // Close the sheet immediately
@@ -100,7 +100,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-[90vw] lg:max-w-[600px] p-0"
+        className="w-full sm:max-w-[90vw] lg:max-w-150 p-0"
         onPointerDownOutside={isLoading ? (e) => e.preventDefault() : undefined}
         onEscapeKeyDown={isLoading ? (e) => e.preventDefault() : undefined}
       >
@@ -166,7 +166,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                 ))}
               </div>
             ) : hasErrors ? (
-              <div className="flex flex-col items-center justify-center min-h-[300px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+              <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed bg-muted/50 p-8">
                 <p className="text-red-600 mb-4 font-medium">
                   {rolesError?.message || 'Failed to load roles'}
                 </p>
@@ -208,7 +208,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                               htmlFor={role.id}
                               className="text-sm font-medium leading-none cursor-pointer flex items-center gap-2 mb-1"
                             >
-                              <Shield className="w-3 h-3 text-primary flex-shrink-0" />
+                              <Shield className="w-3 h-3 text-primary shrink-0" />
                               <span className="truncate">{role.name}</span>
                             </label>
                             {role.description && (
@@ -217,7 +217,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                               </p>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             {role.permission_num !== undefined && (
                               <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
                                 {role.permission_num}

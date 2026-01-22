@@ -52,6 +52,7 @@ export function CreateOrganizationDialog({
       isSubmitting={isPending}
       submitLabel="Create Organization"
       maxHeight="90vh"
+      showDefaultFooter={true}
     >
       <form id="create-organization-form" onSubmit={handleSubmit} className="grid gap-6">
         <NameDescriptionFields

@@ -65,6 +65,8 @@ interface UserTableProps {
   }
   pagination?: PaginationConfig
   showFooterStats?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
 }
 
 export default function UserTable({
@@ -81,6 +83,8 @@ export default function UserTable({
   userMutations,
   pagination,
   showFooterStats,
+  canUpdate = false,
+  canDelete = false
 }: UserTableProps) {
   // Define columns
   const columns: TableColumn<User>[] = [
@@ -180,7 +184,7 @@ export default function UserTable({
       label: "Approve User",
       icon: Check,
       onClick: (user) => userMutations.approveUser.mutate(user.id),
-      show: (user) => user.status === 'pending',
+      show: (user) => user.status === 'pending' && canUpdate,
       className: "text-green-600"
     },
     {
@@ -188,7 +192,7 @@ export default function UserTable({
       label: "Reject User",
       icon: X,
       onClick: (user) => userMutations.rejectUser.mutate(user.id),
-      show: (user) => user.status === 'pending',
+      show: (user) => user.status === 'pending' && canUpdate,
       separator: true,
       destructive: true
     },
@@ -196,7 +200,8 @@ export default function UserTable({
       key: "assign-roles",
       label: "Assign Roles",
       icon: UserPlus,
-      onClick: onAssignRoles
+      onClick: onAssignRoles,
+      show: () => canUpdate
     },
     {
       key: "manage-root-admin",
@@ -216,6 +221,7 @@ export default function UserTable({
       label: "Edit User",
       icon: Edit,
       onClick: onEditUser,
+      show: () => canUpdate,
       separator: true
     },
     {
@@ -223,6 +229,7 @@ export default function UserTable({
       label: "Delete User",
       icon: Trash2,
       onClick: onDeleteUser,
+      show: () => canDelete,
       destructive: true
     }
   ]

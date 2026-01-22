@@ -2,6 +2,7 @@ import { Edit2, Trash2 } from "lucide-react"
 import type { AuthType } from "@/services/auth-types"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 
 interface AuthTypesTableProps {
   authTypes: AuthType[]
@@ -27,6 +28,8 @@ export function AuthTypesTable({
   onEdit, 
   onDelete 
 }: AuthTypesTableProps) {
+  const { isRootAdmin } = useUserPermissions()
+
   // Define columns
   const columns: TableColumn<AuthType>[] = [
     {
@@ -63,8 +66,8 @@ export function AuthTypesTable({
     }
   ]
 
-  // Define actions
-  const actions: TableAction<AuthType>[] = [
+  // Define actions (solo para admins)
+  const actions: TableAction<AuthType>[] = isRootAdmin ? [
     {
       key: "edit",
       label: "Edit Auth Type",
@@ -79,7 +82,7 @@ export function AuthTypesTable({
       onClick: onDelete,
       destructive: true
     }
-  ]
+  ] : []
 
   // Define footer stats
   const footerStats: FooterStat[] = [

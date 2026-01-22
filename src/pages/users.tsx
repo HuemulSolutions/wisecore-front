@@ -36,13 +36,19 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(10)
 
   // Get permissions and organization context
-  const { canAccessUsers, isRootAdmin } = useUserPermissions()
+  const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
   
-  // Fetch users and mutations
+  // Permisos específicos
+  const canListUsers = isRootAdmin || hasAnyPermission(['user:l', 'user:r'])
+  const canCreateUser = isRootAdmin || hasPermission('user:c')
+  const canUpdateUser = isRootAdmin || hasPermission('user:u')
+  const canDeleteUser = isRootAdmin || hasPermission('user:d')
+  
+  // Fetch users and mutations - solo si tiene permisos de listar
   const { data: usersResponse, isLoading, error, refetch } = useUsers(
-    !!selectedOrganizationId && !!organizationToken,
+    !!selectedOrganizationId && !!organizationToken && canListUsers,
     selectedOrganizationId || undefined,
     page,
     pageSize
@@ -53,6 +59,11 @@ export default function UsersPage() {
     refetch: () => Promise<any>
   }
   const userMutations = useUserMutations()
+
+  // Loading state for permissions
+  if (isLoadingPermissions) {
+    return <UserPageSkeleton />
+  }
 
   // Access check
   if (!canAccessUsers) {
@@ -162,6 +173,7 @@ export default function UsersPage() {
           onSearchChange={(value) => updateState({ searchTerm: value })}
           filterStatus={state.filterStatus}
           onStatusFilterChange={(value) => updateState({ filterStatus: value })}
+          canCreate={canCreateUser}
         />
 
         {/* Content Area - Table or Error */}
@@ -189,6 +201,8 @@ export default function UsersPage() {
             isCurrentUserRootAdmin={isRootAdmin}
             userMutations={userMutations}
             showFooterStats={false}
+            canUpdate={canUpdateUser}
+            canDelete={canDeleteUser}
             pagination={{
               page: usersResponse?.page || page,
               pageSize: usersResponse?.page_size || pageSize,

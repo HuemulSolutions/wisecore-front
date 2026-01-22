@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
+import { DocumentActionButton, DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import type { CustomFieldDocument } from "@/types/custom-fields-documents";
 
 interface CustomFieldsListProps {
@@ -20,6 +21,7 @@ interface CustomFieldsListProps {
   onRefresh: () => void;
   uploadingImageFieldId?: string | null;
   isRefreshing?: boolean;
+  accessLevels?: string[];
 }
 
 export function CustomFieldsList({ 
@@ -30,7 +32,8 @@ export function CustomFieldsList({
   onDelete, 
   onRefresh, 
   uploadingImageFieldId, 
-  isRefreshing 
+  isRefreshing,
+  accessLevels 
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
@@ -59,10 +62,16 @@ export function CustomFieldsList({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">No custom fields available</p>
-          <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Field
-          </Button>
+          <DocumentAccessControl
+            accessLevels={accessLevels}
+            requiredAccess={["edit", "create"]}
+            requireAll={false}
+          >
+            <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Field
+            </Button>
+          </DocumentAccessControl>
         </div>
       </div>
     );
@@ -179,27 +188,35 @@ export function CustomFieldsList({
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Fields</h4>
         <div className="flex gap-1">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onRefresh} 
-            disabled={isRefreshing}
-            className={`hover:cursor-pointer h-7 w-7 p-0 ${
-              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            title="Refresh custom fields"
+          <DocumentAccessControl
+            accessLevels={accessLevels}
+            requiredAccess="read"
           >
-            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onAdd} 
-            className="hover:cursor-pointer h-7 w-7 p-0"
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={onRefresh} 
+              disabled={isRefreshing}
+              className={`hover:cursor-pointer h-7 w-7 p-0 ${
+                isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title="Refresh custom fields"
+            >
+              <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </DocumentAccessControl>
+          <DocumentActionButton
+            accessLevels={accessLevels}
+            requiredAccess={["edit", "create"]}
+            requireAll={false}
+            size="sm"
+            variant="outline"
+            onClick={onAdd}
+            className="h-7 w-7 p-0"
             title="Add custom field"
           >
             <Plus className="h-3 w-3" />
-          </Button>
+          </DocumentActionButton>
         </div>
       </div>
       
@@ -246,23 +263,33 @@ export function CustomFieldsList({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => {
-                    setTimeout(() => {
-                      onEdit(field)
-                    }, 0)
-                  }} className="hover:cursor-pointer">
-                    <Edit2 className="mr-2 h-3 w-3" />
-                    Edit
-                  </DropdownMenuItem>
+                  <DocumentAccessControl
+                    accessLevels={accessLevels}
+                    requiredAccess="edit"
+                  >
+                    <DropdownMenuItem onSelect={() => {
+                      setTimeout(() => {
+                        onEdit(field)
+                      }, 0)
+                    }} className="hover:cursor-pointer">
+                      <Edit2 className="mr-2 h-3 w-3" />
+                      Edit
+                    </DropdownMenuItem>
+                  </DocumentAccessControl>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => {
-                    setTimeout(() => {
-                      onDelete(field)
-                    }, 0)
-                  }} className="hover:cursor-pointer text-destructive focus:text-destructive">
-                    <Trash2 className="mr-2 h-3 w-3" />
-                    Delete
-                  </DropdownMenuItem>
+                  <DocumentAccessControl
+                    accessLevels={accessLevels}
+                    requiredAccess="delete"
+                  >
+                    <DropdownMenuItem onSelect={() => {
+                      setTimeout(() => {
+                        onDelete(field)
+                      }, 0)
+                    }} className="hover:cursor-pointer text-destructive focus:text-destructive">
+                      <Trash2 className="mr-2 h-3 w-3" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DocumentAccessControl>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
