@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getAllDocuments } from "@/services/documents";
+import { getAllDocuments } from "@/services/assets";
 import NetworkGraph from "@/components/network-graph";
 import { useOrganization } from "@/contexts/organization-context";
 

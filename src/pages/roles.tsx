@@ -7,17 +7,15 @@ import { useRoles, useRoleMutations } from "@/hooks/useRbac"
 import { useUsers } from "@/hooks/useUsers"
 import { useRoleFiltering } from "@/hooks/useRoleManagement"
 import { type Role } from "@/services/rbac"
-import CreateRoleSheet from "@/components/create-role-sheet"
-import EditRoleSheet from "@/components/edit-role-sheet"
-import AssignRolesSheet from "@/components/assign-roles-sheet"
-import AssignRoleToUsersDialog from "@/components/roles/assign-role-to-users-dialog"
-import UserSelectDialog from "@/components/roles/user-select-dialog"
+import CreateRoleSheet from "@/components/roles/roles-create-sheet"
+import EditRoleSheet from "@/components/roles/roles-edit-sheet"
+import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
+import AssignRoleToUsersDialog from "@/components/roles/roles-assign-to-users-sheet"
 import RolesEmptyState from "@/components/roles/roles-empty-state"
 import { 
   RolesLoadingState, 
   RolesContentEmptyState, 
   RolesAccessDenied, 
-  RolesHeader, 
   RolesSearch, 
   RolesTable,
   DeleteRoleDialog
@@ -34,22 +32,23 @@ export default function Roles() {
   const [searchTerm, setSearchTerm] = useState("")
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showUserSelectDialog, setShowUserSelectDialog] = useState(false)
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
   const [assigningRoleToUsers, setAssigningRoleToUsers] = useState<Role | null>(null)
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [isLoadingUsers] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Permissions check
   const { canAccessRoles } = useUserPermissions()
 
   // Data fetching
-  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles()
+  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(true, page, pageSize)
   const { deleteRole } = useRoleMutations()
   // Users data - we'll use refetch to load on demand, so disable automatic fetching
-  const { data: usersResponse, refetch: refetchUsers } = useUsers(false)
+  const { data: usersResponse } = useUsers(false)
 
   // Derived data
   const roles = rolesResponse?.data || []
@@ -57,9 +56,6 @@ export default function Roles() {
   const filteredRoles = useRoleFiltering(roles, searchTerm)
 
   // Event handlers
-  const handleUserSelect = (userId: string) => {
-    setAssigningUserId(userId)
-  }
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -72,15 +68,6 @@ export default function Roles() {
 
   const openDialog = {
     create: () => setShowCreateDialog(true),
-    userSelect: async () => {
-      setIsLoadingUsers(true)
-      try {
-        await refetchUsers()
-        setShowUserSelectDialog(true)
-      } finally {
-        setIsLoadingUsers(false)
-      }
-    },
     assignToUsers: (role: Role) => {
       setTimeout(() => {
         setAssigningRoleToUsers(role)
@@ -100,7 +87,6 @@ export default function Roles() {
 
   const closeDialog = {
     create: () => setShowCreateDialog(false),
-    userSelect: () => setShowUserSelectDialog(false),
     assignToUsers: () => setAssigningRoleToUsers(null),
     edit: () => setEditingRole(null),
     delete: () => setDeletingRole(null),
@@ -141,17 +127,13 @@ export default function Roles() {
   return (
     <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
       <div className="mx-auto">
-        <RolesHeader
-          isRefreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          onCreateRole={openDialog.create}
-          hasError={!!error}
-        />
-
         <RolesSearch
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           rolesCount={filteredRoles.length}
+          isRefreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          onCreateRole={openDialog.create}
           hasError={!!error}
         />
 
@@ -169,6 +151,19 @@ export default function Roles() {
             onAssignToUsers={openDialog.assignToUsers}
             onEditRole={openDialog.edit}
             onDeleteRole={openDialog.delete}
+            showFooterStats={false}
+            pagination={{
+              page: rolesResponse?.page || page,
+              pageSize: rolesResponse?.page_size || pageSize,
+              hasNext: rolesResponse?.has_next,
+              hasPrevious: (rolesResponse?.page || page) > 1,
+              onPageChange: (newPage) => setPage(newPage),
+              onPageSizeChange: (newPageSize) => {
+                setPageSize(newPageSize)
+                setPage(1)
+              },
+              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            }}
           />
         )}
 
@@ -182,15 +177,6 @@ export default function Roles() {
           role={editingRole}
           open={!!editingRole}
           onOpenChange={(open) => !open && closeDialog.edit()}
-        />
-
-        <UserSelectDialog
-          open={showUserSelectDialog}
-          onOpenChange={(open) => {
-            setShowUserSelectDialog(open)
-            if (!open) closeDialog.userSelect()
-          }}
-          onUserSelect={handleUserSelect}
         />
 
         <AssignRolesSheet

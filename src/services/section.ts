@@ -1,10 +1,23 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function createSection(sectionData: { name: string; prompt: string; dependencies: string[]; document_id: string; type?: string }, organizationId: string) {
+export async function createSection(
+    sectionData: { 
+        name: string; 
+        document_id: string;
+        prompt?: string; 
+        manual_input?: string;
+        reference_section_id?: string;
+        reference_mode?: string;
+        reference_execution_id?: string;
+        dependencies?: string[]; 
+        type?: "ai" | "manual" | "reference";
+    }, 
+    organizationId: string
+) {
     const response = await httpClient.post(`${backendUrl}/sections/`, {
         ...sectionData,
-        type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
+        type: sectionData.type || "ai" // Asegurar que siempre se envíe el tipo
     }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -22,7 +35,21 @@ export async function createSection(sectionData: { name: string; prompt: string;
     return data.data;
 }
 
-export async function updateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }, organizationId: string) {
+export async function updateSection(
+    sectionId: string, 
+    sectionData: { 
+        name?: string; 
+        type?: "ai" | "manual" | "reference";
+        prompt?: string; 
+        manual_input?: string;
+        reference_section_id?: string;
+        reference_mode?: string;
+        reference_execution_id?: string;
+        dependencies?: string[]; 
+        propagate_to_template?: boolean;
+    }, 
+    organizationId: string
+) {
     const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData, {
         headers: {
             'X-Org-Id': organizationId,
@@ -73,4 +100,32 @@ export async function deleteSection(sectionId: string, organizationId: string) {
 
     console.log('Section deleted:', sectionId);
     return sectionId;
+}
+
+export async function getSectionContent(
+    sectionId: string, 
+    organizationId: string,
+    executionId?: string
+) {
+    const params = new URLSearchParams();
+    if (executionId) {
+        params.append('execution_id', executionId);
+    }
+    
+    const url = `${backendUrl}/sections/${sectionId}/content${params.toString() ? `?${params.toString()}` : ''}`;
+    
+    const response = await httpClient.get(url, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error getting section content:', errorResponse);
+        throw new Error(errorResponse.detail?.error || 'Error loading section content');
+    }
+
+    const data = await response.json();
+    return data.data;
 }

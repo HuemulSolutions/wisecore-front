@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { getDocumentById, deleteDocument } from "@/services/documents";
+import { getDocumentById, deleteDocument } from "@/services/assets";
 import { uploadDocxTemplate } from "@/services/docx_template";
 import { createExecution, exportExecutionToWord, exportExecutionToMarkdown, exportExecutionCustomWord } from "@/services/executions";
 import { formatDate } from "@/services/utils";

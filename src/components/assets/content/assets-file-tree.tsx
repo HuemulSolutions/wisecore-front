@@ -2,6 +2,7 @@
 
 import type React from "react"
 import type { MenuAction } from "@/types/menu-action"
+import type { FileNode } from "@/types/assets"
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react"
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, RefreshCw, MoreVertical, Trash2, Share } from "lucide-react"
@@ -15,41 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-
-export interface DocumentType {
-  id: string
-  name: string
-  color: string
-}
-
-export interface FileNode {
-  id: string
-  name: string
-  type: "document" | "folder"
-  document_type?: DocumentType
-  access_levels?: string[]
-  children?: FileNode[]
-  isExpanded?: boolean
-  isLoading?: boolean
-  hasChildren?: boolean
-  disabled?: boolean
-}
-
-export interface FolderContentResponse {
-  data: {
-    folder_name: string
-    parent_id: string | null
-    content: Array<{
-      id: string
-      name: string
-      type: "document" | "folder"
-      document_type?: DocumentType
-      access_levels?: string[]
-    }>
-  }
-  transaction_id: string
-  timestamp: string
-}
 
 interface FileTreeProps {
   onLoadChildren?: (folderId: string | null) => Promise<FileNode[]>
@@ -417,13 +383,14 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       }
     }
 
-    const handleMenuAction = async (action: MenuAction, nodeId: string) => {
-      setIsLoading(true)
-      try {
-        await action.onClick(nodeId)
-      } finally {
-        setIsLoading(false)
-      }
+    const handleMenuAction = (action: MenuAction, nodeId: string) => {
+      // Use setTimeout to allow dropdown to close before executing action
+      setTimeout(() => {
+        setIsLoading(true)
+        Promise.resolve(action.onClick(nodeId)).finally(() => {
+          setIsLoading(false)
+        })
+      }, 0)
     }
 
     const handleDragStart = (e: React.DragEvent, nodeId: string, node: FileNode) => {
@@ -523,7 +490,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           )}
           <div
             className={cn(
-              "group flex items-center gap-1 py-1 px-2 rounded-md transition-colors relative",
+              "group flex items-center gap-1 py-0.5 px-2 rounded-md transition-colors relative",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
@@ -541,34 +508,34 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-4 w-4 p-0 hover:bg-transparent"
+                className="h-3 w-3 p-0 hover:bg-transparent"
                 onClick={() => handleToggle(node)}
                 disabled={node.disabled}
               >
                 {node.isLoading ? (
-                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                  <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
                 ) : isExpanded ? (
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-2.5 w-2.5" />
                 ) : (
-                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-2.5 w-2.5" />
                 )}
               </Button>
             )}
 
             <div
-              className="flex items-center gap-2 flex-1 min-w-0"
+              className="flex items-center gap-1.5 flex-1 min-w-0"
               onClick={() => (isFolder ? handleToggle(node) : handleFileClick(node))}
             >
               {isFolder ? (
                 isExpanded ? (
-                  <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <FolderOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 ) : (
-                  <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                 )
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <File
-                    className="h-4 w-4 flex-shrink-0"
+                    className="h-3.5 w-3.5 shrink-0"
                     style={{ color: node.document_type?.color || "currentColor" }}
                   />
                 </div>
@@ -602,11 +569,21 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                 <DropdownMenuContent align="end">
                   {isFolder && showDefaultActions.create && (
                     <>
-                      <DropdownMenuItem onSelect={() => handleCreate(node.id, "document")} className="hover:cursor-pointer">
+                      <DropdownMenuItem 
+                        onSelect={() => {
+                          setTimeout(() => handleCreate(node.id, "document"), 0)
+                        }} 
+                        className="hover:cursor-pointer"
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         New File
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleCreate(node.id, "folder")} className="hover:cursor-pointer">
+                      <DropdownMenuItem 
+                        onSelect={() => {
+                          setTimeout(() => handleCreate(node.id, "folder"), 0)
+                        }} 
+                        className="hover:cursor-pointer"
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         New Folder
                       </DropdownMenuItem>
@@ -632,7 +609,12 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                   )}
 
                   {showDefaultActions.share && (
-                    <DropdownMenuItem onSelect={() => handleShare(node.id)} className="hover:cursor-pointer">
+                    <DropdownMenuItem 
+                      onSelect={() => {
+                        setTimeout(() => handleShare(node.id), 0)
+                      }} 
+                      className="hover:cursor-pointer"
+                    >
                       <Share className="mr-2 h-4 w-4" />
                       Share Link
                     </DropdownMenuItem>
@@ -640,7 +622,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
                   {showDefaultActions.delete && (
                     <DropdownMenuItem
-                      onSelect={() => handleDelete(node.id, node.type)}
+                      onSelect={() => {
+                        setTimeout(() => handleDelete(node.id, node.type), 0)
+                      }}
                       className="text-destructive focus:text-destructive hover:cursor-pointer"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -654,7 +638,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
           {isCreating && (
             <div
-              className="flex items-center gap-2 py-1 px-2 ml-4 relative"
+              className="flex items-center gap-1.5 py-0.5 px-2 ml-4 relative"
               style={{ paddingLeft: `${(level + 1) * 12 + 6}px` }}
             >
               <div 
@@ -666,9 +650,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                 style={{ left: `${(level + 1) * 12 - 14}px` }}
               />
               {creatingNode.type === "folder" ? (
-                <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <Folder className="h-4 w-4 text-blue-500 shrink-0" />
               ) : (
-                <File className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-4" />
+                <File className="h-4 w-4 text-muted-foreground shrink-0 ml-4" />
               )}
               <Input
                 value={newNodeName}
@@ -716,10 +700,10 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           onDrop={(e) => handleDrop(e, null)}
         >
           {isLoading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-50 rounded-lg">
               <div className="flex flex-col items-center gap-2">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Procesando...</p>
+                <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
             </div>
           )}
@@ -740,9 +724,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
           {creatingNode?.parentId === null && (
             <div className="flex items-center gap-2 py-1 px-2 mb-2 relative">
               {creatingNode.type === "folder" ? (
-                <Folder className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <Folder className="h-4 w-4 text-blue-500 shrink-0" />
               ) : (
-                <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <File className="h-4 w-4 text-muted-foreground shrink-0" />
               )}
               <Input
                 value={newNodeName}

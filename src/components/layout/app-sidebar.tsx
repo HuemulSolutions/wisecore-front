@@ -14,10 +14,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { NavMain } from "@/components/nav-main"
-import { NavKnowledgeProvider, NavKnowledgeHeader, NavKnowledgeContent } from "@/components/nav-knowledge"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavMain } from "@/components/layout/nav-main"
+import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge"
+import { NavUser } from "@/components/layout/nav-user"
+import { OrganizationSwitcher } from "@/components/organization/organization-switcher"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 
@@ -152,9 +152,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <NavKnowledgeProvider>
+      {/* <NavKnowledgeProvider> */}
         <SidebarHeader>
-          <TeamSwitcher />
+          <OrganizationSwitcher />
           {!menuReady ? (
             <div className="space-y-1 px-2 pt-2">
               <div className="space-y-0.5">
@@ -196,7 +196,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <NavUser />
         </SidebarFooter>
         <SidebarRail />
-      </NavKnowledgeProvider>
+      {/* </NavKnowledgeProvider> */}
     </Sidebar>
   )
 }

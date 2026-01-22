@@ -54,6 +54,28 @@ export async function getExecutionStatus(executionId: string, organizationId: st
     }
 }
 
+export async function getExecutionSectionsStatus(executionId: string, organizationId: string) {
+    console.log(`Fetching sections status for execution ID: ${executionId}`);
+    try {
+        const response = await httpClient.get(`${backendUrl}/execution/${executionId}/sections_status`, {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Sections status fetched:', data.data);
+        return data.data;
+    } catch (error) {
+        console.error('Error fetching sections status:', error);
+        throw new Error('Error al obtener el estado de las secciones');
+    }
+}
+
 export async function createExecution(documentId: string, organizationId: string) {
     console.log(`Creating execution for document ID: ${documentId}`);
     const response = await httpClient.post(`${backendUrl}/execution/${documentId}`, {}, {
@@ -174,10 +196,14 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
         word: 'docx',
         custom_word: 'docx'
     };
-    
+        
     console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
-    const response = await httpClient.get(`${backendUrl}/${endpoints[exportType]}`, {
+    
+    // Usar fetch nativo para tener acceso completo a los headers
+    const orgToken = httpClient.getOrganizationToken();
+    const response = await fetch(`${backendUrl}/${endpoints[exportType]}`, {
         headers: {
+            'Authorization': `Bearer ${orgToken}`,
             'X-Org-Id': organizationId,
         },
     });
@@ -188,8 +214,18 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
 
     // Obtener el contenido del archivo y el nombre del archivo desde los headers
     const blob = await response.blob();
-    const contentDisposition = response.headers.get('Content-Disposition');
-    const filename = contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] || `execution_${executionId}.${extensions[exportType]}`;
+    
+    const contentDisposition = response.headers.get('content-disposition');
+    
+    // Extraer el nombre del archivo del header content-disposition
+    let filename = `execution_${executionId}.${extensions[exportType]}`;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/) || 
+                             contentDisposition.match(/filename=([^;]+)/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].trim();
+        }
+    }
     
     // Crear el enlace de descarga
     const url = window.URL.createObjectURL(blob);
@@ -206,7 +242,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     window.URL.revokeObjectURL(url);
     
     console.log(`Execution exported successfully as: ${filename}`);
-    return { filename, success: true };
+    return { success: true };
 }
 
 export async function exportExecutionToMarkdown(executionId: string, organizationId: string) {

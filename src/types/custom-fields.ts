@@ -26,6 +26,15 @@ export interface PaginationParams {
   page_size?: number;
 }
 
+export interface CustomFieldsResponse {
+  data: CustomField[];
+  transaction_id: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  timestamp: string;
+}
+
 export interface ApiResponse<T> {
   data: T;
   transaction_id: string;

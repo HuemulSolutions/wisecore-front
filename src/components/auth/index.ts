@@ -1,3 +1,3 @@
-export { LoginForm } from './login-form';
-export { SignupForm } from './signup-form';
-export { ProtectedRoute } from './protected-route';
+export { LoginForm } from './auth-login-form';
+export { SignupForm } from './auth-signup-form';
+export { ProtectedRoute } from './auth-protected-route';

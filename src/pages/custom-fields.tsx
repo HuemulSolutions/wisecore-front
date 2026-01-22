@@ -11,7 +11,6 @@ import { toast } from "sonner"
 import {
   CustomFieldTable,
   CustomFieldPageHeader,
-  CustomFieldFilters,
   CustomFieldPageSkeleton,
   CustomFieldPageEmptyState,
   CustomFieldPageDialogs,
@@ -28,13 +27,15 @@ export default function CustomFieldsPage() {
     deletingCustomField: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Get auth context
   const { user: currentUser } = useAuth()
   const queryClient = useQueryClient()
   
   // Fetch custom fields and mutations
-  const { data: customFieldsResponse, isLoading, error } = useCustomFields()
+  const { data: customFieldsResponse, isLoading, error } = useCustomFields({ page, page_size: pageSize })
   const customFieldMutations = useCustomFieldMutations()
 
   // Access check - assuming similar permissions as asset types
@@ -121,10 +122,6 @@ export default function CustomFieldsPage() {
           onCreateCustomField={() => updateState({ showCreateDialog: true })}
           onRefresh={handleRefresh}
           isLoading={isLoading || isRefreshing}
-        />
-
-        {/* Filters */}
-        <CustomFieldFilters
           searchTerm={state.searchTerm}
           onSearchChange={(value: string) => updateState({ searchTerm: value })}
         />
@@ -155,6 +152,19 @@ export default function CustomFieldsPage() {
             onEditCustomField={handleEditCustomField}
             onDeleteCustomField={handleDeleteCustomField}
             customFieldMutations={customFieldMutations}
+            showFooterStats={false}
+            pagination={{
+              page: customFieldsResponse?.page || page,
+              pageSize: customFieldsResponse?.page_size || pageSize,
+              hasNext: customFieldsResponse?.has_next,
+              hasPrevious: (customFieldsResponse?.page || page) > 1,
+              onPageChange: (newPage) => setPage(newPage),
+              onPageSizeChange: (newPageSize) => {
+                setPageSize(newPageSize)
+                setPage(1)
+              },
+              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            }}
           />
         )}
 

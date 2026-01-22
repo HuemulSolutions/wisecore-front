@@ -4,10 +4,23 @@ import { httpClient } from "@/lib/http-client";
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
 // No necesitamos un endpoint separado para obtener las secciones
 
-export async function createTemplateSection(sectionData: { name: string; prompt: string; dependencies: string[]; template_id: string; type?: string }, organizationId: string) {
+export async function createTemplateSection(
+    sectionData: { 
+        name: string; 
+        template_id: string;
+        prompt?: string; 
+        manual_input?: string;
+        reference_section_id?: string;
+        reference_mode?: string;
+        reference_execution_id?: string;
+        dependencies?: string[]; 
+        type?: "ai" | "manual" | "reference";
+    }, 
+    organizationId: string
+) {
     const response = await httpClient.post(`${backendUrl}/template_section/`, {
         ...sectionData,
-        type: sectionData.type || "text" // Asegurar que siempre se envíe el tipo
+        type: sectionData.type || "ai" // Asegurar que siempre se envíe el tipo
     }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -25,7 +38,22 @@ export async function createTemplateSection(sectionData: { name: string; prompt:
     return data.data;
 }
 
-export async function updateTemplateSection(sectionId: string, sectionData: { name?: string; prompt?: string; dependencies?: string[] }, organizationId: string) {
+export async function updateTemplateSection(
+    sectionId: string, 
+    sectionData: { 
+        name?: string; 
+        type?: "ai" | "manual" | "reference";
+        prompt?: string; 
+        manual_input?: string;
+        reference_section_id?: string;
+        reference_mode?: string;
+        reference_execution_id?: string;
+        dependencies?: string[]; 
+        propagate_to_sections?: boolean; 
+        document_ids?: string[];
+    }, 
+    organizationId: string
+) {
     const response = await httpClient.put(`${backendUrl}/template_section/${sectionId}`, sectionData, {
         headers: {
             'X-Org-Id': organizationId,

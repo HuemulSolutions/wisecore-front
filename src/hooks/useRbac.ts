@@ -14,10 +14,10 @@ export const rbacQueryKeys = {
 }
 
 // Hook for fetching roles
-export function useRoles(enabled: boolean = true) {
+export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 10) {
   return useQuery({
-    queryKey: rbacQueryKeys.roles(),
-    queryFn: getRoles,
+    queryKey: [...rbacQueryKeys.roles(), page, pageSize],
+    queryFn: () => getRoles(page, pageSize),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: true, // Ensure fresh data on mount
     refetchOnWindowFocus: false, // Prevent unnecessary refetches

@@ -30,7 +30,11 @@ export interface Role {
 
 export interface RolesResponse {
   data: Role[];
+  total?: number;
   transaction_id: string;
+  page: number
+  page_size: number
+  has_next: boolean
   timestamp: string;
 }
 
@@ -127,8 +131,13 @@ const getHeaders = (): Record<string, string> => {
 };
 
 // Get all roles
-export const getRoles = async (): Promise<RolesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/rbac/roles/with_perm_count`, {
+export const getRoles = async (page: number = 1, pageSize: number = 10): Promise<RolesResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+
+  const response = await httpClient.get(`${backendUrl}/rbac/roles/with_perm_count?${params.toString()}`, {
     headers: getHeaders(),
   });
   
