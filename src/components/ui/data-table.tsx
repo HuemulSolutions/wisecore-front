@@ -115,35 +115,32 @@ export function DataTable<T>({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {actions.map((action) => {
-                            // Skip action if show function returns false
-                            if (action.show && !action.show(item)) {
-                              return null
-                            }
+                          {actions
+                            .filter((action) => !action.show || action.show(item))
+                            .map((action, index, filteredActions) => {
+                              const ActionIcon = action.icon
 
-                            const ActionIcon = action.icon
-
-                            return (
-                              <div key={action.key}>
-                                <DropdownMenuItem
-                                  onSelect={() => {
-                                    setTimeout(() => {
-                                      action.onClick(item)
-                                    }, 0)
-                                  }}
-                                  className={`hover:cursor-pointer ${
-                                    action.destructive
-                                      ? "text-destructive focus:text-destructive"
-                                      : ""
-                                  } ${action.className || ""}`}
-                                >
-                                  <ActionIcon className="mr-2 h-4 w-4" />
-                                  {action.label}
-                                </DropdownMenuItem>
-                                {action.separator && <DropdownMenuSeparator />}
-                              </div>
-                            )
-                          })}
+                              return (
+                                <div key={action.key}>
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      setTimeout(() => {
+                                        action.onClick(item)
+                                      }, 0)
+                                    }}
+                                    className={`hover:cursor-pointer ${
+                                      action.destructive
+                                        ? "text-destructive focus:text-destructive"
+                                        : ""
+                                    } ${action.className || ""}`}
+                                  >
+                                    <ActionIcon className="mr-2 h-4 w-4" />
+                                    {action.label}
+                                  </DropdownMenuItem>
+                                  {action.separator && index < filteredActions.length - 1 && <DropdownMenuSeparator />}
+                                </div>
+                              )
+                            })}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
