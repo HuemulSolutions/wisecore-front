@@ -38,6 +38,7 @@ interface ExecuteSheetProps {
     id: string;
     name: string;
     type: "folder" | "document";
+    access_levels?: string[];
   } | null;
   fullDocument?: any;
   isLoadingFullDocument?: boolean;
