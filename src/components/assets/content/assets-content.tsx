@@ -2339,10 +2339,10 @@ export function AssetContent({
                   <Edit3 className="h-3 w-3" />
                 </DocumentActionButton>
                 
-                <DocumentAccessControl
+                {/* <DocumentAccessControl
                   accessLevels={accessLevels}
-                  requiredAccess="read"
-                >
+                  requiredAccess=""
+                > */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -2369,7 +2369,7 @@ export function AssetContent({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </DocumentAccessControl>
+                {/* </DocumentAccessControl> */}
                 
                 {/* Delete Options */}
                 <DocumentAccessControl
