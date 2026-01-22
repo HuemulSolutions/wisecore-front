@@ -254,8 +254,13 @@ export function AssetContent({
       return approveExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success('Execution approved successfully!');
-      // Invalidate all relevant queries
+      // Set the execution as approving to start polling
+      if (selectedExecutionId) {
+        setApprovingExecutionId(selectedExecutionId);
+      }
+      
+      // Don't show success toast yet - wait for 'approved' status
+      // Invalidate queries to fetch updated status
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
@@ -263,6 +268,7 @@ export function AssetContent({
     onError: (error: Error) => {
       console.error('Error approving execution:', error);
       toast.error('Failed to approve execution. Please try again.');
+      setApprovingExecutionId(null);
     },
   });
 
@@ -452,6 +458,7 @@ export function AssetContent({
   const [currentSectionIndex, setCurrentSectionIndex] = useState<number | undefined>(undefined);
   const [dismissedExecutionBanners, setDismissedExecutionBanners] = useState<Set<string>>(new Set());
   const [, setSectionExecutionId] = useState<string | null>(null);
+  const [approvingExecutionId, setApprovingExecutionId] = useState<string | null>(null);
   
   // ============================================================================
   // STATE - SECTION MANAGEMENT
@@ -757,6 +764,25 @@ export function AssetContent({
     refetchOnWindowFocus: false,
   });
 
+  // Poll approving execution status to detect when approval completes
+  const { data: approvingExecutionStatus } = useQuery({
+    queryKey: ['execution-status', approvingExecutionId],
+    queryFn: async () => {
+      const { getExecutionStatus } = await import('@/services/executions');
+      return getExecutionStatus(approvingExecutionId!, selectedOrganizationId!);
+    },
+    enabled: !!approvingExecutionId && !!selectedOrganizationId,
+    refetchInterval: (query) => {
+      // Stop polling if execution is no longer in 'approving' state
+      const status = query.state.data?.status;
+      if (status !== 'approving') {
+        return false;
+      }
+      return 1000; // Poll every 1 second for approval
+    },
+    refetchOnWindowFocus: false,
+  });
+
   // Effect to refresh content when 'single' or 'from' execution completes
   // BUT keep tracking states so feedback can still display
   useEffect(() => {
@@ -780,6 +806,40 @@ export function AssetContent({
       }
     }
   }, [currentExecutionStatus?.status, currentExecutionMode, selectedFile?.id, queryClient, currentExecutionId]);
+
+  // Effect to detect when approval process completes
+  useEffect(() => {
+    if (approvingExecutionStatus && approvingExecutionId) {
+      const status = approvingExecutionStatus.status;
+      
+      if (status === 'approved') {
+        console.log(`✅ Execution approved successfully: ${approvingExecutionId}`);
+        
+        // Preserve scroll position
+        preserveScrollPosition();
+        
+        // Show success message
+        toast.success('Execution approved successfully!');
+        
+        // Clear approving state
+        setApprovingExecutionId(null);
+        
+        // Refresh all data to show approved status
+        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      } else if (status !== 'approving') {
+        // If status changed to something other than 'approving' or 'approved' (e.g., error state)
+        console.log(`⚠️ Approval process ended with unexpected status: ${status}`);
+        setApprovingExecutionId(null);
+        
+        // Refresh data anyway to reflect current state
+        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      }
+    }
+  }, [approvingExecutionStatus?.status, approvingExecutionId, selectedFile?.id, queryClient]);
 
   // Fetch executions for the document to check for running executions
   // Optimización: Solo usar este endpoint si no tenemos datos de executions en documentContent
@@ -807,7 +867,7 @@ export function AssetContent({
     const executions = documentContent?.executions || documentExecutions;
     if (!executions) return false;
     return executions.some((execution: any) => 
-      ['running', 'queued', 'pending', 'processing'].includes(execution.status)
+      ['running', 'queued', 'pending', 'processing', 'approving'].includes(execution.status)
     );
   }, [documentContent?.executions, documentExecutions]);
 
@@ -1787,19 +1847,36 @@ export function AssetContent({
                       }}
                       size="sm"
                       variant="ghost"
-                      disabled={approveMutation.isPending}
+                      disabled={approveMutation.isPending || approvingExecutionId === currentExecution.id}
                       className={`h-8 w-8 p-0 transition-colors rounded-full ${
-                        approveMutation.isPending 
+                        approveMutation.isPending || approvingExecutionId === currentExecution.id
                           ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
                           : 'text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer'
                       }`}
-                      title={approveMutation.isPending ? "Approving..." : "Approve Execution"}
+                      title={approveMutation.isPending || approvingExecutionId === currentExecution.id ? "Approving..." : "Approve Execution"}
                     >
-                      {approveMutation.isPending ? (
+                      {approveMutation.isPending || approvingExecutionId === currentExecution.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Check className="h-4 w-4" />
                       )}
+                    </DocumentActionButton>
+                  );
+                }
+                
+                // Show spinner when status is 'approving'
+                if (actualStatus === 'approving') {
+                  return (
+                    <DocumentActionButton
+                      accessLevels={accessLevels}
+                      requiredAccess="approve"
+                      size="sm"
+                      variant="ghost"
+                      disabled={true}
+                      className="h-8 w-8 p-0 transition-colors rounded-full text-green-600 bg-green-50 cursor-not-allowed"
+                      title="Approving..."
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     </DocumentActionButton>
                   );
                 }
@@ -1837,8 +1914,7 @@ export function AssetContent({
                 }
                 
                 return null;
-              })()}
-            </div>
+              })()}            </div>
           </div>
         )}
         
@@ -2127,19 +2203,36 @@ export function AssetContent({
                         }}
                         size="sm"
                         variant="ghost"
-                        disabled={approveMutation.isPending}
+                        disabled={approveMutation.isPending || approvingExecutionId === currentExecution.id}
                         className={`h-8 px-2.5 transition-colors ${
-                          approveMutation.isPending 
+                          approveMutation.isPending || approvingExecutionId === currentExecution.id
                             ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
                             : 'text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer'
                         }`}
-                        title={approveMutation.isPending ? "Approving..." : "Approve Execution"}
+                        title={approveMutation.isPending || approvingExecutionId === currentExecution.id ? "Approving..." : "Approve Execution"}
                       >
-                        {approveMutation.isPending ? (
+                        {approveMutation.isPending || approvingExecutionId === currentExecution.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Check className="h-3.5 w-3.5" />
                         )}
+                      </DocumentActionButton>
+                    );
+                  }
+                  
+                  // Show spinner when status is 'approving'
+                  if (actualStatus === 'approving') {
+                    return (
+                      <DocumentActionButton
+                        accessLevels={accessLevels}
+                        requiredAccess="approve"
+                        size="sm"
+                        variant="ghost"
+                        disabled={true}
+                        className="h-8 px-2.5 transition-colors text-green-600 bg-green-50 cursor-not-allowed"
+                        title="Approving..."
+                      >
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       </DocumentActionButton>
                     );
                   }
@@ -2889,7 +2982,7 @@ export function AssetContent({
       {/* Approve Confirmation AlertDialog */}
       <ReusableAlertDialog
         open={isApproveDialogOpen}
-        onOpenChange={(open) => !approveMutation.isPending && handleApproveDialogChange(open)}
+        onOpenChange={(open) => !approveMutation.isPending && !approvingExecutionId && handleApproveDialogChange(open)}
         title="Approve Execution"
         description={
           selectedExecutionInfo ? (
@@ -2904,7 +2997,7 @@ export function AssetContent({
         }
         onConfirm={handleApproveConfirm}
         confirmLabel="Approve"
-        isProcessing={approveMutation.isPending}
+        isProcessing={approveMutation.isPending || !!approvingExecutionId}
         variant="default"
       />
 
