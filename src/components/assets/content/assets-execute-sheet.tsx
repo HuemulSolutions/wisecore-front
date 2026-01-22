@@ -425,7 +425,7 @@ export function ExecuteSheet({
                 <div className="flex flex-col gap-1">
                   <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                     <Play className="h-4 w-4" />
-                    Execute Document
+                    Execute Version
                   </SheetTitle>
                   <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
                     Configure and execute this document to generate content based on its sections.
@@ -469,7 +469,7 @@ export function ExecuteSheet({
                     ) : (
                       <>
                         <Play className="h-4 w-4 mr-2" />
-                        Execute Document
+                        Execute Version
                       </>
                     )}
                   </DocumentActionButton>
@@ -498,7 +498,7 @@ export function ExecuteSheet({
                           <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
                             <CircleX className="h-8 w-8 text-red-500" />
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Execute Document</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Execute a New Version</h3>
                           <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
                             There was an error executing the document. Please check your configuration and try again.
                           </p>

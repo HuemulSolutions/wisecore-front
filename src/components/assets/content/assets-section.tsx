@@ -82,6 +82,9 @@ export default function SectionExecution({
     const canAiEdit = sectionType !== 'reference'; // Manual y AI pueden usar AI edit, reference no
     const canDelete = sectionType !== 'reference'; // Manual y AI pueden eliminarse, reference no
     
+    // Check if there's an execution in progress
+    const isExecutionInProgress = !!(executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus));
+    
     // Solucion temporal: usar el ID de la sección como fallback si section_id no existe
     const sectionIdForExecution = sectionExecution.section_id || sectionExecution.id;
     
@@ -342,12 +345,13 @@ export default function SectionExecution({
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
                                                 onClick={onOpenExecuteSheet}
+                                                disabled={isExecutionInProgress}
                                             >
                                                 <Play className="h-3.5 w-3.5 text-blue-600" />
                                             </DocumentActionButton>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>Open Execute Sheet</p>
+                                            <p>{isExecutionInProgress ? 'Execution in progress' : 'Open Execute Sheet'}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
@@ -421,7 +425,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="delete"
+                                                requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
@@ -538,7 +542,7 @@ export default function SectionExecution({
                                     {!isEditing && !isExecutionApproved && canDelete && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
-                                            requiredAccess="delete"
+                                            requiredAccess={["create", "edit"]}
                                             checkGlobalPermissions={true}
                                             resource="assets"
                                         >
@@ -566,9 +570,10 @@ export default function SectionExecution({
                                                 onSelect={() => {
                                                     setTimeout(() => onOpenExecuteSheet(), 0);
                                                 }}
+                                                disabled={isExecutionInProgress}
                                             >
                                                 <Play className="h-4 w-4 mr-2 text-blue-600" />
-                                                Open Execute Sheet
+                                                {isExecutionInProgress ? 'Execution in progress' : 'Open Execute Sheet'}
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
