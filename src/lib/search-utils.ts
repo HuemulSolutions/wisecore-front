@@ -52,10 +52,17 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
     return simpleMarkdownToHtml(fullContent);
   }
 
-  // Normalize both contents for comparison - remove markdown and normalize whitespace
+  console.log('[highlightSearchMatches] Starting with:', {
+    fullLength: fullContent.length,
+    searchLength: searchContent.length
+  });
+
+  // Normalize both contents for comparison - remove markdown, HTML and normalize whitespace
   const normalizeForComparison = (text: string) => {
     return text
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
       .replace(/[#*\[\]()]/g, '') // Remove markdown symbols
+      .replace(/\|/g, ' ') // Replace table pipes with spaces
       .replace(/\n+/g, ' ') // Replace line breaks with spaces
       .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
       .trim();
@@ -64,76 +71,54 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
   const normalizedSearchContent = normalizeForComparison(searchContent);
   const normalizedFullContent = normalizeForComparison(fullContent);
   
+  console.log('[highlightSearchMatches] Normalized search (first 200 chars):', normalizedSearchContent.substring(0, 200));
+  
   let highlightedContent = fullContent;
+  let highlightCount = 0;
 
-  // First try to find the exact search content within the full content
-  if (normalizedFullContent.includes(normalizedSearchContent)) {
-    // Find the actual position in the original content
-    const searchWords = normalizedSearchContent.split(/\s+/);
-    
-    // Create a more flexible pattern that accounts for line breaks and formatting
-    const flexiblePattern = searchWords
-      .map(word => escapeRegExp(word))
-      .join('\\s*\\n*\\s*'); // Allow whitespace and line breaks between words
-    
-    const regex = new RegExp(`(${flexiblePattern})`, 'gi');
-    highlightedContent = highlightedContent.replace(regex, (match) => {
-      return `<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-1">${match}</mark>`;
-    });
-    
-    return simpleMarkdownToHtml(highlightedContent);
+  // Extract meaningful phrases (3+ words) from search content
+  const phrases: string[] = [];
+  const words = normalizedSearchContent.split(/\s+/);
+  
+  // Create overlapping 3-5 word phrases for better matching
+  for (let length = 5; length >= 3; length--) {
+    for (let i = 0; i <= words.length - length; i++) {
+      const phrase = words.slice(i, i + length).join(' ');
+      if (phrase.length > 15) { // Only meaningful phrases
+        phrases.push(phrase);
+      }
+    }
   }
-
-  // If exact match doesn't work, try to find larger meaningful chunks
-  const sentences = normalizedSearchContent
-    .split(/[.!?;]/)
-    .map(s => s.trim())
-    .filter(s => s.length > 20) // Only longer, meaningful sentences
-    .sort((a, b) => b.length - a.length);
-
-  sentences.forEach(sentence => {
-    if (sentence.length < 20) return;
-
-    const sentenceWords = sentence.split(/\s+/);
-    if (sentenceWords.length < 4) return; // Need at least 4 words for a meaningful phrase
-
-    // Create pattern allowing for line breaks and extra whitespace
-    const pattern = sentenceWords
-      .map(word => escapeRegExp(word))
-      .join('\\s*\\n*\\s*(?:\\w+\\s*\\n*\\s*){0,1}'); // Allow one extra word between
-    
-    const regex = new RegExp(`(${pattern})`, 'gi');
-    if (fullContent.match(regex)) {
+  
+  console.log('[highlightSearchMatches] Extracted', phrases.length, 'phrases');
+  
+  // Try to highlight each phrase
+  phrases.forEach(phrase => {
+    if (normalizedFullContent.includes(phrase)) {
+      console.log('[highlightSearchMatches] Found phrase:', phrase.substring(0, 50));
+      
+      // Find the actual text in the original content
+      const phraseWords = phrase.split(/\s+/);
+      const pattern = phraseWords
+        .map(word => escapeRegExp(word))
+        .join('\\s*\\**\\n*\\s*'); // Allow whitespace, asterisks, line breaks between words
+      
+      const regex = new RegExp(`(${pattern})`, 'gi');
+      const before = highlightedContent;
       highlightedContent = highlightedContent.replace(regex, (match) => {
         // Don't highlight if already highlighted
-        if (!match.includes('<mark')) {
-          return `<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-1">${match}</mark>`;
-        }
-        return match;
+        if (match.includes('<mark')) return match;
+        highlightCount++;
+        return `<mark class="bg-yellow-200 dark:bg-yellow-800 rounded px-1">${match}</mark>`;
       });
+      
+      if (before !== highlightedContent) {
+        console.log('[highlightSearchMatches] Applied highlight for phrase');
+      }
     }
   });
 
-  // Only highlight significant individual words if no sentence matches were found
-  const hasHighlights = highlightedContent.includes('<mark');
-  if (!hasHighlights) {
-    const significantWords = normalizedSearchContent
-      .split(/\s+/)
-      .filter(word => word.length > 6) // Only longer, more specific words
-      .filter(word => !/^(the|and|for|are|but|not|you|all|can|her|was|one|our|had|but|day|get|use|man|new|now|way|may|say)$/i.test(word)) // Exclude common words
-      .slice(0, 5); // Limit to avoid over-highlighting
-
-    significantWords.forEach(word => {
-      const wordRegex = new RegExp(`\\b(${escapeRegExp(word)})\\b`, 'gi');
-      highlightedContent = highlightedContent.replace(wordRegex, (match, p1) => {
-        // Only highlight if not already highlighted
-        if (!match.includes('<mark')) {
-          return `<mark class="bg-blue-100 dark:bg-blue-900 rounded px-0.5">${p1}</mark>`;
-        }
-        return match;
-      });
-    });
-  }
+  console.log('[highlightSearchMatches] Total highlights applied:', highlightCount);
 
   return simpleMarkdownToHtml(highlightedContent);
 }

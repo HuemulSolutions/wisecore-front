@@ -37,6 +37,8 @@ interface TemplatesSidebarProps {
   onTemplateSelect: (template: TemplateItem) => void;
   organizationId: string | null;
   onRefresh?: () => void;
+  canCreate: boolean;
+  canDelete: boolean;
 }
 
 export function TemplatesSidebar({
@@ -47,6 +49,8 @@ export function TemplatesSidebar({
   onTemplateSelect,
   organizationId,
   onRefresh,
+  canCreate,
+  canDelete,
 }: TemplatesSidebarProps) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,21 +104,23 @@ export function TemplatesSidebar({
                     <RefreshCw className="h-4 w-4" />
                   )}
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => {
-                      setTimeout(() => setIsDialogOpen(true), 0);
-                    }} className="hover:cursor-pointer">
-                      <FileText className="mr-2 h-4 w-4" />
-                      New Template
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {canCreate && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => {
+                        setTimeout(() => setIsDialogOpen(true), 0);
+                      }} className="hover:cursor-pointer">
+                        <FileText className="mr-2 h-4 w-4" />
+                        New Template
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
           </SidebarGroup>
@@ -221,13 +227,15 @@ export function TemplatesSidebar({
                           <Edit3 className="mr-2 h-4 w-4" />
                           Edit Template
                         </ContextMenuItem>
-                        <ContextMenuItem
-                          className="hover:cursor-pointer text-red-600"
-                          onClick={() => handleDeleteTemplate(template.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Template
-                        </ContextMenuItem>
+                        {canDelete && (
+                          <ContextMenuItem
+                            className="hover:cursor-pointer text-red-600"
+                            onClick={() => handleDeleteTemplate(template.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Template
+                          </ContextMenuItem>
+                        )}
                       </ContextMenuContent>
                     </ContextMenu>
                   ))}
@@ -236,15 +244,17 @@ export function TemplatesSidebar({
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
-              <ContextMenuItem
-                className="hover:cursor-pointer"
-                onClick={() => {
-                  setTimeout(() => setIsDialogOpen(true), 0);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Template
-              </ContextMenuItem>
+              {canCreate && (
+                <ContextMenuItem
+                  className="hover:cursor-pointer"
+                  onClick={() => {
+                    setTimeout(() => setIsDialogOpen(true), 0);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Template
+                </ContextMenuItem>
+              )}
             </ContextMenuContent>
           </ContextMenu>
         </div>

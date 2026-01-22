@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useUserPermissions } from '@/hooks/useUserPermissions'
 import { 
   getSupportedProviders, 
   getLLMs, 
@@ -27,6 +28,12 @@ import type { LLM, CreateLLMRequest } from '@/services/llms'
 
 export default function Models() {
   const queryClient = useQueryClient()
+  const { 
+    hasPermission, 
+    hasAnyPermission,
+    isRootAdmin,
+    isLoading: isLoadingPermissions 
+  } = useUserPermissions()
   
   // State management
   const [openProviders, setOpenProviders] = useState<string[]>([])
@@ -41,18 +48,29 @@ export default function Models() {
   const [isDeletingModel, setIsDeletingModel] = useState(false)
   const [isDeletingProvider, setIsDeletingProvider] = useState(false)
 
+  // Verificar permisos
+  const canListProviders = isRootAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
+  const canCreateProvider = isRootAdmin || hasPermission('llm_provider:c')
+  const canUpdateProvider = isRootAdmin || hasPermission('llm_provider:u')
+  const canDeleteProvider = isRootAdmin || hasPermission('llm_provider:d')
+  const canListModels = isRootAdmin || hasAnyPermission(['llm:l', 'llm:r'])
+  const canCreateModel = isRootAdmin || hasPermission('llm:c')
+  const canUpdateModel = isRootAdmin || hasPermission('llm:u')
+  const canDeleteModel = isRootAdmin || hasPermission('llm:d')
+
   // Queries
   const { data: supportedResponse, isLoading: loadingSupportedProviders, error: errorSupportedProviders } = useQuery({
     queryKey: ['supportedProviders'],
     queryFn: getSupportedProviders,
     retry: 0,
+    enabled: canListProviders,
   })
 
   const { data: llms = [], isLoading: loadingLLMs, error: errorLLMs } = useQuery({
     queryKey: ['llms'],
     queryFn: getLLMs,
     retry: 0,
-    enabled: openProviders.length > 0, // Solo cargar cuando hay providers abiertos
+    enabled: canListModels && openProviders.length > 0, // Solo cargar cuando hay providers abiertos y tiene permisos
   })
 
   // Extract data from wrapped responses
@@ -390,8 +408,21 @@ export default function Models() {
     return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
-  if (loadingSupportedProviders) {
+  // Mostrar loading mientras se cargan permisos o proveedores
+  if (isLoadingPermissions || loadingSupportedProviders) {
     return <ModelsLoadingState />
+  }
+
+  // Si no tiene permisos para listar proveedores, mostrar mensaje
+  if (!canListProviders) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold mb-2">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    )
   }
 
   // Only show full page error for supported providers
@@ -448,6 +479,12 @@ export default function Models() {
               onDropdownChange={(key, open) => {
                 setOpenDropdowns(prev => ({ ...prev, [key]: open }))
               }}
+              canCreateProvider={canCreateProvider}
+              canUpdateProvider={canUpdateProvider}
+              canDeleteProvider={canDeleteProvider}
+              canCreateModel={canCreateModel}
+              canUpdateModel={canUpdateModel}
+              canDeleteModel={canDeleteModel}
             />
           ))}
         </div>

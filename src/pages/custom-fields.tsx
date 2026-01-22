@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useAuth } from "@/contexts/auth-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type CustomField } from "@/types/custom-fields"
 import { useCustomFields, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useQueryClient } from "@tanstack/react-query"
@@ -30,16 +30,25 @@ export default function CustomFieldsPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  // Get auth context
-  const { user: currentUser } = useAuth()
+  // Get permissions
+  const { isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
   
-  // Fetch custom fields and mutations
-  const { data: customFieldsResponse, isLoading, error } = useCustomFields({ page, page_size: pageSize })
+  // Fetch custom fields and mutations - solo si es admin
+  const { data: customFieldsResponse, isLoading, error } = useCustomFields({ 
+    page, 
+    page_size: pageSize,
+    enabled: isRootAdmin 
+  })
   const customFieldMutations = useCustomFieldMutations()
 
-  // Access check - assuming similar permissions as asset types
-  if (!currentUser?.is_root_admin) {
+  // Loading state for permissions
+  if (isLoadingPermissions) {
+    return <CustomFieldPageSkeleton />
+  }
+
+  // Access check - only root admin
+  if (!isRootAdmin) {
     return <CustomFieldPageEmptyState type="access-denied" />
   }
 
@@ -124,6 +133,7 @@ export default function CustomFieldsPage() {
           isLoading={isLoading || isRefreshing}
           searchTerm={state.searchTerm}
           onSearchChange={(value: string) => updateState({ searchTerm: value })}
+          canManage={isRootAdmin}
         />
 
         {/* Content Area - Table or Error */}
@@ -153,6 +163,7 @@ export default function CustomFieldsPage() {
             onDeleteCustomField={handleDeleteCustomField}
             customFieldMutations={customFieldMutations}
             showFooterStats={false}
+            canManage={isRootAdmin}
             pagination={{
               page: customFieldsResponse?.page || page,
               pageSize: customFieldsResponse?.page_size || pageSize,

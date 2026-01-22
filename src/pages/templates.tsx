@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import {
@@ -22,15 +23,29 @@ export default function Templates() {
   const navigate = useNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
   const { selectedOrganizationId } = useOrganization();
+  
+  // Permisos
+  const { isRootAdmin, hasPermission, hasAnyPermission } = useUserPermissions();
+  
+  // Permisos específicos
+  const canListTemplates = isRootAdmin || hasAnyPermission(['template:l', 'template:r']);
+  const canCreateTemplate = isRootAdmin || hasPermission('template:c');
+  const canUpdateTemplate = isRootAdmin || hasPermission('template:u');
+  const canDeleteTemplate = isRootAdmin || hasPermission('template:d');
+  const canListSections = isRootAdmin || hasAnyPermission(['template_section:l', 'template_section:r']);
+  const canCreateSection = isRootAdmin || hasPermission('template_section:c');
+  const canUpdateSection = isRootAdmin || hasPermission('template_section:u');
+  const canDeleteSection = isRootAdmin || hasPermission('template_section:d');
+  
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const hasRestoredRef = useRef(false);
 
-  // Query para listar templates
+  // Query para listar templates - solo si tiene permisos
   const { data: templatesData, error: queryError, isFetching } = useQuery({
     queryKey: ["templates", selectedOrganizationId],
     queryFn: () => getAllTemplates(selectedOrganizationId!),
-    enabled: !!selectedOrganizationId,
+    enabled: !!selectedOrganizationId && canListTemplates,
     retry: false,
   });
 
@@ -75,6 +90,8 @@ export default function Templates() {
             onTemplateSelect={handleTemplateSelect}
             organizationId={selectedOrganizationId}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
+            canCreate={canCreateTemplate}
+            canDelete={canDeleteTemplate}
           />
         </ResizablePanel>
 
@@ -95,6 +112,13 @@ export default function Templates() {
                 setSelectedTemplate(template);
                 navigate(`/templates/${template.id}`, { replace: true });
               }}
+              canCreate={canCreateTemplate}
+              canUpdate={canUpdateTemplate}
+              canDelete={canDeleteTemplate}
+              canListSections={canListSections}
+              canCreateSection={canCreateSection}
+              canUpdateSection={canUpdateSection}
+              canDeleteSection={canDeleteSection}
             />
           </div>
         </ResizablePanel>

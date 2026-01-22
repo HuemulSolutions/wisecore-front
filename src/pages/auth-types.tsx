@@ -24,8 +24,17 @@ export default function AuthTypes() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const { isRootAdmin } = useUserPermissions()
-  const { data: authTypes = [], isLoading, error, refetch } = useAuthTypes()
+  const { isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
+  
+  // Solo hacer la llamada a la API si el usuario es admin
+  const { data: authTypes = [], isLoading, error, refetch } = useAuthTypes({
+    enabled: isRootAdmin
+  })
+
+  // Mostrar loading mientras se cargan los permisos
+  if (isLoadingPermissions) {
+    return <AuthTypesLoadingState />
+  }
 
   // Verificar si el usuario es root admin
   if (!isRootAdmin) {

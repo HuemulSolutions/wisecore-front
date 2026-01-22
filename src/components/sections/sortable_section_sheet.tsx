@@ -32,9 +32,11 @@ interface SortableSectionSheetProps {
   isOverlay?: boolean;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
+  canUpdate?: boolean;
+  canDelete?: boolean;
 }
 
-export default function SortableSectionSheet({ item, existingSections, onSave, onDelete, isOverlay = false, hasTemplate = false, isTemplateSection = false }: SortableSectionSheetProps) {
+export default function SortableSectionSheet({ item, existingSections, onSave, onDelete, isOverlay = false, hasTemplate = false, isTemplateSection = false, canUpdate = true, canDelete = true }: SortableSectionSheetProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -189,38 +191,44 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                       )}
                     </Button>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="hover:cursor-pointer h-8 w-8 p-0"
-                          title="More options"
-                        >
-                          <MoreVertical className="h-4 w-4 text-gray-500" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            setTimeout(() => setShowEditDialog(true), 0);
-                          }}
-                          className="hover:cursor-pointer"
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600 hover:cursor-pointer"
-                          onSelect={() => {
-                            setTimeout(() => setShowDeleteDialog(true), 0);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {(canUpdate || canDelete) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:cursor-pointer h-8 w-8 p-0"
+                            title="More options"
+                          >
+                            <MoreVertical className="h-4 w-4 text-gray-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canUpdate && (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setTimeout(() => setShowEditDialog(true), 0);
+                              }}
+                              className="hover:cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete && (
+                            <DropdownMenuItem
+                              className="text-red-600 hover:cursor-pointer"
+                              onSelect={() => {
+                                setTimeout(() => setShowDeleteDialog(true), 0);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </>
                 )}
               </div>
