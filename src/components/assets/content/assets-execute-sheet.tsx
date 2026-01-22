@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
+import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
 import {
     Select,
     SelectContent,
@@ -429,7 +430,12 @@ export function ExecuteSheet({
                 </div>
                 {/* Botón de acción centrado verticalmente */}
                 <div className="flex items-center h-full gap-2 ml-4">
-                  <Button
+                  <DocumentActionButton
+                    accessLevels={selectedFile?.access_levels || []}
+                    requiredAccess={["create", "edit"]}
+                    requireAll={false}
+                    checkGlobalPermissions={true}
+                    resource="assets"
                     onClick={handleExecuteDocument}
                     disabled={
                       // Prioridad 1: Estados de carga - mantener deshabilitado durante carga
@@ -463,7 +469,7 @@ export function ExecuteSheet({
                         Execute Document
                       </>
                     )}
-                  </Button>
+                  </DocumentActionButton>
                 </div>
               </div>
             </SheetHeader>
