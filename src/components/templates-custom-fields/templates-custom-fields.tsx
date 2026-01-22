@@ -23,7 +23,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
   const [pageSize, setPageSize] = useState(10)
 
   const {
-    data: customFieldTemplates = [],
+    data: customFieldTemplatesResponse,
     isLoading: isLoadingCustomFieldTemplates,
     error,
     refetch
@@ -32,6 +32,8 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
     page,
     page_size: pageSize,
   })
+
+  const customFieldTemplates = customFieldTemplatesResponse?.data || []
 
   const mutations = useCustomFieldTemplateMutations()
 
@@ -183,12 +185,17 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
           customFieldTemplates={customFieldTemplates}
           onEditCustomFieldTemplate={handleEditCustomFieldTemplate}
           onDeleteCustomFieldTemplate={handleDeleteCustomFieldTemplate}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={(newPageSize) => {
-            setPageSize(newPageSize)
-            setPage(1)
+          pagination={{
+            page: customFieldTemplatesResponse?.page || page,
+            pageSize: customFieldTemplatesResponse?.page_size || pageSize,
+            hasNext: customFieldTemplatesResponse?.has_next,
+            hasPrevious: (customFieldTemplatesResponse?.page || page) > 1,
+            onPageChange: (newPage: number) => setPage(newPage),
+            onPageSizeChange: (newPageSize: number) => {
+              setPageSize(newPageSize)
+              setPage(1)
+            },
+            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
           }}
         />
       ) : (

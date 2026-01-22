@@ -75,7 +75,7 @@ export function ExecuteSheet({
   const [] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
-  const [executionType, setExecutionType] = useState<'full' | 'full-single' | 'single' | 'from'>('full');
+  const [executionType, setExecutionType] = useState<'full' | 'full-single' | 'single' | 'from'>('full-single');
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
   // Query client para invalidar queries
@@ -313,7 +313,7 @@ export function ExecuteSheet({
       setSheetInstructions("");
       setSheetSelectedLLM("");
       setHasAttemptedCreation(false); // Reset the attempt flag when closing
-      setExecutionType('full'); // Siempre resetear a 'full'
+      setExecutionType('full-single'); // Siempre resetear a 'full-single'
       setSelectedSectionId("");
       // No resetear isGeneratingInSheet aquí si la ejecución sigue corriendo
       if (currentExecution?.status !== "running") {
@@ -333,8 +333,8 @@ export function ExecuteSheet({
           setSelectedSectionId(executionContext.sectionId);
         }
       } else {
-        // Desde header: inicializar con full
-        setExecutionType('full');
+        // Desde header: inicializar con full-single
+        setExecutionType('full-single');
         setSelectedSectionId("");
       }
     }
@@ -366,7 +366,7 @@ export function ExecuteSheet({
         setExecutionType('single');
         setSelectedSectionId(executionContext.sectionId);
       } else {
-        setExecutionType('full');
+        setExecutionType('full-single');
         setSelectedSectionId("");
       }
     }
@@ -572,12 +572,12 @@ export function ExecuteSheet({
                               {/* Opciones disponibles desde header */}
                               {(!executionContext || executionContext.type === 'header') && (
                                 <>
-                                  <SelectItem value="full" className="cursor-pointer">
-                                    <span className="font-medium">Execute Entire Document</span>
-                                  </SelectItem>
-                                  
                                   <SelectItem value="full-single" className="cursor-pointer">
                                     <span className="font-medium">Execute First Section Only</span>
+                                  </SelectItem>
+
+                                  <SelectItem value="full" className="cursor-pointer">
+                                    <span className="font-medium">Execute Entire Document</span>
                                   </SelectItem>
                                 </>
                               )}

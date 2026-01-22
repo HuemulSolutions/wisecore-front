@@ -43,7 +43,11 @@ export interface ApiResponse<T> {
 }
 
 export interface CustomFieldTemplateSourcesResponse extends ApiResponse<CustomFieldTemplateSource[]> {}
-export interface CustomFieldTemplatesResponse extends ApiResponse<CustomFieldTemplate[]> {}
+export interface CustomFieldTemplatesResponse extends ApiResponse<CustomFieldTemplate[]> {
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
 export interface CustomFieldTemplateResponse extends ApiResponse<CustomFieldTemplate> {}
 
 // Request types for creating and updating custom field templates
