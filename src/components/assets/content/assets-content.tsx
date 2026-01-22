@@ -1540,8 +1540,8 @@ export function AssetContent({
                   : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
                 title={executeDocumentMutation.isPending || hasExecutionInProcess 
-                  ? "Cannot execute document" 
-                  : "Execute Document"
+                  ? "Cannot execute Asset" 
+                  : "Execute an Asset"
                 }
               >
                 {executeDocumentMutation.isPending ? (
