@@ -61,9 +61,9 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   if (!user) return null
 
   const organizations = organizationsResponse?.data || []
-  const availableOrganizations = allOrganizations?.filter(
+  const availableOrganizations = (allOrganizations?.data || []).filter(
     (org: any) => !organizations.find(userOrg => userOrg.id === org.id)
-  ) || []
+  )
 
   return (
     <>
