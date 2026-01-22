@@ -29,6 +29,8 @@ interface AssetTypeTableProps {
   }
   pagination?: PaginationConfig
   showFooterStats?: boolean
+  canUpdate?: boolean
+  canDelete?: boolean
 }
 
 export default function AssetTypeTable({
@@ -41,6 +43,8 @@ export default function AssetTypeTable({
   onDeleteAssetType,
   pagination,
   showFooterStats,
+  canUpdate = true,
+  canDelete = true,
 }: AssetTypeTableProps) {
   // Define columns
   const columns: TableColumn<AssetTypeWithRoles>[] = [
@@ -105,7 +109,7 @@ export default function AssetTypeTable({
     }
   ]
 
-  // Define actions
+  // Define actions - construir condicionalmente
   const actions: TableAction<AssetTypeWithRoles>[] = [
     {
       key: "permissions",
@@ -113,20 +117,20 @@ export default function AssetTypeTable({
       icon: Shield,
       onClick: onManagePermissions
     },
-    {
-      key: "edit",
+    ...(canUpdate ? [{
+      key: "edit" as const,
       label: "Edit Asset Type",
       icon: Edit2,
       onClick: onEditAssetType,
       separator: true
-    },
-    {
-      key: "delete",
+    }] : []),
+    ...(canDelete ? [{
+      key: "delete" as const,
       label: "Delete Asset Type",
       icon: Trash2,
       onClick: onDeleteAssetType,
       destructive: true
-    }
+    }] : [])
   ]
 
   // Define footer stats

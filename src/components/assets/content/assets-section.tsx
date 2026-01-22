@@ -330,12 +330,14 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
-                                {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
+                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="approve"
+                                                requiredAccess={["approve", "create"]}
+                                                checkGlobalPermissions={true}
+                                                resource="assets"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
@@ -350,12 +352,14 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canAiEdit && (
+                                {!isEditing && !isExecutionApproved && canAiEdit && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
                                                 requiredAccess="edit"
+                                                checkGlobalPermissions={true}
+                                                resource="assets"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
@@ -370,12 +374,14 @@ export default function SectionExecution({
                                     </Tooltip>
                                 )}
 
-                                {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canEdit && (
+                                {!isEditing && !isExecutionApproved && canEdit && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
                                                 requiredAccess="edit"
+                                                checkGlobalPermissions={true}
+                                                resource="assets"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
@@ -395,6 +401,8 @@ export default function SectionExecution({
                                         <DocumentActionButton
                                             accessLevels={accessLevels}
                                             requiredAccess="read"
+                                            checkGlobalPermissions={true}
+                                            resource="assets"
                                             variant="ghost"
                                             size="sm"
                                             className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
@@ -408,12 +416,14 @@ export default function SectionExecution({
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && canDelete && (
+                                {!isEditing && !isExecutionApproved && canDelete && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
                                                 requiredAccess="delete"
+                                                checkGlobalPermissions={true}
+                                                resource="assets"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
@@ -442,6 +452,8 @@ export default function SectionExecution({
                                     <DocumentAccessControl
                                         accessLevels={accessLevels}
                                         requiredAccess="read"
+                                        checkGlobalPermissions={true}
+                                        resource="assets"
                                     >
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'
@@ -451,11 +463,13 @@ export default function SectionExecution({
                                             Copy
                                         </DropdownMenuItem>
                                     </DocumentAccessControl>
-                                    {documentId && executionId && sectionIdForExecution && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
+                                    {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && (
                                         <>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
-                                                requiredAccess="approve"
+                                                requiredAccess={["approve", "create"]}
+                                                checkGlobalPermissions={true}
+                                                resource="assets"
                                             >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
@@ -470,7 +484,9 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                             <DocumentAccessControl
                                                 accessLevels={accessLevels}
-                                                requiredAccess="approve"
+                                                requiredAccess={["approve", "create"]}
+                                                checkGlobalPermissions={true}
+                                                resource="assets"
                                             >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
@@ -485,10 +501,12 @@ export default function SectionExecution({
                                             </DocumentAccessControl>
                                         </>
                                     )}
-                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canEdit && (
+                                    {!isEditing && !isExecutionApproved && canEdit && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
+                                            checkGlobalPermissions={true}
+                                            resource="assets"
                                         >
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
@@ -499,10 +517,12 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && accessLevels?.includes('edit') && !isExecutionApproved && canAiEdit && (
+                                    {!isEditing && !isExecutionApproved && canAiEdit && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
+                                            checkGlobalPermissions={true}
+                                            resource="assets"
                                         >
                                             <DropdownMenuItem 
                                                 className="hover:cursor-pointer"
@@ -515,10 +535,12 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {!isEditing && accessLevels?.includes('delete') && !isExecutionApproved && canDelete && (
+                                    {!isEditing && !isExecutionApproved && canDelete && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
                                             requiredAccess="delete"
+                                            checkGlobalPermissions={true}
+                                            resource="assets"
                                         >
                                             <DropdownMenuItem 
                                                 className="text-red-600 hover:cursor-pointer"
@@ -532,10 +554,12 @@ export default function SectionExecution({
                                             </DropdownMenuItem>
                                         </DocumentAccessControl>
                                     )}
-                                    {onOpenExecuteSheet && accessLevels?.includes('approve') && !isExecutionApproved && canExecute && (
+                                    {onOpenExecuteSheet && !isExecutionApproved && canExecute && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
-                                            requiredAccess="approve"
+                                            requiredAccess={["approve", "create"]}
+                                            checkGlobalPermissions={true}
+                                            resource="assets"
                                         >
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
@@ -635,7 +659,7 @@ export default function SectionExecution({
                     />
                 </div>
             ) : showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
-                 executionStatus && !['completed', 'done', 'failed', 'cancelled'].includes(executionStatus) ? (
+                 executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus) ? (
                 /* Show skeleton ONLY when section is actively being executed (not when completed) */
                 <div className="pt-8 pr-12">
                     <div className="animate-pulse space-y-4">

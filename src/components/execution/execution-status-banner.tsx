@@ -46,6 +46,15 @@ export function ExecutionStatusBanner({
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
           }, 100);
+        } else if (status === 'approved') {
+          // Execution was approved - this is also a successful completion state
+          // Don't show toast here as it's already handled in assets-content.tsx
+          onExecutionComplete?.(executionData?.execution_id || executionId);
+          stopPolling();
+          // Force re-render by invalidating current query
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
+          }, 100);
         } else if (status === 'failed') {
           toast.error('Document generation failed. Please try again.');
           stopPolling();
@@ -85,6 +94,15 @@ export function ExecutionStatusBanner({
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           textColor: 'text-blue-800'
+        };
+      case 'approving':
+        return {
+          icon: <Loader2 className="h-5 w-5 animate-spin text-green-600" />,
+          text: 'approving',
+          description: 'Execution is being approved. Please wait...',
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-200',
+          textColor: 'text-green-800'
         };
       case 'pending':
         return {
@@ -176,7 +194,7 @@ export function ExecutionStatusBanner({
           </div>
         </div>
         <div className="flex items-center space-x-2 ml-4">
-          {(currentExecution.status === 'running' || currentExecution.status === 'pending') && (
+          {(currentExecution.status === 'running' || currentExecution.status === 'pending' || currentExecution.status === 'approving') && (
             <Button
               variant="ghost"
               size="sm"

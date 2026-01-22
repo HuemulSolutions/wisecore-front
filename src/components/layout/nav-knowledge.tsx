@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
 import { moveDocument, deleteDocument } from "@/services/assets"
 import { CreateAssetDialog } from "@/components/assets/dialogs/assets-create-dialog"
@@ -241,6 +242,11 @@ export function useNavKnowledgeRefresh() {
 export function NavKnowledgeHeader() {
   const { selectedOrganizationId } = useOrganization()
   const { fileTreeRef, handleCreateAsset, handleCreateFolder } = useNavKnowledge()
+  const { canCreate } = useUserPermissions()
+
+  const canCreateAsset = canCreate('assets')
+  const canCreateFolder = canCreate('folder')
+  const hasAnyCreatePermission = canCreateAsset || canCreateFolder
 
   if (!selectedOrganizationId) {
     return null
@@ -259,33 +265,39 @@ export function NavKnowledgeHeader() {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                onSelect={() => {
-                  setTimeout(() => handleCreateAsset(), 0)
-                }} 
-                className="hover:cursor-pointer"
-              >
-                <File className="mr-2 h-4 w-4" />
-                New Asset
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onSelect={() => {
-                  setTimeout(() => handleCreateFolder(), 0)
-                }} 
-                className="hover:cursor-pointer"
-              >
-                <Folder className="mr-2 h-4 w-4" />
-                New Folder
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {hasAnyCreatePermission && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canCreateAsset && (
+                  <DropdownMenuItem 
+                    onSelect={() => {
+                      setTimeout(() => handleCreateAsset(), 0)
+                    }} 
+                    className="hover:cursor-pointer"
+                  >
+                    <File className="mr-2 h-4 w-4" />
+                    New Asset
+                  </DropdownMenuItem>
+                )}
+                {canCreateFolder && (
+                  <DropdownMenuItem 
+                    onSelect={() => {
+                      setTimeout(() => handleCreateFolder(), 0)
+                    }} 
+                    className="hover:cursor-pointer"
+                  >
+                    <Folder className="mr-2 h-4 w-4" />
+                    New Folder
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </SidebarGroup>
@@ -299,6 +311,7 @@ export function NavKnowledgeContent() {
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
+  const { canCreate, canUpdate, canDelete } = useUserPermissions()
 
   // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
@@ -421,7 +434,11 @@ export function NavKnowledgeContent() {
       onClick: async (nodeId) => {
         handleCreateAsset(nodeId)
       },
-      show: (node) => node.type === "folder",
+      show: (node) => {
+        if (node.type !== "folder") return false
+        // Mostrar si tiene permiso global O access_level create
+        return canCreate('assets') || node.access_levels?.includes('create') || false
+      },
       variant: "default",
     },
     {
@@ -430,7 +447,11 @@ export function NavKnowledgeContent() {
       onClick: async (nodeId) => {
         handleCreateFolder(nodeId)
       },
-      show: (node) => node.type === "folder",
+      show: (node) => {
+        if (node.type !== "folder") return false
+        // Mostrar si tiene permiso global O access_level create
+        return canCreate('folder') || node.access_levels?.includes('create') || false
+      },
       variant: "default",
     },
     {
@@ -440,7 +461,11 @@ export function NavKnowledgeContent() {
         const folderName = folderNames.get(nodeId) || ""
         handleEditFolder(nodeId, folderName)
       },
-      show: (node) => node.type === "folder",
+      show: (node) => {
+        if (node.type !== "folder") return false
+        // Mostrar si tiene permiso global O access_level edit
+        return canUpdate('folder') || node.access_levels?.includes('edit') || false
+      },
       variant: "default",
     },
     {
@@ -450,7 +475,11 @@ export function NavKnowledgeContent() {
         const folderName = folderNames.get(nodeId) || ""
         handleDeleteFolder(nodeId, folderName)
       },
-      show: (node) => node.type === "folder",
+      show: (node) => {
+        if (node.type !== "folder") return false
+        // Mostrar si tiene permiso global O access_level delete
+        return canDelete('folder') || node.access_levels?.includes('delete') || false
+      },
       variant: "destructive",
     },
     {
@@ -460,7 +489,11 @@ export function NavKnowledgeContent() {
         const documentName = documentNames.get(nodeId) || ""
         handleEditDocument(nodeId, documentName)
       },
-      show: (node) => node.type === "document",
+      show: (node) => {
+        if (node.type !== "document") return false
+        // Mostrar si tiene permiso global O access_level edit
+        return canUpdate('assets') || node.access_levels?.includes('edit') || false
+      },
       variant: "default",
     },
     {
@@ -470,7 +503,11 @@ export function NavKnowledgeContent() {
         const documentName = documentNames.get(nodeId) || ""
         handleDeleteDocument(nodeId, documentName)
       },
-      show: (node) => node.type === "document",
+      show: (node) => {
+        if (node.type !== "document") return false
+        // Mostrar si tiene permiso global O access_level delete
+        return canDelete('assets') || node.access_levels?.includes('delete') || false
+      },
       variant: "destructive",
     },
   ]
