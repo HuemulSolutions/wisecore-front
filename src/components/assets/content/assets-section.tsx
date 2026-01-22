@@ -398,7 +398,7 @@ export default function SectionExecution({
 
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <DocumentActionButton
+                                        {/* <DocumentActionButton
                                             accessLevels={accessLevels}
                                             requiredAccess="read"
                                             checkGlobalPermissions={true}
@@ -407,9 +407,9 @@ export default function SectionExecution({
                                             size="sm"
                                             className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
                                             onClick={handleCopy}
-                                        >
+                                        > */}
                                             <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                        </DocumentActionButton>
+                                        {/* </DocumentActionButton> */}
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         <p>Copy content</p>

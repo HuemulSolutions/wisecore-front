@@ -3106,6 +3106,7 @@ export function AssetContent({
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
         executionContext={executionContext}
+        accessLevels={accessLevels}
         disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
           hasExecutionInProcess 
