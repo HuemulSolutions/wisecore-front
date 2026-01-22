@@ -1540,8 +1540,8 @@ export function AssetContent({
                   : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
                 title={executeDocumentMutation.isPending || hasExecutionInProcess 
-                  ? "Cannot execute Asset" 
-                  : "Execute an Asset"
+                  ? "Cannot execute while another execution is in process" 
+                  : "Execute New Version"
                 }
               >
                 {executeDocumentMutation.isPending ? (
@@ -2027,19 +2027,19 @@ export function AssetContent({
                   : "h-7 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer text-xs"
                 }
                 title={executeDocumentMutation.isPending || hasExecutionInProcess 
-                  ? "Cannot execute document" 
-                  : "Execute Document"
+                  ? "Cannot execute a new version while another execution is in process" 
+                  : "Execute New Version"
                 }
               >
                 {executeDocumentMutation.isPending ? (
                   <>
                     <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                    Executing...
+                    Generating...
                   </>
                 ) : (
                   <>
                     <Play className="h-3 w-3 mr-1.5" />
-                    Execute
+                    New Version
                   </>
                 )}
               </DocumentActionButton>
@@ -2854,7 +2854,7 @@ export function AssetContent({
                               ) : (
                                 <>
                                   <Play className="h-4 w-4 mr-2" />
-                                  Execute Document
+                                  Execute New Version
                                 </>
                               )}
                             </DocumentActionButton>

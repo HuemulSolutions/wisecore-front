@@ -425,7 +425,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="delete"
+                                                requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
@@ -542,7 +542,7 @@ export default function SectionExecution({
                                     {!isEditing && !isExecutionApproved && canDelete && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
-                                            requiredAccess="delete"
+                                            requiredAccess={["create", "edit"]}
                                             checkGlobalPermissions={true}
                                             resource="assets"
                                         >
