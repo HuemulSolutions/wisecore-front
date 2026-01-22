@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Dialog } from '@/components/ui/dialog';
 import { ReusableDialog } from '@/components/ui/reusable-dialog';
 import {
@@ -41,10 +42,11 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   const [newOrgDescription, setNewOrgDescription] = useState('');
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   
-  const { setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken } = useOrganization();
+  const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken } = useOrganization();
   const { user } = useAuth();
   const { isLoading: permissionsLoading } = useUserPermissions();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: organizationsData, isLoading } = useQuery({
     queryKey: ['user-organizations', user?.id],
@@ -74,6 +76,14 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       setSelectedOrgId(preselectedOrganizationId);
     }
   }, [preselectedOrganizationId]);
+
+  // Resetear el select al valor actual cuando se abre el diálogo
+  React.useEffect(() => {
+    if (open) {
+      setSelectedOrgId(preselectedOrganizationId || selectedOrganizationId || '');
+      setShowCreateForm(false);
+    }
+  }, [open, preselectedOrganizationId, selectedOrganizationId]);
 
   const handleSelectOrganization = async (orgId?: string) => {
     const organizationId = orgId || selectedOrgId;
@@ -126,6 +136,9 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
         if (onOpenChange) {
           onOpenChange(false);
         }
+        
+        // Redirigir al home después de cambiar la organización
+        navigate('/');
         
       } catch (error) {
         console.error('Error changing organization:', error);
@@ -203,7 +216,10 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
               {onOpenChange && (
                 <Button
                   variant="ghost"
-                  onClick={() => onOpenChange(false)}
+                  onClick={() => {
+                    setSelectedOrgId(selectedOrganizationId || '');
+                    onOpenChange(false);
+                  }}
                   className="w-full hover:cursor-pointer"
                 >
                   Cancel

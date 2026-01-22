@@ -51,7 +51,6 @@ export function useCustomFieldTemplatesByTemplate(
     }),
     enabled: options?.enabled !== false && !!templateId,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    select: (data) => data.data, // Extract the data array from the API response
   })
 }
 
