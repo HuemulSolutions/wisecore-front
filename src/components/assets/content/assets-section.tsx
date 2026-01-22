@@ -77,7 +77,7 @@ export default function SectionExecution({
     const isExecutionApproved = executionStatus === 'approved';
     
     // Determine which actions are available based on section type
-    const canExecute = sectionType === 'ai'; // Solo AI sections pueden ejecutarse
+    const canExecute = sectionType === 'ai' || sectionType === null; // AI sections y null pueden ejecutarse
     const canEdit = sectionType !== 'reference'; // Manual y AI pueden editarse, reference no
     const canAiEdit = sectionType !== 'reference'; // Manual y AI pueden usar AI edit, reference no
     const canDelete = sectionType !== 'reference'; // Manual y AI pueden eliminarse, reference no
@@ -335,7 +335,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess={["approve", "create"]}
+                                                requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
@@ -357,7 +357,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="edit"
+                                                requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
@@ -557,7 +557,7 @@ export default function SectionExecution({
                                     {onOpenExecuteSheet && !isExecutionApproved && canExecute && (
                                         <DocumentAccessControl
                                             accessLevels={accessLevels}
-                                            requiredAccess={["approve", "create"]}
+                                            requiredAccess={["create", "edit"]}
                                             checkGlobalPermissions={true}
                                             resource="assets"
                                         >

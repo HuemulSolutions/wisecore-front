@@ -2017,7 +2017,7 @@ export function AssetContent({
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
               <DocumentActionButton
                 accessLevels={accessLevels}
-                requiredAccess={["create"]}
+                requiredAccess={["create", "edit"]}
                 requireAll={false}
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
