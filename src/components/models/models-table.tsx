@@ -11,6 +11,8 @@ interface ModelsTableProps {
   isDeleting: boolean
   openDropdowns: {[key: string]: boolean}
   onDropdownChange: (key: string, open: boolean) => void
+  canUpdate: boolean
+  canDelete: boolean
 }
 
 export function ModelsTable({ 
@@ -20,7 +22,9 @@ export function ModelsTable({
   onDefaultChange, 
   isDeleting,
   openDropdowns,
-  onDropdownChange
+  onDropdownChange,
+  canUpdate,
+  canDelete
 }: ModelsTableProps) {
   if (models.length === 0) {
     return (
@@ -38,7 +42,9 @@ export function ModelsTable({
             <TableHead className="text-foreground font-medium text-xs py-2">Display Name</TableHead>
             <TableHead className="text-foreground font-medium text-xs py-2">Technical Name</TableHead>
             <TableHead className="text-foreground font-medium text-xs py-2">Default</TableHead>
-            <TableHead className="text-right text-foreground font-medium text-xs py-2">Actions</TableHead>
+            {(canUpdate || canDelete) && (
+              <TableHead className="text-right text-foreground font-medium text-xs py-2">Actions</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -57,18 +63,22 @@ export function ModelsTable({
                   className="scale-90"
                 />
               </TableCell>
-              <TableCell className="text-right py-2">
-                <div className="flex justify-end gap-0.5">
-                  <ModelActions
-                    model={model}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    isDeleting={isDeleting}
-                    dropdownOpen={openDropdowns[`model-${model.id}`] || false}
-                    onDropdownChange={(open) => onDropdownChange(`model-${model.id}`, open)}
-                  />
-                </div>
-              </TableCell>
+              {(canUpdate || canDelete) && (
+                <TableCell className="text-right py-2">
+                  <div className="flex justify-end gap-0.5">
+                    <ModelActions
+                      model={model}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      isDeleting={isDeleting}
+                      dropdownOpen={openDropdowns[`model-${model.id}`] || false}
+                      onDropdownChange={(open) => onDropdownChange(`model-${model.id}`, open)}
+                      canUpdate={canUpdate}
+                      canDelete={canDelete}
+                    />
+                  </div>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

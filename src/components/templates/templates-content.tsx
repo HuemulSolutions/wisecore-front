@@ -30,6 +30,13 @@ interface TemplateContentProps {
   onTemplateCreated?: (template: TemplateItem) => void;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  canListSections: boolean;
+  canCreateSection: boolean;
+  canUpdateSection: boolean;
+  canDeleteSection: boolean;
 }
 
 export function TemplateContent({ 
@@ -37,7 +44,14 @@ export function TemplateContent({
   onRefresh,
   onTemplateDeleted,
   onTemplateCreated,
-  onToggleSidebar
+  onToggleSidebar,
+  canCreate,
+  canUpdate,
+  canDelete,
+  canListSections,
+  canCreateSection,
+  canUpdateSection,
+  canDeleteSection,
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -181,16 +195,18 @@ export function TemplateContent({
               <span className="ml-2 text-xs text-gray-500">Loading template...</span>
             </div>
           ) : (
-            <Tabs defaultValue="sections" value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
+            <Tabs defaultValue={canListSections ? "sections" : "custom-fields"} value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
               <div className="border-b border-border shrink-0 px-1.5 sm:px-2 md:px-3">
                 <div className="flex items-center justify-between">
                   <TabsList className="h-auto bg-transparent p-0">
-                    <TabsTrigger 
-                      value="sections" 
-                      className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
-                    >
-                      Sections
-                    </TabsTrigger>
+                    {canListSections && (
+                      <TabsTrigger 
+                        value="sections" 
+                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                      >
+                        Sections
+                      </TabsTrigger>
+                    )}
                     <TabsTrigger 
                       value="custom-fields" 
                       className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
@@ -213,31 +229,36 @@ export function TemplateContent({
                     >
                       <RefreshCw className={`h-4 w-4 text-gray-600 ${isFetching ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button
-                      onClick={() => setIsEditDialogOpen(true)}
-                      variant="ghost"
-                      size="sm"
-                      disabled={isGenerating}
-                      className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-gray-100"
-                      title="Edit template"
-                    >
-                      <Edit3 className="h-4 w-4 text-gray-600" />
-                    </Button>
-                    <Button
-                      onClick={() => setIsDeleteDialogOpen(true)}
-                      variant="ghost"
-                      size="sm"
-                      disabled={isGenerating}
-                      className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-red-50 hover:text-red-600"
-                      title="Delete template"
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    {canUpdate && (
+                      <Button
+                        onClick={() => setIsEditDialogOpen(true)}
+                        variant="ghost"
+                        size="sm"
+                        disabled={isGenerating}
+                        className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-gray-100"
+                        title="Edit template"
+                      >
+                        <Edit3 className="h-4 w-4 text-gray-600" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        variant="ghost"
+                        size="sm"
+                        disabled={isGenerating}
+                        className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-red-50 hover:text-red-600"
+                        title="Delete template"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <TabsContent value="sections" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+              {canListSections && (
+                <TabsContent value="sections" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
                 {/* Fixed Header */}
                 <div className="px-4 pt-6 pb-4 shrink-0">
                   <div className="flex items-center justify-between">
@@ -249,40 +270,46 @@ export function TemplateContent({
                     </div>
                     
                     {orderedSections && orderedSections.length > 0 ? (
-                      <Button
-                        onClick={() => setIsAddingSectionOpen(true)}
-                        size="sm"
-                        className="hover:cursor-pointer h-8 text-xs px-3"
-                        disabled={isGenerating}
-                      >
-                        <FileText className="mr-1.5 h-3.5 w-3.5" />
-                        Add Section
-                      </Button>
-                    ) : (
-                      <div className="flex items-center gap-2">
+                      canCreateSection && (
                         <Button
                           onClick={() => setIsAddingSectionOpen(true)}
                           size="sm"
-                          variant="outline"
                           className="hover:cursor-pointer h-8 text-xs px-3"
                           disabled={isGenerating}
                         >
                           <FileText className="mr-1.5 h-3.5 w-3.5" />
                           Add Section
                         </Button>
-                        <Button
-                          onClick={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
-                          size="sm"
-                          className="hover:cursor-pointer h-8 text-xs px-3"
-                          disabled={isGenerating}
-                        >
-                          {isGenerating ? (
-                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <span className="mr-1.5">✨</span>
-                          )}
-                          Generate with AI
-                        </Button>
+                      )
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {canCreateSection && (
+                          <Button
+                            onClick={() => setIsAddingSectionOpen(true)}
+                            size="sm"
+                            variant="outline"
+                            className="hover:cursor-pointer h-8 text-xs px-3"
+                            disabled={isGenerating}
+                          >
+                            <FileText className="mr-1.5 h-3.5 w-3.5" />
+                            Add Section
+                          </Button>
+                        )}
+                        {canCreateSection && (
+                          <Button
+                            onClick={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
+                            size="sm"
+                            className="hover:cursor-pointer h-8 text-xs px-3"
+                            disabled={isGenerating}
+                          >
+                            {isGenerating ? (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <span className="mr-1.5">✨</span>
+                            )}
+                            Generate with AI
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -296,16 +323,20 @@ export function TemplateContent({
                       templateId={selectedTemplate.id}
                       organizationId={selectedOrganizationId!}
                       onSectionsReorder={setOrderedSections}
+                      canUpdate={canUpdateSection}
+                      canDelete={canDeleteSection}
                     />
                   ) : (
                     <TemplateEmptyState
                       isGenerating={isGenerating}
                       onAddSection={() => setIsAddingSectionOpen(true)}
                       onGenerateWithAI={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
+                      canCreate={canCreateSection}
                     />
                   )}
                 </div>
               </TabsContent>
+              )}
 
               <TabsContent value="custom-fields" className="mt-0 flex-1 overflow-auto bg-gray-50">
                 {selectedTemplate && (

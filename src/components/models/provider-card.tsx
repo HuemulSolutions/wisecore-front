@@ -25,6 +25,12 @@ interface ProviderCardProps {
   modelsError?: any
   openDropdowns: {[key: string]: boolean}
   onDropdownChange: (key: string, open: boolean) => void
+  canCreateProvider: boolean
+  canUpdateProvider: boolean
+  canDeleteProvider: boolean
+  canCreateModel: boolean
+  canUpdateModel: boolean
+  canDeleteModel: boolean
 }
 
 export function ProviderCard({
@@ -44,7 +50,13 @@ export function ProviderCard({
   isLoadingModels,
   modelsError,
   openDropdowns,
-  onDropdownChange
+  onDropdownChange,
+  canCreateProvider,
+  canUpdateProvider,
+  canDeleteProvider,
+  canCreateModel,
+  canUpdateModel,
+  canDeleteModel
 }: ProviderCardProps) {
   const status = {
     configured: provider.isConfigured === true,
@@ -92,26 +104,32 @@ export function ProviderCard({
           {/* Action buttons */}
           <div className="flex items-center gap-2 mr-1">
             {provider.isConfigured ? (
-              <ProviderActions
-                provider={provider}
-                onEdit={onEditProvider}
-                onDelete={onDeleteProvider}
-                isDeleting={isDeleting}
-                dropdownOpen={openDropdowns[`provider-${provider.id}`] || false}
-                onDropdownChange={(open) => onDropdownChange(`provider-${provider.id}`, open)}
-              />
+              (canUpdateProvider || canDeleteProvider) && (
+                <ProviderActions
+                  provider={provider}
+                  onEdit={onEditProvider}
+                  onDelete={onDeleteProvider}
+                  isDeleting={isDeleting}
+                  dropdownOpen={openDropdowns[`provider-${provider.id}`] || false}
+                  onDropdownChange={(open) => onDropdownChange(`provider-${provider.id}`, open)}
+                  canUpdate={canUpdateProvider}
+                  canDelete={canDeleteProvider}
+                />
+              )
             ) : (
-              <Button
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onConfigureProvider(provider)
-                }}
-                className="hover:cursor-pointer h-7 text-xs bg-[#4464f7] hover:bg-[#3451e6]"
-              >
-                <Settings className="h-3 w-3 mr-1" />
-                Configure
-              </Button>
+              canCreateProvider && (
+                <Button
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onConfigureProvider(provider)
+                  }}
+                  className="hover:cursor-pointer h-7 text-xs bg-[#4464f7] hover:bg-[#3451e6]"
+                >
+                  <Settings className="h-3 w-3 mr-1" />
+                  Configure
+                </Button>
+              )
             )}
           </div>
 
@@ -135,14 +153,16 @@ export function ProviderCard({
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="font-semibold text-sm text-foreground">Models</h4>
-                    <Button
-                      size="sm"
-                      onClick={() => onCreateModel(provider.id)}
-                      className="hover:cursor-pointer h-7 text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Model
-                    </Button>
+                    {canCreateModel && (
+                      <Button
+                        size="sm"
+                        onClick={() => onCreateModel(provider.id)}
+                        className="hover:cursor-pointer h-7 text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Model
+                      </Button>
+                    )}
                   </div>
                   {isLoadingModels ? (
                     <div className="text-center py-8">
@@ -162,6 +182,8 @@ export function ProviderCard({
                       isDeleting={isDeletingModel}
                       openDropdowns={openDropdowns}
                       onDropdownChange={onDropdownChange}
+                      canUpdate={canUpdateModel}
+                      canDelete={canDeleteModel}
                     />
                   )}
                 </div>
@@ -178,15 +200,20 @@ export function ProviderCard({
                     </div>
                     <h3 className="text-sm font-semibold text-foreground mb-1">{provider.display_name || provider.name}</h3>
                     <p className="text-xs text-muted-foreground mb-4">
-                      Configure this provider to start using its models
+                      {canCreateProvider 
+                        ? "Configure this provider to start using its models"
+                        : "You don't have permission to configure this provider"
+                      }
                     </p>
                   </div>
-                  <Button
-                    onClick={() => onConfigureProvider(provider)}
-                    className="hover:cursor-pointer"
-                  >
-                    Configure Provider
-                  </Button>
+                  {canCreateProvider && (
+                    <Button
+                      onClick={() => onConfigureProvider(provider)}
+                      className="hover:cursor-pointer"
+                    >
+                      Configure Provider
+                    </Button>
+                  )}
                 </div>
               </>
             )}

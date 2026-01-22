@@ -10,6 +10,7 @@ interface CustomFieldPageHeaderProps {
   isLoading?: boolean
   searchTerm: string
   onSearchChange: (value: string) => void
+  canManage?: boolean
 }
 
 export function CustomFieldPageHeader({
@@ -19,6 +20,7 @@ export function CustomFieldPageHeader({
   isLoading = false,
   searchTerm,
   onSearchChange,
+  canManage = false
 }: CustomFieldPageHeaderProps) {
   return (
     <PageHeader
@@ -29,11 +31,11 @@ export function CustomFieldPageHeader({
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
-      primaryAction={{
+      primaryAction={canManage ? {
         label: "Create Custom Field",
         icon: Plus,
         onClick: onCreateCustomField
-      }}
+      } : undefined}
       searchConfig={{
         placeholder: "Search custom fields...",
         value: searchTerm,

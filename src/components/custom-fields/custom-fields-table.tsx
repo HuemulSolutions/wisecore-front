@@ -15,6 +15,7 @@ interface CustomFieldTableProps {
   customFieldMutations: ReturnType<typeof useCustomFieldMutations>
   pagination?: PaginationConfig
   showFooterStats?: boolean
+  canManage?: boolean
 }
 
 const formatDataType = (dataType: string) => {
@@ -60,6 +61,7 @@ export function CustomFieldTable({
   onDeleteCustomField,
   pagination,
   showFooterStats,
+  canManage = false
 }: CustomFieldTableProps) {
   // Define columns
   const columns: TableColumn<CustomField>[] = [
@@ -111,8 +113,8 @@ export function CustomFieldTable({
     }
   ]
 
-  // Define actions
-  const actions: TableAction<CustomField>[] = [
+  // Define actions - solo si es admin
+  const actions: TableAction<CustomField>[] = canManage ? [
     {
       key: "edit",
       label: "Edit Custom Field",
@@ -127,7 +129,7 @@ export function CustomFieldTable({
       onClick: onDeleteCustomField,
       destructive: true
     }
-  ]
+  ] : []
 
   // Define footer stats
   const footerStats: FooterStat[] = [

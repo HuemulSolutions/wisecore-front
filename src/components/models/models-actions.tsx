@@ -11,6 +11,8 @@ interface ModelActionsProps {
   isDeleting: boolean
   dropdownOpen: boolean
   onDropdownChange: (open: boolean) => void
+  canUpdate: boolean
+  canDelete: boolean
 }
 
 export function ModelActions({ 
@@ -19,9 +21,16 @@ export function ModelActions({
   onDelete, 
   isDeleting,
   dropdownOpen,
-  onDropdownChange
+  onDropdownChange,
+  canUpdate,
+  canDelete
 }: ModelActionsProps) {
   const isMobile = useIsMobile()
+
+  // Si no tiene ningún permiso, no mostrar nada
+  if (!canUpdate && !canDelete) {
+    return null
+  }
 
   if (isMobile) {
     return (
@@ -40,21 +49,25 @@ export function ModelActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => onEdit(model)}
-            className="hover:cursor-pointer text-xs"
-          >
-            <Edit className="h-3 w-3 mr-2 text-blue-600" />
-            Edit Model
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => onDelete(model)}
-            className="hover:cursor-pointer text-red-600 text-xs"
-            disabled={isDeleting}
-          >
-            <Trash2 className="h-3 w-3 mr-2" />
-            {isDeleting ? 'Deleting...' : 'Delete Model'}
-          </DropdownMenuItem>
+          {canUpdate && (
+            <DropdownMenuItem
+              onClick={() => onEdit(model)}
+              className="hover:cursor-pointer text-xs"
+            >
+              <Edit className="h-3 w-3 mr-2 text-blue-600" />
+              Edit Model
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <DropdownMenuItem
+              onClick={() => onDelete(model)}
+              className="hover:cursor-pointer text-red-600 text-xs"
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-3 w-3 mr-2" />
+              {isDeleting ? 'Deleting...' : 'Delete Model'}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     )
@@ -62,23 +75,27 @@ export function ModelActions({
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onEdit(model)}
-        className="hover:cursor-pointer h-6 w-6 p-0"
-      >
-        <Edit className="h-3 w-3 text-blue-600" />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onDelete(model)}
-        className="hover:cursor-pointer h-6 w-6 p-0"
-        disabled={isDeleting}
-      >
-        <Trash2 className="h-3 w-3 text-destructive" />
-      </Button>
+      {canUpdate && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onEdit(model)}
+          className="hover:cursor-pointer h-6 w-6 p-0"
+        >
+          <Edit className="h-3 w-3 text-blue-600" />
+        </Button>
+      )}
+      {canDelete && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onDelete(model)}
+          className="hover:cursor-pointer h-6 w-6 p-0"
+          disabled={isDeleting}
+        >
+          <Trash2 className="h-3 w-3 text-destructive" />
+        </Button>
+      )}
     </>
   )
 }
