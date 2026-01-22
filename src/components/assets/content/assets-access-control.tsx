@@ -70,8 +70,8 @@ export function DocumentAccessControl({
       ? globalPermissionChecks.every(check => check)
       : globalPermissionChecks.some(check => check)
     
-    // Debe tener AL MENOS UNO: access level del documento O permiso global
-    return (hasDocumentPermission || hasGlobalPermission) ? <>{children}</> : <>{fallback}</>
+    // Debe tener AMBOS: access level del documento Y permiso global
+    return (hasDocumentPermission && hasGlobalPermission) ? <>{children}</> : <>{fallback}</>
   }
   
   // Si no se requiere verificación global, solo verificar access levels del documento
@@ -146,8 +146,8 @@ export function DocumentActionButton({
       ? globalPermissionChecks.every(check => check)
       : globalPermissionChecks.some(check => check)
     
-    // Debe tener AL MENOS UNO: access level del documento O permiso global
-    if (!hasDocumentPermission && !hasGlobalPermission) {
+    // Debe tener AMBOS: access level del documento Y permiso global
+    if (!hasDocumentPermission || !hasGlobalPermission) {
       return null
     }
   } else if (!hasDocumentPermission) {
