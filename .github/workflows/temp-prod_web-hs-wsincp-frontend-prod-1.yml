@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
+    env:
+        VITE_API_URL: ${{ vars.VITE_API_URL_INACAP }}
 
     steps:
       - uses: actions/checkout@v4
@@ -52,4 +54,5 @@ jobs:
           app-name: 'web-hs-wsincp-frontend-prod-1'
           slot-name: 'Production'
           package: .
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_4C6DD1E4A31F4F4FAEADC0D0E6F706D0 }}
