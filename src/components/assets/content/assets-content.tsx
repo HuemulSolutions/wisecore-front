@@ -2840,6 +2840,7 @@ export function AssetContent({
                               accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
+                              checkGlobalPermissions={true}
                               variant="outline" 
                               onClick={handleCreateExecutionFromHeader}
                               disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
