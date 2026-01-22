@@ -72,7 +72,7 @@ export default function AppLayout() {
     canAccessDocumentTypes,
     canAccessAssets,
     canAccessTemplates,
-    hasPermission,
+    // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
   

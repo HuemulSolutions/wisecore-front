@@ -28,7 +28,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   const { data: organizationsResponse, isLoading, error } = useUserOrganizations(user?.id)
   const { data: allOrganizations } = useQuery({
     queryKey: ['organizations'],
-    queryFn: getAllOrganizations,
+    queryFn: () => getAllOrganizations(),
     enabled: open,
   })
 

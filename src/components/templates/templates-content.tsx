@@ -45,7 +45,7 @@ export function TemplateContent({
   onTemplateDeleted,
   onTemplateCreated,
   onToggleSidebar,
-  canCreate,
+  // canCreate,
   canUpdate,
   canDelete,
   canListSections,
