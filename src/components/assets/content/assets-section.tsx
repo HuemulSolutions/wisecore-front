@@ -335,7 +335,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess={["approve", "create"]}
+                                                requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
@@ -357,7 +357,7 @@ export default function SectionExecution({
                                         <TooltipTrigger asChild>
                                             <DocumentActionButton
                                                 accessLevels={accessLevels}
-                                                requiredAccess="edit"
+                                                requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
                                                 resource="assets"
                                                 variant="ghost"
