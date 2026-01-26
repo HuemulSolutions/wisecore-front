@@ -37,6 +37,7 @@ export interface RoleDocumentTypePermission {
   access_levels?: string[]; // Array for creating new permissions
   role_name?: string;
   document_type_name?: string;
+  document_type_color?: string;
 }
 
 export interface AccessLevelResponse {
