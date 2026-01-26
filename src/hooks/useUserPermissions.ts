@@ -41,42 +41,61 @@ export function useUserPermissions() {
     refreshPermissions,
   } = contextData;
 
+  const resolveResourceAliases = (resource: string): string[] => {
+    if (resource === 'asset' || resource === 'assets') {
+      return ['asset', 'assets'];
+    }
+    return [resource];
+  };
+
   // Funciones memoizadas para diferentes tipos de verificaciones comunes
   const canCreate = useMemo(() => {
     return (resource: string) => {
-      return hasPermission(`${resource}:c` as Permission) || isRootAdmin;
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.map(res => `${res}:c` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasAnyPermission, isRootAdmin]);
 
   const canRead = useMemo(() => {
     return (resource: string) => {
-      return hasPermission(`${resource}:r` as Permission) || isRootAdmin;
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.map(res => `${res}:r` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasAnyPermission, isRootAdmin]);
 
   const canUpdate = useMemo(() => {
     return (resource: string) => {
-      return hasPermission(`${resource}:u` as Permission) || isRootAdmin;
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.map(res => `${res}:u` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasAnyPermission, isRootAdmin]);
 
   const canDelete = useMemo(() => {
     return (resource: string) => {
-      return hasPermission(`${resource}:d` as Permission) || isRootAdmin;
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.map(res => `${res}:d` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasAnyPermission, isRootAdmin]);
 
   const canList = useMemo(() => {
     return (resource: string) => {
-      return hasPermission(`${resource}:l` as Permission) || isRootAdmin;
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.map(res => `${res}:l` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasAnyPermission, isRootAdmin]);
 
   const canManage = useMemo(() => {
     return (resource: string) => {
-      return hasPermission(`${resource}:manage` as Permission) || isRootAdmin;
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.map(res => `${res}:manage` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasAnyPermission, isRootAdmin]);
 
   // Verificaciones específicas para recursos comunes
   const canAccessUsers = useMemo(() => {
@@ -88,7 +107,10 @@ export function useUserPermissions() {
   }, [hasAnyPermission, isRootAdmin]);
 
   const canAccessAssets = useMemo(() => {
-    return hasAnyPermission(['assets:r', 'assets:l', 'assets:c', 'assets:u', 'assets:d']) || isRootAdmin;
+    return hasAnyPermission([
+      'asset:r', 'asset:l', 'asset:c', 'asset:u', 'asset:d',
+      'assets:r', 'assets:l', 'assets:c', 'assets:u', 'assets:d'
+    ]) || isRootAdmin;
   }, [hasAnyPermission, isRootAdmin]);
 
   const canAccessFolders = useMemo(() => {
@@ -130,7 +152,10 @@ export function useUserPermissions() {
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
-      const permissionsToCheck = actions.map(action => `${resource}:${action}` as Permission);
+      const resources = resolveResourceAliases(resource);
+      const permissionsToCheck = resources.flatMap(res =>
+        actions.map(action => `${res}:${action}` as Permission)
+      );
       return hasAnyPermission(permissionsToCheck) || isRootAdmin;
     };
   }, [hasAnyPermission, isRootAdmin]);
@@ -143,7 +168,10 @@ export function useUserPermissions() {
       }
 
       const actions = ['c', 'r', 'u', 'd', 'l', 'manage'];
-      return actions.filter(action => hasPermission(`${resource}:${action}` as Permission));
+      const resources = resolveResourceAliases(resource);
+      return actions.filter(action =>
+        resources.some(res => hasPermission(`${res}:${action}` as Permission))
+      );
     };
   }, [hasPermission, isRootAdmin]);
 

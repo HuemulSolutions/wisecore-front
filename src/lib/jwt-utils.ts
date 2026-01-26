@@ -25,6 +25,7 @@ export type PermissionResource =
   | 'organization'
   | 'user'
   | 'assets'
+  | 'asset'
   | 'folder'
   | 'context'
   | 'document_type'

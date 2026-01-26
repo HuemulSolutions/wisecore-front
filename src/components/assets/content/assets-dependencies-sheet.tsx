@@ -38,7 +38,7 @@ export function DependenciesSheet({
           requiredAccess={["edit", "create"]}
           requireAll={false}
           checkGlobalPermissions={true}
-          resource="assets"
+          resource="asset"
           size="sm"
           variant="ghost"
           className={isMobile 

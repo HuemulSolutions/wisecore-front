@@ -9,9 +9,9 @@ interface DocumentAccessControlProps {
   requireAll?: boolean
   children: React.ReactNode
   fallback?: React.ReactNode
-  /** Si se debe verificar también los permisos globales del usuario (assets:*, folder:*, etc.) */
+  /** Si se debe verificar también los permisos globales del usuario (asset:*, folder:*, etc.) */
   checkGlobalPermissions?: boolean
-  /** Recurso para verificar permisos globales (ej: 'assets', 'folder', 'context') */
+  /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
   resource?: string
 }
 
@@ -91,7 +91,7 @@ interface DocumentActionButtonProps extends Omit<React.ButtonHTMLAttributes<HTML
   size?: 'default' | 'sm' | 'lg' | 'icon'
   /** Si se debe verificar también los permisos globales del usuario */
   checkGlobalPermissions?: boolean
-  /** Recurso para verificar permisos globales (ej: 'assets', 'folder', 'context') */
+  /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
   resource?: string
 }
 

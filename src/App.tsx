@@ -49,12 +49,12 @@ export default function App() {
             } />
             <Route path="search" element={<SearchPage />} />
             <Route path="asset" element={
-              <PermissionProtectedRoute permissions={["assets:r", "assets:l"]}>
+              <PermissionProtectedRoute permissions={["asset:r", "asset:l", "assets:r", "assets:l"]}>
                 <Assets />
               </PermissionProtectedRoute>
             } />
             <Route path="asset/*" element={
-              <PermissionProtectedRoute permissions={["assets:r", "assets:l"]}>
+              <PermissionProtectedRoute permissions={["asset:r", "asset:l", "assets:r", "assets:l"]}>
                 <Assets />
               </PermissionProtectedRoute>
             } />
@@ -90,7 +90,7 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="document/:id" element={
-              <PermissionProtectedRoute permissions={["section:r", "assets:r"]}>
+              <PermissionProtectedRoute permissions={["section:r", "asset:r", "assets:r"]}>
                 <DocumentPage />
               </PermissionProtectedRoute>
             } />

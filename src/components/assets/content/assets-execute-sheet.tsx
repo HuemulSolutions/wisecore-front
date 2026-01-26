@@ -438,7 +438,7 @@ export function ExecuteSheet({
                     requiredAccess={["create", "edit"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
-                    resource="assets"
+                    resource="asset"
                     onClick={handleExecuteDocument}
                     disabled={
                       // Prioridad 1: Estados de carga - mantener deshabilitado durante carga

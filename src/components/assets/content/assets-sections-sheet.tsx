@@ -177,7 +177,7 @@ export function SectionSheet({
           requiredAccess={["edit", "create"]}
           requireAll={false}
           checkGlobalPermissions={true}
-          resource="assets"
+          resource="asset"
           size="sm"
           variant="ghost"
           className={isMobile 
@@ -210,7 +210,7 @@ export function SectionSheet({
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                   checkGlobalPermissions={true}
-                  resource="assets"
+                  resource="asset"
                   type="button"
                   size="sm"
                   className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
@@ -230,7 +230,7 @@ export function SectionSheet({
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
-                    resource="assets"
+                    resource="asset"
                     type="button"
                     size="sm"
                     variant="outline"
