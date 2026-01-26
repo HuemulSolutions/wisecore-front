@@ -56,7 +56,7 @@ interface ProtectedRouteProps {
  * </ProtectedRoute>
  * 
  * // Con redirección personalizada
- * <ProtectedRoute permission="assets:r" redirectTo="/dashboard">
+ * <ProtectedRoute permission="asset:r" redirectTo="/dashboard">
  *   <AssetsPage />
  * </ProtectedRoute>
  */
