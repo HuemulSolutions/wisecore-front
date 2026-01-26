@@ -26,3 +26,4 @@ dist-ssr
 node_modules/
 
 .vite
+AGENTS.md

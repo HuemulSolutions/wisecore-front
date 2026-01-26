@@ -27,8 +27,23 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
 
   const { data: organizationsResponse, isLoading, error } = useUserOrganizations(user?.id)
   const { data: allOrganizations } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: () => getAllOrganizations(),
+    queryKey: ['organizations', 'all'],
+    queryFn: async () => {
+      const pageSize = 1000
+      const maxPages = 100
+      let page = 1
+      let hasNext = true
+      let allOrgs: any[] = []
+
+      while (hasNext && page <= maxPages) {
+        const response = await getAllOrganizations(page, pageSize)
+        allOrgs = allOrgs.concat(response?.data || [])
+        hasNext = !!response?.has_next
+        page += 1
+      }
+
+      return { data: allOrgs }
+    },
     enabled: open,
   })
 

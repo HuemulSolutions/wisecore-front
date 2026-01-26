@@ -1531,7 +1531,7 @@ export function AssetContent({
                 requiredAccess={["create"]}
                 requireAll={false}
                 checkGlobalPermissions={true}
-                resource="assets"
+                resource="asset"
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
@@ -1556,7 +1556,7 @@ export function AssetContent({
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
                 checkGlobalPermissions={true}
-                resource="assets"
+                resource="asset"
               >
                 <SectionSheet
                   selectedFile={selectedFile}
@@ -1576,7 +1576,7 @@ export function AssetContent({
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
                 checkGlobalPermissions={true}
-                resource="assets"
+                resource="asset"
               >
                 <DependenciesSheet
                   selectedFile={selectedFile}
@@ -1595,7 +1595,7 @@ export function AssetContent({
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
                 checkGlobalPermissions={true}
-                resource="assets"
+                resource="asset"
               >
                 <ContextSheet
                   selectedFile={selectedFile}
@@ -1718,7 +1718,7 @@ export function AssetContent({
                 accessLevels={accessLevels}
                 requiredAccess="edit"
                 checkGlobalPermissions={true}
-                resource="assets"
+                resource="asset"
                 onClick={openEditDialog}
                 size="sm"
                 variant="ghost"
@@ -1735,7 +1735,7 @@ export function AssetContent({
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                   checkGlobalPermissions={true}
-                  resource="assets"
+                  resource="asset"
                   onClick={() => setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
                   variant="ghost"
@@ -1784,7 +1784,7 @@ export function AssetContent({
                 accessLevels={accessLevels}
                 requiredAccess="delete"
                 checkGlobalPermissions={true}
-                resource="assets"
+                resource="asset"
               >
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -1853,7 +1853,7 @@ export function AssetContent({
                       accessLevels={accessLevels}
                       requiredAccess="approve"
                       checkGlobalPermissions={true}
-                      resource="assets"
+                      resource="asset"
                       onClick={() => {
                         // Ensure selectedExecutionId is set to the current execution before opening dialog
                         if (!selectedExecutionId && currentExecution) {
@@ -1887,7 +1887,7 @@ export function AssetContent({
                       accessLevels={accessLevels}
                       requiredAccess="approve"
                       checkGlobalPermissions={true}
-                      resource="assets"
+                      resource="asset"
                       size="sm"
                       variant="ghost"
                       disabled={true}
@@ -1906,7 +1906,7 @@ export function AssetContent({
                       accessLevels={accessLevels}
                       requiredAccess="approve"
                       checkGlobalPermissions={true}
-                      resource="assets"
+                      resource="asset"
                       onClick={() => {
                         // Ensure selectedExecutionId is set to the current execution before opening dialog
                         if (!selectedExecutionId && currentExecution) {
@@ -2215,7 +2215,7 @@ export function AssetContent({
                         accessLevels={accessLevels}
                         requiredAccess="approve"
                         checkGlobalPermissions={true}
-                        resource="assets"
+                        resource="asset"
                         onClick={() => {
                           // Ensure selectedExecutionId is set to the current execution before opening dialog
                           if (!selectedExecutionId && currentExecution) {
@@ -2249,7 +2249,7 @@ export function AssetContent({
                         accessLevels={accessLevels}
                         requiredAccess="approve"
                         checkGlobalPermissions={true}
-                        resource="assets"
+                        resource="asset"
                         size="sm"
                         variant="ghost"
                         disabled={true}
@@ -2268,7 +2268,7 @@ export function AssetContent({
                         accessLevels={accessLevels}
                         requiredAccess="approve"
                         checkGlobalPermissions={true}
-                        resource="assets"
+                        resource="asset"
                         onClick={() => {
                           // Ensure selectedExecutionId is set to the current execution before opening dialog
                           if (!selectedExecutionId && currentExecution) {
@@ -2306,7 +2306,7 @@ export function AssetContent({
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
-                    resource="assets"
+                    resource="asset"
                     onClick={() => setTimeout(() => openCloneDialog(), 0)}
                     size="sm"
                     variant="ghost"
@@ -2329,7 +2329,7 @@ export function AssetContent({
                   accessLevels={accessLevels}
                   requiredAccess="edit"
                   checkGlobalPermissions={true}
-                  resource="assets"
+                  resource="asset"
                   onClick={openEditDialog}
                   size="sm"
                   variant="ghost"
@@ -2376,7 +2376,7 @@ export function AssetContent({
                   accessLevels={accessLevels}
                   requiredAccess="delete"
                   checkGlobalPermissions={true}
-                  resource="assets"
+                  resource="asset"
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

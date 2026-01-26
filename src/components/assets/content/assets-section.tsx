@@ -340,7 +340,7 @@ export default function SectionExecution({
                                                 accessLevels={accessLevels}
                                                 requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
-                                                resource="assets"
+                                                resource="asset"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
@@ -363,7 +363,7 @@ export default function SectionExecution({
                                                 accessLevels={accessLevels}
                                                 requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
-                                                resource="assets"
+                                                resource="asset"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
@@ -385,7 +385,7 @@ export default function SectionExecution({
                                                 accessLevels={accessLevels}
                                                 requiredAccess="edit"
                                                 checkGlobalPermissions={true}
-                                                resource="assets"
+                                                resource="asset"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
@@ -406,7 +406,7 @@ export default function SectionExecution({
                                             accessLevels={accessLevels}
                                             requiredAccess="read"
                                             checkGlobalPermissions={true}
-                                            resource="assets"
+                                            resource="asset"
                                             variant="ghost"
                                             size="sm"
                                             className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
@@ -427,7 +427,7 @@ export default function SectionExecution({
                                                 accessLevels={accessLevels}
                                                 requiredAccess={["create", "edit"]}
                                                 checkGlobalPermissions={true}
-                                                resource="assets"
+                                                resource="asset"
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
@@ -457,7 +457,7 @@ export default function SectionExecution({
                                         accessLevels={accessLevels}
                                         requiredAccess=""
                                         checkGlobalPermissions={false}
-                                        resource="assets"
+                                        resource="asset"
                                     > */}
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'
@@ -473,7 +473,7 @@ export default function SectionExecution({
                                                 accessLevels={accessLevels}
                                                 requiredAccess={["approve", "create"]}
                                                 checkGlobalPermissions={true}
-                                                resource="assets"
+                                                resource="asset"
                                             >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
@@ -490,7 +490,7 @@ export default function SectionExecution({
                                                 accessLevels={accessLevels}
                                                 requiredAccess={["approve", "create"]}
                                                 checkGlobalPermissions={true}
-                                                resource="assets"
+                                                resource="asset"
                                             >
                                                 <DropdownMenuItem
                                                     className='hover:cursor-pointer'
@@ -510,7 +510,7 @@ export default function SectionExecution({
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
                                             checkGlobalPermissions={true}
-                                            resource="assets"
+                                            resource="asset"
                                         >
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
@@ -526,7 +526,7 @@ export default function SectionExecution({
                                             accessLevels={accessLevels}
                                             requiredAccess="edit"
                                             checkGlobalPermissions={true}
-                                            resource="assets"
+                                            resource="asset"
                                         >
                                             <DropdownMenuItem 
                                                 className="hover:cursor-pointer"
@@ -544,7 +544,7 @@ export default function SectionExecution({
                                             accessLevels={accessLevels}
                                             requiredAccess={["create", "edit"]}
                                             checkGlobalPermissions={true}
-                                            resource="assets"
+                                            resource="asset"
                                         >
                                             <DropdownMenuItem 
                                                 className="text-red-600 hover:cursor-pointer"
@@ -563,7 +563,7 @@ export default function SectionExecution({
                                             accessLevels={accessLevels}
                                             requiredAccess={["create", "edit"]}
                                             checkGlobalPermissions={true}
-                                            resource="assets"
+                                            resource="asset"
                                         >
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
