@@ -27,3 +27,4 @@ node_modules/
 
 .vite
 AGENTS.md
+openapi.json

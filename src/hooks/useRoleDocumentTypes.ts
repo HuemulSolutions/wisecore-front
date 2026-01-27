@@ -56,11 +56,12 @@ export function useRoleDocumentTypes(enableFetch: boolean = true) {
       
       // Transformar la respuesta y filtrar solo los tipos donde el usuario puede crear
       const filteredTypes = response.data
-        .filter(item => item.access_level && item.access_level !== 'read') // Solo incluir tipos con permisos de creación
+        .filter(item => item.access_level === 'create') // Solo incluir tipos con permisos de creación
         .map(item => ({
           id: item.document_type_id,
           name: item.document_type_name || '',
-          access_level: item.access_level || ''
+          access_level: item.access_level || '',
+          color: item.document_type_color
         }))
       
       console.log("Filtered document types for creation:", filteredTypes)
