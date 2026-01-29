@@ -13,13 +13,17 @@ interface UserPageDialogsProps {
   onCloseDialog: (dialog: keyof UserPageState) => void
   onUpdateState: (updates: Partial<UserPageState>) => void
   userMutations: ReturnType<typeof useUserMutations>
+  onUsersUpdated?: () => void
+  createUserAddToOrganization?: boolean
 }
 
 export default function UserPageDialogs({ 
   state, 
   onCloseDialog, 
   onUpdateState, 
-  userMutations 
+  userMutations,
+  onUsersUpdated,
+  createUserAddToOrganization
 }: UserPageDialogsProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   return (
@@ -28,6 +32,7 @@ export default function UserPageDialogs({
         user={state.editingUser}
         open={!!state.editingUser}
         onOpenChange={(open) => !open && onCloseDialog('editingUser')}
+        onSuccess={onUsersUpdated}
       />
 
       <UserOrganizationsDialog
@@ -39,6 +44,8 @@ export default function UserPageDialogs({
       <CreateUserDialog
         open={state.showCreateDialog}
         onOpenChange={(open) => !open && onUpdateState({ showCreateDialog: false })}
+        onSuccess={onUsersUpdated}
+        addToOrganization={createUserAddToOrganization}
       />
 
       <AssignRolesSheet

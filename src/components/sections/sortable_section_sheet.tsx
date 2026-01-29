@@ -2,6 +2,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import Markdown from "../ui/markdown";
@@ -28,7 +30,7 @@ interface SortableSectionSheetProps {
   item: SortableSectionSheetItem;
   existingSections: object[];
   onSave: (sectionId: string, sectionData: object) => void;
-  onDelete: (sectionId: string) => void;
+  onDelete: (sectionId: string, options?: { propagate_to_documents?: boolean }) => void;
   isOverlay?: boolean;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
@@ -42,6 +44,7 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [propagateDeleteToAssets, setPropagateDeleteToAssets] = useState(false);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -59,9 +62,9 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
     
     try {
       // Ejecutar la mutación y esperar ambas promesas
-      await Promise.all([
-        new Promise<void>((resolve) => {
-          onDelete(item.id);
+        await Promise.all([
+          new Promise<void>((resolve) => {
+          onDelete(item.id, propagateDeleteToAssets ? { propagate_to_documents: true } : undefined);
           resolve();
         }),
         minDelay
@@ -330,7 +333,29 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
         open={showDeleteDialog}
         onOpenChange={(open) => !isDeleting && setShowDeleteDialog(open)}
         title="Delete Section"
-        description={`Are you sure you want to delete the section "${item.name}"? This action cannot be undone.`}
+        description={
+          <div className="space-y-3">
+            <p>
+              Are you sure you want to delete the section "{item.name}"? This action cannot be undone.
+            </p>
+            {isTemplateSection && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id={`propagate-delete-${item.id}`}
+                  checked={propagateDeleteToAssets}
+                  onCheckedChange={(checked) => setPropagateDeleteToAssets(checked as boolean)}
+                  disabled={isDeleting}
+                />
+                <Label
+                  htmlFor={`propagate-delete-${item.id}`}
+                  className="text-xs font-medium text-gray-700 hover:cursor-pointer"
+                >
+                  Also remove related asset sections created from this template
+                </Label>
+              </div>
+            )}
+          </div>
+        }
         onConfirm={handleDelete}
         confirmLabel="Delete"
         isProcessing={isDeleting}

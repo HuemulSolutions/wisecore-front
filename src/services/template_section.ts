@@ -15,6 +15,8 @@ export async function createTemplateSection(
         reference_execution_id?: string;
         dependencies?: string[]; 
         type?: "ai" | "manual" | "reference";
+        propagate_to_documents?: boolean;
+        document_ids?: string[];
     }, 
     organizationId: string
 ) {
@@ -74,6 +76,33 @@ export async function deleteTemplateSection(sectionId: string, organizationId: s
         headers: {
             'X-Org-Id': organizationId,
         },
+    });
+
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error('Error deleting section:', errorResponse);
+        throw new Error(errorResponse.detail.error || 'Unknown error');
+    }
+
+    const data = await response.json();
+    console.log('Section deleted:', data);
+    return data;
+}
+
+export async function deleteTemplateSectionWithPropagation(
+    sectionId: string,
+    payload: {
+        propagate_to_documents?: boolean;
+        document_ids?: string[];
+    },
+    organizationId: string
+) {
+    const response = await httpClient.fetch(`${backendUrl}/template_section/${sectionId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

@@ -57,6 +57,7 @@ interface UserTableProps {
   onAssignRoles: (user: User) => void
   onDeleteUser: (user: User) => void
   onManageRootAdmin: (user: User) => void
+  onMakeOrganizationAdmin?: (user: User) => void
   isCurrentUserRootAdmin?: boolean
   userMutations: {
     approveUser: UseMutationResult<any, any, string, unknown>
@@ -79,6 +80,7 @@ export default function UserTable({
   onAssignRoles,
   onDeleteUser,
   onManageRootAdmin,
+  onMakeOrganizationAdmin,
   isCurrentUserRootAdmin = false,
   userMutations,
   pagination,
@@ -211,10 +213,20 @@ export default function UserTable({
       show: () => isCurrentUserRootAdmin
     },
     {
+      key: "make-org-admin",
+      label: "Make Organization Admin",
+      icon: Building,
+      onClick: (user) => onMakeOrganizationAdmin?.(user),
+      show: () => isCurrentUserRootAdmin && !!onMakeOrganizationAdmin,
+      separator: true
+    },
+    {
       key: "view-orgs",
       label: "View Organizations",
       icon: Building,
       onClick: onViewOrganizations
+      ,
+      show: () => false
     },
     {
       key: "edit",

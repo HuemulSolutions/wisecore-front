@@ -263,6 +263,13 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
+                        {isRootAdmin && (
+                          <DropdownMenuItem asChild>
+                            <Link to="/global-admin" className="hover:cursor-pointer">
+                              Global Admin Settings
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
                         {(canAccessUsers || isRootAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/users" className="hover:cursor-pointer">

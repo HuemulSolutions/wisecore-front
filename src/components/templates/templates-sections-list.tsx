@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { updateTemplateSection, deleteTemplateSection, updateTemplateSectionsOrder } from "@/services/template_section";
+import { updateTemplateSection, deleteTemplateSection, deleteTemplateSectionWithPropagation, updateTemplateSectionsOrder } from "@/services/template_section";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -51,9 +51,22 @@ export function TemplateSectionsList({
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId, organizationId),
-    onSuccess: () => {
-      toast.success("Section deleted successfully");
+    mutationFn: ({
+      sectionId,
+      options,
+    }: {
+      sectionId: string;
+      options?: { propagate_to_documents?: boolean };
+    }) =>
+      options?.propagate_to_documents
+        ? deleteTemplateSectionWithPropagation(sectionId, options, organizationId)
+        : deleteTemplateSection(sectionId, organizationId),
+    onSuccess: (data: any) => {
+      if (data?.propagated && data?.deleted_document_sections_count) {
+        toast.success(`Section deleted and propagated to ${data.deleted_document_sections_count} asset sections`);
+      } else {
+        toast.success("Section deleted successfully");
+      }
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
     onError: (error: Error) => {
@@ -153,7 +166,9 @@ export function TemplateSectionsList({
                     onSave={(sectionId: string, sectionData: object) =>
                       updateSectionMutation.mutate({ sectionId, sectionData })
                     }
-                    onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
+                    onDelete={(sectionId: string, options?: { propagate_to_documents?: boolean }) =>
+                      deleteSectionMutation.mutate({ sectionId, options })
+                    }
                     isTemplateSection={true}
                     canUpdate={canUpdate}
                     canDelete={canDelete}

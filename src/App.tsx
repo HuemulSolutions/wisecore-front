@@ -21,6 +21,7 @@ import UsersPage from "./pages/users";
 import Roles from "./pages/roles";
 import AssetTypesPage from "./pages/assets-types";
 import CustomFieldsPage from "./pages/custom-fields";
+import GlobalAdminPage from "./pages/global-admin";
 
 export default function App() {
   return (
@@ -67,6 +68,11 @@ export default function App() {
             <Route path="auth-types" element={
               <PermissionProtectedRoute requireRootAdmin>
                 <AuthTypes />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="global-admin" element={
+              <PermissionProtectedRoute requireRootAdmin>
+                <GlobalAdminPage />
               </PermissionProtectedRoute>
             } />
             <Route path="users" element={

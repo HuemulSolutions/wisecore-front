@@ -9,6 +9,10 @@ import type {
   CreateUserData
 } from '@/types/users';
 
+interface GlobalUsersResponse {
+  data: User[]
+}
+
 // Get all users with roles
 export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100): Promise<UsersResponse> => {
   const params = new URLSearchParams({
@@ -33,6 +37,17 @@ export const getUsers = async (organizationId?: string, page: number = 1, pageSi
     throw new Error('Failed to fetch users');
   }
   
+  return response.json();
+};
+
+// Get global users list (root admin)
+export const getGlobalUsers = async (): Promise<GlobalUsersResponse> => {
+  const response = await httpClient.get(`${backendUrl}/users`);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch users');
+  }
+
   return response.json();
 };
 
