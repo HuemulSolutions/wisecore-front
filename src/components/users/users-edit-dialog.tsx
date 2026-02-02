@@ -12,9 +12,10 @@ interface EditUserDialogProps {
   user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export default function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps) {
+export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: EditUserDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
     last_name: '',
@@ -111,13 +112,14 @@ export default function EditUserDialog({ user, open, onOpenChange }: EditUserDia
       updateUser(userId, data),
     onSuccess: (_, variables) => {
       // Invalidate the users list query
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       // Invalidate the specific user query
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(variables.userId) })
       // Also invalidate the query used by this dialog
       queryClient.invalidateQueries({ queryKey: ['user', variables.userId] })
       toast.success('User updated successfully')
       onOpenChange(false)
+      onSuccess?.()
     },
     onError: (error) => {
       toast.error('Failed to update user: ' + error.message)

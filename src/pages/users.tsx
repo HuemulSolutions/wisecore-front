@@ -103,7 +103,7 @@ export default function UsersPage() {
     setIsRefreshing(true)
     try {
       // Invalidate the query to force a fresh fetch from the server
-      await queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      await queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       // Refetch to trigger the query execution
       await refetch()
       toast.success('Data refreshed')

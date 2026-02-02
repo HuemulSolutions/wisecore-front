@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { LoginForm } from "@/components/auth/auth-login-form"
-import { SignupForm } from "@/components/auth/auth-signup-form"
+// import { SignupForm } from "@/components/auth/auth-signup-form" // Commented out - signup disabled
 import { OTPForm } from "@/components/auth/auth-otp-form"
 import { useAuth } from "@/contexts/auth-context"
 
-type AuthStep = 'login' | 'signup' | 'otp'
+type AuthStep = 'login' | 'otp'
 
 export function AuthPage() {
   const [step, setStep] = useState<AuthStep>('login')
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [purpose, setPurpose] = useState<'login' | 'signup'>('login')
+  const [purpose] = useState<'login'>('login')
   
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
@@ -35,18 +35,19 @@ export function AuthPage() {
     setStep('otp')
   }
 
-  const handleSwitchToSignup = () => {
-    setPurpose('signup')
-    setStep('signup')
-  }
+  // Signup functionality disabled - functions commented out for easy reactivation
+  // const handleSwitchToSignup = () => {
+  //   setPurpose('signup')
+  //   setStep('signup')
+  // }
 
-  const handleSwitchToLogin = () => {
-    setPurpose('login')
-    setStep('login')
-  }
+  // const handleSwitchToLogin = () => {
+  //   setPurpose('login')
+  //   setStep('login')
+  // }
 
   const handleBackToForm = () => {
-    setStep(purpose)
+    setStep('login')
   }
 
   const handleAuthSuccess = () => {
@@ -59,19 +60,18 @@ export function AuthPage() {
       <div className="w-full max-w-sm">
         {step === 'login' && (
           <LoginForm
-            onSwitchToSignup={handleSwitchToSignup}
             onCodeRequested={(email) => {
-              setPurpose('login')
               handleCodeRequested(email)
             }}
           />
         )}
-        {step === 'signup' && (
+        {/* Signup form disabled - component kept for easy reactivation */}
+        {/* {step === 'signup' && (
           <SignupForm
             onSwitchToLogin={handleSwitchToLogin}
             onSuccess={handleAuthSuccess}
           />
-        )}
+        )} */}
         {step === 'otp' && (
           <OTPForm
             email={email}

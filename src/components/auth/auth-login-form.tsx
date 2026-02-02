@@ -21,7 +21,7 @@ interface LoginFormProps extends React.ComponentProps<"div"> {
 
 export function LoginForm({
   className,
-  onSwitchToSignup,
+  onSwitchToSignup, // eslint-disable-line @typescript-eslint/no-unused-vars -- Kept for easy reactivation of signup feature
   onCodeRequested,
   ...props
 }: LoginFormProps) {
@@ -52,7 +52,8 @@ export function LoginForm({
           <div className="flex flex-col items-center gap-4 text-center">
             <WisecoreLogo size="lg" className="text-[#4464f7]" />
             {/* <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1> */}
-            <FieldDescription className="text-gray-600">
+            {/* Signup link hidden - kept in code for easy reactivation */}
+            {/* <FieldDescription className="text-gray-600">
               Don&apos;t have an account?{" "}
               <a
                 href="#"
@@ -64,7 +65,7 @@ export function LoginForm({
               >
                 Sign up
               </a>
-            </FieldDescription>
+            </FieldDescription> */}
           </div>
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>

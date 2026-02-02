@@ -1,11 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
 import { toast } from "sonner"
 
 // Query keys
 export const userQueryKeys = {
   all: ['users'] as const,
-  list: (page?: number, pageSize?: number) => [...userQueryKeys.all, 'list', page, pageSize] as const,
+  listBase: () => [...userQueryKeys.all, 'list'] as const,
+  list: (organizationId?: string, page?: number, pageSize?: number) => [
+    ...userQueryKeys.listBase(),
+    organizationId ?? 'all',
+    page,
+    pageSize
+  ] as const,
   detail: (id: string) => [...userQueryKeys.all, 'detail', id] as const,
   organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
 }
@@ -13,7 +19,7 @@ export const userQueryKeys = {
 // Hook for fetching users
 export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100) {
   return useQuery({
-    queryKey: userQueryKeys.list(page, pageSize),
+    queryKey: userQueryKeys.list(organizationId, page, pageSize),
     queryFn: () => getUsers(organizationId, page, pageSize),
     staleTime: 2 * 60 * 1000, // 2 minutes - reasonable cache time
     gcTime: 5 * 60 * 1000, // 5 minutes cache (formerly cacheTime)
@@ -35,13 +41,19 @@ export function useUserOrganizations(userId?: string) {
 }
 
 // Hook for user mutations
-export function useUserMutations() {
+export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
   const queryClient = useQueryClient()
+  const invalidateAdditional = () => {
+    additionalInvalidateKeys.forEach((queryKey) => {
+      queryClient.invalidateQueries({ queryKey })
+    })
+  }
 
   const approveUserMutation = useMutation({
     mutationFn: approveUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
       toast.success('User approved successfully')
     },
     onError: (error) => {
@@ -52,7 +64,8 @@ export function useUserMutations() {
   const rejectUserMutation = useMutation({
     mutationFn: rejectUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
       toast.success('User rejected successfully')
     },
     onError: (error) => {
@@ -63,7 +76,8 @@ export function useUserMutations() {
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
       toast.success('User deleted successfully')
     },
     onError: (error) => {
@@ -75,7 +89,8 @@ export function useUserMutations() {
     mutationFn: ({ userId, data }: { userId: string; data: any }) => 
       updateUser(userId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
       toast.success('User updated successfully')
     },
     onError: (error) => {
@@ -86,7 +101,8 @@ export function useUserMutations() {
   const createUserMutation = useMutation({
     mutationFn: createUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
       toast.success('User created successfully')
     },
     onError: (error) => {
@@ -98,7 +114,8 @@ export function useUserMutations() {
     mutationFn: ({ userId, isRootAdmin }: { userId: string; isRootAdmin: boolean }) =>
       updateUserRootAdmin(userId, isRootAdmin),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
       toast.success('Root admin status updated successfully')
     },
     onError: (error) => {

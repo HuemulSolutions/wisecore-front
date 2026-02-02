@@ -85,6 +85,7 @@ export function SectionForm({
   const [isGenerating, setIsGenerating] = useState(false);
   const [propagateToTemplate, setPropagateToTemplate] = useState(false);
   const [propagatePrompt, setPropagatePrompt] = useState(false);
+  const [propagateToAssets, setPropagateToAssets] = useState(false);
   
   // Estados para Reference Type con FileTree
   const [selectedAsset, setSelectedAsset] = useState<{ id: string; name: string } | null>(null);
@@ -330,6 +331,9 @@ export function SectionForm({
 
       if (templateId) {
         submitData.template_id = templateId;
+        if (propagateToAssets) {
+          submitData.propagate_to_documents = true;
+        }
       } else if (documentId) {
         submitData.document_id = documentId;
       }
@@ -818,6 +822,24 @@ export function SectionForm({
             className="text-xs font-medium text-gray-700 hover:cursor-pointer"
           >
             Propagate changes to template
+          </Label>
+        </div>
+      )}
+
+      {/* Propagate to Assets - Solo mostrar en modo create cuando es template */}
+      {mode === 'create' && templateId && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="propagate-to-assets"
+            checked={propagateToAssets}
+            onCheckedChange={(checked) => setPropagateToAssets(checked as boolean)}
+            disabled={isPending}
+          />
+          <Label
+            htmlFor="propagate-to-assets"
+            className="text-xs font-medium text-gray-700 hover:cursor-pointer"
+          >
+            Propagate section to all related assets
           </Label>
         </div>
       )}
