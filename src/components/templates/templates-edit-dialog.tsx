@@ -45,9 +45,6 @@ export function EditTemplateDialog({
       onSuccess();
       onOpenChange(false);
     },
-    onError: (error: Error) => {
-      toast.error("Error updating template: " + error.message);
-    },
   });
 
   const handleSubmit = () => {

@@ -55,9 +55,6 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
       toast.success('User assigned to organization successfully')
       setSelectedOrganizationId("")
     },
-    onError: (error) => {
-      toast.error('Failed to assign user to organization: ' + error.message)
-    },
   })
 
   const removeMutation = useMutation({
@@ -67,9 +64,6 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
       toast.success('User removed from organization successfully')
       setOrgToRemove(null)
-    },
-    onError: (error) => {
-      toast.error('Failed to remove user from organization: ' + error.message)
     },
   })
 

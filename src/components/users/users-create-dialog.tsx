@@ -79,7 +79,8 @@ export default function CreateUserDialog({
 
       // Clear previous error
       setErrors(prev => {
-        const { photo_file, ...rest } = prev
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { photo_file: _, ...rest } = prev
         return rest
       })
 

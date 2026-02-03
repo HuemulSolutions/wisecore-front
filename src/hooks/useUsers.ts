@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
 import { toast } from "sonner"
+import type { UpdateUserData } from "@/types/users"
 
 // Query keys
 export const userQueryKeys = {
@@ -56,9 +57,6 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
       invalidateAdditional()
       toast.success('User approved successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to approve user: ' + error.message)
-    },
   })
 
   const rejectUserMutation = useMutation({
@@ -67,9 +65,6 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
       toast.success('User rejected successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to reject user: ' + error.message)
     },
   })
 
@@ -80,21 +75,15 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
       invalidateAdditional()
       toast.success('User deleted successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to delete user: ' + error.message)
-    },
   })
 
   const updateUserMutation = useMutation({
-    mutationFn: ({ userId, data }: { userId: string; data: any }) => 
+    mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) => 
       updateUser(userId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
       toast.success('User updated successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to update user: ' + error.message)
     },
   })
 
@@ -105,9 +94,6 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
       invalidateAdditional()
       toast.success('User created successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to create user: ' + error.message)
-    },
   })
 
   const updateRootAdminMutation = useMutation({
@@ -117,9 +103,6 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
       toast.success('Root admin status updated successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to update root admin status: ' + error.message)
     },
   })
 

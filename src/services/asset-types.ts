@@ -75,10 +75,6 @@ export const getAssetTypes = async (): Promise<AssetTypesResponse> => {
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch asset types');
-  }
-  
   return response.json();
 };
 
@@ -93,10 +89,6 @@ export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number 
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch asset types with roles');
-  }
-  
   return response.json();
 };
 
@@ -105,10 +97,6 @@ export const getAssetType = async (id: string): Promise<AssetType> => {
   const response = await httpClient.get(`${backendUrl}/document_types/${id}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch asset type');
-  }
   
   return response.json();
 };
@@ -119,10 +107,6 @@ export const createAssetType = async (data: CreateAssetTypeData): Promise<AssetT
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to create asset type');
-  }
-  
   return response.json();
 };
 
@@ -132,20 +116,12 @@ export const updateAssetType = async (id: string, data: UpdateAssetTypeData): Pr
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to update asset type');
-  }
-  
   return response.json();
 };
 
 // Delete asset type
 export const deleteAssetType = async (id: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/document_types/${id}`, {
+  await httpClient.delete(`${backendUrl}/document_types/${id}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete asset type');
-  }
 };

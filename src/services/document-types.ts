@@ -66,10 +66,6 @@ export const getDocumentTypes = async (): Promise<DocumentTypesResponse> => {
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch asset types');
-  }
-  
   return response.json();
 };
 
@@ -84,10 +80,6 @@ export const createDocumentType = async (data: CreateDocumentTypeData): Promise<
     body: JSON.stringify(data),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to create asset type');
-  }
-  
   return response.json();
 };
 
@@ -97,10 +89,6 @@ export const getDocumentTypeById = async (id: string): Promise<DocumentTypeDetai
     method: 'GET',
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch document type');
-  }
   
   return response.json();
 };
@@ -116,21 +104,13 @@ export const updateDocumentType = async (id: string, data: UpdateDocumentTypeDat
     body: JSON.stringify(data),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to update document type');
-  }
-  
   return response.json();
 };
 
 // Delete document type
 export const deleteDocumentType = async (id: string): Promise<void> => {
-  const response = await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
+  await httpClient.fetch(`${backendUrl}/document_types/${id}`, {
     method: 'DELETE',
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete document type');
-  }
 };

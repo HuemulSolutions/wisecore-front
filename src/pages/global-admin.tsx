@@ -81,9 +81,6 @@ function OrganizationsSection() {
       closeDialog("showCreateDialog")
       toast.success("Organization created successfully")
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to create organization")
-    },
   })
 
   const updateMutation = useMutation({
@@ -94,9 +91,6 @@ function OrganizationsSection() {
       closeDialog("editingOrganization")
       toast.success("Organization updated successfully")
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to update organization")
-    },
   })
 
   const deleteMutation = useMutation({
@@ -105,9 +99,6 @@ function OrganizationsSection() {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("deletingOrganization")
       toast.success("Organization deleted successfully")
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to delete organization")
     },
   })
 
@@ -358,7 +349,7 @@ function UsersSection() {
       await queryClient.invalidateQueries({ queryKey: globalUsersQueryKey })
       await refetch()
       toast.success('Data refreshed')
-    } catch (refreshError) {
+    } catch {
       toast.error('Failed to refresh data')
     } finally {
       setIsRefreshing(false)

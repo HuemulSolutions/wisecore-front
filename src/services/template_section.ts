@@ -29,12 +29,6 @@ export async function createTemplateSection(
         },
     });
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error creating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
     const data = await response.json();
     console.log('Section created:', data.data);
     return data.data;
@@ -61,11 +55,6 @@ export async function updateTemplateSection(
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error updating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
     const data = await response.json();
     console.log('Section updated:', data.data);
     return data.data;
@@ -77,12 +66,6 @@ export async function deleteTemplateSection(sectionId: string, organizationId: s
             'X-Org-Id': organizationId,
         },
     });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error deleting section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
 
     const data = await response.json();
     console.log('Section deleted:', data);
@@ -105,12 +88,6 @@ export async function deleteTemplateSectionWithPropagation(
         body: JSON.stringify(payload),
     });
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error deleting section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
     const data = await response.json();
     console.log('Section deleted:', data);
     return data;
@@ -123,10 +100,6 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
             'X-Org-Id': organizationId,
         },
     });
-
-    if (!response.ok) {
-        throw new Error('Error al actualizar el orden de las secciones');
-    }
 
     const data = await response.json();
     console.log('Sections order updated:', data.data);

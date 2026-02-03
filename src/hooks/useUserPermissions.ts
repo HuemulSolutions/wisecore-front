@@ -11,7 +11,7 @@ export function useUserPermissions() {
   let contextData;
   try {
     contextData = usePermissions();
-  } catch (error) {
+  } catch {
     // Si el contexto no está disponible, retornar valores por defecto
     console.warn('PermissionsContext not available, using default values');
     contextData = {

@@ -10,9 +10,6 @@ export async function getAllDocumentTypes(organizationId: string) {
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        throw new Error('Error al obtener los tipos de documentos');
-    }
     const data = await response.json();
     console.log('Assets types fetched:', data.data);
     return data.data;
@@ -25,9 +22,6 @@ export async function createDocumentType(documentTypeData: { name: string; color
         },
     });
 
-    if (!response.ok) {
-        throw new Error('Error al crear el tipo de documento');
-    }
     const data = await response.json();
     console.log('Asset type created:', data.data);
     return data.data;

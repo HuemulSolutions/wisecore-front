@@ -63,9 +63,6 @@ export default function Organizations() {
       closeDialog("showCreateDialog")
       toast.success("Organization created successfully")
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to create organization")
-    },
   })
 
   const updateMutation = useMutation({
@@ -76,9 +73,6 @@ export default function Organizations() {
       closeDialog("editingOrganization")
       toast.success("Organization updated successfully")
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to update organization")
-    },
   })
 
   const deleteMutation = useMutation({
@@ -87,9 +81,6 @@ export default function Organizations() {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("deletingOrganization")
       toast.success("Organization deleted successfully")
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to delete organization")
     },
   })
 

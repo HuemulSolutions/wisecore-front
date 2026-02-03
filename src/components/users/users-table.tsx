@@ -72,8 +72,11 @@ interface UserTableProps {
 
 export default function UserTable({
   users,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   selectedUsers: _selectedUsers,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onUserSelection: _onUserSelection,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSelectAll: _onSelectAll,
   onEditUser,
   onViewOrganizations,

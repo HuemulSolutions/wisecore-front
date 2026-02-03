@@ -58,9 +58,6 @@ export function useAssetTypeMutations() {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
       toast.success('Asset type created successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to create asset type: ' + error.message)
-    },
   })
 
   const updateAssetTypeMutation = useMutation({
@@ -71,9 +68,6 @@ export function useAssetTypeMutations() {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
       toast.success('Asset type updated successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to update asset type: ' + error.message)
-    },
   })
 
   const deleteAssetTypeMutation = useMutation({
@@ -82,9 +76,6 @@ export function useAssetTypeMutations() {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
       toast.success('Asset type deleted successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to delete asset type: ' + error.message)
     },
   })
 

@@ -76,10 +76,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['library'] });
       toast.success("Section created successfully");
     },
-    onError: (error: Error) => {
-      console.error("Error creating section:", error);
-      toast.error("Error creating section: " + error.message);
-    },
   });
 
   // Mutation for section execution creation
@@ -92,10 +88,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       toast.success("Section added successfully");
-    },
-    onError: (error: Error) => {
-      console.error("Error creating section execution:", error);
-      toast.error("Error creating section: " + error.message);
     },
   });
 
@@ -117,10 +109,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
       return executionData;
     },
-    onError: (error: Error) => {
-      console.error("Error executing document:", error);
-      toast.error("Error executing document: " + error.message);
-    },
   });
 
   // Mutation for approve execution
@@ -134,10 +122,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
-    },
-    onError: (error: Error) => {
-      console.error('Error approving execution:', error);
-      toast.error('Failed to approve execution. Please try again.');
     },
   });
 
@@ -153,10 +137,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
     },
-    onError: (error: Error) => {
-      console.error('Error disapproving execution:', error);
-      toast.error('Failed to disapprove execution. Please try again.');
-    },
   });
 
   // Mutation for deleting execution
@@ -170,10 +150,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
-    },
-    onError: (error: Error) => {
-      console.error('Error deleting execution:', error);
-      toast.error('Failed to delete execution. Please try again.');
     },
   });
 
@@ -190,10 +166,6 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
       return clonedExecution;
     },
-    onError: (error: Error) => {
-      console.error('Error cloning execution:', error);
-      toast.error('Failed to clone execution. Please try again.');
-    },
   });
 
   // Mutation for deleting document
@@ -205,10 +177,6 @@ export function useDocumentMutations({
       toast.success('Document deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['library'] });
       queryClient.invalidateQueries({ queryKey: ['document-content'] });
-    },
-    onError: (error: Error) => {
-      console.error('Error deleting document:', error);
-      toast.error('Failed to delete document. Please try again.');
     },
   });
 

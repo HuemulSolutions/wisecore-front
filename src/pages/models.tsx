@@ -84,9 +84,6 @@ export default function Models() {
       setEditingProvider(null)
       toast.success('Provider configured successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to configure provider: ${error.message}`)
-    }
   })
 
   const updateProviderMutation = useMutation({
@@ -96,9 +93,6 @@ export default function Models() {
       setEditingProvider(null)
       toast.success('Provider updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to update provider: ${error.message}`)
-    }
   })
 
   const deleteProviderMutation = useMutation({
@@ -108,9 +102,6 @@ export default function Models() {
       setDeletingProvider(null)
       toast.success('Provider deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to delete provider: ${error.message}`)
-    }
   })
 
   const createLLMMutation = useMutation({
@@ -120,9 +111,6 @@ export default function Models() {
       setIsCreateModelOpen(false)
       toast.success('Model created successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to create model: ${error.message}`)
-    }
   })
 
   const updateLLMMutation = useMutation({
@@ -132,9 +120,6 @@ export default function Models() {
       setEditingModel(null)
       toast.success('Model updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to update model: ${error.message}`)
-    }
   })
 
   const deleteLLMMutation = useMutation({
@@ -144,9 +129,6 @@ export default function Models() {
       setDeletingModel(null)
       toast.success('Model deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to delete model: ${error.message}`)
-    }
   })
 
   const setDefaultMutation = useMutation({
@@ -155,9 +137,6 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       toast.success('Default model updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to set default model: ${error.message}`)
-    }
   })
 
   // Process supported providers with configured_id

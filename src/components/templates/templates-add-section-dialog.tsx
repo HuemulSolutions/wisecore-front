@@ -41,9 +41,6 @@ export function AddSectionDialog({
       onOpenChange(false);
       setIsFormValid(false);
     },
-    onError: (error: Error) => {
-      toast.error("Error creating section: " + error.message);
-    },
   });
 
   return (

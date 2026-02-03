@@ -141,10 +141,6 @@ export const getRoles = async (page: number = 1, pageSize: number = 10): Promise
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch roles');
-  }
-  
   return response.json();
 };
 
@@ -154,10 +150,6 @@ export const createRole = async (data: CreateRoleData): Promise<Role> => {
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to create role');
-  }
-  
   return response.json();
 };
 
@@ -166,10 +158,6 @@ export const getPermissions = async (): Promise<PermissionsResponse> => {
   const response = await httpClient.get(`${backendUrl}/rbac/permissions`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch permissions');
-  }
   
   return response.json();
 };
@@ -184,10 +172,6 @@ export const getUserRoles = async (userId: string): Promise<UserRolesResponse> =
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch user roles');
-  }
-  
   return response.json();
 };
 
@@ -201,27 +185,19 @@ export const getUserAllRoles = async (userId: string): Promise<UserAllRolesRespo
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch user all roles');
-  }
-  
   return response.json();
 };
 
 // Assign roles to user using bulk endpoint
 export const assignRolesToUser = async (userId: string, data: AssignRolesData): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/user_roles/bulk_role_assign/${userId}`, data, {
+  await httpClient.post(`${backendUrl}/user_roles/bulk_role_assign/${userId}`, data, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to assign roles to user');
-  }
 };
 
 // Assign specific role to user (new endpoint)
 export const assignRoleToUser = async (userId: string, roleIds: string[]): Promise<void> => {
-  const response = await httpClient.fetch(`${backendUrl}/rbac/users/${userId}/roles`, {
+  await httpClient.fetch(`${backendUrl}/rbac/users/${userId}/roles`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -229,10 +205,6 @@ export const assignRoleToUser = async (userId: string, roleIds: string[]): Promi
     },
     body: JSON.stringify({ role_ids: roleIds }),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to assign role to user');
-  }
 };
 
 // Get permissions for a specific role with assignment status
@@ -240,10 +212,6 @@ export const getRolePermissions = async (roleId: string): Promise<PermissionsWit
   const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions_with_status`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch role permissions');
-  }
   
   const result = await response.json();
   return result;
@@ -255,23 +223,15 @@ export const updateRole = async (roleId: string, data: { add_permissions: string
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to update role');
-  }
-  
   const result = await response.json();
   return result.data;
 };
 
 // Delete role (if endpoint exists)
 export const deleteRole = async (roleId: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/rbac/roles/${roleId}`, {
+  await httpClient.delete(`${backendUrl}/rbac/roles/${roleId}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete role');
-  }
 };
 
 // Get role with all users and their assignment status
@@ -289,22 +249,14 @@ export const getRoleWithAllUsers = async (
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch role with users');
-  }
-  
   return response.json();
 };
 
 // Assign users to a role
 export const assignUsersToRole = async (roleId: string, userIds: string[]): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/user_roles/${roleId}/bulk_users`, {
+  await httpClient.post(`${backendUrl}/user_roles/${roleId}/bulk_users`, {
     user_ids: userIds
   }, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to assign users to role');
-  }
 };

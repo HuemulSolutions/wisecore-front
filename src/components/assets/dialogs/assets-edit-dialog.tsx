@@ -75,9 +75,6 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       onUpdated(data.name, data.description);
       onOpenChange(false);
     },
-    onError: (e: any) => {
-      toast.error(e?.message || 'Failed to update asset');
-    },
   });
 
   const handleSave = useCallback(() => {
