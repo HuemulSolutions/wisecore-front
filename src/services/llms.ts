@@ -123,3 +123,10 @@ export async function updateExecutionLLM(executionId: string, llmId: string) {
     const response = await httpClient.put(`${backendUrl}/execution/update_llm/${executionId}`, { llm_id: llmId });
     return response.json();
 }
+
+// Test LLM connection
+export async function testLLMConnection(llmId: string): Promise<{ ok: boolean }> {
+    const response = await httpClient.post(`${backendUrl}/llms/${llmId}/test_connection`, {});
+    const data = await response.json();
+    return data.data || data;
+}

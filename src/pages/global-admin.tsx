@@ -84,7 +84,7 @@ function OrganizationsSection() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string; max_users?: number | null; token_limit?: number | null } }) =>
       updateOrganization(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
@@ -229,6 +229,7 @@ function OrganizationsSection() {
           showFooterStats={false}
           canUpdate={canUpdateOrg}
           canDelete={canDeleteOrg}
+          isRootAdmin={true}
         />
       )}
 
@@ -250,13 +251,16 @@ function OrganizationsSection() {
                 id: state.editingOrganization.id,
                 data: {
                   name: state.editingOrganization.name,
-                  description: state.editingOrganization.description || undefined
+                  description: state.editingOrganization.description || undefined,
+                  max_users: state.editingOrganization.max_users,
+                  token_limit: state.editingOrganization.token_limit
                 }
               })
             }
           }}
           isSaving={updateMutation.isPending}
           onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
+          isRootAdmin={true}
         />
       )}
 

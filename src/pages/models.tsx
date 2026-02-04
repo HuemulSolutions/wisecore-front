@@ -12,7 +12,8 @@ import {
   createLLM, 
   updateLLMModel, 
   deleteLLM, 
-  setDefaultLLM 
+  setDefaultLLM,
+  testLLMConnection
 } from '@/services/llms'
 import { 
   ModelsHeader,
@@ -47,6 +48,7 @@ export default function Models() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDeletingModel, setIsDeletingModel] = useState(false)
   const [isDeletingProvider, setIsDeletingProvider] = useState(false)
+  const [testingModelId, setTestingModelId] = useState<string | null>(null)
 
   // Verificar permisos
   const canListProviders = isRootAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
@@ -136,6 +138,16 @@ export default function Models() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       toast.success('Default model updated successfully')
+    },
+  })
+
+  const testLLMConnectionMutation = useMutation({
+    mutationFn: testLLMConnection,
+    onSuccess: () => {
+      toast.success('Connection successful')
+    },
+    onSettled: () => {
+      setTestingModelId(null)
     },
   })
 
@@ -257,6 +269,13 @@ export default function Models() {
     if (isDefault) {
       setDefaultMutation.mutate(llmId)
     }
+  }
+
+  const handleTestModel = (model: LLM) => {
+    // Close dropdown after opening test
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    setTestingModelId(model.id)
+    testLLMConnectionMutation.mutate(model.id)
   }
 
   // Helper function to get required fields for a provider
@@ -449,9 +468,11 @@ export default function Models() {
               onCreateModel={handleCreateModelForProvider}
               onEditModel={handleEditModel}
               onDeleteModel={handleDeleteModel}
+              onTestModel={handleTestModel}
               onDefaultChange={handleDefaultChange}
               isDeleting={deleteProviderMutation.isPending}
               isDeletingModel={deleteLLMMutation.isPending}
+              testingModelId={testingModelId}
               isLoadingModels={loadingLLMs}
               modelsError={errorLLMs}
               openDropdowns={openDropdowns}

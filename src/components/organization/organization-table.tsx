@@ -8,6 +8,8 @@ export interface Organization {
   description?: string | null
   created_at?: string
   updated_at?: string
+  max_users?: number | null
+  token_limit?: number | null
 }
 
 interface OrganizationTableProps {
@@ -21,6 +23,7 @@ interface OrganizationTableProps {
   showFooterStats?: boolean
   canUpdate?: boolean
   canDelete?: boolean
+  isRootAdmin?: boolean
 }
 
 // Helper function for date formatting
@@ -42,7 +45,8 @@ export function OrganizationTable({
   pagination,
   showFooterStats,
   canUpdate = false,
-  canDelete = false
+  canDelete = false,
+  isRootAdmin = false
 }: OrganizationTableProps) {
   // Define columns
   const columns: TableColumn<Organization>[] = [
@@ -75,6 +79,26 @@ export function OrganizationTable({
         </div>
       )
     },
+    ...(isRootAdmin ? [
+      {
+        key: "max_users" as const,
+        label: "Max Users",
+        render: (organization: Organization) => (
+          <div className="text-xs text-foreground">
+            {organization.max_users ?? "Unlimited"}
+          </div>
+        )
+      },
+      {
+        key: "token_limit" as const,
+        label: "Token Limit",
+        render: (organization: Organization) => (
+          <div className="text-xs text-foreground">
+            {organization.token_limit ? organization.token_limit.toLocaleString() : "Unlimited"}
+          </div>
+        )
+      }
+    ] : []),
     {
       key: "created_at",
       label: "Created At",

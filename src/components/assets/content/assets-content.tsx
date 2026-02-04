@@ -64,6 +64,7 @@ import { CustomFieldsList } from './assets-custom-fields-list';
 // Utilities and hooks
 import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
 import { SectionSeparator } from './components/SectionSeparator';
+import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
@@ -661,7 +662,13 @@ export function AssetContent({
   // Fetch document content when a document is selected
   // Note: The backend automatically returns the approved execution or the latest one if none is approved
   // When selectedExecutionId is provided, it fetches that specific historical version
-  const { data: documentContent, isLoading: isLoadingContent } = useQuery({
+  const { 
+    data: documentContent, 
+    isLoading: isLoadingContent,
+    isError: isContentError,
+    error: contentError,
+    refetch: refetchContent
+  } = useQuery({
     queryKey: selectedExecutionId 
       ? ['document-content', selectedFile?.id, selectedExecutionId] 
       : ['document-content', selectedFile?.id],
@@ -1385,7 +1392,7 @@ export function AssetContent({
       <ResizablePanel defaultSize={80}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
-        {isMobile && (
+        {isMobile && !isContentError && (
           <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -1532,6 +1539,8 @@ export function AssetContent({
                   }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
+                  executionId={selectedExecutionId}
+                  executionInfo={selectedExecutionInfo}
                 />
               </DocumentAccessControl>
               
@@ -1920,7 +1929,7 @@ export function AssetContent({
         )}
         
         {/* Header Section */}
-        {!isMobile && (
+        {!isMobile && !isContentError && (
         <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-10 shrink-0" data-desktop-header>
           <div className="space-y-2.5">
             {/* Title and Type Section */}
@@ -2036,6 +2045,8 @@ export function AssetContent({
                     isOpen={isSectionSheetOpen}
                     onOpenChange={setIsSectionSheetOpen}
                     accessLevels={accessLevels}
+                    executionId={selectedExecutionId}
+                    executionInfo={selectedExecutionInfo}
                   />
                 </DocumentAccessControl>
                 
@@ -2512,6 +2523,12 @@ export function AssetContent({
                       <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                     </div>
                   </div>
+                ) : isContentError ? (
+                  // Show error state when content fails to load
+                  <ContentErrorState 
+                    error={contentError}
+                    onRetry={() => refetchContent()}
+                  />
                 ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
                   // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY)
                   <div className="space-y-6 min-h-150">

@@ -42,11 +42,29 @@ export async function addOrganization({ name, description }: { name: string; des
   return data.data;
 }
 
-export async function updateOrganization(organizationId: string, { name, description }: { name: string; description?: string }) {
-  const response = await httpClient.patch(`${backendUrl}/organizations/${organizationId}`, {
+export async function updateOrganization(
+  organizationId: string, 
+  { name, description, max_users, token_limit }: { 
+    name: string; 
+    description?: string;
+    max_users?: number | null;
+    token_limit?: number | null;
+  }
+) {
+  const body: Record<string, unknown> = {
     name,
     description: description || null,
-  });
+  };
+
+  // Solo incluir max_users y token_limit si están definidos
+  if (max_users !== undefined) {
+    body.max_users = max_users;
+  }
+  if (token_limit !== undefined) {
+    body.token_limit = token_limit;
+  }
+
+  const response = await httpClient.patch(`${backendUrl}/organizations/${organizationId}`, body);
 
   const data = await response.json();
   console.log('Organization updated:', data.data);
