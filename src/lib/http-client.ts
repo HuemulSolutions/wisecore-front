@@ -92,7 +92,9 @@ export const httpClient = {
 
     // Add organization ID if available 
     // (no incluir para endpoints de auth, pero sí para endpoints de token y otros)
-    if (organizationId && !isAuthEndpoint) {
+    // IMPORTANTE: No sobrescribir si el servicio ya pasó un X-Org-Id específico
+    // (permite a servicios consultar organizaciones diferentes a la seleccionada)
+    if (organizationId && !isAuthEndpoint && !headers.has('X-Org-Id')) {
       headers.set('X-Org-Id', organizationId);
       console.log(`[httpClient] Using organization ID:`, organizationId);
     }

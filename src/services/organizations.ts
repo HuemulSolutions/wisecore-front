@@ -127,7 +127,12 @@ export async function setOrganizationAdmin(
 ): Promise<SetOrganizationAdminResponse> {
   const response = await httpClient.post(
     `${backendUrl}/organizations/${organizationId}/admins`,
-    { user_id: userId }
+    { user_id: userId },
+    {
+      headers: {
+        'X-Org-Id': organizationId
+      }
+    }
   );
   return response.json();
 }
