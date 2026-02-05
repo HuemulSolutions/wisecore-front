@@ -37,6 +37,10 @@ interface ProtectedComponentProps {
 /**
  * Componente que muestra u oculta contenido basado en los permisos del usuario
  * 
+ * NOTA sobre roles de admin:
+ * - isRootAdmin: Solo da acceso cuando requireRootAdmin=true (admin técnico)
+ * - isOrgAdmin: Hace bypass de permisos para contenido de organización (admin de negocio)
+ * 
  * Ejemplos de uso:
  * 
  * // Mostrar solo si tiene permiso específico
@@ -59,7 +63,7 @@ interface ProtectedComponentProps {
  *   <CreateUserButton />
  * </ProtectedComponent>
  * 
- * // Solo para root admin
+ * // Solo para root admin (rutas técnicas/administrativas)
  * <ProtectedComponent requireRootAdmin>
  *   <AdminPanel />
  * </ProtectedComponent>
@@ -92,6 +96,7 @@ export default function ProtectedComponent({
   const {
     isLoading,
     isRootAdmin,
+    isOrgAdmin,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -104,13 +109,19 @@ export default function ProtectedComponent({
     return <>{loadingFallback}</>;
   }
 
-  // Si requiere ser root admin y no lo es, denegar acceso
-  if (requireRootAdmin && !isRootAdmin) {
+  // Si requiere ser root admin (rutas técnicas/administrativas)
+  // Solo isRootAdmin puede acceder, isOrgAdmin NO
+  if (requireRootAdmin) {
+    if (isRootAdmin) {
+      return inverse ? <>{fallback}</> : <>{children}</>;
+    }
     return inverse ? <>{children}</> : <>{fallback}</>;
   }
 
-  // Si es root admin y no está en modo inverso, permitir acceso
-  if (isRootAdmin && !inverse) {
+  // Para contenido normal (no requireRootAdmin):
+  // - isOrgAdmin tiene acceso total (bypass de permisos)
+  // - isRootAdmin NO tiene bypass, debe verificar permisos como usuario normal
+  if (isOrgAdmin && !inverse) {
     return <>{children}</>;
   }
 

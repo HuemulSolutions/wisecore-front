@@ -1307,7 +1307,7 @@ export function AssetContent({
               </EmptyIcon>
               <EmptyTitle>Welcome to Assets</EmptyTitle>
               <EmptyDescription>
-                {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('assets'))
+                {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('asset'))
                   ? "Create your first document or select an existing one to get started with your document workflow."
                   : "Select an existing asset to get started or contact your administrator for permissions to create new assets."
                 }
@@ -1326,7 +1326,7 @@ export function AssetContent({
                     Create Template
                   </Button>
                 )}
-                {canAccessAssets && canCreate('assets') && (
+                {canAccessAssets && canCreate('asset') && (
                   <Button 
                     onClick={() => {
                       onPreserveScroll?.();

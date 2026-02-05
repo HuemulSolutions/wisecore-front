@@ -10,6 +10,7 @@ export interface PermissionsContextType {
   permissions: string[];
   roles: string[];
   isRootAdmin: boolean;
+  isOrgAdmin: boolean;
   isLoading: boolean;
   
   // Funciones de verificación
@@ -41,6 +42,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const [isRootAdminState, setIsRootAdminState] = useState(false);
+  const [isOrgAdminState, setIsOrgAdminState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Función para refrescar permisos desde los tokens JWT
@@ -54,11 +56,13 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         setPermissions(userInfo.permissions || []);
         setRoles(userInfo.roles || []);
         setIsRootAdminState(userInfo.isRootAdmin || false);
+        setIsOrgAdminState(userInfo.isOrgAdmin || false);
         
         console.log('Permissions refreshed:', {
           permissions: userInfo.permissions,
           roles: userInfo.roles,
           isRootAdmin: userInfo.isRootAdmin,
+          isOrgAdmin: userInfo.isOrgAdmin,
           hasOrgAccess: userInfo.hasOrganizationAccess
         });
       } else {
@@ -66,6 +70,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         setPermissions([]);
         setRoles([]);
         setIsRootAdminState(false);
+        setIsOrgAdminState(false);
         console.log('No user info available, clearing permissions');
       }
     } catch (error) {
@@ -74,6 +79,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
       setPermissions([]);
       setRoles([]);
       setIsRootAdminState(false);
+      setIsOrgAdminState(false);
     } finally {
       setIsLoading(false);
     }
@@ -99,11 +105,13 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
       const currentPermissions = currentUserInfo.permissions;
       const currentRoles = currentUserInfo.roles;
       const currentIsRootAdmin = currentUserInfo.isRootAdmin;
+      const currentIsOrgAdmin = currentUserInfo.isOrgAdmin;
       
       if (
         JSON.stringify(currentPermissions) !== JSON.stringify(permissions) ||
         JSON.stringify(currentRoles) !== JSON.stringify(roles) ||
-        currentIsRootAdmin !== isRootAdminState
+        currentIsRootAdmin !== isRootAdminState ||
+        currentIsOrgAdmin !== isOrgAdminState
       ) {
         console.log('Token changes detected, refreshing permissions...');
         refreshPermissions();
@@ -111,7 +119,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     }, 2000); // Verificar cada 2 segundos para ser más responsivo
 
     return () => clearInterval(checkTokensInterval);
-  }, [permissions, roles, isRootAdminState]);
+  }, [permissions, roles, isRootAdminState, isOrgAdminState]);
 
   // Escuchar cambios en localStorage (por ejemplo, logout)
   useEffect(() => {
@@ -130,18 +138,19 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   }, []);
 
   // Funciones de verificación que usan el estado local para mejor rendimiento
+  // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO (solo da acceso a rutas admin)
   const checkPermission = (permission: Permission | string): boolean => {
-    if (isRootAdminState) return true;
+    if (isOrgAdminState) return true;
     return permissions.includes(permission);
   };
 
   const checkAnyPermission = (permissionsToCheck: (Permission | string)[]): boolean => {
-    if (isRootAdminState) return true;
+    if (isOrgAdminState) return true;
     return permissionsToCheck.some(permission => permissions.includes(permission));
   };
 
   const checkAllPermissions = (permissionsToCheck: (Permission | string)[]): boolean => {
-    if (isRootAdminState) return true;
+    if (isOrgAdminState) return true;
     return permissionsToCheck.every(permission => permissions.includes(permission));
   };
 
@@ -157,6 +166,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     permissions,
     roles,
     isRootAdmin: isRootAdminState,
+    isOrgAdmin: isOrgAdminState,
     isLoading,
     hasPermission: checkPermission,
     hasAnyPermission: checkAnyPermission,

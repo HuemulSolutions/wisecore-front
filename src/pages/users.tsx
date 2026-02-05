@@ -36,15 +36,15 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(10)
 
   // Get permissions and organization context
-  const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessUsers, isOrgAdmin, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
   
   // Permisos específicos
-  const canListUsers = isRootAdmin || hasAnyPermission(['user:l', 'user:r'])
-  const canCreateUser = isRootAdmin || hasPermission('user:c')
-  const canUpdateUser = isRootAdmin || hasPermission('user:u')
-  const canDeleteUser = isRootAdmin || hasPermission('user:d')
+  const canListUsers = isOrgAdmin || hasAnyPermission(['user:l', 'user:r'])
+  const canCreateUser = isOrgAdmin || hasPermission('user:c')
+  const canUpdateUser = isOrgAdmin || hasPermission('user:u')
+  const canDeleteUser = isOrgAdmin || hasPermission('user:d')
   
   // Fetch users and mutations - solo si tiene permisos de listar
   const { data: usersResponse, isLoading, isError, refetch } = useUsers(

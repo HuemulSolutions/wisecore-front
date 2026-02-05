@@ -42,11 +42,11 @@ export default function Roles() {
   const [pageSize, setPageSize] = useState(10)
 
   // Permissions check
-  const { canAccessRoles, hasPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessRoles, hasPermission, hasAnyPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
   
   // Permisos específicos
   const canReadRbac = isRootAdmin || hasPermission('rbac:r')
-  const canManageRbac = isRootAdmin || hasPermission('rbac:manage')
+  const canManageRbac = isRootAdmin || hasAnyPermission(['rbac:c', 'rbac:u', 'rbac:d'])
 
   // Data fetching - solo si tiene permisos de lectura
   const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize)

@@ -32,7 +32,7 @@ export default function Models() {
   const { 
     hasPermission, 
     hasAnyPermission,
-    isRootAdmin,
+    isOrgAdmin,
     isLoading: isLoadingPermissions 
   } = useUserPermissions()
   
@@ -51,14 +51,14 @@ export default function Models() {
   const [testingModelId, setTestingModelId] = useState<string | null>(null)
 
   // Verificar permisos
-  const canListProviders = isRootAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
-  const canCreateProvider = isRootAdmin || hasPermission('llm_provider:c')
-  const canUpdateProvider = isRootAdmin || hasPermission('llm_provider:u')
-  const canDeleteProvider = isRootAdmin || hasPermission('llm_provider:d')
-  const canListModels = isRootAdmin || hasAnyPermission(['llm:l', 'llm:r'])
-  const canCreateModel = isRootAdmin || hasPermission('llm:c')
-  const canUpdateModel = isRootAdmin || hasPermission('llm:u')
-  const canDeleteModel = isRootAdmin || hasPermission('llm:d')
+  const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
+  const canCreateProvider = isOrgAdmin || hasPermission('llm_provider:c')
+  const canUpdateProvider = isOrgAdmin || hasPermission('llm_provider:u')
+  const canDeleteProvider = isOrgAdmin || hasPermission('llm_provider:d')
+  const canListModels = isOrgAdmin || hasAnyPermission(['llm:l', 'llm:r'])
+  const canCreateModel = isOrgAdmin || hasPermission('llm:c')
+  const canUpdateModel = isOrgAdmin || hasPermission('llm:u')
+  const canDeleteModel = isOrgAdmin || hasPermission('llm:d')
 
   // Queries
   const { data: supportedResponse, isLoading: loadingSupportedProviders, error: errorSupportedProviders } = useQuery({

@@ -40,13 +40,14 @@ export default function Organizations() {
   const [pageSize, setPageSize] = useState(10)
 
   // Get permissions
-  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
   
   // Permisos específicos
-  const canListOrgs = isRootAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const canUpdateOrg = isRootAdmin || hasPermission('organization:u')
-  const canDeleteOrg = isRootAdmin || hasPermission('organization:d')
+  const canListOrgs = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
+  const canUpdateOrg = isOrgAdmin || hasPermission('organization:u')
+  const canDeleteOrg = isOrgAdmin || hasPermission('organization:d')
+  const canCreateOrg = isOrgAdmin || hasPermission('organization:c')
   
   // Fetch organizations - solo si tiene permisos de listar
   const { data: organizationsResponse, isLoading, error: queryError } = useQuery({
@@ -175,7 +176,7 @@ export default function Organizations() {
           isLoading={isLoading || isRefreshing}
           searchTerm={state.searchTerm}
           onSearchChange={(value: string) => updateState({ searchTerm: value })}
-          canManage={isRootAdmin}
+          canManage={canCreateOrg}
         />
 
         {/* Content Area - Table or Error */}
