@@ -37,21 +37,10 @@ class AuthService {
     console.log('AuthService: Requesting code to', `${this.baseUrl}/codes`, 'with purpose:', request.purpose);
     
     // Make request without auth token for public endpoint
-    const response = await fetch(`${this.baseUrl}/codes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: request.email.toLowerCase(),
-        purpose: request.purpose,
-      }),
+    await httpClient.post(`${this.baseUrl}/codes`, {
+      email: request.email.toLowerCase(),
+      purpose: request.purpose,
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'Failed to request verification code');
-    }
   }
 
   async verifyCode(request: VerifyCodeRequest): Promise<AuthResponse> {
@@ -61,21 +50,10 @@ class AuthService {
     });
     
     // Make request without auth token for public endpoint
-    const response = await fetch(`${this.baseUrl}/codes/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: request.email.toLowerCase(),
-        code: request.code,
-      }),
+    const response = await httpClient.post(`${this.baseUrl}/codes/verify`, {
+      email: request.email.toLowerCase(),
+      code: request.code,
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'Failed to verify code');
-    }
 
     const responseData = await response.json();
     console.log('Raw verifyCode response:', responseData);
@@ -101,23 +79,12 @@ class AuthService {
     });
     
     // Make request without auth token for public endpoint
-    const response = await fetch(`${this.baseUrl}/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: request.name,
-        last_name: request.last_name,
-        email: request.email.toLowerCase(),
-        code: request.code,
-      }),
+    const response = await httpClient.post(`${this.baseUrl}/users`, {
+      name: request.name,
+      last_name: request.last_name,
+      email: request.email.toLowerCase(),
+      code: request.code,
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'Failed to create user');
-    }
 
     const responseData = await response.json();
     console.log('Raw createUser response:', responseData);

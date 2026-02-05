@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { authService } from "@/services/auth"
+import { getErrorMessage } from "@/lib/error-utils"
 import packageJson from "../../../package.json"
 
 interface LoginFormProps extends React.ComponentProps<"div"> {
@@ -32,9 +33,6 @@ export function LoginForm({
       authService.requestCode({ email, purpose: "login" }),
     onSuccess: () => {
       onCodeRequested?.(email)
-    },
-    onError: (error) => {
-      console.error("Login error:", error)
     },
   })
 
@@ -89,7 +87,7 @@ export function LoginForm({
           </Field>
           {requestCodeMutation.error && (
             <FieldDescription className="text-red-600 text-center">
-              {requestCodeMutation.error.message}
+              {getErrorMessage(requestCodeMutation.error)}
             </FieldDescription>
           )}
         </FieldGroup>

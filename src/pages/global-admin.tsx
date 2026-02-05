@@ -22,6 +22,7 @@ import {
   CreateOrganizationDialog,
   EditOrganizationDialog,
   DeleteOrganizationDialog,
+  SetOrganizationAdminDialog,
   type Organization
 } from "@/components/organization"
 
@@ -47,6 +48,7 @@ interface OrganizationPageState {
   editingOrganization: Organization | null
   showCreateDialog: boolean
   deletingOrganization: Organization | null
+  settingAdminOrganization: Organization | null
 }
 
 function OrganizationsSection() {
@@ -56,6 +58,7 @@ function OrganizationsSection() {
     editingOrganization: null,
     showCreateDialog: false,
     deletingOrganization: null,
+    settingAdminOrganization: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -134,7 +137,7 @@ function OrganizationsSection() {
   const closeDialog = (dialog: keyof OrganizationPageState) => {
     setState(prev => ({
       ...prev,
-      [dialog]: dialog === "editingOrganization" || dialog === "deletingOrganization" ? null : false
+      [dialog]: dialog === "editingOrganization" || dialog === "deletingOrganization" || dialog === "settingAdminOrganization" ? null : false
     }))
   }
 
@@ -164,6 +167,10 @@ function OrganizationsSection() {
 
   const handleDeleteOrganization = async (organization: Organization) => {
     updateState({ deletingOrganization: organization })
+  }
+
+  const handleSetAdmin = async (organization: Organization) => {
+    updateState({ settingAdminOrganization: organization })
   }
 
   const handleSelectAll = () => {
@@ -214,6 +221,7 @@ function OrganizationsSection() {
           onSelectAll={handleSelectAll}
           onEditOrganization={handleEditOrganization}
           onDeleteOrganization={handleDeleteOrganization}
+          onSetAdmin={handleSetAdmin}
           pagination={{
             page: organizationsResponse?.page || page,
             pageSize: organizationsResponse?.page_size || pageSize,
@@ -229,6 +237,7 @@ function OrganizationsSection() {
           showFooterStats={false}
           canUpdate={canUpdateOrg}
           canDelete={canDeleteOrg}
+          canSetAdmin={isRootAdmin}
           isRootAdmin={true}
         />
       )}
@@ -277,6 +286,15 @@ function OrganizationsSection() {
           isDeleting={deleteMutation.isPending}
         />
       )}
+
+      <SetOrganizationAdminDialog
+        organization={state.settingAdminOrganization}
+        open={!!state.settingAdminOrganization}
+        onOpenChange={(open) => !open && closeDialog("settingAdminOrganization")}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["organizations"] })
+        }}
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Building2 } from "lucide-react"
+import { Edit2, Trash2, Building2, Shield } from "lucide-react"
 import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
 import type { TableColumn, TableAction, FooterStat, EmptyState } from "@/types/data-table"
 
@@ -19,10 +19,12 @@ interface OrganizationTableProps {
   onSelectAll: () => void
   onEditOrganization: (organization: Organization) => void
   onDeleteOrganization: (organization: Organization) => void
+  onSetAdmin?: (organization: Organization) => void
   pagination?: PaginationConfig
   showFooterStats?: boolean
   canUpdate?: boolean
   canDelete?: boolean
+  canSetAdmin?: boolean
   isRootAdmin?: boolean
 }
 
@@ -42,10 +44,12 @@ export function OrganizationTable({
   onSelectAll,
   onEditOrganization,
   onDeleteOrganization,
+  onSetAdmin,
   pagination,
   showFooterStats,
   canUpdate = false,
   canDelete = false,
+  canSetAdmin = false,
   isRootAdmin = false
 }: OrganizationTableProps) {
   // Define columns
@@ -112,6 +116,12 @@ export function OrganizationTable({
 
   // Define actions - basado en permisos específicos
   const actions: TableAction<Organization>[] = [
+    ...(canSetAdmin && onSetAdmin ? [{
+      key: "setAdmin" as const,
+      label: "Set Admin",
+      icon: Shield,
+      onClick: onSetAdmin
+    }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
       label: "Edit",
