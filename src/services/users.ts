@@ -33,71 +33,40 @@ export const getUsers = async (organizationId?: string, page: number = 1, pageSi
     headers
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch users');
-  }
-  
   return response.json();
 };
 
 // Get global users list (root admin)
 export const getGlobalUsers = async (): Promise<GlobalUsersResponse> => {
   const response = await httpClient.get(`${backendUrl}/users`);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch users');
-  }
-
   return response.json();
 };
 
 // Get user by ID
 export const getUserById = async (userId: string): Promise<User> => {
   const response = await httpClient.get(`${backendUrl}/users/${userId}`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch user');
-  }
-  
   const data = await response.json();
   return data.data;
 };
 
 // Approve user
 export const approveUser = async (userId: string): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/users/${userId}/approve`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to approve user');
-  }
+  await httpClient.post(`${backendUrl}/users/${userId}/approve`);
 };
 
 // Reject user
 export const rejectUser = async (userId: string): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/users/${userId}/reject`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to reject user');
-  }
+  await httpClient.post(`${backendUrl}/users/${userId}/reject`);
 };
 
 // Delete user
 export const deleteUser = async (userId: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/users/${userId}`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete user');
-  }
+  await httpClient.delete(`${backendUrl}/users/${userId}`);
 };
 
 // Update user
 export const updateUser = async (userId: string, data: UpdateUserData): Promise<User> => {
   const response = await httpClient.put(`${backendUrl}/users/${userId}`, data);
-  
-  if (!response.ok) {
-    throw new Error('Failed to update user');
-  }
-  
   return response.json();
 };
 
@@ -111,10 +80,6 @@ export const createUser = async (data: CreateUserData): Promise<User> => {
     body: JSON.stringify(data),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to create user');
-  }
-  
   return response.json();
 };
 
@@ -125,32 +90,19 @@ export const getUserOrganizations = async (userId?: string): Promise<UserOrganiz
   }
   
   const url = `${backendUrl}/users/organizations?user_id=${userId}`;
-    
   const response = await httpClient.get(url);
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch user organizations');
-  }
   
   return response.json();
 };
 
 // Assign user to organization
 export const assignUserToOrganization = async (organizationId: string, data: AssignUserToOrganizationData): Promise<void> => {
-  const response = await httpClient.post(`${backendUrl}/organizations/${organizationId}/users`, data);
-  
-  if (!response.ok) {
-    throw new Error('Failed to assign user to organization');
-  }
+  await httpClient.post(`${backendUrl}/organizations/${organizationId}/users`, data);
 };
 
 // Remove user from organization
 export const removeUserFromOrganization = async (organizationId: string, userId: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/organizations/${organizationId}/users/${userId}`);
-  
-  if (!response.ok) {
-    throw new Error('Failed to remove user from organization');
-  }
+  await httpClient.delete(`${backendUrl}/organizations/${organizationId}/users/${userId}`);
 };
 
 // Update user root admin status
@@ -162,10 +114,6 @@ export const updateUserRootAdmin = async (userId: string, isRootAdmin: boolean):
     },
     body: JSON.stringify({ is_root_admin: isRootAdmin }),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to update root admin status');
-  }
   
   return response.json();
 };

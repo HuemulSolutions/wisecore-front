@@ -66,6 +66,7 @@ export default function AppLayout() {
   
   const {
     isRootAdmin,
+    isOrgAdmin,
     canAccessUsers,
     canAccessRoles,
     canAccessModels,
@@ -82,10 +83,11 @@ export default function AppLayout() {
   const shouldShowDialog = requiresOrganizationSelection || (!!organizationToken && permissionsLoading)
   
   // Filtrar opciones del menú de configuración basándose en permisos
-  const hasAssetManagementAccess = canAccessDocumentTypes || isRootAdmin
-  const canAccessOrganizations = isRootAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isRootAdmin
-  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess
+  // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
+  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin
+  const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isOrgAdmin || isRootAdmin
+  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
 
   // Generate initials from user name
   const getUserInitials = (firstName: string, lastName: string): string => {
@@ -115,10 +117,10 @@ export default function AppLayout() {
       
       switch (item.title) {
         case "Assets":
-          shouldShowItem = canAccessAssets || isRootAdmin
+          shouldShowItem = canAccessAssets || isOrgAdmin
           break
         case "Templates":
-          shouldShowItem = canAccessTemplates || isRootAdmin
+          shouldShowItem = canAccessTemplates || isOrgAdmin
           break
         default:
           shouldShowItem = true
@@ -235,14 +237,14 @@ export default function AppLayout() {
                     {hasAssetManagementAccess && (
                       <>
                         <DropdownMenuLabel>Asset Management</DropdownMenuLabel>
-                        {(canAccessDocumentTypes || isRootAdmin) && (
+                        {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/asset-types" className="hover:cursor-pointer">
                               Asset Types
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessDocumentTypes || isRootAdmin) && (
+                        {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/custom-fields" className="hover:cursor-pointer">
                               Custom Fields
@@ -256,7 +258,7 @@ export default function AppLayout() {
                     {hasAdministrationAccess && (
                       <>
                         <DropdownMenuLabel>Administration</DropdownMenuLabel>
-                        {(canAccessOrganizations || isRootAdmin) && (
+                        {(canAccessOrganizations || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/organizations" className="hover:cursor-pointer">
                               Organizations
@@ -270,28 +272,28 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessUsers || isRootAdmin) && (
+                        {(canAccessUsers || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/users" className="hover:cursor-pointer">
                               Users
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessRoles || isRootAdmin) && (
+                        {(canAccessRoles || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/roles" className="hover:cursor-pointer">
                               Roles
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessModels || isRootAdmin) && (
+                        {(canAccessModels || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/models" className="hover:cursor-pointer">
                               Models
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {isRootAdmin && (
+                        {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to="/auth-types" className="hover:cursor-pointer">
                               Auth Types

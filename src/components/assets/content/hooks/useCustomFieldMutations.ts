@@ -29,10 +29,6 @@ export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutati
       }
       return createdField;
     },
-    onError: (error: Error) => {
-      console.error('Error creating custom field document:', error);
-      toast.error('Failed to create custom field document. Please try again.');
-    },
   });
 
   // Mutation for updating custom field document
@@ -44,10 +40,6 @@ export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutati
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFileId] });
       toast.success('Custom field document updated successfully!');
     },
-    onError: (error: Error) => {
-      console.error('Error updating custom field document:', error);
-      toast.error('Failed to update custom field document. Please try again.');
-    },
   });
 
   // Mutation for deleting custom field document
@@ -58,10 +50,6 @@ export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutati
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFileId] });
       toast.success('Custom field document deleted successfully!');
-    },
-    onError: (error: Error) => {
-      console.error('Error deleting custom field document:', error);
-      toast.error('Failed to delete custom field document. Please try again.');
     },
   });
 

@@ -92,7 +92,8 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
       }
 
       setErrors(prev => {
-        const { photo_file, ...rest } = prev
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { photo_file: _, ...rest } = prev
         return rest
       })
 
@@ -120,9 +121,6 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
       toast.success('User updated successfully')
       onOpenChange(false)
       onSuccess?.()
-    },
-    onError: (error) => {
-      toast.error('Failed to update user: ' + error.message)
     },
   })
 

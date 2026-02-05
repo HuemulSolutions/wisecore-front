@@ -5,7 +5,7 @@ export interface AuthType {
   id: string;
   name: string;
   type: 'internal' | 'entra';
-  params: Record<string, any> | null;
+  params: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -13,13 +13,13 @@ export interface AuthType {
 export interface CreateAuthTypeRequest {
   name: string;
   type: 'internal' | 'entra';
-  params?: Record<string, any> | null;
+  params?: Record<string, unknown> | null;
 }
 
 export interface UpdateAuthTypeRequest {
   name: string;
   type: 'internal' | 'entra';
-  params?: Record<string, any> | null;
+  params?: Record<string, unknown> | null;
 }
 
 export interface AuthTypesResponse {
@@ -45,65 +45,36 @@ class AuthTypesService {
 
   async getAuthTypes(): Promise<AuthType[]> {
     const response = await httpClient.get(`${this.baseUrl}/`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch auth types');
-    }
-    
     const data: AuthTypesResponse = await response.json();
     return data.data;
   }
 
   async getAuthType(id: string): Promise<AuthType> {
     const response = await httpClient.get(`${this.baseUrl}/${id}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch auth type');
-    }
-    
     const data: AuthTypeResponse = await response.json();
     return data.data;
   }
 
   async getAuthTypeTypes(): Promise<string[]> {
     const response = await httpClient.get(`${this.baseUrl}/types`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch auth type types');
-    }
-    
     const data: AuthTypeTypesResponse = await response.json();
     return data.data;
   }
 
   async createAuthType(data: CreateAuthTypeRequest): Promise<AuthType> {
     const response = await httpClient.post(`${this.baseUrl}/`, data);
-    
-    if (!response.ok) {
-      throw new Error('Failed to create auth type');
-    }
-    
     const result: AuthTypeResponse = await response.json();
     return result.data;
   }
 
   async updateAuthType(id: string, data: UpdateAuthTypeRequest): Promise<AuthType> {
     const response = await httpClient.put(`${this.baseUrl}/${id}`, data);
-    
-    if (!response.ok) {
-      throw new Error('Failed to update auth type');
-    }
-    
     const result: AuthTypeResponse = await response.json();
     return result.data;
   }
 
   async deleteAuthType(id: string): Promise<void> {
-    const response = await httpClient.delete(`${this.baseUrl}/${id}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to delete auth type');
-    }
+    await httpClient.delete(`${this.baseUrl}/${id}`);
   }
 }
 

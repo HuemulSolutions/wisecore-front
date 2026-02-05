@@ -14,6 +14,7 @@ export interface SortableSectionItem {
   reference_section_id?: string
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
+  template_section_id?: string
 }
 
 export interface SortableSectionSheetItem {
@@ -27,4 +28,5 @@ export interface SortableSectionSheetItem {
   reference_section_id?: string
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
+  template_section_id?: string
 }

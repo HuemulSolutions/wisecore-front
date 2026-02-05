@@ -34,10 +34,6 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
       toast.success("Folder created successfully")
       onOpenChange(false)
     },
-    onError: (error) => {
-      console.error("Create folder error:", error)
-      toast.error("Failed to create folder")
-    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {

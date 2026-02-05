@@ -44,6 +44,7 @@ import { EditCustomFieldAssetDialog } from "@/components/assets-custom-fields/as
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
 import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
+import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -63,6 +64,7 @@ import { CustomFieldsList } from './assets-custom-fields-list';
 // Utilities and hooks
 import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
 import { SectionSeparator } from './components/SectionSeparator';
+import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
@@ -178,10 +180,6 @@ export function AssetContent({
       setSectionInsertPosition(undefined);
       toast.success("Section created successfully");
     },
-    onError: (error: Error) => {
-      console.error("Error creating section:", error);
-      toast.error("Error creating section: " + error.message);
-    },
   });
 
   // Mutation for section execution creation
@@ -201,10 +199,6 @@ export function AssetContent({
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
       toast.success("Section added successfully");
-    },
-    onError: (error: Error) => {
-      console.error("Error creating section execution:", error);
-      toast.error("Error creating section: " + error.message);
     },
   });
 
@@ -236,10 +230,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
-    onError: (error: Error) => {
-      console.error("Error executing document:", error);
-      toast.error("Error executing document: " + error.message);
-    },
   });
 
   // Mutation for approve execution
@@ -265,9 +255,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
-    onError: (error: Error) => {
-      console.error('Error approving execution:', error);
-      toast.error('Failed to approve execution. Please try again.');
+    onError: () => {
       setApprovingExecutionId(null);
     },
   });
@@ -289,10 +277,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-    },
-    onError: (error: Error) => {
-      console.error('Error disapproving execution:', error);
-      toast.error('Failed to disapprove execution. Please try again.');
     },
   });
 
@@ -324,10 +308,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
-    onError: (error: Error) => {
-      console.error('Error deleting execution:', error);
-      toast.error('Failed to delete execution. Please try again.');
-    },
   });
 
   // Mutation for clone execution
@@ -351,10 +331,6 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
-    onError: (error: Error) => {
-      console.error('Error cloning execution:', error);
-      toast.error('Failed to clone execution. Please try again.');
-    },
   });
 
   // Mutation for creating custom field document
@@ -371,10 +347,6 @@ export function AssetContent({
         toast.success('Custom field document created successfully!');
       }
     },
-    onError: (error: Error) => {
-      console.error('Error creating custom field document:', error);
-      toast.error('Failed to create custom field document. Please try again.');
-    },
   });
 
   // Mutation for updating custom field document
@@ -389,10 +361,6 @@ export function AssetContent({
       setSelectedCustomFieldDocument(null);
       toast.success('Custom field document updated successfully!');
     },
-    onError: (error: Error) => {
-      console.error('Error updating custom field document:', error);
-      toast.error('Failed to update custom field document. Please try again.');
-    },
   });
 
   // Mutation for deleting custom field document
@@ -406,10 +374,6 @@ export function AssetContent({
       setIsDeleteCustomFieldDocumentDialogOpen(false);
       setCustomFieldDocumentToDelete(null);
       toast.success('Custom field document deleted successfully!');
-    },
-    onError: (error: Error) => {
-      console.error('Error deleting custom field document:', error);
-      toast.error('Failed to delete custom field document. Please try again.');
     },
   });
 
@@ -472,6 +436,7 @@ export function AssetContent({
   // STATE - TEMPLATE MANAGEMENT
   // ============================================================================
   const [isCreateTemplateSheetOpen, setIsCreateTemplateSheetOpen] = useState(false);
+  const [isCreateTemplateFromDocumentDialogOpen, setIsCreateTemplateFromDocumentDialogOpen] = useState(false);
   const [createdTemplate, setCreatedTemplate] = useState<{ id: string; name: string } | null>(null);
   const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
   
@@ -697,7 +662,13 @@ export function AssetContent({
   // Fetch document content when a document is selected
   // Note: The backend automatically returns the approved execution or the latest one if none is approved
   // When selectedExecutionId is provided, it fetches that specific historical version
-  const { data: documentContent, isLoading: isLoadingContent } = useQuery({
+  const { 
+    data: documentContent, 
+    isLoading: isLoadingContent,
+    isError: isContentError,
+    error: contentError,
+    refetch: refetchContent
+  } = useQuery({
     queryKey: selectedExecutionId 
       ? ['document-content', selectedFile?.id, selectedExecutionId] 
       : ['document-content', selectedFile?.id],
@@ -1336,7 +1307,7 @@ export function AssetContent({
               </EmptyIcon>
               <EmptyTitle>Welcome to Assets</EmptyTitle>
               <EmptyDescription>
-                {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('assets'))
+                {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('asset'))
                   ? "Create your first document or select an existing one to get started with your document workflow."
                   : "Select an existing asset to get started or contact your administrator for permissions to create new assets."
                 }
@@ -1355,7 +1326,7 @@ export function AssetContent({
                     Create Template
                   </Button>
                 )}
-                {canAccessAssets && canCreate('assets') && (
+                {canAccessAssets && canCreate('asset') && (
                   <Button 
                     onClick={() => {
                       onPreserveScroll?.();
@@ -1388,7 +1359,7 @@ export function AssetContent({
             setCreatedTemplate(template);
             setIsCreateTemplateSheetOpen(false);
             // Invalidate templates query to refresh the template list
-            queryClient.invalidateQueries({ queryKey: ['templates'] });
+            queryClient.invalidateQueries({ queryKey: ['templates', selectedOrganizationId] });
             // Open template configuration sheet
             setTimeout(() => {
               setIsTemplateConfigSheetOpen(true);
@@ -1421,7 +1392,7 @@ export function AssetContent({
       <ResizablePanel defaultSize={80}>
         <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Mobile Header with Toggle */}
-        {isMobile && (
+        {isMobile && !isContentError && (
           <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -1568,6 +1539,8 @@ export function AssetContent({
                   }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
+                  executionId={selectedExecutionId}
+                  executionInfo={selectedExecutionInfo}
                 />
               </DocumentAccessControl>
               
@@ -1727,6 +1700,23 @@ export function AssetContent({
               >
                 <Edit3 className="h-4 w-4" />
               </DocumentActionButton>
+
+              {/* Create Template from Document - only show if document has no template */}
+              {!documentContent?.template_name && canCreate('template') && (
+                <DocumentActionButton
+                  accessLevels={accessLevels}
+                  requiredAccess="edit"
+                  checkGlobalPermissions={true}
+                  resource="asset"
+                  onClick={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                  title="Create Template from Asset"
+                >
+                  <FileCode className="h-4 w-4" />
+                </DocumentActionButton>
+              )}
 
               {/* Clone Button - only show if there's an execution to clone */}
               {selectedExecutionId && (
@@ -1939,7 +1929,7 @@ export function AssetContent({
         )}
         
         {/* Header Section */}
-        {!isMobile && (
+        {!isMobile && !isContentError && (
         <div className="bg-white border-b border-gray-200 shadow-sm py-3 px-5 md:px-6 z-10 shrink-0" data-desktop-header>
           <div className="space-y-2.5">
             {/* Title and Type Section */}
@@ -2055,6 +2045,8 @@ export function AssetContent({
                     isOpen={isSectionSheetOpen}
                     onOpenChange={setIsSectionSheetOpen}
                     accessLevels={accessLevels}
+                    executionId={selectedExecutionId}
+                    executionInfo={selectedExecutionInfo}
                   />
                 </DocumentAccessControl>
                 
@@ -2338,6 +2330,23 @@ export function AssetContent({
                 >
                   <Edit3 className="h-3 w-3" />
                 </DocumentActionButton>
+
+                {/* Create Template from Document - only show if document has no template */}
+                {!documentContent?.template_name && canCreate('template') && (
+                  <DocumentActionButton
+                    accessLevels={accessLevels}
+                    requiredAccess="edit"
+                    checkGlobalPermissions={true}
+                    resource="asset"
+                    onClick={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                    title="Create Template from Asset"
+                  >
+                    <FileCode className="h-3 w-3" />
+                  </DocumentActionButton>
+                )}
                 
                 {/* <DocumentAccessControl
                   accessLevels={accessLevels}
@@ -2514,6 +2523,12 @@ export function AssetContent({
                       <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
                     </div>
                   </div>
+                ) : isContentError ? (
+                  // Show error state when content fails to load
+                  <ContentErrorState 
+                    error={contentError}
+                    onRetry={() => refetchContent()}
+                  />
                 ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
                   // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY)
                   <div className="space-y-6 min-h-150">
@@ -3174,7 +3189,17 @@ export function AssetContent({
         isProcessing={isDeletingCustomFieldDocument}
         variant="destructive"
       />
+
+      {/* Create Template from Document Dialog */}
+      <CreateTemplateFromDocumentDialog
+        open={isCreateTemplateFromDocumentDialogOpen}
+        onOpenChange={setIsCreateTemplateFromDocumentDialogOpen}
+        documentId={selectedFile.id}
+        organizationId={selectedOrganizationId}
+        onTemplateCreated={(template) => {
+          navigate(`/templates/${template.id}`);
+        }}
+      />
     </>
   );
 }
-

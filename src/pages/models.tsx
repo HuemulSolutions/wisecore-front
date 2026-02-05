@@ -12,7 +12,8 @@ import {
   createLLM, 
   updateLLMModel, 
   deleteLLM, 
-  setDefaultLLM 
+  setDefaultLLM,
+  testLLMConnection
 } from '@/services/llms'
 import { 
   ModelsHeader,
@@ -31,7 +32,7 @@ export default function Models() {
   const { 
     hasPermission, 
     hasAnyPermission,
-    isRootAdmin,
+    isOrgAdmin,
     isLoading: isLoadingPermissions 
   } = useUserPermissions()
   
@@ -47,16 +48,17 @@ export default function Models() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDeletingModel, setIsDeletingModel] = useState(false)
   const [isDeletingProvider, setIsDeletingProvider] = useState(false)
+  const [testingModelId, setTestingModelId] = useState<string | null>(null)
 
   // Verificar permisos
-  const canListProviders = isRootAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
-  const canCreateProvider = isRootAdmin || hasPermission('llm_provider:c')
-  const canUpdateProvider = isRootAdmin || hasPermission('llm_provider:u')
-  const canDeleteProvider = isRootAdmin || hasPermission('llm_provider:d')
-  const canListModels = isRootAdmin || hasAnyPermission(['llm:l', 'llm:r'])
-  const canCreateModel = isRootAdmin || hasPermission('llm:c')
-  const canUpdateModel = isRootAdmin || hasPermission('llm:u')
-  const canDeleteModel = isRootAdmin || hasPermission('llm:d')
+  const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
+  const canCreateProvider = isOrgAdmin || hasPermission('llm_provider:c')
+  const canUpdateProvider = isOrgAdmin || hasPermission('llm_provider:u')
+  const canDeleteProvider = isOrgAdmin || hasPermission('llm_provider:d')
+  const canListModels = isOrgAdmin || hasAnyPermission(['llm:l', 'llm:r'])
+  const canCreateModel = isOrgAdmin || hasPermission('llm:c')
+  const canUpdateModel = isOrgAdmin || hasPermission('llm:u')
+  const canDeleteModel = isOrgAdmin || hasPermission('llm:d')
 
   // Queries
   const { data: supportedResponse, isLoading: loadingSupportedProviders, error: errorSupportedProviders } = useQuery({
@@ -84,9 +86,6 @@ export default function Models() {
       setEditingProvider(null)
       toast.success('Provider configured successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to configure provider: ${error.message}`)
-    }
   })
 
   const updateProviderMutation = useMutation({
@@ -96,9 +95,6 @@ export default function Models() {
       setEditingProvider(null)
       toast.success('Provider updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to update provider: ${error.message}`)
-    }
   })
 
   const deleteProviderMutation = useMutation({
@@ -108,9 +104,6 @@ export default function Models() {
       setDeletingProvider(null)
       toast.success('Provider deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to delete provider: ${error.message}`)
-    }
   })
 
   const createLLMMutation = useMutation({
@@ -120,9 +113,6 @@ export default function Models() {
       setIsCreateModelOpen(false)
       toast.success('Model created successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to create model: ${error.message}`)
-    }
   })
 
   const updateLLMMutation = useMutation({
@@ -132,9 +122,6 @@ export default function Models() {
       setEditingModel(null)
       toast.success('Model updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to update model: ${error.message}`)
-    }
   })
 
   const deleteLLMMutation = useMutation({
@@ -144,9 +131,6 @@ export default function Models() {
       setDeletingModel(null)
       toast.success('Model deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to delete model: ${error.message}`)
-    }
   })
 
   const setDefaultMutation = useMutation({
@@ -155,9 +139,16 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       toast.success('Default model updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to set default model: ${error.message}`)
-    }
+  })
+
+  const testLLMConnectionMutation = useMutation({
+    mutationFn: testLLMConnection,
+    onSuccess: () => {
+      toast.success('Connection successful')
+    },
+    onSettled: () => {
+      setTestingModelId(null)
+    },
   })
 
   // Process supported providers with configured_id
@@ -278,6 +269,13 @@ export default function Models() {
     if (isDefault) {
       setDefaultMutation.mutate(llmId)
     }
+  }
+
+  const handleTestModel = (model: LLM) => {
+    // Close dropdown after opening test
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    setTestingModelId(model.id)
+    testLLMConnectionMutation.mutate(model.id)
   }
 
   // Helper function to get required fields for a provider
@@ -470,9 +468,11 @@ export default function Models() {
               onCreateModel={handleCreateModelForProvider}
               onEditModel={handleEditModel}
               onDeleteModel={handleDeleteModel}
+              onTestModel={handleTestModel}
               onDefaultChange={handleDefaultChange}
               isDeleting={deleteProviderMutation.isPending}
               isDeletingModel={deleteLLMMutation.isPending}
+              testingModelId={testingModelId}
               isLoadingModels={loadingLLMs}
               modelsError={errorLLMs}
               openDropdowns={openDropdowns}

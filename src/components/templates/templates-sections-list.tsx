@@ -45,9 +45,6 @@ export function TemplateSectionsList({
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
-    onError: (error: Error) => {
-      toast.error("Error updating section: " + error.message);
-    },
   });
 
   const deleteSectionMutation = useMutation({
@@ -69,9 +66,6 @@ export function TemplateSectionsList({
       }
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
-    onError: (error: Error) => {
-      toast.error("Error deleting section: " + error.message);
-    },
   });
 
   const reorderSectionsMutation = useMutation({
@@ -80,9 +74,6 @@ export function TemplateSectionsList({
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
-    },
-    onError: (error: Error) => {
-      toast.error("Error updating sections order: " + error.message);
     },
   });
 

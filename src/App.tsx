@@ -50,12 +50,12 @@ export default function App() {
             } />
             <Route path="search" element={<SearchPage />} />
             <Route path="asset" element={
-              <PermissionProtectedRoute permissions={["asset:r", "asset:l", "assets:r", "assets:l"]}>
+              <PermissionProtectedRoute permissions={["asset:r", "asset:l"]}>
                 <Assets />
               </PermissionProtectedRoute>
             } />
             <Route path="asset/*" element={
-              <PermissionProtectedRoute permissions={["asset:r", "asset:l", "assets:r", "assets:l"]}>
+              <PermissionProtectedRoute permissions={["asset:r", "asset:l"]}>
                 <Assets />
               </PermissionProtectedRoute>
             } />
@@ -66,7 +66,7 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="auth-types" element={
-              <PermissionProtectedRoute requireRootAdmin>
+              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
                 <AuthTypes />
               </PermissionProtectedRoute>
             } />
@@ -81,22 +81,22 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="roles" element={
-              <PermissionProtectedRoute permissions={["rbac:r", "rbac:manage"]}>
+              <PermissionProtectedRoute permissions={["rbac:r", "rbac:l"]}>
                 <Roles />
               </PermissionProtectedRoute>
             } />
             <Route path="asset-types" element={
-              <PermissionProtectedRoute permissions={["document_type:r", "document_type:l"]}>
+              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
                 <AssetTypesPage />
               </PermissionProtectedRoute>
             } />
             <Route path="custom-fields" element={
-              <PermissionProtectedRoute permissions={["document_type:r", "document_type:l"]}>
+              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
                 <CustomFieldsPage />
               </PermissionProtectedRoute>
             } />
             <Route path="document/:id" element={
-              <PermissionProtectedRoute permissions={["section:r", "asset:r", "assets:r"]}>
+              <PermissionProtectedRoute permissions={["section:r", "asset:r"]}>
                 <DocumentPage />
               </PermissionProtectedRoute>
             } />

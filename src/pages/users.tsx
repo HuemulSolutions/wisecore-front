@@ -36,18 +36,18 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(10)
 
   // Get permissions and organization context
-  const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessUsers, isOrgAdmin, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
   
   // Permisos específicos
-  const canListUsers = isRootAdmin || hasAnyPermission(['user:l', 'user:r'])
-  const canCreateUser = isRootAdmin || hasPermission('user:c')
-  const canUpdateUser = isRootAdmin || hasPermission('user:u')
-  const canDeleteUser = isRootAdmin || hasPermission('user:d')
+  const canListUsers = isOrgAdmin || hasAnyPermission(['user:l', 'user:r'])
+  const canCreateUser = isOrgAdmin || hasPermission('user:c')
+  const canUpdateUser = isOrgAdmin || hasPermission('user:u')
+  const canDeleteUser = isOrgAdmin || hasPermission('user:d')
   
   // Fetch users and mutations - solo si tiene permisos de listar
-  const { data: usersResponse, isLoading, error, refetch } = useUsers(
+  const { data: usersResponse, isLoading, isError, refetch } = useUsers(
     !!selectedOrganizationId && !!organizationToken && canListUsers,
     selectedOrganizationId || undefined,
     page,
@@ -55,8 +55,8 @@ export default function UsersPage() {
   ) as {
     data: UsersResponse | undefined,
     isLoading: boolean,
-    error: any,
-    refetch: () => Promise<any>
+    isError: boolean,
+    refetch: () => Promise<unknown>
   }
   const userMutations = useUserMutations()
 
@@ -107,7 +107,7 @@ export default function UsersPage() {
       // Refetch to trigger the query execution
       await refetch()
       toast.success('Data refreshed')
-    } catch (error) {
+    } catch {
       toast.error('Failed to refresh data')
     } finally {
       setIsRefreshing(false)
@@ -168,7 +168,7 @@ export default function UsersPage() {
           onCreateUser={() => updateState({ showCreateDialog: true })}
           onRefresh={handleRefresh}
           isLoading={isLoading || isRefreshing}
-          hasError={!!error}
+          hasError={isError}
           searchTerm={state.searchTerm}
           onSearchChange={(value) => updateState({ searchTerm: value })}
           filterStatus={state.filterStatus}
@@ -177,10 +177,10 @@ export default function UsersPage() {
         />
 
         {/* Content Area - Table or Error */}
-        {error ? (
+        {isError ? (
           <UserContentEmptyState 
             type="error" 
-            message={error.message} 
+            message="Error loading users" 
             onRetry={handleRefresh}
           />
         ) : filteredUsers.length === 0 ? (

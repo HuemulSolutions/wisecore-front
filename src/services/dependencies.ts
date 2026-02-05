@@ -7,9 +7,6 @@ export async function getDocumentDependencies(documentId: string, organizationId
       'X-Org-Id': organizationId
     }
   });
-  if (!response.ok) {
-    throw new Error('Error al obtener las dependencias del documento');
-  }
   const data = await response.json();
   console.log('Document dependencies fetched:', data.data);
   return data.data;
@@ -25,25 +22,17 @@ export async function addDocumentDependency(documentId: string, dependsOnDocumen
     }
   );
 
-  if (!response.ok) {
-    throw new Error('Error al agregar la dependencia del documento');
-  }
-
   const data = await response.json();
   console.log('Document dependency added:', data.data);
   return data.data;
 }
 
 export async function removeDocumentDependency(documentId: string, dependencyId: string, organizationId: string) {
-  const response = await httpClient.delete(`${backendUrl}/documents/${documentId}/dependencies/${dependencyId}`, {
+  await httpClient.delete(`${backendUrl}/documents/${documentId}/dependencies/${dependencyId}`, {
     headers: {
       'X-Org-Id': organizationId
     }
   });
-
-  if (!response.ok) {
-    throw new Error('Error al eliminar la dependencia del documento');
-  }
 
   console.log('Document dependency removed:', dependencyId);
   return dependencyId;

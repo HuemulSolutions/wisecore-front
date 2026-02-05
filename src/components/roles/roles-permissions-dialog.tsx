@@ -82,7 +82,7 @@ export default function RolePermissionsDialog({
 
     const currentRoles = rolesAccessLevelsData.data.roles
     const rolesPermissions = Array.from(rolePermissions.entries())
-      .filter(([_, permissions]) => permissions.size > 0)
+      .filter(([, permissions]) => permissions.size > 0)
       .map(([roleId, permissions]) => ({
         role_id: roleId,
         access_levels: Array.from(permissions)

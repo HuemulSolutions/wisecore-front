@@ -42,13 +42,14 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
-export interface CustomFieldTemplateSourcesResponse extends ApiResponse<CustomFieldTemplateSource[]> {}
+// Type aliases for API responses extending the base ApiResponse
+export type CustomFieldTemplateSourcesResponse = ApiResponse<CustomFieldTemplateSource[]>;
 export interface CustomFieldTemplatesResponse extends ApiResponse<CustomFieldTemplate[]> {
   page: number;
   page_size: number;
   has_next: boolean;
 }
-export interface CustomFieldTemplateResponse extends ApiResponse<CustomFieldTemplate> {}
+export type CustomFieldTemplateResponse = ApiResponse<CustomFieldTemplate>;
 
 // Request types for creating and updating custom field templates
 export interface CreateCustomFieldTemplateRequest {

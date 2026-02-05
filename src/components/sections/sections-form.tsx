@@ -31,6 +31,7 @@ interface SectionItem {
   order: number;
   dependencies: { id: string; name: string }[];
   referenced_document_id?: string;
+  template_section_id?: string;
 }
 
 interface SectionFormProps {
@@ -416,6 +417,9 @@ export function SectionForm({
     onGeneratingChange?.(isGenerating);
   }, [isGenerating, onGeneratingChange]);
 
+  // Detectar si la sección viene de un template
+  const isFromTemplate = mode === 'edit' && item && !!item.template_section_id;
+
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       {/* Section Name */}
@@ -428,11 +432,16 @@ export function SectionForm({
           placeholder="Enter section name (e.g., Purpose, Scope, Procedure)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          disabled={isPending}
+          disabled={isPending || isFromTemplate}
           autoFocus={mode === 'create'}
           autoComplete="off"
           className="text-sm"
         />
+        {isFromTemplate && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            This section name comes from the template and cannot be modified
+          </p>
+        )}
       </div>
 
       {/* Section Type */}

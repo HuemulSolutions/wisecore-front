@@ -42,9 +42,10 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
-export interface CustomFieldDocumentSourcesResponse extends ApiResponse<CustomFieldDocumentSource[]> {}
-export interface CustomFieldDocumentsResponse extends ApiResponse<CustomFieldDocument[]> {}
-export interface CustomFieldDocumentResponse extends ApiResponse<CustomFieldDocument> {}
+// Type aliases for API responses extending the base ApiResponse
+export type CustomFieldDocumentSourcesResponse = ApiResponse<CustomFieldDocumentSource[]>;
+export type CustomFieldDocumentsResponse = ApiResponse<CustomFieldDocument[]>;
+export type CustomFieldDocumentResponse = ApiResponse<CustomFieldDocument>;
 
 // Request types for creating and updating custom field documents
 export interface CreateCustomFieldDocumentRequest {

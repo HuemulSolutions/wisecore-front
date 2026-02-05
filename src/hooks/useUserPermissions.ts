@@ -5,19 +5,23 @@ import type { Permission } from '@/lib/jwt-utils';
 /**
  * Hook personalizado que facilita el uso del sistema de permisos
  * Proporciona funciones optimizadas y memoizadas para verificar permisos
+ * 
+ * NOTA: isOrgAdmin hace bypass de permisos dentro de la organización.
+ * isRootAdmin NO hace bypass de permisos, solo da acceso a rutas administrativas técnicas.
  */
 export function useUserPermissions() {
   // Manejo seguro del contexto de permisos
   let contextData;
   try {
     contextData = usePermissions();
-  } catch (error) {
+  } catch {
     // Si el contexto no está disponible, retornar valores por defecto
     console.warn('PermissionsContext not available, using default values');
     contextData = {
       permissions: [],
       roles: [],
       isRootAdmin: false,
+      isOrgAdmin: false,
       isLoading: true,
       hasPermission: () => false,
       hasAnyPermission: () => false,
@@ -32,6 +36,7 @@ export function useUserPermissions() {
     permissions,
     roles,
     isRootAdmin,
+    isOrgAdmin,
     isLoading,
     hasPermission,
     hasAnyPermission,
@@ -41,139 +46,112 @@ export function useUserPermissions() {
     refreshPermissions,
   } = contextData;
 
-  const resolveResourceAliases = (resource: string): string[] => {
-    if (resource === 'asset' || resource === 'assets') {
-      return ['asset', 'assets'];
-    }
-    return [resource];
-  };
-
   // Funciones memoizadas para diferentes tipos de verificaciones comunes
+  // NOTA: isOrgAdmin hace bypass, isRootAdmin NO
   const canCreate = useMemo(() => {
     return (resource: string) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.map(res => `${res}:c` as Permission);
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
+      return hasPermission(`${resource}:c` as Permission) || isOrgAdmin;
     };
-  }, [hasAnyPermission, isRootAdmin]);
+  }, [hasPermission, isOrgAdmin]);
 
   const canRead = useMemo(() => {
     return (resource: string) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.map(res => `${res}:r` as Permission);
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
+      return hasPermission(`${resource}:r` as Permission) || isOrgAdmin;
     };
-  }, [hasAnyPermission, isRootAdmin]);
+  }, [hasPermission, isOrgAdmin]);
 
   const canUpdate = useMemo(() => {
     return (resource: string) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.map(res => `${res}:u` as Permission);
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
+      return hasPermission(`${resource}:u` as Permission) || isOrgAdmin;
     };
-  }, [hasAnyPermission, isRootAdmin]);
+  }, [hasPermission, isOrgAdmin]);
 
   const canDelete = useMemo(() => {
     return (resource: string) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.map(res => `${res}:d` as Permission);
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
+      return hasPermission(`${resource}:d` as Permission) || isOrgAdmin;
     };
-  }, [hasAnyPermission, isRootAdmin]);
+  }, [hasPermission, isOrgAdmin]);
 
   const canList = useMemo(() => {
     return (resource: string) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.map(res => `${res}:l` as Permission);
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
+      return hasPermission(`${resource}:l` as Permission) || isOrgAdmin;
     };
-  }, [hasAnyPermission, isRootAdmin]);
-
-  const canManage = useMemo(() => {
-    return (resource: string) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.map(res => `${res}:manage` as Permission);
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
-    };
-  }, [hasAnyPermission, isRootAdmin]);
+  }, [hasPermission, isOrgAdmin]);
 
   // Verificaciones específicas para recursos comunes
+  // NOTA: isOrgAdmin hace bypass, isRootAdmin NO
   const canAccessUsers = useMemo(() => {
-    return hasAnyPermission(['user:r', 'user:l', 'user:c', 'user:u', 'user:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['user:r', 'user:l', 'user:c', 'user:u', 'user:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessRoles = useMemo(() => {
-    return hasAnyPermission(['rbac:r', 'rbac:manage']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['rbac:r', 'rbac:l', 'rbac:c', 'rbac:u', 'rbac:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessAssets = useMemo(() => {
     return hasAnyPermission([
-      'asset:r', 'asset:l', 'asset:c', 'asset:u', 'asset:d',
-      'assets:r', 'assets:l', 'assets:c', 'assets:u', 'assets:d'
-    ]) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+      'asset:r', 'asset:l', 'asset:c', 'asset:u', 'asset:d'
+    ]) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessFolders = useMemo(() => {
-    return hasAnyPermission(['folder:r', 'folder:l', 'folder:c', 'folder:u', 'folder:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['folder:r', 'folder:l', 'folder:c', 'folder:u', 'folder:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessTemplates = useMemo(() => {
-    return hasAnyPermission(['template:r', 'template:l', 'template:c', 'template:u', 'template:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['template:r', 'template:l', 'template:c', 'template:u', 'template:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessDocumentTypes = useMemo(() => {
-    return hasAnyPermission(['document_type:r', 'document_type:l', 'document_type:c', 'document_type:u', 'document_type:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['asset_type:r', 'asset_type:l', 'asset_type:c', 'asset_type:u', 'asset_type:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessSections = useMemo(() => {
-    return hasAnyPermission(['section:r', 'section:l', 'section:c', 'section:u', 'section:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['section:r', 'section:l', 'section:c', 'section:u', 'section:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessSectionExecutions = useMemo(() => {
-    return hasAnyPermission(['section_execution:r', 'section_execution:l', 'section_execution:c', 'section_execution:u', 'section_execution:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['section_execution:r', 'section_execution:l', 'section_execution:c', 'section_execution:u', 'section_execution:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessContexts = useMemo(() => {
-    return hasAnyPermission(['context:r', 'context:l', 'context:c', 'context:u', 'context:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['context:r', 'context:l', 'context:c', 'context:u', 'context:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessModels = useMemo(() => {
-    return hasAnyPermission(['llm:r', 'llm:l', 'llm:c', 'llm:u', 'llm:d', 'llm_provider:r', 'llm_provider:l', 'llm_provider:c', 'llm_provider:u', 'llm_provider:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['llm:r', 'llm:l', 'llm:c', 'llm:u', 'llm:d', 'llm_provider:r', 'llm_provider:l', 'llm_provider:c', 'llm_provider:u', 'llm_provider:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessOrganizations = useMemo(() => {
-    return hasAnyPermission(['organization:r', 'organization:l', 'organization:c', 'organization:u', 'organization:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['organization:r', 'organization:l', 'organization:c', 'organization:u', 'organization:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   const canAccessVersions = useMemo(() => {
-    return hasAnyPermission(['version:r', 'version:l', 'version:c', 'version:u', 'version:d']) || isRootAdmin;
-  }, [hasAnyPermission, isRootAdmin]);
+    return hasAnyPermission(['version:r', 'version:l', 'version:c', 'version:u', 'version:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
 
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
-      const resources = resolveResourceAliases(resource);
-      const permissionsToCheck = resources.flatMap(res =>
-        actions.map(action => `${res}:${action}` as Permission)
-      );
-      return hasAnyPermission(permissionsToCheck) || isRootAdmin;
+      const permissionsToCheck = actions.map(action => `${resource}:${action}` as Permission);
+      return hasAnyPermission(permissionsToCheck) || isOrgAdmin;
     };
-  }, [hasAnyPermission, isRootAdmin]);
+  }, [hasAnyPermission, isOrgAdmin]);
 
   // Función para obtener las acciones permitidas para un recurso
   const getAllowedActions = useMemo(() => {
     return (resource: string): string[] => {
-      if (isRootAdmin) {
-        return ['c', 'r', 'u', 'd', 'l', 'manage'];
+      // isOrgAdmin tiene todas las acciones
+      if (isOrgAdmin) {
+        return ['c', 'r', 'u', 'd', 'l'];
       }
 
-      const actions = ['c', 'r', 'u', 'd', 'l', 'manage'];
-      const resources = resolveResourceAliases(resource);
+      const actions = ['c', 'r', 'u', 'd', 'l'];
       return actions.filter(action =>
-        resources.some(res => hasPermission(`${res}:${action}` as Permission))
+        hasPermission(`${resource}:${action}` as Permission)
       );
     };
-  }, [hasPermission, isRootAdmin]);
+  }, [hasPermission, isOrgAdmin]);
 
   // Debug info (solo en desarrollo) - con throttling para evitar spam
   const lastLogRef = useRef<string>('');
@@ -181,6 +159,7 @@ export function useUserPermissions() {
   if (process.env.NODE_ENV === 'development') {
     const currentState = JSON.stringify({
       isRootAdmin,
+      isOrgAdmin,
       permissionsCount: permissions.length,
       canAccessUsers,
       canAccessRoles,
@@ -193,6 +172,7 @@ export function useUserPermissions() {
       lastLogRef.current = currentState;
       console.log('useUserPermissions state changed:', {
         isRootAdmin,
+        isOrgAdmin,
         permissionsCount: permissions.length,
         canAccessUsers,
         canAccessRoles,
@@ -207,6 +187,7 @@ export function useUserPermissions() {
     permissions,
     roles,
     isRootAdmin,
+    isOrgAdmin,
     isLoading,
 
     // Funciones básicas
@@ -223,7 +204,6 @@ export function useUserPermissions() {
     canUpdate,
     canDelete,
     canList,
-    canManage,
 
     // Verificaciones específicas por recurso
     canAccessUsers,

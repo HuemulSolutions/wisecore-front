@@ -66,10 +66,6 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
             // Refresh the file tree to update disabled states after dependencies are updated
             await fileTreeRef.current?.refresh();
         },
-        onError: (error) => {
-            console.error('Error adding dependency:', error);
-            toast.error("Failed to add dependency. Please try again.");
-        },
     });
 
     const removeDependencyMutation = useMutation({
@@ -82,10 +78,6 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
             setDependencyToDelete(null);
             // Refresh the file tree to update disabled states after dependencies are updated
             await fileTreeRef.current?.refresh();
-        },
-        onError: (error) => {
-            console.error('Error removing dependency:', error);
-            toast.error("Failed to remove dependency. Please try again.");
         },
     });
 

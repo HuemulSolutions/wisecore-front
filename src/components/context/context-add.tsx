@@ -57,9 +57,6 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
       setContext("");
       setContextName("");
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
-    },
-    onError: (error: Error) => {
-      toast.error("Error adding text context: " + error.message);
     }
   });
 
@@ -75,9 +72,6 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
         fileInputRef.current.value = '';
       }
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
-    },
-    onError: (error: Error) => {
-      toast.error("Error adding document context: " + error.message);
     }
   });
 
@@ -89,9 +83,6 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
       setDeleteDialogOpen(false);
       setContextToDelete(null);
-    },
-    onError: (error: Error) => {
-      toast.error("Error deleting context: " + error.message);
     }
   });
 

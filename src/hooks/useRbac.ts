@@ -93,9 +93,6 @@ export function useRoleMutations() {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
       toast.success('Role created successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to create role: ' + error.message)
-    },
   })
 
   const updateRoleMutation = useMutation({
@@ -106,9 +103,6 @@ export function useRoleMutations() {
       // Don't invalidate rolePermissions here - it should only refetch when sheet opens
       toast.success('Role updated successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to update role: ' + error.message)
-    },
   })
 
   const deleteRoleMutation = useMutation({
@@ -116,9 +110,6 @@ export function useRoleMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
       toast.success('Role deleted successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to delete role: ' + error.message)
     },
   })
 
@@ -129,9 +120,6 @@ export function useRoleMutations() {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(userId) })
       toast.success('Roles assigned successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to assign roles: ' + error.message)
-    },
   })
 
   const assignUsersToRoleMutation = useMutation({
@@ -141,9 +129,6 @@ export function useRoleMutations() {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsers(roleId) })
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
       toast.success('Users assigned successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to assign users: ' + error.message)
     },
   })
 

@@ -69,10 +69,6 @@ export function TemplateConfigSheet({
       setIsAddingSection(false);
       toast.success("Template section created successfully");
     },
-    onError: (error) => {
-      console.error("Error creating template section:", error);
-      toast.error("Error creating template section: " + (error as Error).message);
-    },
   });
 
   const updateSectionMutation = useMutation({
@@ -81,10 +77,6 @@ export function TemplateConfigSheet({
     onSuccess: () => {
       toast.success("Template section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
-    },
-    onError: (error) => {
-      console.error("Error updating template section:", error);
-      toast.error("Error updating template section: " + (error as Error).message);
     },
   });
 
@@ -107,10 +99,6 @@ export function TemplateConfigSheet({
       }
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
     },
-    onError: (error) => {
-      console.error("Error deleting template section:", error);
-      toast.error("Error deleting template section: " + (error as Error).message);
-    },
   });
 
   const reorderSectionsMutation = useMutation({
@@ -118,10 +106,6 @@ export function TemplateConfigSheet({
     onSuccess: () => {
       toast.success("Template sections order updated");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
-    },
-    onError: (error) => {
-      console.error("Error updating template sections order:", error);
-      toast.error("Error updating template sections order: " + (error as Error).message);
     },
   });
 
@@ -153,10 +137,6 @@ export function TemplateConfigSheet({
       toast.success("Template sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
     },
-    onError: (error) => {
-      console.error("Error generating template sections with AI:", error);
-      toast.error("Error generating template sections with AI: " + (error as Error).message);
-    }
   });
 
   // Función para generar secciones con IA

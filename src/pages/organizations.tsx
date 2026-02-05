@@ -40,13 +40,14 @@ export default function Organizations() {
   const [pageSize, setPageSize] = useState(10)
 
   // Get permissions
-  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
   
   // Permisos específicos
-  const canListOrgs = isRootAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const canUpdateOrg = isRootAdmin || hasPermission('organization:u')
-  const canDeleteOrg = isRootAdmin || hasPermission('organization:d')
+  const canListOrgs = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
+  const canUpdateOrg = isOrgAdmin || hasPermission('organization:u')
+  const canDeleteOrg = isOrgAdmin || hasPermission('organization:d')
+  const canCreateOrg = isOrgAdmin || hasPermission('organization:c')
   
   // Fetch organizations - solo si tiene permisos de listar
   const { data: organizationsResponse, isLoading, error: queryError } = useQuery({
@@ -63,9 +64,6 @@ export default function Organizations() {
       closeDialog("showCreateDialog")
       toast.success("Organization created successfully")
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to create organization")
-    },
   })
 
   const updateMutation = useMutation({
@@ -76,9 +74,6 @@ export default function Organizations() {
       closeDialog("editingOrganization")
       toast.success("Organization updated successfully")
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to update organization")
-    },
   })
 
   const deleteMutation = useMutation({
@@ -87,9 +82,6 @@ export default function Organizations() {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("deletingOrganization")
       toast.success("Organization deleted successfully")
-    },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to delete organization")
     },
   })
 
@@ -184,7 +176,7 @@ export default function Organizations() {
           isLoading={isLoading || isRefreshing}
           searchTerm={state.searchTerm}
           onSearchChange={(value: string) => updateState({ searchTerm: value })}
-          canManage={isRootAdmin}
+          canManage={canCreateOrg}
         />
 
         {/* Content Area - Table or Error */}

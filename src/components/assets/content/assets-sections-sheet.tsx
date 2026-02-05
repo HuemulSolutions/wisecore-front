@@ -33,6 +33,15 @@ interface SectionSheetProps {
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
   accessLevels?: string[];
+  executionId?: string | null;
+  executionInfo?: {
+    id: string;
+    name: string;
+    status: string;
+    created_at: string;
+    formattedDate?: string;
+    isLatest?: boolean;
+  } | null;
 }
 
 export function SectionSheet({
@@ -41,7 +50,9 @@ export function SectionSheet({
   isOpen,
   onOpenChange,
   isMobile = false,
-  accessLevels
+  accessLevels,
+  executionId: _executionId, // Available for future use
+  executionInfo
 }: SectionSheetProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
@@ -82,10 +93,6 @@ export function SectionSheet({
       setIsGenerating(false);
       toast.success("Section created successfully");
     },
-    onError: (error) => {
-      console.error("Error creating section:", error);
-      toast.error("Error creating section: " + (error as Error).message);
-    },
   });
 
   const updateSectionMutation = useMutation({
@@ -96,10 +103,6 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
     },
-    onError: (error) => {
-      console.error("Error updating section:", error);
-      toast.error("Error updating section: " + (error as Error).message);
-    },
   });
 
   const deleteSectionMutation = useMutation({
@@ -109,10 +112,6 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
     },
-    onError: (error) => {
-      console.error("Error deleting section:", error);
-      toast.error("Error deleting section: " + (error as Error).message);
-    },
   });
 
   const reorderSectionsMutation = useMutation({
@@ -121,10 +120,6 @@ export function SectionSheet({
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-    },
-    onError: (error) => {
-      console.error("Error updating sections order:", error);
-      toast.error("Error updating sections order: " + (error as Error).message);
     },
   });
 
@@ -157,10 +152,6 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
     },
-    onError: (error) => {
-      console.error("Error generating sections with AI:", error);
-      toast.error("Error generating sections with AI: " + (error as Error).message);
-    }
   });
 
   // Función para generar secciones con IA
@@ -249,10 +240,17 @@ export function SectionSheet({
           
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
             <div className="space-y-6">
-              {/* Document Info */}
-              <div className="p-4 bg-gray-50 rounded-lg border">
-                <h3 className="text-sm font-medium text-gray-900 mb-1">Document: {selectedFile?.name}</h3>
-                <p className="text-xs text-gray-600">Organize your document with structured sections that can contain text, code, and other content types.</p>
+              {/* Asset Info */}
+              <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 mb-1">Asset: {selectedFile?.name}</h3>
+                  <p className="text-xs text-gray-600">Organize your document with structured sections that can contain text, code, and other content types.</p>
+                </div>
+                {executionInfo && (
+                  <div className="text-xs text-gray-600 pt-2 border-t border-gray-200">
+                    <span className="font-medium">Version:</span> {executionInfo.name}
+                  </div>
+                )}
               </div>
 
               {/* Existing Sections */}

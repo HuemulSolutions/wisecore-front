@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/input-otp"
 import { authService } from "@/services/auth"
 import { useAuth } from "@/contexts/auth-context"
+import { getErrorMessage } from "@/lib/error-utils"
 import packageJson from "../../../package.json"
 
 interface OTPFormProps extends React.ComponentProps<"div"> {
@@ -56,17 +57,13 @@ export function OTPForm({
       login(data.token, data.user)
       onSuccess?.()
     },
-    onError: (error) => {
-      console.error("Verification error:", error)
+    onError: () => {
       setCode("") // Clear the code on error
     },
   })
 
   const resendMutation = useMutation({
     mutationFn: () => authService.requestCode({ email, purpose }),
-    onError: (error) => {
-      console.error("Resend error:", error)
-    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -156,7 +153,7 @@ export function OTPForm({
           </Field>
           {verifyMutation.error && (
             <FieldDescription className="text-red-600 text-center">
-              {verifyMutation.error.message}
+              {getErrorMessage(verifyMutation.error)}
             </FieldDescription>
           )}
           {resendMutation.isSuccess && (

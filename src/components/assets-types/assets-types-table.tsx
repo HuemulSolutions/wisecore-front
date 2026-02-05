@@ -35,8 +35,11 @@ interface AssetTypeTableProps {
 
 export default function AssetTypeTable({
   assetTypes,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   selectedAssetTypes: _selectedAssetTypes,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onAssetTypeSelection: _onAssetTypeSelection,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSelectAll: _onSelectAll,
   onEditAssetType,
   onManagePermissions,

@@ -10,9 +10,9 @@ import type {
   CustomFieldsResponse,
 } from "@/types/custom-fields";
 
-export interface CustomFieldResponse extends ApiResponse<CustomField> {}
-
-export interface DataTypesResponse extends ApiResponse<CustomFieldDataType[]> {}
+// Type aliases for API responses
+export type CustomFieldResponse = ApiResponse<CustomField>;
+export type DataTypesResponse = ApiResponse<CustomFieldDataType[]>;
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {
@@ -37,10 +37,6 @@ export const getCustomFieldDataTypes = async (): Promise<DataTypesResponse> => {
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field data types');
-  }
-  
   return response.json();
 };
 
@@ -61,10 +57,6 @@ export const getCustomFields = async (params?: PaginationParams): Promise<Custom
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom fields');
-  }
-  
   return response.json();
 };
 
@@ -73,10 +65,6 @@ export const getCustomField = async (id: string): Promise<CustomField> => {
   const response = await httpClient.get(`${backendUrl}/custom_fields/${id}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field');
-  }
   
   const result: CustomFieldResponse = await response.json();
   return result.data;
@@ -91,10 +79,6 @@ export const createCustomField = async (data: CreateCustomFieldRequest): Promise
     },
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to create custom field');
-  }
-  
   const result: CustomFieldResponse = await response.json();
   return result.data;
 };
@@ -108,23 +92,15 @@ export const updateCustomField = async (id: string, data: UpdateCustomFieldReque
     },
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to update custom field');
-  }
-  
   const result: CustomFieldResponse = await response.json();
   return result.data;
 };
 
 // Delete custom field
 export const deleteCustomField = async (id: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/custom_fields/${id}`, {
+  await httpClient.delete(`${backendUrl}/custom_fields/${id}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete custom field');
-  }
 };
 
 // Legacy service object for backward compatibility
@@ -139,17 +115,26 @@ export const customFieldsService = {
    * List custom fields with pagination
    * @deprecated Use getCustomFields instead
    */
-  getCustomFields: (params?: PaginationParams, _orgId?: string) => getCustomFields(params),
+  getCustomFields: (params?: PaginationParams, _orgId?: string) => {
+    void _orgId; // Kept for API compatibility
+    return getCustomFields(params);
+  },
 
   /**
    * Get a specific custom field by ID
    * @deprecated Use getCustomField instead
    */
-  getCustomField: (customFieldId: string, _orgId?: string) => getCustomField(customFieldId),
+  getCustomField: (customFieldId: string, _orgId?: string) => {
+    void _orgId; // Kept for API compatibility
+    return getCustomField(customFieldId);
+  },
 
   /**
    * Create a new custom field
    * @deprecated Use createCustomField instead
    */
-  createCustomField: (data: CreateCustomFieldRequest, _orgId?: string) => createCustomField(data),
+  createCustomField: (data: CreateCustomFieldRequest, _orgId?: string) => {
+    void _orgId; // Kept for API compatibility
+    return createCustomField(data);
+  },
 };

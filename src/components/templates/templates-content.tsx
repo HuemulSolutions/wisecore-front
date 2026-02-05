@@ -98,9 +98,6 @@ export function TemplateContent({
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
     },
-    onError: (error: Error) => {
-      toast.error("Error generating sections with AI: " + error.message);
-    }
   });
 
   // Combinar ambos estados de generación

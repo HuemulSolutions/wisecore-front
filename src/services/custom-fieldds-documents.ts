@@ -34,10 +34,6 @@ export const getCustomFieldDocumentSources = async (): Promise<CustomFieldDocume
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field document sources');
-  }
-  
   return response.json();
 };
 
@@ -62,10 +58,6 @@ export const getCustomFieldDocuments = async (params?: CustomFieldDocumentListPa
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field documents');
-  }
-  
   return response.json();
 };
 
@@ -77,10 +69,6 @@ export const createCustomFieldDocument = async (data: CreateCustomFieldDocumentR
       "Content-Type": "application/json",
     },
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to create custom field document');
-  }
   
   const result: CustomFieldDocumentResponse = await response.json();
   return result.data;
@@ -103,10 +91,6 @@ export const getCustomFieldDocumentsByDocument = async (params: CustomFieldDocum
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field documents by document');
-  }
-  
   return response.json();
 };
 
@@ -119,23 +103,15 @@ export const updateCustomFieldDocument = async (customFieldDocumentId: string, d
     },
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to update custom field document');
-  }
-  
   const result: CustomFieldDocumentResponse = await response.json();
   return result.data;
 };
 
 // Delete custom field document association
 export const deleteCustomFieldDocument = async (customFieldDocumentId: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/custom_field_documents/${customFieldDocumentId}`, {
+  await httpClient.delete(`${backendUrl}/custom_field_documents/${customFieldDocumentId}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete custom field document');
-  }
 };
 
 // Upload file for custom field document

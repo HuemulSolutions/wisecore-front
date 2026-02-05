@@ -63,9 +63,6 @@ export function useCustomFieldMutations() {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
       toast.success('Custom field created successfully')
     },
-    onError: (error) => {
-      toast.error(`Failed to create custom field: ${error.message}`)
-    },
   })
 
   const updateMutation = useMutation({
@@ -75,9 +72,6 @@ export function useCustomFieldMutations() {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.all })
       toast.success('Custom field updated successfully')
     },
-    onError: (error) => {
-      toast.error(`Failed to update custom field: ${error.message}`)
-    },
   })
 
   const deleteMutation = useMutation({
@@ -85,9 +79,6 @@ export function useCustomFieldMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
       toast.success('Custom field deleted successfully')
-    },
-    onError: (error) => {
-      toast.error(`Failed to delete custom field: ${error.message}`)
     },
   })
 

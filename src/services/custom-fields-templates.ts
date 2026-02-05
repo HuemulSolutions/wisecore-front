@@ -34,10 +34,6 @@ export const getCustomFieldTemplateSources = async (): Promise<CustomFieldTempla
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field template sources');
-  }
-  
   return response.json();
 };
 
@@ -62,10 +58,6 @@ export const getCustomFieldTemplates = async (params?: CustomFieldTemplateListPa
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field templates');
-  }
-  
   return response.json();
 };
 
@@ -86,10 +78,6 @@ export const getCustomFieldTemplatesByTemplate = async (params: CustomFieldTempl
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field templates by template');
-  }
-  
   return response.json();
 };
 
@@ -98,10 +86,6 @@ export const getCustomFieldTemplate = async (customFieldTemplateId: string): Pro
   const response = await httpClient.get(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch custom field template');
-  }
   
   const result: CustomFieldTemplateResponse = await response.json();
   return result.data;
@@ -116,10 +100,6 @@ export const createCustomFieldTemplate = async (data: CreateCustomFieldTemplateR
     },
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to create custom field template');
-  }
-  
   const result: CustomFieldTemplateResponse = await response.json();
   return result.data;
 };
@@ -133,23 +113,15 @@ export const updateCustomFieldTemplate = async (customFieldTemplateId: string, d
     },
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to update custom field template');
-  }
-  
   const result: CustomFieldTemplateResponse = await response.json();
   return result.data;
 };
 
 // Delete custom field template association
 export const deleteCustomFieldTemplate = async (customFieldTemplateId: string): Promise<void> => {
-  const response = await httpClient.delete(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`, {
+  await httpClient.delete(`${backendUrl}/custom_field_templates/${customFieldTemplateId}`, {
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to delete custom field template');
-  }
 };
 
 // Upload image file for custom field template
