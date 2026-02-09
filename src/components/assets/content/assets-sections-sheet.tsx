@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
@@ -12,11 +12,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
-import { generateDocumentStructure } from "@/services/assets";
+import { generateDocumentStructure, getDocumentSectionsConfig } from "@/services/assets";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -44,6 +51,40 @@ interface SectionSheetProps {
   } | null;
 }
 
+interface SectionsConfigExecution {
+  id: string;
+  name?: string;
+  status?: string;
+  created_at?: string;
+}
+
+interface SectionsConfigSection {
+  id: string;
+  name: string;
+  type?: "ai" | "manual" | "reference";
+  prompt?: string;
+  order?: number;
+  dependencies?: Array<{ id: string; name: string }>;
+  manual_input?: string;
+  reference_section_id?: string;
+  reference_mode?: "latest" | "specific";
+  reference_execution_id?: string;
+  not_in_execution?: boolean | null;
+}
+
+interface SectionsConfigResponse {
+  document?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
+  executions?: {
+    active?: SectionsConfigExecution | null;
+    others?: SectionsConfigExecution[];
+  };
+  sections?: SectionsConfigSection[];
+}
+
 export function SectionSheet({
   selectedFile,
   fullDocument,
@@ -51,7 +92,7 @@ export function SectionSheet({
   onOpenChange,
   isMobile = false,
   accessLevels,
-  executionId: _executionId, // Available for future use
+  executionId,
   executionInfo
 }: SectionSheetProps) {
   const queryClient = useQueryClient();
@@ -60,6 +101,43 @@ export function SectionSheet({
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isFormValid, setIsFormValid] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
+
+  useEffect(() => {
+    setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
+  }, [selectedFile?.id, executionInfo?.id, executionId]);
+
+  const { data: sectionsConfig } = useQuery<SectionsConfigResponse>({
+    queryKey: ['document-sections-config', selectedFile?.id, selectedConfigExecutionId],
+    queryFn: () => getDocumentSectionsConfig(selectedFile!.id, selectedOrganizationId!, selectedConfigExecutionId || undefined),
+    enabled: isOpen && selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    staleTime: 30000,
+  });
+
+  const availableExecutions = useMemo(() => {
+    const active = sectionsConfig?.executions?.active;
+    const others = sectionsConfig?.executions?.others || [];
+    const executionMap = new Map<string, SectionsConfigExecution>();
+
+    if (active?.id) {
+      executionMap.set(active.id, active);
+    }
+
+    others.forEach((execution) => {
+      if (execution?.id) {
+        executionMap.set(execution.id, execution);
+      }
+    });
+
+    return Array.from(executionMap.values());
+  }, [sectionsConfig?.executions]);
+
+  useEffect(() => {
+    if (selectedConfigExecutionId || !sectionsConfig?.executions?.active?.id) {
+      return;
+    }
+    setSelectedConfigExecutionId(sectionsConfig.executions.active.id);
+  }, [sectionsConfig?.executions?.active?.id, selectedConfigExecutionId]);
 
   // Configurar sensores para drag & drop
   const mouseSensor = useSensor(MouseSensor, {
@@ -73,13 +151,13 @@ export function SectionSheet({
 
   // Actualizar orderedSections cuando cambie fullDocument
   useEffect(() => {
-    if (fullDocument?.sections) {
-      const sorted = [...fullDocument.sections].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+    if (sectionsConfig?.sections) {
+      const sorted = [...sectionsConfig.sections].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
       setOrderedSections(sorted);
     } else {
       setOrderedSections([]);
     }
-  }, [fullDocument?.sections]);
+  }, [sectionsConfig?.sections]);
 
   // Mutations for sections management
   const addSectionMutation = useMutation({
@@ -88,6 +166,7 @@ export function SectionSheet({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
       setIsAddingSectionDialogOpen(false);
       setIsFormValid(false);
       setIsGenerating(false);
@@ -102,6 +181,7 @@ export function SectionSheet({
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -111,6 +191,7 @@ export function SectionSheet({
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -120,6 +201,7 @@ export function SectionSheet({
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -151,6 +233,7 @@ export function SectionSheet({
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -244,11 +327,31 @@ export function SectionSheet({
               <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
                 <div>
                   <h3 className="text-sm font-medium text-gray-900 mb-1">Asset: {selectedFile?.name}</h3>
-                  <p className="text-xs text-gray-600">Organize your document with structured sections that can contain text, code, and other content types.</p>
+                  <p className="text-xs text-gray-600">
+                    <span className="font-medium">Description:</span>{" "}
+                    {sectionsConfig?.document?.description || "-"}
+                  </p>
                 </div>
-                {executionInfo && (
+                {availableExecutions.length > 0 && (
                   <div className="text-xs text-gray-600 pt-2 border-t border-gray-200">
-                    <span className="font-medium">Version:</span> {executionInfo.name}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium whitespace-nowrap">Version:</span>
+                      <Select
+                        value={selectedConfigExecutionId || undefined}
+                        onValueChange={(value) => setSelectedConfigExecutionId(value)}
+                      >
+                        <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
+                          <SelectValue placeholder="Select version" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableExecutions.map((execution, index) => (
+                            <SelectItem key={execution.id} value={execution.id} className="cursor-pointer">
+                              {execution.name || `Version ${availableExecutions.length - index}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
               </div>
@@ -270,6 +373,15 @@ export function SectionSheet({
                               }
                               onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
                               hasTemplate={!!fullDocument?.template_id}
+                              isDisabledSection={section.not_in_execution === true}
+                              onAddToCurrentVersion={(sectionId: string) => {
+                                console.log('[SectionSheet] Add section to current version (pending implementation):', {
+                                  sectionId,
+                                  documentId: selectedFile?.id,
+                                  currentVersionId: executionInfo?.id || executionId,
+                                  comparedVersionId: selectedConfigExecutionId,
+                                });
+                              }}
                             />
                           </div>
                         ))}

@@ -19,7 +19,8 @@ import {
   ChevronUp,
   MoreVertical,
   Edit,
-  Trash2
+  Trash2,
+  Plus
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
 import type { SortableSectionSheetItem } from "@/types/sections";
@@ -36,10 +37,12 @@ interface SortableSectionSheetProps {
   isTemplateSection?: boolean;
   canUpdate?: boolean;
   canDelete?: boolean;
+  isDisabledSection?: boolean;
+  onAddToCurrentVersion?: (sectionId: string) => void;
 }
 
-export default function SortableSectionSheet({ item, existingSections, onSave, onDelete, isOverlay = false, hasTemplate = false, isTemplateSection = false, canUpdate = true, canDelete = true }: SortableSectionSheetProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay });
+export default function SortableSectionSheet({ item, existingSections, onSave, onDelete, isOverlay = false, hasTemplate = false, isTemplateSection = false, canUpdate = true, canDelete = true, isDisabledSection = false, onAddToCurrentVersion }: SortableSectionSheetProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -83,10 +86,10 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
   return (
     <div ref={setNodeRef} style={style} className="relative">
-      <div className={`w-full min-w-0 py-4 px-4 bg-white border-b border-gray hover:bg-blue-50 transition-colors ${isDragging ? 'bg-blue-50 border-blue-300' : ''}`}>
+      <div className={`w-full min-w-0 py-4 px-4 border-b border-gray transition-colors ${isDisabledSection ? 'bg-gray-50 opacity-75' : 'bg-white hover:bg-blue-50'} ${isDragging ? 'bg-blue-50 border-blue-300' : ''}`}>
         <div className="flex items-start gap-3">
           {/* Drag handle */}
-          {!isOverlay && (
+          {!isOverlay && !isDisabledSection && (
             <div
               className="hover:cursor-grab cursor-grabbing active:cursor-grabbing shrink-0 flex items-center h-5"
               title="Drag to reorder"
@@ -194,7 +197,19 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                       )}
                     </Button>
 
-                    {(canUpdate || canDelete) && (
+                    {isDisabledSection && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2 text-xs hover:cursor-pointer"
+                        onClick={() => onAddToCurrentVersion?.(item.id)}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        + Add section to current version
+                      </Button>
+                    )}
+
+                    {!isDisabledSection && (canUpdate || canDelete) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button

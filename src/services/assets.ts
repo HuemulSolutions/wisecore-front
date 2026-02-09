@@ -52,6 +52,23 @@ export async function getDocumentSections(documentId: string, organizationId: st
   return data.data;
 }
 
+export async function getDocumentSectionsConfig(documentId: string, organizationId: string, executionId?: string) {
+  const url = new URL(`${backendUrl}/documents/${documentId}/sections_config`);
+  if (executionId) {
+    url.searchParams.append('execution_id', executionId);
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = await response.json();
+  console.log('Document sections config fetched:', data.data);
+  return data.data;
+}
+
 export async function createDocument(documentData: { name: string; description?: string; 
   internal_code?: string; template_id?: string | null; document_type_id?: string, folder_id?: string }, organizationId: string) {
   const response = await httpClient.post(`${backendUrl}/documents/`, documentData, {
