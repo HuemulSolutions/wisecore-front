@@ -87,6 +87,7 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFileId] });
       toast.success("Section added successfully");
     },
   });

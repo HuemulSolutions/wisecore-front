@@ -666,7 +666,7 @@ export default function SectionExecution({
             ) : showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
                  executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus) ? (
                 /* Show skeleton ONLY when section is actively being executed (not when completed) */
-                <div className="pt-8 pr-12">
+                <div className="pt-4 pr-12">
                     <div className="animate-pulse space-y-4">
                         {/* Title skeleton */}
                         <div className="h-6 bg-gray-200 rounded w-2/3"></div>
@@ -689,7 +689,7 @@ export default function SectionExecution({
                 </div>
             ) : (
                 /* Content with padding for floating buttons when not editing */
-                <div className="pt-8 pr-12">
+                <div className="pt-4 pr-12">
                     <div className="relative">
                         <Markdown sectionIndex={sectionIndex}>{displayedContent}</Markdown>
                     </div>

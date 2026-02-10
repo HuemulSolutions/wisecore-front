@@ -20,11 +20,20 @@ export async function deleteSectionExec(sectionExecId: string) {
     return data;
 }
 
-export async function createSectionExecution(executionId: string, sectionData: {
+export interface AddSectionExecutionRequest {
     name: string;
-    output: string;
-    after_from?: string;
-}) {
+    after_from?: string | null;
+    type?: "manual" | "ai" | "reference";
+    output?: string;
+    prompt?: string;
+    dependencies?: string[];
+    manual_input?: string;
+    reference_section_id?: string;
+    reference_mode?: "latest" | "specific";
+    reference_execution_id?: string;
+}
+
+export async function createSectionExecution(executionId: string, sectionData: AddSectionExecutionRequest) {
     console.log(`Creating section execution for execution ID: ${executionId}`);
     const response = await httpClient.post(`${backendUrl}/section_executions/${executionId}`, sectionData);
 

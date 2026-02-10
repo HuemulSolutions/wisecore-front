@@ -9,7 +9,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { createSectionExecution } from "@/services/section_execution";
+import { createSectionExecution, type AddSectionExecutionRequest } from "@/services/section_execution";
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
 import {
@@ -184,7 +184,7 @@ export function AssetContent({
 
   // Mutation for section execution creation
   const createSectionExecutionMutation = useMutation({
-    mutationFn: async (sectionData: { name: string; output: string; after_from?: string }) => {
+    mutationFn: async (sectionData: AddSectionExecutionRequest) => {
       if (!selectedExecutionId) {
         throw new Error('No execution ID available');
       }
@@ -195,6 +195,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
       
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
@@ -574,6 +575,7 @@ export function AssetContent({
       // Si hay contenido de documento (execution exists), crear section_execution
       if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
         console.log(`Adding section execution after index: ${afterIndex}`);
+        setNeedsFullDocument(true);
         
         // Determinar el after_from ID basado en el índice
         let afterFromId: string | null = null;
@@ -625,7 +627,7 @@ export function AssetContent({
   };
 
   // Handle section execution creation submission
-  const handleSectionExecutionSubmit = (values: { name: string; output: string; after_from?: string }) => {
+  const handleSectionExecutionSubmit = (values: AddSectionExecutionRequest) => {
     createSectionExecutionMutation.mutate(values);
   };
 
@@ -1053,6 +1055,35 @@ export function AssetContent({
     
     return [];
   }, [documentContent?.content]);
+
+  const sectionOptionsForExecutionDialog = useMemo(() => {
+    const optionsById = new Map<string, string>();
+
+    if (fullDocument?.sections?.length) {
+      fullDocument.sections.forEach((section: { id?: string; name?: string }) => {
+        if (!section.id) return;
+        optionsById.set(section.id, section.name || "Untitled section");
+      });
+    }
+
+    if (Array.isArray(documentContent?.content)) {
+      documentContent.content.forEach((section: ContentSection, index: number) => {
+        if (!section.section_id) return;
+
+        const existingName = optionsById.get(section.section_id);
+        if (existingName && existingName !== "Untitled section") {
+          return;
+        }
+
+        optionsById.set(
+          section.section_id,
+          section.section_name || `Section ${index + 1}`
+        );
+      });
+    }
+
+    return Array.from(optionsById.entries()).map(([id, name]) => ({ id, name }));
+  }, [documentContent?.content, fullDocument?.sections]);
 
   // Handle export to markdown
   const handleExportMarkdown = async () => {
@@ -2758,10 +2789,7 @@ export function AssetContent({
                               />
                               
                               {documentContent.content.map((section: ContentSection, index: number) => {
-                          // Find the corresponding section in fullDocument to get the real section_id
-                          // Using index-based mapping as sections should be in the same order
-                          const correspondingSection = fullDocument?.sections?.[index];
-                          const realSectionId = correspondingSection?.id;
+                          const realSectionId = section.section_id;
                           
                           // Removed debug logging for performance
                           
@@ -2983,6 +3011,7 @@ export function AssetContent({
           }
         }}
         afterFromSectionId={afterFromSectionId}
+        existingSections={sectionOptionsForExecutionDialog}
         onSubmit={handleSectionExecutionSubmit}
         isPending={createSectionExecutionMutation.isPending}
         onClose={() => {
