@@ -32,7 +32,7 @@ import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { linkSectionToExecution } from "@/services/section_execution";
-import { generateDocumentStructure, getDocumentSectionsConfig } from "@/services/assets";
+import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -277,6 +277,29 @@ export function SectionSheet({
     },
   });
 
+  const syncTemplateToDocumentMutation = useMutation({
+    mutationFn: ({ templateId, documentId }: { templateId: string; documentId: string }) =>
+      syncDocumentsFromTemplate(templateId, [documentId], selectedOrganizationId!),
+    onSuccess: () => {
+      toast.success("Document synced from template");
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+    },
+  });
+
+  const syncDocumentToTemplateMutation = useMutation({
+    mutationFn: ({ templateId, documentId }: { templateId: string; documentId: string }) =>
+      syncTemplateFromDocument(templateId, documentId, selectedOrganizationId!),
+    onSuccess: () => {
+      toast.success("Template synced from document");
+      queryClient.invalidateQueries({ queryKey: ['template', templateId] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+    },
+  });
+
   // Función para generar secciones con IA
   const handleGenerateWithAI = async () => {
     if (!selectedFile?.id) return;
@@ -284,12 +307,29 @@ export function SectionSheet({
   };
 
   const handleTemplateUpdateAction = (action: "document_to_template" | "template_to_document") => {
-    console.log("[SectionSheet] Template update action (pending implementation):", {
-      action,
-      documentId: selectedFile?.id,
-      template_id: templateId,
-      selectedConfigExecutionId,
-    });
+    if (action === "document_to_template") {
+      if (!templateId || !selectedFile?.id || !selectedOrganizationId) {
+        return;
+      }
+
+      syncDocumentToTemplateMutation.mutate({
+        templateId,
+        documentId: selectedFile.id,
+      });
+      return;
+    }
+
+    if (action === "template_to_document") {
+      if (!templateId || !selectedFile?.id || !selectedOrganizationId) {
+        return;
+      }
+
+      syncTemplateToDocumentMutation.mutate({
+        templateId,
+        documentId: selectedFile.id,
+      });
+      return;
+    }
   };
 
   return (
@@ -357,10 +397,13 @@ export function SectionSheet({
                         onSelect={() => {
                           setTimeout(() => handleTemplateUpdateAction("document_to_template"), 0);
                         }}
+                        disabled={syncDocumentToTemplateMutation.isPending}
                       >
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold text-gray-900">Documento → Template</span>
-                          <span className="text-xs text-gray-500">Actualiza el template</span>
+                          <span className="text-xs text-gray-500">
+                            {syncDocumentToTemplateMutation.isPending ? "Sincronizando..." : "Actualiza el template"}
+                          </span>
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -368,10 +411,13 @@ export function SectionSheet({
                         onSelect={() => {
                           setTimeout(() => handleTemplateUpdateAction("template_to_document"), 0);
                         }}
+                        disabled={syncTemplateToDocumentMutation.isPending}
                       >
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold text-gray-900">Template → Documento</span>
-                          <span className="text-xs text-gray-500">Actualiza el documento</span>
+                          <span className="text-xs text-gray-500">
+                            {syncTemplateToDocumentMutation.isPending ? "Sincronizando..." : "Actualiza el documento"}
+                          </span>
                         </div>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
