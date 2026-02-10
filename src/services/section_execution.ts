@@ -42,6 +42,23 @@ export async function createSectionExecution(executionId: string, sectionData: A
     return data.data;
 }
 
+export async function linkSectionToExecution(executionId: string, sectionId: string, organizationId?: string) {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+
+    const response = await httpClient.post(
+        `${backendUrl}/section_executions/${executionId}/link`,
+        { section_id: sectionId },
+        { headers }
+    );
+
+    const data = await response.json();
+    console.log('Section linked to execution:', data.data);
+    return data.data;
+}
+
 export async function getSectionExecutionContent(sectionExecutionId: string, organizationId?: string) {
     console.log(`Getting content for section execution ID: ${sectionExecutionId}`);
     

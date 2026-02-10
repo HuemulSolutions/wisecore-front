@@ -68,8 +68,19 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     return data.data;
 }
 
-export async function deleteSection(sectionId: string, organizationId: string) {
-    await httpClient.delete(`${backendUrl}/sections/${sectionId}`, {
+export async function deleteSection(
+    sectionId: string,
+    organizationId: string,
+    options?: { executionId?: string }
+) {
+    const params = new URLSearchParams();
+    if (options?.executionId) {
+        params.append('execution_id', options.executionId);
+    }
+
+    const url = `${backendUrl}/sections/${sectionId}${params.toString() ? `?${params.toString()}` : ''}`;
+
+    await httpClient.delete(url, {
         headers: {
             'X-Org-Id': organizationId,
         },

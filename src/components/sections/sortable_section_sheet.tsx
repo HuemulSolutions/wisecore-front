@@ -8,6 +8,14 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import Markdown from "../ui/markdown";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -31,7 +39,7 @@ interface SortableSectionSheetProps {
   item: SortableSectionSheetItem;
   existingSections: object[];
   onSave: (sectionId: string, sectionData: object) => void;
-  onDelete: (sectionId: string, options?: { propagate_to_documents?: boolean }) => void;
+  onDelete: (sectionId: string, options?: { executionId?: string; propagate_to_documents?: boolean }) => Promise<void>;
   isOverlay?: boolean;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
@@ -39,15 +47,36 @@ interface SortableSectionSheetProps {
   canDelete?: boolean;
   isDisabledSection?: boolean;
   onAddToCurrentVersion?: (sectionId: string) => void;
+  isAddToCurrentVersionPending?: boolean;
+  currentExecutionId?: string | null;
+  useExecutionDeleteDialog?: boolean;
 }
 
-export default function SortableSectionSheet({ item, existingSections, onSave, onDelete, isOverlay = false, hasTemplate = false, isTemplateSection = false, canUpdate = true, canDelete = true, isDisabledSection = false, onAddToCurrentVersion }: SortableSectionSheetProps) {
+type DeleteMode = "structure" | "structure_and_current_version";
+
+export default function SortableSectionSheet({
+  item,
+  existingSections,
+  onSave,
+  onDelete,
+  isOverlay = false,
+  hasTemplate = false,
+  isTemplateSection = false,
+  canUpdate = true,
+  canDelete = true,
+  isDisabledSection = false,
+  onAddToCurrentVersion,
+  isAddToCurrentVersionPending = false,
+  currentExecutionId = null,
+  useExecutionDeleteDialog = false,
+}: SortableSectionSheetProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [propagateDeleteToAssets, setPropagateDeleteToAssets] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<DeleteMode | "">("");
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -59,28 +88,35 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    
-    // Crear una promesa con delay mínimo de 800ms
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800));
-    
+
     try {
-      // Ejecutar la mutación y esperar ambas promesas
-        await Promise.all([
-          new Promise<void>((resolve) => {
-          onDelete(item.id, propagateDeleteToAssets ? { propagate_to_documents: true } : undefined);
-          resolve();
-        }),
-        minDelay
-      ]);
+      if (useExecutionDeleteDialog) {
+        if (!deleteMode) {
+          return;
+        }
+
+        await onDelete(item.id, {
+          executionId: deleteMode === "structure_and_current_version" ? currentExecutionId || undefined : undefined,
+        });
+      } else {
+        await onDelete(item.id, propagateDeleteToAssets ? { propagate_to_documents: true } : undefined);
+      }
+
+      setShowDeleteDialog(false);
+      setPropagateDeleteToAssets(false);
+      setDeleteMode("");
     } finally {
       setIsDeleting(false);
-      setShowDeleteDialog(false);
     }
   };
 
   const handleEditSave = (sectionData: object) => {
     onSave(item.id, sectionData);
   };
+
+  const canConfirmDelete = useExecutionDeleteDialog
+    ? !!deleteMode && !(deleteMode === "structure_and_current_version" && !currentExecutionId)
+    : true;
 
   const sectionType = (item as any).type || 'ai';
 
@@ -203,9 +239,10 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                         size="sm"
                         className="h-8 px-2 text-xs hover:cursor-pointer"
                         onClick={() => onAddToCurrentVersion?.(item.id)}
+                        disabled={isAddToCurrentVersionPending}
                       >
                         <Plus className="h-3.5 w-3.5 mr-1" />
-                        + Add section to current version
+                        {isAddToCurrentVersionPending ? "Adding..." : "+ Add section to current version"}
                       </Button>
                     )}
 
@@ -237,7 +274,11 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
                             <DropdownMenuItem
                               className="text-red-600 hover:cursor-pointer"
                               onSelect={() => {
-                                setTimeout(() => setShowDeleteDialog(true), 0);
+                                setTimeout(() => {
+                                  setDeleteMode("");
+                                  setPropagateDeleteToAssets(false);
+                                  setShowDeleteDialog(true);
+                                }, 0);
                               }}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -343,39 +384,134 @@ export default function SortableSectionSheet({ item, existingSections, onSave, o
         </div>
       </div>
 
-      {/* Delete Confirmation AlertDialog */}
-      <ReusableAlertDialog
-        open={showDeleteDialog}
-        onOpenChange={(open) => !isDeleting && setShowDeleteDialog(open)}
-        title="Delete Section"
-        description={
-          <div className="space-y-3">
-            <p>
-              Are you sure you want to delete the section "{item.name}"? This action cannot be undone.
-            </p>
-            {isTemplateSection && (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id={`propagate-delete-${item.id}`}
-                  checked={propagateDeleteToAssets}
-                  onCheckedChange={(checked) => setPropagateDeleteToAssets(checked as boolean)}
-                  disabled={isDeleting}
-                />
+      {useExecutionDeleteDialog ? (
+        <Dialog
+          open={showDeleteDialog}
+          onOpenChange={(open) => {
+            if (!isDeleting) {
+              setShowDeleteDialog(open);
+              if (!open) {
+                setDeleteMode("");
+              }
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[640px] p-0 gap-0">
+            <DialogHeader className="p-6 border-b border-gray-200">
+              <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900">
+                Delete section
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="px-6 py-6">
+              <p className="text-sm text-slate-700 mb-4">What do you want to delete?</p>
+              <RadioGroup
+                value={deleteMode}
+                onValueChange={(value) => setDeleteMode(value as DeleteMode)}
+                className="space-y-4"
+              >
                 <Label
-                  htmlFor={`propagate-delete-${item.id}`}
-                  className="text-xs font-medium text-gray-700 hover:cursor-pointer"
+                  htmlFor={`delete-structure-${item.id}`}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
+                    deleteMode === "structure" ? "border-[#4464f7] bg-blue-50" : "border-gray-200"
+                  } ${isDeleting ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
                 >
-                  Also remove related asset sections created from this template
+                  <RadioGroupItem
+                    id={`delete-structure-${item.id}`}
+                    value="structure"
+                    className="mt-1"
+                    disabled={isDeleting}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-slate-900">Remove from structure</p>
+                    <p className="text-xs text-slate-600">
+                      The section is removed from the structure but does not affect content.
+                    </p>
+                  </div>
                 </Label>
-              </div>
-            )}
-          </div>
-        }
-        onConfirm={handleDelete}
-        confirmLabel="Delete"
-        isProcessing={isDeleting}
-        variant="destructive"
-      />
+
+                <Label
+                  htmlFor={`delete-structure-version-${item.id}`}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
+                    deleteMode === "structure_and_current_version" ? "border-[#4464f7] bg-blue-50" : "border-gray-200"
+                  } ${isDeleting ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${
+                    !currentExecutionId ? "opacity-60" : ""
+                  }`}
+                >
+                  <RadioGroupItem
+                    id={`delete-structure-version-${item.id}`}
+                    value="structure_and_current_version"
+                    className="mt-1"
+                    disabled={isDeleting || !currentExecutionId}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-slate-900">Remove from structure and current version</p>
+                    <p className="text-xs text-slate-600">
+                      The section is removed from the structure and from the current version content, while previous versions remain unchanged.
+                    </p>
+                  </div>
+                </Label>
+              </RadioGroup>
+            </div>
+
+            <DialogFooter className="px-6 py-4 border-t border-gray-200 flex-row justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeleteMode("");
+                }}
+                disabled={isDeleting}
+                className="hover:cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting || !canConfirmDelete}
+                className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
+              >
+                {isDeleting ? "Delete..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <ReusableAlertDialog
+          open={showDeleteDialog}
+          onOpenChange={(open) => !isDeleting && setShowDeleteDialog(open)}
+          title="Delete Section"
+          description={
+            <div className="space-y-3">
+              <p>
+                Are you sure you want to delete the section "{item.name}"? This action cannot be undone.
+              </p>
+              {isTemplateSection && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`propagate-delete-${item.id}`}
+                    checked={propagateDeleteToAssets}
+                    onCheckedChange={(checked) => setPropagateDeleteToAssets(checked as boolean)}
+                    disabled={isDeleting}
+                  />
+                  <Label
+                    htmlFor={`propagate-delete-${item.id}`}
+                    className="text-xs font-medium text-gray-700 hover:cursor-pointer"
+                  >
+                    Also remove related asset sections created from this template
+                  </Label>
+                </div>
+              )}
+            </div>
+          }
+          onConfirm={handleDelete}
+          confirmLabel="Delete"
+          isProcessing={isDeleting}
+          variant="destructive"
+        />
+      )}
 
       {/* Edit Section Dialog */}
       <EditSectionDialog

@@ -42,7 +42,7 @@ interface SectionExecutionProps {
     onOpenExecuteSheet?: () => void;
     executionMode?: 'single' | 'from' | 'full' | 'full-single';
     showExecutionFeedback?: boolean;
-    sectionType?: 'ai' | 'manual' | 'reference';
+    sectionType?: 'ai' | 'manual' | 'reference' | null;
     sectionName?: string;
 }
 
@@ -60,7 +60,7 @@ export default function SectionExecution({
     executionMode = 'single',
     showExecutionFeedback = false,
     sectionType = 'ai',
-    // sectionName
+    sectionName
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -255,6 +255,9 @@ export default function SectionExecution({
         setIsAiEditDialogOpen(open);
     };
 
+    const normalizedSectionType = sectionType ?? 'manual';
+    const sectionTypeLabel = normalizedSectionType.charAt(0).toUpperCase() + normalizedSectionType.slice(1);
+
     const handleSendAiEdit = (prompt: string) => {
         setIsAiProcessing(true);
         setAiPreview('');
@@ -308,25 +311,17 @@ export default function SectionExecution({
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
                 <div className="sticky top-0 z-20 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
-                    {/* Section Info */}
-                    {/* {(sectionName || sectionType) && (
-                        <div className="flex items-center gap-1.5">
-                            {sectionName && (
-                                <span className="text-xs font-medium text-gray-500">{sectionName}</span>
-                            )}
-                            {sectionType && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                                    sectionType === 'ai' 
-                                        ? 'bg-blue-50 text-blue-600'
-                                        : sectionType === 'manual'
-                                        ? 'bg-green-50 text-green-600'
-                                        : 'bg-purple-50 text-purple-600'
-                                }`}>
-                                    {sectionType.charAt(0).toUpperCase() + sectionType.slice(1)}
-                                </span>
-                            )}
+                    {(sectionName || sectionType) && (
+                        <div className="mr-auto flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
+                            <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
+                                {sectionName || 'Untitled section'}
+                            </span>
+                            <span className="mx-1.5 text-[10px] text-blue-300">•</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
+                                {sectionTypeLabel}
+                            </span>
                         </div>
-                    )} */}
+                    )}
                     
                     {!isEditing && (
                     <>

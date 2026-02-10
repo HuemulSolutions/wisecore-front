@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart } from "lucide-react";
+import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
 import { useOrganization } from "@/contexts/organization-context";
@@ -19,10 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
+import { linkSectionToExecution } from "@/services/section_execution";
 import { generateDocumentStructure, getDocumentSectionsConfig } from "@/services/assets";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -73,10 +82,12 @@ interface SectionsConfigSection {
 }
 
 interface SectionsConfigResponse {
+  template_id?: string | null;
   document?: {
     id: string;
     name: string;
     description?: string;
+    template_id?: string | null;
   };
   executions?: {
     active?: SectionsConfigExecution | null;
@@ -101,6 +112,7 @@ export function SectionSheet({
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isFormValid, setIsFormValid] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
 
   useEffect(() => {
@@ -113,6 +125,8 @@ export function SectionSheet({
     enabled: isOpen && selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
     staleTime: 30000,
   });
+  const templateId = sectionsConfig?.document?.template_id ?? sectionsConfig?.template_id ?? null;
+  const hasTemplateId = !!templateId;
 
   const availableExecutions = useMemo(() => {
     const active = sectionsConfig?.executions?.active;
@@ -186,7 +200,8 @@ export function SectionSheet({
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteSection(sectionId, selectedOrganizationId!),
+    mutationFn: ({ sectionId, executionId }: { sectionId: string; executionId?: string }) =>
+      deleteSection(sectionId, selectedOrganizationId!, { executionId }),
     onSuccess: () => {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
@@ -237,10 +252,44 @@ export function SectionSheet({
     },
   });
 
+  const linkSectionToCurrentVersionMutation = useMutation({
+    mutationFn: async (sectionId: string) => {
+      const currentVersionId = executionInfo?.id || executionId;
+
+      if (!currentVersionId) {
+        throw new Error("No current version available");
+      }
+
+      setLinkingSectionId(sectionId);
+      return linkSectionToExecution(currentVersionId, sectionId, selectedOrganizationId || undefined);
+    },
+    onSuccess: () => {
+      toast.success("Section added to current version");
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+    },
+    onError: () => {
+      toast.error("Could not add section to current version");
+    },
+    onSettled: () => {
+      setLinkingSectionId(null);
+    },
+  });
+
   // Función para generar secciones con IA
   const handleGenerateWithAI = async () => {
     if (!selectedFile?.id) return;
     generateSectionsMutation.mutate(selectedFile.id);
+  };
+
+  const handleTemplateUpdateAction = (action: "document_to_template" | "template_to_document") => {
+    console.log("[SectionSheet] Template update action (pending implementation):", {
+      action,
+      documentId: selectedFile?.id,
+      template_id: templateId,
+      selectedConfigExecutionId,
+    });
   };
 
   return (
@@ -279,6 +328,55 @@ export function SectionSheet({
                 </SheetDescription>
               </div>
               <div className="flex items-center h-full gap-2 ml-4">
+                {hasTemplateId && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <DocumentActionButton
+                        accessLevels={accessLevels || selectedFile?.access_levels}
+                        requiredAccess={["edit", "create"]}
+                        requireAll={false}
+                        checkGlobalPermissions={true}
+                        resource="asset"
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 hover:cursor-pointer text-gray-700"
+                        style={{ alignSelf: "center" }}
+                      >
+                        Template
+                        <ChevronDown className="h-4 w-4 ml-1.5" />
+                      </DocumentActionButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 p-0">
+                      <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
+                        Actualizar
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer px-4 py-3"
+                        onSelect={() => {
+                          setTimeout(() => handleTemplateUpdateAction("document_to_template"), 0);
+                        }}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-gray-900">Documento → Template</span>
+                          <span className="text-xs text-gray-500">Actualiza el template</span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer px-4 py-3"
+                        onSelect={() => {
+                          setTimeout(() => handleTemplateUpdateAction("template_to_document"), 0);
+                        }}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-gray-900">Template → Documento</span>
+                          <span className="text-xs text-gray-500">Actualiza el documento</span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <DocumentActionButton
                   accessLevels={accessLevels || selectedFile?.access_levels}
                   requiredAccess={["edit", "create"]}
@@ -371,16 +469,24 @@ export function SectionSheet({
                               onSave={(sectionId: string, sectionData: object) =>
                                 updateSectionMutation.mutate({ sectionId, sectionData })
                               }
-                              onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
+                              onDelete={async (sectionId: string, options?: { executionId?: string }) => {
+                                await deleteSectionMutation.mutateAsync({
+                                  sectionId,
+                                  executionId: options?.executionId,
+                                });
+                              }}
+                              currentExecutionId={selectedConfigExecutionId}
+                              useExecutionDeleteDialog={true}
                               hasTemplate={!!fullDocument?.template_id}
                               isDisabledSection={section.not_in_execution === true}
+                              isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
                               onAddToCurrentVersion={(sectionId: string) => {
-                                console.log('[SectionSheet] Add section to current version (pending implementation):', {
-                                  sectionId,
-                                  documentId: selectedFile?.id,
-                                  currentVersionId: executionInfo?.id || executionId,
-                                  comparedVersionId: selectedConfigExecutionId,
-                                });
+                                if (!executionInfo?.id && !executionId) {
+                                  toast.error("No current version available for this asset");
+                                  return;
+                                }
+
+                                linkSectionToCurrentVersionMutation.mutate(sectionId);
                               }}
                             />
                           </div>

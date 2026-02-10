@@ -157,9 +157,9 @@ export function TemplateSectionsList({
                     onSave={(sectionId: string, sectionData: object) =>
                       updateSectionMutation.mutate({ sectionId, sectionData })
                     }
-                    onDelete={(sectionId: string, options?: { propagate_to_documents?: boolean }) =>
-                      deleteSectionMutation.mutate({ sectionId, options })
-                    }
+                    onDelete={async (sectionId: string, options?: { propagate_to_documents?: boolean }) => {
+                      await deleteSectionMutation.mutateAsync({ sectionId, options });
+                    }}
                     isTemplateSection={true}
                     canUpdate={canUpdate}
                     canDelete={canDelete}
@@ -175,7 +175,7 @@ export function TemplateSectionsList({
                   item={activeSection}
                   existingSections={sections}
                   onSave={() => {}}
-                  onDelete={() => {}}
+                  onDelete={async () => {}}
                   isOverlay={true}
                 />
               </div>
