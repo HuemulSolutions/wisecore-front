@@ -175,8 +175,13 @@ export function SectionSheet({
 
   // Mutations for sections management
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: any) =>
-      createSection(sectionData, selectedOrganizationId!),
+    mutationFn: (sectionData: any) => {
+      const payload = selectedConfigExecutionId
+        ? { ...sectionData, execution_id: selectedConfigExecutionId }
+        : sectionData;
+
+      return createSection(payload, selectedOrganizationId!);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
