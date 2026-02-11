@@ -20,16 +20,42 @@ export async function deleteSectionExec(sectionExecId: string) {
     return data;
 }
 
-export async function createSectionExecution(executionId: string, sectionData: {
+export interface AddSectionExecutionRequest {
     name: string;
-    output: string;
-    after_from?: string;
-}) {
+    after_from?: string | null;
+    type?: "manual" | "ai" | "reference";
+    output?: string;
+    prompt?: string;
+    dependencies?: string[];
+    manual_input?: string;
+    reference_section_id?: string;
+    reference_mode?: "latest" | "specific";
+    reference_execution_id?: string;
+}
+
+export async function createSectionExecution(executionId: string, sectionData: AddSectionExecutionRequest) {
     console.log(`Creating section execution for execution ID: ${executionId}`);
     const response = await httpClient.post(`${backendUrl}/section_executions/${executionId}`, sectionData);
 
     const data = await response.json();
     console.log('Section execution created:', data.data);
+    return data.data;
+}
+
+export async function linkSectionToExecution(executionId: string, sectionId: string, organizationId?: string) {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+
+    const response = await httpClient.post(
+        `${backendUrl}/section_executions/${executionId}/link`,
+        { section_id: sectionId },
+        { headers }
+    );
+
+    const data = await response.json();
+    console.log('Section linked to execution:', data.data);
     return data.data;
 }
 

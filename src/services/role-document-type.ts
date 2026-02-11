@@ -56,6 +56,28 @@ export interface RoleDocumentTypesResponse {
   timestamp: string;
 }
 
+// Document type with access info for current user
+export interface DocumentTypeWithInfo {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  role_count: number;
+  access_level: string[];  // List of permissions: ['read', 'edit', 'create', 'delete', 'approve']
+}
+
+export interface DocumentTypesWithInfoResponse {
+  data: DocumentTypeWithInfo[];
+  transaction_id: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  timestamp: string;
+}
+
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {
   return localStorage.getItem('selectedOrganizationId');
@@ -177,3 +199,25 @@ export const bulkGrantAccess = async (data: {
 
 // Legacy function name for backward compatibility
 export const assignRoleDocumentTypePermissions = grantAccess;
+
+// Get all document types with access info for current user
+// This endpoint handles both admin and regular users - backend filters based on token
+export const getDocumentTypesWithInfo = async (
+  page: number = 1,
+  pageSize: number = 100
+): Promise<DocumentTypesWithInfoResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+
+  const response = await httpClient.fetch(
+    `${backendUrl}/role-doctype/document_types/list_with_info?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: getHeaders(),
+    }
+  );
+
+  return response.json();
+};

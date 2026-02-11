@@ -1,6 +1,33 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
+interface SyncedDocumentResult {
+  document_id: string;
+  document_name: string;
+  sections_created: number;
+  sections_updated: number;
+  sections_deleted: number;
+  custom_sections_preserved: number;
+}
+
+interface SyncDocumentsFromTemplateResponse {
+  template_id: string;
+  template_name: string;
+  synced_documents: SyncedDocumentResult[];
+  total_documents_synced: number;
+  errors: string[];
+}
+
+interface SyncTemplateFromDocumentResponse {
+  template_id: string;
+  template_name: string;
+  document_id: string;
+  document_name: string;
+  sections_created: number;
+  sections_updated: number;
+  sections_deleted: number;
+}
+
 export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
   const url = new URL(`${backendUrl}/documents/`);
   if (documentTypeId) {
@@ -49,6 +76,23 @@ export async function getDocumentSections(documentId: string, organizationId: st
   });
   const data = await response.json();
   console.log('Document sections fetched:', data.data);
+  return data.data;
+}
+
+export async function getDocumentSectionsConfig(documentId: string, organizationId: string, executionId?: string) {
+  const url = new URL(`${backendUrl}/documents/${documentId}/sections_config`);
+  if (executionId) {
+    url.searchParams.append('execution_id', executionId);
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = await response.json();
+  console.log('Document sections config fetched:', data.data);
   return data.data;
 }
 
@@ -142,5 +186,42 @@ export async function createTemplateFromDocument(
   );
   const data = await response.json();
   console.log('Template created from document:', data.data);
+  return data.data;
+}
+
+export async function syncDocumentsFromTemplate(
+  templateId: string,
+  documentIds: string[],
+  organizationId: string,
+): Promise<SyncDocumentsFromTemplateResponse> {
+  const response = await httpClient.post(`${backendUrl}/documents/sync-from-template`, {
+    template_id: templateId,
+    document_ids: documentIds,
+  }, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = await response.json();
+  console.log('Documents synced from template:', data.data);
+  return data.data;
+}
+
+export async function syncTemplateFromDocument(
+  templateId: string,
+  documentId: string,
+  organizationId: string,
+): Promise<SyncTemplateFromDocumentResponse> {
+  const response = await httpClient.post(`${backendUrl}/templates/${templateId}/sync-from-document`, {
+    document_id: documentId,
+  }, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = await response.json();
+  console.log('Template synced from document:', data.data);
   return data.data;
 }

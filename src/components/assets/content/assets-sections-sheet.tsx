@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
 import { useOrganization } from "@/contexts/organization-context";
@@ -12,11 +12,27 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
-import { generateDocumentStructure } from "@/services/assets";
+import { linkSectionToExecution } from "@/services/section_execution";
+import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
 import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -44,6 +60,42 @@ interface SectionSheetProps {
   } | null;
 }
 
+interface SectionsConfigExecution {
+  id: string;
+  name?: string;
+  status?: string;
+  created_at?: string;
+}
+
+interface SectionsConfigSection {
+  id: string;
+  name: string;
+  type?: "ai" | "manual" | "reference";
+  prompt?: string;
+  order?: number;
+  dependencies?: Array<{ id: string; name: string }>;
+  manual_input?: string;
+  reference_section_id?: string;
+  reference_mode?: "latest" | "specific";
+  reference_execution_id?: string;
+  not_in_execution?: boolean | null;
+}
+
+interface SectionsConfigResponse {
+  template_id?: string | null;
+  document?: {
+    id: string;
+    name: string;
+    description?: string;
+    template_id?: string | null;
+  };
+  executions?: {
+    active?: SectionsConfigExecution | null;
+    others?: SectionsConfigExecution[];
+  };
+  sections?: SectionsConfigSection[];
+}
+
 export function SectionSheet({
   selectedFile,
   fullDocument,
@@ -51,7 +103,7 @@ export function SectionSheet({
   onOpenChange,
   isMobile = false,
   accessLevels,
-  executionId: _executionId, // Available for future use
+  executionId,
   executionInfo
 }: SectionSheetProps) {
   const queryClient = useQueryClient();
@@ -60,6 +112,46 @@ export function SectionSheet({
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isFormValid, setIsFormValid] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
+  const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
+
+  useEffect(() => {
+    setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
+  }, [selectedFile?.id, executionInfo?.id, executionId]);
+
+  const { data: sectionsConfig } = useQuery<SectionsConfigResponse>({
+    queryKey: ['document-sections-config', selectedFile?.id, selectedConfigExecutionId],
+    queryFn: () => getDocumentSectionsConfig(selectedFile!.id, selectedOrganizationId!, selectedConfigExecutionId || undefined),
+    enabled: isOpen && selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    staleTime: 30000,
+  });
+  const templateId = sectionsConfig?.document?.template_id ?? sectionsConfig?.template_id ?? null;
+  const hasTemplateId = !!templateId;
+
+  const availableExecutions = useMemo(() => {
+    const active = sectionsConfig?.executions?.active;
+    const others = sectionsConfig?.executions?.others || [];
+    const executionMap = new Map<string, SectionsConfigExecution>();
+
+    if (active?.id) {
+      executionMap.set(active.id, active);
+    }
+
+    others.forEach((execution) => {
+      if (execution?.id) {
+        executionMap.set(execution.id, execution);
+      }
+    });
+
+    return Array.from(executionMap.values());
+  }, [sectionsConfig?.executions]);
+
+  useEffect(() => {
+    if (selectedConfigExecutionId || !sectionsConfig?.executions?.active?.id) {
+      return;
+    }
+    setSelectedConfigExecutionId(sectionsConfig.executions.active.id);
+  }, [sectionsConfig?.executions?.active?.id, selectedConfigExecutionId]);
 
   // Configurar sensores para drag & drop
   const mouseSensor = useSensor(MouseSensor, {
@@ -73,13 +165,13 @@ export function SectionSheet({
 
   // Actualizar orderedSections cuando cambie fullDocument
   useEffect(() => {
-    if (fullDocument?.sections) {
-      const sorted = [...fullDocument.sections].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+    if (sectionsConfig?.sections) {
+      const sorted = [...sectionsConfig.sections].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
       setOrderedSections(sorted);
     } else {
       setOrderedSections([]);
     }
-  }, [fullDocument?.sections]);
+  }, [sectionsConfig?.sections]);
 
   // Mutations for sections management
   const addSectionMutation = useMutation({
@@ -88,6 +180,7 @@ export function SectionSheet({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
       setIsAddingSectionDialogOpen(false);
       setIsFormValid(false);
       setIsGenerating(false);
@@ -102,15 +195,18 @@ export function SectionSheet({
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteSection(sectionId, selectedOrganizationId!),
+    mutationFn: ({ sectionId, executionId }: { sectionId: string; executionId?: string }) =>
+      deleteSection(sectionId, selectedOrganizationId!, { executionId }),
     onSuccess: () => {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -120,6 +216,7 @@ export function SectionSheet({
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -151,6 +248,55 @@ export function SectionSheet({
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+    },
+  });
+
+  const linkSectionToCurrentVersionMutation = useMutation({
+    mutationFn: async (sectionId: string) => {
+      const currentVersionId = executionInfo?.id || executionId;
+
+      if (!currentVersionId) {
+        throw new Error("No current version available");
+      }
+
+      setLinkingSectionId(sectionId);
+      return linkSectionToExecution(currentVersionId, sectionId, selectedOrganizationId || undefined);
+    },
+    onSuccess: () => {
+      toast.success("Section added to current version");
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+    },
+    onError: () => {
+      toast.error("Could not add section to current version");
+    },
+    onSettled: () => {
+      setLinkingSectionId(null);
+    },
+  });
+
+  const syncTemplateToDocumentMutation = useMutation({
+    mutationFn: ({ templateId, documentId }: { templateId: string; documentId: string }) =>
+      syncDocumentsFromTemplate(templateId, [documentId], selectedOrganizationId!),
+    onSuccess: () => {
+      toast.success("Document synced from template");
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
+    },
+  });
+
+  const syncDocumentToTemplateMutation = useMutation({
+    mutationFn: ({ templateId, documentId }: { templateId: string; documentId: string }) =>
+      syncTemplateFromDocument(templateId, documentId, selectedOrganizationId!),
+    onSuccess: () => {
+      toast.success("Template synced from document");
+      queryClient.invalidateQueries({ queryKey: ['template', templateId] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
   });
 
@@ -158,6 +304,32 @@ export function SectionSheet({
   const handleGenerateWithAI = async () => {
     if (!selectedFile?.id) return;
     generateSectionsMutation.mutate(selectedFile.id);
+  };
+
+  const handleTemplateUpdateAction = (action: "document_to_template" | "template_to_document") => {
+    if (action === "document_to_template") {
+      if (!templateId || !selectedFile?.id || !selectedOrganizationId) {
+        return;
+      }
+
+      syncDocumentToTemplateMutation.mutate({
+        templateId,
+        documentId: selectedFile.id,
+      });
+      return;
+    }
+
+    if (action === "template_to_document") {
+      if (!templateId || !selectedFile?.id || !selectedOrganizationId) {
+        return;
+      }
+
+      syncTemplateToDocumentMutation.mutate({
+        templateId,
+        documentId: selectedFile.id,
+      });
+      return;
+    }
   };
 
   return (
@@ -196,6 +368,61 @@ export function SectionSheet({
                 </SheetDescription>
               </div>
               <div className="flex items-center h-full gap-2 ml-4">
+                {hasTemplateId && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <DocumentActionButton
+                        accessLevels={accessLevels || selectedFile?.access_levels}
+                        requiredAccess={["edit", "create"]}
+                        requireAll={false}
+                        checkGlobalPermissions={true}
+                        resource="asset"
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 hover:cursor-pointer text-gray-700"
+                        style={{ alignSelf: "center" }}
+                      >
+                        Template
+                        <ChevronDown className="h-4 w-4 ml-1.5" />
+                      </DocumentActionButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64 p-0">
+                      <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
+                        Actualizar
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer px-4 py-3"
+                        onSelect={() => {
+                          setTimeout(() => handleTemplateUpdateAction("document_to_template"), 0);
+                        }}
+                        disabled={syncDocumentToTemplateMutation.isPending}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-gray-900">Documento → Template</span>
+                          <span className="text-xs text-gray-500">
+                            {syncDocumentToTemplateMutation.isPending ? "Sincronizando..." : "Actualiza el template"}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer px-4 py-3"
+                        onSelect={() => {
+                          setTimeout(() => handleTemplateUpdateAction("template_to_document"), 0);
+                        }}
+                        disabled={syncTemplateToDocumentMutation.isPending}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-gray-900">Template → Documento</span>
+                          <span className="text-xs text-gray-500">
+                            {syncTemplateToDocumentMutation.isPending ? "Sincronizando..." : "Actualiza el documento"}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
                 <DocumentActionButton
                   accessLevels={accessLevels || selectedFile?.access_levels}
                   requiredAccess={["edit", "create"]}
@@ -244,11 +471,31 @@ export function SectionSheet({
               <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
                 <div>
                   <h3 className="text-sm font-medium text-gray-900 mb-1">Asset: {selectedFile?.name}</h3>
-                  <p className="text-xs text-gray-600">Organize your document with structured sections that can contain text, code, and other content types.</p>
+                  <p className="text-xs text-gray-600">
+                    <span className="font-medium">Description:</span>{" "}
+                    {sectionsConfig?.document?.description || "-"}
+                  </p>
                 </div>
-                {executionInfo && (
+                {availableExecutions.length > 0 && (
                   <div className="text-xs text-gray-600 pt-2 border-t border-gray-200">
-                    <span className="font-medium">Version:</span> {executionInfo.name}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium whitespace-nowrap">Version:</span>
+                      <Select
+                        value={selectedConfigExecutionId || undefined}
+                        onValueChange={(value) => setSelectedConfigExecutionId(value)}
+                      >
+                        <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
+                          <SelectValue placeholder="Select version" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableExecutions.map((execution, index) => (
+                            <SelectItem key={execution.id} value={execution.id} className="cursor-pointer">
+                              {execution.name || `Version ${availableExecutions.length - index}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
               </div>
@@ -268,8 +515,25 @@ export function SectionSheet({
                               onSave={(sectionId: string, sectionData: object) =>
                                 updateSectionMutation.mutate({ sectionId, sectionData })
                               }
-                              onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
+                              onDelete={async (sectionId: string, options?: { executionId?: string }) => {
+                                await deleteSectionMutation.mutateAsync({
+                                  sectionId,
+                                  executionId: options?.executionId,
+                                });
+                              }}
+                              currentExecutionId={selectedConfigExecutionId}
+                              useExecutionDeleteDialog={true}
                               hasTemplate={!!fullDocument?.template_id}
+                              isDisabledSection={section.not_in_execution === true}
+                              isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
+                              onAddToCurrentVersion={(sectionId: string) => {
+                                if (!executionInfo?.id && !executionId) {
+                                  toast.error("No current version available for this asset");
+                                  return;
+                                }
+
+                                linkSectionToCurrentVersionMutation.mutate(sectionId);
+                              }}
                             />
                           </div>
                         ))}
