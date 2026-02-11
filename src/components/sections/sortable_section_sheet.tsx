@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import Markdown from "../ui/markdown";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -455,18 +456,16 @@ export default function SortableSectionSheet({
             </div>
 
             <DialogFooter className="px-6 py-4 border-t border-gray-200 flex-row justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  setDeleteMode("");
-                }}
-                disabled={isDeleting}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isDeleting}
+                  className="hover:cursor-pointer"
+                >
+                  Cancel
+                </Button>
+              </DialogClose>
               <Button
                 type="button"
                 onClick={handleDelete}
