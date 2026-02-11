@@ -5,6 +5,7 @@ export async function createSection(
     sectionData: { 
         name: string; 
         document_id: string;
+        execution_id?: string;
         prompt?: string; 
         manual_input?: string;
         reference_section_id?: string;

@@ -175,8 +175,13 @@ export function SectionSheet({
 
   // Mutations for sections management
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: any) =>
-      createSection(sectionData, selectedOrganizationId!),
+    mutationFn: (sectionData: any) => {
+      const payload = selectedConfigExecutionId
+        ? { ...sectionData, execution_id: selectedConfigExecutionId }
+        : sectionData;
+
+      return createSection(payload, selectedOrganizationId!);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -389,7 +394,7 @@ export function SectionSheet({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64 p-0">
                       <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
-                        Actualizar
+                        Update
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -400,9 +405,9 @@ export function SectionSheet({
                         disabled={syncDocumentToTemplateMutation.isPending}
                       >
                         <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-gray-900">Documento → Template</span>
+                          <span className="text-sm font-semibold text-gray-900">{"Document -> Template"}</span>
                           <span className="text-xs text-gray-500">
-                            {syncDocumentToTemplateMutation.isPending ? "Sincronizando..." : "Actualiza el template"}
+                            {syncDocumentToTemplateMutation.isPending ? "Syncing..." : "Update the template"}
                           </span>
                         </div>
                       </DropdownMenuItem>
@@ -414,9 +419,9 @@ export function SectionSheet({
                         disabled={syncTemplateToDocumentMutation.isPending}
                       >
                         <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-gray-900">Template → Documento</span>
+                          <span className="text-sm font-semibold text-gray-900">{"Template -> Document"}</span>
                           <span className="text-xs text-gray-500">
-                            {syncTemplateToDocumentMutation.isPending ? "Sincronizando..." : "Actualiza el documento"}
+                            {syncTemplateToDocumentMutation.isPending ? "Syncing..." : "Update the document"}
                           </span>
                         </div>
                       </DropdownMenuItem>
