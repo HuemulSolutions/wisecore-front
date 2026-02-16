@@ -20,6 +20,7 @@ interface ItemForBackend {
   name: string;
   type?: "ai" | "manual" | "reference";
   prompt?: string;
+  output?: string;
   manual_input?: string;
   reference_section_id?: string;
   reference_mode?: "latest" | "specific";

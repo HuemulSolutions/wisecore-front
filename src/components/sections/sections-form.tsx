@@ -320,7 +320,11 @@ export function SectionForm({
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
         if (manualInput.trim()) {
-          submitData.manual_input = manualInput.trim();
+          if (templateId) {
+            submitData.manual_input = manualInput.trim();
+          } else {
+            submitData.output = manualInput.trim();
+          }
         }
       } else if (type === "reference") {
         submitData.reference_section_id = referenceSectionId;
@@ -355,7 +359,11 @@ export function SectionForm({
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
         if (manualInput.trim()) {
-          submitData.manual_input = manualInput.trim();
+          if (isTemplateSection) {
+            submitData.manual_input = manualInput.trim();
+          } else {
+            submitData.output = manualInput.trim();
+          }
         }
       } else if (type === "reference") {
         submitData.reference_section_id = referenceSectionId;
@@ -398,7 +406,7 @@ export function SectionForm({
     if (type === "ai") {
       return prompt.trim().length > 0;
     } else if (type === "manual") {
-      return true; // manual_input es opcional
+      return true;
     } else if (type === "reference") {
       if (!referenceSectionId || !referenceMode) return false;
       if (referenceMode === "specific" && !referenceExecutionId) return false;
