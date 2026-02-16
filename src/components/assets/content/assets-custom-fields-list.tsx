@@ -37,6 +37,33 @@ export function CustomFieldsList({
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
+
+  const formatCalendarDate = (dateValue: string) => {
+    const normalizedDate = dateValue.split('T')[0];
+    const parts = normalizedDate.split('-');
+
+    if (parts.length !== 3) {
+      return dateValue;
+    }
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+
+    if (
+      Number.isNaN(year) ||
+      Number.isNaN(month) ||
+      Number.isNaN(day) ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      return dateValue;
+    }
+
+    return new Date(year, month - 1, day).toLocaleDateString();
+  };
   
   if (isLoading) {
     return (
@@ -87,7 +114,7 @@ export function CustomFieldsList({
     switch (field.data_type) {
       case 'date':
         if (field.value_date) {
-          return new Date(field.value_date).toLocaleDateString();
+          return formatCalendarDate(field.value_date);
         }
         return String(field.value);
       case 'datetime':

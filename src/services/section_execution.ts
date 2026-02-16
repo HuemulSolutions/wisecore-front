@@ -27,7 +27,6 @@ export interface AddSectionExecutionRequest {
     output?: string;
     prompt?: string;
     dependencies?: string[];
-    manual_input?: string;
     reference_section_id?: string;
     reference_mode?: "latest" | "specific";
     reference_execution_id?: string;

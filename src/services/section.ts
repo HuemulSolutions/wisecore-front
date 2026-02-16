@@ -7,7 +7,7 @@ export async function createSection(
         document_id: string;
         execution_id?: string;
         prompt?: string; 
-        manual_input?: string;
+        output?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
@@ -36,7 +36,7 @@ export async function updateSection(
         name?: string; 
         type?: "ai" | "manual" | "reference";
         prompt?: string; 
-        manual_input?: string;
+        output?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;

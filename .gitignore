@@ -28,5 +28,5 @@ node_modules/
 .vite
 AGENTS.md
 openapi.json
-.opencode
+/.opencode
 .playwright-cli
