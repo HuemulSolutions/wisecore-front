@@ -143,7 +143,12 @@ export function SectionSheet({
       }
     });
 
-    return Array.from(executionMap.values());
+    // Sort by creation date (descending) to maintain consistent order
+    return Array.from(executionMap.values()).sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA; // Most recent first
+    });
   }, [sectionsConfig?.executions]);
 
   useEffect(() => {
@@ -388,7 +393,7 @@ export function SectionSheet({
                         className="h-8 hover:cursor-pointer text-gray-700"
                         style={{ alignSelf: "center" }}
                       >
-                        Template
+                        Update
                         <ChevronDown className="h-4 w-4 ml-1.5" />
                       </DocumentActionButton>
                     </DropdownMenuTrigger>

@@ -170,17 +170,9 @@ export default function SortableSectionSheet({
                 {!isExpanded && (() => {
                   // Para tipo AI: mostrar preview del prompt
                   if (sectionType === 'ai' && item.prompt) {
-                    let decodedPrompt = item.prompt
-                      .replace(/\\n/g, '\n')
-                      .replace(/\\\//g, '/')
-                      .replace(/•/g, '-')
-                      .replace(/\t/g, '  ');
-                    
-                    const lines = decodedPrompt.split('\n').filter(line => line.trim() !== '');
-                    const previewText = lines.slice(0, 2).join(' ').substring(0, 200);
-                    
+                    const prompt = (item as any).prompt;
                     return (
-                      <p className="text-xs text-gray-600 line-clamp-2">{previewText}...</p>
+                      <Markdown>{prompt ? `${prompt.substring(0, 150)}...` : 'No content available'}</Markdown>
                     );
                   }
                   
@@ -188,16 +180,17 @@ export default function SortableSectionSheet({
                   if (sectionType === 'manual') {
                     const manualInput = (item as any).manual_input;
                     return (
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {manualInput ? `${manualInput.substring(0, 150)}...` : 'Redacta una sección breve que incluya los datos personales del candidato: nombre completo, dirección,...'}
-                      </p>
+                      <div className="max-h-23 overflow-hidden">
+                        <Markdown>{manualInput ? `${manualInput.substring(0, 150)}...` : 'No content available'}</Markdown>
+                      </div>
                     );
                   }
                   
                   // Para tipo Reference: mostrar info de referencia
                   if (sectionType === 'reference') {
+                    const referencedContent = (item as any).referenced_content;
                     return (
-                      <p className="text-xs text-gray-600">References asset content</p>
+                      <Markdown>{referencedContent ? `${referencedContent.substring(0, 150)}...` : 'No content available'}</Markdown>
                     );
                   }
                   
@@ -303,7 +296,7 @@ export default function SortableSectionSheet({
                     <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Manual Input:</h4>
                     {(item as any).manual_input ? (
                       <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{(item as any).manual_input}</p>
+                        <Markdown>{(item as any).manual_input}</Markdown>
                       </div>
                     ) : (
                       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -315,21 +308,37 @@ export default function SortableSectionSheet({
 
                 {/* Reference Info */}
                 {sectionType === 'reference' && (item as any).reference_section_id && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Reference Configuration:</h4>
-                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 space-y-2">
-                      <div className="text-sm">
-                        <span className="font-medium text-purple-900">Asset ID:</span>{' '}
-                        <span className="text-purple-700 font-mono text-xs">{(item as any).reference_section_id}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium text-purple-900">Mode:</span>{' '}
-                        <span className="text-purple-700">{(item as any).reference_mode || 'latest'}</span>
-                      </div>
-                      {(item as any).reference_mode === 'specific' && (item as any).reference_execution_id && (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Reference Configuration:</h4>
+                      <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 space-y-2">
                         <div className="text-sm">
-                          <span className="font-medium text-purple-900">Execution ID:</span>{' '}
-                          <span className="text-purple-700 font-mono text-xs">{(item as any).reference_execution_id}</span>
+                          <span className="font-medium text-purple-900">Asset Name:</span>{' '}
+                          <span className="text-purple-700 font-mono text-xs">{(item as any).reference_section_name}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-purple-900">Mode:</span>{' '}
+                          <span className="text-purple-700">{(item as any).reference_mode || 'latest'}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-purple-900">Execution Name:</span>{' '}
+                          <span className="text-purple-700 font-mono text-xs">{(item as any).reference_execution_name}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Referenced Content */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Referenced Content:</h4>
+                      {(item as any).referenced_content ? (
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 max-h-96 overflow-y-auto">
+                          <div className="prose prose-sm max-w-none text-gray-700">
+                            <Markdown>{(item as any).referenced_content}</Markdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <p className="text-sm text-gray-500 italic">No content available yet.</p>
                         </div>
                       )}
                     </div>

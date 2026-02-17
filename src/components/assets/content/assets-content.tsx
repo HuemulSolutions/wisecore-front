@@ -466,6 +466,7 @@ export function AssetContent({
   // ============================================================================
   const [isAddCustomFieldDocumentDialogOpen, setIsAddCustomFieldDocumentDialogOpen] = useState(false);
   const [isEditCustomFieldDocumentDialogOpen, setIsEditCustomFieldDocumentDialogOpen] = useState(false);
+  const [customFieldEditMode, setCustomFieldEditMode] = useState<"content" | "configuration">("configuration");
   const [selectedCustomFieldDocument, setSelectedCustomFieldDocument] = useState<CustomFieldDocument | null>(null);
   const [isDeleteCustomFieldDocumentDialogOpen, setIsDeleteCustomFieldDocumentDialogOpen] = useState(false);
   const [customFieldDocumentToDelete, setCustomFieldDocumentToDelete] = useState<CustomFieldDocument | null>(null);
@@ -1131,6 +1132,14 @@ export function AssetContent({
   // Handle edit custom field document
   const handleEditCustomFieldDocument = (field: CustomFieldDocument) => {
     setSelectedCustomFieldDocument(field);
+    setCustomFieldEditMode("configuration");
+    setIsEditCustomFieldDocumentDialogOpen(true);
+  };
+
+  // Handle edit custom field document content
+  const handleEditCustomFieldDocumentContent = (field: CustomFieldDocument) => {
+    setSelectedCustomFieldDocument(field);
+    setCustomFieldEditMode("content");
     setIsEditCustomFieldDocumentDialogOpen(true);
   };
 
@@ -1285,7 +1294,7 @@ export function AssetContent({
         setSelectedFile(null);
         
         // Navigate to root to clear URL and prevent showing deleted document
-        navigate('/asset', { replace: true });
+        navigate(`/asset/${selectedOrganizationId}`, { replace: true });
         
         // Refresh library content to update sidebar
         onRefresh();
@@ -2969,6 +2978,7 @@ export function AssetContent({
                     isLoading={isLoadingCustomFields}
                     onAdd={handleAddCustomFieldDocument}
                     onEdit={handleEditCustomFieldDocument}
+                    onEditContent={handleEditCustomFieldDocumentContent}
                     onDelete={handleDeleteCustomFieldDocument}
                     onRefresh={handleRefreshCustomFields}
                     uploadingImageFieldId={uploadingImageFieldId}
@@ -3192,15 +3202,17 @@ export function AssetContent({
         onImageUploadComplete={handleImageUploadComplete}
       />
 
-      {/* Edit Custom Field Document Dialog */}
+      {/* Edit Custom Field Document Dialog (Unified) */}
       <EditCustomFieldAssetDialog
         isOpen={isEditCustomFieldDocumentDialogOpen}
         onClose={() => {
           setIsEditCustomFieldDocumentDialogOpen(false);
           setSelectedCustomFieldDocument(null);
+          setCustomFieldEditMode("configuration");
         }}
         customFieldDocument={selectedCustomFieldDocument}
         onUpdate={handleUpdateCustomFieldDocument}
+        mode={customFieldEditMode}
       />
 
       {/* Delete Custom Field Document Confirmation Dialog */}
