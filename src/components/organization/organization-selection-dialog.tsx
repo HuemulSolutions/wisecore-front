@@ -40,7 +40,6 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
-  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   
   const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken } = useOrganization();
   const { user } = useAuth();
@@ -65,6 +64,54 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
     },
   });
 
+  const generateTokenMutation = useMutation({
+    mutationFn: generateOrganizationToken,
+    onSuccess: async (tokenResponse, organizationId) => {
+      const orgToken = tokenResponse.token || tokenResponse.data?.token;
+      
+      if (!orgToken) {
+        throw new Error('No token received from server');
+      }
+      
+      // Actualizar el contexto con la nueva organización y token
+      setSelectedOrganizationId(organizationId);
+      setOrganizationToken(orgToken);
+      
+      console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
+      
+      // Esperar un poco para que el contexto se propague completamente
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Invalidar todas las queries que dependen de la organización
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return Array.isArray(queryKey) && (
+            queryKey.includes('documents') ||
+            queryKey.includes('document-types') ||
+            queryKey.includes('roles') ||
+            queryKey.includes('permissions') ||
+            queryKey.includes('assets') ||
+            queryKey.includes('asset-types') ||
+            queryKey.includes('custom-fields') ||
+            queryKey.includes('users') ||
+            queryKey.includes('knowledge') ||
+            queryKey.includes('library') ||
+            queryKey.some(key => typeof key === 'string' && key.includes('org'))
+          );
+        }
+      });
+      
+      // Cerrar el dialog después de seleccionar la organización
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+      
+      // Redirigir al home después de cambiar la organización
+      navigate('/');
+    },
+  });
+
   React.useEffect(() => {
     if (organizationsData) {
       setOrganizations(organizationsData);
@@ -85,68 +132,14 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
     }
   }, [open, preselectedOrganizationId, selectedOrganizationId]);
 
-  const handleSelectOrganization = async (orgId?: string) => {
+  const handleSelectOrganization = (orgId?: string) => {
     const organizationId = orgId || selectedOrgId;
     if (organizationId && user?.id) {
-      setIsGeneratingToken(true);
-      try {
-        // Limpiar estado anterior de la organización
-        setOrganizationToken('');
-        
-        // Generar nuevo token para la organización seleccionada PRIMERO
-        const tokenResponse = await generateOrganizationToken(organizationId);
-        const orgToken = tokenResponse.token || tokenResponse.data?.token;
-        
-        if (!orgToken) {
-          throw new Error('No token received from server');
-        }
-        
-        // Actualizar el contexto con la nueva organización y token
-        setSelectedOrganizationId(organizationId);
-        setOrganizationToken(orgToken);
-        
-        console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
-        
-        // Esperar un poco más para que el contexto se propague completamente
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // SOLO DESPUÉS invalidar todas las queries que dependen de la organización
-        // Ahora que el nuevo token está disponible, las queries se ejecutarán correctamente
-        queryClient.invalidateQueries({ 
-          predicate: (query) => {
-            // Invalidar queries que contengan claves relacionadas con organizaciones
-            const queryKey = query.queryKey;
-            return Array.isArray(queryKey) && (
-              queryKey.includes('documents') ||
-              queryKey.includes('document-types') ||
-              queryKey.includes('roles') ||
-              queryKey.includes('permissions') ||
-              queryKey.includes('assets') ||
-              queryKey.includes('asset-types') ||
-              queryKey.includes('custom-fields') ||
-              queryKey.includes('users') ||
-              queryKey.includes('knowledge') ||
-              queryKey.includes('library') ||
-              queryKey.some(key => typeof key === 'string' && key.includes('org'))
-            );
-          }
-        });
-        
-        // Cerrar el dialog después de seleccionar la organización
-        if (onOpenChange) {
-          onOpenChange(false);
-        }
-        
-        // Redirigir al home después de cambiar la organización
-        navigate('/');
-        
-      } catch (error) {
-        console.error('Error changing organization:', error);
-        // Mantener el estado anterior si hay error
-        // Podrías mostrar un toast de error aquí si tienes configurado
-      } finally {
-        setIsGeneratingToken(false);
-      }
+      // Limpiar estado anterior de la organización
+      setOrganizationToken('');
+      
+      // Generar nuevo token usando mutation
+      generateTokenMutation.mutate(organizationId);
     }
   };
 
@@ -174,11 +167,11 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
             <div className="flex flex-col gap-3 w-full">
               <Button
                 onClick={() => handleSelectOrganization()}
-                disabled={Boolean(!selectedOrgId || isLoading || isGeneratingToken || (organizationToken && permissionsLoading))}
+                disabled={Boolean(!selectedOrgId || isLoading || generateTokenMutation.isPending || (organizationToken && permissionsLoading))}
                 className="w-full bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
-                {isGeneratingToken 
+                {generateTokenMutation.isPending 
                   ? 'Generating token...' 
                   : (organizationToken && permissionsLoading)
                   ? 'Loading permissions...'
