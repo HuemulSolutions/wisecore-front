@@ -13,13 +13,14 @@ import { getUserOrganizations, addOrganization, updateOrganization, deleteOrgani
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
 
-interface Organization {
+// Tipo para los dialogs de edición/eliminación (subset de UserOrganization)
+interface OrganizationDialogData {
   id: string;
   name: string;
   description?: string | null;
   db_name?: string;
-  created_at?: string;
-  updated_at?: string;
+  max_users?: number | null;
+  token_limit?: number | null;
 }
 
 export function OrganizationSwitcher() {
@@ -27,8 +28,8 @@ export function OrganizationSwitcher() {
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [isOrgSelectionOpen, setIsOrgSelectionOpen] = React.useState(false)
-  const [editingOrg, setEditingOrg] = React.useState<Organization | null>(null)
-  const [deletingOrg, setDeletingOrg] = React.useState<Organization | null>(null)
+  const [editingOrg, setEditingOrg] = React.useState<OrganizationDialogData | null>(null)
+  const [deletingOrg, setDeletingOrg] = React.useState<OrganizationDialogData | null>(null)
   
   const { selectedOrganizationId, organizations, setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization()
   const { user } = useAuth()

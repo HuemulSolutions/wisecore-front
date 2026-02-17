@@ -19,15 +19,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import ProtectedComponent from '../protected-component';
-
-interface Organization {
-  id: string;
-  name: string;
-  description?: string | null;
-  db_name?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+import type { UserOrganization } from '@/types/users';
 
 interface OrganizationSelectionDialogProps {
   open: boolean;
@@ -257,13 +249,27 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                 <SelectValue placeholder={isLoading ? "Loading organizations..." : "Select an organization"} />
               </SelectTrigger>
               <SelectContent>
-                {organizationsData?.map((org: Organization) => (
-                  <SelectItem key={org.id} value={org.id} className="hover:cursor-pointer">
+                {organizationsData?.map((org: UserOrganization) => (
+                  <SelectItem 
+                    key={org.id} 
+                    value={org.id} 
+                    className={org.member ? "hover:cursor-pointer" : "opacity-50 cursor-not-allowed"}
+                    disabled={!org.member}
+                  >
                     <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
+                      <div className={`flex h-6 w-6 items-center justify-center rounded-md font-semibold text-xs ${
+                        org.member 
+                          ? "bg-[#4464f7] text-white" 
+                          : "bg-gray-300 text-gray-500"
+                      }`}>
                         {org.name.substring(0, 2).toUpperCase()}
                       </div>
-                      {org.name}
+                      <span className={!org.member ? "text-muted-foreground" : ""}>
+                        {org.name}
+                      </span>
+                      {!org.member && (
+                        <span className="text-xs text-muted-foreground ml-auto">(Not a member)</span>
+                      )}
                     </div>
                   </SelectItem>
                 ))}

@@ -40,13 +40,18 @@ export interface UserOrganization {
   name: string
   db_name: string
   description: string | null
-  created_at: string
-  updated_at: string
+  max_users: number | null
+  token_limit: number | null
+  tier: "starter" | "pro" | "enterprise"
+  member: boolean
 }
 
 export interface UserOrganizationsResponse {
   data: UserOrganization[]
   transaction_id: string
+  page: number
+  page_size: number
+  has_next: boolean
   timestamp: string
 }
 

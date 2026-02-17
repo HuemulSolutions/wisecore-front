@@ -1,7 +1,8 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import type { UserOrganization } from "@/types/users";
 
-export async function getUserOrganizations(userId: string) {
+export async function getUserOrganizations(userId: string): Promise<UserOrganization[]> {
   console.log('getUserOrganizations called for userId:', userId);
   console.log('Current httpClient tokens state:', httpClient.getTokensState());
   console.log('Current localStorage state:', httpClient.getLocalStorageState());
