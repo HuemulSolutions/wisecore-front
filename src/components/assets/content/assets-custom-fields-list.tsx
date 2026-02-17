@@ -17,6 +17,7 @@ interface CustomFieldsListProps {
   isLoading: boolean;
   onAdd: () => void;
   onEdit: (field: CustomFieldDocument) => void;
+  onEditContent: (field: CustomFieldDocument) => void;
   onDelete: (field: CustomFieldDocument) => void;
   onRefresh: () => void;
   uploadingImageFieldId?: string | null;
@@ -29,6 +30,7 @@ export function CustomFieldsList({
   isLoading, 
   onAdd, 
   onEdit, 
+  onEditContent,
   onDelete, 
   onRefresh, 
   uploadingImageFieldId, 
@@ -201,10 +203,14 @@ export function CustomFieldsList({
       );
     }
     
-    // For non-boolean and non-image fields, return text
+    // For non-boolean and non-image fields, return text with proper overflow handling
+    const textValue = String(value);
     return (
-      <span className="text-xs text-gray-600">
-        {String(value)}
+      <span 
+        className="text-xs text-gray-600 break-words line-clamp-2" 
+        title={textValue.length > 50 ? textValue : undefined}
+      >
+        {textValue}
       </span>
     );
   };
@@ -254,22 +260,22 @@ export function CustomFieldsList({
           return (
             <div key={field.id} className="flex items-start justify-between p-2 border rounded bg-card">
               <div className="flex-1 min-w-0 mr-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-foreground truncate">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-1.5 min-w-0 flex-1">
+                    <span className="text-xs font-medium text-foreground break-words line-clamp-2" title={field.name || 'Unknown Field'}>
                       {field.name || 'Unknown Field'}
                     </span>
                     {field.required && (
-                      <span className="text-xs text-destructive">*</span>
+                      <span className="text-xs text-destructive shrink-0">*</span>
                     )}
                   </div>
                   {field.source && (
-                    <span className="text-xs text-muted-foreground capitalize ml-2">
+                    <span className="text-xs text-muted-foreground capitalize shrink-0">
                       {field.source}
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
+                <div className="text-xs text-muted-foreground mt-0.5 min-w-0">
                   {isUploadingThisField && field.data_type === 'image' ? (
                     <div className="flex items-center gap-1.5">
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -296,13 +302,28 @@ export function CustomFieldsList({
                   >
                     <DropdownMenuItem onSelect={() => {
                       setTimeout(() => {
-                        onEdit(field)
+                        onEditContent(field)
                       }, 0)
                     }} className="hover:cursor-pointer">
                       <Edit2 className="mr-2 h-3 w-3" />
-                      Edit
+                      Edit Content
                     </DropdownMenuItem>
                   </DocumentAccessControl>
+                  {field.source === "inferred" && (
+                    <DocumentAccessControl
+                      accessLevels={accessLevels}
+                      requiredAccess="edit"
+                    >
+                      <DropdownMenuItem onSelect={() => {
+                        setTimeout(() => {
+                          onEdit(field)
+                        }, 0)
+                      }} className="hover:cursor-pointer">
+                        <Edit2 className="mr-2 h-3 w-3" />
+                        Edit Configuration
+                      </DropdownMenuItem>
+                    </DocumentAccessControl>
+                  )}
                   <DropdownMenuSeparator />
                   <DocumentAccessControl
                     accessLevels={accessLevels}
