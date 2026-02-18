@@ -30,7 +30,7 @@ const extractTextFromChildren = (children: React.ReactNode): string => {
 
 const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full max-w-full overflow-x-auto">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
@@ -102,9 +102,7 @@ const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
               );
             }
             return (
-              <div className="relative">
-                <code className="block bg-gray-800 p-4 rounded-lg my-4 overflow-x-auto text-sm text-white">{children}</code>
-              </div>
+              <code className="block bg-gray-800 p-4 rounded-lg my-4 overflow-x-auto text-sm text-white">{children}</code>
             );
           },
         }}

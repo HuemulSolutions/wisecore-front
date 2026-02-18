@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, BookText, Settings } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText } from "lucide-react"
 import { useLocation } from "react-router-dom"
-import { useEffect } from "react"
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from "react"
+
 import {
   Sidebar,
   SidebarContent,
@@ -13,11 +13,14 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { NavMain } from "@/components/nav-main"
-// import { NavUser } from "@/components/nav-user" // Hidden - user information disabled
-import { TeamSwitcher } from "@/components/team-switcher"
+import { Skeleton } from "@/components/ui/skeleton"
+import { NavMain } from "@/components/layout/nav-main"
+import { NavKnowledgeHeader, NavKnowledgeContent } from "@/components/layout/nav-knowledge"
+import { NavUser } from "@/components/layout/nav-user"
+import { OrganizationSwitcher } from "@/components/organization/organization-switcher"
 import { useOrganization } from "@/contexts/organization-context"
-import { getAllOrganizations, addOrganization } from "@/services/organizations"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
+
 import { useIsMobile } from "@/hooks/use-mobile"
 
 // Navigation items
@@ -42,11 +45,6 @@ const navigationItems = [
     url: "/templates",
     icon: LayoutTemplate,
   },
-  {
-    title: "Models",
-    url: "/models", 
-    icon: Settings,
-  },
 ]
 
 // Mock user data - replace with real user context when available
@@ -58,31 +56,20 @@ const navigationItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setOpenMobile } = useSidebar()
-  const queryClient = useQueryClient()
   const location = useLocation()
   const isMobile = useIsMobile()
+  const {
+    isOrgAdmin,
+    canAccessAssets,
+    canAccessTemplates,
+    isLoading: permissionsLoading,
+  } = useUserPermissions()
   
   const { 
-    selectedOrganizationId, 
-    organizations, 
-    setSelectedOrganizationId, 
-    setOrganizations 
+    organizationToken
   } = useOrganization()
 
-  // Query para obtener organizaciones
-  const { data: organizationsData } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: getAllOrganizations,
-  })
 
-  // Mutation para crear organización
-  const createOrgMutation = useMutation({
-    mutationFn: addOrganization,
-    onSuccess: (newOrg) => {
-      queryClient.invalidateQueries({ queryKey: ['organizations'] })
-      setSelectedOrganizationId(newOrg.id)
-    },
-  })
 
   // Cerrar sidebar automáticamente en móvil cuando cambia la ubicación
   useEffect(() => {
@@ -91,48 +78,125 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, [location.pathname, isMobile, setOpenMobile])
 
-  // Actualizar organizaciones cuando se cargan los datos
+
+
+
+
+
+
+
+
+  // Estado interno para controlar el parpadeo del menú
+  const [menuReady, setMenuReady] = useState(false);
+  
+  // Determinar si los permisos están listos para mostrar
+  const permissionsReady = organizationToken && !permissionsLoading;
+
+  // Controlar la transición del menú con un pequeño delay para evitar parpadeo
   useEffect(() => {
-    if (organizationsData) {
-      setOrganizations(organizationsData)
-      
-      // Si no hay organización seleccionada, seleccionar la primera
-      if (!selectedOrganizationId && organizationsData.length > 0) {
-        setSelectedOrganizationId(organizationsData[0].id)
-      }
+    console.log('Sidebar state:', { 
+      organizationToken: !!organizationToken, 
+      permissionsLoading, 
+      permissionsReady, 
+      menuReady 
+    });
+    
+    if (permissionsReady) {
+      // Pequeño delay para asegurar que el contexto esté completamente actualizado
+      const timer = setTimeout(() => {
+        console.log('Setting menuReady to true');
+        setMenuReady(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      // Inmediatamente mostrar loading cuando no está ready
+      console.log('Setting menuReady to false');
+      setMenuReady(false);
     }
-  }, [organizationsData, selectedOrganizationId, setOrganizations, setSelectedOrganizationId])
+  }, [permissionsReady, organizationToken, permissionsLoading]);
 
-  const handleCreateOrganization = (name: string) => {
-    createOrgMutation.mutate({ name })
-  }
+  // Filtrar navigationItems basándose en permisos del usuario
+  const filteredNavigationItems = useMemo(() => {
+    // Si los permisos no están listos, no devolver ningún item
+    // El componente mostrará skeleton loading en su lugar
+    if (!menuReady) {
+      return [];
+    }
 
-  const handleOrganizationChange = (orgId: string) => {
-    setSelectedOrganizationId(orgId)
-  }
+    return navigationItems.map(item => {
+      // Verificar cada item principal
+      let shouldShowItem = true;
+      
+      switch (item.title) {
+        case "Assets":
+          // Mostrar Assets si tiene cualquier permiso relacionado con assets
+          shouldShowItem = canAccessAssets || isOrgAdmin;
+          break;
+        case "Templates":
+          // Mostrar Templates si tiene cualquier permiso relacionado con templates
+          shouldShowItem = canAccessTemplates || isOrgAdmin;
+          break;
+        default:
+          // Home y Search son accesibles para todos los usuarios autenticados
+          shouldShowItem = true;
+      }
 
-  // Obtener organización seleccionada
-  const selectedOrg = organizations.find(org => org.id === selectedOrganizationId) || 
-                     (organizations.length > 0 ? organizations[0] : null)
+      return shouldShowItem ? item : null;
+    }).filter(Boolean) as typeof navigationItems;
+  }, [
+    menuReady,
+    canAccessAssets,
+    canAccessTemplates,
+    isOrgAdmin
+  ])
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <TeamSwitcher
-          organizations={organizations}
-          selectedOrganization={selectedOrg}
-          onOrganizationChange={handleOrganizationChange}
-          onCreateOrganization={handleCreateOrganization}
-          isCreating={createOrgMutation.isPending}
-        />
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={navigationItems} />
-      </SidebarContent>
-      <SidebarFooter>
-        {/* NavUser removed - user information hidden */}
-      </SidebarFooter>
-      <SidebarRail />
+      {/* <NavKnowledgeProvider> */}
+        <SidebarHeader>
+          <OrganizationSwitcher />
+          {!menuReady ? (
+            <div className="space-y-1 px-2 pt-2">
+              <div className="space-y-0.5">
+                <div className="text-xs font-semibold text-sidebar-foreground/70 px-2 mb-1">
+                  Navigation
+                </div>
+                {/* Home */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                {/* Search */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                {/* Loading placeholders para otros elementos */}
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                  <Skeleton className="h-4 w-4" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <NavMain items={filteredNavigationItems} />
+              <NavKnowledgeHeader />
+            </>
+          )}
+        </SidebarHeader>
+        <SidebarContent>
+          {menuReady && <NavKnowledgeContent />}
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
+        <SidebarRail />
+      {/* </NavKnowledgeProvider> */}
     </Sidebar>
   )
 }

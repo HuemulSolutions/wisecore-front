@@ -51,16 +51,17 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
+  --primary: oklch(0.569 0.2218 268.76);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.5141 0.2261 268.24);
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
   --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --accent: oklch(93.2% 0.032 255.585);
+  --accent-foreground: oklch(42.4% 0.199 265.638);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
+  --border-hover: oklch(88.2% 0.059 254.128);
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.704 0.04 256.788);
   --chart-1: oklch(0.646 0.222 41.116);
@@ -120,5 +121,202 @@
     @apply bg-background text-foreground;
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     line-height: 2;
+  }
+}
+
+/* Markdown content styles for section content dialog */
+.markdown-content {
+  @apply text-foreground;
+}
+
+.markdown-content h1 {
+  @apply text-xl font-bold mt-6 mb-3 text-foreground;
+}
+
+.markdown-content h2 {
+  @apply text-lg font-semibold mt-5 mb-3 text-foreground;
+}
+
+.markdown-content h3 {
+  @apply text-base font-medium mt-4 mb-2 text-foreground;
+}
+
+.markdown-content p {
+  @apply mb-3 text-sm leading-6 text-foreground/90;
+}
+
+.markdown-content ul, .markdown-content ol {
+  @apply mb-3 ml-4;
+}
+
+.markdown-content li {
+  @apply mb-1 text-sm leading-6 text-foreground/90;
+}
+
+.markdown-content ul li {
+  @apply list-disc;
+}
+
+.markdown-content ol li {
+  @apply list-decimal;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-border pl-4 italic mb-3 text-muted-foreground;
+}
+
+.markdown-content code {
+  @apply bg-muted px-1 py-0.5 rounded text-xs font-mono;
+}
+
+.markdown-content pre {
+  @apply bg-muted p-3 rounded-md overflow-x-auto mb-3;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent px-0 py-0 text-xs;
+}
+
+.markdown-content strong {
+  @apply font-semibold;
+}
+
+.markdown-content em {
+  @apply italic;
+}
+
+.markdown-content a {
+  @apply text-primary underline hover:cursor-pointer;
+}
+
+.markdown-content mark {
+  @apply bg-yellow-200 dark:bg-yellow-800 px-1 rounded;
+}
+
+.markdown-content mark.bg-blue-100 {
+  @apply bg-blue-100 dark:bg-blue-900 px-0.5 rounded;
+}
+
+/* MDXEditor global styles - matching shadcn/ui design system */
+
+/* Popup container z-index override for dialogs and dropdowns */
+.mdxeditor-popup-container {
+  z-index: 100000 !important;
+}
+
+/* Select/Dropdown content styling - matching shadcn Select component */
+.mdxeditor-select-content {
+  z-index: 100000 !important;
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.375rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
+  max-height: var(--radix-select-content-available-height, 300px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: 0.25rem !important;
+  animation: fade-in 0.2s ease-out !important;
+}
+
+/* Select items styling - matching shadcn SelectItem */
+.mdxeditor-select-content [role="option"] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.125rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  cursor: default;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mdxeditor-select-content [role="option"]:hover,
+.mdxeditor-select-content [role="option"][data-highlighted] {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.mdxeditor-select-content [role="option"][aria-selected="true"] {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  font-weight: 500;
+}
+
+.mdxeditor-select-content [role="option"][aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Toolbar button states - matching app button styles */
+.mdxeditor-toolbar button {
+  transition: background-color 0.15s ease, color 0.15s ease;
+  border-radius: 0.25rem;
+}
+
+.mdxeditor-toolbar button:hover:not([data-state="on"]):not(:disabled) {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.mdxeditor-toolbar button[data-state="on"] {
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  font-weight: 500;
+}
+
+.mdxeditor-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dialog styling - matching shadcn Dialog */
+.mdxeditor [role="dialog"] {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  padding: 1rem !important;
+}
+
+/* Link dialog input styling */
+.mdxeditor [role="dialog"] input {
+  width: 100%;
+  height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--input);
+  border-radius: 0.375rem;
+  background: transparent;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mdxeditor [role="dialog"] input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+/* Separator styling */
+.mdxeditor-toolbar [role="separator"] {
+  background-color: var(--border) !important;
+  margin: 0 0.25rem;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

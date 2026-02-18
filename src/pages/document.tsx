@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { getDocumentById, deleteDocument } from "@/services/documents";
+import { getDocumentById, deleteDocument } from "@/services/assets";
 import { uploadDocxTemplate } from "@/services/docx_template";
 import { createExecution, exportExecutionToWord, exportExecutionToMarkdown, exportExecutionCustomWord } from "@/services/executions";
 import { formatDate } from "@/services/utils";
@@ -28,15 +28,20 @@ import {
   FileUp,
   FileSliders,
   Download,
-  ChevronDown
+  ChevronDown,
+  FileCode
 } from "lucide-react";
+import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { selectedOrganizationId } = useOrganization();
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
+  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -46,8 +51,8 @@ export default function DocumentPage() {
     refetch
   } = useQuery({
     queryKey: ["document", id],
-    queryFn: () => getDocumentById(id!),
-    enabled: !!id, // Only run if id is defined
+    queryFn: () => getDocumentById(id!, selectedOrganizationId!),
+    enabled: !!id && !!selectedOrganizationId, // Only run if id and organizationId are defined
   });
 
   const handleRefreshExecutions = () => {
@@ -98,7 +103,7 @@ export default function DocumentPage() {
     }
 
     try {
-      await deleteDocument(id);
+      await deleteDocument(id, selectedOrganizationId!);
       toast.success("Asset deleted successfully");
       sessionStorage.removeItem("library-selectedFile");
       sessionStorage.removeItem("library-selected-file");
@@ -114,7 +119,7 @@ export default function DocumentPage() {
   };
 
   const handleNewExecution = () => {
-    createExecution(id!)
+    createExecution(id!, selectedOrganizationId!)
       .then((execution) => {
         console.log("Execution created:", execution);
         navigate(`/execution/${execution.id}`);
@@ -148,7 +153,7 @@ export default function DocumentPage() {
         return;
       }
       
-      await exportExecutionToWord(lastExecution.id.toString());
+      await exportExecutionToWord(lastExecution.id.toString(), selectedOrganizationId!);
       console.log("Word export completed successfully");
     } catch (error) {
       console.error("Error exporting to Word:", error);
@@ -168,7 +173,7 @@ export default function DocumentPage() {
         return;
       }
       
-      await exportExecutionToMarkdown(lastExecution.id.toString());
+      await exportExecutionToMarkdown(lastExecution.id.toString(), selectedOrganizationId!);
       console.log("Markdown export completed successfully");
     } catch (error) {
       console.error("Error exporting to Markdown:", error);
@@ -194,7 +199,7 @@ export default function DocumentPage() {
 
     try {
       setIsUploadingTemplate(true);
-      await uploadDocxTemplate(id!, file);
+      await uploadDocxTemplate(id!, file, selectedOrganizationId!);
       console.log('Template uploaded successfully');
       await refetch();
       toast.success('Template uploaded successfully');
@@ -222,7 +227,7 @@ export default function DocumentPage() {
         return;
       }
       
-      await exportExecutionCustomWord(lastExecution.id.toString());
+      await exportExecutionCustomWord(lastExecution.id.toString(), selectedOrganizationId!);
       console.log("Custom Word export completed successfully");
     } catch (error) {
       console.error("Error exporting to custom Word:", error);
@@ -363,6 +368,16 @@ export default function DocumentPage() {
               <Network className="h-4 w-4 mr-2" />
               Dependencies and Context
             </Button>
+            {!document.template_name && (
+              <Button
+                variant="outline"
+                className="w-full justify-start hover:cursor-pointer"
+                onClick={() => setIsCreateTemplateDialogOpen(true)}
+              >
+                <FileCode className="h-4 w-4 mr-2" />
+                Create Template from Asset
+              </Button>
+            )}
             <Button
               size="sm"
               className="w-full justify-start hover:cursor-pointer"
@@ -538,6 +553,17 @@ export default function DocumentPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Template from Document Dialog */}
+      <CreateTemplateFromDocumentDialog
+        open={isCreateTemplateDialogOpen}
+        onOpenChange={setIsCreateTemplateDialogOpen}
+        documentId={id!}
+        organizationId={selectedOrganizationId}
+        onTemplateCreated={(template) => {
+          navigate(`/templates/${template.id}`);
+        }}
+      />
     </div>
   );
 }

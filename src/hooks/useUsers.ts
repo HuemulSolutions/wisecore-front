@@ -1,0 +1,117 @@
+import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
+import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
+import { toast } from "sonner"
+import type { UpdateUserData } from "@/types/users"
+
+// Query keys
+export const userQueryKeys = {
+  all: ['users'] as const,
+  listBase: () => [...userQueryKeys.all, 'list'] as const,
+  list: (organizationId?: string, page?: number, pageSize?: number) => [
+    ...userQueryKeys.listBase(),
+    organizationId ?? 'all',
+    page,
+    pageSize
+  ] as const,
+  detail: (id: string) => [...userQueryKeys.all, 'detail', id] as const,
+  organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
+}
+
+// Hook for fetching users
+export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100) {
+  return useQuery({
+    queryKey: userQueryKeys.list(organizationId, page, pageSize),
+    queryFn: () => getUsers(organizationId, page, pageSize),
+    staleTime: 2 * 60 * 1000, // 2 minutes - reasonable cache time
+    gcTime: 5 * 60 * 1000, // 5 minutes cache (formerly cacheTime)
+    refetchOnMount: true, // Refetch on mount to ensure fresh data
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches on window focus
+    retry: 0, // No retries to avoid multiple error requests
+    enabled,
+    placeholderData: (prev) => prev, // Keep previous data while loading new page
+  })
+}
+
+// Hook for user organizations
+export function useUserOrganizations(userId?: string) {
+  return useQuery({
+    queryKey: userQueryKeys.organizations(userId),
+    queryFn: () => getUserOrganizations(userId),
+    enabled: !!userId, // Only enabled when userId is provided
+  })
+}
+
+// Hook for user mutations
+export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
+  const queryClient = useQueryClient()
+  const invalidateAdditional = () => {
+    additionalInvalidateKeys.forEach((queryKey) => {
+      queryClient.invalidateQueries({ queryKey })
+    })
+  }
+
+  const approveUserMutation = useMutation({
+    mutationFn: approveUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
+      toast.success('User approved successfully')
+    },
+  })
+
+  const rejectUserMutation = useMutation({
+    mutationFn: rejectUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
+      toast.success('User rejected successfully')
+    },
+  })
+
+  const deleteUserMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
+      toast.success('User deleted successfully')
+    },
+  })
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) => 
+      updateUser(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
+      toast.success('User updated successfully')
+    },
+  })
+
+  const createUserMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
+      toast.success('User created successfully')
+    },
+  })
+
+  const updateRootAdminMutation = useMutation({
+    mutationFn: ({ userId, isRootAdmin }: { userId: string; isRootAdmin: boolean }) =>
+      updateUserRootAdmin(userId, isRootAdmin),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
+      invalidateAdditional()
+      toast.success('Root admin status updated successfully')
+    },
+  })
+
+  return {
+    approveUser: approveUserMutation,
+    rejectUser: rejectUserMutation,
+    deleteUser: deleteUserMutation,
+    updateUser: updateUserMutation,
+    createUser: createUserMutation,
+    updateRootAdmin: updateRootAdminMutation,
+  }
+}

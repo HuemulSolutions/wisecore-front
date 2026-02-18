@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { getDocumentDependencies } from "@/services/dependencies"
-import { getDocumentSections } from "@/services/documents"
+import { getDocumentSections } from "@/services/assets"
+import { useOrganization } from "@/contexts/organization-context"
 import {
   File,
   ZoomIn,
@@ -61,6 +62,7 @@ interface NetworkGraphProps {
 
 export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
   const navigate = useNavigate()
+  const { selectedOrganizationId } = useOrganization()
   const [nodes, setNodes] = useState<NetworkNode[]>([])
   const [allDependencies, setAllDependencies] = useState<{[documentId: string]: any[]}>({})
   const [allSections, setAllSections] = useState<{[documentId: string]: any[]}>({})
@@ -70,7 +72,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
   // Load dependencies and sections for all documents
   useEffect(() => {
     const loadAllData = async () => {
-      if (!documents || documents.length === 0) return
+      if (!documents || documents.length === 0 || !selectedOrganizationId) return
 
       const dependenciesMap: {[documentId: string]: any[]} = {}
       const sectionsMap: {[documentId: string]: any[]} = {}
@@ -85,11 +87,11 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
         documents.map(async (doc: any) => {
           try {
             // Load dependencies
-            const dependencies = await getDocumentDependencies(doc.id)
+            const dependencies = await getDocumentDependencies(doc.id, selectedOrganizationId!)
             dependenciesMap[doc.id] = dependencies || []
 
             // Load sections using specific endpoint
-            const sections = await getDocumentSections(doc.id)
+            const sections = await getDocumentSections(doc.id, selectedOrganizationId!)
             sectionsMap[doc.id] = sections || []
           } catch (error) {
             console.error(`Error loading data for document ${doc.id}:`, error)
@@ -108,7 +110,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
     }
 
     loadAllData()
-  }, [documents])
+  }, [documents, selectedOrganizationId])
 
   // Generate nodes based on documents data
   useEffect(() => {

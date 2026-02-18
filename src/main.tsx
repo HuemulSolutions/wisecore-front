@@ -4,6 +4,8 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OrganizationProvider } from './contexts/organization-context.ts';
 import { Toaster } from "@/components/ui/sonner"
+import { ApiError } from '@/types/api-error';
+import { handleApiError } from '@/lib/error-utils';
 import './index.css'                       // Tailwind (globals)
 import '@mdxeditor/editor/style.css'       // CSS del MDXEditor
 import './mdx-editor.css'   
@@ -17,16 +19,24 @@ const queryClient = new QueryClient({
       gcTime: 5 * 60 * 1000, // 5 minutos - tiempo en cache
       refetchOnWindowFocus: false, // No re-fetch al enfocar ventana
       refetchOnMount: false, // No re-fetch al montar si hay datos frescos
-      retry: (failureCount, error: any) => {
-        // No reintentar errores del servidor
-        if (error?.status >= 400 && error?.status < 500) {
+      retry: (failureCount, error: unknown) => {
+        // No reintentar errores del cliente (4xx)
+        if (ApiError.isApiError(error) && error.statusCode >= 400 && error.statusCode < 500) {
           return false;
+        }
+        // Fallback para errores no-ApiError con status
+        if (error && typeof error === 'object' && 'status' in error) {
+          const status = (error as { status: number }).status;
+          if (status >= 400 && status < 500) {
+            return false;
+          }
         }
         return failureCount < 3;
       },
     },
     mutations: {
       retry: false, // No reintentar mutaciones por defecto
+      onError: (error) => handleApiError(error), // Manejo global de errores
     },
   },
 });
@@ -73,13 +83,13 @@ if (typeof (window as any).chrome !== 'undefined' && (window as any).chrome.runt
       chrome.runtime.onMessage.addListener = function(...args: any[]) {
         try {
           return originalAddListener.apply(this, args);
-        } catch (error) {
+        } catch {
           // Silently ignore chrome extension errors
           return false;
         }
       };
     }
-  } catch (error) {
+  } catch {
     // Ignore any errors in chrome runtime access
   }
 }

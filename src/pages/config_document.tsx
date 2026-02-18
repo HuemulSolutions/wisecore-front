@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import SortableSection from "@/components/sortable_section";
-import { AddSectionForm } from "@/components/add_document_section";
+import SortableSection from "@/components/sections/sortable_section";
+import { AddSectionForm } from "@/components/assets/content/assets-add-section";
 import { PlusCircle, ArrowLeft, Sparkles } from "lucide-react";
-import { getDocumentById, generateDocumentStructure } from "@/services/documents";
+import { getDocumentById, generateDocumentStructure } from "@/services/assets";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -12,11 +12,13 @@ import { formatDate } from "@/services/utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
 
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
@@ -33,71 +35,51 @@ export default function ConfigDocumentPage() {
     error,
   } = useQuery({
     queryKey: ["document", id],
-    queryFn: () => getDocumentById(id!),
-    enabled: !!id, // Solo ejecutar si id está definido
+    queryFn: () => getDocumentById(id!, selectedOrganizationId!),
+    enabled: !!id && !!selectedOrganizationId, // Solo ejecutar si id y organizationId están definidos
   });
 
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: { name: string; document_id: string; prompt: string; dependencies: string[] }) =>
-      createSection(sectionData),
+    mutationFn: (sectionData: any) =>
+      createSection(sectionData, selectedOrganizationId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document", id] });
       setIsAddingSection(false);
-    },
-    onError: (error) => {
-      console.error("Error creating section:", error);
-      toast.error("Error creating section: " + (error as Error).message);
     },
   });
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
-      updateSection(sectionId, sectionData),
+      updateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
-    onError: (error) => {
-      console.error("Error updating section:", error);
-      toast.error("Error updating section: " + (error as Error).message);
-    },
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteSection(sectionId),
+    mutationFn: (sectionId: string) => deleteSection(sectionId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
-    onError: (error) => {
-      console.error("Error deleting section:", error);
-      toast.error("Error deleting section: " + (error as Error).message);
-    },
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
-    },
-    onError: (error) => {
-      console.error("Error updating sections order:", error);
-      toast.error("Error updating sections order: " + (error as Error).message);
     },
   });
 
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
-    mutationFn: (documentId: string) => generateDocumentStructure(documentId),
+    mutationFn: (documentId: string) => generateDocumentStructure(documentId, selectedOrganizationId!),
     onSuccess: () => {
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
-    onError: (error) => {
-      console.error("Error generating sections with AI:", error);
-      toast.error("Error generating sections with AI: " + (error as Error).message);
-    }
   });
 
   // Sincroniza estado local cuando cambien las secciones del documento

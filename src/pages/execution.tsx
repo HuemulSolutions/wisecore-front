@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import ExecutionInfo from "@/components/execution_info";
-import SectionExecution from "@/components/section_execution";
+import ExecutionInfo from "@/components/execution/execution_info";
+import SectionExecution from "@/components/sections/sections_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Chatbot from "@/components/chatbot/chatbot";
 import { 
@@ -11,7 +11,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowLeft, WandSparkles, Loader2, CircleCheck, CircleX } from "lucide-react";
-import { TableOfContents } from "@/components/table-of-contents";
+import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { getExecutionById, approveExecution, disapproveExecution } from "@/services/executions";
 import { getLLMs, updateExecutionLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";
@@ -25,10 +25,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useOrganization } from "@/contexts/organization-context";
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { selectedOrganizationId } = useOrganization();
     const [instructions, setInstructions] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [editableSections, setEditableSections] = useState<any[]>([]);
@@ -58,8 +60,8 @@ export default function ExecutionPage() {
 
     const { data: execution, isLoading, error, refetch } = useQuery({
         queryKey: ["execution", id],
-        queryFn: () => getExecutionById(id!),
-        enabled: !!id,
+        queryFn: () => getExecutionById(id!, selectedOrganizationId!),
+        enabled: !!id && !!selectedOrganizationId,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
@@ -242,6 +244,7 @@ export default function ExecutionPage() {
                 documentId: execution.document_id,
                 executionId: id!,
                 userInstructions: instructions,
+                organizationId: selectedOrganizationId!,
                 signal: abortController.current.signal,
                 onData: handleStreamData,
                 onInfo: (sectionId: string) => {
@@ -264,7 +267,7 @@ export default function ExecutionPage() {
         
         setIsApproving(true);
         try {
-            await approveExecution(id!);
+            await approveExecution(id!, selectedOrganizationId!);
             refetch();
             toast.success("Execution approved successfully");
         } catch (error) {
@@ -280,7 +283,7 @@ export default function ExecutionPage() {
         
         setIsApproving(true);
         try {
-            await disapproveExecution(id!);
+            await disapproveExecution(id!, selectedOrganizationId!);
             refetch();
             toast.success("Execution disapproved successfully");
         } catch (error) {

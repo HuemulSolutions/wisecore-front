@@ -1,151 +1,138 @@
-import React, { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, ChevronUp, ChevronDown, CheckCircle, Circle, Settings, MoreVertical } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { useIsMobile } from '@/hooks/use-mobile'
-
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { toast } from 'sonner'
-import {
-  getAllProviders,
-  getSupportedProviders,
-  getLLMs,
-  createProvider,
-  updateProvider,
+import { useUserPermissions } from '@/hooks/useUserPermissions'
+import { 
+  getSupportedProviders, 
+  getLLMs, 
+  createProvider, 
+  updateProvider, 
   deleteProvider,
-  createLLM,
-  updateLLMModel,
-  deleteLLM,
+  getProvider,
+  createLLM, 
+  updateLLMModel, 
+  deleteLLM, 
   setDefaultLLM,
-
-  type LLMProvider,
-  type LLM,
-  type CreateLLMProviderRequest,
-  type CreateLLMRequest,
+  testLLMConnection
 } from '@/services/llms'
+import {
+  getSupportedEmbeddingProviders,
+  getEmbeddingProvider,
+  createEmbeddingProvider,
+  updateEmbeddingProvider,
+  deleteEmbeddingProvider,
+} from '@/services/embedding-provider'
+import { 
+  ModelsHeader,
+  ModelsLoadingState, 
+  ModelsContentEmptyState,
+  ProviderCard,
+  EmbeddingProviderCard,
+  EditProviderDialog,
+  ModelDialog,
+  DeleteProviderDialog,
+  DeleteModelDialog
+} from '@/components/models'
+import type { LLM, CreateLLMRequest } from '@/services/llms'
 
-export default function ModelsPage() {
+export default function Models() {
   const queryClient = useQueryClient()
-  const isMobile = useIsMobile()
+  const { 
+    hasPermission, 
+    hasAnyPermission,
+    isOrgAdmin,
+    isLoading: isLoadingPermissions 
+  } = useUserPermissions()
+  
+  // State management
   const [openProviders, setOpenProviders] = useState<string[]>([])
-  // Removed unused showApiKeys state
-  const [editingProvider, setEditingProvider] = useState<(LLMProvider & { 
-    isConfigured?: boolean; 
-    isSupported?: boolean; 
-    display_name?: string;
-    api_key_required?: boolean;
-    endpoint_required?: boolean;
-    deployment_required?: boolean;
-    providerKey?: string;
-  }) | null>(null)
-
-  // isCreateProviderOpen removed - providers are configured from supported providers list
-  const [isCreateModelOpen, setIsCreateModelOpen] = useState(false)
-  const [selectedProviderId, setSelectedProviderId] = useState<string>('')
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
+  const [editingProvider, setEditingProvider] = useState<any>(null)
+  const [deletingProvider, setDeletingProvider] = useState<any>(null)
   const [editingModel, setEditingModel] = useState<LLM | null>(null)
-  const [deletingProvider, setDeletingProvider] = useState<(LLMProvider & { 
-    isConfigured?: boolean; 
-    isSupported?: boolean; 
-    display_name?: string;
-  }) | null>(null)
   const [deletingModel, setDeletingModel] = useState<LLM | null>(null)
-  const [openDropdowns, setOpenDropdowns] = useState<{[key: string]: boolean}>({})
+  const [isCreateModelOpen, setIsCreateModelOpen] = useState(false)
+  const [selectedProviderId, setSelectedProviderId] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isDeletingModel, setIsDeletingModel] = useState(false)
+  const [isDeletingProvider, setIsDeletingProvider] = useState(false)
+  const [testingModelId, setTestingModelId] = useState<string | null>(null)
+  const [openEmbeddingProviders, setOpenEmbeddingProviders] = useState<string[]>([])
+  const [editingEmbeddingProvider, setEditingEmbeddingProvider] = useState<any>(null)
+  const [deletingEmbeddingProvider, setDeletingEmbeddingProvider] = useState<any>(null)
+  const [isDeletingEmbeddingProvider, setIsDeletingEmbeddingProvider] = useState(false)
 
-  // Queries with optimized caching
-  const { data: supportedProvidersResponse, isLoading: loadingSupportedProviders } = useQuery({
+  // Verificar permisos
+  const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
+  const canCreateProvider = isOrgAdmin || hasPermission('llm_provider:c')
+  const canUpdateProvider = isOrgAdmin || hasPermission('llm_provider:u')
+  const canDeleteProvider = isOrgAdmin || hasPermission('llm_provider:d')
+  const canListModels = isOrgAdmin || hasAnyPermission(['llm:l', 'llm:r'])
+  const canCreateModel = isOrgAdmin || hasPermission('llm:c')
+  const canUpdateModel = isOrgAdmin || hasPermission('llm:u')
+  const canDeleteModel = isOrgAdmin || hasPermission('llm:d')
+
+  // Queries
+  const { data: supportedResponse, isLoading: loadingSupportedProviders, error: errorSupportedProviders } = useQuery({
     queryKey: ['supportedProviders'],
     queryFn: getSupportedProviders,
-    staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh
-    gcTime: 10 * 60 * 1000, // 10 minutes - data stays in cache
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: false, // Don't refetch on component mount if data exists
+    retry: 0,
+    enabled: canListProviders,
   })
 
-  const { data: configuredProvidersResponse, isLoading: loadingConfiguredProviders } = useQuery({
-    queryKey: ['providers'],
-    queryFn: getAllProviders,
-    staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh
-    gcTime: 10 * 60 * 1000, // 10 minutes - data stays in cache
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: false, // Don't refetch on component mount if data exists
-  })
-
-  const { data: llms = [], isLoading: loadingLLMs } = useQuery<LLM[]>({
+  const { data: llms = [], isLoading: loadingLLMs, error: errorLLMs } = useQuery({
     queryKey: ['llms'],
     queryFn: getLLMs,
-    staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh
-    gcTime: 10 * 60 * 1000, // 10 minutes - data stays in cache
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: false, // Don't refetch on component mount if data exists
+    retry: 0,
+    enabled: canListModels && openProviders.length > 0, // Solo cargar cuando hay providers abiertos y tiene permisos
   })
+
+  const { data: embeddingSupportedResponse, error: errorEmbeddingSupportedProviders } = useQuery({
+    queryKey: ['embeddingSupportedProviders'],
+    queryFn: () => getSupportedEmbeddingProviders(1, 1000),
+    retry: 0,
+    enabled: canListProviders,
+  })
+
+  const { data: embeddingProviderResponse, error: errorEmbeddingProvider } = useQuery({
+    queryKey: ['embeddingProvider'],
+    queryFn: getEmbeddingProvider,
+    retry: 0,
+    enabled: canListProviders,
+  })
+
+  // Extract data from wrapped responses
+  const supportedProviders = supportedResponse?.data || []
+  const embeddingSupportedProviders = embeddingSupportedResponse?.data || []
+  const configuredEmbeddingProvider = embeddingProviderResponse?.data || null
 
   // Mutations
   const createProviderMutation = useMutation({
     mutationFn: createProvider,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['providers'] })
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       setEditingProvider(null)
       toast.success('Provider configured successfully')
     },
-    onError: (error) => {
-      toast.error(`Error configuring provider: ${error.message}`)
-    },
   })
 
   const updateProviderMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateLLMProviderRequest> }) =>
-      updateProvider(id, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateProvider(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['providers'] })
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       setEditingProvider(null)
       toast.success('Provider updated successfully')
     },
-    onError: (error) => {
-      toast.error(`Error updating provider: ${error.message}`)
-    },
   })
 
-
+  const deleteProviderMutation = useMutation({
+    mutationFn: deleteProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
+      setDeletingProvider(null)
+      toast.success('Provider deleted successfully')
+    },
+  })
 
   const createLLMMutation = useMutation({
     mutationFn: createLLM,
@@ -154,21 +141,14 @@ export default function ModelsPage() {
       setIsCreateModelOpen(false)
       toast.success('Model created successfully')
     },
-    onError: (error) => {
-      toast.error(`Error creating model: ${error.message}`)
-    },
   })
 
   const updateLLMMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateLLMRequest> }) =>
-      updateLLMModel(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateLLMRequest> }) => updateLLMModel(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setEditingModel(null)
       toast.success('Model updated successfully')
-    },
-    onError: (error) => {
-      toast.error(`Error updating model: ${error.message}`)
     },
   })
 
@@ -176,157 +156,112 @@ export default function ModelsPage() {
     mutationFn: deleteLLM,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
+      setDeletingModel(null)
       toast.success('Model deleted successfully')
-    },
-    onError: (error) => {
-      toast.error(`Error deleting model: ${error.message}`)
     },
   })
 
   const setDefaultMutation = useMutation({
-    mutationFn: setDefaultLLM,
+    mutationFn: (llmId: string) => setDefaultLLM(llmId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
-      toast.success('Default model updated')
-    },
-    onError: (error) => {
-      toast.error(`Error setting default model: ${error.message}`)
+      toast.success('Default model updated successfully')
     },
   })
 
-  const deleteProviderMutation = useMutation({
-    mutationFn: deleteProvider,
+  const testLLMConnectionMutation = useMutation({
+    mutationFn: testLLMConnection,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['providers'] })
-      queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
-      toast.success('Provider deleted successfully')
+      toast.success('Connection successful')
     },
-    onError: (error) => {
-      toast.error(`Error deleting provider: ${error.message}`)
+    onSettled: () => {
+      setTestingModelId(null)
     },
   })
 
-  // Combine supported and configured providers
-  const allProviders = React.useMemo(() => {
-    if (!supportedProvidersResponse?.data) return []
-    
-    const supportedProviders = supportedProvidersResponse.data
-    const configuredProviders = configuredProvidersResponse?.data || []
-    
-    console.log('🔍 Supported providers:', supportedProviders)
-    console.log('🔍 Configured providers:', configuredProviders)
-    
-    // Create a lookup map of configured providers by name
-    const configuredMap = new Map<string, LLMProvider>()
-    configuredProviders.forEach((config: LLMProvider) => {
-      configuredMap.set(config.name, config)
-    })
-    
-    console.log('🔍 Configured map:', configuredMap)
-    
-    // Convert supported providers object to array with combined data
-    return Object.entries(supportedProviders).map(([providerKey, supportedData]) => {
-      // Check if this provider exists in configured providers
-      const configuredProvider = configuredMap.get(providerKey)
-      const isConfigured = !!configuredProvider
-      
-      console.log(`🔍 Checking provider ${providerKey}:`, { 
-        isConfigured,
-        configuredProvider 
-      })
-      
-      if (isConfigured && configuredProvider) {
-        // Provider is configured - use configured provider data and merge with supported requirements
-        const result = {
-          id: configuredProvider.id,
-          name: providerKey, // Use the provider key from supported (e.g., 'openai', 'azure_openai')
-          display_name: configuredProvider.display_name || supportedData.display,
-          key: configuredProvider.key || '',
-          endpoint: configuredProvider.endpoint || '',
-          deployment: configuredProvider.deployment || '',
-          // Requirements from supported endpoint (for editing forms)
-          api_key_required: supportedData.api_key,
-          endpoint_required: supportedData.endpoint,
-          deployment_required: supportedData.deployment,
-          isConfigured: true,
-          providerKey
-        }
-        console.log(`✅ Provider ${providerKey} is CONFIGURED:`, result)
-        return result
-      } else {
-        // Provider is supported but not configured yet
-        const result = {
-          id: `unconfigured-${providerKey}`,
-          name: providerKey,
-          display_name: supportedData.display,
-          key: '',
-          endpoint: '',
-          deployment: '',
-          // Requirements from supported endpoint
-          api_key_required: supportedData.api_key,
-          endpoint_required: supportedData.endpoint,
-          deployment_required: supportedData.deployment,
-          isConfigured: false,
-          providerKey
-        }
-        console.log(`❌ Provider ${providerKey} is NOT configured:`, result)
-        return result
-      }
-    })
-  }, [supportedProvidersResponse, configuredProvidersResponse])
+  const createEmbeddingProviderMutation = useMutation({
+    mutationFn: createEmbeddingProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
+      setEditingEmbeddingProvider(null)
+      toast.success('Embeddings provider configured successfully')
+    },
+  })
 
-  // Ref to track last logged transaction ID and component mount count
-  const lastLoggedId = React.useRef<string | undefined>(undefined)
-  const mountCount = React.useRef(0)
+  const updateEmbeddingProviderMutation = useMutation({
+    mutationFn: updateEmbeddingProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
+      setEditingEmbeddingProvider(null)
+      toast.success('Embeddings provider updated successfully')
+    },
+  })
 
-  // Track component mounts for debugging StrictMode
-  React.useEffect(() => {
-    mountCount.current += 1
-    console.log(`🔄 Models page mounted (count: ${mountCount.current})`)
-    
-    return () => {
-      console.log(`🔚 Models page unmounting (count: ${mountCount.current})`)
+  const deleteEmbeddingProviderMutation = useMutation({
+    mutationFn: deleteEmbeddingProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
+      setDeletingEmbeddingProvider(null)
+      toast.success('Embeddings provider deleted successfully')
+    },
+  })
+
+  // Process supported providers with configured_id
+  const combinedProviders = (supportedProviders as any[]).map((provider) => {
+    const isConfigured = !!provider.configured_id
+    return {
+      ...provider,
+      id: isConfigured ? provider.configured_id : `unconfigured-${provider.name}`,
+      display_name: provider.display,
+      isConfigured
     }
-  }, [])
+  })
 
-  // Debug logging - only when data changes (reduced for StrictMode)
-  React.useEffect(() => {
-    if (supportedProvidersResponse?.data && Object.keys(supportedProvidersResponse.data).length > 0) {
-      const transactionId = supportedProvidersResponse.transaction_id
-      
-      if (transactionId && transactionId !== lastLoggedId.current) {
-        console.log(`✅ Supported providers fetched:`, supportedProvidersResponse)
-        lastLoggedId.current = transactionId
+  const getEmbeddingRequiredFields = (providerName: string) => {
+    if (providerName === 'azure_openai') {
+      return {
+        api_key: true,
+        endpoint: true,
+        deployment: true,
       }
     }
-  }, [supportedProvidersResponse])
 
-  // Debug final providers combination
-  React.useEffect(() => {
-    if (allProviders.length > 0) {
-      console.log('🎯 Final allProviders:', allProviders)
-      // Log summary of configured vs unconfigured
-      const configured = allProviders.filter(p => p.isConfigured).length
-      const unconfigured = allProviders.filter(p => !p.isConfigured).length
-      console.log(`📊 Providers summary: ${configured} configured, ${unconfigured} unconfigured`)
+    return {
+      api_key: true,
+      endpoint: false,
+      deployment: false,
     }
-  }, [allProviders])
+  }
+
+  const combinedEmbeddingProviders = (embeddingSupportedProviders as any[]).map((provider) => {
+    const requiredFields = getEmbeddingRequiredFields(provider.name)
+    const isActiveConfiguredProvider = configuredEmbeddingProvider?.name === provider.name
+
+    return {
+      ...provider,
+      id: `embedding-${provider.name}`,
+      display_name: provider.display,
+      isConfigured: provider.is_configured === true,
+      providerKey: provider.name,
+      api_key: requiredFields.api_key,
+      endpoint: requiredFields.endpoint,
+      deployment: requiredFields.deployment,
+      key: isActiveConfiguredProvider ? configuredEmbeddingProvider?.key : undefined,
+      endpointValue: isActiveConfiguredProvider ? configuredEmbeddingProvider?.endpoint : undefined,
+      deploymentValue: isActiveConfiguredProvider ? configuredEmbeddingProvider?.deployment : undefined,
+    }
+  })
 
   // Helper functions
   const getProviderModels = (providerId: string) => {
-    return llms.filter(llm => llm.provider_id === providerId)
+    const actualId = providerId.startsWith('unconfigured-') ? null : providerId
+    return (llms as LLM[]).filter((llm) => llm.provider_id === actualId)
   }
 
-  const getProviderStatus = (provider: any) => {
-    const models = getProviderModels(provider.id)
-    return {
-      configured: provider.isConfigured === true, // Simplificamos: si isConfigured es true, está configurado
-      modelCount: models.length
-    }
-  }
-
-  // handleCreateProvider removed - providers are configured from supported providers list
-
+  // Event handlers
   const handleUpdateProvider = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!editingProvider) return
@@ -335,11 +270,6 @@ export default function ModelsPage() {
     // Build data object dynamically based on required fields
     const requiredFields = getRequiredFields(editingProvider)
     const providerKey = (editingProvider as any).providerKey || editingProvider.name
-    
-    console.log('📤 Sending provider data:')
-    console.log('  - Provider key (name):', providerKey)
-    console.log('  - Display name:', editingProvider.display_name)
-    console.log('  - Required fields:', requiredFields)
     
     const data: any = {
       name: providerKey, // Use the provider key automatically (e.g., 'openai', 'azure_openai')
@@ -389,20 +319,41 @@ export default function ModelsPage() {
   }
 
   const handleEditModel = (model: LLM) => {
-    setEditingModel(model)
     // Close dropdown after opening dialog
     setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    // Delay to allow dropdown to close before dialog opens
+    setTimeout(() => {
+      setEditingModel(model)
+    }, 0)
   }
 
   const handleDeleteModel = (model: LLM) => {
-    setDeletingModel(model)
     // Close dropdown after opening dialog
     setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    // Delay to allow dropdown to close before dialog opens
+    setTimeout(() => {
+      setDeletingModel(model)
+    }, 0)
   }
 
-  const confirmDeleteModel = () => {
-    if (deletingModel) {
-      deleteLLMMutation.mutate(deletingModel.id)
+  const confirmDeleteModel = async () => {
+    if (!deletingModel) return
+
+    setIsDeletingModel(true)
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    try {
+      await Promise.all([
+        new Promise<void>((resolve, reject) => {
+          deleteLLMMutation.mutate(deletingModel.id, {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error)
+          })
+        }),
+        minDelay
+      ])
+    } finally {
+      setIsDeletingModel(false)
       setDeletingModel(null)
     }
   }
@@ -413,664 +364,400 @@ export default function ModelsPage() {
     }
   }
 
+  const handleTestModel = (model: LLM) => {
+    // Close dropdown after opening test
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    setTestingModelId(model.id)
+    testLLMConnectionMutation.mutate(model.id)
+  }
+
   // Helper function to get required fields for a provider
   const getRequiredFields = (provider: any) => {
     return {
-      api_key: provider.api_key_required === true,
-      endpoint: provider.endpoint_required === true,
-      deployment: provider.deployment_required === true
+      api_key: provider.api_key === true,
+      endpoint: provider.endpoint === true,
+      deployment: provider.deployment === true
     }
   }
 
   // Handle provider edit
-  const handleEditProvider = (provider: any) => {
-    console.log('📝 Editing provider:', provider)
-    console.log('📝 Provider name (key):', provider.name)
-    console.log('📝 Provider display_name:', provider.display_name)
-    setEditingProvider({
-      ...provider,
-      providerKey: provider.name // Ensure we have the correct provider key
-    })
+  const handleEditProvider = async (provider: any) => {
     // Close dropdown after opening dialog
     setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
+    // Delay to allow dropdown to close before dialog opens
+    setTimeout(async () => {
+      try {
+        // Fetch provider details from the API
+        const providerDetails = await getProvider(provider.id)
+        
+        // Keep the boolean requirement fields from the original provider
+        // Only add the string values for the actual data fields
+        const editProvider: any = {
+          ...provider, // This has the boolean fields: api_key, endpoint, deployment
+          providerKey: provider.name
+        }
+        
+        // Add the actual values from API without overwriting boolean fields
+        if (providerDetails.key !== undefined) {
+          editProvider.key = providerDetails.key
+        }
+        // For endpoint and deployment, check if they're boolean first
+        if (typeof provider.endpoint === 'boolean') {
+          // It's a boolean, so keep it and add the value separately if exists
+          if (providerDetails.endpoint !== undefined) {
+            editProvider.endpointValue = providerDetails.endpoint
+          }
+        } else {
+          // It's already a value, update it
+          if (providerDetails.endpoint !== undefined) {
+            editProvider.endpointValue = providerDetails.endpoint
+          }
+        }
+        
+        if (typeof provider.deployment === 'boolean') {
+          if (providerDetails.deployment !== undefined) {
+            editProvider.deploymentValue = providerDetails.deployment
+          }
+        } else {
+          if (providerDetails.deployment !== undefined) {
+            editProvider.deploymentValue = providerDetails.deployment
+          }
+        }
+        
+        setEditingProvider(editProvider)
+      } catch (error: any) {
+        toast.error(`Failed to load provider details: ${error.message}`)
+      }
+    }, 0)
   }
 
   // Handle provider delete
   const handleDeleteProvider = (provider: any) => {
-    setDeletingProvider(provider)
     // Close dropdown after opening dialog
     setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
+    // Delay to allow dropdown to close before dialog opens
+    setTimeout(() => {
+      setDeletingProvider(provider)
+    }, 0)
   }
 
-  const confirmDeleteProvider = () => {
-    if (deletingProvider) {
-      deleteProviderMutation.mutate(deletingProvider.id)
+  const confirmDeleteProvider = async () => {
+    if (!deletingProvider) return
+
+    setIsDeletingProvider(true)
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    try {
+      await Promise.all([
+        new Promise<void>((resolve, reject) => {
+          deleteProviderMutation.mutate(deletingProvider.id, {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error)
+          })
+        }),
+        minDelay
+      ])
+    } finally {
+      setIsDeletingProvider(false)
       setDeletingProvider(null)
     }
   }
 
-  if (loadingSupportedProviders || loadingConfiguredProviders || loadingLLMs) {
+  const handleConfigureProvider = (provider: any) => {
+    setEditingProvider({
+      ...provider,
+      providerKey: provider.name // This should be the key like 'openai', 'azure_openai', etc.
+    })
+  }
+
+  const handleCreateModelForProvider = (providerId: string) => {
+    setSelectedProviderId(providerId)
+    setIsCreateModelOpen(true)
+  }
+
+  const handleConfigureEmbeddingProvider = (provider: any) => {
+    setEditingEmbeddingProvider(provider)
+  }
+
+  const handleEditEmbeddingProvider = (provider: any) => {
+    setOpenDropdowns(prev => ({ ...prev, [`embedding-provider-${provider.id}`]: false }))
+    setTimeout(() => {
+      setEditingEmbeddingProvider(provider)
+    }, 0)
+  }
+
+  const handleDeleteEmbeddingProvider = (provider: any) => {
+    setOpenDropdowns(prev => ({ ...prev, [`embedding-provider-${provider.id}`]: false }))
+    setTimeout(() => {
+      setDeletingEmbeddingProvider(provider)
+    }, 0)
+  }
+
+  const handleUpsertEmbeddingProvider = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingEmbeddingProvider) return
+
+    const formData = new FormData(event.currentTarget)
+    const requiredFields = getEmbeddingRequiredFields(editingEmbeddingProvider.providerKey || editingEmbeddingProvider.name)
+    const providerKey = editingEmbeddingProvider.providerKey || editingEmbeddingProvider.name
+    const data: any = {
+      name: providerKey,
+    }
+
+    if (requiredFields.api_key) {
+      data.key = formData.get('key') as string
+    }
+    if (requiredFields.endpoint) {
+      data.endpoint = formData.get('endpoint') as string
+    }
+    if (requiredFields.deployment) {
+      data.deployment = formData.get('deployment') as string
+    }
+
+    if (editingEmbeddingProvider.isConfigured) {
+      updateEmbeddingProviderMutation.mutate(data)
+      return
+    }
+
+    createEmbeddingProviderMutation.mutate(data)
+  }
+
+  const confirmDeleteEmbeddingProvider = async () => {
+    if (!deletingEmbeddingProvider) return
+
+    setIsDeletingEmbeddingProvider(true)
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    try {
+      await Promise.all([
+        new Promise<void>((resolve, reject) => {
+          deleteEmbeddingProviderMutation.mutate(undefined, {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          })
+        }),
+        minDelay,
+      ])
+    } finally {
+      setIsDeletingEmbeddingProvider(false)
+      setDeletingEmbeddingProvider(null)
+    }
+  }
+
+  const closeAllDropdowns = () => {
+    setOpenDropdowns({})
+  }
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['supportedProviders'] }),
+        queryClient.invalidateQueries({ queryKey: ['llms'] }),
+        queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] }),
+        queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] }),
+      ])
+      toast.success('Data refreshed')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Handle clicks outside dropdowns to close them
+  useEffect(() => {
+    const handleClickOutside = () => closeAllDropdowns()
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
+
+  // Mostrar loading mientras se cargan permisos o proveedores
+  if (isLoadingPermissions || loadingSupportedProviders) {
+    return <ModelsLoadingState />
+  }
+
+  // Si no tiene permisos para listar proveedores, mostrar mensaje
+  if (!canListProviders) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold mb-2">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+        </div>
       </div>
     )
   }
 
-  if (!allProviders || allProviders.length === 0) {
-    return (
-      <div className="space-y-6 bg-gray-50 min-h-screen p-6">
-        <div>
-          <h1 className="text-3xl font-bold">Configuration</h1>
-          <p className="text-muted-foreground">
-            Manage your LLM providers and models in one place
-          </p>
-        </div>
-        <div className="text-center py-12">
-          <p className="text-gray-500">No providers available. Please check your connection or try again later.</p>
-        </div>
-      </div>
-    )
-  }
+  // Only show full page error for supported providers
+  const hasError = errorSupportedProviders
+  const hasEmbeddingError = errorEmbeddingSupportedProviders || errorEmbeddingProvider
+  const activeEditingProvider = editingProvider || editingEmbeddingProvider
+  const activeDeletingProvider = deletingProvider || deletingEmbeddingProvider
+
+  // Determine error message
+  const errorMessage = 'Failed to load supported providers'
 
   return (
-    <div className="space-y-6 min-h-screen p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Configuration</h1>
-        <p className="text-muted-foreground">
-          Manage your LLM providers and models in one place
-        </p>
-      </div>
+    <div className="p-6 space-y-6">
+      <ModelsHeader 
+        onRefresh={handleRefresh}
+        configuredProviders={hasError ? 0 : combinedProviders.filter((p: any) => p.isConfigured).length}
+        totalModels={hasError ? 0 : (llms as LLM[]).length}
+        isLoading={isRefreshing}
+      />
 
-      {/* Providers List */}
-      <div className="space-y-3">
-        {allProviders.map((provider: any) => {
-          const status = getProviderStatus(provider)
-          const isOpen = openProviders.includes(provider.id)
-          const models = getProviderModels(provider.id)
+      {/* Show error state in content area */}
+      {hasError ? (
+        <ModelsContentEmptyState 
+          type="error" 
+          message={errorMessage} 
+          onRetry={handleRefresh}
+        />
+      ) : !combinedProviders.length ? (
+        <ModelsContentEmptyState type="empty" />
+      ) : (
+        <div className="space-y-4">
+          {combinedProviders.map((provider: any) => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              models={getProviderModels(provider.id)}
+              isOpen={openProviders.includes(provider.id)}
+              onToggle={(open) => {
+                if (open) {
+                  setOpenProviders(prev => [...prev, provider.id])
+                } else {
+                  setOpenProviders(prev => prev.filter(id => id !== provider.id))
+                }
+              }}
+              onEditProvider={handleEditProvider}
+              onDeleteProvider={handleDeleteProvider}
+              onConfigureProvider={handleConfigureProvider}
+              onCreateModel={handleCreateModelForProvider}
+              onEditModel={handleEditModel}
+              onDeleteModel={handleDeleteModel}
+              onTestModel={handleTestModel}
+              onDefaultChange={handleDefaultChange}
+              isDeleting={deleteProviderMutation.isPending}
+              isDeletingModel={deleteLLMMutation.isPending}
+              testingModelId={testingModelId}
+              isLoadingModels={loadingLLMs}
+              modelsError={errorLLMs}
+              openDropdowns={openDropdowns}
+              onDropdownChange={(key, open) => {
+                setOpenDropdowns(prev => ({ ...prev, [key]: open }))
+              }}
+              canCreateProvider={canCreateProvider}
+              canUpdateProvider={canUpdateProvider}
+              canDeleteProvider={canDeleteProvider}
+              canCreateModel={canCreateModel}
+              canUpdateModel={canUpdateModel}
+              canDeleteModel={canDeleteModel}
+            />
+          ))}
 
-          return (
-            <div key={provider.id} className="border border-gray-200 rounded-lg bg-white">
-              <Collapsible 
-                open={isOpen} 
-                onOpenChange={(open) => {
-                  if (open) {
-                    setOpenProviders(prev => [...prev, provider.id])
-                  } else {
-                    setOpenProviders(prev => prev.filter(id => id !== provider.id))
-                  }
-                }}
-              >
-                <div className="flex w-full items-center p-4">
-                  <CollapsibleTrigger
-                    className="flex items-center gap-3 text-left hover:bg-gray-50 rounded-lg p-2 flex-1"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                      <span className="text-lg font-semibold text-gray-700">
-                        {(provider.display_name || provider.name).charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{provider.display_name || provider.name}</h3>
-                      <div className="flex items-center gap-2 text-sm mt-1">
-                        {status.configured ? (
-                          <>
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-green-600 font-medium">Configured</span>
-                          </>
-                        ) : (
-                          <>
-                            <Circle className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-500 font-medium">Not configured</span>
-                          </>
-                        )}
-                        <span className="text-gray-400">•</span>
-                        <span className="text-gray-500">
-                          {status.modelCount} model{status.modelCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  
-                  {/* Action buttons - solo mostrar para proveedores configurados */}
-                  {provider.isConfigured && (
-                    <div className="flex items-center gap-1 mr-2">
-                      {isMobile ? (
-                        <DropdownMenu 
-                          open={openDropdowns[`provider-${provider.id}`] || false}
-                          onOpenChange={(open) => 
-                            setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: open }))
-                          }
-                        >
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-600" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleEditProvider(provider)}
-                              className="hover:cursor-pointer"
-                            >
-                              <Edit className="h-4 w-4 mr-2 text-blue-600" />
-                              Edit Provider
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteProvider(provider)}
-                              className="hover:cursor-pointer text-red-600"
-                              disabled={deleteProviderMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleEditProvider(provider)
-                            }}
-                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
-                          >
-                            <Edit className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteProvider(provider)
-                            }}
-                            className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                            disabled={deleteProviderMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Chevron button */}
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
-                    >
-                      {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-                    </Button>
-                  </CollapsibleTrigger>
-                </div>
-                
-                {isOpen && (
-                  <CollapsibleContent className="px-6 pb-6 bg-gray-50 border-t border-gray-100">
-                    {provider.isConfigured ? (
-                      <>
-                        {/* Models Section */}
-                        <div className="mb-6">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-semibold text-gray-900">Models</h4>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedProviderId(provider.id)
-                                setIsCreateModelOpen(true)
-                              }}
-                              className="hover:cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Model
-                            </Button>
-                          </div>
-                          <div className="bg-gray-50 rounded-md">
-                            <Table>
-                              <TableHeader>
-                                <TableRow className="border-b border-gray-200">
-                                  <TableHead className="text-gray-600 font-medium">Display Name</TableHead>
-                                  <TableHead className="text-gray-600 font-medium">Technical Name</TableHead>
-                                  <TableHead className="text-gray-600 font-medium">Default</TableHead>
-                                  <TableHead className="text-gray-600 font-medium">Actions</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {models.map((model) => (
-                                  <TableRow key={model.id} className="border-b border-gray-100 hover:bg-white">
-                                    <TableCell className="font-semibold text-gray-900">{model.name}</TableCell>
-                                    <TableCell className="text-gray-500 font-mono text-sm">
-                                      {model.internal_name}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Checkbox
-                                        checked={model.is_default || false}
-                                        onCheckedChange={(checked) =>
-                                          handleDefaultChange(model.id, checked as boolean)
-                                        }
-                                        className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      <div className="flex gap-1">
-                                        {isMobile ? (
-                                          <DropdownMenu 
-                                            open={openDropdowns[`model-${model.id}`] || false}
-                                            onOpenChange={(open) => 
-                                              setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: open }))
-                                            }
-                                          >
-                                            <DropdownMenuTrigger asChild>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-gray-50"
-                                              >
-                                                <MoreVertical className="h-4 w-4 text-gray-600" />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                              <DropdownMenuItem
-                                                onClick={() => handleEditModel(model)}
-                                                className="hover:cursor-pointer"
-                                              >
-                                                <Edit className="h-4 w-4 mr-2 text-blue-600" />
-                                                Edit Model
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                onClick={() => handleDeleteModel(model)}
-                                                className="hover:cursor-pointer text-red-600"
-                                                disabled={deleteLLMMutation.isPending}
-                                              >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
-                                              </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        ) : (
-                                          <>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleEditModel(model)}
-                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-blue-50"
-                                            >
-                                              <Edit className="h-4 w-4 text-blue-600" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleDeleteModel(model)}
-                                              className="hover:cursor-pointer h-8 w-8 p-0 hover:bg-red-50"
-                                              disabled={deleteLLMMutation.isPending}
-                                            >
-                                              <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {/* Configuration Section for unconfigured providers */}
-                        <div className="text-center py-8">
-                          <div className="mb-4">
-                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                              <span className="text-2xl font-bold text-gray-400">
-                                {(provider.display_name || provider.name).charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{provider.display_name || provider.name}</h3>
-                            <p className="text-gray-500 mb-6">
-                              Configure this provider to start using its models
-                            </p>
-                          </div>
-                          <Button
-                            onClick={() => {
-                              setEditingProvider({
-                                ...provider,
-                                key: '',
-                                endpoint: '',
-                                deployment: '',
-                                providerKey: provider.name // This should be the key like 'openai', 'azure_openai', etc.
-                              })
-                            }}
-                            className="hover:cursor-pointer bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Configure Provider
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </CollapsibleContent>
-                )}
-              </Collapsible>
+          <div className="pt-2 space-y-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Embeddings Provider</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure the organization-wide embeddings provider (singleton).
+              </p>
             </div>
-          )
-        })}
-      </div>
 
-      {/* Create Provider Dialog - Removed: Providers are configured from supported providers list */}
+            {hasEmbeddingError ? (
+              <ModelsContentEmptyState
+                type="error"
+                message="Failed to load embeddings provider"
+                onRetry={handleRefresh}
+              />
+            ) : !combinedEmbeddingProviders.length ? (
+              <ModelsContentEmptyState type="empty" />
+            ) : (
+              <div className="space-y-3">
+                {combinedEmbeddingProviders.map((provider: any) => (
+                  <EmbeddingProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    isOpen={openEmbeddingProviders.includes(provider.id)}
+                    onToggle={(open) => {
+                      if (open) {
+                        setOpenEmbeddingProviders(prev => [...prev, provider.id])
+                      } else {
+                        setOpenEmbeddingProviders(prev => prev.filter(id => id !== provider.id))
+                      }
+                    }}
+                    onEditProvider={handleEditEmbeddingProvider}
+                    onDeleteProvider={handleDeleteEmbeddingProvider}
+                    onConfigureProvider={handleConfigureEmbeddingProvider}
+                    isDeleting={isDeletingEmbeddingProvider}
+                    openDropdowns={openDropdowns}
+                    onDropdownChange={(key, open) => {
+                      setOpenDropdowns(prev => ({ ...prev, [key]: open }))
+                    }}
+                    canCreateProvider={canCreateProvider}
+                    canUpdateProvider={canUpdateProvider}
+                    canDeleteProvider={canDeleteProvider}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Edit Provider Dialog */}
-      <Dialog open={!!editingProvider} onOpenChange={() => setEditingProvider(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('unconfigured-') ? (
-                <>
-                  <Settings className="h-5 w-5 text-[#4464f7]" />
-                  Configure Provider - {editingProvider?.display_name || editingProvider?.name}
-                </>
-              ) : (
-                <>
-                  <Edit className="h-5 w-5 text-[#4464f7]" />
-                  Edit Provider - {editingProvider?.display_name || editingProvider?.name}
-                </>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              {editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('unconfigured-') 
-                ? `Set up your ${editingProvider?.display_name || editingProvider?.name} provider configuration with your API credentials.`
-                : `Update the configuration settings for your ${editingProvider?.display_name || editingProvider?.name} provider.`
-              }
-            </DialogDescription>
-          </DialogHeader>
-          {editingProvider && (
-            <form onSubmit={handleUpdateProvider}>
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  {/* Show API Key field only if required by provider */}
-                  {getRequiredFields(editingProvider).api_key && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-900 block mb-2">
-                        API Key *
-                      </label>
-                      <Input
-                        id="edit-key"
-                        name="key"
-                        type="password"
-                        defaultValue={editingProvider.key}
-                        placeholder="Enter your API key..."
-                        className="w-full"
-                        required
-                      />
-                    </div>
-                  )}
-                  {/* Show Endpoint field only if required by provider */}
-                  {getRequiredFields(editingProvider).endpoint && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-900 block mb-2">
-                        Endpoint *
-                      </label>
-                      <Input
-                        id="edit-endpoint"
-                        name="endpoint"
-                        defaultValue={editingProvider.endpoint}
-                        placeholder="https://api.example.com/v1"
-                        className="w-full"
-                        required
-                      />
-                    </div>
-                  )}
-                  {/* Show Deployment field only if required by provider */}
-                  {getRequiredFields(editingProvider).deployment && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-900 block mb-2">
-                        Deployment *
-                      </label>
-                      <Input
-                        id="edit-deployment"
-                        name="deployment"
-                        defaultValue={editingProvider.deployment}
-                        placeholder="Enter deployment name..."
-                        className="w-full"
-                        required
-                      />
-                    </div>
-                  )}
-                  {/* Hidden fields for non-required fields to ensure form data consistency */}
-                  {!getRequiredFields(editingProvider).api_key && (
-                    <input type="hidden" name="key" value="" />
-                  )}
-                  {!getRequiredFields(editingProvider).endpoint && (
-                    <input type="hidden" name="endpoint" value="" />
-                  )}
-                  {!getRequiredFields(editingProvider).deployment && (
-                    <input type="hidden" name="deployment" value="" />
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setEditingProvider(null)}
-                  disabled={updateProviderMutation.isPending || createProviderMutation.isPending}
-                  className="hover:cursor-pointer"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={updateProviderMutation.isPending || createProviderMutation.isPending}
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-                >
-                  {(updateProviderMutation.isPending || createProviderMutation.isPending) 
-                    ? 'Saving...' 
-                    : (editingProvider?.isConfigured === false || editingProvider?.id?.startsWith('supported-'))
-                      ? 'Configure Provider'
-                      : 'Update Configuration'
-                  }
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>      {/* Create Model Dialog */}
-      <Dialog open={isCreateModelOpen} onOpenChange={setIsCreateModelOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <form onSubmit={handleCreateModel}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-[#4464f7]" />
-                Add Model to {allProviders.find((p: any) => p.id === selectedProviderId)?.display_name || allProviders.find((p: any) => p.id === selectedProviderId)?.name}
-              </DialogTitle>
-              <DialogDescription>
-                Add a new AI model to your {allProviders.find((p: any) => p.id === selectedProviderId)?.display_name || allProviders.find((p: any) => p.id === selectedProviderId)?.name} provider configuration.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Display Name *
-                  </label>
-                  <Input 
-                    id="displayName" 
-                    name="displayName" 
-                    placeholder="e.g. GPT-4 Turbo" 
-                    className="w-full"
-                    required 
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-900 block mb-2">
-                    Technical Name *
-                  </label>
-                  <Input
-                    id="technicalName"
-                    name="technicalName"
-                    placeholder="e.g., gpt-4-turbo-preview"
-                    className="w-full"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Use the exact model name as specified by the provider's API documentation.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsCreateModelOpen(false)}
-                disabled={createLLMMutation.isPending}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createLLMMutation.isPending}
-                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-              >
-                {createLLMMutation.isPending ? 'Creating...' : 'Save Model'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EditProviderDialog
+        open={!!activeEditingProvider}
+        onOpenChange={() => {
+          setEditingProvider(null)
+          setEditingEmbeddingProvider(null)
+        }}
+        provider={activeEditingProvider}
+        onSubmit={editingProvider ? handleUpdateProvider : handleUpsertEmbeddingProvider}
+        isUpdating={editingProvider ? updateProviderMutation.isPending : updateEmbeddingProviderMutation.isPending}
+        isCreating={editingProvider ? createProviderMutation.isPending : createEmbeddingProviderMutation.isPending}
+      />
 
-      {/* Edit Model Dialog */}
-      <Dialog open={!!editingModel} onOpenChange={() => setEditingModel(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit className="h-5 w-5 text-[#4464f7]" />
-              Edit Model - {editingModel?.name}
-            </DialogTitle>
-            <DialogDescription>
-              Update the configuration for your AI model.
-            </DialogDescription>
-          </DialogHeader>
-          {editingModel && (
-            <form onSubmit={handleUpdateModel}>
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 block mb-2">
-                      Display Name *
-                    </label>
-                    <Input 
-                      id="edit-displayName" 
-                      name="displayName" 
-                      defaultValue={editingModel.name}
-                      placeholder="e.g. GPT-4 Turbo" 
-                      className="w-full"
-                      required 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-900 block mb-2">
-                      Technical Name *
-                    </label>
-                    <Input
-                      id="edit-technicalName"
-                      name="technicalName"
-                      defaultValue={editingModel.internal_name}
-                      placeholder="e.g., gpt-4-turbo-preview"
-                      className="w-full"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Use the exact model name as specified by the provider's API documentation.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setEditingModel(null)}
-                  disabled={updateLLMMutation.isPending}
-                  className="hover:cursor-pointer"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={updateLLMMutation.isPending}
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-                >
-                  {updateLLMMutation.isPending ? 'Updating...' : 'Update Model'}
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Create/Edit Model Dialog */}
+      <ModelDialog
+        open={isCreateModelOpen || !!editingModel}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreateModelOpen(false)
+            setEditingModel(null)
+          }
+        }}
+        model={editingModel}
+        isCreating={createLLMMutation.isPending}
+        isUpdating={updateLLMMutation.isPending}
+        onSubmit={editingModel ? handleUpdateModel : handleCreateModel}
+      />
 
-      {/* Delete Provider Confirmation Dialog */}
-      <AlertDialog open={!!deletingProvider} onOpenChange={() => setDeletingProvider(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Provider</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the <strong>{deletingProvider?.name}</strong> provider? 
-              This will remove all configuration but keep it available for future setup.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingProvider(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteProvider}
-              className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 focus:ring-2 focus:ring-offset-2"
-              disabled={deleteProviderMutation.isPending}
-            >
-              {deleteProviderMutation.isPending ? 'Deleting...' : 'Delete Provider'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Provider Dialog */}
+      <DeleteProviderDialog
+        open={!!activeDeletingProvider}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingProvider && !isDeletingEmbeddingProvider) {
+            setDeletingProvider(null)
+            setDeletingEmbeddingProvider(null)
+          }
+        }}
+        provider={activeDeletingProvider}
+        onConfirm={deletingProvider ? confirmDeleteProvider : confirmDeleteEmbeddingProvider}
+        isDeleting={deletingProvider ? isDeletingProvider : isDeletingEmbeddingProvider}
+      />
 
-      {/* Delete Model Confirmation Dialog */}
-      <AlertDialog open={!!deletingModel} onOpenChange={() => setDeletingModel(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Model</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the model <strong>"{deletingModel?.name}"</strong>? 
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingModel(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteModel}
-              className="bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 focus:ring-2 focus:ring-offset-2"
-              disabled={deleteLLMMutation.isPending}
-            >
-              {deleteLLMMutation.isPending ? 'Deleting...' : 'Delete Model'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Model Dialog */}
+      <DeleteModelDialog
+        open={!!deletingModel}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingModel) {
+            setDeletingModel(null)
+          }
+        }}
+        model={deletingModel}
+        onConfirm={confirmDeleteModel}
+        isDeleting={isDeletingModel}
+      />
     </div>
   )
 }

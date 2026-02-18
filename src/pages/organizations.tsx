@@ -1,145 +1,270 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+"use client"
+
+import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
+import { toast } from "sonner"
+
+// Components
 import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { getAllOrganizations, addOrganization } from "@/services/organizations";
-import { Plus, Building2 } from "lucide-react";
+  OrganizationTable,
+  OrganizationPageHeader,
+  OrganizationPageSkeleton,
+  OrganizationPageEmptyState,
+  OrganizationContentEmptyState,
+  CreateOrganizationDialog,
+  EditOrganizationDialog,
+  DeleteOrganizationDialog,
+  type Organization
+} from "@/components/organization"
+
+interface OrganizationPageState {
+  searchTerm: string
+  selectedOrganizations: Set<string>
+  editingOrganization: Organization | null
+  showCreateDialog: boolean
+  deletingOrganization: Organization | null
+}
 
 export default function Organizations() {
-  const queryClient = useQueryClient();
+  const [state, setState] = useState<OrganizationPageState>({
+    searchTerm: "",
+    selectedOrganizations: new Set(),
+    editingOrganization: null,
+    showCreateDialog: false,
+    deletingOrganization: null,
+  })
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Get permissions
+  const { isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const queryClient = useQueryClient()
+  
+  // Permisos específicos
+  const canListOrgs = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
+  const canUpdateOrg = isOrgAdmin || hasPermission('organization:u')
+  const canDeleteOrg = isOrgAdmin || hasPermission('organization:d')
+  const canCreateOrg = isOrgAdmin || hasPermission('organization:c')
+  
+  // Fetch organizations - solo si tiene permisos de listar
+  const { data: organizationsResponse, isLoading, error: queryError } = useQuery({
+    queryKey: ["organizations", page, pageSize],
+    queryFn: () => getAllOrganizations(page, pageSize),
+    enabled: canListOrgs,
+  })
 
-  const { data, isLoading, error: queryError } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: getAllOrganizations,
-  });
-
-  const mutation = useMutation({
-    mutationFn: (payload: { name: string; description: string }) => addOrganization(payload),
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: (payload: { name: string; description?: string }) => addOrganization(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      setIsDialogOpen(false);
-      setName("");
-      setDescription("");
-      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["organizations"] })
+      closeDialog("showCreateDialog")
+      toast.success("Organization created successfully")
     },
-    onError: (err: Error) => {
-      setError(err.message || "An error occurred while creating the organization");
-    },
-  });
+  })
 
-  const handleSave = () => {
-    if (!name.trim()) {
-      setError("Name is required");
-      return;
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) => 
+      updateOrganization(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] })
+      closeDialog("editingOrganization")
+      toast.success("Organization updated successfully")
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteOrganization(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] })
+      closeDialog("deletingOrganization")
+      toast.success("Organization deleted successfully")
+    },
+  })
+
+  // Loading state for permissions
+  if (isLoadingPermissions) {
+    return <OrganizationPageSkeleton />
+  }
+
+  // Access check - need at least read/list permission
+  if (!canListOrgs) {
+    return <OrganizationPageEmptyState type="access-denied" />
+  }
+
+  // Loading state
+  if (isLoading) {
+    return <OrganizationPageSkeleton />
+  }
+
+  const organizations = (organizationsResponse?.data || []) as Organization[]
+
+  const filteredOrganizations = organizations.filter((org: Organization) => {
+    const matchesSearch = org.name
+      .toLowerCase()
+      .includes(state.searchTerm.toLowerCase()) ||
+      org.description
+        ?.toLowerCase()
+        .includes(state.searchTerm.toLowerCase())
+
+    return matchesSearch
+  })
+
+  // State update helpers
+  const updateState = (updates: Partial<OrganizationPageState>) => {
+    setState(prev => ({ ...prev, ...updates }))
+  }
+
+  const closeDialog = (dialog: keyof OrganizationPageState) => {
+    setState(prev => ({ ...prev, [dialog]: dialog === "editingOrganization" || dialog === "deletingOrganization" ? null : false }))
+  }
+
+  // Function to refresh data
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await queryClient.invalidateQueries({ queryKey: ["organizations"] })
+      toast.success("Data refreshed")
+    } finally {
+      setIsRefreshing(false)
     }
-    setError(null);
-    mutation.mutate({ name, description });
-  };
+  }
 
-  if (isLoading) return <div>Loading...</div>;
-  if (queryError) return <div>Error: {(queryError as Error).message}</div>;
+  // Organization selection handlers
+  const handleOrganizationSelection = (organizationId: string) => {
+    const newSelection = new Set(state.selectedOrganizations)
+    if (newSelection.has(organizationId)) {
+      newSelection.delete(organizationId)
+    } else {
+      newSelection.add(organizationId)
+    }
+    updateState({ selectedOrganizations: newSelection })
+  }
+
+  // Organization action handlers
+  const handleEditOrganization = async (organization: Organization) => {
+    updateState({ editingOrganization: organization })
+  }
+
+  const handleDeleteOrganization = async (organization: Organization) => {
+    updateState({ deletingOrganization: organization })
+  }
+
+  const handleSelectAll = () => {
+    if (state.selectedOrganizations.size === filteredOrganizations.length) {
+      updateState({ selectedOrganizations: new Set() })
+    } else {
+      updateState({ selectedOrganizations: new Set(filteredOrganizations.map((org: Organization) => org.id)) })
+    }
+  }
+
+  const handleClearFilters = () => {
+    updateState({ searchTerm: "" })
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Organizations</h1>
+    <div className="bg-background p-6 md:p-8">
+      <div className="mx-auto">
+        {/* Header */}
+        <OrganizationPageHeader
+          organizationCount={organizationsResponse?.total || filteredOrganizations.length}
+          onCreateOrganization={() => updateState({ showCreateDialog: true })}
+          onRefresh={handleRefresh}
+          isLoading={isLoading || isRefreshing}
+          searchTerm={state.searchTerm}
+          onSearchChange={(value: string) => updateState({ searchTerm: value })}
+          canManage={canCreateOrg}
+        />
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="icon" aria-label="Add organization" className="hover:cursor-pointer">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New Organization</DialogTitle>
-              <DialogDescription>
-                Fill in the fields to create a new organization.
-              </DialogDescription>
-            </DialogHeader>
-
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name"
-              className="w-full"
-            />
-
-            <Input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)"
-              className="w-full mt-2"
-            />
-
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-                {error}
-              </div>
-            )}
-
-            <DialogFooter className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsDialogOpen(false);
-                  setName("");
-                  setDescription("");
-                  setError(null);
-                }}
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={!name.trim() || mutation.isPending}
-                className="hover:cursor-pointer"
-              >
-                {mutation.isPending ? "Creating..." : "Save"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <ul className="space-y-2">
-        {data && data.length > 0 ? (
-          data.map((org: any) => (
-            <li
-              key={org.id}
-              className="flex items-start gap-3 border rounded-md p-3"
-            >
-              <Building2 className="w-5 h-5 mt-0.5 text-muted-foreground" />
-              <div>
-                <div className="font-medium">{org.name}</div>
-                {org.description ? (
-                  <div className="text-sm text-muted-foreground">{org.description}</div>
-                ) : null}
-              </div>
-            </li>
-          ))
+        {/* Content Area - Table or Error */}
+        {queryError ? (
+          <OrganizationContentEmptyState 
+            type="error" 
+            message={(queryError as Error).message} 
+            onRetry={handleRefresh}
+          />
+        ) : filteredOrganizations.length === 0 && organizations.length === 0 ? (
+          <OrganizationContentEmptyState 
+            type="empty"
+            onCreateFirst={() => updateState({ showCreateDialog: true })}
+          />
+        ) : filteredOrganizations.length === 0 ? (
+          <OrganizationContentEmptyState 
+            type="no-results"
+            onClearFilters={handleClearFilters}
+          />
         ) : (
-          <li className="text-sm text-muted-foreground">No organizations found.</li>
+          <OrganizationTable
+            organizations={filteredOrganizations}
+            selectedOrganizations={state.selectedOrganizations}
+            onOrganizationSelection={handleOrganizationSelection}
+            onSelectAll={handleSelectAll}
+            onEditOrganization={handleEditOrganization}
+            onDeleteOrganization={handleDeleteOrganization}
+            pagination={{
+              page: organizationsResponse?.page || page,
+              pageSize: organizationsResponse?.page_size || pageSize,
+              hasNext: organizationsResponse?.has_next,
+              hasPrevious: (organizationsResponse?.page || page) > 1,
+              onPageChange: (newPage: number) => setPage(newPage),
+              onPageSizeChange: (newPageSize: number) => {
+                setPageSize(newPageSize)
+                setPage(1)
+              },
+              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            }}
+            showFooterStats={false}
+            canUpdate={canUpdateOrg}
+            canDelete={canDeleteOrg}
+          />
         )}
-      </ul>
+
+        {/* Dialogs */}
+        <CreateOrganizationDialog
+          open={state.showCreateDialog}
+          onOpenChange={(open) => updateState({ showCreateDialog: open })}
+          onSubmit={(data) => createMutation.mutate(data)}
+          isPending={createMutation.isPending}
+        />
+
+        {state.editingOrganization && (
+          <EditOrganizationDialog
+            open={!!state.editingOrganization}
+            onOpenChange={(open: boolean) => !open && closeDialog("editingOrganization")}
+            organization={state.editingOrganization}
+            onSave={() => {
+              if (state.editingOrganization) {
+                updateMutation.mutate({
+                  id: state.editingOrganization.id,
+                  data: {
+                    name: state.editingOrganization.name,
+                    description: state.editingOrganization.description || undefined
+                  }
+                })
+              }
+            }}
+            isSaving={updateMutation.isPending}
+            onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
+          />
+        )}
+
+        {state.deletingOrganization && (
+          <DeleteOrganizationDialog
+            open={!!state.deletingOrganization}
+            onOpenChange={(open: boolean) => !open && closeDialog("deletingOrganization")}
+            organization={state.deletingOrganization}
+            onConfirm={() => {
+              if (state.deletingOrganization) {
+                deleteMutation.mutate(state.deletingOrganization.id)
+              }
+            }}
+            isDeleting={deleteMutation.isPending}
+          />
+        )}
+      </div>
     </div>
-  );
+  )
 }

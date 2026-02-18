@@ -1,4 +1,5 @@
 import { backendUrl } from "@/config";
+import { httpClient } from "@/lib/http-client";
 
 // Types
 export interface LLMProvider {
@@ -52,160 +53,80 @@ export interface CreateLLMRequest {
 
 // LLM Provider Services
 export async function getSupportedProviders(): Promise<SupportedProvidersResponse> {
-    const response = await fetch(`${backendUrl}/llm_provider/supported`);
-    if (!response.ok) {
-        throw new Error('Error al obtener los proveedores soportados');
-    }
+    const response = await httpClient.get(`${backendUrl}/llm_provider/supported`);
     return response.json();
 }
 
 export async function getAllProviders(): Promise<ConfiguredProvidersResponse> {
-    const response = await fetch(`${backendUrl}/llm_provider/`);
-    if (!response.ok) {
-        throw new Error('Error al obtener los proveedores');
-    }
+    const response = await httpClient.get(`${backendUrl}/llm_provider/`);
     return response.json();
 }
 
 export async function createProvider(provider: CreateLLMProviderRequest): Promise<LLMProvider> {
-    const response = await fetch(`${backendUrl}/llm_provider/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(provider),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al crear el proveedor');
-    }
+    const response = await httpClient.post(`${backendUrl}/llm_provider/`, provider);
     const data = await response.json();
     return data.data || data;
 }
 
 export async function getProvider(providerId: string): Promise<LLMProvider> {
-    const response = await fetch(`${backendUrl}/llm_provider/${providerId}`);
-    if (!response.ok) {
-        throw new Error('Error al obtener el proveedor');
-    }
+    const response = await httpClient.get(`${backendUrl}/llm_provider/${providerId}`);
     const data = await response.json();
     return data.data || data;
 }
 
 export async function updateProvider(providerId: string, provider: Partial<CreateLLMProviderRequest>): Promise<LLMProvider> {
-    const response = await fetch(`${backendUrl}/llm_provider/${providerId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(provider),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al actualizar el proveedor');
-    }
+    const response = await httpClient.put(`${backendUrl}/llm_provider/${providerId}`, provider);
     const data = await response.json();
     return data.data || data;
 }
 
 export async function deleteProvider(providerId: string): Promise<void> {
-    const response = await fetch(`${backendUrl}/llm_provider/${providerId}`, {
-        method: 'DELETE',
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al eliminar el proveedor');
-    }
+    await httpClient.delete(`${backendUrl}/llm_provider/${providerId}`);
 }
 
 // LLM Services
 export async function getLLMs(): Promise<LLM[]> {
-    const response = await fetch(`${backendUrl}/llms/`);
-    if (!response.ok) {
-        throw new Error('Error al obtener los LLMs');
-    }
+    const response = await httpClient.get(`${backendUrl}/llms/`);
     const data = await response.json();
     console.log('LLMs fetched:', data.data);
     return data.data || data;
 }
 
 export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {
-    const response = await fetch(`${backendUrl}/llms/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(llm),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al crear el LLM');
-    }
+    const response = await httpClient.post(`${backendUrl}/llms/`, llm);
     const data = await response.json();
     return data.data || data;
 }
 
 export async function updateLLMModel(llmId: string, llm: Partial<CreateLLMRequest>): Promise<LLM> {
-    const response = await fetch(`${backendUrl}/llms/${llmId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(llm),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al actualizar el LLM');
-    }
+    const response = await httpClient.put(`${backendUrl}/llms/${llmId}`, llm);
     const data = await response.json();
     return data.data || data;
 }
 
 export async function deleteLLM(llmId: string): Promise<void> {
-    const response = await fetch(`${backendUrl}/llms/${llmId}`, {
-        method: 'DELETE',
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al eliminar el LLM');
-    }
+    await httpClient.delete(`${backendUrl}/llms/${llmId}`);
 }
 
 export async function setDefaultLLM(llmId: string): Promise<void> {
-    const response = await fetch(`${backendUrl}/llms/set-default`, {
-        method: 'PATCH',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ llm_id: llmId }),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al establecer el LLM por defecto');
-    }
+    await httpClient.patch(`${backendUrl}/llms/${llmId}/set_default`, {});
 }
 
 export async function getDefaultLLM(): Promise<LLM> {
-    const response = await fetch(`${backendUrl}/llms/default`);
-    if (!response.ok) {
-        throw new Error('Error al obtener el LLM por defecto');
-    }
+    const response = await httpClient.get(`${backendUrl}/llms/default`);
     const data = await response.json();
     return data.data || data;
 }
 
 // Legacy function for backward compatibility
 export async function updateExecutionLLM(executionId: string, llmId: string) {
-    const response = await fetch(`${backendUrl}/execution/update_llm/${executionId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ llm_id: llmId }),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error al actualizar el LLM');
-    }
+    const response = await httpClient.put(`${backendUrl}/execution/update_llm/${executionId}`, { llm_id: llmId });
     return response.json();
+}
+
+// Test LLM connection
+export async function testLLMConnection(llmId: string): Promise<{ ok: boolean }> {
+    const response = await httpClient.post(`${backendUrl}/llms/${llmId}/test_connection`, {});
+    const data = await response.json();
+    return data.data || data;
 }
