@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { updateTemplateSection, deleteTemplateSection, updateTemplateSectionsOrder } from "@/services/template_section";
+import { updateTemplateSection, deleteTemplateSection, deleteTemplateSectionWithPropagation, updateTemplateSectionsOrder } from "@/services/template_section";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -45,19 +45,26 @@ export function TemplateSectionsList({
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
-    onError: (error: Error) => {
-      toast.error("Error updating section: " + error.message);
-    },
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (sectionId: string) => deleteTemplateSection(sectionId, organizationId),
-    onSuccess: () => {
-      toast.success("Section deleted successfully");
+    mutationFn: ({
+      sectionId,
+      options,
+    }: {
+      sectionId: string;
+      options?: { propagate_to_documents?: boolean };
+    }) =>
+      options?.propagate_to_documents
+        ? deleteTemplateSectionWithPropagation(sectionId, options, organizationId)
+        : deleteTemplateSection(sectionId, organizationId),
+    onSuccess: (data: any) => {
+      if (data?.propagated && data?.deleted_document_sections_count) {
+        toast.success(`Section deleted and propagated to ${data.deleted_document_sections_count} asset sections`);
+      } else {
+        toast.success("Section deleted successfully");
+      }
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
-    },
-    onError: (error: Error) => {
-      toast.error("Error deleting section: " + error.message);
     },
   });
 
@@ -67,9 +74,6 @@ export function TemplateSectionsList({
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
-    },
-    onError: (error: Error) => {
-      toast.error("Error updating sections order: " + error.message);
     },
   });
 
@@ -153,7 +157,9 @@ export function TemplateSectionsList({
                     onSave={(sectionId: string, sectionData: object) =>
                       updateSectionMutation.mutate({ sectionId, sectionData })
                     }
-                    onDelete={(sectionId: string) => deleteSectionMutation.mutate(sectionId)}
+                    onDelete={async (sectionId: string, options?: { propagate_to_documents?: boolean }) => {
+                      await deleteSectionMutation.mutateAsync({ sectionId, options });
+                    }}
                     isTemplateSection={true}
                     canUpdate={canUpdate}
                     canDelete={canDelete}
@@ -169,7 +175,7 @@ export function TemplateSectionsList({
                   item={activeSection}
                   existingSections={sections}
                   onSave={() => {}}
-                  onDelete={() => {}}
+                  onDelete={async () => {}}
                   isOverlay={true}
                 />
               </div>

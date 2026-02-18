@@ -244,7 +244,7 @@ export function NavKnowledgeHeader() {
   const { fileTreeRef, handleCreateAsset, handleCreateFolder } = useNavKnowledge()
   const { canCreate } = useUserPermissions()
 
-  const canCreateAsset = canCreate('assets')
+  const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
 
@@ -437,7 +437,7 @@ export function NavKnowledgeContent() {
       show: (node) => {
         if (node.type !== "folder") return false
         // Mostrar si tiene permiso global O access_level create
-        return canCreate('assets') || node.access_levels?.includes('create') || false
+        return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
     },
@@ -492,7 +492,7 @@ export function NavKnowledgeContent() {
       show: (node) => {
         if (node.type !== "document") return false
         // Mostrar si tiene permiso global O access_level edit
-        return canUpdate('assets') || node.access_levels?.includes('edit') || false
+        return canUpdate('asset') || node.access_levels?.includes('edit') || false
       },
       variant: "default",
     },
@@ -506,7 +506,7 @@ export function NavKnowledgeContent() {
       show: (node) => {
         if (node.type !== "document") return false
         // Mostrar si tiene permiso global O access_level delete
-        return canDelete('assets') || node.access_levels?.includes('delete') || false
+        return canDelete('asset') || node.access_levels?.includes('delete') || false
       },
       variant: "destructive",
     },

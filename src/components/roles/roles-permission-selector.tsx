@@ -21,10 +21,10 @@ const getCategoryIcon = (category: string) => {
       return Users
     case 'organization':
       return Shield
-    case 'assets':
+    case 'asset':
     case 'folder':
       return Database
-    case 'document_type':
+    case 'asset_type':
     case 'template':
     case 'section':
     case 'docx_template':

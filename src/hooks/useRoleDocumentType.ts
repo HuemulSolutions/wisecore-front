@@ -85,9 +85,6 @@ export function useRoleDocumentTypeMutations() {
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('Access granted successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to grant access: ' + error.message)
-    },
   })
 
   const revokeAccessMutation = useMutation({
@@ -99,9 +96,6 @@ export function useRoleDocumentTypeMutations() {
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('Access revoked successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to revoke access: ' + error.message)
-    },
   })
 
   const updateAccessMutation = useMutation({
@@ -112,9 +106,6 @@ export function useRoleDocumentTypeMutations() {
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('Access updated successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to update access: ' + error.message)
-    },
   })
 
   const bulkGrantAccessMutation = useMutation({
@@ -124,9 +115,6 @@ export function useRoleDocumentTypeMutations() {
       queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
       toast.success('All permissions granted successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to grant permissions: ' + error.message)
     },
   })
 

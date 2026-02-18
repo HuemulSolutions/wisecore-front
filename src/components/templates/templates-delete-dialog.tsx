@@ -30,9 +30,6 @@ export function DeleteTemplateDialog({
       toast.success("Template deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
     },
-    onError: (error: Error) => {
-      toast.error("Error deleting template: " + error.message);
-    },
   });
 
   const handleDelete = async () => {

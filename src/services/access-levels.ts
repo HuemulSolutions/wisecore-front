@@ -11,9 +11,6 @@ export interface AccessLevelsResponse {
  */
 export async function getAccessLevels(): Promise<string[]> {
   const response = await httpClient.get('/api/v1/role-doctype/access-levels')
-  if (!response.ok) {
-    throw new Error('Failed to fetch access levels')
-  }
   const data: AccessLevelsResponse = await response.json()
   return data.data
 }

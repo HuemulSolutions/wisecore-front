@@ -60,7 +60,7 @@ export default function ExecutionConfigDialog({
                 try {
                     const defaultLLM = await getDefaultLLM();
                     setLlmModel(defaultLLM.id);
-                } catch (error) {
+                } catch {
                     // If no default, use first available LLM
                     setLlmModel(llms[0].id);
                 }

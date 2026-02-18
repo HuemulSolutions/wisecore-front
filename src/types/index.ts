@@ -1,4 +1,5 @@
 // Re-export all types from their respective files
+export * from './api-error'
 export * from './assets-types'
 export * from './assets'
 export * from './auth'

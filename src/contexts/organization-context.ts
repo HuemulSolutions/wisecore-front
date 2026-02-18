@@ -1,22 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { httpClient } from '@/lib/http-client';
-
-interface Organization {
-  id: string;
-  name: string;
-  description?: string | null;
-  db_name?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+import type { UserOrganization } from '@/types/users';
 
 interface OrganizationContextType {
   selectedOrganizationId: string | null;
-  organizations: Organization[];
+  organizations: UserOrganization[];
   organizationToken: string | null;
   setSelectedOrganizationId: (id: string) => void;
-  setOrganizations: (organizations: Organization[]) => void;
+  setOrganizations: (organizations: UserOrganization[]) => void;
   setOrganizationToken: (token: string | null) => void;
   isLoading: boolean;
   requiresOrganizationSelection: boolean;
@@ -40,7 +32,7 @@ interface OrganizationProviderProps {
 
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
   const [selectedOrganizationId, setSelectedOrganizationIdState] = useState<string | null>(null);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
   const [organizationToken, setOrganizationTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [requiresOrganizationSelection, setRequiresOrganizationSelection] = useState(false);

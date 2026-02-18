@@ -13,21 +13,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Plus, CheckCircle } from 'lucide-react';
+import { Building2, Plus, CheckCircle, Settings } from 'lucide-react';
 import { getUserOrganizations, generateOrganizationToken, addOrganization } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import ProtectedComponent from '../protected-component';
-
-interface Organization {
-  id: string;
-  name: string;
-  description?: string | null;
-  db_name?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+import type { UserOrganization } from '@/types/users';
 
 interface OrganizationSelectionDialogProps {
   open: boolean;
@@ -40,9 +32,8 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
-  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   
-  const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken } = useOrganization();
+  const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken, setRequiresOrganizationSelection } = useOrganization();
   const { user } = useAuth();
   const { isLoading: permissionsLoading } = useUserPermissions();
   const queryClient = useQueryClient();
@@ -62,6 +53,54 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       setNewOrgName('');
       setNewOrgDescription('');
       setShowCreateForm(false);
+    },
+  });
+
+  const generateTokenMutation = useMutation({
+    mutationFn: generateOrganizationToken,
+    onSuccess: async (tokenResponse, organizationId) => {
+      const orgToken = tokenResponse.token || tokenResponse.data?.token;
+      
+      if (!orgToken) {
+        throw new Error('No token received from server');
+      }
+      
+      // Actualizar el contexto con la nueva organización y token
+      setSelectedOrganizationId(organizationId);
+      setOrganizationToken(orgToken);
+      
+      console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
+      
+      // Esperar un poco para que el contexto se propague completamente
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Invalidar todas las queries que dependen de la organización
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          return Array.isArray(queryKey) && (
+            queryKey.includes('documents') ||
+            queryKey.includes('document-types') ||
+            queryKey.includes('roles') ||
+            queryKey.includes('permissions') ||
+            queryKey.includes('assets') ||
+            queryKey.includes('asset-types') ||
+            queryKey.includes('custom-fields') ||
+            queryKey.includes('users') ||
+            queryKey.includes('knowledge') ||
+            queryKey.includes('library') ||
+            queryKey.some(key => typeof key === 'string' && key.includes('org'))
+          );
+        }
+      });
+      
+      // Cerrar el dialog después de seleccionar la organización
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+      
+      // Redirigir al home después de cambiar la organización
+      navigate('/');
     },
   });
 
@@ -85,68 +124,14 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
     }
   }, [open, preselectedOrganizationId, selectedOrganizationId]);
 
-  const handleSelectOrganization = async (orgId?: string) => {
+  const handleSelectOrganization = (orgId?: string) => {
     const organizationId = orgId || selectedOrgId;
     if (organizationId && user?.id) {
-      setIsGeneratingToken(true);
-      try {
-        // Limpiar estado anterior de la organización
-        setOrganizationToken('');
-        
-        // Generar nuevo token para la organización seleccionada PRIMERO
-        const tokenResponse = await generateOrganizationToken(organizationId);
-        const orgToken = tokenResponse.token || tokenResponse.data?.token;
-        
-        if (!orgToken) {
-          throw new Error('No token received from server');
-        }
-        
-        // Actualizar el contexto con la nueva organización y token
-        setSelectedOrganizationId(organizationId);
-        setOrganizationToken(orgToken);
-        
-        console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
-        
-        // Esperar un poco más para que el contexto se propague completamente
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // SOLO DESPUÉS invalidar todas las queries que dependen de la organización
-        // Ahora que el nuevo token está disponible, las queries se ejecutarán correctamente
-        queryClient.invalidateQueries({ 
-          predicate: (query) => {
-            // Invalidar queries que contengan claves relacionadas con organizaciones
-            const queryKey = query.queryKey;
-            return Array.isArray(queryKey) && (
-              queryKey.includes('documents') ||
-              queryKey.includes('document-types') ||
-              queryKey.includes('roles') ||
-              queryKey.includes('permissions') ||
-              queryKey.includes('assets') ||
-              queryKey.includes('asset-types') ||
-              queryKey.includes('custom-fields') ||
-              queryKey.includes('users') ||
-              queryKey.includes('knowledge') ||
-              queryKey.includes('library') ||
-              queryKey.some(key => typeof key === 'string' && key.includes('org'))
-            );
-          }
-        });
-        
-        // Cerrar el dialog después de seleccionar la organización
-        if (onOpenChange) {
-          onOpenChange(false);
-        }
-        
-        // Redirigir al home después de cambiar la organización
-        navigate('/');
-        
-      } catch (error) {
-        console.error('Error changing organization:', error);
-        // Mantener el estado anterior si hay error
-        // Podrías mostrar un toast de error aquí si tienes configurado
-      } finally {
-        setIsGeneratingToken(false);
-      }
+      // Limpiar estado anterior de la organización
+      setOrganizationToken('');
+      
+      // Generar nuevo token usando mutation
+      generateTokenMutation.mutate(organizationId);
     }
   };
 
@@ -174,11 +159,11 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
             <div className="flex flex-col gap-3 w-full">
               <Button
                 onClick={() => handleSelectOrganization()}
-                disabled={Boolean(!selectedOrgId || isLoading || isGeneratingToken || (organizationToken && permissionsLoading))}
+                disabled={Boolean(!selectedOrgId || isLoading || generateTokenMutation.isPending || (organizationToken && permissionsLoading))}
                 className="w-full bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
-                {isGeneratingToken 
+                {generateTokenMutation.isPending 
                   ? 'Generating token...' 
                   : (organizationToken && permissionsLoading)
                   ? 'Loading permissions...'
@@ -210,6 +195,19 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create New Organization
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRequiresOrganizationSelection(false);
+                    if (onOpenChange) onOpenChange(false);
+                    navigate('/global-admin');
+                  }}
+                  className="w-full hover:cursor-pointer"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Go to Global Admin
                 </Button>
               </ProtectedComponent>
               
@@ -264,13 +262,27 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                 <SelectValue placeholder={isLoading ? "Loading organizations..." : "Select an organization"} />
               </SelectTrigger>
               <SelectContent>
-                {organizationsData?.map((org: Organization) => (
-                  <SelectItem key={org.id} value={org.id} className="hover:cursor-pointer">
+                {organizationsData?.map((org: UserOrganization) => (
+                  <SelectItem 
+                    key={org.id} 
+                    value={org.id} 
+                    className={org.member ? "hover:cursor-pointer" : "opacity-50 cursor-not-allowed"}
+                    disabled={!org.member}
+                  >
                     <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs">
+                      <div className={`flex h-6 w-6 items-center justify-center rounded-md font-semibold text-xs ${
+                        org.member 
+                          ? "bg-[#4464f7] text-white" 
+                          : "bg-gray-300 text-gray-500"
+                      }`}>
                         {org.name.substring(0, 2).toUpperCase()}
                       </div>
-                      {org.name}
+                      <span className={!org.member ? "text-muted-foreground" : ""}>
+                        {org.name}
+                      </span>
+                      {!org.member && (
+                        <span className="text-xs text-muted-foreground ml-auto">(Not a member)</span>
+                      )}
                     </div>
                   </SelectItem>
                 ))}

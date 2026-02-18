@@ -7,8 +7,10 @@ interface ModelsTableProps {
   models: LLM[]
   onEdit: (model: LLM) => void
   onDelete: (model: LLM) => void
+  onTest: (model: LLM) => void
   onDefaultChange: (llmId: string, isDefault: boolean) => void
   isDeleting: boolean
+  testingModelId: string | null
   openDropdowns: {[key: string]: boolean}
   onDropdownChange: (key: string, open: boolean) => void
   canUpdate: boolean
@@ -19,8 +21,10 @@ export function ModelsTable({
   models, 
   onEdit, 
   onDelete, 
+  onTest,
   onDefaultChange, 
   isDeleting,
+  testingModelId,
   openDropdowns,
   onDropdownChange,
   canUpdate,
@@ -42,9 +46,7 @@ export function ModelsTable({
             <TableHead className="text-foreground font-medium text-xs py-2">Display Name</TableHead>
             <TableHead className="text-foreground font-medium text-xs py-2">Technical Name</TableHead>
             <TableHead className="text-foreground font-medium text-xs py-2">Default</TableHead>
-            {(canUpdate || canDelete) && (
-              <TableHead className="text-right text-foreground font-medium text-xs py-2">Actions</TableHead>
-            )}
+            <TableHead className="text-right text-foreground font-medium text-xs py-2">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -63,22 +65,22 @@ export function ModelsTable({
                   className="scale-90"
                 />
               </TableCell>
-              {(canUpdate || canDelete) && (
-                <TableCell className="text-right py-2">
-                  <div className="flex justify-end gap-0.5">
-                    <ModelActions
-                      model={model}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      isDeleting={isDeleting}
-                      dropdownOpen={openDropdowns[`model-${model.id}`] || false}
-                      onDropdownChange={(open) => onDropdownChange(`model-${model.id}`, open)}
-                      canUpdate={canUpdate}
-                      canDelete={canDelete}
-                    />
-                  </div>
-                </TableCell>
-              )}
+              <TableCell className="text-right py-2">
+                <div className="flex justify-end gap-0.5">
+                  <ModelActions
+                    model={model}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onTest={onTest}
+                    isDeleting={isDeleting}
+                    isTesting={testingModelId === model.id}
+                    dropdownOpen={openDropdowns[`model-${model.id}`] || false}
+                    onDropdownChange={(open) => onDropdownChange(`model-${model.id}`, open)}
+                    canUpdate={canUpdate}
+                    canDelete={canDelete}
+                  />
+                </div>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

@@ -7,11 +7,15 @@ import UserFormFields from "@/components/users/users-form-fields"
 interface CreateUserDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
+  addToOrganization?: boolean
 }
 
 export default function CreateUserDialog({ 
   open, 
-  onOpenChange 
+  onOpenChange,
+  onSuccess,
+  addToOrganization
 }: CreateUserDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -75,7 +79,8 @@ export default function CreateUserDialog({
 
       // Clear previous error
       setErrors(prev => {
-        const { photo_file, ...rest } = prev
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { photo_file: _, ...rest } = prev
         return rest
       })
 
@@ -104,12 +109,14 @@ export default function CreateUserDialog({
       email: formData.email.trim(),
       ...(formData.birth_day && { birth_day: parseInt(formData.birth_day) }),
       ...(formData.birth_month && { birth_month: parseInt(formData.birth_month) }),
-      ...(formData.photo_file && { photo_file: formData.photo_file })
+      ...(formData.photo_file && { photo_file: formData.photo_file }),
+      ...(addToOrganization === false && { add_to_organization: false })
     }
 
     createUser.mutate(submissionData, {
       onSuccess: () => {
         onOpenChange(false)
+        onSuccess?.()
       }
     })
   }

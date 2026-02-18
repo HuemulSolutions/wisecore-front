@@ -31,6 +31,7 @@ interface SectionItem {
   order: number;
   dependencies: { id: string; name: string }[];
   referenced_document_id?: string;
+  template_section_id?: string;
 }
 
 interface SectionFormProps {
@@ -85,6 +86,7 @@ export function SectionForm({
   const [isGenerating, setIsGenerating] = useState(false);
   const [propagateToTemplate, setPropagateToTemplate] = useState(false);
   const [propagatePrompt, setPropagatePrompt] = useState(false);
+  const [propagateToAssets, setPropagateToAssets] = useState(false);
   
   // Estados para Reference Type con FileTree
   const [selectedAsset, setSelectedAsset] = useState<{ id: string; name: string } | null>(null);
@@ -318,7 +320,11 @@ export function SectionForm({
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
         if (manualInput.trim()) {
-          submitData.manual_input = manualInput.trim();
+          if (templateId) {
+            submitData.manual_input = manualInput.trim();
+          } else {
+            submitData.output = manualInput.trim();
+          }
         }
       } else if (type === "reference") {
         submitData.reference_section_id = referenceSectionId;
@@ -330,6 +336,9 @@ export function SectionForm({
 
       if (templateId) {
         submitData.template_id = templateId;
+        if (propagateToAssets) {
+          submitData.propagate_to_documents = true;
+        }
       } else if (documentId) {
         submitData.document_id = documentId;
       }
@@ -350,7 +359,11 @@ export function SectionForm({
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
         if (manualInput.trim()) {
-          submitData.manual_input = manualInput.trim();
+          if (isTemplateSection) {
+            submitData.manual_input = manualInput.trim();
+          } else {
+            submitData.output = manualInput.trim();
+          }
         }
       } else if (type === "reference") {
         submitData.reference_section_id = referenceSectionId;
@@ -393,7 +406,7 @@ export function SectionForm({
     if (type === "ai") {
       return prompt.trim().length > 0;
     } else if (type === "manual") {
-      return true; // manual_input es opcional
+      return true;
     } else if (type === "reference") {
       if (!referenceSectionId || !referenceMode) return false;
       if (referenceMode === "specific" && !referenceExecutionId) return false;
@@ -412,6 +425,9 @@ export function SectionForm({
     onGeneratingChange?.(isGenerating);
   }, [isGenerating, onGeneratingChange]);
 
+  // Detectar si la sección viene de un template
+  const isFromTemplate = mode === 'edit' && item && !!item.template_section_id;
+
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       {/* Section Name */}
@@ -424,11 +440,16 @@ export function SectionForm({
           placeholder="Enter section name (e.g., Purpose, Scope, Procedure)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          disabled={isPending}
+          disabled={isPending || isFromTemplate}
           autoFocus={mode === 'create'}
           autoComplete="off"
           className="text-sm"
         />
+        {isFromTemplate && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            This section name comes from the template and cannot be modified
+          </p>
+        )}
       </div>
 
       {/* Section Type */}
@@ -818,6 +839,24 @@ export function SectionForm({
             className="text-xs font-medium text-gray-700 hover:cursor-pointer"
           >
             Propagate changes to template
+          </Label>
+        </div>
+      )}
+
+      {/* Propagate to Assets - Solo mostrar en modo create cuando es template */}
+      {mode === 'create' && templateId && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="propagate-to-assets"
+            checked={propagateToAssets}
+            onCheckedChange={(checked) => setPropagateToAssets(checked as boolean)}
+            disabled={isPending}
+          />
+          <Label
+            htmlFor="propagate-to-assets"
+            className="text-xs font-medium text-gray-700 hover:cursor-pointer"
+          >
+            Propagate section to all related assets
           </Label>
         </div>
       )}

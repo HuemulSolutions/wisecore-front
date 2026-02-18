@@ -41,10 +41,6 @@ export default function EditFolder({
       onFolderEdited?.()
       onOpenChange(false)
     },
-    onError: (error) => {
-      console.error('Error editing folder:', error)
-      toast.error("Failed to rename folder. Please try again.")
-    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {

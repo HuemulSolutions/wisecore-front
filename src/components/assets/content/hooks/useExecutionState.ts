@@ -22,8 +22,7 @@ export function useExecutionState({
   documentContent,
   documentExecutions,
   selectedExecutionId,
-  // setSelectedExecutionId is intentionally unused internally
-  // It's part of the interface for external state management
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setSelectedExecutionId: _setSelectedExecutionId,
 }: UseExecutionStateProps) {
   // State for tracking current execution for polling

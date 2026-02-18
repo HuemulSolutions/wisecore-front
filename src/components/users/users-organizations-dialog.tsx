@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building, Plus, Trash2 } from "lucide-react"
 import { useUserOrganizations } from "@/hooks/useUsers"
-import { type User } from "@/types/users"
-import { getAllOrganizations } from "@/services/organizations"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { type User, type UserOrganization } from "@/types/users"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
+import { getAllOrganizations } from "@/services/organizations"
+import { type Organization } from "@/components/organization"
 import { toast } from "sonner"
 
 interface UserOrganizationsDialogProps {
@@ -25,27 +26,16 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   const [orgToRemove, setOrgToRemove] = useState<{ id: string; name: string } | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: organizationsResponse, isLoading, error } = useUserOrganizations(user?.id)
-  const { data: allOrganizations } = useQuery({
-    queryKey: ['organizations', 'all'],
-    queryFn: async () => {
-      const pageSize = 1000
-      const maxPages = 100
-      let page = 1
-      let hasNext = true
-      let allOrgs: any[] = []
-
-      while (hasNext && page <= maxPages) {
-        const response = await getAllOrganizations(page, pageSize)
-        allOrgs = allOrgs.concat(response?.data || [])
-        hasNext = !!response?.has_next
-        page += 1
-      }
-
-      return { data: allOrgs }
-    },
-    enabled: open,
+  const { data: organizationsResponse, isLoading: isLoadingUserOrgs, error } = useUserOrganizations(user?.id)
+  
+  // Fetch all organizations to show available ones for assignment
+  const { data: allOrgsResponse, isLoading: isLoadingAllOrgs } = useQuery({
+    queryKey: ['organizations', 'all-for-assignment'],
+    queryFn: () => getAllOrganizations(1, 1000),
+    enabled: !!user,
   })
+
+  const isLoading = isLoadingUserOrgs || isLoadingAllOrgs
 
   const assignMutation = useMutation({
     mutationFn: (organizationId: string) => 
@@ -54,9 +44,6 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
       toast.success('User assigned to organization successfully')
       setSelectedOrganizationId("")
-    },
-    onError: (error) => {
-      toast.error('Failed to assign user to organization: ' + error.message)
     },
   })
 
@@ -68,16 +55,22 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
       toast.success('User removed from organization successfully')
       setOrgToRemove(null)
     },
-    onError: (error) => {
-      toast.error('Failed to remove user from organization: ' + error.message)
-    },
   })
 
   if (!user) return null
 
-  const organizations = organizationsResponse?.data || []
-  const availableOrganizations = (allOrganizations?.data || []).filter(
-    (org: any) => !organizations.find(userOrg => userOrg.id === org.id)
+  const userOrganizations = organizationsResponse?.data || []
+  const allOrganizations = (allOrgsResponse?.data || []) as Organization[]
+  
+  // Organizations where the user is a member
+  const memberOrganizations = userOrganizations.filter((org: UserOrganization) => org.member)
+  
+  // IDs of organizations where user is already a member
+  const memberOrgIds = new Set(memberOrganizations.map((org: UserOrganization) => org.id))
+  
+  // Organizations available for assignment (those where user is NOT a member)
+  const availableOrganizations = allOrganizations.filter(
+    (org: Organization) => !memberOrgIds.has(org.id)
   )
 
   return (
@@ -103,7 +96,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                     <SelectValue placeholder="Select organization..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableOrganizations.map((org: any) => (
+                    {availableOrganizations.map((org: Organization) => (
                       <SelectItem key={org.id} value={org.id}>
                         {org.name}
                       </SelectItem>
@@ -141,9 +134,9 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                 Failed to load organizations: {error.message}
               </div>
             </div>
-          ) : organizations && organizations.length > 0 ? (
+          ) : memberOrganizations.length > 0 ? (
             <div className="space-y-3">
-              {organizations.map((org) => (
+              {memberOrganizations.map((org: UserOrganization) => (
                 <div key={org.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition">
                   <div className="space-y-1">
                     <div className="font-medium text-foreground">{org.name}</div>

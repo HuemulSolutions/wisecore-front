@@ -15,6 +15,8 @@ export async function createTemplateSection(
         reference_execution_id?: string;
         dependencies?: string[]; 
         type?: "ai" | "manual" | "reference";
+        propagate_to_documents?: boolean;
+        document_ids?: string[];
     }, 
     organizationId: string
 ) {
@@ -26,12 +28,6 @@ export async function createTemplateSection(
             'X-Org-Id': organizationId,
         },
     });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error creating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
 
     const data = await response.json();
     console.log('Section created:', data.data);
@@ -59,11 +55,6 @@ export async function updateTemplateSection(
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error updating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
     const data = await response.json();
     console.log('Section updated:', data.data);
     return data.data;
@@ -76,11 +67,26 @@ export async function deleteTemplateSection(sectionId: string, organizationId: s
         },
     });
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error deleting section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
+    const data = await response.json();
+    console.log('Section deleted:', data);
+    return data;
+}
+
+export async function deleteTemplateSectionWithPropagation(
+    sectionId: string,
+    payload: {
+        propagate_to_documents?: boolean;
+        document_ids?: string[];
+    },
+    organizationId: string
+) {
+    const response = await httpClient.fetch(`${backendUrl}/template_section/${sectionId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+        body: JSON.stringify(payload),
+    });
 
     const data = await response.json();
     console.log('Section deleted:', data);
@@ -94,10 +100,6 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
             'X-Org-Id': organizationId,
         },
     });
-
-    if (!response.ok) {
-        throw new Error('Error al actualizar el orden de las secciones');
-    }
 
     const data = await response.json();
     console.log('Sections order updated:', data.data);

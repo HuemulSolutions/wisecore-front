@@ -36,10 +36,10 @@ export default function AssetTypesPage() {
   const queryClient = useQueryClient()
   
   // Permisos específicos
-  const canListDocumentTypes = isRootAdmin || hasAnyPermission(['document_type:l', 'document_type:r'])
-  const canCreateDocumentType = isRootAdmin || hasPermission('document_type:c')
-  const canUpdateDocumentType = isRootAdmin || hasPermission('document_type:u')
-  const canDeleteDocumentType = isRootAdmin || hasPermission('document_type:d')
+  const canListDocumentTypes = isRootAdmin || hasAnyPermission(['asset_type:l', 'asset_type:r'])
+  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
+  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
+  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
   
   // Fetch asset types and mutations - solo si tiene permisos
   const { data: assetTypesResponse, isLoading, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes)

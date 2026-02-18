@@ -19,8 +19,8 @@ export function useExecutionsByDocumentId(documentId: string, organizationId: st
         // Poll every 45 seconds if there are running executions, otherwise don't poll
         // Las ejecuciones cambian menos frecuentemente que el contenido
         return hasRunningExecution ? 45000 : false;
-      } catch (error) {
-        console.error('Error in refetchInterval for executions:', error);
+      } catch {
+        console.error('Error in refetchInterval for executions');
         return false; // Stop polling on error
       }
     },
@@ -32,7 +32,7 @@ export function useExecutionsByDocumentId(documentId: string, organizationId: st
         return executions.some((execution: any) => 
           ['running', 'pending', 'queued'].includes(execution.status)
         );
-      } catch (error) {
+      } catch {
         return false;
       }
     },

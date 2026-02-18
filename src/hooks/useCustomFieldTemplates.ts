@@ -74,9 +74,6 @@ export function useCustomFieldTemplateMutations() {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
       toast.success('Custom field template created successfully')
     },
-    onError: (error) => {
-      toast.error(`Failed to create custom field template: ${error.message}`)
-    },
   })
 
   const updateMutation = useMutation({
@@ -86,9 +83,6 @@ export function useCustomFieldTemplateMutations() {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
       toast.success('Custom field template updated successfully')
     },
-    onError: (error) => {
-      toast.error(`Failed to update custom field template: ${error.message}`)
-    },
   })
 
   const deleteMutation = useMutation({
@@ -96,9 +90,6 @@ export function useCustomFieldTemplateMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
       toast.success('Custom field template deleted successfully')
-    },
-    onError: (error) => {
-      toast.error(`Failed to delete custom field template: ${error.message}`)
     },
   })
 
@@ -110,9 +101,6 @@ export function useCustomFieldTemplateMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
       toast.success('Image uploaded successfully')
-    },
-    onError: (error) => {
-      toast.error(`Failed to upload image: ${error.message}`)
     },
   })
 

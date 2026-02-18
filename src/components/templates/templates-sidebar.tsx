@@ -70,9 +70,6 @@ export function TemplatesSidebar({
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
       toast.success("Template deleted successfully");
     },
-    onError: (error: Error) => {
-      toast.error("Error deleting template: " + error.message);
-    },
   });
 
   // Manejar eliminación de template

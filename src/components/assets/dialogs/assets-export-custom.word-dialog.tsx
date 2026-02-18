@@ -52,9 +52,6 @@ export function CustomWordExportDialog({
         fileInputRef.current.value = '';
       }
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error uploading Word template');
-    },
     onSettled: () => {
       setIsUploading(false);
     }
@@ -72,9 +69,6 @@ export function CustomWordExportDialog({
       toast.success('Document exported successfully');
       onOpenChange(false);
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error exporting to custom Word');
-    }
   });
 
   const handleFileSelect = () => {

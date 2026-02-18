@@ -5,8 +5,9 @@ export async function createSection(
     sectionData: { 
         name: string; 
         document_id: string;
+        execution_id?: string;
         prompt?: string; 
-        manual_input?: string;
+        output?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
@@ -24,12 +25,6 @@ export async function createSection(
         },
     });
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error creating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
     const data = await response.json();
     console.log('Section created:', data.data);
     return data.data;
@@ -41,7 +36,7 @@ export async function updateSection(
         name?: string; 
         type?: "ai" | "manual" | "reference";
         prompt?: string; 
-        manual_input?: string;
+        output?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
@@ -56,11 +51,6 @@ export async function updateSection(
         },
     });
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error updating section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
     const data = await response.json();
     console.log('Section updated:', data.data);
     return data.data;
@@ -74,29 +64,28 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
         },
     });
 
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error updating sections order:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
-
     const data = await response.json();
     console.log('Sections reordered:', data.data);
     return data.data;
 }
 
-export async function deleteSection(sectionId: string, organizationId: string) {
-    const response = await httpClient.delete(`${backendUrl}/sections/${sectionId}`, {
+export async function deleteSection(
+    sectionId: string,
+    organizationId: string,
+    options?: { executionId?: string }
+) {
+    const params = new URLSearchParams();
+    if (options?.executionId) {
+        params.append('execution_id', options.executionId);
+    }
+
+    const url = `${backendUrl}/sections/${sectionId}${params.toString() ? `?${params.toString()}` : ''}`;
+
+    await httpClient.delete(url, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error deleting section:', errorResponse);
-        throw new Error(errorResponse.detail.error || 'Unknown error');
-    }
 
     console.log('Section deleted:', sectionId);
     return sectionId;
@@ -119,12 +108,6 @@ export async function getSectionContent(
             'X-Org-Id': organizationId,
         },
     });
-
-    if (!response.ok) {
-        const errorResponse = await response.json();
-        console.error('Error getting section content:', errorResponse);
-        throw new Error(errorResponse.detail?.error || 'Error loading section content');
-    }
 
     const data = await response.json();
     return data.data;

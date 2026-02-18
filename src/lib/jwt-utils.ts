@@ -16,19 +16,19 @@ export interface OrganizationTokenPayload {
   roles: string[];
   permissions: string[];
   is_root_admin: boolean;
+  is_org_admin: boolean;
   exp: number;
 }
 
 // Tipos de permisos disponibles
-export type PermissionAction = 'c' | 'r' | 'u' | 'd' | 'l' | 'manage';
+export type PermissionAction = 'c' | 'r' | 'u' | 'd' | 'l';
 export type PermissionResource = 
   | 'organization'
   | 'user'
-  | 'assets'
   | 'asset'
   | 'folder'
   | 'context'
-  | 'document_type'
+  | 'asset_type'
   | 'docx_template'
   | 'template'
   | 'template_section'
@@ -127,6 +127,14 @@ export function isRootAdmin(): boolean {
 }
 
 /**
+ * Verifica si el usuario es admin de la organización actual
+ */
+export function isOrgAdmin(): boolean {
+  const orgInfo = getOrganizationTokenInfo();
+  return orgInfo?.is_org_admin || false;
+}
+
+/**
  * Obtiene todos los permisos del usuario actual
  */
 export function getUserPermissions(): string[] {
@@ -209,6 +217,7 @@ export function getCurrentUserInfo() {
       loginInfo,
       orgInfo,
       isRootAdmin: isRootAdmin(),
+      isOrgAdmin: isOrgAdmin(),
       permissions: getUserPermissions(),
       roles: getUserRoles(),
       isAuthenticated: !!loginInfo,
@@ -220,6 +229,7 @@ export function getCurrentUserInfo() {
       loginInfo: null,
       orgInfo: null,
       isRootAdmin: false,
+      isOrgAdmin: false,
       permissions: [],
       roles: [],
       isAuthenticated: false,

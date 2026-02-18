@@ -59,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
   const isMobile = useIsMobile()
   const {
-    isRootAdmin,
+    isOrgAdmin,
     canAccessAssets,
     canAccessTemplates,
     isLoading: permissionsLoading,
@@ -130,11 +130,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       switch (item.title) {
         case "Assets":
           // Mostrar Assets si tiene cualquier permiso relacionado con assets
-          shouldShowItem = canAccessAssets || isRootAdmin;
+          shouldShowItem = canAccessAssets || isOrgAdmin;
           break;
         case "Templates":
           // Mostrar Templates si tiene cualquier permiso relacionado con templates
-          shouldShowItem = canAccessTemplates || isRootAdmin;
+          shouldShowItem = canAccessTemplates || isOrgAdmin;
           break;
         default:
           // Home y Search son accesibles para todos los usuarios autenticados
@@ -147,7 +147,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     menuReady,
     canAccessAssets,
     canAccessTemplates,
-    isRootAdmin
+    isOrgAdmin
   ])
 
   return (

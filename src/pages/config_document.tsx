@@ -46,10 +46,6 @@ export default function ConfigDocumentPage() {
       queryClient.invalidateQueries({ queryKey: ["document", id] });
       setIsAddingSection(false);
     },
-    onError: (error) => {
-      console.error("Error creating section:", error);
-      toast.error("Error creating section: " + (error as Error).message);
-    },
   });
 
   const updateSectionMutation = useMutation({
@@ -59,10 +55,6 @@ export default function ConfigDocumentPage() {
       toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
-    onError: (error) => {
-      console.error("Error updating section:", error);
-      toast.error("Error updating section: " + (error as Error).message);
-    },
   });
 
   const deleteSectionMutation = useMutation({
@@ -71,10 +63,6 @@ export default function ConfigDocumentPage() {
       toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
-    onError: (error) => {
-      console.error("Error deleting section:", error);
-      toast.error("Error deleting section: " + (error as Error).message);
-    },
   });
 
   const reorderSectionsMutation = useMutation({
@@ -82,10 +70,6 @@ export default function ConfigDocumentPage() {
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
-    },
-    onError: (error) => {
-      console.error("Error updating sections order:", error);
-      toast.error("Error updating sections order: " + (error as Error).message);
     },
   });
 
@@ -96,10 +80,6 @@ export default function ConfigDocumentPage() {
       toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
-    onError: (error) => {
-      console.error("Error generating sections with AI:", error);
-      toast.error("Error generating sections with AI: " + (error as Error).message);
-    }
   });
 
   // Sincroniza estado local cuando cambien las secciones del documento

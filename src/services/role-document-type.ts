@@ -37,6 +37,7 @@ export interface RoleDocumentTypePermission {
   access_levels?: string[]; // Array for creating new permissions
   role_name?: string;
   document_type_name?: string;
+  document_type_color?: string;
 }
 
 export interface AccessLevelResponse {
@@ -52,6 +53,28 @@ export interface AccessLevelResponse {
 export interface RoleDocumentTypesResponse {
   data: RoleDocumentTypePermission[];
   transaction_id: string;
+  timestamp: string;
+}
+
+// Document type with access info for current user
+export interface DocumentTypeWithInfo {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  role_count: number;
+  access_level: string[];  // List of permissions: ['read', 'edit', 'create', 'delete', 'approve']
+}
+
+export interface DocumentTypesWithInfoResponse {
+  data: DocumentTypeWithInfo[];
+  transaction_id: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
   timestamp: string;
 }
 
@@ -79,10 +102,6 @@ export const getAccessLevels = async (): Promise<AccessLevelsResponse> => {
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch access levels');
-  }
-  
   return response.json();
 };
 
@@ -92,10 +111,6 @@ export const getAccessLevel = async (roleId: string, documentTypeId: string): Pr
     method: 'GET',
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch access level');
-  }
   
   return response.json();
 };
@@ -107,10 +122,6 @@ export const getRolePermissions = async (roleId: string): Promise<RoleDocumentTy
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch role permissions');
-  }
-  
   return response.json();
 };
 
@@ -120,10 +131,6 @@ export const getDocumentTypePermissions = async (documentTypeId: string): Promis
     method: 'GET',
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch asset type permissions');
-  }
   
   return response.json();
 };
@@ -135,16 +142,12 @@ export const getDocumentTypeRolesAccessLevels = async (documentTypeId: string): 
     headers: getHeaders(),
   });
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch document type roles and access levels');
-  }
-  
   return response.json();
 };
 
 // Grant access (assign role permissions to document type)
 export const grantAccess = async (data: RoleDocumentTypePermission): Promise<void> => {
-  const response = await httpClient.fetch(`${backendUrl}/role-doctype`, {
+  await httpClient.fetch(`${backendUrl}/role-doctype`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -152,27 +155,19 @@ export const grantAccess = async (data: RoleDocumentTypePermission): Promise<voi
     },
     body: JSON.stringify(data),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to grant access');
-  }
 };
 
 // Revoke access
 export const revokeAccess = async (roleId: string, documentTypeId: string): Promise<void> => {
-  const response = await httpClient.fetch(`${backendUrl}/role-doctype?role_id=${roleId}&document_type_id=${documentTypeId}`, {
+  await httpClient.fetch(`${backendUrl}/role-doctype?role_id=${roleId}&document_type_id=${documentTypeId}`, {
     method: 'DELETE',
     headers: getHeaders(),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to revoke access');
-  }
 };
 
 // Update access level
 export const updateAccess = async (roleDocTypeId: string, accessLevel: string): Promise<void> => {
-  const response = await httpClient.fetch(`${backendUrl}/role-doctype/${roleDocTypeId}`, {
+  await httpClient.fetch(`${backendUrl}/role-doctype/${roleDocTypeId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -182,10 +177,6 @@ export const updateAccess = async (roleDocTypeId: string, accessLevel: string): 
       access_level: accessLevel,
     }),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to update access');
-  }
 };
 
 // Bulk grant access using the /api/v1/role-doctype/bulk endpoint
@@ -196,7 +187,7 @@ export const bulkGrantAccess = async (data: {
     access_levels: string[];
   }>;
 }): Promise<void> => {
-  const response = await httpClient.fetch(`${backendUrl}/role-doctype/bulk`, {
+  await httpClient.fetch(`${backendUrl}/role-doctype/bulk`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -204,11 +195,29 @@ export const bulkGrantAccess = async (data: {
     },
     body: JSON.stringify(data),
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to grant bulk access');
-  }
 };
 
 // Legacy function name for backward compatibility
 export const assignRoleDocumentTypePermissions = grantAccess;
+
+// Get all document types with access info for current user
+// This endpoint handles both admin and regular users - backend filters based on token
+export const getDocumentTypesWithInfo = async (
+  page: number = 1,
+  pageSize: number = 100
+): Promise<DocumentTypesWithInfoResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+
+  const response = await httpClient.fetch(
+    `${backendUrl}/role-doctype/document_types/list_with_info?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: getHeaders(),
+    }
+  );
+
+  return response.json();
+};

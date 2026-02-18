@@ -59,9 +59,6 @@ export function useAuthTypeMutations() {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
       toast.success('Authentication type created successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to create authentication type: ' + error.message)
-    },
   })
 
   const updateAuthTypeMutation = useMutation({
@@ -71,9 +68,6 @@ export function useAuthTypeMutations() {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
       toast.success('Authentication type updated successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to update authentication type: ' + error.message)
-    },
   })
 
   const deleteAuthTypeMutation = useMutation({
@@ -81,9 +75,6 @@ export function useAuthTypeMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authTypeQueryKeys.list() })
       toast.success('Authentication type deleted successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to delete authentication type: ' + error.message)
     },
   })
 

@@ -12,13 +12,22 @@ import {
   createLLM, 
   updateLLMModel, 
   deleteLLM, 
-  setDefaultLLM 
+  setDefaultLLM,
+  testLLMConnection
 } from '@/services/llms'
+import {
+  getSupportedEmbeddingProviders,
+  getEmbeddingProvider,
+  createEmbeddingProvider,
+  updateEmbeddingProvider,
+  deleteEmbeddingProvider,
+} from '@/services/embedding-provider'
 import { 
   ModelsHeader,
   ModelsLoadingState, 
   ModelsContentEmptyState,
   ProviderCard,
+  EmbeddingProviderCard,
   EditProviderDialog,
   ModelDialog,
   DeleteProviderDialog,
@@ -31,7 +40,7 @@ export default function Models() {
   const { 
     hasPermission, 
     hasAnyPermission,
-    isRootAdmin,
+    isOrgAdmin,
     isLoading: isLoadingPermissions 
   } = useUserPermissions()
   
@@ -47,16 +56,21 @@ export default function Models() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDeletingModel, setIsDeletingModel] = useState(false)
   const [isDeletingProvider, setIsDeletingProvider] = useState(false)
+  const [testingModelId, setTestingModelId] = useState<string | null>(null)
+  const [openEmbeddingProviders, setOpenEmbeddingProviders] = useState<string[]>([])
+  const [editingEmbeddingProvider, setEditingEmbeddingProvider] = useState<any>(null)
+  const [deletingEmbeddingProvider, setDeletingEmbeddingProvider] = useState<any>(null)
+  const [isDeletingEmbeddingProvider, setIsDeletingEmbeddingProvider] = useState(false)
 
   // Verificar permisos
-  const canListProviders = isRootAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
-  const canCreateProvider = isRootAdmin || hasPermission('llm_provider:c')
-  const canUpdateProvider = isRootAdmin || hasPermission('llm_provider:u')
-  const canDeleteProvider = isRootAdmin || hasPermission('llm_provider:d')
-  const canListModels = isRootAdmin || hasAnyPermission(['llm:l', 'llm:r'])
-  const canCreateModel = isRootAdmin || hasPermission('llm:c')
-  const canUpdateModel = isRootAdmin || hasPermission('llm:u')
-  const canDeleteModel = isRootAdmin || hasPermission('llm:d')
+  const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
+  const canCreateProvider = isOrgAdmin || hasPermission('llm_provider:c')
+  const canUpdateProvider = isOrgAdmin || hasPermission('llm_provider:u')
+  const canDeleteProvider = isOrgAdmin || hasPermission('llm_provider:d')
+  const canListModels = isOrgAdmin || hasAnyPermission(['llm:l', 'llm:r'])
+  const canCreateModel = isOrgAdmin || hasPermission('llm:c')
+  const canUpdateModel = isOrgAdmin || hasPermission('llm:u')
+  const canDeleteModel = isOrgAdmin || hasPermission('llm:d')
 
   // Queries
   const { data: supportedResponse, isLoading: loadingSupportedProviders, error: errorSupportedProviders } = useQuery({
@@ -73,8 +87,24 @@ export default function Models() {
     enabled: canListModels && openProviders.length > 0, // Solo cargar cuando hay providers abiertos y tiene permisos
   })
 
+  const { data: embeddingSupportedResponse, error: errorEmbeddingSupportedProviders } = useQuery({
+    queryKey: ['embeddingSupportedProviders'],
+    queryFn: () => getSupportedEmbeddingProviders(1, 1000),
+    retry: 0,
+    enabled: canListProviders,
+  })
+
+  const { data: embeddingProviderResponse, error: errorEmbeddingProvider } = useQuery({
+    queryKey: ['embeddingProvider'],
+    queryFn: getEmbeddingProvider,
+    retry: 0,
+    enabled: canListProviders,
+  })
+
   // Extract data from wrapped responses
   const supportedProviders = supportedResponse?.data || []
+  const embeddingSupportedProviders = embeddingSupportedResponse?.data || []
+  const configuredEmbeddingProvider = embeddingProviderResponse?.data || null
 
   // Mutations
   const createProviderMutation = useMutation({
@@ -84,9 +114,6 @@ export default function Models() {
       setEditingProvider(null)
       toast.success('Provider configured successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to configure provider: ${error.message}`)
-    }
   })
 
   const updateProviderMutation = useMutation({
@@ -96,9 +123,6 @@ export default function Models() {
       setEditingProvider(null)
       toast.success('Provider updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to update provider: ${error.message}`)
-    }
   })
 
   const deleteProviderMutation = useMutation({
@@ -108,9 +132,6 @@ export default function Models() {
       setDeletingProvider(null)
       toast.success('Provider deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to delete provider: ${error.message}`)
-    }
   })
 
   const createLLMMutation = useMutation({
@@ -120,9 +141,6 @@ export default function Models() {
       setIsCreateModelOpen(false)
       toast.success('Model created successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to create model: ${error.message}`)
-    }
   })
 
   const updateLLMMutation = useMutation({
@@ -132,9 +150,6 @@ export default function Models() {
       setEditingModel(null)
       toast.success('Model updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to update model: ${error.message}`)
-    }
   })
 
   const deleteLLMMutation = useMutation({
@@ -144,9 +159,6 @@ export default function Models() {
       setDeletingModel(null)
       toast.success('Model deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to delete model: ${error.message}`)
-    }
   })
 
   const setDefaultMutation = useMutation({
@@ -155,9 +167,46 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       toast.success('Default model updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(`Failed to set default model: ${error.message}`)
-    }
+  })
+
+  const testLLMConnectionMutation = useMutation({
+    mutationFn: testLLMConnection,
+    onSuccess: () => {
+      toast.success('Connection successful')
+    },
+    onSettled: () => {
+      setTestingModelId(null)
+    },
+  })
+
+  const createEmbeddingProviderMutation = useMutation({
+    mutationFn: createEmbeddingProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
+      setEditingEmbeddingProvider(null)
+      toast.success('Embeddings provider configured successfully')
+    },
+  })
+
+  const updateEmbeddingProviderMutation = useMutation({
+    mutationFn: updateEmbeddingProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
+      setEditingEmbeddingProvider(null)
+      toast.success('Embeddings provider updated successfully')
+    },
+  })
+
+  const deleteEmbeddingProviderMutation = useMutation({
+    mutationFn: deleteEmbeddingProvider,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
+      setDeletingEmbeddingProvider(null)
+      toast.success('Embeddings provider deleted successfully')
+    },
   })
 
   // Process supported providers with configured_id
@@ -168,6 +217,41 @@ export default function Models() {
       id: isConfigured ? provider.configured_id : `unconfigured-${provider.name}`,
       display_name: provider.display,
       isConfigured
+    }
+  })
+
+  const getEmbeddingRequiredFields = (providerName: string) => {
+    if (providerName === 'azure_openai') {
+      return {
+        api_key: true,
+        endpoint: true,
+        deployment: true,
+      }
+    }
+
+    return {
+      api_key: true,
+      endpoint: false,
+      deployment: false,
+    }
+  }
+
+  const combinedEmbeddingProviders = (embeddingSupportedProviders as any[]).map((provider) => {
+    const requiredFields = getEmbeddingRequiredFields(provider.name)
+    const isActiveConfiguredProvider = configuredEmbeddingProvider?.name === provider.name
+
+    return {
+      ...provider,
+      id: `embedding-${provider.name}`,
+      display_name: provider.display,
+      isConfigured: provider.is_configured === true,
+      providerKey: provider.name,
+      api_key: requiredFields.api_key,
+      endpoint: requiredFields.endpoint,
+      deployment: requiredFields.deployment,
+      key: isActiveConfiguredProvider ? configuredEmbeddingProvider?.key : undefined,
+      endpointValue: isActiveConfiguredProvider ? configuredEmbeddingProvider?.endpoint : undefined,
+      deploymentValue: isActiveConfiguredProvider ? configuredEmbeddingProvider?.deployment : undefined,
     }
   })
 
@@ -280,6 +364,13 @@ export default function Models() {
     }
   }
 
+  const handleTestModel = (model: LLM) => {
+    // Close dropdown after opening test
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    setTestingModelId(model.id)
+    testLLMConnectionMutation.mutate(model.id)
+  }
+
   // Helper function to get required fields for a provider
   const getRequiredFields = (provider: any) => {
     return {
@@ -384,6 +475,75 @@ export default function Models() {
     setIsCreateModelOpen(true)
   }
 
+  const handleConfigureEmbeddingProvider = (provider: any) => {
+    setEditingEmbeddingProvider(provider)
+  }
+
+  const handleEditEmbeddingProvider = (provider: any) => {
+    setOpenDropdowns(prev => ({ ...prev, [`embedding-provider-${provider.id}`]: false }))
+    setTimeout(() => {
+      setEditingEmbeddingProvider(provider)
+    }, 0)
+  }
+
+  const handleDeleteEmbeddingProvider = (provider: any) => {
+    setOpenDropdowns(prev => ({ ...prev, [`embedding-provider-${provider.id}`]: false }))
+    setTimeout(() => {
+      setDeletingEmbeddingProvider(provider)
+    }, 0)
+  }
+
+  const handleUpsertEmbeddingProvider = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingEmbeddingProvider) return
+
+    const formData = new FormData(event.currentTarget)
+    const requiredFields = getEmbeddingRequiredFields(editingEmbeddingProvider.providerKey || editingEmbeddingProvider.name)
+    const providerKey = editingEmbeddingProvider.providerKey || editingEmbeddingProvider.name
+    const data: any = {
+      name: providerKey,
+    }
+
+    if (requiredFields.api_key) {
+      data.key = formData.get('key') as string
+    }
+    if (requiredFields.endpoint) {
+      data.endpoint = formData.get('endpoint') as string
+    }
+    if (requiredFields.deployment) {
+      data.deployment = formData.get('deployment') as string
+    }
+
+    if (editingEmbeddingProvider.isConfigured) {
+      updateEmbeddingProviderMutation.mutate(data)
+      return
+    }
+
+    createEmbeddingProviderMutation.mutate(data)
+  }
+
+  const confirmDeleteEmbeddingProvider = async () => {
+    if (!deletingEmbeddingProvider) return
+
+    setIsDeletingEmbeddingProvider(true)
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    try {
+      await Promise.all([
+        new Promise<void>((resolve, reject) => {
+          deleteEmbeddingProviderMutation.mutate(undefined, {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          })
+        }),
+        minDelay,
+      ])
+    } finally {
+      setIsDeletingEmbeddingProvider(false)
+      setDeletingEmbeddingProvider(null)
+    }
+  }
+
   const closeAllDropdowns = () => {
     setOpenDropdowns({})
   }
@@ -393,7 +553,9 @@ export default function Models() {
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['supportedProviders'] }),
-        queryClient.invalidateQueries({ queryKey: ['llms'] })
+        queryClient.invalidateQueries({ queryKey: ['llms'] }),
+        queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] }),
+        queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] }),
       ])
       toast.success('Data refreshed')
     } finally {
@@ -427,9 +589,12 @@ export default function Models() {
 
   // Only show full page error for supported providers
   const hasError = errorSupportedProviders
+  const hasEmbeddingError = errorEmbeddingSupportedProviders || errorEmbeddingProvider
+  const activeEditingProvider = editingProvider || editingEmbeddingProvider
+  const activeDeletingProvider = deletingProvider || deletingEmbeddingProvider
 
   // Determine error message
-  let errorMessage = 'Failed to load supported providers'
+  const errorMessage = 'Failed to load supported providers'
 
   return (
     <div className="p-6 space-y-6">
@@ -450,7 +615,7 @@ export default function Models() {
       ) : !combinedProviders.length ? (
         <ModelsContentEmptyState type="empty" />
       ) : (
-        <div className="space-y-4 overflow-auto max-h-[80vh]">
+        <div className="space-y-4">
           {combinedProviders.map((provider: any) => (
             <ProviderCard
               key={provider.id}
@@ -470,9 +635,11 @@ export default function Models() {
               onCreateModel={handleCreateModelForProvider}
               onEditModel={handleEditModel}
               onDeleteModel={handleDeleteModel}
+              onTestModel={handleTestModel}
               onDefaultChange={handleDefaultChange}
               isDeleting={deleteProviderMutation.isPending}
               isDeletingModel={deleteLLMMutation.isPending}
+              testingModelId={testingModelId}
               isLoadingModels={loadingLLMs}
               modelsError={errorLLMs}
               openDropdowns={openDropdowns}
@@ -487,17 +654,67 @@ export default function Models() {
               canDeleteModel={canDeleteModel}
             />
           ))}
+
+          <div className="pt-2 space-y-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Embeddings Provider</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure the organization-wide embeddings provider (singleton).
+              </p>
+            </div>
+
+            {hasEmbeddingError ? (
+              <ModelsContentEmptyState
+                type="error"
+                message="Failed to load embeddings provider"
+                onRetry={handleRefresh}
+              />
+            ) : !combinedEmbeddingProviders.length ? (
+              <ModelsContentEmptyState type="empty" />
+            ) : (
+              <div className="space-y-3">
+                {combinedEmbeddingProviders.map((provider: any) => (
+                  <EmbeddingProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    isOpen={openEmbeddingProviders.includes(provider.id)}
+                    onToggle={(open) => {
+                      if (open) {
+                        setOpenEmbeddingProviders(prev => [...prev, provider.id])
+                      } else {
+                        setOpenEmbeddingProviders(prev => prev.filter(id => id !== provider.id))
+                      }
+                    }}
+                    onEditProvider={handleEditEmbeddingProvider}
+                    onDeleteProvider={handleDeleteEmbeddingProvider}
+                    onConfigureProvider={handleConfigureEmbeddingProvider}
+                    isDeleting={isDeletingEmbeddingProvider}
+                    openDropdowns={openDropdowns}
+                    onDropdownChange={(key, open) => {
+                      setOpenDropdowns(prev => ({ ...prev, [key]: open }))
+                    }}
+                    canCreateProvider={canCreateProvider}
+                    canUpdateProvider={canUpdateProvider}
+                    canDeleteProvider={canDeleteProvider}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Edit Provider Dialog */}
       <EditProviderDialog
-        open={!!editingProvider}
-        onOpenChange={() => setEditingProvider(null)}
-        provider={editingProvider}
-        onSubmit={handleUpdateProvider}
-        isUpdating={updateProviderMutation.isPending}
-        isCreating={createProviderMutation.isPending}
+        open={!!activeEditingProvider}
+        onOpenChange={() => {
+          setEditingProvider(null)
+          setEditingEmbeddingProvider(null)
+        }}
+        provider={activeEditingProvider}
+        onSubmit={editingProvider ? handleUpdateProvider : handleUpsertEmbeddingProvider}
+        isUpdating={editingProvider ? updateProviderMutation.isPending : updateEmbeddingProviderMutation.isPending}
+        isCreating={editingProvider ? createProviderMutation.isPending : createEmbeddingProviderMutation.isPending}
       />
 
       {/* Create/Edit Model Dialog */}
@@ -517,15 +734,16 @@ export default function Models() {
 
       {/* Delete Provider Dialog */}
       <DeleteProviderDialog
-        open={!!deletingProvider}
+        open={!!activeDeletingProvider}
         onOpenChange={(open) => {
-          if (!open && !isDeletingProvider) {
+          if (!open && !isDeletingProvider && !isDeletingEmbeddingProvider) {
             setDeletingProvider(null)
+            setDeletingEmbeddingProvider(null)
           }
         }}
-        provider={deletingProvider}
-        onConfirm={confirmDeleteProvider}
-        isDeleting={isDeletingProvider}
+        provider={activeDeletingProvider}
+        onConfirm={deletingProvider ? confirmDeleteProvider : confirmDeleteEmbeddingProvider}
+        isDeleting={deletingProvider ? isDeletingProvider : isDeletingEmbeddingProvider}
       />
 
       {/* Delete Model Dialog */}

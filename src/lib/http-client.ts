@@ -1,3 +1,5 @@
+import { ApiError } from '@/types/api-error';
+
 let loginToken: string | null = null;
 let organizationToken: string | null = null;
 let organizationId: string | null = null;
@@ -78,7 +80,9 @@ export const httpClient = {
     // 4. Endpoints de auth (/auth/*)
     // 5. Listar todas las organizaciones (/organizations)
     const shouldUseLoginToken = isTokenEndpoint || isUserRolesTokenEndpoint || isUserOrganizationsEndpoint || isAuthEndpoint || isOrganizationsEndpoint;
-    const tokenToUse = shouldUseLoginToken ? loginToken : organizationToken;
+    // Use organizationToken for org-scoped requests, but fallback to loginToken if not available
+    // This allows root admin to access Global Admin without selecting an organization
+    const tokenToUse = shouldUseLoginToken ? loginToken : (organizationToken || loginToken);
     
     console.log(`[httpClient] ${options.method || 'GET'} ${url}`);
     console.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
@@ -90,7 +94,9 @@ export const httpClient = {
 
     // Add organization ID if available 
     // (no incluir para endpoints de auth, pero sí para endpoints de token y otros)
-    if (organizationId && !isAuthEndpoint) {
+    // IMPORTANTE: No sobrescribir si el servicio ya pasó un X-Org-Id específico
+    // (permite a servicios consultar organizaciones diferentes a la seleccionada)
+    if (organizationId && !isAuthEndpoint && !headers.has('X-Org-Id')) {
       headers.set('X-Org-Id', organizationId);
       console.log(`[httpClient] Using organization ID:`, organizationId);
     }
@@ -105,28 +111,77 @@ export const httpClient = {
       headers,
     });
 
-    // Handle unauthorized responses - only logout for token issues, not role issues
-    if (response.status === 401 && onUnauthorized) {
+    // Handle error responses with the new standardized format
+    if (!response.ok) {
+      let errorData: unknown;
+      
       try {
         const responseClone = response.clone();
-        const errorData = await responseClone.json();
+        errorData = await responseClone.json();
+      } catch {
+        // If we can't parse JSON, throw a generic error
+        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+      }
+
+      // Check if the response matches the new standardized error format
+      if (ApiError.isApiErrorResponse(errorData)) {
+        const apiError = new ApiError(errorData);
         
-        // Check if it's a role/permission issue vs token issue
-        const isRolePermissionError = errorData.detail && (
-          errorData.detail.includes('no tiene ningún rol') ||
-          errorData.detail.includes('no permission') ||
-          errorData.detail.includes('insufficient privileges') ||
-          errorData.detail.includes('access denied')
-        );
+        // Log transaction_id for debugging
+        console.error(`[API Error] Transaction ID: ${apiError.transactionId}`, {
+          code: apiError.code,
+          message: apiError.message,
+          detail: apiError.detail,
+          path: apiError.path,
+          statusCode: apiError.statusCode
+        });
+
+        // Handle 401 specifically - only logout for token issues, not permission issues
+        if (response.status === 401 && onUnauthorized) {
+          const isRolePermissionError = 
+            apiError.code === 'FORBIDDEN' ||
+            apiError.code === 'INSUFFICIENT_PERMISSIONS' ||
+            apiError.detail.includes('no tiene ningún rol') ||
+            apiError.detail.includes('no permission') ||
+            apiError.detail.includes('insufficient privileges') ||
+            apiError.detail.includes('access denied');
+          
+          if (!isRolePermissionError) {
+            onUnauthorized();
+          }
+        }
+
+        throw apiError;
+      }
+
+      // Fallback for non-standard error responses (shouldn't happen with new backend)
+      console.warn('[httpClient] Received non-standard error response:', errorData);
+      
+      // Handle 401 for legacy error format
+      if (response.status === 401 && onUnauthorized) {
+        const legacyData = errorData as Record<string, unknown>;
+        const detail = typeof legacyData?.detail === 'string' ? legacyData.detail : '';
         
-        // Only trigger logout for actual authentication failures, not permission issues
+        const isRolePermissionError = 
+          detail.includes('no tiene ningún rol') ||
+          detail.includes('no permission') ||
+          detail.includes('insufficient privileges') ||
+          detail.includes('access denied');
+        
         if (!isRolePermissionError) {
           onUnauthorized();
         }
-      } catch (error) {
-        // If we can't parse the response, assume it's a token issue and logout
-        onUnauthorized();
       }
+
+      // Create a generic error from legacy response
+      const legacyData = errorData as Record<string, unknown>;
+      const message = 
+        (typeof legacyData?.message === 'string' ? legacyData.message : null) ||
+        (typeof legacyData?.detail === 'string' ? legacyData.detail : null) ||
+        (typeof legacyData?.error === 'string' ? legacyData.error : null) ||
+        `HTTP Error ${response.status}`;
+      
+      throw new Error(message);
     }
 
     return response;
@@ -137,7 +192,7 @@ export const httpClient = {
     return this.fetch(url, { ...options, method: 'GET' });
   },
 
-  async post(url: string, body?: any, options: RequestInit = {}): Promise<Response> {
+  async post(url: string, body?: unknown, options: RequestInit = {}): Promise<Response> {
     return this.fetch(url, {
       ...options,
       method: 'POST',
@@ -145,7 +200,7 @@ export const httpClient = {
     });
   },
 
-  async put(url: string, body?: any, options: RequestInit = {}): Promise<Response> {
+  async put(url: string, body?: unknown, options: RequestInit = {}): Promise<Response> {
     return this.fetch(url, {
       ...options,
       method: 'PUT',
@@ -157,7 +212,7 @@ export const httpClient = {
     return this.fetch(url, { ...options, method: 'DELETE' });
   },
 
-  async patch(url: string, body?: any, options: RequestInit = {}): Promise<Response> {
+  async patch(url: string, body?: unknown, options: RequestInit = {}): Promise<Response> {
     return this.fetch(url, {
       ...options,
       method: 'PATCH',

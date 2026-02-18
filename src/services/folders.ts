@@ -9,18 +9,6 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        let errorMessage = 'Error fetching library content';
-        try {
-            const errorData = await response.json();
-            if (errorData.detail) {
-                errorMessage = errorData.detail;
-            }
-        } catch {
-            // If we can't parse the error response, use the default message
-        }
-        throw new Error(errorMessage);
-    }
     const data = await response.json();
     console.log('Library content fetched:', data.data);
     return data.data;
@@ -44,9 +32,6 @@ export async function createFolder(name: string, organizationId: string, parentI
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        throw new Error('Error creating folder');
-    }
     const data = await response.json();
     console.log('Folder created:', data.data);
     return data.data;
@@ -61,9 +46,6 @@ export async function editFolder(folderId: string, name: string, organizationId:
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        throw new Error('Error editing folder');
-    }
     const data = await response.json();
     console.log('Folder edited:', folderId, data?.data);
     return data?.data;
@@ -75,9 +57,6 @@ export async function deleteFolder(folderId: string, organizationId: string) {
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        throw new Error('Error deleting folder');
-    }
     const data = await response.json();
     console.log('Folder deleted:', folderId, data?.data);
     return data?.data;
@@ -91,9 +70,6 @@ export async function moveFolder(folderId: string, newParentId: string | undefin
             'X-Org-Id': organizationId,
         },
     });
-    if (!response.ok) {
-        throw new Error('Error moving folder');
-    }
     const data = await response.json();
     console.log('Folder moved:', folderId, 'to parent:', newParentId, data?.data);
     return data?.data;

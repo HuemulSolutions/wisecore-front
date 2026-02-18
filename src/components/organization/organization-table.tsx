@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Building2 } from "lucide-react"
+import { Edit2, Trash2, Building2, Shield } from "lucide-react"
 import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
 import type { TableColumn, TableAction, FooterStat, EmptyState } from "@/types/data-table"
 
@@ -8,6 +8,8 @@ export interface Organization {
   description?: string | null
   created_at?: string
   updated_at?: string
+  max_users?: number | null
+  token_limit?: number | null
 }
 
 interface OrganizationTableProps {
@@ -17,10 +19,13 @@ interface OrganizationTableProps {
   onSelectAll: () => void
   onEditOrganization: (organization: Organization) => void
   onDeleteOrganization: (organization: Organization) => void
+  onSetAdmin?: (organization: Organization) => void
   pagination?: PaginationConfig
   showFooterStats?: boolean
   canUpdate?: boolean
   canDelete?: boolean
+  canSetAdmin?: boolean
+  isRootAdmin?: boolean
 }
 
 // Helper function for date formatting
@@ -39,10 +44,13 @@ export function OrganizationTable({
   onSelectAll,
   onEditOrganization,
   onDeleteOrganization,
+  onSetAdmin,
   pagination,
   showFooterStats,
   canUpdate = false,
-  canDelete = false
+  canDelete = false,
+  canSetAdmin = false,
+  isRootAdmin = false
 }: OrganizationTableProps) {
   // Define columns
   const columns: TableColumn<Organization>[] = [
@@ -75,6 +83,26 @@ export function OrganizationTable({
         </div>
       )
     },
+    ...(isRootAdmin ? [
+      {
+        key: "max_users" as const,
+        label: "Max Users",
+        render: (organization: Organization) => (
+          <div className="text-xs text-foreground">
+            {organization.max_users ?? "Unlimited"}
+          </div>
+        )
+      },
+      {
+        key: "token_limit" as const,
+        label: "Token Limit",
+        render: (organization: Organization) => (
+          <div className="text-xs text-foreground">
+            {organization.token_limit ? organization.token_limit.toLocaleString() : "Unlimited"}
+          </div>
+        )
+      }
+    ] : []),
     {
       key: "created_at",
       label: "Created At",
@@ -88,6 +116,12 @@ export function OrganizationTable({
 
   // Define actions - basado en permisos específicos
   const actions: TableAction<Organization>[] = [
+    ...(canSetAdmin && onSetAdmin ? [{
+      key: "setAdmin" as const,
+      label: "Set Admin",
+      icon: Shield,
+      onClick: onSetAdmin
+    }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
       label: "Edit",

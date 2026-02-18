@@ -12,6 +12,7 @@ interface Item {
   reference_mode?: "latest" | "specific";
   reference_execution_id?: string;
   referenced_document_id?: string;
+  template_section_id?: string;
 }
 
 interface ItemForBackend {
@@ -19,6 +20,7 @@ interface ItemForBackend {
   name: string;
   type?: "ai" | "manual" | "reference";
   prompt?: string;
+  output?: string;
   manual_input?: string;
   reference_section_id?: string;
   reference_mode?: "latest" | "specific";

@@ -177,9 +177,7 @@ export function ExecuteSheet({
       onExecutionComplete?.();
       onOpenChange(false); // Cerrar el sheet inmediatamente
     },
-    onError: (error) => {
-      console.error("Error executing document:", error);
-      toast.error("Error executing document: " + (error as Error).message);
+    onError: () => {
       setHasAttemptedCreation(true);
     },
   });

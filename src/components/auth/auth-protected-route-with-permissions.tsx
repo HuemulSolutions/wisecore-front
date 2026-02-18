@@ -38,6 +38,10 @@ interface ProtectedRouteProps {
  * 
  * Primero verifica autenticación, luego verifica permisos
  * 
+ * NOTA sobre roles de admin:
+ * - isRootAdmin: Solo da acceso a rutas con requireRootAdmin=true (admin técnico)
+ * - isOrgAdmin: Hace bypass de permisos para rutas de organización (admin de negocio)
+ * 
  * Ejemplos de uso:
  * 
  * // Solo autenticación
@@ -50,7 +54,7 @@ interface ProtectedRouteProps {
  *   <CreateUserPage />
  * </ProtectedRoute>
  * 
- * // Solo para admins
+ * // Solo para root admin (rutas técnicas/administrativas)
  * <ProtectedRoute requireRootAdmin>
  *   <AdminPanel />
  * </ProtectedRoute>
@@ -79,6 +83,7 @@ export function ProtectedRoute({
   const {
     isLoading: permissionsLoading,
     isRootAdmin,
+    isOrgAdmin,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -112,14 +117,20 @@ export function ProtectedRoute({
     return <>{children}</>;
   }
 
-  // Verificar si es root admin (tiene acceso a todo)
-  if (isRootAdmin) {
-    return <>{children}</>;
+  // Rutas que requieren root admin (rutas técnicas/administrativas)
+  // Solo isRootAdmin puede acceder, isOrgAdmin NO
+  if (requireRootAdmin) {
+    if (isRootAdmin) {
+      return <>{children}</>;
+    }
+    return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
   }
 
-  // Si requiere ser root admin y no lo es, denegar acceso
-  if (requireRootAdmin && !isRootAdmin) {
-    return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
+  // Para rutas normales (no requireRootAdmin):
+  // - isOrgAdmin tiene acceso total (bypass de permisos)
+  // - isRootAdmin NO tiene bypass, debe verificar permisos como usuario normal
+  if (isOrgAdmin) {
+    return <>{children}</>;
   }
 
   let hasAccess = false;

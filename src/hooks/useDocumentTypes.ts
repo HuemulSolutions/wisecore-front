@@ -28,9 +28,6 @@ export function useDocumentTypeMutations() {
       queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
       toast.success('Asset type created successfully')
     },
-    onError: (error) => {
-      toast.error('Failed to create asset type: ' + error.message)
-    },
   })
 
   const deleteDocumentTypeMutation = useMutation({
@@ -38,9 +35,6 @@ export function useDocumentTypeMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
       toast.success('Asset type deleted successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to delete asset type: ' + error.message)
     },
   })
 
@@ -51,9 +45,6 @@ export function useDocumentTypeMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
       toast.success('Asset types deleted successfully')
-    },
-    onError: (error) => {
-      toast.error('Failed to delete asset types: ' + error.message)
     },
   })
 

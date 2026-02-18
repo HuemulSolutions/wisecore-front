@@ -28,8 +28,10 @@ import {
   FileUp,
   FileSliders,
   Download,
-  ChevronDown
+  ChevronDown,
+  FileCode
 } from "lucide-react";
+import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
@@ -39,6 +41,7 @@ export default function DocumentPage() {
   const navigate = useNavigate();
   const { selectedOrganizationId } = useOrganization();
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
+  const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -365,6 +368,16 @@ export default function DocumentPage() {
               <Network className="h-4 w-4 mr-2" />
               Dependencies and Context
             </Button>
+            {!document.template_name && (
+              <Button
+                variant="outline"
+                className="w-full justify-start hover:cursor-pointer"
+                onClick={() => setIsCreateTemplateDialogOpen(true)}
+              >
+                <FileCode className="h-4 w-4 mr-2" />
+                Create Template from Asset
+              </Button>
+            )}
             <Button
               size="sm"
               className="w-full justify-start hover:cursor-pointer"
@@ -540,6 +553,17 @@ export default function DocumentPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Template from Document Dialog */}
+      <CreateTemplateFromDocumentDialog
+        open={isCreateTemplateDialogOpen}
+        onOpenChange={setIsCreateTemplateDialogOpen}
+        documentId={id!}
+        organizationId={selectedOrganizationId}
+        onTemplateCreated={(template) => {
+          navigate(`/templates/${template.id}`);
+        }}
+      />
     </div>
   );
 }

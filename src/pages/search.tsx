@@ -33,7 +33,7 @@ export default function SearchPage() {
   const initialSearchQuery = searchParams.get("q") || "";
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
 
-  const { data: searchResults, isLoading, error, refetch } = useQuery<SearchResultData[]>({
+  const { data: searchResults, isLoading, isError, refetch } = useQuery<SearchResultData[]>({
     queryKey: ['search', searchQuery, selectedOrganizationId],
     queryFn: () => search(searchQuery, selectedOrganizationId!),
     enabled: !!searchQuery && searchQuery.trim().length > 0,
@@ -137,7 +137,7 @@ export default function SearchPage() {
           <div className="space-y-4 pb-8 max-h-[calc(100vh-200px)] overflow-y-auto">
             {isLoading && <SearchResultsSkeleton />}
 
-            {error && (
+            {isError && (
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
                 <p className="text-red-600 mb-4 font-medium">Search Error</p>
                 <p className="text-sm text-muted-foreground">Error performing search. Please try again.</p>
