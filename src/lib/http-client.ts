@@ -80,7 +80,9 @@ export const httpClient = {
     // 4. Endpoints de auth (/auth/*)
     // 5. Listar todas las organizaciones (/organizations)
     const shouldUseLoginToken = isTokenEndpoint || isUserRolesTokenEndpoint || isUserOrganizationsEndpoint || isAuthEndpoint || isOrganizationsEndpoint;
-    const tokenToUse = shouldUseLoginToken ? loginToken : organizationToken;
+    // Use organizationToken for org-scoped requests, but fallback to loginToken if not available
+    // This allows root admin to access Global Admin without selecting an organization
+    const tokenToUse = shouldUseLoginToken ? loginToken : (organizationToken || loginToken);
     
     console.log(`[httpClient] ${options.method || 'GET'} ${url}`);
     console.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');

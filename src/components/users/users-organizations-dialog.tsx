@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building, Plus, Trash2 } from "lucide-react"
 import { useUserOrganizations } from "@/hooks/useUsers"
 import { type User, type UserOrganization } from "@/types/users"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
+import { getAllOrganizations } from "@/services/organizations"
+import { type Organization } from "@/components/organization"
 import { toast } from "sonner"
 
 interface UserOrganizationsDialogProps {
@@ -24,7 +26,16 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   const [orgToRemove, setOrgToRemove] = useState<{ id: string; name: string } | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: organizationsResponse, isLoading, error } = useUserOrganizations(user?.id)
+  const { data: organizationsResponse, isLoading: isLoadingUserOrgs, error } = useUserOrganizations(user?.id)
+  
+  // Fetch all organizations to show available ones for assignment
+  const { data: allOrgsResponse, isLoading: isLoadingAllOrgs } = useQuery({
+    queryKey: ['organizations', 'all-for-assignment'],
+    queryFn: () => getAllOrganizations(1, 1000),
+    enabled: !!user,
+  })
+
+  const isLoading = isLoadingUserOrgs || isLoadingAllOrgs
 
   const assignMutation = useMutation({
     mutationFn: (organizationId: string) => 
@@ -48,11 +59,19 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
 
   if (!user) return null
 
-  const allOrganizations = organizationsResponse?.data || []
+  const userOrganizations = organizationsResponse?.data || []
+  const allOrganizations = (allOrgsResponse?.data || []) as Organization[]
+  
   // Organizations where the user is a member
-  const memberOrganizations = allOrganizations.filter((org: UserOrganization) => org.member)
-  // Organizations where the user is NOT a member (available for assignment)
-  const availableOrganizations = allOrganizations.filter((org: UserOrganization) => !org.member)
+  const memberOrganizations = userOrganizations.filter((org: UserOrganization) => org.member)
+  
+  // IDs of organizations where user is already a member
+  const memberOrgIds = new Set(memberOrganizations.map((org: UserOrganization) => org.id))
+  
+  // Organizations available for assignment (those where user is NOT a member)
+  const availableOrganizations = allOrganizations.filter(
+    (org: Organization) => !memberOrgIds.has(org.id)
+  )
 
   return (
     <>
@@ -77,7 +96,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                     <SelectValue placeholder="Select organization..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableOrganizations.map((org: UserOrganization) => (
+                    {availableOrganizations.map((org: Organization) => (
                       <SelectItem key={org.id} value={org.id}>
                         {org.name}
                       </SelectItem>

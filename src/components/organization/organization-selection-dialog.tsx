@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Plus, CheckCircle } from 'lucide-react';
+import { Building2, Plus, CheckCircle, Settings } from 'lucide-react';
 import { getUserOrganizations, generateOrganizationToken, addOrganization } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
@@ -33,7 +33,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
   
-  const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken } = useOrganization();
+  const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken, setRequiresOrganizationSelection } = useOrganization();
   const { user } = useAuth();
   const { isLoading: permissionsLoading } = useUserPermissions();
   const queryClient = useQueryClient();
@@ -195,6 +195,19 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Create New Organization
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRequiresOrganizationSelection(false);
+                    if (onOpenChange) onOpenChange(false);
+                    navigate('/global-admin');
+                  }}
+                  className="w-full hover:cursor-pointer"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Go to Global Admin
                 </Button>
               </ProtectedComponent>
               
