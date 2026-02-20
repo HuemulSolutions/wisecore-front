@@ -7,7 +7,6 @@ import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/au
 import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
-import DocumentPage from "./pages/document";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
@@ -98,11 +97,6 @@ export default function App() {
             <Route path="custom-fields" element={
               <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
                 <CustomFieldsPage />
-              </PermissionProtectedRoute>
-            } />
-            <Route path="document/:id" element={
-              <PermissionProtectedRoute permissions={["section:r", "asset:r"]}>
-                <DocumentPage />
               </PermissionProtectedRoute>
             } />
             <Route path="configDocument/:id" element={

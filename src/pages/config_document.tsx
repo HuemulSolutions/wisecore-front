@@ -140,7 +140,7 @@ export default function ConfigDocumentPage() {
             variant="outline"
             size="sm"
             className="hover:cursor-pointer"
-            onClick={() => navigate(`/document/${id}`)}
+            onClick={() => navigate(`/asset/${id}`)}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back

@@ -18,6 +18,7 @@ import { getDocumentDependencies, addDocumentDependency, removeDocumentDependenc
 import { getLibraryContent } from "@/services/folders";
 import { getAllDocumentTypes } from "@/services/document_type";
 import { useOrganization } from "@/contexts/organization-context";
+import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
 import { toast } from "sonner";
 
 interface Dependency {
@@ -44,6 +45,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
     const fileTreeRef = useRef<FileTreeRef>(null);
     const queryClient = useQueryClient();
     const { selectedOrganizationId } = useOrganization();
+    const orgId = useEffectiveOrgId();
 
     const { data: dependencies = [], isLoading, error } = useQuery<Dependency[]>({
         queryKey: ['documentDependencies', id],
@@ -223,6 +225,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                                             <Button
                                                 size="sm"
                                                 variant="outline"
+                                                onClick={() => window.open(`/${orgId}/asset/${dependency.document_id}`, '_blank')}
                                                 className="h-7 w-7 p-0 hover:cursor-pointer"
                                                 title="View Document"
                                             >

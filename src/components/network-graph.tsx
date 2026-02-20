@@ -396,7 +396,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
     switch (action) {
       case "view-document-details":
         const documentId = nodeId.replace('doc-', '')
-        navigate(`/document/${documentId}`)
+        navigate(`/asset/${documentId}`)
         break
       case "view-document-dependencies":
         const docId = nodeId.replace('doc-', '')

@@ -69,7 +69,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
         try {
             setIsDeleting(true);
             await deleteExecution(execution.id, selectedOrganizationId!);
-            navigate(`/document/${execution.document_id}`);
+            navigate(`/asset/${execution.document_id}`);
         } catch (error) {
             console.error('Error deleting execution:', error);
         } finally {
