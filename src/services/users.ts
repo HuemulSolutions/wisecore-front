@@ -11,6 +11,10 @@ import type {
 
 interface GlobalUsersResponse {
   data: User[]
+  page: number
+  page_size: number
+  has_next: boolean
+  total?: number
 }
 
 // Get all users with roles
@@ -37,8 +41,12 @@ export const getUsers = async (organizationId?: string, page: number = 1, pageSi
 };
 
 // Get global users list (root admin)
-export const getGlobalUsers = async (): Promise<GlobalUsersResponse> => {
-  const response = await httpClient.get(`${backendUrl}/users`);
+export const getGlobalUsers = async (page: number = 1, pageSize: number = 10): Promise<GlobalUsersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+  const response = await httpClient.get(`${backendUrl}/users?${params}`);
   return response.json();
 };
 
