@@ -26,6 +26,7 @@ interface FileTreeProps {
   onMoveFolder?: (folderId: string, parentFolderId: string | null) => Promise<void>
   onMoveFile?: (documentId: string, folderId: string | null) => Promise<void>
   onFileClick?: (node: FileNode) => void | Promise<void>
+  activeNodeId?: string | null
   menuActions?: MenuAction[]
   showDefaultActions?: {
     create?: boolean
@@ -60,6 +61,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       onMoveFolder,
       onMoveFile,
       onFileClick,
+      activeNodeId,
       menuActions = [],
       showDefaultActions = { create: true, delete: true, share: true },
       customDialogs,
@@ -464,6 +466,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       const isCreating = creatingNode?.parentId === node.id
       const isDragging = draggedNode === node.id
       const isDragOver = dragOverNode === node.id
+      const isActive = activeNodeId === node.id
 
       const hasVisibleMenuActions =
         (isFolder && showDefaultActions.create) ||
@@ -494,6 +497,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
+              isActive && "bg-accent font-medium",
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}

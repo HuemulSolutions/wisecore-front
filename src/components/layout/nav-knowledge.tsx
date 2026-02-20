@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
+import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
@@ -306,12 +307,19 @@ export function NavKnowledgeHeader() {
 
 export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
+  const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
   const { fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
+
+  // Extract active asset ID from URL (pattern: /:orgId/asset/:assetId)
+  const activeAssetId = React.useMemo(() => {
+    const match = location.pathname.match(/\/asset\/([^/]+)/)
+    return match ? match[1] : null
+  }, [location.pathname])
 
   // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
@@ -539,6 +547,7 @@ export function NavKnowledgeContent() {
         onMoveFolder={handleMoveFolder}
         onMoveFile={handleMoveFile}
         onDelete={handleDelete}
+        activeNodeId={activeAssetId}
         menuActions={menuActions}
         showDefaultActions={{ create: false, delete: false, share: false }}
         showCreateButtons={false}
