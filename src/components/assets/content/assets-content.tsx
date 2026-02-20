@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
 import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
@@ -92,7 +92,7 @@ export function AssetContent({
   // HOOKS AND CONTEXT
   // ============================================================================
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();

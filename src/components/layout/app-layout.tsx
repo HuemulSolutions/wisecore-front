@@ -1,6 +1,9 @@
-import { Outlet, Link, useLocation } from "react-router-dom"
+import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu } from "lucide-react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
+import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
+import { useQueryClient } from "@tanstack/react-query"
+import { generateOrganizationToken } from "@/services/organizations"
 import packageInfo from "../../../package.json"
 import {
   Tooltip,
@@ -58,11 +61,17 @@ const navigationItems = [
 
 export default function AppLayout() {
   const location = useLocation()
-  const { requiresOrganizationSelection, organizationToken } = useOrganization()
+  const rawNavigate = useNavigate()
+  const { orgId } = useParams<{ orgId: string }>()
+  const buildPath = useOrgPath()
+  const { requiresOrganizationSelection, organizationToken, selectedOrganizationId, setSelectedOrganizationId, setOrganizationToken, setRequiresOrganizationSelection } = useOrganization()
   const { isLoading: permissionsLoading } = useUserPermissions()
   const { user, logout } = useAuth()
+  const queryClient = useQueryClient()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const isSwitchingOrgRef = useRef(false)
+  const lastSyncedUrlOrgRef = useRef<string | null>(null)
   
   const {
     isRootAdmin,
@@ -77,6 +86,107 @@ export default function AppLayout() {
     hasAnyPermission,
   } = useUserPermissions()
   
+  // --- Sync URL orgId → organization context (shared URL / pasted link scenario) ---
+  // Only triggers when the URL's orgId ACTUALLY changes (user navigated to a
+  // different org URL, e.g. pasted a shared link). Does NOT trigger when
+  // selectedOrganizationId changes from the dialog/switcher — that's handled
+  // by the context→URL sync below.
+  useEffect(() => {
+    if (!orgId || orgId === '_' || !user?.id) return
+
+    // Only act when the URL orgId truly changed since last check
+    if (orgId === lastSyncedUrlOrgRef.current) return
+    lastSyncedUrlOrgRef.current = orgId
+
+    // If URL org already matches context, nothing to do
+    if (orgId === selectedOrganizationId) return
+
+    // URL has a different org than context → user pasted a shared link
+    let cancelled = false
+    isSwitchingOrgRef.current = true
+    console.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
+
+    generateOrganizationToken(orgId)
+      .then(async (tokenResponse) => {
+        if (cancelled) return
+
+        const orgToken = tokenResponse.token || tokenResponse.data?.token
+        if (!orgToken) {
+          throw new Error('No token received from server')
+        }
+
+        setSelectedOrganizationId(orgId)
+        setOrganizationToken(orgToken)
+        setRequiresOrganizationSelection(false)
+
+        console.log(`[OrgSync] Switched to org "${orgId}" successfully`)
+
+        await new Promise(resolve => setTimeout(resolve, 200))
+
+        if (cancelled) return
+
+        // Invalidate org-dependent queries
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const queryKey = query.queryKey
+            return Array.isArray(queryKey) && (
+              queryKey.includes('documents') ||
+              queryKey.includes('document-types') ||
+              queryKey.includes('roles') ||
+              queryKey.includes('permissions') ||
+              queryKey.includes('assets') ||
+              queryKey.includes('asset-types') ||
+              queryKey.includes('custom-fields') ||
+              queryKey.includes('users') ||
+              queryKey.includes('knowledge') ||
+              queryKey.includes('library') ||
+              queryKey.some(key => typeof key === 'string' && key.includes('org'))
+            )
+          }
+        })
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
+        // If token generation fails (user doesn't have access), redirect
+        // with the current org, or show org selection dialog
+        if (selectedOrganizationId) {
+          const pathWithoutOrg = stripOrgPrefix(location.pathname)
+          rawNavigate(`/${selectedOrganizationId}${pathWithoutOrg}${location.search}`, { replace: true })
+        } else {
+          rawNavigate('/', { replace: true })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) isSwitchingOrgRef.current = false
+      })
+
+    // Cleanup: cancel the in-flight switch if effect re-runs.
+    // Also reset lastSyncedUrlOrgRef so React Strict Mode's second
+    // invocation re-processes the orgId instead of skipping it.
+    return () => {
+      cancelled = true
+      isSwitchingOrgRef.current = false
+      lastSyncedUrlOrgRef.current = null
+    }
+  }, [orgId, selectedOrganizationId, user?.id])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Sync organization context → URL (dialog/switcher scenario) ---
+  useEffect(() => {
+    if (isSwitchingOrgRef.current) return
+    // Don't override a URL org that the URL→context sync hasn't processed yet.
+    // If lastSyncedUrlOrgRef doesn't match the current orgId, it means the
+    // URL→context effect is still waiting (e.g. for user auth) to handle it.
+    if (orgId && orgId !== '_' && lastSyncedUrlOrgRef.current !== orgId) return
+    if (selectedOrganizationId && orgId && orgId !== selectedOrganizationId) {
+      // Org changed in context (e.g. switcher) — update URL to match
+      const pathWithoutOrg = stripOrgPrefix(location.pathname)
+      const newPath = `/${selectedOrganizationId}${pathWithoutOrg}`
+      lastSyncedUrlOrgRef.current = selectedOrganizationId
+      rawNavigate(newPath + location.search, { replace: true })
+    }
+  }, [selectedOrganizationId, orgId, location.pathname, location.search, rawNavigate])
+
   // El diálogo debe mantenerse abierto si:
   // 1. Se requiere selección de organización O
   // 2. Tenemos token de organización pero los permisos aún están cargando
@@ -150,13 +260,14 @@ export default function AppLayout() {
             <nav className="hidden md:flex items-center justify-center gap-1 flex-1">
               {filteredNavigationItems.map((item) => {
                 const Icon = item.icon
-                const isActive = location.pathname === item.url || 
-                  (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
+                const strippedPath = stripOrgPrefix(location.pathname)
+                const isActive = strippedPath === item.url || 
+                  (item.url !== '/home' && (strippedPath.startsWith(item.url + '/') || strippedPath === item.url))
                 
                 return (
                   <Link
                     key={item.title}
-                    to={item.url}
+                    to={buildPath(item.url)}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
                       isActive 
@@ -184,13 +295,14 @@ export default function AppLayout() {
                   <nav className="flex flex-col gap-1">
                     {filteredNavigationItems.map((item) => {
                       const Icon = item.icon
-                      const isActive = location.pathname === item.url || 
-                      (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
+                      const strippedPath = stripOrgPrefix(location.pathname)
+                      const isActive = strippedPath === item.url || 
+                      (item.url !== '/home' && (strippedPath.startsWith(item.url + '/') || strippedPath === item.url))
                       
                       return (
                         <Link
                           key={item.title}
-                          to={item.url}
+                          to={buildPath(item.url)}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
@@ -239,14 +351,14 @@ export default function AppLayout() {
                         <DropdownMenuLabel>Asset Management</DropdownMenuLabel>
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/asset-types" className="hover:cursor-pointer">
+                            <Link to={buildPath("/asset-types")} className="hover:cursor-pointer">
                               Asset Types
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/custom-fields" className="hover:cursor-pointer">
+                            <Link to={buildPath("/custom-fields")} className="hover:cursor-pointer">
                               Custom Fields
                             </Link>
                           </DropdownMenuItem>
@@ -260,42 +372,42 @@ export default function AppLayout() {
                         <DropdownMenuLabel>Administration</DropdownMenuLabel>
                         {(canAccessOrganizations || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/organizations" className="hover:cursor-pointer">
+                            <Link to={buildPath("/organizations")} className="hover:cursor-pointer">
                               Organizations
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {isRootAdmin && (
                           <DropdownMenuItem asChild>
-                            <Link to="/global-admin" className="hover:cursor-pointer">
+                            <Link to={buildPath("/global-admin")} className="hover:cursor-pointer">
                               Global Admin Settings
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessUsers || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/users" className="hover:cursor-pointer">
+                            <Link to={buildPath("/users")} className="hover:cursor-pointer">
                               Users
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessRoles || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/roles" className="hover:cursor-pointer">
+                            <Link to={buildPath("/roles")} className="hover:cursor-pointer">
                               Roles
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessModels || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/models" className="hover:cursor-pointer">
+                            <Link to={buildPath("/models")} className="hover:cursor-pointer">
                               Models
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/auth-types" className="hover:cursor-pointer">
+                            <Link to={buildPath("/auth-types")} className="hover:cursor-pointer">
                               Auth Types
                             </Link>
                           </DropdownMenuItem>

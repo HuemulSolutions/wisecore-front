@@ -1,5 +1,6 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import ExecutionInfo from "@/components/execution/execution_info";
 import SectionExecution from "@/components/sections/sections_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,7 @@ import { useOrganization } from "@/contexts/organization-context";
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const navigate = useOrgNavigate();
     const { selectedOrganizationId } = useOrganization();
     const [instructions, setInstructions] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { getDocumentById, deleteDocument } from "@/services/assets";
 import { uploadDocxTemplate } from "@/services/docx_template";
 import { createExecution, exportExecutionToWord, exportExecutionToMarkdown, exportExecutionCustomWord } from "@/services/executions";
@@ -35,10 +35,11 @@ import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/as
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
   const { selectedOrganizationId } = useOrganization();
   const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Plus, File, Folder, RefreshCw, Edit, Trash2 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import type { MenuAction } from "@/types/menu-action"
 
@@ -44,7 +44,7 @@ const NavKnowledgeContext = React.createContext<{
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate()
+  const navigate = useOrgNavigate()
   const fileTreeRef = useRef<FileTreeRef>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
@@ -305,7 +305,7 @@ export function NavKnowledgeHeader() {
 }
 
 export function NavKnowledgeContent() {
-  const navigate = useNavigate()
+  const navigate = useOrgNavigate()
   const { selectedOrganizationId } = useOrganization()
   const { fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())

@@ -17,10 +17,10 @@ export function AuthPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated — RootRedirect will handle org-scoped path
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard')
+      navigate('/')
     }
   }, [isAuthenticated, navigate])
 

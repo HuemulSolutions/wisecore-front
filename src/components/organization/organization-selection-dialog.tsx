@@ -100,7 +100,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       }
       
       // Redirigir al home después de cambiar la organización
-      navigate('/');
+      navigate(`/${organizationId}/home`);
     },
   });
 
@@ -202,7 +202,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                   onClick={() => {
                     setRequiresOrganizationSelection(false);
                     if (onOpenChange) onOpenChange(false);
-                    navigate('/global-admin');
+                    navigate('/_/global-admin');
                   }}
                   className="w-full hover:cursor-pointer"
                 >

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import SortableSection from "@/components/sections/sortable_section";
@@ -13,10 +13,11 @@ import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, us
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useOrganization } from "@/contexts/organization-context";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 
 export default function ConfigDocumentPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
 

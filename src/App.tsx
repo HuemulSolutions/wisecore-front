@@ -22,6 +22,7 @@ import Roles from "./pages/roles";
 import AssetTypesPage from "./pages/assets-types";
 import CustomFieldsPage from "./pages/custom-fields";
 import GlobalAdminPage from "./pages/global-admin";
+import { RootRedirect } from "./components/organization/root-redirect";
 
 export default function App() {
   return (
@@ -30,7 +31,11 @@ export default function App() {
         <PermissionsProvider>
           <ProtectedRoute>
             <Routes>
-          <Route path="/" element={<AppLayout />}>
+          {/* Root redirect — sends user to /:orgId/home */}
+          <Route path="/" element={<RootRedirect />} />
+
+          {/* All org-scoped routes */}
+          <Route path="/:orgId" element={<AppLayout />}>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<Home />} />
             <Route path="organizations" element={
@@ -111,6 +116,9 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
           </Route>
+
+          {/* Catch-all: redirect unknown paths to root */}
+          <Route path="*" element={<RootRedirect />} />
             </Routes>
         </ProtectedRoute>
         </PermissionsProvider>
