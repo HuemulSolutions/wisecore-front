@@ -39,7 +39,7 @@ export function SectionResult({ section, index }: SectionResultProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <h5 className="text-sm font-semibold text-foreground truncate">
-                  {section.section_execution_name || `Sección ${index + 1}`}
+                  {section.section_execution_name || `Section ${index + 1}`}
                 </h5>
                 <Button 
                   variant="ghost" 
@@ -52,7 +52,7 @@ export function SectionResult({ section, index }: SectionResultProps) {
                 </Button>
               </div>
               
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
                 {getPreviewText(section.content)}
               </p>
             </div>
