@@ -105,6 +105,11 @@ const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
               <code className="block bg-gray-800 p-4 rounded-lg my-4 overflow-x-auto text-sm text-white">{children}</code>
             );
           },
+          mark: ({ children }) => (
+            <mark className="rounded-md bg-amber-200 px-1 py-0.5 text-amber-950 ring-1 ring-amber-400/60">
+              {children}
+            </mark>
+          ),
         }}
       >
         {children}
