@@ -134,16 +134,18 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
       <CardContent className="pt-0">
         <div className="space-y-3">
           {item.dependencies && item.dependencies.length > 0 && (
-            <div className="flex flex-wrap gap-1 items-center">
-              <span className="text-sm text-muted-foreground">Depends on:</span>
-              {item.dependencies.map((dependency, index) => (
-                <span
-                  key={index}
-                  className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full"
-                >
-                  {dependency.name}
-                </span>
-              ))}
+            <div className="flex gap-1 items-center min-w-0">
+              <span className="text-sm text-muted-foreground shrink-0">Depends on:</span>
+              <div className="flex flex-wrap gap-1 min-w-0 overflow-hidden">
+                {item.dependencies.map((dependency, index) => (
+                  <span
+                    key={index}
+                    className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full truncate max-w-full"
+                  >
+                    {dependency.name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
           <div className="text-sm text-gray-700 leading-relaxed">
