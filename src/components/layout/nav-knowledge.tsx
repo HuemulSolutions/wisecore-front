@@ -31,6 +31,7 @@ import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 
 // Context para compartir el fileTreeRef entre header y content
 const NavKnowledgeContext = React.createContext<{
@@ -132,8 +133,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
       setFolderToDelete(null)
       fileTreeRef.current?.refresh()
     } catch (error) {
-      console.error('Error deleting folder:', error)
-      toast.error('Failed to delete folder. Please try again.')
+      handleApiError(error, { fallbackMessage: 'Failed to delete folder. Please try again.' })
       throw error
     }
   }, [folderToDelete, selectedOrganizationId])
@@ -163,8 +163,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
       
       fileTreeRef.current?.refresh()
     } catch (error) {
-      console.error('Error deleting document:', error)
-      toast.error('Failed to delete document. Please try again.')
+      handleApiError(error, { fallbackMessage: 'Failed to delete document. Please try again.' })
     } finally {
       setIsDeletingDocument(false)
     }
@@ -412,8 +411,7 @@ export function NavKnowledgeContent() {
         toast.success('Folder moved successfully')
         fileTreeRef.current?.refresh()
       } catch (error) {
-        console.error("Error moving folder:", error)
-        toast.error('Failed to move folder. Please try again.')
+        handleApiError(error, { fallbackMessage: 'Failed to move folder. Please try again.' })
       }
     },
     [selectedOrganizationId]
@@ -428,8 +426,7 @@ export function NavKnowledgeContent() {
         toast.success('Document moved successfully')
         fileTreeRef.current?.refresh()
       } catch (error) {
-        console.error("Error moving document:", error)
-        toast.error('Failed to move document. Please try again.')
+        handleApiError(error, { fallbackMessage: 'Failed to move document. Please try again.' })
       }
     },
     [selectedOrganizationId]

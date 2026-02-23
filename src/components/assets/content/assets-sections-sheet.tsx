@@ -34,6 +34,7 @@ import { createSection, updateSection, updateSectionsOrder, deleteSection } from
 import { linkSectionToExecution } from "@/services/section_execution";
 import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/error-utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -279,8 +280,8 @@ export function SectionSheet({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
-    onError: () => {
-      toast.error("Could not add section to current version");
+    onError: (error) => {
+      handleApiError(error, { fallbackMessage: "Could not add section to current version" });
     },
     onSettled: () => {
       setLinkingSectionId(null);

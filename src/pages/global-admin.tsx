@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
@@ -380,8 +381,8 @@ function UsersSection() {
       await queryClient.invalidateQueries({ queryKey: ["global-users"] })
       await refetch()
       toast.success('Data refreshed')
-    } catch {
-      toast.error('Failed to refresh data')
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: 'Failed to refresh data' })
     } finally {
       setIsRefreshing(false)
     }

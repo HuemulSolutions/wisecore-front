@@ -19,6 +19,7 @@ import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/error-utils";
 import {
     Select,
     SelectContent,
@@ -54,8 +55,8 @@ export default function ExecutionPage() {
             toast.success("Model updated");
             refetch();
         },
-        onError: () => {
-            toast.error("Failed to update model");
+        onError: (error) => {
+            handleApiError(error, { fallbackMessage: "Failed to update model" });
         }
     });
 
@@ -159,7 +160,7 @@ export default function ExecutionPage() {
             updateTimer.current = null;
         }
         
-        toast.error("Error generating content. Please try again.");
+        handleApiError(error, { fallbackMessage: "Error generating content. Please try again." });
     };
 
     const handleStreamClose = () => {
@@ -258,7 +259,7 @@ export default function ExecutionPage() {
             console.error('Error starting generation:', error);
             setIsGenerating(false);
             hasAutoStarted.current = false;
-            toast.error("Error starting generation. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error starting generation. Please try again." });
             return;
         }
     };
@@ -272,8 +273,7 @@ export default function ExecutionPage() {
             refetch();
             toast.success("Execution approved successfully");
         } catch (error) {
-            console.error('Error approving execution:', error);
-            toast.error("Error approving execution. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error approving execution. Please try again." });
         } finally {
             setIsApproving(false);
         }
@@ -288,8 +288,7 @@ export default function ExecutionPage() {
             refetch();
             toast.success("Execution disapproved successfully");
         } catch (error) {
-            console.error('Error disapproving execution:', error);
-            toast.error("Error disapproving execution. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error disapproving execution. Please try again." });
         } finally {
             setIsApproving(false);
         }

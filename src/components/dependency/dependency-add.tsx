@@ -20,6 +20,7 @@ import { getAllDocumentTypes } from "@/services/document_type";
 import { useOrganization } from "@/contexts/organization-context";
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/error-utils";
 
 interface Dependency {
     document_id: string;
@@ -109,8 +110,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                 disabled: item.type === "document" && excludedIds.has(item.id),
             }));
         } catch (error) {
-            console.error('Error loading folder content:', error);
-            toast.error("Failed to load folder content");
+            handleApiError(error, { fallbackMessage: "Failed to load folder content" });
             return [];
         }
     };

@@ -229,8 +229,7 @@ export default function SectionExecution({
 
             onUpdate?.();
         } catch (error) {
-            console.error('Error executing section:', error);
-            toast.error('Failed to execute section. Please try again.');
+            handleApiError(error, { fallbackMessage: 'Failed to execute section. Please try again.' });
         } finally {
             setIsExecuting(false);
         }
