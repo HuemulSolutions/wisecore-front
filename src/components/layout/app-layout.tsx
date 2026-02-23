@@ -41,21 +41,25 @@ const navigationItems = [
     title: "Home",
     url: "/home",
     icon: Home,
+    orgScoped: false,
   },
   {
     title: "Assets",
     url: "/asset", 
     icon: BookText,
+    orgScoped: true,
   },
   {
     title: "Search",
     url: "/search",
     icon: Search,
+    orgScoped: true,
   },
   {
     title: "Templates",
     url: "/templates",
     icon: LayoutTemplate,
+    orgScoped: true,
   },
 ]
 
@@ -218,11 +222,13 @@ export default function AppLayout() {
 
   // Filtrar navigationItems basándose en permisos del usuario
   const filteredNavigationItems = useMemo(() => {
-    if (!organizationToken || permissionsLoading) {
-      return []
-    }
-
     return navigationItems.map(item => {
+      // Non-org-scoped items (e.g. Home) are always visible
+      if (!item.orgScoped) return item
+
+      // Org-scoped items require token + loaded permissions
+      if (!organizationToken || permissionsLoading) return null
+
       let shouldShowItem = true
       
       switch (item.title) {
@@ -260,14 +266,15 @@ export default function AppLayout() {
             <nav className="hidden md:flex items-center justify-center gap-1 flex-1">
               {filteredNavigationItems.map((item) => {
                 const Icon = item.icon
-                const strippedPath = stripOrgPrefix(location.pathname)
-                const isActive = strippedPath === item.url || 
-                  (item.url !== '/home' && (strippedPath.startsWith(item.url + '/') || strippedPath === item.url))
+                const currentPath = item.orgScoped ? stripOrgPrefix(location.pathname) : location.pathname
+                const isActive = currentPath === item.url || 
+                  (item.url !== '/home' && (currentPath.startsWith(item.url + '/') || currentPath === item.url))
+                const linkTo = item.orgScoped ? buildPath(item.url) : item.url
                 
                 return (
                   <Link
                     key={item.title}
-                    to={buildPath(item.url)}
+                    to={linkTo}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
                       isActive 
@@ -295,14 +302,15 @@ export default function AppLayout() {
                   <nav className="flex flex-col gap-1">
                     {filteredNavigationItems.map((item) => {
                       const Icon = item.icon
-                      const strippedPath = stripOrgPrefix(location.pathname)
-                      const isActive = strippedPath === item.url || 
-                      (item.url !== '/home' && (strippedPath.startsWith(item.url + '/') || strippedPath === item.url))
+                      const currentPath = item.orgScoped ? stripOrgPrefix(location.pathname) : location.pathname
+                      const isActive = currentPath === item.url || 
+                      (item.url !== '/home' && (currentPath.startsWith(item.url + '/') || currentPath === item.url))
+                      const linkTo = item.orgScoped ? buildPath(item.url) : item.url
                       
                       return (
                         <Link
                           key={item.title}
-                          to={buildPath(item.url)}
+                          to={linkTo}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
@@ -379,7 +387,7 @@ export default function AppLayout() {
                         )}
                         {isRootAdmin && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/global-admin")} className="hover:cursor-pointer">
+                            <Link to="/global-admin" className="hover:cursor-pointer">
                               Global Admin Settings
                             </Link>
                           </DropdownMenuItem>

@@ -11,10 +11,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Plus, CheckCircle, Settings } from 'lucide-react';
-import { getUserOrganizations, generateOrganizationToken, addOrganization } from '@/services/organizations';
+import { Building2, CheckCircle, Settings } from 'lucide-react';
+import { getUserOrganizations, generateOrganizationToken } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
@@ -29,9 +28,6 @@ interface OrganizationSelectionDialogProps {
 
 export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrganizationId }: OrganizationSelectionDialogProps) {
   const [selectedOrgId, setSelectedOrgId] = useState<string>(preselectedOrganizationId || '');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newOrgName, setNewOrgName] = useState('');
-  const [newOrgDescription, setNewOrgDescription] = useState('');
   
   const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken, setRequiresOrganizationSelection } = useOrganization();
   const { user } = useAuth();
@@ -43,17 +39,6 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
     queryKey: ['user-organizations', user?.id],
     queryFn: () => getUserOrganizations(user!.id),
     enabled: open && !!user?.id, // Solo cargar cuando el dialog esté abierto y tengamos user_id
-  });
-
-  const createOrgMutation = useMutation({
-    mutationFn: addOrganization,
-    onSuccess: (newOrg) => {
-      queryClient.invalidateQueries({ queryKey: ['user-organizations'] });
-      handleSelectOrganization(newOrg.id);
-      setNewOrgName('');
-      setNewOrgDescription('');
-      setShowCreateForm(false);
-    },
   });
 
   const generateTokenMutation = useMutation({
@@ -120,7 +105,6 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   React.useEffect(() => {
     if (open) {
       setSelectedOrgId(preselectedOrganizationId || selectedOrganizationId || '');
-      setShowCreateForm(false);
     }
   }, [open, preselectedOrganizationId, selectedOrganizationId]);
 
@@ -135,27 +119,17 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
     }
   };
 
-  const handleCreateOrganization = () => {
-    if (newOrgName.trim()) {
-      createOrgMutation.mutate({ 
-        name: newOrgName.trim(),
-        description: newOrgDescription.trim() || undefined
-      });
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal>
       <ReusableDialog
         open={open}
         onOpenChange={onOpenChange || (() => {})}
-        title={!showCreateForm ? "Select Organization" : "Create New Organization"}
-        description={!showCreateForm ? "Please select an organization to continue using Wisecore. You can create a new organization if needed." : "Enter the details for your new organization."}
+        title="Select Organization"
+        description="Please select an organization to continue using Wisecore."
         icon={Building2}
         maxWidth="md"
         maxHeight="90vh"
         footer={
-          !showCreateForm ? (
             <div className="flex flex-col gap-3 w-full">
               <Button
                 onClick={() => handleSelectOrganization()}
@@ -190,15 +164,6 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
 
                 <Button
                   variant="outline"
-                  onClick={() => setShowCreateForm(true)}
-                  className="w-full hover:cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Organization
-                </Button>
-
-                <Button
-                  variant="outline"
                   onClick={() => {
                     setRequiresOrganizationSelection(false);
                     if (onOpenChange) onOpenChange(false);
@@ -224,106 +189,48 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
                 </Button>
               )}
             </div>
-          ) : (
-            <div className="flex gap-3 w-full">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setNewOrgName('');
-                  setNewOrgDescription('');
-                }}
-                className="flex-1 hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateOrganization}
-                disabled={!newOrgName.trim() || createOrgMutation.isPending}
-                className="flex-1 bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-              >
-                {createOrgMutation.isPending ? 'Creating...' : 'Create Organization'}
-              </Button>
-            </div>
-          )
         }
       >
-        {!showCreateForm ? (
-          <div className="space-y-4">
-            <Label htmlFor="org-select" className="text-sm font-medium">
-              Available Organizations
-            </Label>
-            <Select 
-              value={selectedOrgId} 
-              onValueChange={setSelectedOrgId}
-              disabled={isLoading}
-            >
-              <SelectTrigger id="org-select" className="w-full">
-                <SelectValue placeholder={isLoading ? "Loading organizations..." : "Select an organization"} />
-              </SelectTrigger>
-              <SelectContent>
-                {organizationsData?.map((org: UserOrganization) => (
-                  <SelectItem 
-                    key={org.id} 
-                    value={org.id} 
-                    className={org.member ? "hover:cursor-pointer" : "opacity-50 cursor-not-allowed"}
-                    disabled={!org.member}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`flex h-6 w-6 items-center justify-center rounded-md font-semibold text-xs ${
-                        org.member 
-                          ? "bg-[#4464f7] text-white" 
-                          : "bg-gray-300 text-gray-500"
-                      }`}>
-                        {org.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <span className={!org.member ? "text-muted-foreground" : ""}>
-                        {org.name}
-                      </span>
-                      {!org.member && (
-                        <span className="text-xs text-muted-foreground ml-auto">(Not a member)</span>
-                      )}
+        <div className="space-y-4">
+          <Label htmlFor="org-select" className="text-sm font-medium">
+            Available Organizations
+          </Label>
+          <Select 
+            value={selectedOrgId} 
+            onValueChange={setSelectedOrgId}
+            disabled={isLoading}
+          >
+            <SelectTrigger id="org-select" className="w-full">
+              <SelectValue placeholder={isLoading ? "Loading organizations..." : "Select an organization"} />
+            </SelectTrigger>
+            <SelectContent>
+              {organizationsData?.map((org: UserOrganization) => (
+                <SelectItem 
+                  key={org.id} 
+                  value={org.id} 
+                  className={org.member ? "hover:cursor-pointer" : "opacity-50 cursor-not-allowed"}
+                  disabled={!org.member}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`flex h-6 w-6 items-center justify-center rounded-md font-semibold text-xs ${
+                      org.member 
+                        ? "bg-[#4464f7] text-white" 
+                        : "bg-gray-300 text-gray-500"
+                    }`}>
+                      {org.name.substring(0, 2).toUpperCase()}
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="new-org-name" className="text-sm font-medium">
-                Organization Name *
-              </Label>
-              <Input
-                id="new-org-name"
-                value={newOrgName}
-                onChange={(e) => setNewOrgName(e.target.value)}
-                placeholder="Enter organization name"
-                className="w-full"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleCreateOrganization();
-                  }
-                }}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="new-org-desc" className="text-sm font-medium">
-                Description (Optional)
-              </Label>
-              <Input
-                id="new-org-desc"
-                value={newOrgDescription}
-                onChange={(e) => setNewOrgDescription(e.target.value)}
-                placeholder="Enter organization description"
-                className="w-full"
-              />
-            </div>
-          </div>
-        )}
+                    <span className={!org.member ? "text-muted-foreground" : ""}>
+                      {org.name}
+                    </span>
+                    {!org.member && (
+                      <span className="text-xs text-muted-foreground ml-auto">(Not a member)</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </ReusableDialog>
     </Dialog>
   );
