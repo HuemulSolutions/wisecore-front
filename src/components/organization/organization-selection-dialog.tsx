@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Dialog } from '@/components/ui/dialog';
 import { ReusableDialog } from '@/components/ui/reusable-dialog';
 import {
   Select,
@@ -43,7 +42,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
 
   const generateTokenMutation = useMutation({
     mutationFn: generateOrganizationToken,
-    onSuccess: async (tokenResponse, organizationId) => {
+    onSuccess: (tokenResponse, organizationId) => {
       const orgToken = tokenResponse.token || tokenResponse.data?.token;
       
       if (!orgToken) {
@@ -51,13 +50,11 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       }
       
       // Actualizar el contexto con la nueva organización y token
+      // (httpClient tokens are updated synchronously inside these setters)
       setSelectedOrganizationId(organizationId);
       setOrganizationToken(orgToken);
       
       console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
-      
-      // Esperar un poco para que el contexto se propague completamente
-      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Invalidar todas las queries que dependen de la organización
       queryClient.invalidateQueries({ 
@@ -84,8 +81,9 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
         onOpenChange(false);
       }
       
-      // Redirigir al home después de cambiar la organización
-      navigate(`/${organizationId}/home`);
+      // Navigation to /${orgId}/home is handled by the context→URL sync
+      // in app-layout.tsx. We intentionally don't navigate here to avoid
+      // a double-navigation flash.
     },
   });
 
@@ -111,16 +109,16 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   const handleSelectOrganization = (orgId?: string) => {
     const organizationId = orgId || selectedOrgId;
     if (organizationId && user?.id) {
-      // Limpiar estado anterior de la organización
-      setOrganizationToken('');
-      
-      // Generar nuevo token usando mutation
+      // Don't clear the token before requesting a new one.
+      // Clearing it causes an intermediate empty-token state that makes
+      // the nav items disappear and permissions reset to empty, producing
+      // a visible flash.  The new token will overwrite the old one
+      // atomically in the onSuccess handler.
       generateTokenMutation.mutate(organizationId);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal>
       <ReusableDialog
         open={open}
         onOpenChange={onOpenChange || (() => {})}
@@ -232,6 +230,5 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
           </Select>
         </div>
       </ReusableDialog>
-    </Dialog>
   );
 }

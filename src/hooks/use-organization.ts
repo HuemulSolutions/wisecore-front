@@ -9,15 +9,18 @@ import { useEffect } from "react";
 export function useRequiredOrganization() {
   const { 
     selectedOrganizationId, 
-    setRequiresOrganizationSelection 
+    setRequiresOrganizationSelection,
+    isLoading 
   } = useOrganization();
 
   // Verificar si necesita mostrar el dialog de selección
+  // Wait until org context finishes restoring from localStorage to avoid
+  // flashing the dialog on page refresh.
   useEffect(() => {
-    if (!selectedOrganizationId) {
+    if (!isLoading && !selectedOrganizationId) {
       setRequiresOrganizationSelection(true);
     }
-  }, [selectedOrganizationId, setRequiresOrganizationSelection]);
+  }, [selectedOrganizationId, setRequiresOrganizationSelection, isLoading]);
 
   return {
     organizationId: selectedOrganizationId,
@@ -31,13 +34,15 @@ export function useRequiredOrganization() {
  * Retorna null mientras no haya organización seleccionada.
  */
 export function useOrganizationId(): string | null {
-  const { selectedOrganizationId, setRequiresOrganizationSelection } = useOrganization();
+  const { selectedOrganizationId, setRequiresOrganizationSelection, isLoading } = useOrganization();
   
+  // Wait until org context finishes restoring from localStorage to avoid
+  // flashing the dialog on page refresh.
   useEffect(() => {
-    if (!selectedOrganizationId) {
+    if (!isLoading && !selectedOrganizationId) {
       setRequiresOrganizationSelection(true);
     }
-  }, [selectedOrganizationId, setRequiresOrganizationSelection]);
+  }, [selectedOrganizationId, setRequiresOrganizationSelection, isLoading]);
   
   return selectedOrganizationId;
 }
