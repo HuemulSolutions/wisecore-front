@@ -33,10 +33,20 @@ export default function App() {
           {/* Root redirect — sends user to /:orgId/home */}
           <Route path="/" element={<RootRedirect />} />
 
+          {/* Non-org-scoped routes (no orgId needed) */}
+          <Route element={<AppLayout />}>
+            <Route path="/home" element={<Home />} />
+            <Route path="/global-admin" element={
+              <PermissionProtectedRoute requireRootAdmin>
+                <GlobalAdminPage />
+              </PermissionProtectedRoute>
+            } />
+          </Route>
+
           {/* All org-scoped routes */}
           <Route path="/:orgId" element={<AppLayout />}>
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<Home />} />
+            <Route path="home" element={<Navigate to="/home" replace />} />
             <Route path="organizations" element={
               <PermissionProtectedRoute permissions={["organization:r", "organization:l"]}>
                 <Organizations />
@@ -74,11 +84,7 @@ export default function App() {
                 <AuthTypes />
               </PermissionProtectedRoute>
             } />
-            <Route path="global-admin" element={
-              <PermissionProtectedRoute requireRootAdmin>
-                <GlobalAdminPage />
-              </PermissionProtectedRoute>
-            } />
+            <Route path="global-admin" element={<Navigate to="/global-admin" replace />} />
             <Route path="users" element={
               <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
                 <UsersPage />
