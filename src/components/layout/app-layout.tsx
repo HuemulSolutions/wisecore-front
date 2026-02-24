@@ -104,6 +104,15 @@ export default function AppLayout() {
   useEffect(() => {
     if (!orgId || orgId === '_' || !user?.id) return
 
+    // If org selection is required (fresh login, no org in localStorage),
+    // don't auto-select from the URL. Navigate to a clean URL so the
+    // org-selection dialog is shown instead of silently picking the org
+    // that was left in the URL from the previous session.
+    if (requiresOrganizationSelection) {
+      rawNavigate('/home', { replace: true })
+      return
+    }
+
     // Only act when the URL orgId truly changed since last check
     if (orgId === lastSyncedUrlOrgRef.current) return
     lastSyncedUrlOrgRef.current = orgId
@@ -180,7 +189,7 @@ export default function AppLayout() {
       isSwitchingOrgRef.current = false
       lastSyncedUrlOrgRef.current = null
     }
-  }, [orgId, selectedOrganizationId, user?.id])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orgId, selectedOrganizationId, user?.id, requiresOrganizationSelection])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Sync organization context → URL (dialog/switcher scenario) ---
   // When the user picks a different org from the dialog/switcher the context
