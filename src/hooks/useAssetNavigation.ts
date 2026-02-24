@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
+import { useOrgNavigate, stripOrgPrefix } from "@/hooks/useOrgRouter";
 import { getLibraryContent } from "@/services/folders";
 import type { BreadcrumbItem, LibraryItem, LibraryNavigationState } from "@/components/assets";
 
@@ -27,8 +28,9 @@ export function useAssetNavigation({
   selectedOrganizationId, 
   organizationToken 
 }: UseAssetNavigationProps): UseAssetNavigationReturn {
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
   const location = useLocation();
+  const { orgId: urlOrgId } = useParams<{ orgId: string }>();
 
   // State management
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
@@ -41,6 +43,7 @@ export function useAssetNavigation({
   const hasRestoredRef = useRef(false);
   const lastProcessedUrlRef = useRef<string>('');
   const prevOrganizationIdRef = useRef<string | null>(null);
+  const isInitializingRef = useRef(false);
 
   // Get current folder ID from breadcrumb
   const currentFolderId = breadcrumb.length > 0 
@@ -51,7 +54,8 @@ export function useAssetNavigation({
    * Parse URL path to extract folder hierarchy and selected file
    */
   const parseUrlPath = useCallback(async () => {
-    const path = location.pathname.replace('/asset', '').replace(/^\/+|\/+$/g, '');
+    const strippedPathname = stripOrgPrefix(location.pathname);
+    const path = strippedPathname.replace('/asset', '').replace(/^\/+|\/+$/g, '');
     console.log('Parsing URL path:', location.pathname, '-> cleaned path:', path);
     
     if (!path) return { folderPath: [], selectedFileId: null };
@@ -198,8 +202,15 @@ export function useAssetNavigation({
   useEffect(() => {
     if (!selectedOrganizationId || !organizationToken) return;
     
-    // Skip if this URL has already been processed
-    if (lastProcessedUrlRef.current === location.pathname) {
+    // If the URL's orgId doesn't match the current context org, an org switch
+    // is in progress — skip init until the switch completes and context catches up.
+    if (urlOrgId && urlOrgId !== '_' && urlOrgId !== selectedOrganizationId) {
+      console.log('[ASSETS] URL orgId does not match context org, waiting for org switch...', { urlOrgId, selectedOrganizationId });
+      return;
+    }
+    
+    // Skip if this URL has already been processed (compare without org prefix)
+    if (lastProcessedUrlRef.current === stripOrgPrefix(location.pathname)) {
       console.log('URL already processed, skipping:', location.pathname);
       return;
     }
@@ -209,8 +220,8 @@ export function useAssetNavigation({
         console.log('Initializing from URL:', location.pathname);
         setIsLoadingDocument(true);
         
-        // Mark this URL as processed
-        lastProcessedUrlRef.current = location.pathname;
+        // Mark this URL as processed (store without org prefix)
+        lastProcessedUrlRef.current = stripOrgPrefix(location.pathname);
         
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
@@ -293,8 +304,9 @@ export function useAssetNavigation({
       const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
       const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
       
-      if (location.pathname !== '/asset') {
-        initializeFromUrl();
+      if (stripOrgPrefix(location.pathname) !== '/asset') {
+        isInitializingRef.current = true;
+        initializeFromUrl().finally(() => { isInitializingRef.current = false; });
       } else if (savedBreadcrumb) {
         try {
           const parsed = JSON.parse(savedBreadcrumb);
@@ -311,9 +323,10 @@ export function useAssetNavigation({
       
       hasRestoredRef.current = true;
     } else {
-      initializeFromUrl();
+      isInitializingRef.current = true;
+      initializeFromUrl().finally(() => { isInitializingRef.current = false; });
     }
-  }, [selectedOrganizationId, organizationToken, location.pathname, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate]);
+  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate]);
 
   /**
    * Sync sessionStorage when breadcrumb or selectedFile changes
@@ -336,6 +349,10 @@ export function useAssetNavigation({
   useEffect(() => {
     if (!hasRestoredRef.current || !selectedOrganizationId || !organizationToken) return;
     
+    // Don't rewrite the URL while async initialization is in progress —
+    // state (breadcrumb/selectedFile) hasn't settled yet.
+    if (isInitializingRef.current) return;
+    
     const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
     
     // Don't update URL if navigation came from FileTree
@@ -345,7 +362,7 @@ export function useAssetNavigation({
       return;
     }
     
-    if (location.pathname !== newUrl && !isUpdatingUrl) {
+    if (stripOrgPrefix(location.pathname) !== newUrl && !isUpdatingUrl) {
       console.log('🔄 [ASSETS] Updating URL to reflect current state:', newUrl);
       setIsUpdatingUrl(true);
       
@@ -377,16 +394,25 @@ export function useAssetNavigation({
       sessionStorage.removeItem('library-breadcrumb');
       sessionStorage.removeItem('library-selectedFile');
       
-      if (location.pathname !== '/asset') {
-        console.log('Organization changed, navigating to assets root');
+      // Check if the URL orgId already matches the new org — if so, the switch
+      // was driven by a shared URL and we should re-initialize from the URL
+      // instead of redirecting to the asset root.
+      const urlDroveChange = urlOrgId === selectedOrganizationId;
+      
+      if (!urlDroveChange && stripOrgPrefix(location.pathname) !== '/asset') {
+        console.log('Organization changed via switcher, navigating to assets root');
         setIsUpdatingUrl(true);
         navigate('/asset', { replace: true });
         setTimeout(() => setIsUpdatingUrl(false), 200);
+      } else if (urlDroveChange) {
+        console.log('Organization changed via shared URL, will re-initialize from URL');
+        // The "Initialize from URL" effect will re-run because
+        // hasRestoredRef and lastProcessedUrlRef were reset above.
       }
     }
     
     prevOrganizationIdRef.current = selectedOrganizationId;
-  }, [selectedOrganizationId, navigate, location.pathname]);
+  }, [selectedOrganizationId, navigate, location.pathname, urlOrgId]);
 
   /**
    * Handle navigation state to restore selected document and breadcrumb

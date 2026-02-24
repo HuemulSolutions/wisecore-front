@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Loader2, Clock, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-utils';
 import { useExecutionPolling } from '@/hooks/useExecutionPolling';
 import { useOrganization } from '@/contexts/organization-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -73,8 +74,7 @@ export function ExecutionStatusBanner({
   // Handle polling errors
   useEffect(() => {
     if (error) {
-      console.error('Execution polling error:', error);
-      toast.error('Error checking execution status. Please refresh the page.');
+      handleApiError(error, { fallbackMessage: 'Error checking execution status. Please refresh the page.' });
     }
   }, [error]);
 

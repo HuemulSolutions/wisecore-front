@@ -1,6 +1,9 @@
-import { Outlet, Link, useLocation } from "react-router-dom"
+import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu } from "lucide-react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
+import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
+import { useQueryClient } from "@tanstack/react-query"
+import { generateOrganizationToken } from "@/services/organizations"
 import packageInfo from "../../../package.json"
 import {
   Tooltip,
@@ -38,31 +41,47 @@ const navigationItems = [
     title: "Home",
     url: "/home",
     icon: Home,
+    orgScoped: false,
   },
   {
     title: "Assets",
     url: "/asset", 
     icon: BookText,
+    orgScoped: true,
   },
   {
     title: "Search",
     url: "/search",
     icon: Search,
+    orgScoped: true,
   },
   {
     title: "Templates",
     url: "/templates",
     icon: LayoutTemplate,
+    orgScoped: true,
   },
 ]
 
 export default function AppLayout() {
   const location = useLocation()
-  const { requiresOrganizationSelection, organizationToken } = useOrganization()
+  const rawNavigate = useNavigate()
+  const { orgId } = useParams<{ orgId: string }>()
+  const buildPath = useOrgPath()
+  const { requiresOrganizationSelection, organizationToken, selectedOrganizationId, setSelectedOrganizationId, setOrganizationToken, setRequiresOrganizationSelection } = useOrganization()
   const { isLoading: permissionsLoading } = useUserPermissions()
   const { user, logout } = useAuth()
+  const queryClient = useQueryClient()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isInSelectionFlow, setIsInSelectionFlow] = useState(false)
+  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+  const isSwitchingOrgRef = useRef(false)
+  const lastSyncedUrlOrgRef = useRef<string | null>(null)
+  // Remember whether the user previously had org-scoped nav access.
+  // This lets us show loading placeholders instead of hiding items during
+  // the brief gap when the token/permissions are being refreshed.
+  const hadOrgAccessRef = useRef(false)
   
   const {
     isRootAdmin,
@@ -77,10 +96,140 @@ export default function AppLayout() {
     hasAnyPermission,
   } = useUserPermissions()
   
-  // El diálogo debe mantenerse abierto si:
-  // 1. Se requiere selección de organización O
-  // 2. Tenemos token de organización pero los permisos aún están cargando
-  const shouldShowDialog = requiresOrganizationSelection || (!!organizationToken && permissionsLoading)
+  // --- Sync URL orgId → organization context (shared URL / pasted link scenario) ---
+  // Only triggers when the URL's orgId ACTUALLY changes (user navigated to a
+  // different org URL, e.g. pasted a shared link). Does NOT trigger when
+  // selectedOrganizationId changes from the dialog/switcher — that's handled
+  // by the context→URL sync below.
+  useEffect(() => {
+    if (!orgId || orgId === '_' || !user?.id) return
+
+    // If org selection is required (fresh login, no org in localStorage),
+    // don't auto-select from the URL. Navigate to a clean URL so the
+    // org-selection dialog is shown instead of silently picking the org
+    // that was left in the URL from the previous session.
+    if (requiresOrganizationSelection) {
+      rawNavigate('/home', { replace: true })
+      return
+    }
+
+    // Only act when the URL orgId truly changed since last check
+    if (orgId === lastSyncedUrlOrgRef.current) return
+    lastSyncedUrlOrgRef.current = orgId
+
+    // If URL org already matches context, nothing to do
+    if (orgId === selectedOrganizationId) return
+
+    // URL has a different org than context → user pasted a shared link
+    let cancelled = false
+    isSwitchingOrgRef.current = true
+    setIsSwitchingOrg(true)
+    console.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
+
+    generateOrganizationToken(orgId)
+      .then(async (tokenResponse) => {
+        if (cancelled) return
+
+        const orgToken = tokenResponse.token || tokenResponse.data?.token
+        if (!orgToken) {
+          throw new Error('No token received from server')
+        }
+
+        setSelectedOrganizationId(orgId)
+        setOrganizationToken(orgToken)
+        setRequiresOrganizationSelection(false)
+
+        console.log(`[OrgSync] Switched to org "${orgId}" successfully`)
+
+        await new Promise(resolve => setTimeout(resolve, 200))
+
+        if (cancelled) return
+
+        // Invalidate org-dependent queries
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const queryKey = query.queryKey
+            return Array.isArray(queryKey) && (
+              queryKey.includes('documents') ||
+              queryKey.includes('document-types') ||
+              queryKey.includes('roles') ||
+              queryKey.includes('permissions') ||
+              queryKey.includes('assets') ||
+              queryKey.includes('asset-types') ||
+              queryKey.includes('custom-fields') ||
+              queryKey.includes('users') ||
+              queryKey.includes('knowledge') ||
+              queryKey.includes('library') ||
+              queryKey.some(key => typeof key === 'string' && key.includes('org'))
+            )
+          }
+        })
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
+        // If token generation fails (user doesn't have access), redirect
+        // with the current org, or show org selection dialog
+        if (selectedOrganizationId) {
+          const pathWithoutOrg = stripOrgPrefix(location.pathname)
+          rawNavigate(`/${selectedOrganizationId}${pathWithoutOrg}${location.search}`, { replace: true })
+        } else {
+          rawNavigate('/', { replace: true })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) isSwitchingOrgRef.current = false
+      })
+
+    // Cleanup: cancel the in-flight switch if effect re-runs.
+    // Also reset lastSyncedUrlOrgRef so React Strict Mode's second
+    // invocation re-processes the orgId instead of skipping it.
+    return () => {
+      cancelled = true
+      isSwitchingOrgRef.current = false
+      lastSyncedUrlOrgRef.current = null
+    }
+  }, [orgId, selectedOrganizationId, user?.id, requiresOrganizationSelection])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Sync organization context → URL (dialog/switcher scenario) ---
+  // When the user picks a different org from the dialog/switcher the context
+  // updates but the URL still points to the old org.  We redirect to /home
+  // in the new org because the previous page content is org-specific and
+  // wouldn't make sense in the new org.  This is the SINGLE navigation
+  // source for this flow — the dialog intentionally does NOT call navigate.
+  useEffect(() => {
+    if (isSwitchingOrgRef.current) return
+    // Don't override a URL org that the URL→context sync hasn't processed yet.
+    if (orgId && orgId !== '_' && lastSyncedUrlOrgRef.current !== orgId) return
+    if (selectedOrganizationId && orgId && orgId !== selectedOrganizationId) {
+      setIsSwitchingOrg(true)
+      lastSyncedUrlOrgRef.current = selectedOrganizationId
+      rawNavigate(`/${selectedOrganizationId}/home`, { replace: true })
+    }
+  }, [selectedOrganizationId, orgId, rawNavigate])
+
+  // Track active selection flow: enters when org selection is required,
+  // exits once permissions finish loading after the user picks an org.
+  useEffect(() => {
+    if (requiresOrganizationSelection) {
+      setIsInSelectionFlow(true)
+    }
+  }, [requiresOrganizationSelection])
+
+  useEffect(() => {
+    if (isInSelectionFlow && !permissionsLoading && !requiresOrganizationSelection) {
+      setIsInSelectionFlow(false)
+    }
+  }, [isInSelectionFlow, permissionsLoading, requiresOrganizationSelection])
+
+  // Show the dialog when:
+  // 1. Organization selection is explicitly required, OR
+  // 2. User is in an active selection flow and permissions are still loading
+  //    (keeps dialog open after org pick until permissions are ready).
+  // This does NOT trigger on page refresh because isInSelectionFlow stays false
+  // when the org/token are restored from localStorage.
+  const shouldShowDialog = requiresOrganizationSelection ||
+    (isInSelectionFlow && !!organizationToken && permissionsLoading)
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
@@ -106,13 +255,35 @@ export default function AppLayout() {
     }, 0)
   }
 
+  // Track when the user is switching orgs so we can keep showing
+  // nav items as loading instead of hiding them.
+  useEffect(() => {
+    if (isSwitchingOrg && organizationToken && !permissionsLoading) {
+      setIsSwitchingOrg(false)
+    }
+  }, [isSwitchingOrg, organizationToken, permissionsLoading])
+
   // Filtrar navigationItems basándose en permisos del usuario
   const filteredNavigationItems = useMemo(() => {
-    if (!organizationToken || permissionsLoading) {
-      return []
-    }
+    // Determine whether we should show org-scoped items as loading placeholders.
+    // This is true when:
+    //   - There's no token yet but the user previously had org access (switching)
+    //   - There's a token but permissions are still loading
+    //   - We're in an active org-switch transition
+    const isTransitioning = isSwitchingOrg ||
+      (organizationToken && permissionsLoading) ||
+      (!organizationToken && hadOrgAccessRef.current)
 
-    return navigationItems.map(item => {
+    const result = navigationItems.map(item => {
+      // Non-org-scoped items (e.g. Home) are always visible
+      if (!item.orgScoped) return { ...item, loading: false }
+
+      // During any transition, show org-scoped items as loading
+      if (isTransitioning) return { ...item, loading: true }
+
+      // No org token and user never had access — don't show
+      if (!organizationToken) return null
+
       let shouldShowItem = true
       
       switch (item.title) {
@@ -126,14 +297,22 @@ export default function AppLayout() {
           shouldShowItem = true
       }
 
-      return shouldShowItem ? item : null
-    }).filter(Boolean) as typeof navigationItems
+      return shouldShowItem ? { ...item, loading: false } : null
+    }).filter(Boolean) as (typeof navigationItems[number] & { loading: boolean })[]
+
+    // Update the ref: if we're showing real (non-loading) org items, remember it
+    const hasRealOrgItems = result.some(i => i.orgScoped && !i.loading)
+    if (hasRealOrgItems) hadOrgAccessRef.current = true
+
+    return result
   }, [
     organizationToken,
     permissionsLoading,
     canAccessAssets,
     canAccessTemplates,
-    isRootAdmin
+    isOrgAdmin,
+    isRootAdmin,
+    isSwitchingOrg
   ])
 
   return (
@@ -148,23 +327,32 @@ export default function AppLayout() {
             
             {/* Center section: Navigation Menu */}
             <nav className="hidden md:flex items-center justify-center gap-1 flex-1">
-              {filteredNavigationItems.map((item) => {
+              {filteredNavigationItems.map((item, index) => {
                 const Icon = item.icon
-                const isActive = location.pathname === item.url || 
-                  (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
+                const currentPath = item.orgScoped ? stripOrgPrefix(location.pathname) : location.pathname
+                const isActive = !item.loading && (currentPath === item.url || 
+                  (item.url !== '/home' && (currentPath.startsWith(item.url + '/') || currentPath === item.url)))
+                const linkTo = item.orgScoped ? buildPath(item.url) : item.url
                 
                 return (
                   <Link
                     key={item.title}
-                    to={item.url}
+                    to={item.loading ? '#' : linkTo}
+                    onClick={item.loading ? (e: React.MouseEvent) => e.preventDefault() : undefined}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
+                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      item.orgScoped && "nav-item-enter",
+                      item.loading 
+                        ? "animate-pulse pointer-events-none opacity-50" 
+                        : "hover:cursor-pointer",
                       isActive 
                         ? "bg-accent text-accent-foreground" 
                         : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                     )}
+                    style={item.orgScoped ? { animationDelay: `${index * 60}ms` } : undefined}
+                    tabIndex={item.loading ? -1 : undefined}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4 shrink-0" />
                     <span>{item.title}</span>
                   </Link>
                 )
@@ -182,24 +370,32 @@ export default function AppLayout() {
                 <div className="flex flex-col gap-4 py-4">
                   <div className="px-2 text-lg font-semibold">Navigation</div>
                   <nav className="flex flex-col gap-1">
-                    {filteredNavigationItems.map((item) => {
+                    {filteredNavigationItems.map((item, index) => {
                       const Icon = item.icon
-                      const isActive = location.pathname === item.url || 
-                      (item.url !== '/home' && (location.pathname.startsWith(item.url + '/') || location.pathname === item.url))
+                      const currentPath = item.orgScoped ? stripOrgPrefix(location.pathname) : location.pathname
+                      const isActive = !item.loading && (currentPath === item.url || 
+                      (item.url !== '/home' && (currentPath.startsWith(item.url + '/') || currentPath === item.url)))
+                      const linkTo = item.orgScoped ? buildPath(item.url) : item.url
                       
                       return (
                         <Link
                           key={item.title}
-                          to={item.url}
-                          onClick={() => setMobileMenuOpen(false)}
+                          to={item.loading ? '#' : linkTo}
+                          onClick={item.loading ? (e: React.MouseEvent) => e.preventDefault() : () => setMobileMenuOpen(false)}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:cursor-pointer",
+                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                            item.orgScoped && "nav-item-enter",
+                            item.loading 
+                              ? "animate-pulse pointer-events-none opacity-50" 
+                              : "hover:cursor-pointer",
                             isActive 
                               ? "bg-accent text-accent-foreground" 
                               : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                           )}
+                          style={item.orgScoped ? { animationDelay: `${index * 60}ms` } : undefined}
+                          tabIndex={item.loading ? -1 : undefined}
                         >
-                          <Icon className="h-4 w-4" />
+                          <Icon className="h-4 w-4 shrink-0" />
                           <span>{item.title}</span>
                         </Link>
                       )
@@ -239,14 +435,14 @@ export default function AppLayout() {
                         <DropdownMenuLabel>Asset Management</DropdownMenuLabel>
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/asset-types" className="hover:cursor-pointer">
+                            <Link to={buildPath("/asset-types")} className="hover:cursor-pointer">
                               Asset Types
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/custom-fields" className="hover:cursor-pointer">
+                            <Link to={buildPath("/custom-fields")} className="hover:cursor-pointer">
                               Custom Fields
                             </Link>
                           </DropdownMenuItem>
@@ -260,7 +456,7 @@ export default function AppLayout() {
                         <DropdownMenuLabel>Administration</DropdownMenuLabel>
                         {(canAccessOrganizations || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/organizations" className="hover:cursor-pointer">
+                            <Link to={buildPath("/organizations")} className="hover:cursor-pointer">
                               Organizations
                             </Link>
                           </DropdownMenuItem>
@@ -274,28 +470,28 @@ export default function AppLayout() {
                         )}
                         {(canAccessUsers || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/users" className="hover:cursor-pointer">
+                            <Link to={buildPath("/users")} className="hover:cursor-pointer">
                               Users
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessRoles || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/roles" className="hover:cursor-pointer">
+                            <Link to={buildPath("/roles")} className="hover:cursor-pointer">
                               Roles
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessModels || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/models" className="hover:cursor-pointer">
+                            <Link to={buildPath("/models")} className="hover:cursor-pointer">
                               Models
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to="/auth-types" className="hover:cursor-pointer">
+                            <Link to={buildPath("/auth-types")} className="hover:cursor-pointer">
                               Auth Types
                             </Link>
                           </DropdownMenuItem>

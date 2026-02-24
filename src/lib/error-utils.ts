@@ -9,6 +9,8 @@ export interface HandleApiErrorOptions {
   fallbackMessage?: string;
   /** Whether to show a toast notification (default: true) */
   showToast?: boolean;
+  /** Whether to show the error detail as toast description (default: false) */
+  showDescription?: boolean;
   /** Custom handler for specific error codes */
   onErrorCode?: (code: string) => boolean; // Return true to prevent default handling
 }
@@ -52,6 +54,7 @@ export function handleApiError(
   const { 
     fallbackMessage = 'An unexpected error occurred', 
     showToast = true,
+    showDescription = false,
     onErrorCode 
   } = options;
 
@@ -77,7 +80,11 @@ export function handleApiError(
 
     if (showToast) {
       // Use the user-friendly message from the backend
-      toast.error(error.message);
+      // Optionally include detail as description when it adds useful context
+      const description = showDescription && error.detail && error.detail !== error.message
+        ? error.detail
+        : undefined;
+      toast.error(error.message, { description });
     }
     
     return;

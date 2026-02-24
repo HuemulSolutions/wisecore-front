@@ -26,6 +26,7 @@ interface OrganizationTableProps {
   canDelete?: boolean
   canSetAdmin?: boolean
   isRootAdmin?: boolean
+  maxHeight?: string
 }
 
 // Helper function for date formatting
@@ -50,7 +51,8 @@ export function OrganizationTable({
   canUpdate = false,
   canDelete = false,
   canSetAdmin = false,
-  isRootAdmin = false
+  isRootAdmin = false,
+  maxHeight
 }: OrganizationTableProps) {
   // Define columns
   const columns: TableColumn<Organization>[] = [
@@ -170,6 +172,7 @@ export function OrganizationTable({
       footerStats={footerStatsList}
       showCheckbox={canUpdate || canDelete}
       showFooterStats={showFooterStats}
+      maxHeight={maxHeight}
     />
   )
 }

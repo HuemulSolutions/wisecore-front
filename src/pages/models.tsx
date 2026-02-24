@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { handleApiError } from '@/lib/error-utils'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
 import { 
   getSupportedProviders, 
@@ -425,8 +426,8 @@ export default function Models() {
         }
         
         setEditingProvider(editProvider)
-      } catch (error: any) {
-        toast.error(`Failed to load provider details: ${error.message}`)
+      } catch (error) {
+        handleApiError(error, { fallbackMessage: 'Failed to load provider details' })
       }
     }, 0)
   }

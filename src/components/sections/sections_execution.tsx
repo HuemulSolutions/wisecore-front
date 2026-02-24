@@ -16,6 +16,7 @@ import { fixSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-utils';
 
 interface SectionExecutionProps {
     sectionExecution: {
@@ -65,8 +66,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             toast.success("Section deleted successfully");
             onUpdate?.();
         } catch (error) {
-            console.error('Error deleting section:', error);
-            toast.error("Error deleting section. Please try again.");
+            handleApiError(error, { fallbackMessage: 'Error deleting section. Please try again.' });
         } finally {
             setIsDeleting(false);
             setShowDeleteDialog(false);

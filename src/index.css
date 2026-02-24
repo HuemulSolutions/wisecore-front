@@ -320,3 +320,19 @@
     transform: scale(1);
   }
 }
+
+/* Nav item entrance animation */
+@keyframes nav-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-item-enter {
+  animation: nav-slide-in 0.3s ease-out both;
+}

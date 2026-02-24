@@ -4,11 +4,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";
-import { Loader2, Search, FileText, X } from "lucide-react";
+import { Loader2, Search, FileText, X, AlertTriangle } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useOrganization } from "@/contexts/organization-context";
 import { DocumentResult } from "@/components/search/search-document-result";
 import { SearchResultsSkeleton } from "@/components/search/search-results-skeleton";
+import { getErrorMessage } from "@/lib/error-utils";
+import { ApiError } from "@/types/api-error";
 
 interface SearchResultSection {
   section_execution_id: string;
@@ -33,7 +35,7 @@ export default function SearchPage() {
   const initialSearchQuery = searchParams.get("q") || "";
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
 
-  const { data: searchResults, isLoading, isError, refetch } = useQuery<SearchResultData[]>({
+  const { data: searchResults, isLoading, isError, error, refetch } = useQuery<SearchResultData[]>({
     queryKey: ['search', searchQuery, selectedOrganizationId],
     queryFn: () => search(searchQuery, selectedOrganizationId!),
     enabled: !!searchQuery && searchQuery.trim().length > 0,
@@ -139,8 +141,24 @@ export default function SearchPage() {
 
             {isError && (
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
-                <p className="text-red-600 mb-4 font-medium">Search Error</p>
-                <p className="text-sm text-muted-foreground">Error performing search. Please try again.</p>
+                <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
+                <p className="text-red-600 mb-2 font-medium">
+                  {getErrorMessage(error, 'Error performing search')}
+                </p>
+                {ApiError.isApiError(error) && error.detail && (
+                  <p className="text-sm text-muted-foreground mb-4">{error.detail}</p>
+                )}
+                {!ApiError.isApiError(error) && (
+                  <p className="text-sm text-muted-foreground mb-4">Please try again.</p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  className="hover:cursor-pointer"
+                >
+                  Retry
+                </Button>
               </div>
             )}
 

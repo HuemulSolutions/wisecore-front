@@ -15,7 +15,7 @@ import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import type { CreateAssetRequest, CreateAssetDialogProps } from "@/types/assets"
 import AssetFormFields from "@/components/assets/content/assets-form-fields"
 
-export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
+function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
   const [name, setName] = useState("")
@@ -89,11 +89,13 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
       console.log('✅ [CREATE-DIALOG] Asset created successfully:', createdAsset)
       toast.success("Asset created successfully")
       
-      // Close dialog and execute callback immediately
-      // Radix will handle the unmounting and animation properly
+      // Close dialog first
       console.log('🚪 [CREATE-DIALOG] Closing dialog')
       onOpenChange(false)
       
+      // Execute callback immediately — the dialog is protected against
+      // re-render flashes via React.memo, so navigation won't cause
+      // the portal to flicker.
       console.log('📞 [CREATE-DIALOG] Calling onAssetCreated callback')
       onAssetCreated?.({
         id: createdAsset.id,
@@ -153,7 +155,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
         open={open}
         onOpenChange={onOpenChange}
         title="Create Asset"
-        description="Enter the asset information to create a new document."
+        description="Enter the asset information to create a new asset."
         icon={Plus}
         maxWidth="lg"
         maxHeight="90vh"
@@ -199,3 +201,5 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     </>
   )
 }
+
+export const CreateAssetDialog = React.memo(CreateAssetDialogInner)

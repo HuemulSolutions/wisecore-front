@@ -1,5 +1,6 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import ExecutionInfo from "@/components/execution/execution_info";
 import SectionExecution from "@/components/sections/sections_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/error-utils";
 import {
     Select,
     SelectContent,
@@ -29,7 +31,7 @@ import { useOrganization } from "@/contexts/organization-context";
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const navigate = useOrgNavigate();
     const { selectedOrganizationId } = useOrganization();
     const [instructions, setInstructions] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
@@ -53,8 +55,8 @@ export default function ExecutionPage() {
             toast.success("Model updated");
             refetch();
         },
-        onError: () => {
-            toast.error("Failed to update model");
+        onError: (error) => {
+            handleApiError(error, { fallbackMessage: "Failed to update model" });
         }
     });
 
@@ -158,7 +160,7 @@ export default function ExecutionPage() {
             updateTimer.current = null;
         }
         
-        toast.error("Error generating content. Please try again.");
+        handleApiError(error, { fallbackMessage: "Error generating content. Please try again." });
     };
 
     const handleStreamClose = () => {
@@ -257,7 +259,7 @@ export default function ExecutionPage() {
             console.error('Error starting generation:', error);
             setIsGenerating(false);
             hasAutoStarted.current = false;
-            toast.error("Error starting generation. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error starting generation. Please try again." });
             return;
         }
     };
@@ -271,8 +273,7 @@ export default function ExecutionPage() {
             refetch();
             toast.success("Execution approved successfully");
         } catch (error) {
-            console.error('Error approving execution:', error);
-            toast.error("Error approving execution. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error approving execution. Please try again." });
         } finally {
             setIsApproving(false);
         }
@@ -287,8 +288,7 @@ export default function ExecutionPage() {
             refetch();
             toast.success("Execution disapproved successfully");
         } catch (error) {
-            console.error('Error disapproving execution:', error);
-            toast.error("Error disapproving execution. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error disapproving execution. Please try again." });
         } finally {
             setIsApproving(false);
         }
@@ -319,7 +319,7 @@ export default function ExecutionPage() {
                             variant="outline"
                             size="sm"
                             className="hover:cursor-pointer"
-                            onClick={() => navigate(`/document/${execution.document_id}`)}
+                            onClick={() => navigate(`/asset/${execution.document_id}`)}
                         >
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Back

@@ -5,6 +5,7 @@ import { FileText, ChevronDown, ChevronRight, ExternalLink } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SectionResult } from "./search-section-result";
 import { useState } from "react";
+import { useOrganization } from "@/contexts/organization-context";
 
 interface SearchResultSection {
   section_execution_id: string;
@@ -25,11 +26,10 @@ interface DocumentResultProps {
 
 export function DocumentResult({ document }: DocumentResultProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { selectedOrganizationId } = useOrganization();
 
   const handleOpenDocument = () => {
-    // Navigate to the document using the path structure that Assets expects
-    // Assets component should handle finding the document regardless of its folder location
-    window.open(`/asset/${document.document_id}`, '_blank');
+    window.open(`/${selectedOrganizationId}/asset/${document.document_id}`, '_blank');
   };
 
   return (

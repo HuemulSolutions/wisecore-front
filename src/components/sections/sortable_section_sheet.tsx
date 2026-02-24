@@ -199,12 +199,15 @@ export default function SortableSectionSheet({
 
                 {/* Dependencies */}
                 {!isExpanded && item.dependencies && item.dependencies.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide">Depends on:</span>
-                    <Badge variant="outline" className="text-xs">
-                      {item.dependencies.map(d => d.name).join(', ')}
-                    </Badge>
-                    {/* <span className="text-xs text-gray-700">{item.dependencies.map(d => d.name).join(', ')}</span> */}
+                  <div className="mt-2 flex items-center gap-2 min-w-0 overflow-hidden">
+                    <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide shrink-0">Depends on:</span>
+                    <div className="flex flex-wrap gap-1 min-w-0 overflow-hidden">
+                      {item.dependencies.map((d) => (
+                        <Badge key={d.id} variant="outline" className="text-xs shrink-0">
+                          {d.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import {
@@ -20,7 +21,7 @@ interface TemplateItem {
 
 export default function Templates() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+    const navigate = useOrgNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
   const { selectedOrganizationId } = useOrganization();
   
@@ -88,9 +89,14 @@ export default function Templates() {
             error={queryError}
             selectedTemplateId={selectedTemplate?.id || null}
             onTemplateSelect={handleTemplateSelect}
+            onTemplateDeleted={() => {
+              setSelectedTemplate(null);
+              navigate('/templates', { replace: true });
+            }}
             organizationId={selectedOrganizationId}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
             canCreate={canCreateTemplate}
+            canUpdate={canUpdateTemplate}
             canDelete={canDeleteTemplate}
           />
         </ResizablePanel>

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
@@ -40,6 +41,10 @@ import {
 
 interface GlobalUsersResponse {
   data: User[]
+  page: number
+  page_size: number
+  has_next: boolean
+  total?: number
 }
 
 interface OrganizationPageState {
@@ -186,16 +191,18 @@ function OrganizationsSection() {
   }
 
   return (
-    <div className="space-y-4">
-      <OrganizationPageHeader
-        organizationCount={organizationsResponse?.total || filteredOrganizations.length}
-        onCreateOrganization={() => updateState({ showCreateDialog: true })}
-        onRefresh={handleRefresh}
-        isLoading={isLoading || isRefreshing}
-        searchTerm={state.searchTerm}
-        onSearchChange={(value: string) => updateState({ searchTerm: value })}
-        canManage={isRootAdmin}
-      />
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      <div className="shrink-0">
+        <OrganizationPageHeader
+          organizationCount={organizationsResponse?.total || filteredOrganizations.length}
+          onCreateOrganization={() => updateState({ showCreateDialog: true })}
+          onRefresh={handleRefresh}
+          isLoading={isLoading || isRefreshing}
+          searchTerm={state.searchTerm}
+          onSearchChange={(value: string) => updateState({ searchTerm: value })}
+          canManage={isRootAdmin}
+        />
+      </div>
 
       {error ? (
         <OrganizationContentEmptyState 
@@ -222,6 +229,7 @@ function OrganizationsSection() {
           onEditOrganization={handleEditOrganization}
           onDeleteOrganization={handleDeleteOrganization}
           onSetAdmin={handleSetAdmin}
+          maxHeight="flex-1 min-h-0"
           pagination={{
             page: organizationsResponse?.page || page,
             pageSize: organizationsResponse?.page_size || pageSize,
@@ -312,6 +320,8 @@ function UsersSection() {
     rootAdminUser: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
@@ -321,11 +331,11 @@ function UsersSection() {
   const canUpdateUser = isRootAdmin || hasPermission('user:u')
   const canDeleteUser = isRootAdmin || hasPermission('user:d')
 
-  const globalUsersQueryKey = ["global-users"] as const
+  const globalUsersQueryKey = ["global-users", page, pageSize] as const
 
   const { data: usersResponse, isLoading, error, refetch } = useQuery({
     queryKey: globalUsersQueryKey,
-    queryFn: getGlobalUsers,
+    queryFn: () => getGlobalUsers(page, pageSize),
     enabled: canListUsers
   }) as {
     data: GlobalUsersResponse | undefined
@@ -333,7 +343,7 @@ function UsersSection() {
     error: any
     refetch: () => Promise<any>
   }
-  const userMutations = useUserMutations([globalUsersQueryKey])
+  const userMutations = useUserMutations([["global-users"]])
 
   if (isLoadingPermissions) {
     return <UserPageSkeleton />
@@ -368,11 +378,11 @@ function UsersSection() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await queryClient.invalidateQueries({ queryKey: globalUsersQueryKey })
+      await queryClient.invalidateQueries({ queryKey: ["global-users"] })
       await refetch()
       toast.success('Data refreshed')
-    } catch {
-      toast.error('Failed to refresh data')
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: 'Failed to refresh data' })
     } finally {
       setIsRefreshing(false)
     }
@@ -514,19 +524,21 @@ function UsersSection() {
   ]
 
   return (
-    <div className="space-y-4">
-      <UserPageHeader
-        userCount={filteredUsers.length}
-        onCreateUser={() => updateState({ showCreateDialog: true })}
-        onRefresh={handleRefresh}
-        isLoading={isLoading || isRefreshing}
-        hasError={!!error}
-        searchTerm={state.searchTerm}
-        onSearchChange={(value) => updateState({ searchTerm: value })}
-        filterStatus={state.filterStatus}
-        onStatusFilterChange={(value) => updateState({ filterStatus: value })}
-        canCreate={canCreateUser}
-      />
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      <div className="shrink-0">
+        <UserPageHeader
+          userCount={filteredUsers.length}
+          onCreateUser={() => updateState({ showCreateDialog: true })}
+          onRefresh={handleRefresh}
+          isLoading={isLoading || isRefreshing}
+          hasError={!!error}
+          searchTerm={state.searchTerm}
+          onSearchChange={(value) => updateState({ searchTerm: value })}
+          filterStatus={state.filterStatus}
+          onStatusFilterChange={(value) => updateState({ filterStatus: value })}
+          canCreate={canCreateUser}
+        />
+      </div>
 
       {error ? (
         <UserContentEmptyState 
@@ -550,6 +562,19 @@ function UsersSection() {
             description: "No users have been created yet or match your search criteria."
           }}
           showFooterStats={false}
+          maxHeight="flex-1 min-h-0"
+          pagination={{
+            page: usersResponse?.page || page,
+            pageSize: usersResponse?.page_size || pageSize,
+            hasNext: usersResponse?.has_next,
+            hasPrevious: (usersResponse?.page || page) > 1,
+            onPageChange: (newPage: number) => setPage(newPage),
+            onPageSizeChange: (newPageSize: number) => {
+              setPageSize(newPageSize)
+              setPage(1)
+            },
+            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+          }}
         />
       )}
 
@@ -569,23 +594,23 @@ function UsersSection() {
 
 export default function GlobalAdminPage() {
   return (
-    <div className="bg-background p-6 md:p-8">
-      <div className="mx-auto space-y-6">
-        <div>
+    <div className="h-full flex flex-col bg-background p-6 md:p-8 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 gap-6">
+        <div className="shrink-0">
           <h1 className="text-xl font-semibold text-foreground">Global Admin Settings</h1>
           <p className="text-sm text-muted-foreground">
             Manage organizations and users across all organizations.
           </p>
         </div>
-        <Tabs defaultValue="organizations" className="w-full">
-          <TabsList>
+        <Tabs defaultValue="organizations" className="w-full flex-1 min-h-0">
+          <TabsList className="shrink-0">
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
             <TabsTrigger value="users">Organization Users</TabsTrigger>
           </TabsList>
-          <TabsContent value="organizations" className="mt-4">
+          <TabsContent value="organizations" className="mt-4 min-h-0 flex flex-col">
             <OrganizationsSection />
           </TabsContent>
-          <TabsContent value="users" className="mt-4">
+          <TabsContent value="users" className="mt-4 min-h-0 flex flex-col">
             <UsersSection />
           </TabsContent>
         </Tabs>

@@ -7,6 +7,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type User, type UsersResponse } from "@/types/users"
 import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 
 // Components
 import {
@@ -107,8 +108,8 @@ export default function UsersPage() {
       // Refetch to trigger the query execution
       await refetch()
       toast.success('Data refreshed')
-    } catch {
-      toast.error('Failed to refresh data')
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: 'Failed to refresh data' })
     } finally {
       setIsRefreshing(false)
     }

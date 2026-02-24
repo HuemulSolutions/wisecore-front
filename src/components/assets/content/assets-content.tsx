@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
 import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
@@ -54,9 +54,10 @@ import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import SectionExecution from "./assets-section";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
-import { CreateAssetDialog } from "../dialogs";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
+import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import type { ContentSection, LibraryContentProps } from '@/types/assets';
 import { CustomFieldsList } from './assets-custom-fields-list';
@@ -92,10 +93,11 @@ export function AssetContent({
   // HOOKS AND CONTEXT
   // ============================================================================
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -442,11 +444,6 @@ export function AssetContent({
   const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
   
   // ============================================================================
-  // STATE - ASSET CREATION
-  // ============================================================================
-  const [isCreateAssetDialogOpen, setIsCreateAssetDialogOpen] = useState(false);
-  
-  // ============================================================================
   // STATE - EXECUTION SHEET
   // ============================================================================
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
@@ -495,16 +492,6 @@ export function AssetContent({
   }, [selectedFile?.id, selectedExecutionId]);
 
 
-
-  // Handle document creation
-  const handleDocumentCreated = (createdDocument: { id: string; name: string; type: "document" }) => {
-    console.log('📥 [ASSETS-CONTENT] handleDocumentCreated called:', createdDocument)
-    console.log('🔄 [ASSETS-CONTENT] Calling onRefresh')
-    onRefresh();
-    console.log('📄 [ASSETS-CONTENT] Setting selected file')
-    setSelectedFile(createdDocument);
-    console.log('✓ [ASSETS-CONTENT] Document set as selected')
-  };
 
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
@@ -1293,15 +1280,16 @@ export function AssetContent({
         // Clear selected file
         setSelectedFile(null);
         
-        // Navigate to root to clear URL and prevent showing deleted document
-        navigate(`/asset/${selectedOrganizationId}`, { replace: true });
-        
-        // Refresh library content to update sidebar
-        onRefresh();
-        
-        // Invalidate related queries
-        queryClient.invalidateQueries({ queryKey: ['library'] });
-        queryClient.invalidateQueries({ queryKey: ['document-content'] });
+        // Defer navigation and refresh so the AlertDialog exit animation
+        // (200ms) finishes before the large re-render cascade triggered by
+        // route changes and PermissionsProvider.  Without this delay the
+        // portal DOM is reconciled mid-animation, producing a visible flash.
+        setTimeout(() => {
+          navigate('/asset', { replace: true });
+          onRefresh();
+          queryClient.invalidateQueries({ queryKey: ['library'] });
+          queryClient.invalidateQueries({ queryKey: ['document-content'] });
+        }, 300);
       } catch (error) {
         console.error('Error deleting document:', error);
         toast.error('Failed to delete document. Please try again.');
@@ -1370,7 +1358,7 @@ export function AssetContent({
                   <Button 
                     onClick={() => {
                       onPreserveScroll?.();
-                      setIsCreateAssetDialogOpen(true);
+                      openCreateAssetDialog(currentFolderId);
                     }}
                     className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                   >
@@ -1414,13 +1402,6 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-        {/* Create Asset Dialog */}
-        <CreateAssetDialog
-          open={isCreateAssetDialogOpen}
-          onOpenChange={setIsCreateAssetDialogOpen}
-          folderId={currentFolderId}
-          onAssetCreated={handleDocumentCreated}
-        />
       </>
     );
   }
@@ -1453,64 +1434,78 @@ export function AssetContent({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {documentContent?.document_name || selectedFile.name}
-                    </span>
-                    {/* Document Type and Template badges for mobile */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {documentContent?.document_type && (
-                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                          <div 
-                            className="w-1.5 h-1.5 rounded-full" 
-                            style={{ backgroundColor: documentContent.document_type.color }}
-                          />
-                          {documentContent.document_type.name}
-                        </div>
-                      )}
-                      {documentContent?.template_name && (
-                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
-                          <FileCode className="w-1.5 h-1.5" />
-                          {documentContent.template_name}
-                        </div>
-                      )}
+                {isLoadingContent && !documentContent ? (
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-16 rounded-full" />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Skeleton className="h-3.5 w-20" />
+                      <Skeleton className="h-3.5 w-24" />
+                      <Skeleton className="h-4 w-12 rounded" />
                     </div>
                   </div>
-                  {/* Always reserve space for execution info to prevent layout shift */}
-                  <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
-                    {selectedExecutionInfo && (
-                      <>
-                        <span className="font-medium text-xs text-gray-900">{selectedExecutionInfo.name}</span>
-                        <span>•</span>
-                        <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
-                        {selectedExecutionInfo.isLatest && (
-                          <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
-                            Latest
-                          </span>
+                ) : (
+                  <div className="flex flex-col gap-1 animate-in fade-in duration-300">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {documentContent?.document_name || selectedFile.name}
+                      </span>
+                      {/* Document Type and Template badges for mobile */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {documentContent?.document_type && (
+                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                            <div 
+                              className="w-1.5 h-1.5 rounded-full" 
+                              style={{ backgroundColor: documentContent.document_type.color }}
+                            />
+                            {documentContent.document_type.name}
+                          </div>
                         )}
-                      </>
+                        {documentContent?.template_name && (
+                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
+                            <FileCode className="w-1.5 h-1.5" />
+                            {documentContent.template_name}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Always reserve space for execution info to prevent layout shift */}
+                    <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
+                      {selectedExecutionInfo && (
+                        <>
+                          <span className="font-medium text-xs text-gray-900">{selectedExecutionInfo.name}</span>
+                          <span>•</span>
+                          <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
+                          {selectedExecutionInfo.isLatest && (
+                            <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
+                              Latest
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    {/* Document metadata for mobile */}
+                    {(documentContent?.internal_code || documentContent?.created_by_user || documentContent?.updated_by_user) && (
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {documentContent?.internal_code && (
+                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-xs text-gray-700">
+                            <FileText className="w-2.5 h-2.5" />
+                            <span className="font-medium">Code:</span>
+                            <span>{documentContent.internal_code}</span>
+                          </div>
+                        )}
+                        {documentContent?.created_by_user && (
+                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-xs text-purple-700">
+                            <span className="font-medium">By:</span>
+                            <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {/* Document metadata for mobile */}
-                  {(documentContent?.internal_code || documentContent?.created_by_user || documentContent?.updated_by_user) && (
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                      {documentContent?.internal_code && (
-                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-xs text-gray-700">
-                          <FileText className="w-2.5 h-2.5" />
-                          <span className="font-medium">Code:</span>
-                          <span>{documentContent.internal_code}</span>
-                        </div>
-                      )}
-                      {documentContent?.created_by_user && (
-                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-xs text-purple-700">
-                          <span className="font-medium">By:</span>
-                          <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
               
               {/* Table of Contents Toggle - Mobile */}
@@ -1536,7 +1531,15 @@ export function AssetContent({
             </div>
             
             {/* Mobile Action Buttons - Icon Only */}
-            <div className="flex items-center justify-center gap-1.5 px-3 py-1.5">
+            {isLoadingContent && !documentContent ? (
+              <div className="flex items-center justify-center gap-1.5 px-3 py-1.5">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </div>
+            ) : (
+            <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 animate-in fade-in duration-300">
               <DocumentActionButton
                 accessLevels={accessLevels}
                 requiredAccess={["create"]}
@@ -1830,7 +1833,7 @@ export function AssetContent({
                   <DropdownMenuContent align="end" className="w-48">
                     {selectedExecutionId && (
                       <DropdownMenuItem
-                        onClick={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                        onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -1838,7 +1841,7 @@ export function AssetContent({
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
-                      onClick={() => setTimeout(() => openDeleteDialog('document'), 0)}
+                      onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                     >
                       <FileX className="mr-2 h-4 w-4" />
@@ -1965,6 +1968,7 @@ export function AssetContent({
                 
                 return null;
               })()}            </div>
+            )}
           </div>
         )}
         
@@ -1975,74 +1979,109 @@ export function AssetContent({
             {/* Title and Type Section */}
             {!isMobile && (
               <div className="flex items-start justify-between gap-4">
-                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                    <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {documentContent?.document_type && (
-                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                          <div 
-                            className="w-1.5 h-1.5 rounded-full" 
-                            style={{ backgroundColor: documentContent.document_type.color }}
-                          />
-                          {documentContent.document_type.name}
-                        </div>
+                {isLoadingContent && !documentContent ? (
+                  <div className="flex flex-col gap-2 flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2.5">
+                      <Skeleton className="h-6 w-52" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-3.5 w-20" />
+                      <Skeleton className="h-3.5 w-1" />
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-4 w-14 rounded" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
+                    <div className="flex items-center justify-between gap-2.5 flex-wrap">
+                      <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {documentContent?.document_type && (
+                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
+                            <div 
+                              className="w-1.5 h-1.5 rounded-full" 
+                              style={{ backgroundColor: documentContent.document_type.color }}
+                            />
+                            {documentContent.document_type.name}
+                          </div>
+                        )}
+                        {documentContent?.template_name && (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
+                            <FileCode className="w-3 h-3" />
+                            {documentContent.template_name}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Metadata Row - Combined */}
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                      {selectedExecutionInfo && (
+                        <>
+                          <span className="font-medium text-gray-900">
+                            {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
+                          </span>
+                          <span className="text-gray-400">•</span>
+                          <span>{selectedExecutionInfo.formattedDate}</span>
+                          {selectedExecutionInfo.isLatest && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
+                              Latest
+                            </span>
+                          )}
+                          {(documentContent?.internal_code || documentContent?.created_by_user) && (
+                            <span className="text-gray-400">•</span>
+                          )}
+                        </>
                       )}
-                      {documentContent?.template_name && (
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
-                          <FileCode className="w-3 h-3" />
-                          {documentContent.template_name}
-                        </div>
+                      {documentContent?.internal_code && (
+                        <>
+                          <span className="font-medium">Code:</span>
+                          <span>{documentContent.internal_code}</span>
+                        </>
+                      )}
+                      {documentContent?.created_by_user && (
+                        <>
+                          {documentContent?.internal_code && <span className="text-gray-400">•</span>}
+                          <span className="font-medium">By:</span>
+                          <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
+                        </>
+                      )}
+                      {documentContent?.updated_by_user && documentContent?.updated_by_user.id !== documentContent?.created_by_user?.id && (
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className="font-medium">Updated:</span>
+                          <span>{documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}</span>
+                        </>
                       )}
                     </div>
                   </div>
-                  
-                  {/* Metadata Row - Combined */}
-                  <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
-                    {selectedExecutionInfo && (
-                      <>
-                        <span className="font-medium text-gray-900">
-                          {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
-                        </span>
-                        <span className="text-gray-400">•</span>
-                        <span>{selectedExecutionInfo.formattedDate}</span>
-                        {selectedExecutionInfo.isLatest && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
-                            Latest
-                          </span>
-                        )}
-                        {(documentContent?.internal_code || documentContent?.created_by_user) && (
-                          <span className="text-gray-400">•</span>
-                        )}
-                      </>
-                    )}
-                    {documentContent?.internal_code && (
-                      <>
-                        <span className="font-medium">Code:</span>
-                        <span>{documentContent.internal_code}</span>
-                      </>
-                    )}
-                    {documentContent?.created_by_user && (
-                      <>
-                        {documentContent?.internal_code && <span className="text-gray-400">•</span>}
-                        <span className="font-medium">By:</span>
-                        <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
-                      </>
-                    )}
-                    {documentContent?.updated_by_user && documentContent?.updated_by_user.id !== documentContent?.created_by_user?.id && (
-                      <>
-                        <span className="text-gray-400">•</span>
-                        <span className="font-medium">Updated:</span>
-                        <span>{documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             )}
             
             {/* Action Buttons Section */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {isLoadingContent && !documentContent ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                  <Skeleton className="h-7 w-[106px] rounded-md" />
+                  <Skeleton className="h-7 w-20 rounded-md" />
+                  <Skeleton className="h-7 w-24 rounded-md" />
+                  <Skeleton className="h-7 w-18 rounded-md" />
+                </div>
+                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                  <Skeleton className="h-7 w-10 rounded-md" />
+                  <Skeleton className="h-7 w-8 rounded-md" />
+                  <Skeleton className="h-7 w-8 rounded-md" />
+                  <Skeleton className="h-7 w-8 rounded-md" />
+                  <Skeleton className="h-7 w-8 rounded-md" />
+                </div>
+              </div>
+            ) : (
+            <div className="flex items-center gap-2 flex-wrap animate-in fade-in duration-300">
               {/* Primary Actions Group */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
               <DocumentActionButton
@@ -2441,7 +2480,7 @@ export function AssetContent({
                     <DropdownMenuContent align="end" className="w-48">
                       {selectedExecutionId && (
                         <DropdownMenuItem
-                          onClick={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                          onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -2449,7 +2488,7 @@ export function AssetContent({
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        onClick={() => setTimeout(() => openDeleteDialog('document'), 0)}
+                        onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                       >
                         <FileX className="mr-2 h-4 w-4" />
@@ -2460,6 +2499,7 @@ export function AssetContent({
                 </DocumentAccessControl>
               </div>
             </div>
+            )}
             
           </div>
         </div>
@@ -3173,14 +3213,6 @@ export function AssetContent({
         }
       />
 
-      {/* Create Asset Dialog */}
-      <CreateAssetDialog
-        open={isCreateAssetDialogOpen}
-        onOpenChange={setIsCreateAssetDialogOpen}
-        folderId={currentFolderId}
-        onAssetCreated={handleDocumentCreated}
-      />
-      
       {/* Custom Word Export Dialog */}
       <CustomWordExportDialog
         selectedFile={selectedFile}

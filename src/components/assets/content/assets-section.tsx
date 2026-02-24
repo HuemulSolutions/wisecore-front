@@ -24,6 +24,7 @@ import { fixSection, executeSingleSection, executeFromSection } from '@/services
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-utils';
 
 interface SectionExecutionProps {
     sectionExecution: {
@@ -228,8 +229,7 @@ export default function SectionExecution({
 
             onUpdate?.();
         } catch (error) {
-            console.error('Error executing section:', error);
-            toast.error('Failed to execute section. Please try again.');
+            handleApiError(error, { fallbackMessage: 'Failed to execute section. Please try again.' });
         } finally {
             setIsExecuting(false);
         }
@@ -288,8 +288,7 @@ export default function SectionExecution({
             closeDeleteDialog();
             onUpdate?.();
         } catch (error) {
-            console.error('Error deleting section:', error);
-            toast.error('Failed to delete section. Please try again.');
+            handleApiError(error, { fallbackMessage: 'Failed to delete section. Please try again.' });
         } finally {
             setIsDeleting(false);
         }

@@ -1,7 +1,8 @@
+import { memo } from "react"
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
 import type { DeleteDocumentDialogProps } from "@/types/assets"
 
-export function DeleteDocumentDialog({
+export const DeleteDocumentDialog = memo(function DeleteDocumentDialog({
   open,
   onOpenChange,
   documentName,
@@ -20,4 +21,4 @@ export function DeleteDocumentDialog({
       variant="destructive"
     />
   )
-}
+})

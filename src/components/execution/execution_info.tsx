@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ export interface ExecutionInfoProps {
 }
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
-    const navigate = useNavigate();
+    const navigate = useOrgNavigate();
     const { selectedOrganizationId } = useOrganization();
     const [isExporting, setIsExporting] = useState(false);
     const [isExportingWord, setIsExportingWord] = useState(false);
@@ -69,7 +69,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
         try {
             setIsDeleting(true);
             await deleteExecution(execution.id, selectedOrganizationId!);
-            navigate(`/document/${execution.document_id}`);
+            navigate(`/asset/${execution.document_id}`);
         } catch (error) {
             console.error('Error deleting execution:', error);
         } finally {
