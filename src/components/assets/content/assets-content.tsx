@@ -54,8 +54,8 @@ import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import SectionExecution from "./assets-section";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
-import { CreateAssetDialog } from "../dialogs";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
+import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
@@ -97,6 +97,7 @@ export function AssetContent({
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -443,11 +444,6 @@ export function AssetContent({
   const [isTemplateConfigSheetOpen, setIsTemplateConfigSheetOpen] = useState(false);
   
   // ============================================================================
-  // STATE - ASSET CREATION
-  // ============================================================================
-  const [isCreateAssetDialogOpen, setIsCreateAssetDialogOpen] = useState(false);
-  
-  // ============================================================================
   // STATE - EXECUTION SHEET
   // ============================================================================
   const [isExecuteSheetOpen, setIsExecuteSheetOpen] = useState(false);
@@ -496,16 +492,6 @@ export function AssetContent({
   }, [selectedFile?.id, selectedExecutionId]);
 
 
-
-  // Handle document creation
-  const handleDocumentCreated = (createdDocument: { id: string; name: string; type: "document" }) => {
-    console.log('📥 [ASSETS-CONTENT] handleDocumentCreated called:', createdDocument)
-    console.log('🔄 [ASSETS-CONTENT] Calling onRefresh')
-    onRefresh();
-    console.log('📄 [ASSETS-CONTENT] Setting selected file')
-    setSelectedFile(createdDocument);
-    console.log('✓ [ASSETS-CONTENT] Document set as selected')
-  };
 
   // Handle execution created from Execute Sheet
   const handleExecutionCreated = (executionId: string, mode: 'full' | 'single' | 'from' | 'full-single', sectionIndex?: number) => {
@@ -1294,15 +1280,16 @@ export function AssetContent({
         // Clear selected file
         setSelectedFile(null);
         
-        // Navigate to root to clear URL and prevent showing deleted document
-        navigate(`/asset/${selectedOrganizationId}`, { replace: true });
-        
-        // Refresh library content to update sidebar
-        onRefresh();
-        
-        // Invalidate related queries
-        queryClient.invalidateQueries({ queryKey: ['library'] });
-        queryClient.invalidateQueries({ queryKey: ['document-content'] });
+        // Defer navigation and refresh so the AlertDialog exit animation
+        // (200ms) finishes before the large re-render cascade triggered by
+        // route changes and PermissionsProvider.  Without this delay the
+        // portal DOM is reconciled mid-animation, producing a visible flash.
+        setTimeout(() => {
+          navigate('/asset', { replace: true });
+          onRefresh();
+          queryClient.invalidateQueries({ queryKey: ['library'] });
+          queryClient.invalidateQueries({ queryKey: ['document-content'] });
+        }, 300);
       } catch (error) {
         console.error('Error deleting document:', error);
         toast.error('Failed to delete document. Please try again.');
@@ -1371,7 +1358,7 @@ export function AssetContent({
                   <Button 
                     onClick={() => {
                       onPreserveScroll?.();
-                      setIsCreateAssetDialogOpen(true);
+                      openCreateAssetDialog(currentFolderId);
                     }}
                     className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                   >
@@ -1415,13 +1402,6 @@ export function AssetContent({
           onOpenChange={setIsTemplateConfigSheetOpen}
         />
         
-        {/* Create Asset Dialog */}
-        <CreateAssetDialog
-          open={isCreateAssetDialogOpen}
-          onOpenChange={setIsCreateAssetDialogOpen}
-          folderId={currentFolderId}
-          onAssetCreated={handleDocumentCreated}
-        />
       </>
     );
   }
@@ -1853,7 +1833,7 @@ export function AssetContent({
                   <DropdownMenuContent align="end" className="w-48">
                     {selectedExecutionId && (
                       <DropdownMenuItem
-                        onClick={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                        onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -1861,7 +1841,7 @@ export function AssetContent({
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
-                      onClick={() => setTimeout(() => openDeleteDialog('document'), 0)}
+                      onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                     >
                       <FileX className="mr-2 h-4 w-4" />
@@ -2500,7 +2480,7 @@ export function AssetContent({
                     <DropdownMenuContent align="end" className="w-48">
                       {selectedExecutionId && (
                         <DropdownMenuItem
-                          onClick={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                          onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -2508,7 +2488,7 @@ export function AssetContent({
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        onClick={() => setTimeout(() => openDeleteDialog('document'), 0)}
+                        onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                       >
                         <FileX className="mr-2 h-4 w-4" />
@@ -3233,14 +3213,6 @@ export function AssetContent({
         }
       />
 
-      {/* Create Asset Dialog */}
-      <CreateAssetDialog
-        open={isCreateAssetDialogOpen}
-        onOpenChange={setIsCreateAssetDialogOpen}
-        folderId={currentFolderId}
-        onAssetCreated={handleDocumentCreated}
-      />
-      
       {/* Custom Word Export Dialog */}
       <CustomWordExportDialog
         selectedFile={selectedFile}

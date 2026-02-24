@@ -49,9 +49,11 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const navigate = useOrgNavigate()
   const fileTreeRef = useRef<FileTreeRef>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
+  const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false)
   const [deleteDocumentDialogOpen, setDeleteDocumentDialogOpen] = useState(false)
+  const [renderDeleteDocumentDialog, setRenderDeleteDocumentDialog] = useState(false)
   const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
@@ -62,8 +64,19 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [isDeletingDocument, setIsDeletingDocument] = useState(false)
   const { selectedOrganizationId } = useOrganization()
 
+  // Refs to keep callbacks stable across re-renders while accessing latest state
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
+  const documentToDeleteRef = useRef(documentToDelete)
+  documentToDeleteRef.current = documentToDelete
+  const selectedOrganizationIdRef = useRef(selectedOrganizationId)
+  selectedOrganizationIdRef.current = selectedOrganizationId
+  const isDeletingDocumentRef = useRef(isDeletingDocument)
+  isDeletingDocumentRef.current = isDeletingDocument
+
   const handleCreateAsset = useCallback((folderId?: string) => {
     setCurrentFolderId(folderId)
+    setRenderCreateAssetDialog(true)
     setCreateAssetDialogOpen(true)
   }, [])
 
@@ -74,22 +87,29 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
     console.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
-    console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
-    fileTreeRef.current?.refresh()
-    // Navigate to the newly created asset
-    if (createdAsset) {
-      console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
-      navigate(`/asset/${createdAsset.id}`, {
-        state: {
-          selectedDocumentId: createdAsset.id,
-          selectedDocumentName: createdAsset.name,
-          selectedDocumentType: createdAsset.type,
-          fromFileTree: true,
-        }
-      })
-      console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
-    }
-  }, [navigate])
+
+    // Wait for the Radix exit animation (200 ms) to finish before
+    // triggering navigation, which causes a large re-render cascade
+    // through PermissionsProvider.  Navigating during the animation
+    // produces a visible "flash" of the dialog portal.
+    setTimeout(() => {
+      console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+      fileTreeRef.current?.refresh()
+      // Navigate to the newly created asset
+      if (createdAsset) {
+        console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
+        navigateRef.current(`/asset/${createdAsset.id}`, {
+          state: {
+            selectedDocumentId: createdAsset.id,
+            selectedDocumentName: createdAsset.name,
+            selectedDocumentType: createdAsset.type,
+            fromFileTree: true,
+          }
+        })
+        console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
+      }
+    }, 300)
+  }, []) // stable — uses ref for navigate
 
   const handleFolderCreated = useCallback(() => {
     fileTreeRef.current?.refresh()
@@ -107,6 +127,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
   const handleDeleteDocument = useCallback((documentId: string, documentName: string) => {
     setDocumentToDelete({ id: documentId, name: documentName })
+    setRenderDeleteDocumentDialog(true)
     setDeleteDocumentDialogOpen(true)
   }, [])
 
@@ -138,40 +159,62 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }
   }, [folderToDelete, selectedOrganizationId])
 
-  function closeDeleteDocumentDialog() {
-    setDeleteDocumentDialogOpen(false)
-    setDocumentToDelete(null)
-  }
-
-  const handleDeleteDocumentDialogChange = (open: boolean) => {
-    if (!open) {
-      closeDeleteDocumentDialog()
+  // Stable callback for DeleteDocumentDialog onOpenChange.
+  // Uses ref to read isDeletingDocument without closing over it.
+  const deleteDocumentDialogOnOpenChange = useCallback((open: boolean) => {
+    if (!open && !isDeletingDocumentRef.current) {
+      setDeleteDocumentDialogOpen(false)
+      setDocumentToDelete(null)
+      // Unmount dialog after exit animation
+      setTimeout(() => setRenderDeleteDocumentDialog(false), 300)
     }
-  }
+  }, [])
 
   const handleDocumentDeleted = useCallback(async () => {
-    if (!documentToDelete || !selectedOrganizationId) return
+    const doc = documentToDeleteRef.current
+    const orgId = selectedOrganizationIdRef.current
+    if (!doc || !orgId) return
 
     setIsDeletingDocument(true)
     try {
-      await deleteDocument(documentToDelete.id, selectedOrganizationId)
-      toast.success(`Document "${documentToDelete.name}" deleted successfully`)
-      closeDeleteDocumentDialog()
-      
-      // Navigate to root to clear URL and prevent showing deleted document
-      navigate('/asset', { replace: true })
-      
-      fileTreeRef.current?.refresh()
+      await deleteDocument(doc.id, orgId)
+      toast.success(`Document "${doc.name}" deleted successfully`)
+
+      // ONLY close the dialog — keep isDeletingDocument=true so:
+      //   1. ReusableAlertDialog's onOpenChange guard blocks any
+      //      Radix-initiated close event during the exit animation.
+      //   2. The dialog content (spinner / button label) doesn't
+      //      change mid-animation, avoiding a visual "flash".
+      setDeleteDocumentDialogOpen(false)
+
+      // Defer ALL remaining state resets, navigation, and tree refresh
+      // until after the Radix exit animation (200 ms) completes.
+      // Navigating during the animation causes a large re-render
+      // cascade (PermissionsProvider, Outlet swap) that interrupts
+      // the portal and produces a visible flash.
+      setTimeout(() => {
+        setIsDeletingDocument(false)
+        setDocumentToDelete(null)
+        setRenderDeleteDocumentDialog(false)
+        navigateRef.current('/asset', { replace: true })
+        fileTreeRef.current?.refresh()
+      }, 300)
     } catch (error) {
       handleApiError(error, { fallbackMessage: 'Failed to delete document. Please try again.' })
-    } finally {
       setIsDeletingDocument(false)
     }
-  }, [documentToDelete, selectedOrganizationId, navigate])
+  }, []) // stable — uses refs for mutable values
 
   const handleCreateAssetDialogChange = useCallback((open: boolean) => {
     console.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
     setCreateAssetDialogOpen(open)
+    if (!open) {
+      // Unmount the dialog component AFTER the Radix exit animation
+      // (200 ms) finishes. This guarantees that context-triggered
+      // re-renders (e.g. PermissionsProvider, useOrganization) that
+      // bypass React.memo cannot touch the portal and produce a flash.
+      setTimeout(() => setRenderCreateAssetDialog(false), 300)
+    }
   }, [])
 
   const refreshFileTree = useCallback(() => {
@@ -182,12 +225,14 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   return (
     <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree }}>
       {children}
-      <CreateAssetDialog
-        open={createAssetDialogOpen}
-        onOpenChange={handleCreateAssetDialogChange}
-        folderId={currentFolderId}
-        onAssetCreated={handleAssetCreated}
-      />
+      {renderCreateAssetDialog && (
+        <CreateAssetDialog
+          open={createAssetDialogOpen}
+          onOpenChange={handleCreateAssetDialogChange}
+          folderId={currentFolderId}
+          onAssetCreated={handleAssetCreated}
+        />
+      )}
       <CreateFolderDialog
         open={createFolderDialogOpen}
         onOpenChange={setCreateFolderDialogOpen}
@@ -207,13 +252,15 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         currentName={folderToEdit?.name || ""}
         onFolderEdited={handleFolderEdited}
       />
-      <DeleteDocumentDialog
-        open={deleteDocumentDialogOpen}
-        onOpenChange={(open) => !isDeletingDocument && handleDeleteDocumentDialogChange(open)}
-        documentName={documentToDelete?.name || ""}
-        onConfirm={handleDocumentDeleted}
-        isDeleting={isDeletingDocument}
-      />
+      {renderDeleteDocumentDialog && (
+        <DeleteDocumentDialog
+          open={deleteDocumentDialogOpen}
+          onOpenChange={deleteDocumentDialogOnOpenChange}
+          documentName={documentToDelete?.name || ""}
+          onConfirm={handleDocumentDeleted}
+          isDeleting={isDeletingDocument}
+        />
+      )}
       <EditDocumentDialog
         open={editDocumentDialogOpen}
         onOpenChange={setEditDocumentDialogOpen}
@@ -237,6 +284,15 @@ function useNavKnowledge() {
 export function useNavKnowledgeRefresh() {
   const context = React.useContext(NavKnowledgeContext)
   return context?.refreshFileTree || (() => {})
+}
+
+// Export hook for accessing dialog actions (create asset, create folder, etc.)
+export function useNavKnowledgeActions() {
+  const context = React.useContext(NavKnowledgeContext)
+  return {
+    handleCreateAsset: context?.handleCreateAsset || (() => {}),
+    handleCreateFolder: context?.handleCreateFolder || (() => {}),
+  }
 }
 
 export function NavKnowledgeHeader() {
