@@ -143,7 +143,8 @@ export function EditCustomFieldAssetDialog({
       // Build document data based on mode
       const documentData = mode === "content" 
         ? {
-            // Only update the value in content mode
+            // Only update the value and required in content mode
+            required: isRequired,
             ...getValuePayload(),
           }
         : {
@@ -448,6 +449,22 @@ export function EditCustomFieldAssetDialog({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Required Switch - Also show in content mode */}
+          {mode === "content" && (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Required Field</Label>
+                <p className="text-xs text-muted-foreground">
+                  Make this field mandatory for this document
+                </p>
+              </div>
+              <Switch
+                checked={isRequired}
+                onCheckedChange={setIsRequired}
+              />
             </div>
           )}
 
