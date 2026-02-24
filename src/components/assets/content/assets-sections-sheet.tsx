@@ -372,10 +372,10 @@ export function SectionSheet({
               <div className="flex flex-col gap-1">
                 <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                   <Plus className="h-4 w-4" />
-                  Manage Document Sections
+                  Manage Asset Sections
                 </SheetTitle>
                 <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Add, edit, and organize sections to structure your document content.
+                  Add, edit, and organize sections to structure your asset content.
                 </SheetDescription>
               </div>
               <div className="flex items-center h-full gap-2 ml-4">
@@ -481,7 +481,7 @@ export function SectionSheet({
               {/* Asset Info */}
               <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-1">Asset: {selectedFile?.name}</h3>
+                  <h3 className="text-sm font-medium text-gray-900 mb-1">Asset: {sectionsConfig?.document?.name || selectedFile?.name}</h3>
                   <p className="text-xs text-gray-600">
                     <span className="font-medium">Description:</span>{" "}
                     {sectionsConfig?.document?.description || "-"}
