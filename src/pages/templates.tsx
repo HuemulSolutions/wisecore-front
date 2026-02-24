@@ -89,9 +89,14 @@ export default function Templates() {
             error={queryError}
             selectedTemplateId={selectedTemplate?.id || null}
             onTemplateSelect={handleTemplateSelect}
+            onTemplateDeleted={() => {
+              setSelectedTemplate(null);
+              navigate('/templates', { replace: true });
+            }}
             organizationId={selectedOrganizationId}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
             canCreate={canCreateTemplate}
+            canUpdate={canUpdateTemplate}
             canDelete={canDeleteTemplate}
           />
         </ResizablePanel>
