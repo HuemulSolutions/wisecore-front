@@ -153,7 +153,7 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
         open={open}
         onOpenChange={onOpenChange}
         title="Create Asset"
-        description="Enter the asset information to create a new document."
+        description="Enter the asset information to create a new asset."
         icon={Plus}
         maxWidth="lg"
         maxHeight="90vh"
