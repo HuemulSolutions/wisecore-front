@@ -1,6 +1,6 @@
 export default function Home() {
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4 md:p-2">
+    <main className="flex flex-col items-center justify-center min-h-full bg-gray-50 p-4 md:p-2">
       <h1 className="text-4xl font-bold mb-4">Welcome to Wisecore</h1>
       <p className="text-lg text-gray-700 max-w-2xl text-center mb-8">
         Wisecore is an advanced platform powered by Large Language Models (LLMs) designed to help organizations generate, manage, and share internal knowledge efficiently. Centralize your company’s information, automate documentation, and empower your teams with instant access to reliable, AI-driven insights.
