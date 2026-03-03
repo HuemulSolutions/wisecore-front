@@ -1,7 +1,7 @@
 {
   "name": "wisecore-front",
   "private": true,
-  "version": "1.0.40",
+  "version": "1.0.41",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -89,6 +89,7 @@
     "react-tweet": "^3.3.0",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.0",
     "tailwind-scrollbar-hide": "^4.0.0",
