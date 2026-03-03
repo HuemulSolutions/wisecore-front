@@ -91,7 +91,7 @@ export function MediaToolbarButton({
   const { openFilePicker } = useFilePicker({
     accept: currentConfig.accept,
     multiple: true,
-    onFilesSelected: (data: SelectedFilesOrErrors<undefined>) => {
+    onFilesSelected: (data: SelectedFilesOrErrors<string>) => {
       if ('errors' in data && data.errors?.length) return;
 
       const updatedFiles: File[] = data.plainFiles ?? [];
