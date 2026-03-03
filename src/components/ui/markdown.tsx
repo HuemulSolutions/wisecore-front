@@ -8,6 +8,11 @@ interface MarkdownProps {
   sectionIndex?: number; // Add optional section index for generating unique IDs
 }
 
+// Pre-process ==highlight== syntax into <mark> tags before rendering
+const preprocessHighlight = (markdown: string): string => {
+  return markdown.replace(/==(.*?)==/gs, '<mark>$1</mark>');
+};
+
 // Function to generate ID from heading text with optional section prefix
 const generateHeadingId = (text: string, sectionIndex?: number): string => {
   const baseId = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -29,6 +34,8 @@ const extractTextFromChildren = (children: React.ReactNode): string => {
 };
 
 const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
+  const processedChildren = preprocessHighlight(children);
+
   return (
     <div className="w-full max-w-full overflow-x-auto">
       <ReactMarkdown
@@ -112,7 +119,7 @@ const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
           ),
         }}
       >
-        {children}
+        {processedChildren}
       </ReactMarkdown>
     </div>
   );

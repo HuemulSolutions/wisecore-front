@@ -2510,7 +2510,7 @@ export function AssetContent({
           <ScrollArea className="h-full max-w-full">
             <div 
               ref={scrollRestoration.viewportRef}
-              className="py-4 md:py-5 px-4 md:px-6"
+              className="py-4 md:py-5 px-4 md:px-6 [contain:inline-size]"
             >
             {selectedFile.type === 'document' ? (
               <>
