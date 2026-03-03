@@ -15,9 +15,9 @@ import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
-import type { MDXEditorMethods } from '@mdxeditor/editor';
 import Markdown from "@/components/ui/markdown";
-import MdxEditor from "../layout/mdx-editor";
+import { PlateRichEditor } from "@/components/plate-editor/plate-editor";
+import type { PlateRichEditorRef } from "@/components/plate-editor/plate-editor";
 
 interface Section {
   id: string;
@@ -36,7 +36,7 @@ interface SectionItem {
 
 interface SectionFormProps {
   mode: 'create' | 'edit';
-  editorType?: 'simple' | 'rich'; // simple = Textarea, rich = MDXEditor
+  editorType?: 'simple' | 'rich'; // simple = Textarea, rich = PlateEditor
   formId?: string;
   documentId?: string;
   templateId?: string;
@@ -66,8 +66,8 @@ export function SectionForm({
   isTemplateSection = false 
 }: SectionFormProps) {
   const { selectedOrganizationId } = useOrganization();
-  const editorRef = useRef<MDXEditorMethods>(null);
-  const manualEditorRef = useRef<MDXEditorMethods>(null);
+  const promptEditorRef = useRef<PlateRichEditorRef>(null);
+  const manualEditorRef = useRef<PlateRichEditorRef>(null);
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
@@ -239,13 +239,9 @@ export function SectionForm({
         setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
       }
       
-      if (editorType === 'rich' && editorRef.current) {
-        editorRef.current.setMarkdown(item.prompt);
-      }
-      
-      // Sincronizar el editor manual cuando el tipo sea manual
-      if ((item as any).type === 'manual' && manualEditorRef.current) {
-        manualEditorRef.current.setMarkdown(manualInputValue);
+      // PlateRichEditor se re-inicializa con key={editorKey} + initialMarkdown
+      if (editorType === 'rich') {
+        setEditorKey(prev => prev + 1);
       }
     }
   }, [item, mode, editorType]);
@@ -319,11 +315,12 @@ export function SectionForm({
         submitData.prompt = prompt.trim();
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
-        if (manualInput.trim()) {
+        const md = manualEditorRef.current?.getMarkdown?.() || "";
+        if (md.trim()) {
           if (templateId) {
-            submitData.manual_input = manualInput.trim();
+            submitData.manual_input = md.trim();
           } else {
-            submitData.output = manualInput.trim();
+            submitData.output = md.trim();
           }
         }
       } else if (type === "reference") {
@@ -358,11 +355,12 @@ export function SectionForm({
         submitData.prompt = prompt.trim();
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
-        if (manualInput.trim()) {
+        const md = manualEditorRef.current?.getMarkdown?.() || "";
+        if (md.trim()) {
           if (isTemplateSection) {
-            submitData.manual_input = manualInput.trim();
+            submitData.manual_input = md.trim();
           } else {
-            submitData.output = manualInput.trim();
+            submitData.output = md.trim();
           }
         }
       } else if (type === "reference") {
@@ -521,12 +519,14 @@ export function SectionForm({
                 className="text-sm resize-none min-h-[250px] max-h-[250px]"
               />
             ) : (
-              <MdxEditor
+              <PlateRichEditor
                 key={editorKey}
-                stickyToolbar={false}
-                value={prompt}
-                onChange={handlePromptChange}
-                diffMarkdown={mode === 'edit' && item ? item.prompt : ''}
+                ref={promptEditorRef}
+                initialMarkdown={prompt}
+                onChange={() => {
+                  const md = promptEditorRef.current?.getMarkdown?.() || "";
+                  handlePromptChange(md);
+                }}
               />
             )}
 
@@ -597,11 +597,9 @@ export function SectionForm({
           <Label className="text-xs font-medium text-gray-700">
             Manual Input (Optional)
           </Label>
-          <MdxEditor
-            value={manualInput}
-            stickyToolbar={false}
-            onChange={setManualInput}
-            diffMarkdown={mode === 'edit' && item ? (item as any).manual_input || '' : ''}
+          <PlateRichEditor
+            ref={manualEditorRef}
+            initialMarkdown={manualInput}
           />
           <p className="text-xs text-gray-500">
             This content can be edited later when working with the document

@@ -1,7 +1,6 @@
 import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2 } from 'lucide-react';
-import Markdown from "@/components/ui/markdown";
 import { useState, useEffect, useRef } from 'react';
-import Editor from '@/components/layout/editor';
+import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
 import { DocumentActionButton, DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -645,19 +644,8 @@ export default function SectionExecution({
                 </div>
             )}
             
-            {/* Content area - conditional padding based on editing state */}
-            {isEditing ? (
-                /* Editor takes full width when editing */
-                <div className="pt-8 pr-0">
-                    <Editor
-                        sectionId={sectionExecution.id}
-                        content={sectionExecution.output.replace(/\\n/g, "\n")}
-                        onSave={handleSave}
-                        onCancel={handleCancelEdit}
-                        isSaving={isSaving}
-                    />
-                </div>
-            ) : showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
+            {/* Content area */}
+            {showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
                  executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus) ? (
                 /* Show skeleton ONLY when section is actively being executed (not when completed) */
                 <div className="pt-4 pr-12">
@@ -682,11 +670,16 @@ export default function SectionExecution({
                     </div>
                 </div>
             ) : (
-                /* Content with padding for floating buttons when not editing */
-                <div className="pt-4 pr-12">
-                    <div className="relative">
-                        <Markdown sectionIndex={sectionIndex}>{displayedContent}</Markdown>
-                    </div>
+                /* Unified Plate view: readOnly when not editing, editable when editing */
+                <div className={isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full'}>
+                    <SectionPlateEditor
+                        sectionId={sectionExecution.id}
+                        content={displayedContent}
+                        isEditing={isEditing}
+                        onSave={handleSave}
+                        onCancel={handleCancelEdit}
+                        isSaving={isSaving}
+                    />
                 </div>
             )}
         
