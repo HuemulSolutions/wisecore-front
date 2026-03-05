@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { Plus } from 'lucide-react'
+import { HuemulButton } from '@/huemul/components/huemul-button'
 import { handleApiError } from '@/lib/error-utils'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
 import { 
-  getSupportedProviders, 
-  getLLMs, 
+  getSupportedProviders,
+  getAllProviders, 
   createProvider, 
   updateProvider, 
   deleteProvider,
   getProvider,
+} from '@/services/llm-provider'
+import { 
+  getLLMs, 
   createLLM, 
   updateLLMModel, 
   deleteLLM, 
@@ -27,14 +32,22 @@ import {
   ModelsHeader,
   ModelsLoadingState, 
   ModelsContentEmptyState,
-  ProviderCard,
-  EmbeddingProviderCard,
-  EditProviderDialog,
   ModelDialog,
+  DeleteModelDialog,
+} from '@/components/llm'
+import {
+  ProviderCard,
+  EditProviderDialog,
   DeleteProviderDialog,
-  DeleteModelDialog
-} from '@/components/models'
-import type { LLM, CreateLLMRequest } from '@/services/llms'
+  CreateProviderDialog,
+} from '@/components/llm-provider'
+import {
+  EmbeddingProviderCard,
+  EmbeddingProviderEditDialog,
+} from '@/components/embedding-provider'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import type { LLM, CreateLLMRequest } from '@/types/llm'
+import type { CreateLLMProviderRequest } from '@/types/llm-provider'
 
 export default function Models() {
   const queryClient = useQueryClient()
@@ -42,6 +55,7 @@ export default function Models() {
     hasPermission, 
     hasAnyPermission,
     isOrgAdmin,
+    isRootAdmin,
     isLoading: isLoadingPermissions 
   } = useUserPermissions()
   
@@ -55,13 +69,12 @@ export default function Models() {
   const [isCreateModelOpen, setIsCreateModelOpen] = useState(false)
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isDeletingModel, setIsDeletingModel] = useState(false)
-  const [isDeletingProvider, setIsDeletingProvider] = useState(false)
   const [testingModelId, setTestingModelId] = useState<string | null>(null)
   const [openEmbeddingProviders, setOpenEmbeddingProviders] = useState<string[]>([])
   const [editingEmbeddingProvider, setEditingEmbeddingProvider] = useState<any>(null)
   const [deletingEmbeddingProvider, setDeletingEmbeddingProvider] = useState<any>(null)
   const [isDeletingEmbeddingProvider, setIsDeletingEmbeddingProvider] = useState(false)
+  const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
 
   // Verificar permisos
   const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
@@ -74,9 +87,16 @@ export default function Models() {
   const canDeleteModel = isOrgAdmin || hasPermission('llm:d')
 
   // Queries
-  const { data: supportedResponse, isLoading: loadingSupportedProviders, error: errorSupportedProviders } = useQuery({
+  const { data: supportedResponse } = useQuery({
     queryKey: ['supportedProviders'],
     queryFn: getSupportedProviders,
+    retry: 0,
+    enabled: canListProviders,
+  })
+
+  const { data: allProvidersResponse, isLoading: loadingProviders, error: errorProviders } = useQuery({
+    queryKey: ['allProviders'],
+    queryFn: getAllProviders,
     retry: 0,
     enabled: canListProviders,
   })
@@ -104,6 +124,7 @@ export default function Models() {
 
   // Extract data from wrapped responses
   const supportedProviders = supportedResponse?.data || []
+  const allProvidersList = allProvidersResponse?.data || []
   const embeddingSupportedProviders = embeddingSupportedResponse?.data || []
   const configuredEmbeddingProvider = embeddingProviderResponse?.data || null
 
@@ -112,15 +133,18 @@ export default function Models() {
     mutationFn: createProvider,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
+      setIsCreateProviderOpen(false)
       toast.success('Provider configured successfully')
     },
   })
 
   const updateProviderMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateProvider(id, data),
+    mutationFn: ({ id, data }: { id: string; data: CreateLLMProviderRequest }) => updateProvider(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
       toast.success('Provider updated successfully')
     },
@@ -130,6 +154,7 @@ export default function Models() {
     mutationFn: deleteProvider,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
+      queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setDeletingProvider(null)
       toast.success('Provider deleted successfully')
     },
@@ -210,16 +235,9 @@ export default function Models() {
     },
   })
 
-  // Process supported providers with configured_id
-  const combinedProviders = (supportedProviders as any[]).map((provider) => {
-    const isConfigured = !!provider.configured_id
-    return {
-      ...provider,
-      id: isConfigured ? provider.configured_id : `unconfigured-${provider.name}`,
-      display_name: provider.display,
-      isConfigured
-    }
-  })
+  // Process providers - split into organization and managed
+  const orgProviders = allProvidersList.filter((p: any) => !p.is_managed).map((p: any) => ({ ...p, isConfigured: true }))
+  const managedProviders = allProvidersList.filter((p: any) => p.is_managed).map((p: any) => ({ ...p, isConfigured: true }))
 
   const getEmbeddingRequiredFields = (providerName: string) => {
     if (providerName === 'azure_openai') {
@@ -258,64 +276,25 @@ export default function Models() {
 
   // Helper functions
   const getProviderModels = (providerId: string) => {
-    const actualId = providerId.startsWith('unconfigured-') ? null : providerId
-    return (llms as LLM[]).filter((llm) => llm.provider_id === actualId)
+    return (llms as LLM[]).filter((llm) => llm.provider_id === providerId)
   }
 
   // Event handlers
-  const handleUpdateProvider = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleUpdateProvider = (data: CreateLLMProviderRequest) => {
     if (!editingProvider) return
-    const formData = new FormData(event.currentTarget)
-    
-    // Build data object dynamically based on required fields
-    const requiredFields = getRequiredFields(editingProvider)
-    const providerKey = (editingProvider as any).providerKey || editingProvider.name
-    
-    const data: any = {
-      name: providerKey, // Use the provider key automatically (e.g., 'openai', 'azure_openai')
-    }
-    
-    // Only include fields that are required for this provider
-    if (requiredFields.api_key) {
-      data.key = formData.get('key') as string
-    }
-    if (requiredFields.endpoint) {
-      data.endpoint = formData.get('endpoint') as string
-    }
-    if (requiredFields.deployment) {
-      data.deployment = formData.get('deployment') as string
-    }
-    
-    // Check if this is a new provider (unconfigured) or updating existing
-    if (editingProvider.isConfigured === false || editingProvider.id.startsWith('unconfigured-')) {
-      // Create new provider
-      createProviderMutation.mutate(data)
-    } else {
-      // Update existing provider
-      updateProviderMutation.mutate({ id: editingProvider.id, data })
-    }
+    updateProviderMutation.mutate({ id: editingProvider.id, data })
   }
 
-  const handleCreateModel = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const data: CreateLLMRequest = {
-      name: formData.get('displayName') as string,
-      internal_name: formData.get('technicalName') as string,
+  const handleCreateModel = (data: { name: string; internal_name: string; capabilities: string[] }) => {
+    const payload: CreateLLMRequest = {
+      ...data,
       provider_id: selectedProviderId,
     }
-    createLLMMutation.mutate(data)
+    createLLMMutation.mutate(payload)
   }
 
-  const handleUpdateModel = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleUpdateModel = (data: { name: string; internal_name: string; capabilities: string[] }) => {
     if (!editingModel) return
-    const formData = new FormData(event.currentTarget)
-    const data: Partial<CreateLLMRequest> = {
-      name: formData.get('displayName') as string,
-      internal_name: formData.get('technicalName') as string,
-    }
     updateLLMMutation.mutate({ id: editingModel.id, data })
   }
 
@@ -339,24 +318,12 @@ export default function Models() {
 
   const confirmDeleteModel = async () => {
     if (!deletingModel) return
-
-    setIsDeletingModel(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteLLMMutation.mutate(deletingModel.id, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          })
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeletingModel(false)
-      setDeletingModel(null)
-    }
+    await new Promise<void>((resolve, reject) => {
+      deleteLLMMutation.mutate(deletingModel.id, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
   }
 
   const handleDefaultChange = (llmId: string, isDefault: boolean) => {
@@ -372,64 +339,40 @@ export default function Models() {
     testLLMConnectionMutation.mutate(model.id)
   }
 
-  // Helper function to get required fields for a provider
-  const getRequiredFields = (provider: any) => {
-    return {
-      api_key: provider.api_key === true,
-      endpoint: provider.endpoint === true,
-      deployment: provider.deployment === true
-    }
-  }
-
   // Handle provider edit
   const handleEditProvider = async (provider: any) => {
-    // Close dropdown after opening dialog
+    // Close dropdown (for mobile)
     setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
-    // Delay to allow dropdown to close before dialog opens
-    setTimeout(async () => {
-      try {
-        // Fetch provider details from the API
-        const providerDetails = await getProvider(provider.id)
-        
-        // Keep the boolean requirement fields from the original provider
-        // Only add the string values for the actual data fields
-        const editProvider: any = {
-          ...provider, // This has the boolean fields: api_key, endpoint, deployment
-          providerKey: provider.name
-        }
-        
-        // Add the actual values from API without overwriting boolean fields
-        if (providerDetails.key !== undefined) {
-          editProvider.key = providerDetails.key
-        }
-        // For endpoint and deployment, check if they're boolean first
-        if (typeof provider.endpoint === 'boolean') {
-          // It's a boolean, so keep it and add the value separately if exists
-          if (providerDetails.endpoint !== undefined) {
-            editProvider.endpointValue = providerDetails.endpoint
-          }
-        } else {
-          // It's already a value, update it
-          if (providerDetails.endpoint !== undefined) {
-            editProvider.endpointValue = providerDetails.endpoint
-          }
-        }
-        
-        if (typeof provider.deployment === 'boolean') {
-          if (providerDetails.deployment !== undefined) {
-            editProvider.deploymentValue = providerDetails.deployment
-          }
-        } else {
-          if (providerDetails.deployment !== undefined) {
-            editProvider.deploymentValue = providerDetails.deployment
-          }
-        }
-        
-        setEditingProvider(editProvider)
-      } catch (error) {
-        handleApiError(error, { fallbackMessage: 'Failed to load provider details' })
+    try {
+      // Fetch provider details from the API
+      const providerDetails = await getProvider(provider.id)
+      
+      // Look up required fields from supported providers using type
+      const supportedProvider = (supportedProviders as any[]).find((sp: any) => sp.type === provider.type)
+      
+      const editProvider: any = {
+        ...provider,
+        providerKey: provider.type,
+        api_key: supportedProvider?.requires_api_key === true,
+        endpoint: supportedProvider?.requires_endpoint === true,
+        deployment: supportedProvider?.requires_deployment === true,
       }
-    }, 0)
+      
+      // Add the actual values from API
+      if (providerDetails.key !== undefined) {
+        editProvider.key = providerDetails.key
+      }
+      if (providerDetails.endpoint !== undefined) {
+        editProvider.endpointValue = providerDetails.endpoint
+      }
+      if (providerDetails.deployment !== undefined) {
+        editProvider.deploymentValue = providerDetails.deployment
+      }
+      
+      setEditingProvider(editProvider)
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: 'Failed to load provider details' })
+    }
   }
 
   // Handle provider delete
@@ -445,29 +388,22 @@ export default function Models() {
   const confirmDeleteProvider = async () => {
     if (!deletingProvider) return
 
-    setIsDeletingProvider(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteProviderMutation.mutate(deletingProvider.id, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          })
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeletingProvider(false)
-      setDeletingProvider(null)
-    }
+    await new Promise<void>((resolve, reject) => {
+      deleteProviderMutation.mutate(deletingProvider.id, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
   }
 
   const handleConfigureProvider = (provider: any) => {
+    const supportedProvider = (supportedProviders as any[]).find((sp: any) => sp.type === provider.type)
     setEditingProvider({
       ...provider,
-      providerKey: provider.name // This should be the key like 'openai', 'azure_openai', etc.
+      providerKey: provider.type,
+      api_key: supportedProvider?.requires_api_key === true,
+      endpoint: supportedProvider?.requires_endpoint === true,
+      deployment: supportedProvider?.requires_deployment === true,
     })
   }
 
@@ -494,54 +430,30 @@ export default function Models() {
     }, 0)
   }
 
-  const handleUpsertEmbeddingProvider = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleUpsertEmbeddingProvider = (data: { name: string; key?: string; endpoint?: string; deployment?: string }) => {
     if (!editingEmbeddingProvider) return
 
-    const formData = new FormData(event.currentTarget)
-    const requiredFields = getEmbeddingRequiredFields(editingEmbeddingProvider.providerKey || editingEmbeddingProvider.name)
-    const providerKey = editingEmbeddingProvider.providerKey || editingEmbeddingProvider.name
-    const data: any = {
-      name: providerKey,
-    }
-
-    if (requiredFields.api_key) {
-      data.key = formData.get('key') as string
-    }
-    if (requiredFields.endpoint) {
-      data.endpoint = formData.get('endpoint') as string
-    }
-    if (requiredFields.deployment) {
-      data.deployment = formData.get('deployment') as string
-    }
-
     if (editingEmbeddingProvider.isConfigured) {
-      updateEmbeddingProviderMutation.mutate(data)
+      updateEmbeddingProviderMutation.mutate(data as any)
       return
     }
 
-    createEmbeddingProviderMutation.mutate(data)
+    createEmbeddingProviderMutation.mutate(data as any)
   }
 
   const confirmDeleteEmbeddingProvider = async () => {
     if (!deletingEmbeddingProvider) return
 
     setIsDeletingEmbeddingProvider(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-
     try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteEmbeddingProviderMutation.mutate(undefined, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error),
-          })
-        }),
-        minDelay,
-      ])
+      await new Promise<void>((resolve, reject) => {
+        deleteEmbeddingProviderMutation.mutate(undefined, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        })
+      })
     } finally {
       setIsDeletingEmbeddingProvider(false)
-      setDeletingEmbeddingProvider(null)
     }
   }
 
@@ -554,6 +466,7 @@ export default function Models() {
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['supportedProviders'] }),
+        queryClient.invalidateQueries({ queryKey: ['allProviders'] }),
         queryClient.invalidateQueries({ queryKey: ['llms'] }),
         queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] }),
         queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] }),
@@ -572,7 +485,7 @@ export default function Models() {
   }, [])
 
   // Mostrar loading mientras se cargan permisos o proveedores
-  if (isLoadingPermissions || loadingSupportedProviders) {
+  if (isLoadingPermissions || loadingProviders) {
     return <ModelsLoadingState />
   }
 
@@ -588,134 +501,233 @@ export default function Models() {
     )
   }
 
-  // Only show full page error for supported providers
-  const hasError = errorSupportedProviders
+  // Only show full page error for providers
+  const hasError = errorProviders
   const hasEmbeddingError = errorEmbeddingSupportedProviders || errorEmbeddingProvider
-  const activeEditingProvider = editingProvider || editingEmbeddingProvider
   const activeDeletingProvider = deletingProvider || deletingEmbeddingProvider
 
   // Determine error message
-  const errorMessage = 'Failed to load supported providers'
+  const errorMessage = 'Failed to load providers'
 
   return (
     <div className="p-6 space-y-6">
       <ModelsHeader 
         onRefresh={handleRefresh}
-        configuredProviders={hasError ? 0 : combinedProviders.filter((p: any) => p.isConfigured).length}
+        configuredProviders={hasError ? 0 : allProvidersList.length}
         totalModels={hasError ? 0 : (llms as LLM[]).length}
         isLoading={isRefreshing}
       />
 
-      {/* Show error state in content area */}
-      {hasError ? (
-        <ModelsContentEmptyState 
-          type="error" 
-          message={errorMessage} 
-          onRetry={handleRefresh}
-        />
-      ) : !combinedProviders.length ? (
-        <ModelsContentEmptyState type="empty" />
-      ) : (
-        <div className="space-y-4">
-          {combinedProviders.map((provider: any) => (
-            <ProviderCard
-              key={provider.id}
-              provider={provider}
-              models={getProviderModels(provider.id)}
-              isOpen={openProviders.includes(provider.id)}
-              onToggle={(open) => {
-                if (open) {
-                  setOpenProviders(prev => [...prev, provider.id])
-                } else {
-                  setOpenProviders(prev => prev.filter(id => id !== provider.id))
-                }
-              }}
-              onEditProvider={handleEditProvider}
-              onDeleteProvider={handleDeleteProvider}
-              onConfigureProvider={handleConfigureProvider}
-              onCreateModel={handleCreateModelForProvider}
-              onEditModel={handleEditModel}
-              onDeleteModel={handleDeleteModel}
-              onTestModel={handleTestModel}
-              onDefaultChange={handleDefaultChange}
-              isDeleting={deleteProviderMutation.isPending}
-              isDeletingModel={deleteLLMMutation.isPending}
-              testingModelId={testingModelId}
-              isLoadingModels={loadingLLMs}
-              modelsError={errorLLMs}
-              openDropdowns={openDropdowns}
-              onDropdownChange={(key, open) => {
-                setOpenDropdowns(prev => ({ ...prev, [key]: open }))
-              }}
-              canCreateProvider={canCreateProvider}
-              canUpdateProvider={canUpdateProvider}
-              canDeleteProvider={canDeleteProvider}
-              canCreateModel={canCreateModel}
-              canUpdateModel={canUpdateModel}
-              canDeleteModel={canDeleteModel}
+      <Tabs defaultValue="models">
+        <TabsList>
+          <TabsTrigger value="models" className="hover:cursor-pointer">Models</TabsTrigger>
+          <TabsTrigger value="embeddings" className="hover:cursor-pointer">Embeddings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="models">
+          {/* Show error state in content area */}
+          {hasError ? (
+            <ModelsContentEmptyState 
+              type="error" 
+              message={errorMessage} 
+              onRetry={handleRefresh}
             />
-          ))}
-
-          <div className="pt-2 space-y-3">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Embeddings Provider</h2>
-              <p className="text-sm text-muted-foreground">
-                Configure the organization-wide embeddings provider (singleton).
-              </p>
+          ) : (
+            <div className="space-y-6">
+              {!allProvidersList.length ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground">Organization Providers</h3>
+                    {canCreateProvider && (
+                      <HuemulButton
+                        icon={Plus}
+                        label="New Provider"
+                        size="sm"
+                        onClick={() => setIsCreateProviderOpen(true)}
+                      />
+                    )}
+                  </div>
+                  <ModelsContentEmptyState type="empty" />
+                </div>
+              ) : (
+                <>
+              {/* Organization Providers */}
+              {orgProviders.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Organization Providers</h3>
+                      <p className="text-xs text-muted-foreground">Providers configured by your organization.</p>
+                    </div>
+                    {canCreateProvider && (
+                      <HuemulButton
+                        icon={Plus}
+                        label="New Provider"
+                        size="sm"
+                        onClick={() => setIsCreateProviderOpen(true)}
+                      />
+                    )}
+                  </div>
+                  {orgProviders.map((provider: any) => (
+                    <ProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      models={getProviderModels(provider.id)}
+                      isOpen={openProviders.includes(provider.id)}
+                      onToggle={(open) => {
+                        if (open) {
+                          setOpenProviders(prev => [...prev, provider.id])
+                        } else {
+                          setOpenProviders(prev => prev.filter(id => id !== provider.id))
+                        }
+                      }}
+                      onEditProvider={handleEditProvider}
+                      onDeleteProvider={handleDeleteProvider}
+                      onConfigureProvider={handleConfigureProvider}
+                      onCreateModel={handleCreateModelForProvider}
+                      onEditModel={handleEditModel}
+                      onDeleteModel={handleDeleteModel}
+                      onTestModel={handleTestModel}
+                      onDefaultChange={handleDefaultChange}
+                      isDeleting={deleteProviderMutation.isPending}
+                      isDeletingModel={deleteLLMMutation.isPending}
+                      testingModelId={testingModelId}
+                      isLoadingModels={loadingLLMs}
+                      modelsError={errorLLMs}
+                      openDropdowns={openDropdowns}
+                      onDropdownChange={(key, open) => {
+                        setOpenDropdowns(prev => ({ ...prev, [key]: open }))
+                      }}
+                      canCreateProvider={canCreateProvider}
+                      canUpdateProvider={canUpdateProvider}
+                      canDeleteProvider={canDeleteProvider}
+                      canCreateModel={canCreateModel}
+                      canUpdateModel={canUpdateModel}
+                      canDeleteModel={canDeleteModel}
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {managedProviders.length > 0 && (
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Managed Providers</h3>
+                    <p className="text-xs text-muted-foreground">Providers managed by your platform administrator. These cannot be edited or deleted.</p>
+                  </div>
+                  {managedProviders.map((provider: any) => (
+                    <ProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      models={getProviderModels(provider.id)}
+                      isOpen={openProviders.includes(provider.id)}
+                      onToggle={(open) => {
+                        if (open) {
+                          setOpenProviders(prev => [...prev, provider.id])
+                        } else {
+                          setOpenProviders(prev => prev.filter(id => id !== provider.id))
+                        }
+                      }}
+                      onEditProvider={handleEditProvider}
+                      onDeleteProvider={handleDeleteProvider}
+                      onConfigureProvider={handleConfigureProvider}
+                      onCreateModel={handleCreateModelForProvider}
+                      onEditModel={handleEditModel}
+                      onDeleteModel={handleDeleteModel}
+                      onTestModel={handleTestModel}
+                      onDefaultChange={handleDefaultChange}
+                      isDeleting={deleteProviderMutation.isPending}
+                      isDeletingModel={deleteLLMMutation.isPending}
+                      testingModelId={testingModelId}
+                      isLoadingModels={loadingLLMs}
+                      modelsError={errorLLMs}
+                      openDropdowns={openDropdowns}
+                      onDropdownChange={(key, open) => {
+                        setOpenDropdowns(prev => ({ ...prev, [key]: open }))
+                      }}
+                      canCreateProvider={false}
+                      canUpdateProvider={isRootAdmin}
+                      canDeleteProvider={isRootAdmin}
+                      canCreateModel={canCreateModel}
+                      canUpdateModel={canUpdateModel}
+                      canDeleteModel={canDeleteModel}
+                    />
+                  ))}
+                </div>
+              )}
+                </>
+              )}
             </div>
+          )}
+        </TabsContent>
 
-            {hasEmbeddingError ? (
-              <ModelsContentEmptyState
-                type="error"
-                message="Failed to load embeddings provider"
-                onRetry={handleRefresh}
-              />
-            ) : !combinedEmbeddingProviders.length ? (
-              <ModelsContentEmptyState type="empty" />
-            ) : (
-              <div className="space-y-3">
-                {combinedEmbeddingProviders.map((provider: any) => (
-                  <EmbeddingProviderCard
-                    key={provider.id}
-                    provider={provider}
-                    isOpen={openEmbeddingProviders.includes(provider.id)}
-                    onToggle={(open) => {
-                      if (open) {
-                        setOpenEmbeddingProviders(prev => [...prev, provider.id])
-                      } else {
-                        setOpenEmbeddingProviders(prev => prev.filter(id => id !== provider.id))
-                      }
-                    }}
-                    onEditProvider={handleEditEmbeddingProvider}
-                    onDeleteProvider={handleDeleteEmbeddingProvider}
-                    onConfigureProvider={handleConfigureEmbeddingProvider}
-                    isDeleting={isDeletingEmbeddingProvider}
-                    openDropdowns={openDropdowns}
-                    onDropdownChange={(key, open) => {
-                      setOpenDropdowns(prev => ({ ...prev, [key]: open }))
-                    }}
-                    canCreateProvider={canCreateProvider}
-                    canUpdateProvider={canUpdateProvider}
-                    canDeleteProvider={canDeleteProvider}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        <TabsContent value="embeddings">
+          {hasEmbeddingError ? (
+            <ModelsContentEmptyState
+              type="error"
+              message="Failed to load embeddings provider"
+              onRetry={handleRefresh}
+            />
+          ) : !combinedEmbeddingProviders.length ? (
+            <ModelsContentEmptyState type="empty" />
+          ) : (
+            <div className="space-y-3">
+              {combinedEmbeddingProviders.map((provider: any) => (
+                <EmbeddingProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  isOpen={openEmbeddingProviders.includes(provider.id)}
+                  onToggle={(open) => {
+                    if (open) {
+                      setOpenEmbeddingProviders(prev => [...prev, provider.id])
+                    } else {
+                      setOpenEmbeddingProviders(prev => prev.filter(id => id !== provider.id))
+                    }
+                  }}
+                  onEditProvider={handleEditEmbeddingProvider}
+                  onDeleteProvider={handleDeleteEmbeddingProvider}
+                  onConfigureProvider={handleConfigureEmbeddingProvider}
+                  isDeleting={isDeletingEmbeddingProvider}
+                  openDropdowns={openDropdowns}
+                  onDropdownChange={(key, open) => {
+                    setOpenDropdowns(prev => ({ ...prev, [key]: open }))
+                  }}
+                  canCreateProvider={canCreateProvider}
+                  canUpdateProvider={canUpdateProvider}
+                  canDeleteProvider={canDeleteProvider}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Create Provider Dialog */}
+      <CreateProviderDialog
+        open={isCreateProviderOpen}
+        onOpenChange={setIsCreateProviderOpen}
+        supportedProviders={supportedProviders as any[]}
+        onSubmit={(data: CreateLLMProviderRequest) => createProviderMutation.mutate(data)}
+        isCreating={createProviderMutation.isPending}
+      />
 
       {/* Edit Provider Dialog */}
       <EditProviderDialog
-        open={!!activeEditingProvider}
-        onOpenChange={() => {
-          setEditingProvider(null)
-          setEditingEmbeddingProvider(null)
-        }}
-        provider={activeEditingProvider}
-        onSubmit={editingProvider ? handleUpdateProvider : handleUpsertEmbeddingProvider}
-        isUpdating={editingProvider ? updateProviderMutation.isPending : updateEmbeddingProviderMutation.isPending}
-        isCreating={editingProvider ? createProviderMutation.isPending : createEmbeddingProviderMutation.isPending}
+        open={!!editingProvider}
+        onOpenChange={() => setEditingProvider(null)}
+        provider={editingProvider}
+        supportedProviders={supportedProviders as any[]}
+        onSubmit={handleUpdateProvider}
+        isUpdating={updateProviderMutation.isPending}
+      />
+
+      {/* Edit Embedding Provider Dialog */}
+      <EmbeddingProviderEditDialog
+        open={!!editingEmbeddingProvider}
+        onOpenChange={() => setEditingEmbeddingProvider(null)}
+        provider={editingEmbeddingProvider}
+        onSubmit={handleUpsertEmbeddingProvider}
+        isSubmitting={updateEmbeddingProviderMutation.isPending || createEmbeddingProviderMutation.isPending}
       />
 
       {/* Create/Edit Model Dialog */}
@@ -737,27 +749,25 @@ export default function Models() {
       <DeleteProviderDialog
         open={!!activeDeletingProvider}
         onOpenChange={(open) => {
-          if (!open && !isDeletingProvider && !isDeletingEmbeddingProvider) {
+          if (!open) {
             setDeletingProvider(null)
             setDeletingEmbeddingProvider(null)
           }
         }}
         provider={activeDeletingProvider}
-        onConfirm={deletingProvider ? confirmDeleteProvider : confirmDeleteEmbeddingProvider}
-        isDeleting={deletingProvider ? isDeletingProvider : isDeletingEmbeddingProvider}
+        onAction={deletingProvider ? confirmDeleteProvider : confirmDeleteEmbeddingProvider}
       />
 
       {/* Delete Model Dialog */}
       <DeleteModelDialog
         open={!!deletingModel}
         onOpenChange={(open) => {
-          if (!open && !isDeletingModel) {
+          if (!open) {
             setDeletingModel(null)
           }
         }}
         model={deletingModel}
-        onConfirm={confirmDeleteModel}
-        isDeleting={isDeletingModel}
+        onAction={confirmDeleteModel}
       />
     </div>
   )
