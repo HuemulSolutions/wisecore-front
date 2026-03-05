@@ -12,7 +12,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Play, FastForward, Bot, Loader2 } from 'lucide-react';
-import { getLLMs, getDefaultLLM, type LLM } from '@/services/llms';
+import { getLLMs, getDefaultLLM } from '@/services/llms';
+import type { LLM } from '@/types/llm';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
 
