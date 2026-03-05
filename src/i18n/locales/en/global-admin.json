@@ -1,0 +1,16 @@
+{
+  "title": "Global Admin Settings",
+  "description": "Manage organizations and users across all organizations.",
+  "tabs": {
+    "organizations": "Organizations",
+    "users": "Organization Users"
+  },
+  "toast": {
+    "dataRefreshed": "Data refreshed",
+    "refreshFailed": "Failed to refresh data",
+    "orgCreated": "Organization created successfully",
+    "orgUpdated": "Organization updated successfully",
+    "orgDeleted": "Organization deleted successfully",
+    "orgAdminPending": "Organization admin action is pending for {{name}}"
+  }
+}
