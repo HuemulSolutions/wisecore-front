@@ -57,8 +57,12 @@ export async function updateSection(
 }
 
 
-export async function updateSectionsOrder(sections: { section_id: string; order: number }[], organizationId: string) {
-    const response = await httpClient.put(`${backendUrl}/sections/order`, { new_order: sections }, {
+export async function updateSectionsOrder(sections: { section_id: string; order: number }[], organizationId: string, executionId?: string) {
+    const body: { new_order: { section_id: string; order: number }[]; execution_id?: string } = { new_order: sections };
+    if (executionId) {
+        body.execution_id = executionId;
+    }
+    const response = await httpClient.put(`${backendUrl}/sections/order`, body, {
         headers: {
             'X-Org-Id': organizationId,
         },
