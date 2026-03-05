@@ -23,6 +23,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
   const [internalCode, setInternalCode] = useState("")
   const [documentTypeId, setDocumentTypeId] = useState("")
   const [templateId, setTemplateId] = useState("")
+  const [createInitialVersion, setCreateInitialVersion] = useState(false)
   const [showCreateDocTypeDialog, setShowCreateDocTypeDialog] = useState(false)
 
   React.useEffect(() => {
@@ -33,6 +34,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
       setInternalCode("")
       setDocumentTypeId("")
       setTemplateId("")
+      setCreateInitialVersion(false)
       
       // Refresh document types when dialog opens to ensure latest data
       if (selectedOrganizationId) {
@@ -146,6 +148,11 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
       assetData.folder_id = folderId
     }
 
+    // Only send create_initial_version when true and no template is selected
+    if (createInitialVersion && !templateId) {
+      assetData.create_initial_version = true
+    }
+
     createAssetMutation.mutate(assetData)
   }
 
@@ -174,11 +181,13 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
             internalCode={internalCode}
             templateId={templateId}
             documentTypeId={documentTypeId}
+            createInitialVersion={createInitialVersion}
             onNameChange={setName}
             onDescriptionChange={setDescription}
             onInternalCodeChange={setInternalCode}
             onTemplateIdChange={setTemplateId}
             onDocumentTypeIdChange={setDocumentTypeId}
+            onCreateInitialVersionChange={setCreateInitialVersion}
             onCreateDocType={() => setShowCreateDocTypeDialog(true)}
             templates={templates}
             documentTypes={documentTypes}
