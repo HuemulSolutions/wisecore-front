@@ -251,6 +251,7 @@ export interface CreateAssetRequest {
   document_type_id: string;
   template_id?: string;
   folder_id?: string;
+  create_initial_version?: boolean;
 }
 
 /**
