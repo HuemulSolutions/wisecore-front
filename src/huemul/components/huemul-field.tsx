@@ -707,52 +707,73 @@ export function HuemulField({
       data-disabled={disabled || undefined}
       className={cn(
         "flex w-full gap-1.5",
-        isInline ? "flex-row items-start gap-3" : "flex-col",
+        isInline ? "flex-col" : "flex-col",
         className,
       )}
     >
-      {/* ── Label row ──────────────────────────────────────────── */}
-      <div
-        className={cn(
-          "flex items-center gap-1",
-          isInline && "order-2",
-        )}
-      >
-        <Label
-          htmlFor={fieldId}
-          className={cn(
-            "text-sm font-medium leading-snug",
-            disabled && "opacity-50",
-          )}
-        >
-          {label}
-        </Label>
+      {/* ── Inline row (switch/checkbox) or stacked label+control ── */}
+      {isInline ? (
+        <div className="flex flex-row items-center gap-3">
+          {/* Control first */}
+          <div>{renderControl()}</div>
+          {/* Label row */}
+          <div className="flex items-center gap-1">
+            <Label
+              htmlFor={fieldId}
+              className={cn(
+                "text-sm font-medium leading-snug",
+                disabled && "opacity-50",
+              )}
+            >
+              {label}
+            </Label>
 
-        {required && (
-          <Asterisk
-            className="size-3 text-destructive shrink-0"
-            aria-label="required"
-          />
-        )}
+            {required && (
+              <Asterisk
+                className="size-3 text-destructive shrink-0"
+                aria-label="required"
+              />
+            )}
 
-        {helpText && <FieldHelpButton helpText={helpText} />}
+            {helpText && <FieldHelpButton helpText={helpText} />}
 
-        {labelAction && <FieldLabelAction action={labelAction} />}
-      </div>
+            {labelAction && <FieldLabelAction action={labelAction} />}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* ── Label row ──────────────────────────────────────── */}
+          <div className="flex items-center gap-1">
+            <Label
+              htmlFor={fieldId}
+              className={cn(
+                "text-sm font-medium leading-snug",
+                disabled && "opacity-50",
+              )}
+            >
+              {label}
+            </Label>
 
-      {/* ── Control ────────────────────────────────────────────── */}
-      <div className={cn(isInline && "order-1")}>
-        {renderControl()}
-      </div>
+            {required && (
+              <Asterisk
+                className="size-3 text-destructive shrink-0"
+                aria-label="required"
+              />
+            )}
+
+            {helpText && <FieldHelpButton helpText={helpText} />}
+
+            {labelAction && <FieldLabelAction action={labelAction} />}
+          </div>
+
+          {/* ── Control ────────────────────────────────────────── */}
+          <div>{renderControl()}</div>
+        </>
+      )}
 
       {/* ── Description ────────────────────────────────────────── */}
       {description && !error && (
-        <p
-          className={cn(
-            "text-muted-foreground text-sm leading-normal",
-            isInline && "order-3",
-          )}
-        >
+        <p className="text-muted-foreground text-sm leading-normal">
           {description}
         </p>
       )}
@@ -761,10 +782,7 @@ export function HuemulField({
       {error && (
         <p
           role="alert"
-          className={cn(
-            "text-destructive text-sm font-normal",
-            isInline && "order-3",
-          )}
+          className="text-destructive text-sm font-normal"
         >
           {error}
         </p>
