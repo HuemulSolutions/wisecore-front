@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Edit } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import type { SupportedProvider, CreateLLMProviderRequest } from "@/types/llm-provider"
@@ -29,6 +30,8 @@ export function EditProviderDialog({
   const [deployment, setDeployment] = useState("")
 
   const selectedProvider = supportedProviders.find((p) => p.type === selectedType)
+
+  const { t } = useTranslation('models')
 
   // Populate form when provider changes
   useEffect(() => {
@@ -92,11 +95,11 @@ export function EditProviderDialog({
     <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Edit Provider - ${provider.display_name || provider.name}`}
-      description={`Update the configuration settings for your ${provider.display_name || provider.name} provider.`}
+      title={t('editProviderDialog.title', { name: provider.display_name || provider.name })}
+      description={t('editProviderDialog.description', { name: provider.display_name || provider.name })}
       icon={Edit}
       saveAction={{
-        label: isUpdating ? "Updating..." : "Update Provider",
+        label: isUpdating ? t('editProviderDialog.updating') : t('editProviderDialog.updateProvider'),
         onClick: handleSave,
         disabled: !isFormValid || isUpdating,
         loading: isUpdating,
@@ -105,9 +108,9 @@ export function EditProviderDialog({
     >
       <HuemulFieldGroup gap="gap-4">
         <HuemulField
-          label="Name"
+          label={t('createProviderDialog.nameLabel')}
           name="providerName"
-          placeholder="e.g. Azure Production, OpenAI Dev"
+          placeholder={t('createProviderDialog.namePlaceholder')}
           value={name}
           onChange={(v) => setName(String(v))}
           required
@@ -115,18 +118,18 @@ export function EditProviderDialog({
 
         <HuemulField
           type="switch"
-          label="Managed Provider"
+          label={t('createProviderDialog.managedLabel')}
           name="isManaged"
           value={isManaged}
           onChange={(v) => setIsManaged(Boolean(v))}
-          description="Managed providers are controlled by platform administrators and cannot be edited by organization users."
+          description={t('createProviderDialog.managedDescription')}
         />
 
         <HuemulField
           type="select"
-          label="Provider Type"
+          label={t('createProviderDialog.typeLabel')}
           name="providerType"
-          placeholder="Select a provider type..."
+          placeholder={t('createProviderDialog.typePlaceholder')}
           options={typeOptions}
           value={selectedType}
           onChange={(v) => {
@@ -140,10 +143,10 @@ export function EditProviderDialog({
 
         {selectedProvider?.requires_api_key && (
           <HuemulField
-            label="API Key"
+            label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
             type="password"
-            placeholder="Enter your API key..."
+            placeholder={t('createProviderDialog.apiKeyPlaceholder')}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
             required
@@ -152,7 +155,7 @@ export function EditProviderDialog({
 
         {selectedProvider?.requires_endpoint && (
           <HuemulField
-            label="Endpoint"
+            label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
             type="password"
             placeholder="https://api.example.com/v1"
@@ -164,10 +167,10 @@ export function EditProviderDialog({
 
         {selectedProvider?.requires_deployment && (
           <HuemulField
-            label="Deployment"
+            label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
             type="password"
-            placeholder="Enter deployment name..."
+            placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required

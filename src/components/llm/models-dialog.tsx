@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Plus, Edit } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import type { LLM } from "@/types/llm"
@@ -24,6 +25,7 @@ export function ModelDialog({
   onSubmit
 }: ModelDialogProps) {
   const isEdit = !!model
+  const { t } = useTranslation('models')
   const [displayName, setDisplayName] = useState('')
   const [technicalName, setTechnicalName] = useState('')
 
@@ -53,13 +55,13 @@ export function ModelDialog({
     <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? `Edit Model - ${model?.name}` : `Add Model to ${providerName}`}
-      description={isEdit ? "Update the configuration for your AI model." : `Add a new AI model to your ${providerName} provider configuration.`}
+      title={isEdit ? t('modelDialog.editTitle', { name: model?.name }) : t('modelDialog.createTitle', { provider: providerName })}
+      description={isEdit ? t('modelDialog.editDescription') : t('modelDialog.createDescription', { provider: providerName })}
       icon={isEdit ? Edit : Plus}
       saveAction={{
         label: isSubmitting
-          ? (isEdit ? "Updating..." : "Saving...")
-          : (isEdit ? "Update Model" : "Save Model"),
+          ? (isEdit ? t('modelDialog.updating') : t('modelDialog.saving'))
+          : (isEdit ? t('modelDialog.updateModel') : t('modelDialog.saveModel')),
         onClick: handleSave,
         disabled: !isFormValid || isSubmitting,
         loading: isSubmitting,
@@ -68,21 +70,21 @@ export function ModelDialog({
     >
       <HuemulFieldGroup gap="gap-4">
         <HuemulField
-          label="Display Name"
+          label={t('modelDialog.displayNameLabel')}
           name="displayName"
-          placeholder="e.g. GPT-4 Turbo"
+          placeholder={t('modelDialog.displayNamePlaceholder')}
           value={displayName}
           onChange={(v) => setDisplayName(String(v))}
           disabled={isSubmitting}
           required
         />
         <HuemulField
-          label="Technical Name"
+          label={t('modelDialog.technicalNameLabel')}
           name="technicalName"
-          placeholder="e.g., gpt-4-turbo-preview"
+          placeholder={t('modelDialog.technicalNamePlaceholder')}
           value={technicalName}
           onChange={(v) => setTechnicalName(String(v))}
-          description="Use the exact model name as specified by the provider's API documentation."
+          description={t('modelDialog.technicalNameDescription')}
           disabled={isSubmitting}
           required
         />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { HuemulButton } from '@/huemul/components/huemul-button'
@@ -51,6 +52,7 @@ import type { CreateLLMProviderRequest } from '@/types/llm-provider'
 
 export default function Models() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation('models')
   const { 
     hasPermission, 
     hasAnyPermission,
@@ -136,7 +138,7 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
       setIsCreateProviderOpen(false)
-      toast.success('Provider configured successfully')
+      toast.success(t('toast.providerConfigured'))
     },
   })
 
@@ -146,7 +148,7 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
-      toast.success('Provider updated successfully')
+      toast.success(t('toast.providerUpdated'))
     },
   })
 
@@ -156,7 +158,7 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setDeletingProvider(null)
-      toast.success('Provider deleted successfully')
+      toast.success(t('toast.providerDeleted'))
     },
   })
 
@@ -165,7 +167,7 @@ export default function Models() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setIsCreateModelOpen(false)
-      toast.success('Model created successfully')
+      toast.success(t('toast.modelCreated'))
     },
   })
 
@@ -174,7 +176,7 @@ export default function Models() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setEditingModel(null)
-      toast.success('Model updated successfully')
+      toast.success(t('toast.modelUpdated'))
     },
   })
 
@@ -183,7 +185,7 @@ export default function Models() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setDeletingModel(null)
-      toast.success('Model deleted successfully')
+      toast.success(t('toast.modelDeleted'))
     },
   })
 
@@ -191,14 +193,14 @@ export default function Models() {
     mutationFn: (llmId: string) => setDefaultLLM(llmId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
-      toast.success('Default model updated successfully')
+      toast.success(t('toast.defaultModelUpdated'))
     },
   })
 
   const testLLMConnectionMutation = useMutation({
     mutationFn: testLLMConnection,
     onSuccess: () => {
-      toast.success('Connection successful')
+      toast.success(t('toast.connectionSuccessful'))
     },
     onSettled: () => {
       setTestingModelId(null)
@@ -211,7 +213,7 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setEditingEmbeddingProvider(null)
-      toast.success('Embeddings provider configured successfully')
+      toast.success(t('toast.embeddingProviderConfigured'))
     },
   })
 
@@ -221,7 +223,7 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setEditingEmbeddingProvider(null)
-      toast.success('Embeddings provider updated successfully')
+      toast.success(t('toast.embeddingProviderUpdated'))
     },
   })
 
@@ -231,7 +233,7 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setDeletingEmbeddingProvider(null)
-      toast.success('Embeddings provider deleted successfully')
+      toast.success(t('toast.embeddingProviderDeleted'))
     },
   })
 
@@ -371,7 +373,7 @@ export default function Models() {
       
       setEditingProvider(editProvider)
     } catch (error) {
-      handleApiError(error, { fallbackMessage: 'Failed to load provider details' })
+      handleApiError(error, { fallbackMessage: t('errors.failedToLoadProviderDetails') })
     }
   }
 
@@ -471,7 +473,7 @@ export default function Models() {
         queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] }),
         queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] }),
       ])
-      toast.success('Data refreshed')
+      toast.success(t('toast.dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -494,8 +496,8 @@ export default function Models() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          <h1 className="text-2xl font-semibold mb-2">{t('accessDenied.title')}</h1>
+          <p className="text-muted-foreground">{t('accessDenied.description')}</p>
         </div>
       </div>
     )
@@ -507,7 +509,7 @@ export default function Models() {
   const activeDeletingProvider = deletingProvider || deletingEmbeddingProvider
 
   // Determine error message
-  const errorMessage = 'Failed to load providers'
+  const errorMessage = t('errors.failedToLoadProviders')
 
   return (
     <div className="p-6 space-y-6">
@@ -520,8 +522,8 @@ export default function Models() {
 
       <Tabs defaultValue="models">
         <TabsList>
-          <TabsTrigger value="models" className="hover:cursor-pointer">Models</TabsTrigger>
-          <TabsTrigger value="embeddings" className="hover:cursor-pointer">Embeddings</TabsTrigger>
+          <TabsTrigger value="models" className="hover:cursor-pointer">{t('tabs.models')}</TabsTrigger>
+          <TabsTrigger value="embeddings" className="hover:cursor-pointer">{t('tabs.embeddings')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="models">
@@ -537,11 +539,11 @@ export default function Models() {
               {!allProvidersList.length ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-foreground">Organization Providers</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t('sections.orgProviders')}</h3>
                     {canCreateProvider && (
                       <HuemulButton
                         icon={Plus}
-                        label="New Provider"
+                        label={t('actions.newProvider')}
                         size="sm"
                         onClick={() => setIsCreateProviderOpen(true)}
                       />
@@ -556,13 +558,13 @@ export default function Models() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-foreground">Organization Providers</h3>
-                      <p className="text-xs text-muted-foreground">Providers configured by your organization.</p>
+                      <h3 className="text-sm font-semibold text-foreground">{t('sections.orgProviders')}</h3>
+                      <p className="text-xs text-muted-foreground">{t('sections.orgProvidersDesc')}</p>
                     </div>
                     {canCreateProvider && (
                       <HuemulButton
                         icon={Plus}
-                        label="New Provider"
+                        label={t('actions.newProvider')}
                         size="sm"
                         onClick={() => setIsCreateProviderOpen(true)}
                       />
@@ -612,8 +614,8 @@ export default function Models() {
               {managedProviders.length > 0 && (
                 <div className="space-y-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Managed Providers</h3>
-                    <p className="text-xs text-muted-foreground">Providers managed by your platform administrator. These cannot be edited or deleted.</p>
+                    <h3 className="text-sm font-semibold text-foreground">{t('sections.managedProviders')}</h3>
+                    <p className="text-xs text-muted-foreground">{t('sections.managedProvidersDesc')}</p>
                   </div>
                   {managedProviders.map((provider: any) => (
                     <ProviderCard
@@ -665,7 +667,7 @@ export default function Models() {
           {hasEmbeddingError ? (
             <ModelsContentEmptyState
               type="error"
-              message="Failed to load embeddings provider"
+              message={t('errors.failedToLoadEmbeddings')}
               onRetry={handleRefresh}
             />
           ) : !combinedEmbeddingProviders.length ? (

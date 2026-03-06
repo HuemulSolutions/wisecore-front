@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Edit, Trash2, MoreVertical, Radio, Loader2 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import type { LLM } from "@/types/llm"
 
@@ -31,6 +32,7 @@ export function ModelActions({
   canDelete
 }: ModelActionsProps) {
   const isMobile = useIsMobile()
+  const { t } = useTranslation('models')
 
   // Siempre mostrar al menos el botón de test
   if (!canUpdate && !canDelete) {
@@ -41,7 +43,7 @@ export function ModelActions({
         variant="ghost"
         size="icon-sm"
         iconClassName="text-blue-600"
-        tooltip={isTesting ? 'Testing connection...' : 'Test Connection'}
+        tooltip={isTesting ? t('modelActions.testingConnection') : t('modelActions.testConnection')}
         loading={isTesting}
         onClick={() => onTest(model)}
       />
@@ -75,7 +77,7 @@ export function ModelActions({
             ) : (
               <Radio className="h-3 w-3 mr-2 text-blue-600" />
             )}
-            {isTesting ? 'Testing...' : 'Test Connection'}
+            {isTesting ? t('modelActions.testing') : t('modelActions.testConnection')}
           </DropdownMenuItem>
           {canUpdate && (
             <DropdownMenuItem
@@ -83,7 +85,7 @@ export function ModelActions({
               className="hover:cursor-pointer text-xs"
             >
               <Edit className="h-3 w-3 mr-2 text-blue-600" />
-              Edit Model
+              {t('modelActions.editModel')}
             </DropdownMenuItem>
           )}
           {canDelete && (
@@ -93,7 +95,7 @@ export function ModelActions({
               disabled={isDeleting}
             >
               <Trash2 className="h-3 w-3 mr-2" />
-              {isDeleting ? 'Deleting...' : 'Delete Model'}
+              {isDeleting ? t('modelActions.deleting') : t('modelActions.deleteModel')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -108,7 +110,7 @@ export function ModelActions({
         variant="ghost"
         size="icon-sm"
         iconClassName="text-blue-600"
-        tooltip={isTesting ? 'Testing connection...' : 'Test Connection'}
+        tooltip={isTesting ? t('modelActions.testingConnection') : t('modelActions.testConnection')}
         loading={isTesting}
         onClick={() => onTest(model)}
       />
@@ -118,7 +120,7 @@ export function ModelActions({
           variant="ghost"
           size="icon-sm"
           iconClassName="text-blue-600"
-          tooltip="Edit Model"
+          tooltip={t('modelActions.editModel')}
           onClick={() => onEdit(model)}
         />
       )}
@@ -128,7 +130,7 @@ export function ModelActions({
           variant="ghost"
           size="icon-sm"
           iconClassName="text-destructive"
-          tooltip={isDeleting ? 'Deleting...' : 'Delete Model'}
+          tooltip={isDeleting ? t('modelActions.deleting') : t('modelActions.deleteModel')}
           disabled={isDeleting}
           loading={isDeleting}
           onClick={() => onDelete(model)}

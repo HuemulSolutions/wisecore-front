@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Blocks } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import type { SupportedProvider, CreateLLMProviderRequest } from "@/types/llm-provider"
@@ -27,6 +28,7 @@ export function CreateProviderDialog({
   const [deployment, setDeployment] = useState("")
 
   const selectedProvider = supportedProviders.find((p) => p.type === selectedType)
+  const { t } = useTranslation('models')
 
   const resetForm = () => {
     setName("")
@@ -86,11 +88,11 @@ export function CreateProviderDialog({
     <HuemulDialog
       open={open}
       onOpenChange={handleOpenChange}
-      title="New Provider"
-      description="Configure a new LLM provider for your organization."
+      title={t('createProviderDialog.title')}
+      description={t('createProviderDialog.description')}
       icon={Blocks}
       saveAction={{
-        label: isCreating ? "Creating..." : "Create Provider",
+        label: isCreating ? t('createProviderDialog.creating') : t('createProviderDialog.createProvider'),
         onClick: handleSave,
         disabled: !isFormValid || isCreating,
         loading: isCreating,
@@ -99,9 +101,9 @@ export function CreateProviderDialog({
     >
       <HuemulFieldGroup gap="gap-4">
         <HuemulField
-          label="Name"
+          label={t('createProviderDialog.nameLabel')}
           name="providerName"
-          placeholder="e.g. Azure Production, OpenAI Dev"
+          placeholder={t('createProviderDialog.namePlaceholder')}
           value={name}
           onChange={(v) => setName(String(v))}
           required
@@ -109,18 +111,18 @@ export function CreateProviderDialog({
 
         <HuemulField
           type="switch"
-          label="Managed Provider"
+          label={t('createProviderDialog.managedLabel')}
           name="isManaged"
           value={isManaged}
           onChange={(v) => setIsManaged(Boolean(v))}
-          description="Managed providers are controlled by platform administrators and cannot be edited by organization users."
+          description={t('createProviderDialog.managedDescription')}
         />
 
         <HuemulField
           type="select"
-          label="Provider Type"
+          label={t('createProviderDialog.typeLabel')}
           name="providerType"
-          placeholder="Select a provider type..."
+          placeholder={t('createProviderDialog.typePlaceholder')}
           options={typeOptions}
           value={selectedType}
           onChange={(v) => {
@@ -134,10 +136,10 @@ export function CreateProviderDialog({
 
         {selectedProvider?.requires_api_key && (
           <HuemulField
-            label="API Key"
+            label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
             type="password"
-            placeholder="Enter your API key..."
+            placeholder={t('createProviderDialog.apiKeyPlaceholder')}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
             required
@@ -146,7 +148,7 @@ export function CreateProviderDialog({
 
         {selectedProvider?.requires_endpoint && (
           <HuemulField
-            label="Endpoint"
+            label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
             type="password"
             placeholder="https://api.example.com/v1"
@@ -158,10 +160,10 @@ export function CreateProviderDialog({
 
         {selectedProvider?.requires_deployment && (
           <HuemulField
-            label="Deployment"
+            label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
             type="password"
-            placeholder="Enter deployment name..."
+            placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required

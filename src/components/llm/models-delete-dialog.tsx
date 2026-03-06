@@ -1,4 +1,5 @@
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { useTranslation } from "react-i18next"
 import type { LLM } from "@/types/llm"
 
 interface DeleteModelDialogProps {
@@ -14,13 +15,15 @@ export function DeleteModelDialog({
   model,
   onAction
 }: DeleteModelDialogProps) {
+  const { t } = useTranslation('models')
+
   return (
     <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Model"
-      description={`Are you sure you want to delete the model "${model?.name}"? This action cannot be undone.`}
-      actionLabel="Delete"
+      title={t('deleteModelDialog.title')}
+      description={t('deleteModelDialog.description', { name: model?.name })}
+      actionLabel={t('actions.delete')}
       onAction={onAction}
     />
   )

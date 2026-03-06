@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CheckCircle, Circle, ChevronUp, ChevronDown, Settings } from "lucide-react"
 import { ProviderActions } from "@/components/llm-provider/provider-actions"
+import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 
 type EmbeddingProviderCardData = {
@@ -42,6 +43,8 @@ export function EmbeddingProviderCard({
   canUpdateProvider,
   canDeleteProvider,
 }: EmbeddingProviderCardProps) {
+  const { t } = useTranslation('models')
+
   const status = {
     configured: provider.isConfigured === true,
   }
@@ -62,16 +65,16 @@ export function EmbeddingProviderCard({
                 {status.configured ? (
                   <>
                     <CheckCircle className="h-3 w-3 text-green-500" />
-                    <Badge className="bg-green-100/80 text-green-700 border-green-200 text-[10px] px-1.5 py-0.5">Configured</Badge>
+                    <Badge className="bg-green-100/80 text-green-700 border-green-200 text-[10px] px-1.5 py-0.5">{t('embeddingCard.configured')}</Badge>
                   </>
                 ) : (
                   <>
                     <Circle className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0.5">Not configured</Badge>
+                    <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0.5">{t('embeddingCard.notConfigured')}</Badge>
                   </>
                 )}
                 <span className="text-muted-foreground text-[10px]">•</span>
-                <span className="text-muted-foreground text-[10px]">Embedding provider</span>
+                <span className="text-muted-foreground text-[10px]">{t('embeddingCard.embeddingProvider')}</span>
               </div>
             </div>
           </CollapsibleTrigger>
@@ -94,7 +97,7 @@ export function EmbeddingProviderCard({
               canCreateProvider && (
                 <HuemulButton
                   icon={Settings}
-                  label="Configure"
+                  label={t('actions.configure')}
                   size="sm"
                   className="h-7 text-xs bg-[#4464f7] hover:bg-[#3451e6]"
                   onClick={(e) => {
@@ -121,10 +124,10 @@ export function EmbeddingProviderCard({
           <CollapsibleContent className="px-4 pt-4 pb-4 bg-muted/30 border-t border-border overflow-visible">
             <div className="text-sm text-muted-foreground">
               {provider.isConfigured
-                ? `This provider is active for embeddings in your organization.`
+                ? t('embeddingCard.activeDescription')
                 : canCreateProvider
-                  ? `Configure this provider to enable embeddings generation.`
-                  : `You don't have permission to configure this provider.`}
+                  ? t('embeddingCard.configureDescription')
+                  : t('embeddingCard.noPermission')}
             </div>
           </CollapsibleContent>
         )}

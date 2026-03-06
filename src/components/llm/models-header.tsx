@@ -1,4 +1,5 @@
 import { Blocks } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 
 interface ModelsHeaderProps {
@@ -14,13 +15,15 @@ export function ModelsHeader({
   isLoading, 
   onRefresh,
 }: ModelsHeaderProps) {
+  const { t } = useTranslation('models')
+
   return (
     <PageHeader
       icon={Blocks}
-      title="Providers"
+      title={t('header.title')}
       badges={[
-        { label: "", value: `${configuredProviders} configured providers` },
-        { label: "", value: `${totalModels} models` }
+        { label: "", value: t('header.configuredProviders', { count: configuredProviders }) },
+        { label: "", value: t('header.models', { count: totalModels }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}

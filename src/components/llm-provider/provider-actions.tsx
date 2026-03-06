@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Edit, Trash2, MoreVertical } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 
@@ -26,6 +27,7 @@ export function ProviderActions({
   canDelete
 }: ProviderActionsProps) {
   const isMobile = useIsMobile()
+  const { t } = useTranslation('models')
 
   if (!provider.isConfigured) {
     return null
@@ -60,7 +62,7 @@ export function ProviderActions({
               className="hover:cursor-pointer text-xs"
             >
               <Edit className="h-3 w-3 mr-2 text-blue-600" />
-              Edit Provider
+              {t('providerActions.editProvider')}
             </DropdownMenuItem>
           )}
           {canDelete && (
@@ -70,7 +72,7 @@ export function ProviderActions({
               disabled={isDeleting}
             >
               <Trash2 className="h-3 w-3 mr-2" />
-              {isDeleting ? 'Deleting...' : 'Delete Provider'}
+              {isDeleting ? t('providerActions.deleting') : t('providerActions.deleteProvider')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -86,7 +88,7 @@ export function ProviderActions({
           variant="ghost"
           size="icon-sm"
           iconClassName="text-blue-600"
-          tooltip="Edit Provider"
+          tooltip={t('providerActions.editProvider')}
           onClick={(e) => {
             e.stopPropagation()
             return onEdit(provider)
@@ -99,7 +101,7 @@ export function ProviderActions({
           variant="ghost"
           size="icon-sm"
           iconClassName="text-destructive"
-          tooltip="Delete Provider"
+          tooltip={t('providerActions.deleteProvider')}
           disabled={isDeleting}
           loading={isDeleting}
           onClick={(e) => {

@@ -10,6 +10,8 @@ import organizationsEn from './locales/en/organizations.json'
 import organizationsEs from './locales/es/organizations.json'
 import usersEn from './locales/en/users.json'
 import usersEs from './locales/es/users.json'
+import modelsEn from './locales/en/models.json'
+import modelsEs from './locales/es/models.json'
 
 i18n
   .use(LanguageDetector)
@@ -21,12 +23,14 @@ i18n
         'global-admin': globalAdminEn,
         organizations: organizationsEn,
         users: usersEn,
+        models: modelsEn,
       },
       es: {
         common: commonEs,
         'global-admin': globalAdminEs,
         organizations: organizationsEs,
         users: usersEs,
+        models: modelsEs,
       },
     },
     fallbackLng: 'en',
@@ -37,7 +41,7 @@ i18n
     interpolation: {
       escapeValue: false,
     },
-    ns: ['common', 'global-admin', 'organizations', 'users'],
+    ns: ['common', 'global-admin', 'organizations', 'users', 'models'],
     defaultNS: 'common',
   })
 

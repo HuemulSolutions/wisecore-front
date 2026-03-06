@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Settings, Edit } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 
@@ -21,6 +22,8 @@ export function EmbeddingProviderEditDialog({
   const [apiKey, setApiKey] = useState("")
   const [endpoint, setEndpoint] = useState("")
   const [deployment, setDeployment] = useState("")
+
+  const { t } = useTranslation('models')
 
   // Populate form when provider changes
   useEffect(() => {
@@ -70,13 +73,13 @@ export function EmbeddingProviderEditDialog({
     <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isConfiguring ? `Configure Provider - ${provider.display_name || provider.name}` : `Edit Provider - ${provider.display_name || provider.name}`}
-      description={isConfiguring ? `Set up your ${provider.display_name || provider.name} provider with your API credentials.` : `Update the configuration for your ${provider.display_name || provider.name} provider.`}
+      title={isConfiguring ? t('embeddingDialog.configureTitle', { name: provider.display_name || provider.name }) : t('embeddingDialog.editTitle', { name: provider.display_name || provider.name })}
+      description={isConfiguring ? t('embeddingDialog.configureDescription', { name: provider.display_name || provider.name }) : t('embeddingDialog.editDescription', { name: provider.display_name || provider.name })}
       icon={isConfiguring ? Settings : Edit}
       saveAction={{
         label: isSubmitting
-          ? (isConfiguring ? "Configuring..." : "Updating...")
-          : (isConfiguring ? "Configure Provider" : "Update Provider"),
+          ? (isConfiguring ? t('embeddingDialog.configuring') : t('embeddingDialog.updating'))
+          : (isConfiguring ? t('embeddingDialog.configureProvider') : t('embeddingDialog.updateProvider')),
         onClick: handleSave,
         disabled: !isFormValid || isSubmitting,
         loading: isSubmitting,
@@ -86,10 +89,10 @@ export function EmbeddingProviderEditDialog({
       <HuemulFieldGroup gap="gap-4">
         {requiresApiKey && (
           <HuemulField
-            label="API Key"
+            label={t('createProviderDialog.apiKeyLabel')}
             name="apiKey"
             type="password"
-            placeholder="Enter your API key..."
+            placeholder={t('createProviderDialog.apiKeyPlaceholder')}
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
             required
@@ -98,7 +101,7 @@ export function EmbeddingProviderEditDialog({
 
         {requiresEndpoint && (
           <HuemulField
-            label="Endpoint"
+            label={t('createProviderDialog.endpointLabel')}
             name="endpoint"
             type="password"
             placeholder="https://api.example.com/v1"
@@ -110,10 +113,10 @@ export function EmbeddingProviderEditDialog({
 
         {requiresDeployment && (
           <HuemulField
-            label="Deployment"
+            label={t('createProviderDialog.deploymentLabel')}
             name="deployment"
             type="password"
-            placeholder="Enter deployment name..."
+            placeholder={t('createProviderDialog.deploymentPlaceholder')}
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required

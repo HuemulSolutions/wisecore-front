@@ -5,6 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronUp, ChevronDown, Plus, Settings, ShieldCheck } from "lucide-react"
 import { ProviderActions } from "./provider-actions"
 import { ModelsTable } from "@/components/llm/models-table"
+import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import type { LLM } from "@/types/llm"
 
@@ -63,6 +64,8 @@ export function ProviderCard({
   canUpdateModel,
   canDeleteModel
 }: ProviderCardProps) {
+  const { t } = useTranslation('models')
+
   const status = {
     configured: provider.isConfigured === true,
     modelCount: models.length
@@ -95,7 +98,7 @@ export function ProviderCard({
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">{provider.display_name}</Badge>
                 <span className="text-muted-foreground text-[10px]">•</span>
                 <span className="text-muted-foreground text-[10px]">
-                  {status.modelCount} model{status.modelCount !== 1 ? 's' : ''}
+                  {status.modelCount === 1 ? t('providerCard.model', { count: status.modelCount }) : t('providerCard.models', { count: status.modelCount })}
                 </span>
               </div>
             </div>
@@ -120,7 +123,7 @@ export function ProviderCard({
               canCreateProvider && (
                 <HuemulButton
                   icon={Settings}
-                  label="Configure"
+                  label={t('actions.configure')}
                   size="sm"
                   className="h-7 text-xs bg-[#4464f7] hover:bg-[#3451e6]"
                   onClick={(e) => {
@@ -151,11 +154,11 @@ export function ProviderCard({
                 {/* Models Section */}
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-semibold text-sm text-foreground">Models</h4>
+                    <h4 className="font-semibold text-sm text-foreground">{t('providerCard.modelsSection')}</h4>
                     {canCreateModel && (
                       <HuemulButton
                         icon={Plus}
-                        label="Add Model"
+                        label={t('actions.addModel')}
                         size="sm"
                         onClick={() => onCreateModel(provider.id)}
                       />
@@ -163,12 +166,12 @@ export function ProviderCard({
                   </div>
                   {isLoadingModels ? (
                     <div className="text-center py-8">
-                      <div className="text-sm text-muted-foreground">Loading models...</div>
+                      <div className="text-sm text-muted-foreground">{t('providerCard.loadingModels')}</div>
                     </div>
                   ) : modelsError ? (
                     <div className="text-center py-8">
-                      <div className="text-sm text-red-500 mb-2">Failed to load models</div>
-                      <div className="text-xs text-muted-foreground">There was an error loading the models. Please try again.</div>
+                      <div className="text-sm text-red-500 mb-2">{t('errors.failedToLoadModels')}</div>
+                      <div className="text-xs text-muted-foreground">{t('errors.errorLoadingModels')}</div>
                     </div>
                   ) : (
                     <ModelsTable
@@ -200,8 +203,8 @@ export function ProviderCard({
                     <h3 className="text-sm font-semibold text-foreground mb-1">{(provider.display_name || provider.name)}</h3>
                     <p className="text-xs text-muted-foreground mb-4">
                       {canCreateProvider 
-                        ? "Configure this provider to start using its models"
-                        : "You don't have permission to configure this provider"
+                        ? t('providerCard.configureToStart')
+                        : t('providerCard.noPermissionConfigure')
                       }
                     </p>
                   </div>
@@ -210,7 +213,7 @@ export function ProviderCard({
                       onClick={() => onConfigureProvider(provider)}
                       className="hover:cursor-pointer"
                     >
-                      Configure Provider
+                      {t('actions.configureProvider')}
                     </Button>
                   )}
                 </div>
