@@ -61,8 +61,10 @@ export default function SectionPlateEditor({
   }, [dirty, isSaving, sectionId, content, onSave]);
 
   const handleCancel = useCallback(() => {
-    if (!isSaving) onCancel();
-  }, [isSaving, onCancel]);
+    if (isSaving) return;
+    editorRef.current?.resetContent(content);
+    onCancel();
+  }, [isSaving, content, onCancel]);
 
   const actionButtons = isEditing ? (
     <>

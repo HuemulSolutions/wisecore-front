@@ -1,9 +1,9 @@
 // import { PlateRichEditor } from '@/components/plate-editor/plate-editor';
-import { useState } from 'react';
-import { HuemulField } from '@/huemul/components/huemul-field';
+// import { useState } from 'react';
+// import { HuemulField } from '@/huemul/components/huemul-field';
 
 export default function Home() {
-  const [color, setColor] = useState('#3b82f6');
+  // const [color, setColor] = useState('#3b82f6');
 
   return (
     <main className="flex flex-col items-center justify-center min-h-full bg-gray-50 p-4 md:p-6">
@@ -13,7 +13,7 @@ export default function Home() {
       </p>
 
       {/* Color Field Example */}
-      <div className="w-full max-w-sm mb-8 bg-white rounded-lg shadow p-6 border border-gray-100">
+      {/* <div className="w-full max-w-sm mb-8 bg-white rounded-lg shadow p-6 border border-gray-100">
         <HuemulField
           type="color"
           label="Pick a color"
@@ -21,7 +21,7 @@ export default function Home() {
           onChange={(v) => setColor(v as string)}
           description={`Selected: ${color}`}
         />
-      </div>
+      </div> */}
 
       {/* Plate Editor */}
       {/* <div className="w-full max-w-5xl mb-8">

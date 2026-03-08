@@ -6,7 +6,7 @@ export function BlockquoteElementStatic(props: SlateElementProps) {
   return (
     <SlateElement
       as="blockquote"
-      className="my-1 border-l-2 pl-6 italic"
+      className="border-l-4 border-gray-600 pl-4 italic my-4"
       {...props}
     />
   );

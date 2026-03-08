@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 export function ParagraphElementStatic(props: SlateElementProps) {
   return (
-    <SlateElement {...props} className={cn('m-0 px-0 py-1')}>
+    <SlateElement {...props} className={cn('m-0 px-0 py-1 text-sm leading-loose')}>
       {props.children}
     </SlateElement>
   );

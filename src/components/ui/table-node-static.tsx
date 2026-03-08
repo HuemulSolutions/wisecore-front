@@ -23,7 +23,7 @@ export function TableElementStatic({
     >
       <div className="group/table relative w-fit">
         <table
-          className="mr-0 ml-px table h-px table-fixed border-collapse"
+          className="mr-0 ml-px table h-px table-fixed border-collapse border border-gray-300 text-sm my-4 w-full"
           style={{ borderCollapse: 'collapse', width: '100%' }}
         >
           <tbody className="min-w-full">{children}</tbody>
@@ -58,9 +58,10 @@ export function TableCellElementStatic({
       {...props}
       as={isHeader ? 'th' : 'td'}
       className={cn(
-        'h-full overflow-visible border-none bg-background p-0',
-        element.background ? 'bg-(--cellBackground)' : 'bg-background',
-        isHeader && 'text-left font-normal *:m-0',
+        'h-full overflow-visible p-0',
+        element.background ? 'bg-(--cellBackground)' : isHeader ? 'bg-gray-900 text-white' : 'bg-background',
+        isHeader && 'text-left font-semibold *:m-0',
+        !isHeader && 'align-top border-b border-gray-200',
         'before:size-full',
         "before:absolute before:box-border before:select-none before:content-['']",
         borders &&
