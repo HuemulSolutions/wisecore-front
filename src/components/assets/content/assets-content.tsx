@@ -2506,7 +2506,7 @@ export function AssetContent({
         )}
 
         {/* Content Section - Now with ScrollArea and scroll restoration */}
-        <div className="flex-1 bg-white min-w-0 overflow-hidden">
+        <div className="flex-1 bg-white min-w-0 overflow-hidden px-1">
           <ScrollArea className="h-full max-w-full">
             <div 
               ref={scrollRestoration.viewportRef}

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
 import type { User } from '@/types/users';
 
@@ -56,6 +57,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Set up unauthorized handler
     httpClient.setOnUnauthorized(() => {
+      toast.error('Your session has expired. Please log in again.');
       logout();
     });
     

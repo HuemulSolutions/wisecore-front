@@ -1,7 +1,8 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ModelActions } from "./models-actions"
-import type { LLM } from "@/services/llms"
+import { useTranslation } from "react-i18next"
+import type { LLM } from "@/types/llm"
 
 interface ModelsTableProps {
   models: LLM[]
@@ -30,10 +31,12 @@ export function ModelsTable({
   canUpdate,
   canDelete
 }: ModelsTableProps) {
+  const { t } = useTranslation('models')
+
   if (models.length === 0) {
     return (
       <div className="text-center py-4">
-        <p className="text-xs text-muted-foreground">No models configured</p>
+        <p className="text-xs text-muted-foreground">{t('emptyState.noModels')}</p>
       </div>
     )
   }
@@ -43,10 +46,10 @@ export function ModelsTable({
       <Table>
         <TableHeader>
           <TableRow className="border-b border-border bg-muted/30">
-            <TableHead className="text-foreground font-medium text-xs py-2">Display Name</TableHead>
-            <TableHead className="text-foreground font-medium text-xs py-2">Technical Name</TableHead>
-            <TableHead className="text-foreground font-medium text-xs py-2">Default</TableHead>
-            <TableHead className="text-right text-foreground font-medium text-xs py-2">Actions</TableHead>
+            <TableHead className="text-foreground font-medium text-xs py-2">{t('table.displayName')}</TableHead>
+            <TableHead className="text-foreground font-medium text-xs py-2">{t('table.technicalName')}</TableHead>
+            <TableHead className="text-foreground font-medium text-xs py-2">{t('table.default')}</TableHead>
+            <TableHead className="text-right text-foreground font-medium text-xs py-2">{t('table.actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -222,7 +222,7 @@ export function SectionSheet({
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!, selectedConfigExecutionId || undefined),
     onSuccess: () => {
       toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });

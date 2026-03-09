@@ -1,5 +1,5 @@
 import { Shield, Plus } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 
 interface RolesSearchProps {
   searchTerm: string

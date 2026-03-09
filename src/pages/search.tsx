@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader } from "@/huemul/components/huemul-page-header";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { RefreshCw, Plus, Search } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { PageHeaderProps } from "@/types/page-header"
 
 export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/page-header"
@@ -19,6 +20,8 @@ export function PageHeader({
   hasError = false,
   children
 }: PageHeaderProps) {
+  const { t } = useTranslation('common')
+
   return (
     <div className="space-y-4 mb-6">
       {/* Header Row */}
@@ -56,7 +59,7 @@ export function PageHeader({
               ) : (
                 <RefreshCw className="w-3 h-3 mr-1" />
               )}
-              Refresh
+              {t('refresh')}
             </Button>
           )}
 

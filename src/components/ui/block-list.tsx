@@ -44,7 +44,7 @@ function List(props: PlateElementProps) {
 
   return (
     <List
-      className="relative m-0 p-0"
+      className="relative m-0 ml-6 mb-2 p-0 space-y-1 text-sm leading-loose"
       style={{ listStyleType }}
       start={listStart}
     >

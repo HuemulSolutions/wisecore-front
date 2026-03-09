@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Edit, Trash2, MoreVertical } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 
 interface ProviderActionsProps {
   provider: any
-  onEdit: (provider: any) => void
+  onEdit: (provider: any) => void | Promise<void>
   onDelete: (provider: any) => void
   isDeleting: boolean
   dropdownOpen: boolean
@@ -25,6 +27,7 @@ export function ProviderActions({
   canDelete
 }: ProviderActionsProps) {
   const isMobile = useIsMobile()
+  const { t } = useTranslation('models')
 
   if (!provider.isConfigured) {
     return null
@@ -59,7 +62,7 @@ export function ProviderActions({
               className="hover:cursor-pointer text-xs"
             >
               <Edit className="h-3 w-3 mr-2 text-blue-600" />
-              Edit Provider
+              {t('providerActions.editProvider')}
             </DropdownMenuItem>
           )}
           {canDelete && (
@@ -69,7 +72,7 @@ export function ProviderActions({
               disabled={isDeleting}
             >
               <Trash2 className="h-3 w-3 mr-2" />
-              {isDeleting ? 'Deleting...' : 'Delete Provider'}
+              {isDeleting ? t('providerActions.deleting') : t('providerActions.deleteProvider')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -80,31 +83,32 @@ export function ProviderActions({
   return (
     <>
       {canUpdate && (
-        <Button
-          variant="outline"
-          size="sm"
+        <HuemulButton
+          icon={Edit}
+          variant="ghost"
+          size="icon-sm"
+          iconClassName="text-blue-600"
+          tooltip={t('providerActions.editProvider')}
           onClick={(e) => {
             e.stopPropagation()
-            onEdit(provider)
+            return onEdit(provider)
           }}
-          className="hover:cursor-pointer h-6 w-6 p-0"
-        >
-          <Edit className="h-3 w-3 text-blue-600" />
-        </Button>
+        />
       )}
       {canDelete && (
-        <Button
-          variant="outline"
-          size="sm"
+        <HuemulButton
+          icon={Trash2}
+          variant="ghost"
+          size="icon-sm"
+          iconClassName="text-destructive"
+          tooltip={t('providerActions.deleteProvider')}
+          disabled={isDeleting}
+          loading={isDeleting}
           onClick={(e) => {
             e.stopPropagation()
             onDelete(provider)
           }}
-          className="hover:cursor-pointer h-6 w-6 p-0"
-          disabled={isDeleting}
-        >
-          <Trash2 className="h-3 w-3 text-destructive" />
-        </Button>
+        />
       )}
     </>
   )

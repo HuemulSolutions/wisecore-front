@@ -1,0 +1,40 @@
+{
+  "header": {
+    "title": "Users Management",
+    "addUser": "Add User",
+    "searchPlaceholder": "Search users...",
+    "usersCount": "{{count}} users",
+    "filterAllStatus": "All Status",
+    "filterActive": "Active",
+    "filterInactive": "Inactive",
+    "filterPending": "Pending"
+  },
+  "columns": {
+    "name": "Name",
+    "email": "Email",
+    "rootAdmin": "Root Admin",
+    "status": "Status",
+    "created": "Created"
+  },
+  "activated": "Activated: {{date}}",
+  "rootAdminYes": "Yes",
+  "rootAdminNo": "No",
+  "actions": {
+    "approveUser": "Approve User",
+    "rejectUser": "Reject User",
+    "assignToOrganization": "Assign to Organization",
+    "manageRootAdmin": "Manage Root Admin",
+    "makeOrgAdmin": "Make Organization Admin",
+    "editUser": "Edit User",
+    "deleteUser": "Delete User"
+  },
+  "emptyState": {
+    "title": "No users found",
+    "description": "No users have been created yet or match your search criteria."
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending"
+  }
+}
