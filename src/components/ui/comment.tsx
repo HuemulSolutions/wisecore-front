@@ -506,7 +506,7 @@ export function CommentCreateForm({
     if (commentsNodeEntry.length === 0) return;
 
     const documentContent = commentsNodeEntry
-      .map(([node]) => node.text)
+      .map(([node]: [any, any]) => node.text)
       .join('');
 
     const _discussionId = nanoid();
@@ -536,7 +536,7 @@ export function CommentCreateForm({
 
     const id = newDiscussion.id;
 
-    commentsNodeEntry.forEach(([, path]) => {
+    commentsNodeEntry.forEach(([, path]: [any, any]) => {
       editor.tf.setNodes(
         {
           [getCommentKey(id)]: true,

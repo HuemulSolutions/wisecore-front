@@ -56,7 +56,7 @@ export function FontSizeToolbarButton() {
       return toUnitLess(fontSize as string);
     }
 
-    const [block] = editor.api.block<TElement>() || [];
+    const [block] = (editor.api.block() as [TElement, any] | undefined) || [];
 
     if (!block?.type) return DEFAULT_FONT_SIZE;
 
