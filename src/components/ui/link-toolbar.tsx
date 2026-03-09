@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import type { TLinkElement } from 'platejs';
+import type { NodeEntry, TLinkElement } from 'platejs';
 
 import {
   type UseVirtualFloatingOptions,
@@ -176,9 +176,9 @@ function LinkOpenButton() {
 
   const attributes = React.useMemo(
     () => {
-      const entry = editor.api.node<TLinkElement>({
+      const entry = editor.api.node({
         match: { type: editor.getType(KEYS.link) },
-      });
+      }) as NodeEntry<TLinkElement> | undefined;
       if (!entry) {
         return {};
       }
