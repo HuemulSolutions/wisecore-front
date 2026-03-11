@@ -473,7 +473,7 @@ export default function Models() {
         queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] }),
         queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] }),
       ])
-      toast.success(t('toast.dataRefreshed'))
+      toast.success(t('common:dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -496,8 +496,8 @@ export default function Models() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">{t('accessDenied.title')}</h1>
-          <p className="text-muted-foreground">{t('accessDenied.description')}</p>
+          <h1 className="text-2xl font-semibold mb-2">{t('common:accessDenied')}</h1>
+          <p className="text-muted-foreground">{t('common:noPermission')}</p>
         </div>
       </div>
     )

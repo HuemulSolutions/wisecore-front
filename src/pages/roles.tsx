@@ -37,7 +37,6 @@ export default function Roles() {
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingUsers] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
@@ -100,23 +99,12 @@ export default function Roles() {
   const confirmDeleteRole = async () => {
     if (!deletingRole) return
 
-    setIsDeleting(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteRole.mutate(deletingRole.id, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          })
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeleting(false)
-      closeDialog.delete()
-    }
+    await new Promise<void>((resolve, reject) => {
+      deleteRole.mutate(deletingRole.id, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
   }
 
   // Early returns for different states
@@ -201,13 +189,12 @@ export default function Roles() {
         <DeleteRoleDialog
           open={!!deletingRole}
           onOpenChange={(open) => {
-            if (!open && !isDeleting) {
+            if (!open) {
               closeDialog.delete()
             }
           }}
           role={deletingRole}
           onConfirm={confirmDeleteRole}
-          isDeleting={isDeleting}
         />
       </div>
     </div>
