@@ -22,7 +22,7 @@ export function DeleteProviderDialog({
       onOpenChange={onOpenChange}
       title={t('deleteProviderDialog.title')}
       description={t('deleteProviderDialog.description', { name: provider?.name })}
-      actionLabel={t('actions.delete')}
+      actionLabel={t('common:delete')}
       onAction={onAction}
     />
   )

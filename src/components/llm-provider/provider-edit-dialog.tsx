@@ -99,7 +99,7 @@ export function EditProviderDialog({
       description={t('editProviderDialog.description', { name: provider.display_name || provider.name })}
       icon={Edit}
       saveAction={{
-        label: isUpdating ? t('editProviderDialog.updating') : t('editProviderDialog.updateProvider'),
+        label: isUpdating ? t('common:updating') : t('common:updateProvider'),
         onClick: handleSave,
         disabled: !isFormValid || isUpdating,
         loading: isUpdating,
@@ -108,7 +108,7 @@ export function EditProviderDialog({
     >
       <HuemulFieldGroup gap="gap-4">
         <HuemulField
-          label={t('createProviderDialog.nameLabel')}
+          label={t('common:name')}
           name="providerName"
           placeholder={t('createProviderDialog.namePlaceholder')}
           value={name}
