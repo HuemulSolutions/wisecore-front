@@ -95,7 +95,7 @@ export function ModelActions({
               disabled={isDeleting}
             >
               <Trash2 className="h-3 w-3 mr-2" />
-              {isDeleting ? t('modelActions.deleting') : t('modelActions.deleteModel')}
+              {isDeleting ? t('common:deleting') : t('modelActions.deleteModel')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -130,7 +130,7 @@ export function ModelActions({
           variant="ghost"
           size="icon-sm"
           iconClassName="text-destructive"
-          tooltip={isDeleting ? t('modelActions.deleting') : t('modelActions.deleteModel')}
+          tooltip={isDeleting ? t('common:deleting') : t('modelActions.deleteModel')}
           disabled={isDeleting}
           loading={isDeleting}
           onClick={() => onDelete(model)}
