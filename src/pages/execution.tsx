@@ -461,7 +461,7 @@ export default function ExecutionPage() {
             <div className="w-64 hidden lg:block">
                 <TableOfContents items={tocItems} />
             </div>
-            <Chatbot executionId={id!} />
+            <Chatbot executionId={id!} documentId={execution?.document_id} />
         </div>
     );
 }

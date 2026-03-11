@@ -3034,7 +3034,7 @@ export function AssetContent({
     </ResizablePanelGroup>
 
       {documentContent && documentContent.content && (
-        <Chatbot executionId={documentContent.execution_id} />
+        <Chatbot executionId={documentContent.execution_id} documentId={selectedFile?.id} />
       )}
 
       {/* Direct Section Creation Dialog */}

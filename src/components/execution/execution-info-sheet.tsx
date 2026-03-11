@@ -201,7 +201,7 @@ export function ExecutionInfoSheet({
           {execution && (
             <div className="absolute bottom-4 right-4 z-50">
               <div className="scale-90 origin-bottom-right">
-                <Chatbot executionId={executionId} />
+                <Chatbot executionId={executionId} documentId={execution?.document_id} />
               </div>
             </div>
           )}
