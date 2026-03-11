@@ -109,9 +109,9 @@ export function GlobalAdminUsersSection() {
     try {
       await queryClient.invalidateQueries({ queryKey: ["global-users"] })
       await refetch()
-      toast.success(t('global-admin:toast.dataRefreshed'))
+      toast.success(t('common:dataRefreshed'))
     } catch (error) {
-      handleApiError(error, { fallbackMessage: t('global-admin:toast.refreshFailed') })
+      handleApiError(error, { fallbackMessage: t('common:refreshFailed') })
     } finally {
       setIsRefreshing(false)
     }
@@ -124,9 +124,9 @@ export function GlobalAdminUsersSection() {
 
   const translateStatusI18n = (status: string) => {
     const statusMap: Record<string, string> = {
-      active: t('status.active'),
-      inactive: t('status.inactive'),
-      pending: t('status.pending'),
+      active: t('common:active'),
+      inactive: t('common:inactive'),
+      pending: t('common:pending'),
     }
     return statusMap[status] || status
   }
@@ -134,7 +134,7 @@ export function GlobalAdminUsersSection() {
   const columns: TableColumn<User>[] = [
     {
       key: "name",
-      label: t('columns.name'),
+      label: t('common:name'),
       render: (user) => (
         <div className="flex flex-col gap-0">
           <span className="text-xs font-medium text-foreground leading-tight">
@@ -150,7 +150,7 @@ export function GlobalAdminUsersSection() {
     },
     {
       key: "email",
-      label: t('columns.email'),
+      label: t('common:email'),
       render: (user) => (
         <span className="text-xs text-blue-600 font-medium">{user.email}</span>
       )
@@ -162,16 +162,16 @@ export function GlobalAdminUsersSection() {
         user.is_root_admin ? (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
             <Shield className="w-2 h-2 mr-0.5" />
-            {t('rootAdminYes')}
+            {t('common:yes')}
           </Badge>
         ) : (
-          <span className="text-xs text-muted-foreground">{t('rootAdminNo')}</span>
+          <span className="text-xs text-muted-foreground">{t('common:no')}</span>
         )
       )
     },
     {
       key: "status",
-      label: t('columns.status'),
+      label: t('common:status'),
       render: (user) => (
         <Badge className={`text-[10px] px-1.5 py-0 h-5 ${getStatusColor(user.status)}`}>
           {translateStatusI18n(user.status)}
