@@ -56,71 +56,55 @@ export function useAssetNavigation({
   const parseUrlPath = useCallback(async () => {
     const strippedPathname = stripOrgPrefix(location.pathname);
     const path = strippedPathname.replace('/asset', '').replace(/^\/+|\/+$/g, '');
-    console.log('Parsing URL path:', location.pathname, '-> cleaned path:', path);
     
     if (!path) return { folderPath: [], selectedFileId: null };
     
     const segments = path.split('/').filter(segment => segment);
-    console.log('URL segments:', segments);
     
     if (segments.length === 0) return { folderPath: [], selectedFileId: null };
     
     // Single segment case: assume it's a document in root
     if (segments.length === 1) {
-      const possibleFileId = segments[0];
-      console.log('🔍 Single segment detected, assuming document in root:', possibleFileId);
-      return { folderPath: [], selectedFileId: possibleFileId };
+      return { folderPath: [], selectedFileId: segments[0] };
     }
     
     // Multi-segment case
     const possibleFileId = segments[segments.length - 1];
     const parentFolderPath = segments.slice(0, -1);
     
-    console.log('Checking if last segment is file:', possibleFileId);
-    console.log('Parent folder path:', parentFolderPath);
-    
     // Approach 1: Check if last segment is a file by loading parent folder
     try {
       const parentFolderId = parentFolderPath.length > 0 
         ? parentFolderPath[parentFolderPath.length - 1] 
         : undefined;
-      console.log('Checking parent folder ID for file detection:', parentFolderId);
       
       const parentContent = await getLibraryContent(selectedOrganizationId!, parentFolderId);
       const items = parentContent?.content || [];
-      console.log('Parent folder items count:', items.length);
       
       const foundFile = items.find(
         (item: LibraryItem) => item.id === possibleFileId && item.type === 'document'
       );
       
       if (foundFile) {
-        console.log('✓ Last segment is a file:', foundFile.name);
         return { folderPath: parentFolderPath, selectedFileId: possibleFileId };
       }
-    } catch (error) {
-      console.log('Parent folder check failed, will try folder approach:', 
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+    } catch {
+      // Will try folder approach below
     }
     
     // Approach 2: Try to access the full path as folders
     try {
-      console.log('Attempting to access as folder path:', segments);
       const lastFolderId = segments[segments.length - 1];
-      
       const folderContent = await getLibraryContent(selectedOrganizationId!, lastFolderId);
       
       if (folderContent?.content !== undefined) {
-        console.log('✓ Last segment is accessible as folder');
         return { folderPath: segments, selectedFileId: null };
       }
-    } catch (error) {
-      console.log('Folder access failed:', error instanceof Error ? error.message : 'Unknown error');
+    } catch {
+      // Fallback below
     }
     
     // Fallback: treat as file
-    console.log('Using fallback approach - treating last segment as file');
     return { folderPath: parentFolderPath, selectedFileId: possibleFileId };
   }, [location.pathname, selectedOrganizationId]);
 
@@ -146,53 +130,40 @@ export function useAssetNavigation({
    * Load folder hierarchy by reconstructing the path
    */
   const loadFolderHierarchy = useCallback(async (folderIds: string[]): Promise<BreadcrumbItem[]> => {
-    console.log('Loading folder hierarchy for path:', folderIds);
     const hierarchy: BreadcrumbItem[] = [];
     let currentFolderId: string | undefined = undefined;
     
     for (let i = 0; i < folderIds.length; i++) {
       const targetFolderId = folderIds[i];
-      console.log(`Loading folder ${i + 1}/${folderIds.length}: ${targetFolderId} in parent: ${currentFolderId || 'root'}`);
       
       try {
         const data = await getLibraryContent(selectedOrganizationId!, currentFolderId);
-        console.log('Parent folder content:', data?.content?.length, 'items');
         
         if (!data?.content) {
-          console.error('No content returned from API');
           break;
         }
         
         const folders = data.content.filter((item: LibraryItem) => item.type === 'folder');
-        console.log('Available folders:', folders.map((f: LibraryItem) => ({ id: f.id, name: f.name })));
-        
         const targetFolder = folders.find((folder: LibraryItem) => folder.id === targetFolderId);
         
         if (targetFolder) {
-          console.log(`✓ Found folder: ${targetFolder.name} (${targetFolder.id})`);
           hierarchy.push({ id: targetFolder.id, name: targetFolder.name });
           currentFolderId = targetFolder.id;
         } else {
-          console.warn(`✗ Folder ${targetFolderId} not found. Stopping hierarchy load.`);
-          console.warn('Available folder IDs:', folders.map((f: LibraryItem) => f.id));
-          
           if (hierarchy.length > 0) {
-            console.log('Returning partial hierarchy:', hierarchy);
             return hierarchy;
           }
           break;
         }
       } catch (error) {
-        console.error(`✗ Error loading folder hierarchy at ${targetFolderId}:`, error);
+        console.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
         if (hierarchy.length > 0) {
-          console.log('Returning partial hierarchy due to error:', hierarchy);
           return hierarchy;
         }
         break;
       }
     }
     
-    console.log('Final complete hierarchy:', hierarchy);
     return hierarchy;
   }, [selectedOrganizationId]);
 
@@ -205,19 +176,16 @@ export function useAssetNavigation({
     // If the URL's orgId doesn't match the current context org, an org switch
     // is in progress — skip init until the switch completes and context catches up.
     if (urlOrgId && urlOrgId !== '_' && urlOrgId !== selectedOrganizationId) {
-      console.log('[ASSETS] URL orgId does not match context org, waiting for org switch...', { urlOrgId, selectedOrganizationId });
       return;
     }
     
     // Skip if this URL has already been processed (compare without org prefix)
     if (lastProcessedUrlRef.current === stripOrgPrefix(location.pathname)) {
-      console.log('URL already processed, skipping:', location.pathname);
       return;
     }
     
     const initializeFromUrl = async () => {
       try {
-        console.log('Initializing from URL:', location.pathname);
         setIsLoadingDocument(true);
         
         // Mark this URL as processed (store without org prefix)
@@ -226,7 +194,6 @@ export function useAssetNavigation({
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
         if (navState?.fromFileTree && navState.selectedDocumentId) {
-          console.log('✅ Navigation from FileTree detected, using provided context');
           setSelectedExecutionId(null);
           setSelectedFile({
             id: navState.selectedDocumentId,
@@ -241,21 +208,16 @@ export function useAssetNavigation({
         }
         
         const { folderPath, selectedFileId } = await parseUrlPath();
-        console.log('Parsed URL result:', { folderPath, selectedFileId });
         
         if (folderPath.length > 0) {
           try {
-            console.log('Loading folder hierarchy...');
             const hierarchy = await loadFolderHierarchy(folderPath);
-            console.log('Loaded hierarchy:', hierarchy);
             
             if (hierarchy.length > 0) {
               setBreadcrumb(hierarchy);
-              console.log('Breadcrumb set to:', hierarchy);
               
               // Update URL if we only got a partial hierarchy
               if (hierarchy.length < folderPath.length) {
-                console.log('Partial hierarchy loaded, updating URL to match reality');
                 const actualUrl = buildUrlPath(hierarchy, selectedFileId || undefined);
                 navigate(actualUrl, { replace: true });
                 
@@ -265,12 +227,10 @@ export function useAssetNavigation({
                 }, 100);
               }
             } else {
-              console.warn('No valid hierarchy found, redirecting to root');
               navigate('/asset', { replace: true });
               return;
             }
-          } catch (error) {
-            console.error('Error loading folder hierarchy from URL:', error);
+          } catch {
             navigate('/asset', { replace: true });
             return;
           }
@@ -279,7 +239,6 @@ export function useAssetNavigation({
         }
         
         if (selectedFileId) {
-          console.log('Loading selected file details...');
           setSelectedExecutionId(null);
           setSelectedFile({
             id: selectedFileId,
@@ -289,8 +248,6 @@ export function useAssetNavigation({
         } else {
           setSelectedFile(null);
         }
-        
-        console.log('URL initialization completed');
       } catch (error) {
         console.error('Error initializing from URL:', error);
         navigate('/asset', { replace: true });
@@ -358,12 +315,10 @@ export function useAssetNavigation({
     // Don't update URL if navigation came from FileTree
     const navigationState = location.state as any;
     if (navigationState?.fromFileTree) {
-      console.log('⏭️ [ASSETS] Skipping URL update - navigation from FileTree');
       return;
     }
     
     if (stripOrgPrefix(location.pathname) !== newUrl && !isUpdatingUrl) {
-      console.log('🔄 [ASSETS] Updating URL to reflect current state:', newUrl);
       setIsUpdatingUrl(true);
       
       lastProcessedUrlRef.current = newUrl;
@@ -384,7 +339,6 @@ export function useAssetNavigation({
     if (prevOrganizationIdRef.current !== null && 
         prevOrganizationIdRef.current !== selectedOrganizationId) {
       
-      console.log('Organization actually changed, resetting state');
       setBreadcrumb([]);
       setSelectedFile(null);
       setSelectedExecutionId(null);
@@ -400,15 +354,12 @@ export function useAssetNavigation({
       const urlDroveChange = urlOrgId === selectedOrganizationId;
       
       if (!urlDroveChange && stripOrgPrefix(location.pathname) !== '/asset') {
-        console.log('Organization changed via switcher, navigating to assets root');
         setIsUpdatingUrl(true);
         navigate('/asset', { replace: true });
         setTimeout(() => setIsUpdatingUrl(false), 200);
-      } else if (urlDroveChange) {
-        console.log('Organization changed via shared URL, will re-initialize from URL');
-        // The "Initialize from URL" effect will re-run because
-        // hasRestoredRef and lastProcessedUrlRef were reset above.
       }
+      // else: shared URL-driven switch — the "Initialize from URL" effect will
+      // re-run because hasRestoredRef and lastProcessedUrlRef were reset above.
     }
     
     prevOrganizationIdRef.current = selectedOrganizationId;
@@ -471,15 +422,6 @@ export function useAssetNavigation({
       navigate(location.pathname, { replace: true });
     }
   }, [location.state, location.pathname, navigate]);
-
-  /**
-   * Reset execution ID when document changes
-   */
-  useEffect(() => {
-    if (selectedFile?.type === 'document') {
-      setSelectedExecutionId(null);
-    }
-  }, [selectedFile?.id]);
 
   return {
     breadcrumb,

@@ -14,7 +14,8 @@ import {
 import { ArrowLeft, WandSparkles, Loader2, CircleCheck, CircleX } from "lucide-react";
 import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { getExecutionById, approveExecution, disapproveExecution } from "@/services/executions";
-import { getLLMs, updateExecutionLLM } from "@/services/llms";
+import { getLLMs } from "@/services/llms";
+import { updateExecutionLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";

@@ -2,6 +2,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { isRootAdmin } from '@/lib/jwt-utils';
@@ -12,11 +13,13 @@ interface AssetFormFieldsProps {
   internalCode: string;
   templateId: string;
   documentTypeId: string;
+  createInitialVersion: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onInternalCodeChange: (value: string) => void;
   onTemplateIdChange: (value: string) => void;
   onDocumentTypeIdChange: (value: string) => void;
+  onCreateInitialVersionChange: (value: boolean) => void;
   onCreateDocType?: () => void;
   templates: any[];
   documentTypes: any[];
@@ -31,11 +34,13 @@ export default function AssetFormFields({
   internalCode,
   templateId,
   documentTypeId,
+  createInitialVersion,
   onNameChange,
   onDescriptionChange,
   onInternalCodeChange,
   onTemplateIdChange,
   onDocumentTypeIdChange,
+  onCreateInitialVersionChange,
   onCreateDocType,
   templates,
   documentTypes,
@@ -85,7 +90,17 @@ export default function AssetFormFields({
 
       <div className="grid gap-2">
         <Label htmlFor="template">Template (Optional)</Label>
-        <Select value={templateId} onValueChange={onTemplateIdChange} disabled={disabled}>
+        <Select
+          value={templateId}
+          onValueChange={(value) => {
+            onTemplateIdChange(value)
+            // If a template is selected, disable create_initial_version
+            if (value) {
+              onCreateInitialVersionChange(false)
+            }
+          }}
+          disabled={disabled || createInitialVersion}
+        >
           <SelectTrigger id="template" className="w-full">
             <SelectValue placeholder="Select template (optional)" />
           </SelectTrigger>
@@ -103,6 +118,28 @@ export default function AssetFormFields({
             )}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <Label htmlFor="createInitialVersion">Create initial version</Label>
+          <p className="text-sm text-muted-foreground">
+            Creates the asset with an initial section ready to write.{templateId ? ' Not available when a template is selected.' : ''}
+          </p>
+        </div>
+        <Switch
+          id="createInitialVersion"
+          checked={createInitialVersion}
+          onCheckedChange={(checked) => {
+            onCreateInitialVersionChange(checked)
+            // If enabling initial version, clear template selection
+            if (checked) {
+              onTemplateIdChange('')
+            }
+          }}
+          disabled={disabled || !!templateId}
+          className="hover:cursor-pointer"
+        />
       </div>
 
       <div className="grid gap-2">

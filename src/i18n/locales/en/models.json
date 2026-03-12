@@ -1,0 +1,147 @@
+{
+  "tabs": {
+    "models": "Models",
+    "embeddings": "Embeddings"
+  },
+  "accessDenied": {
+    "title": "Access Denied",
+    "description": "You don't have permission to access this page."
+  },
+  "header": {
+    "title": "Providers",
+    "configuredProviders": "{{count}} configured providers",
+    "models": "{{count}} models"
+  },
+  "sections": {
+    "orgProviders": "Organization Providers",
+    "orgProvidersDesc": "Providers configured by your organization.",
+    "managedProviders": "Managed Providers",
+    "managedProvidersDesc": "Providers managed by your platform administrator. These cannot be edited or deleted."
+  },
+  "toast": {
+    "providerConfigured": "Provider configured successfully",
+    "providerUpdated": "Provider updated successfully",
+    "providerDeleted": "Provider deleted successfully",
+    "modelCreated": "Model created successfully",
+    "modelUpdated": "Model updated successfully",
+    "modelDeleted": "Model deleted successfully",
+    "defaultModelUpdated": "Default model updated successfully",
+    "connectionSuccessful": "Connection successful",
+    "embeddingProviderConfigured": "Embeddings provider configured successfully",
+    "embeddingProviderUpdated": "Embeddings provider updated successfully",
+    "embeddingProviderDeleted": "Embeddings provider deleted successfully",
+    "dataRefreshed": "Data refreshed"
+  },
+  "errors": {
+    "failedToLoadProviders": "Failed to load providers",
+    "failedToLoadModels": "Failed to load models",
+    "failedToLoadEmbeddings": "Failed to load embeddings provider",
+    "errorLoadingData": "There was an error loading the data. Please try again.",
+    "errorLoadingModels": "There was an error loading the models. Please try again.",
+    "failedToLoadProviderDetails": "Failed to load provider details"
+  },
+  "emptyState": {
+    "noProviders": "No providers configured",
+    "noProvidersDesc": "Configure providers above to start creating and managing AI models.",
+    "noModels": "No models configured"
+  },
+  "actions": {
+    "newProvider": "New Provider",
+    "tryAgain": "Try Again",
+    "configure": "Configure",
+    "configureProvider": "Configure Provider",
+    "addModel": "Add Model",
+    "delete": "Delete"
+  },
+  "modelActions": {
+    "testingConnection": "Testing connection...",
+    "testConnection": "Test Connection",
+    "testing": "Testing...",
+    "editModel": "Edit Model",
+    "deleteModel": "Delete Model",
+    "deleting": "Deleting..."
+  },
+  "providerActions": {
+    "editProvider": "Edit Provider",
+    "deleteProvider": "Delete Provider",
+    "deleting": "Deleting..."
+  },
+  "table": {
+    "displayName": "Display Name",
+    "technicalName": "Technical Name",
+    "default": "Default",
+    "actions": "Actions"
+  },
+  "modelDialog": {
+    "editTitle": "Edit Model - {{name}}",
+    "createTitle": "Add Model to {{provider}}",
+    "editDescription": "Update the configuration for your AI model.",
+    "createDescription": "Add a new AI model to your {{provider}} provider configuration.",
+    "displayNameLabel": "Display Name",
+    "displayNamePlaceholder": "e.g. GPT-4 Turbo",
+    "technicalNameLabel": "Technical Name",
+    "technicalNamePlaceholder": "e.g., gpt-4-turbo-preview",
+    "technicalNameDescription": "Use the exact model name as specified by the provider's API documentation.",
+    "updating": "Updating...",
+    "saving": "Saving...",
+    "updateModel": "Update Model",
+    "saveModel": "Save Model"
+  },
+  "deleteModelDialog": {
+    "title": "Delete Model",
+    "description": "Are you sure you want to delete the model \"{{name}}\"? This action cannot be undone."
+  },
+  "createProviderDialog": {
+    "title": "New Provider",
+    "description": "Configure a new LLM provider for your organization.",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Azure Production, OpenAI Dev",
+    "managedLabel": "Managed Provider",
+    "managedDescription": "Managed providers are controlled by platform administrators and cannot be edited by organization users.",
+    "typeLabel": "Provider Type",
+    "typePlaceholder": "Select a provider type...",
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholder": "Enter your API key...",
+    "endpointLabel": "Endpoint",
+    "deploymentLabel": "Deployment",
+    "deploymentPlaceholder": "Enter deployment name...",
+    "creating": "Creating...",
+    "createProvider": "Create Provider"
+  },
+  "editProviderDialog": {
+    "title": "Edit Provider - {{name}}",
+    "description": "Update the configuration settings for your {{name}} provider.",
+    "updating": "Updating...",
+    "updateProvider": "Update Provider"
+  },
+  "deleteProviderDialog": {
+    "title": "Delete Provider",
+    "description": "Are you sure you want to delete the \"{{name}}\" provider? This will remove all configuration but keep it available for future setup."
+  },
+  "providerCard": {
+    "model": "{{count}} model",
+    "models": "{{count}} models",
+    "modelsSection": "Models",
+    "loadingModels": "Loading models...",
+    "configureToStart": "Configure this provider to start using its models",
+    "noPermissionConfigure": "You don't have permission to configure this provider"
+  },
+  "embeddingCard": {
+    "configured": "Configured",
+    "notConfigured": "Not configured",
+    "embeddingProvider": "Embedding provider",
+    "activeDescription": "This provider is active for embeddings in your organization.",
+    "configureDescription": "Configure this provider to enable embeddings generation.",
+    "noPermission": "You don't have permission to configure this provider."
+  },
+  "embeddingDialog": {
+    "configureTitle": "Configure Provider - {{name}}",
+    "editTitle": "Edit Provider - {{name}}",
+    "configureDescription": "Set up your {{name}} provider with your API credentials.",
+    "editDescription": "Update the configuration for your {{name}} provider.",
+    "configuring": "Configuring...",
+    "updating": "Updating...",
+    "configureProvider": "Configure Provider",
+    "updateProvider": "Update Provider"
+  }
+}

@@ -1,5 +1,5 @@
 import { Shield, Plus } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 import ProtectedComponent from "@/components/protected-component"
 import { Button } from "@/components/ui/button"
 

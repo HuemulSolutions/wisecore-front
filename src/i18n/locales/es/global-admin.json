@@ -1,0 +1,16 @@
+{
+  "title": "Configuración de Administración Global",
+  "description": "Gestiona organizaciones y usuarios en todas las organizaciones.",
+  "tabs": {
+    "organizations": "Organizaciones",
+    "users": "Usuarios de Organizaciones"
+  },
+  "toast": {
+    "dataRefreshed": "Datos actualizados",
+    "refreshFailed": "Error al actualizar los datos",
+    "orgCreated": "Organización creada exitosamente",
+    "orgUpdated": "Organización actualizada exitosamente",
+    "orgDeleted": "Organización eliminada exitosamente",
+    "orgAdminPending": "Acción de administrador de organización pendiente para {{name}}"
+  }
+}

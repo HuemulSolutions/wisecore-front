@@ -1,7 +1,7 @@
 "use client"
 
 import { Plus, Settings2 } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 
 interface CustomFieldPageHeaderProps {
   customFieldCount: number
