@@ -236,12 +236,12 @@ export default function AssetTypeLifecycleDialog({
     []
   )
 
-  // Select first step type once loaded
+  // Select first step type once loaded or when dialog opens
   useEffect(() => {
-    if (stepTypes.length > 0 && !activeStep) {
+    if (open && stepTypes.length > 0 && !activeStep) {
       setActiveStep(stepTypes[0].value)
     }
-  }, [stepTypes, activeStep])
+  }, [open, stepTypes, activeStep])
 
   // Reset when dialog closes
   useEffect(() => {
