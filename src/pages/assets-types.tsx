@@ -25,7 +25,8 @@ export default function AssetTypesPage() {
     editingAssetType: null,
     showCreateDialog: false,
     deletingAssetType: null,
-    rolePermissionsAssetType: null
+    rolePermissionsAssetType: null,
+    lifecycleAssetType: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -114,6 +115,10 @@ export default function AssetTypesPage() {
     updateState({ deletingAssetType: assetType })
   }
 
+  const handleLifecycle = (assetType: AssetTypeWithRoles) => {
+    updateState({ lifecycleAssetType: assetType })
+  }
+
   const handleSelectAll = () => {
     if (state.selectedAssetTypes.size === filteredAssetTypes.length) {
       updateState({ selectedAssetTypes: new Set() })
@@ -158,6 +163,7 @@ export default function AssetTypesPage() {
             onEditAssetType={handleEditAssetType}
             onManagePermissions={handleManagePermissions}
             onDeleteAssetType={handleDeleteAssetType}
+            onLifecycle={handleLifecycle}
             assetTypeMutations={assetTypeMutations}
             showFooterStats={false}
             canUpdate={canUpdateDocumentType}
