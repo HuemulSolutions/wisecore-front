@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -54,6 +55,7 @@ export default function PermissionSelector({
   isLoading = false,
   compact = false
 }: PermissionSelectorProps) {
+  const { t } = useTranslation('roles')
   const [searchTerm, setSearchTerm] = useState('')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
 
@@ -114,9 +116,9 @@ export default function PermissionSelector({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className={compact ? "text-sm font-medium" : "text-base font-medium"}>Role Permissions</Label>
+        <Label className={compact ? "text-sm font-medium" : "text-base font-medium"}>{t('permissions.title')}</Label>
         <Badge variant="outline">
-          {selectedPermissions.length} selected
+          {t('permissions.selected', { count: selectedPermissions.length })}
         </Badge>
       </div>
       
@@ -124,7 +126,7 @@ export default function PermissionSelector({
       <div className="relative">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search permissions..."
+          placeholder={t('permissions.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-8"
@@ -203,11 +205,11 @@ export default function PermissionSelector({
                       </Badge>
                       
                       <div className="flex items-center gap-1">
-                        <span className={compact 
+                        <span className={compact
                           ? "text-[10px] text-muted-foreground"
                           : "text-xs text-muted-foreground mr-1"
                         }>
-                          {compact ? "All" : "Select all"}
+                          {compact ? t('permissions.all') : t('permissions.selectAll')}
                         </span>
                         <Button
                           type="button"

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { useTranslation } from "react-i18next"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -18,12 +19,13 @@ interface AssignRoleToUsersDialogProps {
   onSuccess?: () => void
 }
 
-export default function AssignRoleToUsersDialog({ 
-  role, 
-  open, 
+export default function AssignRoleToUsersDialog({
+  role,
+  open,
   onOpenChange,
   onSuccess
 }: AssignRoleToUsersDialogProps) {
+  const { t } = useTranslation(['roles', 'common'])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [, setHasInitialized] = useState(false)
@@ -65,23 +67,21 @@ export default function AssignRoleToUsersDialog({
     }
   }, [open, role?.id, queryClient])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (role) {
-      assignUsersToRole.mutate({ 
-        roleId: role.id, 
-        userIds: selectedUsers 
+  const handleSubmit = async (): Promise<void> => {
+    if (!role) return
+
+    await new Promise<void>((resolve, reject) => {
+      assignUsersToRole.mutate({
+        roleId: role.id,
+        userIds: selectedUsers,
       }, {
         onSuccess: () => {
           onSuccess?.()
-          onOpenChange(false)
+          resolve()
         },
-        onError: () => {
-          // Keep sheet open on error so user can retry
-        }
+        onError: (error) => reject(error),
       })
-    }
+    })
   }
 
   const handleUserToggle = (userId: string) => {
@@ -106,64 +106,42 @@ export default function AssignRoleToUsersDialog({
     }
   }
 
-  const isPending = assignUsersToRole.isPending
+  // const isPending = assignUsersToRole.isPending
   const hasErrors = !!error
   const isDataLoading = isLoading
 
   if (!role) return null
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
-        side="right" 
-        className="w-full sm:max-w-[90vw] lg:max-w-[600px] p-0"
-        onPointerDownOutside={isPending ? (e) => e.preventDefault() : undefined}
-        onEscapeKeyDown={isPending ? (e) => e.preventDefault() : undefined}
-      >
-        <div className="flex flex-col h-full">
-          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
-                  <UserCheck className="w-5 h-5" />
-                  Assign Users
-                </SheetTitle>
-                <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Assign users to the role <strong>{role.name}</strong>
-                </SheetDescription>
-              </div>
-              <div className="flex items-center h-full gap-2 ml-4">
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="hover:cursor-pointer text-sm h-8"
-                  size="sm"
-                  disabled={isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  form="assign-users-form"
-                  type="submit"
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
-                  size="sm"
-                  disabled={isPending || hasErrors || users.length === 0}
-                >
-                  {isPending ? 'Assigning...' : 'Assign Users'}
-                </Button>
-              </div>
-            </div>
-          </SheetHeader>
-          
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 sm:py-3">
-            <form id="assign-users-form" onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Available Users</span>
-                  <Badge variant="outline" className="text-xs px-2 py-0.5">
-                    {selectedUsers.length} selected
-                  </Badge>
-                </div>
+    <HuemulSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('roles:assignToUsers.title')}
+      description={t('roles:assignToUsers.description', { name: role.name })}
+      icon={UserCheck}
+      maxWidth="w-full sm:max-w-[90vw] lg:max-w-[600px]"
+      showCancelButton={false}
+      extraActions={[{
+        label: t('common:cancel'),
+        variant: "outline",
+        position: "header",
+        onClick: () => onOpenChange(false),
+      }]}
+      saveAction={{
+        label: t('roles:assignToUsers.button'),
+        onClick: handleSubmit,
+        disabled: hasErrors || users.length === 0,
+        position: "header",
+      }}
+    >
+      <div className="space-y-4 py-2">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{t('roles:assignToUsers.availableUsers')}</span>
+            <Badge variant="outline" className="text-xs px-2 py-0.5">
+              {t('roles:permissions.selected', { count: selectedUsers.length })}
+            </Badge>
+          </div>
 
                 {/* Search Input */}
                 {!isDataLoading && !hasErrors && users.length > 0 && (
@@ -193,34 +171,34 @@ export default function AssignRoleToUsersDialog({
                 ) : hasErrors ? (
                   <div className="flex flex-col items-center justify-center min-h-[300px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
                     <p className="text-red-600 mb-4 font-medium">
-                      {error?.message || 'Failed to load users'}
+                      {error?.message || t('roles:assignToUsers.errorLoading')}
                     </p>
                     <p className="text-sm text-muted-foreground mb-6">
-                      There was an error loading the users data. Please try again.
+                      {t('roles:assignToUsers.errorDescription')}
                     </p>
-                    <Button 
-                      onClick={handleRetry} 
-                      variant="outline" 
+                    <Button
+                      onClick={handleRetry}
+                      variant="outline"
                       className="hover:cursor-pointer"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Try Again
+                      {t('common:tryAgain')}
                     </Button>
                   </div>
                 ) : users.length === 0 ? (
                   <Card className="p-6 text-center">
                     <Users className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                    <h3 className="text-sm font-semibold mb-2">No users available</h3>
+                    <h3 className="text-sm font-semibold mb-2">{t('roles:assignToUsers.noUsers')}</h3>
                     <p className="text-xs text-muted-foreground">
-                      No users have been created yet.
+                      {t('roles:assignToUsers.noUsersCreated')}
                     </p>
                   </Card>
                 ) : filteredUsers.length === 0 ? (
                   <Card className="p-6 text-center">
                     <Search className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                    <h3 className="text-sm font-semibold mb-2">No users found</h3>
+                    <h3 className="text-sm font-semibold mb-2">{t('roles:assignToUsers.noUsersFound')}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Try adjusting your search criteria.
+                      {t('roles:assignToUsers.adjustSearch')}
                     </p>
                   </Card>
                 ) : (
@@ -233,7 +211,7 @@ export default function AssignRoleToUsersDialog({
                         onCheckedChange={handleSelectAll}
                       />
                       <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-                        Select All ({filteredUsers.length})
+                        {t('roles:assignToUsers.selectAll', { count: filteredUsers.length })}
                       </label>
                     </div>
 
@@ -267,11 +245,8 @@ export default function AssignRoleToUsersDialog({
                     </div>
                   </div>
                 )}
-              </div>
-            </form>
-          </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </HuemulSheet>
   )
 }

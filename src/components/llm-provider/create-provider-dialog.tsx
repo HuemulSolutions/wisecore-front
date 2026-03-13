@@ -92,7 +92,7 @@ export function CreateProviderDialog({
       description={t('createProviderDialog.description')}
       icon={Blocks}
       saveAction={{
-        label: isCreating ? t('createProviderDialog.creating') : t('createProviderDialog.createProvider'),
+        label: isCreating ? t('common:creating') : t('createProviderDialog.createProvider'),
         onClick: handleSave,
         disabled: !isFormValid || isCreating,
         loading: isCreating,
@@ -101,7 +101,7 @@ export function CreateProviderDialog({
     >
       <HuemulFieldGroup gap="gap-4">
         <HuemulField
-          label={t('createProviderDialog.nameLabel')}
+          label={t('common:name')}
           name="providerName"
           placeholder={t('createProviderDialog.namePlaceholder')}
           value={name}

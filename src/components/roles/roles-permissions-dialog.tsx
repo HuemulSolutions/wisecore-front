@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { useTranslation } from "react-i18next"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -14,11 +15,12 @@ interface RolePermissionsDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export default function RolePermissionsDialog({ 
-  documentType, 
-  open, 
-  onOpenChange 
+export default function RolePermissionsDialog({
+  documentType,
+  open,
+  onOpenChange
 }: RolePermissionsDialogProps) {
+  const { t } = useTranslation(['roles', 'common'])
   const [searchRole, setSearchRole] = useState("")
   const [rolePermissions, setRolePermissions] = useState<Map<string, Set<string>>>(new Map())
 
@@ -77,7 +79,7 @@ export default function RolePermissionsDialog({
     return rolePerms ? rolePerms.has(permission) : false
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async (): Promise<void> => {
     if (!documentType || !rolesAccessLevelsData?.data) return
 
     const currentRoles = rolesAccessLevelsData.data.roles
@@ -97,32 +99,21 @@ export default function RolePermissionsDialog({
       })
       .map(role => ({ roleId: role.role_id, documentTypeId: documentType.id }))
 
+    if (rolesPermissions.length === 0 && rolesToRevoke.length === 0) return
+
     // Revoke access for roles that should no longer have access
-    const revokePromises = rolesToRevoke.map(({ roleId, documentTypeId }) => 
+    const revokePromises = rolesToRevoke.map(({ roleId, documentTypeId }) =>
       revokeAccess.mutateAsync({ roleId, documentTypeId })
     )
+    await Promise.all(revokePromises)
 
     // Grant new permissions using the correct bulk format
-    Promise.all(revokePromises)
-      .then(() => {
-        if (rolesPermissions.length > 0) {
-          const bulkPermissionsPayload = {
-            document_type_id: documentType.id,
-            roles_permissions: rolesPermissions
-          }
-          return bulkGrantAccess.mutateAsync(bulkPermissionsPayload)
-        }
-      })
-      .then(() => {
-        onOpenChange(false)
-      })
-      .catch(error => {
-        console.error('Error updating permissions:', error)
-      })
-
-    if (rolesPermissions.length === 0 && rolesToRevoke.length === 0) {
-      onOpenChange(false)
-      return
+    if (rolesPermissions.length > 0) {
+      const bulkPermissionsPayload = {
+        document_type_id: documentType.id,
+        roles_permissions: rolesPermissions
+      }
+      await bulkGrantAccess.mutateAsync(bulkPermissionsPayload)
     }
   }
 
@@ -131,20 +122,19 @@ export default function RolePermissionsDialog({
   if (!documentType) return null
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Role Permissions - ${documentType.name}`}
-      description="Configure access levels for each role for this asset type."
+      title={t('roles:permissionsDialog.title', { name: documentType.name })}
+      description={t('roles:permissionsDialog.description')}
       icon={Shield}
-      maxWidth="2xl"
-      maxHeight="90vh"
-      onSubmit={handleSubmit}
-      submitLabel={isSaving ? 'Saving...' : 'Save Permissions'}
-      cancelLabel="Cancel"
-      isSubmitting={isSaving}
-      isValid={true}
-      showDefaultFooter={true}
+      maxWidth="sm:max-w-[1000px]"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: t('roles:permissionsDialog.savePermissions'),
+        onClick: handleSubmit,
+      }}
+      cancelLabel={t('common:cancel')}
     >
       {isLoading ? (
           <div className="space-y-4 flex-1">
@@ -161,7 +151,7 @@ export default function RolePermissionsDialog({
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search roles..."
+                placeholder={t('roles:permissionsDialog.searchPlaceholder')}
                 value={searchRole}
                 onChange={(e) => setSearchRole(e.target.value)}
                 className="pl-8"
@@ -173,7 +163,7 @@ export default function RolePermissionsDialog({
               <Table>
                 <TableHeader className="sticky top-0 bg-muted/50">
                   <TableRow>
-                    <TableHead className="w-48">Role</TableHead>
+                    <TableHead className="w-48">{t('roles:permissionsDialog.roleColumn')}</TableHead>
                     {accessLevels.map((level) => (
                       <TableHead key={level} className="text-center capitalize">
                         {level}
@@ -211,17 +201,17 @@ export default function RolePermissionsDialog({
               {filteredRoles.length === 0 && (
                 <div className="text-center py-8">
                   <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No roles found</h3>
+                  <h3 className="text-lg font-medium text-foreground mb-2">{t('roles:permissionsDialog.noRolesFound')}</h3>
                   <p className="text-muted-foreground">
-                    {searchRole 
-                      ? "Try adjusting your search criteria."
-                      : "No roles are available."}
+                    {searchRole
+                      ? t('roles:permissionsDialog.adjustSearch')
+                      : t('roles:permissionsDialog.noRolesAvailable')}
                   </p>
                 </div>
               )}
             </div>
           </div>
         )}
-      </ReusableDialog>
+      </HuemulDialog>
   )
 }

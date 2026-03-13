@@ -22,7 +22,7 @@ export function ModelsContentEmptyState({ type, message, onRetry }: ModelsConten
         {onRetry && (
           <Button onClick={onRetry} variant="outline" className="hover:cursor-pointer">
             <RefreshCw className="h-4 w-4 mr-2" />
-            {t('actions.tryAgain')}
+            {t('common:tryAgain')}
           </Button>
         )}
       </div>

@@ -78,8 +78,8 @@ export function EmbeddingProviderEditDialog({
       icon={isConfiguring ? Settings : Edit}
       saveAction={{
         label: isSubmitting
-          ? (isConfiguring ? t('embeddingDialog.configuring') : t('embeddingDialog.updating'))
-          : (isConfiguring ? t('embeddingDialog.configureProvider') : t('embeddingDialog.updateProvider')),
+          ? (isConfiguring ? t('common:configuring') : t('common:updating'))
+          : (isConfiguring ? t('common:configureProvider') : t('common:updateProvider')),
         onClick: handleSave,
         disabled: !isFormValid || isSubmitting,
         loading: isSubmitting,

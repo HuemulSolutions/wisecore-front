@@ -65,12 +65,12 @@ export function EmbeddingProviderCard({
                 {status.configured ? (
                   <>
                     <CheckCircle className="h-3 w-3 text-green-500" />
-                    <Badge className="bg-green-100/80 text-green-700 border-green-200 text-[10px] px-1.5 py-0.5">{t('embeddingCard.configured')}</Badge>
+                    <Badge className="bg-green-100/80 text-green-700 border-green-200 text-[10px] px-1.5 py-0.5">{t('common:configured')}</Badge>
                   </>
                 ) : (
                   <>
                     <Circle className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0.5">{t('embeddingCard.notConfigured')}</Badge>
+                    <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0.5">{t('common:notConfigured')}</Badge>
                   </>
                 )}
                 <span className="text-muted-foreground text-[10px]">•</span>
@@ -97,7 +97,7 @@ export function EmbeddingProviderCard({
               canCreateProvider && (
                 <HuemulButton
                   icon={Settings}
-                  label={t('actions.configure')}
+                  label={t('common:configure')}
                   size="sm"
                   className="h-7 text-xs bg-[#4464f7] hover:bg-[#3451e6]"
                   onClick={(e) => {

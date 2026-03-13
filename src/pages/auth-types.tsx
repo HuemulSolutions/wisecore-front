@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useAuthTypes } from "@/hooks/useAuthTypes"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { CreateAuthTypeDialog } from "@/components/auth-types/auth-types-create-dialog"
@@ -18,6 +19,7 @@ import { AuthTypesErrorState } from "@/components/auth-types/auth-types-error-st
  * Provides interface for creating, editing, and managing authentication types
  */
 export default function AuthTypes() {
+  const { t } = useTranslation('common')
   const [searchTerm, setSearchTerm] = useState("")
   const [editingAuthType, setEditingAuthType] = useState<AuthType | null>(null)
   const [deletingAuthType, setDeletingAuthType] = useState<AuthType | null>(null)
@@ -41,8 +43,8 @@ export default function AuthTypes() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">Access Denied</h1>
-          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+          <h1 className="text-2xl font-semibold mb-2">{t('accessDenied')}</h1>
+          <p className="text-muted-foreground">{t('noPermission')}</p>
         </div>
       </div>
     )
@@ -53,7 +55,7 @@ export default function AuthTypes() {
     setIsRefreshing(true)
     try {
       await refetch()
-      toast.success('Data refreshed')
+      toast.success(t('dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }

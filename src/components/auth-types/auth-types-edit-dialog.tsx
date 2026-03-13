@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useTranslation } from "react-i18next"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useAuthTypeMutations, useAuthTypeTypes } from "@/hooks/useAuthTypes"
 import type { AuthType, UpdateAuthTypeRequest } from "@/services/auth-types"
 import { Edit } from "lucide-react"
@@ -16,6 +15,7 @@ interface EditAuthTypeDialogProps {
 }
 
 export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTypeDialogProps) {
+  const { t } = useTranslation(['auth-types', 'common'])
   const [formData, setFormData] = useState<UpdateAuthTypeRequest>({
     name: "",
     type: "internal",
@@ -35,13 +35,14 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
     }
   }, [authType, open])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!authType) return
 
-    updateAuthType.mutate({ id: authType.id, data: formData }, {
-      onSuccess: () => {
-        onOpenChange(false)
-      }
+    await new Promise<void>((resolve, reject) => {
+      updateAuthType.mutate({ id: authType.id, data: formData }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
     })
   }
 
@@ -49,48 +50,43 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const typeOptions = (authTypeTypes ?? []).map((type) => ({
+    value: type,
+    label: type === "internal" ? t('types.internal') : type === "entra" ? t('types.entra') : type,
+  }))
+
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit Authentication Type"
+      title={t('editDialog.title')}
       icon={Edit}
-      maxWidth="sm"
-      maxHeight="90vh"
-      onSubmit={handleSubmit}
-      submitLabel="Update"
-      isSubmitting={updateAuthType.isPending}
-      showDefaultFooter
+      maxWidth="sm:max-w-sm"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: t('common:update'),
+        onClick: handleSubmit,
+      }}
     >
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
+      <HuemulFieldGroup className="py-2">
+        <HuemulField
+          label={t('common:name')}
+          name="name"
           value={formData.name}
-          onChange={(e) => handleInputChange("name", e.target.value)}
-          placeholder="Enter authentication type name"
+          onChange={(value) => handleInputChange("name", value)}
+          placeholder={t('editDialog.namePlaceholder')}
           required
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="type">Type</Label>
-        <Select
+        <HuemulField
+          type="select"
+          label={t('columns.type')}
+          name="type"
           value={formData.type}
-          onValueChange={(value) => handleInputChange("type", value as "internal" | "entra")}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select authentication type" />
-          </SelectTrigger>
-          <SelectContent>
-            {authTypeTypes?.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type === "internal" ? "Internal" : type === "entra" ? "Entra ID (SAML2)" : type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </ReusableDialog>
+          options={typeOptions}
+          onChange={(value) => handleInputChange("type", value as "internal" | "entra")}
+          placeholder={t('editDialog.typePlaceholder')}
+        />
+      </HuemulFieldGroup>
+    </HuemulDialog>
   )
 }
