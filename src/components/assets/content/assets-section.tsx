@@ -648,7 +648,7 @@ export default function SectionExecution({
             {showExecutionFeedback && executionId && (executionMode === 'single' || executionMode === 'from') && 
                  executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus) ? (
                 /* Show skeleton ONLY when section is actively being executed (not when completed) */
-                <div className="pt-4 pr-12">
+                <div className="pt-4 pr-4">
                     <div className="animate-pulse space-y-4">
                         {/* Title skeleton */}
                         <div className="h-6 bg-gray-200 rounded w-2/3"></div>
@@ -671,7 +671,7 @@ export default function SectionExecution({
                 </div>
             ) : (
                 /* Unified Plate view: readOnly when not editing, editable when editing */
-                <div className={isEditing ? 'pt-2 pr-0' : 'pt-4 pr-2 w-full'}>
+                <div className={isEditing ? 'pt-2 pr-0' : `${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
                     <SectionPlateEditor
                         sectionId={sectionExecution.id}
                         content={displayedContent}
