@@ -9,6 +9,7 @@ import users from './locales/users'
 import models from './locales/models'
 import authTypes from './locales/auth-types'
 import roles from './locales/roles'
+import assetTypes from './locales/asset-types'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -37,6 +38,7 @@ const modules = {
   models,
   'auth-types': authTypes,
   roles,
+  'asset-types': assetTypes,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const

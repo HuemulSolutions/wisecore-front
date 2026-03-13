@@ -30,6 +30,8 @@ const translations = {
   refreshFailed: { en: "Failed to refresh data", es: "Error al actualizar los datos" },
   accessDenied: { en: "Access Denied", es: "Acceso Denegado" },
   noPermission: { en: "You don't have permission to access this page.", es: "No tienes permiso para acceder a esta página." },
+  selectPlaceholder: { en: "Select...", es: "Seleccionar..." },
+  searchPlaceholder: { en: "Search...", es: "Buscar..." },
 }
 
 export default translations
