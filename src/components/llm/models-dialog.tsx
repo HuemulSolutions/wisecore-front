@@ -60,7 +60,7 @@ export function ModelDialog({
       icon={isEdit ? Edit : Plus}
       saveAction={{
         label: isSubmitting
-          ? (isEdit ? t('modelDialog.updating') : t('modelDialog.saving'))
+          ? (isEdit ? t('common:updating') : t('common:saving'))
           : (isEdit ? t('modelDialog.updateModel') : t('modelDialog.saveModel')),
         onClick: handleSave,
         disabled: !isFormValid || isSubmitting,

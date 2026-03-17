@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { 
   getCurrentUserInfo,
@@ -21,7 +21,7 @@ export interface PermissionsContextType {
   hasAnyRole: (roleIds: string[]) => boolean;
   
   // Funciones de utilidad
-  refreshPermissions: () => void;
+  refreshPermissions: (forceClean?: boolean) => void;
 }
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
@@ -45,41 +45,62 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   const [isOrgAdminState, setIsOrgAdminState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Función para refrescar permisos desde los tokens JWT
-  const refreshPermissions = () => {
+  // Track whether we have ever loaded a valid set of permissions.
+  // Used to avoid wiping valid permissions during transient token-expiry windows.
+  const hasLoadedValidPermissions = useRef(false);
+
+  // Función para refrescar permisos desde los tokens JWT.
+  // forceClean=true: always clear state (use on explicit logout).
+  const refreshPermissions = (forceClean = false) => {
     setIsLoading(true);
     
     try {
       const userInfo = getCurrentUserInfo();
-      
-      if (userInfo) {
+
+      const hasValidData =
+        (userInfo.permissions?.length ?? 0) > 0 ||
+        userInfo.isRootAdmin ||
+        userInfo.isOrgAdmin;
+
+      if (userInfo.isAuthenticated && hasValidData) {
+        // Got real, non-empty data — update state.
+        hasLoadedValidPermissions.current = true;
         setPermissions(userInfo.permissions || []);
         setRoles(userInfo.roles || []);
         setIsRootAdminState(userInfo.isRootAdmin || false);
         setIsOrgAdminState(userInfo.isOrgAdmin || false);
-        
         console.log('Permissions refreshed:', {
           permissions: userInfo.permissions,
           roles: userInfo.roles,
           isRootAdmin: userInfo.isRootAdmin,
           isOrgAdmin: userInfo.isOrgAdmin,
-          hasOrgAccess: userInfo.hasOrganizationAccess
         });
+      } else if (!forceClean && hasLoadedValidPermissions.current) {
+        // The token read came back empty/unauthenticated, but we already have
+        // valid permissions in state. This is most likely a transient race:
+        // the org JWT just expired and hasn't been replaced yet. Keep the
+        // existing state so route guards don't redirect the user.
+        console.warn(
+          'Permissions refresh: received empty data while session appears active. ' +
+          'Retaining existing permissions to avoid spurious redirect.',
+          { isAuthenticated: userInfo.isAuthenticated, hasValidData }
+        );
       } else {
-        // Si no hay información del usuario, limpiar permisos
+        // Initial load (nothing valid yet) or explicit forceClean — clear.
         setPermissions([]);
         setRoles([]);
         setIsRootAdminState(false);
         setIsOrgAdminState(false);
-        console.log('No user info available, clearing permissions');
+        console.log('Permissions cleared.', { forceClean, isAuthenticated: userInfo.isAuthenticated });
       }
     } catch (error) {
       console.error('Error refreshing permissions:', error);
-      // En caso de error, limpiar permisos
-      setPermissions([]);
-      setRoles([]);
-      setIsRootAdminState(false);
-      setIsOrgAdminState(false);
+      if (forceClean) {
+        setPermissions([]);
+        setRoles([]);
+        setIsRootAdminState(false);
+        setIsOrgAdminState(false);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -97,26 +118,36 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
 
   // Efecto para escuchar cambios en los tokens
   useEffect(() => {
-    // Verificar periódicamente si los tokens han cambiado
+    // Poll for token changes (e.g. org switch, role update).
+    // Only act when the NEW data is valid and non-empty — otherwise we'd
+    // incorrectly clear permissions every time the org JWT transiently expires.
     const checkTokensInterval = setInterval(() => {
       const currentUserInfo = getCurrentUserInfo();
-      
-      // Comparar si los permisos han cambiado
-      const currentPermissions = currentUserInfo.permissions;
-      const currentRoles = currentUserInfo.roles;
-      const currentIsRootAdmin = currentUserInfo.isRootAdmin;
-      const currentIsOrgAdmin = currentUserInfo.isOrgAdmin;
-      
+
+      const currentPermissions = currentUserInfo?.permissions ?? [];
+      const currentRoles = currentUserInfo?.roles ?? [];
+      const currentIsRootAdmin = currentUserInfo?.isRootAdmin ?? false;
+      const currentIsOrgAdmin = currentUserInfo?.isOrgAdmin ?? false;
+      const currentIsAuthenticated = currentUserInfo?.isAuthenticated ?? false;
+
+      // Only proceed when the token contains real, valid data.
+      const hasNewValidData =
+        currentIsAuthenticated &&
+        (currentPermissions.length > 0 || currentIsRootAdmin || currentIsOrgAdmin);
+
       if (
-        JSON.stringify(currentPermissions) !== JSON.stringify(permissions) ||
-        JSON.stringify(currentRoles) !== JSON.stringify(roles) ||
-        currentIsRootAdmin !== isRootAdminState ||
-        currentIsOrgAdmin !== isOrgAdminState
+        hasNewValidData &&
+        (
+          JSON.stringify(currentPermissions) !== JSON.stringify(permissions) ||
+          JSON.stringify(currentRoles) !== JSON.stringify(roles) ||
+          currentIsRootAdmin !== isRootAdminState ||
+          currentIsOrgAdmin !== isOrgAdminState
+        )
       ) {
         console.log('Token changes detected, refreshing permissions...');
         refreshPermissions();
       }
-    }, 2000); // Verificar cada 2 segundos para ser más responsivo
+    }, 2000);
 
     return () => clearInterval(checkTokensInterval);
   }, [permissions, roles, isRootAdminState, isOrgAdminState]);
@@ -126,7 +157,9 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'auth_token' || e.key === 'organizationToken') {
         console.log('Storage change detected, refreshing permissions...');
-        refreshPermissions();
+        // forceClean when a token is explicitly removed (logout / org reset)
+        const forceClean = e.newValue === null;
+        refreshPermissions(forceClean);
       }
     };
 

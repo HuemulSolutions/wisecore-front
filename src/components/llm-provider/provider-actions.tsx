@@ -72,7 +72,7 @@ export function ProviderActions({
               disabled={isDeleting}
             >
               <Trash2 className="h-3 w-3 mr-2" />
-              {isDeleting ? t('providerActions.deleting') : t('providerActions.deleteProvider')}
+              {isDeleting ? t('common:deleting') : t('providerActions.deleteProvider')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

@@ -49,7 +49,7 @@ export function ModelsTable({
             <TableHead className="text-foreground font-medium text-xs py-2">{t('table.displayName')}</TableHead>
             <TableHead className="text-foreground font-medium text-xs py-2">{t('table.technicalName')}</TableHead>
             <TableHead className="text-foreground font-medium text-xs py-2">{t('table.default')}</TableHead>
-            <TableHead className="text-right text-foreground font-medium text-xs py-2">{t('table.actions')}</TableHead>
+            <TableHead className="text-right text-foreground font-medium text-xs py-2">{t('common:actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

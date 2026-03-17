@@ -1,6 +1,5 @@
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { ColorPicker } from '@/components/color-picker';
+import { useTranslation } from 'react-i18next';
+import { HuemulField } from '@/huemul/components/huemul-field';
 
 interface DocumentTypeFormFieldsProps {
   name: string;
@@ -22,35 +21,29 @@ export default function DocumentTypeFormFields({
   errors = {},
   disabled = false,
 }: DocumentTypeFormFieldsProps) {
+  const { t } = useTranslation('asset-types')
+
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Asset Type Name</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="Enter asset type name"
-          className={errors.name ? 'border-destructive' : ''}
-          disabled={disabled}
-        />
-        {errors.name && (
-          <p className="text-sm text-destructive">{errors.name}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="color">Color</Label>
-        <div className={disabled ? 'pointer-events-none opacity-50' : ''}>
-          <ColorPicker
-            value={color}
-            onChange={onColorChange}
-          />
-        </div>
-        {errors.color && (
-          <p className="text-sm text-destructive">{errors.color}</p>
-        )}
-      </div>
+      <HuemulField
+        label={t('form.assetTypeName')}
+        name="name"
+        value={name}
+        onChange={(v) => onNameChange(String(v))}
+        placeholder={t('form.assetTypeNamePlaceholder')}
+        error={errors.name}
+        disabled={disabled}
+        required
+      />
+      <HuemulField
+        type="color"
+        label={t('form.color')}
+        name="color"
+        value={color}
+        onChange={(v) => onColorChange(String(v))}
+        error={errors.color}
+        disabled={disabled}
+      />
     </div>
   );
 }

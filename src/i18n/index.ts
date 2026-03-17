@@ -2,37 +2,64 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 
-import commonEn from './locales/en/common.json'
-import commonEs from './locales/es/common.json'
-import globalAdminEn from './locales/en/global-admin.json'
-import globalAdminEs from './locales/es/global-admin.json'
-import organizationsEn from './locales/en/organizations.json'
-import organizationsEs from './locales/es/organizations.json'
-import usersEn from './locales/en/users.json'
-import usersEs from './locales/es/users.json'
-import modelsEn from './locales/en/models.json'
-import modelsEs from './locales/es/models.json'
+import common from './locales/common'
+import globalAdmin from './locales/global-admin'
+import organizations from './locales/organizations'
+import users from './locales/users'
+import models from './locales/models'
+import authTypes from './locales/auth-types'
+import roles from './locales/roles'
+import assetTypes from './locales/asset-types'
+
+// Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
+// This helper extracts a single language from the tree so i18next can consume it.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractLang(tree: Record<string, any>, lang: string): Record<string, any> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(tree)) {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      if (typeof value['en'] === 'string') {
+        // Leaf node: { en: "...", es: "..." }
+        result[key] = value[lang] ?? value['en']
+      } else {
+        // Branch node: recurse
+        result[key] = extractLang(value, lang)
+      }
+    }
+  }
+  return result
+}
+
+const modules = {
+  common,
+  'global-admin': globalAdmin,
+  organizations,
+  users,
+  models,
+  'auth-types': authTypes,
+  roles,
+  'asset-types': assetTypes,
+} as const
+
+const supportedLanguages = ['en', 'es'] as const
+
+const resources = Object.fromEntries(
+  supportedLanguages.map((lang) => [
+    lang,
+    Object.fromEntries(
+      Object.entries(modules).map(([ns, translations]) => [
+        ns,
+        extractLang(translations, lang),
+      ])
+    ),
+  ])
+)
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: {
-      en: {
-        common: commonEn,
-        'global-admin': globalAdminEn,
-        organizations: organizationsEn,
-        users: usersEn,
-        models: modelsEn,
-      },
-      es: {
-        common: commonEs,
-        'global-admin': globalAdminEs,
-        organizations: organizationsEs,
-        users: usersEs,
-        models: modelsEs,
-      },
-    },
+    resources,
     fallbackLng: 'en',
     detection: {
       order: ['navigator', 'htmlTag', 'path', 'subdomain'],
@@ -41,7 +68,7 @@ i18n
     interpolation: {
       escapeValue: false,
     },
-    ns: ['common', 'global-admin', 'organizations', 'users', 'models'],
+    ns: Object.keys(modules),
     defaultNS: 'common',
   })
 

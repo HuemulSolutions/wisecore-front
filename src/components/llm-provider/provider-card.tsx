@@ -123,7 +123,7 @@ export function ProviderCard({
               canCreateProvider && (
                 <HuemulButton
                   icon={Settings}
-                  label={t('actions.configure')}
+                  label={t('common:configure')}
                   size="sm"
                   className="h-7 text-xs bg-[#4464f7] hover:bg-[#3451e6]"
                   onClick={(e) => {
@@ -213,7 +213,7 @@ export function ProviderCard({
                       onClick={() => onConfigureProvider(provider)}
                       className="hover:cursor-pointer"
                     >
-                      {t('actions.configureProvider')}
+                      {t('common:configureProvider')}
                     </Button>
                   )}
                 </div>

@@ -57,6 +57,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Set up unauthorized handler
     httpClient.setOnUnauthorized(() => {
+      // Save where the user was so we can redirect back after re-login.
+      const currentPath = window.location.pathname + window.location.search;
+      if (currentPath && currentPath !== '/' && !currentPath.startsWith('/auth')) {
+        sessionStorage.setItem('returnUrl', currentPath);
+      }
       toast.error('Your session has expired. Please log in again.');
       logout();
     });

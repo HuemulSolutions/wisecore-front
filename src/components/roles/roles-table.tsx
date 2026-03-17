@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Shield, RefreshCw, UserPlus, Trash2 } from "lucide-react"
 import { type Role } from "@/services/rbac"
@@ -29,11 +30,12 @@ export function RolesTable({
   showFooterStats,
   canManage = false
 }: RolesTableProps) {
+  const { t } = useTranslation('roles')
   // Define columns
   const columns: TableColumn<Role>[] = [
     {
       key: "name",
-      label: "Role Name",
+      label: t('columns.roleName'),
       render: (role) => (
         <div className="flex flex-col gap-0">
           <div className="flex items-center gap-1">
@@ -50,7 +52,7 @@ export function RolesTable({
     },
     {
       key: "permissions",
-      label: "Permissions",
+      label: t('columns.permissions'),
       render: (role) => {
         const permissionCount = role.permission_num || role.permissions?.length || 0
         const visiblePermissions = role.permissions?.slice(0, 1) || []
@@ -77,7 +79,7 @@ export function RolesTable({
     },
     {
       key: "created",
-      label: "Created",
+      label: t('columns.created'),
       hideOnMobile: true,
       render: (role) => (
         <span className="text-xs text-foreground">
@@ -95,21 +97,21 @@ export function RolesTable({
   const actions: TableAction<Role>[] = canManage ? [
     {
       key: "assign",
-      label: isLoadingUsers ? 'Loading users...' : 'Assign to Users',
+      label: isLoadingUsers ? t('actions.loadingUsers') : t('actions.assignToUsers'),
       icon: isLoadingUsers ? RefreshCw : UserPlus,
       onClick: onAssignToUsers,
       className: isLoadingUsers ? "animate-spin" : ""
     },
     {
       key: "edit",
-      label: "Manage Permissions",
+      label: t('actions.managePermissions'),
       icon: Shield,
       onClick: onEditRole,
       separator: true
     },
     {
       key: "delete",
-      label: "Delete Role",
+      label: t('actions.deleteRole'),
       icon: Trash2,
       onClick: onDeleteRole,
       destructive: true
@@ -119,11 +121,11 @@ export function RolesTable({
   // Define footer stats
   const footerStats: FooterStat[] = [
     {
-      label: `Showing ${filteredRoles.length} of ${roles.length} roles`,
+      label: t('table.showingOf', { filtered: filteredRoles.length, total: roles.length }),
       value: ''
     },
     {
-      label: 'total permissions',
+      label: t('table.totalPermissions'),
       value: totalPermissions
     }
   ]

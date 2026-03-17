@@ -1,7 +1,8 @@
 import { Shield, Plus } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import ProtectedComponent from "@/components/protected-component"
-import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 
 interface AuthTypesSearchProps {
   searchTerm: string
@@ -22,36 +23,37 @@ export function AuthTypesSearch({
   onCreateClick,
   hasError
 }: AuthTypesSearchProps) {
+  const { t } = useTranslation('auth-types')
+
   return (
     <PageHeader
       icon={Shield}
-      title="Authentication Types"
+      title={t('header.title')}
       badges={[
-        { label: "", value: `${authTypesCount} auth types` }
+        { label: "", value: t('header.authTypesCount', { count: authTypesCount }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       hasError={hasError}
       primaryAction={{
-        label: "Add Auth Type",
+        label: t('header.addAuthType'),
         icon: Plus,
         onClick: onCreateClick,
         protectedContent: (
           <ProtectedComponent requireRootAdmin>
-            <Button 
+            <HuemulButton
               size="sm"
+              icon={Plus}
+              label={t('header.addAuthType')}
               onClick={onCreateClick}
               disabled={hasError}
-              className="hover:cursor-pointer h-8 text-xs px-2"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add Auth Type
-            </Button>
+              className="h-8 text-xs px-2"
+            />
           </ProtectedComponent>
         )
       }}
       searchConfig={{
-        placeholder: "Search authentication types...",
+        placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
         onChange: onSearchChange
       }}

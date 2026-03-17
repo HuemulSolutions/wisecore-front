@@ -1,5 +1,6 @@
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, Shield, FileStack } from "lucide-react"
+import { Edit2, Trash2, Shield, FileStack, Activity } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { type UseMutationResult } from "@tanstack/react-query"
 import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
@@ -22,6 +23,7 @@ interface AssetTypeTableProps {
   onEditAssetType: (assetType: AssetTypeWithRoles) => void
   onManagePermissions: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
+  onLifecycle: (assetType: AssetTypeWithRoles) => void
   assetTypeMutations: {
     createAssetType: UseMutationResult<any, any, any, unknown>
     updateAssetType: UseMutationResult<any, any, any, unknown>
@@ -44,16 +46,19 @@ export default function AssetTypeTable({
   onEditAssetType,
   onManagePermissions,
   onDeleteAssetType,
+  onLifecycle,
   pagination,
   showFooterStats,
   canUpdate = true,
   canDelete = true,
 }: AssetTypeTableProps) {
+  const { t } = useTranslation('asset-types')
+
   // Define columns
   const columns: TableColumn<AssetTypeWithRoles>[] = [
     {
       key: "color",
-      label: "Color",
+      label: t('columns.color'),
       render: (assetType) => (
         <div className="flex items-center gap-2">
           <div 
@@ -65,23 +70,23 @@ export default function AssetTypeTable({
     },
     {
       key: "name",
-      label: "Asset Type Name",
+      label: t('columns.name'),
       render: (assetType) => (
         <span className="text-xs font-medium text-foreground">{assetType.document_type_name}</span>
       )
     },
     {
       key: "count",
-      label: "Asset Count",
+      label: t('columns.assetCount'),
       render: (assetType) => (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-          {assetType.document_count || 0} assets
+          {t('columns.assets', { count: assetType.document_count || 0 })}
         </Badge>
       )
     },
     {
       key: "roles",
-      label: "Role Permissions",
+      label: t('columns.rolePermissions'),
       render: (assetType) => {
         if (assetType.roles && assetType.roles.length > 0) {
           return (
@@ -100,12 +105,12 @@ export default function AssetTypeTable({
             </div>
           )
         }
-        return <span className="text-[10px] text-muted-foreground">No roles</span>
+        return <span className="text-[10px] text-muted-foreground">{t('columns.noRoles')}</span>
       }
     },
     {
       key: "created",
-      label: "Created",
+      label: t('columns.created'),
       render: (assetType) => (
         <span className="text-xs text-foreground">{formatDate(assetType.document_type_created_date)}</span>
       )
@@ -116,20 +121,26 @@ export default function AssetTypeTable({
   const actions: TableAction<AssetTypeWithRoles>[] = [
     {
       key: "permissions",
-      label: "Manage Permissions",
+      label: t('actions.managePermissions'),
       icon: Shield,
       onClick: onManagePermissions
     },
+    {
+      key: "lifecycle",
+      label: t('actions.lifecycle'),
+      icon: Activity,
+      onClick: onLifecycle
+    },
     ...(canUpdate ? [{
       key: "edit" as const,
-      label: "Edit Asset Type",
+      label: t('actions.editAssetType'),
       icon: Edit2,
       onClick: onEditAssetType,
       separator: true
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
-      label: "Delete Asset Type",
+      label: t('actions.deleteAssetType'),
       icon: Trash2,
       onClick: onDeleteAssetType,
       destructive: true
@@ -139,11 +150,11 @@ export default function AssetTypeTable({
   // Define footer stats
   const footerStats: FooterStat[] = [
     {
-      label: `Showing ${assetTypes.length} asset type${assetTypes.length !== 1 ? 's' : ''}`,
+      label: t('table.showing', { count: assetTypes.length }),
       value: ''
     },
     {
-      label: 'total assets',
+      label: t('table.totalAssets'),
       value: assetTypes.reduce((acc, type) => acc + (type.document_count || 0), 0)
     }
   ]
@@ -156,8 +167,8 @@ export default function AssetTypeTable({
       getRowKey={(assetType) => assetType.document_type_id}
       emptyState={{
         icon: FileStack,
-        title: "No asset types found",
-        description: "No asset types have been created yet or match your search criteria."
+        title: t('emptyState.noAssetTypesFound'),
+        description: t('emptyState.noResultsDescription')
       }}
       footerStats={footerStats}
       pagination={pagination}

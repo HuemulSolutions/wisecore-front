@@ -17,10 +17,18 @@ export function AuthPage() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
-  // Redirect if already authenticated — RootRedirect will handle org-scoped path
+  // Redirect if already authenticated.
+  // If the user was redirected here due to a permission/session failure,
+  // sessionStorage may hold the page they were on — send them back there.
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/')
+      const returnUrl = sessionStorage.getItem('returnUrl');
+      if (returnUrl) {
+        sessionStorage.removeItem('returnUrl');
+        navigate(returnUrl, { replace: true });
+      } else {
+        navigate('/');
+      }
     }
   }, [isAuthenticated, navigate])
 

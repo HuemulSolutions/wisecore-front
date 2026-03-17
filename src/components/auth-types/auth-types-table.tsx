@@ -1,4 +1,5 @@
 import { Edit2, Trash2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
 import { DataTable } from "@/components/ui/data-table"
 import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
@@ -11,16 +12,6 @@ interface AuthTypesTableProps {
   onDelete: (authType: AuthType) => void
 }
 
-const getTypeDisplayName = (type: string) => {
-  switch (type) {
-    case "internal":
-      return "Internal"
-    case "entra":
-      return "Entra ID (SAML2)"
-    default:
-      return type
-  }
-}
 
 export function AuthTypesTable({ 
   authTypes, 
@@ -28,27 +19,30 @@ export function AuthTypesTable({
   onEdit, 
   onDelete 
 }: AuthTypesTableProps) {
+  const { t } = useTranslation(['auth-types', 'common'])
   const { isRootAdmin } = useUserPermissions()
 
   // Define columns
   const columns: TableColumn<AuthType>[] = [
     {
       key: "name",
-      label: "Name",
+      label: t('common:name'),
       render: (authType) => (
         <span className="text-xs font-medium text-foreground">{authType.name}</span>
       )
     },
     {
       key: "type",
-      label: "Type",
+      label: t('columns.type'),
       render: (authType) => (
-        <span className="text-xs text-foreground">{getTypeDisplayName(authType.type)}</span>
+        <span className="text-xs text-foreground">
+          {authType.type === 'internal' ? t('types.internal') : authType.type === 'entra' ? t('types.entra') : authType.type}
+        </span>
       )
     },
     {
       key: "created",
-      label: "Created",
+      label: t('columns.created'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.created_at).toLocaleDateString()}
@@ -57,7 +51,7 @@ export function AuthTypesTable({
     },
     {
       key: "updated",
-      label: "Updated",
+      label: t('columns.updated'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.updated_at).toLocaleDateString()}
@@ -70,14 +64,14 @@ export function AuthTypesTable({
   const actions: TableAction<AuthType>[] = isRootAdmin ? [
     {
       key: "edit",
-      label: "Edit Auth Type",
+      label: t('actions.editAuthType'),
       icon: Edit2,
       onClick: onEdit,
       separator: true
     },
     {
       key: "delete",
-      label: "Delete Auth Type",
+      label: t('actions.deleteAuthType'),
       icon: Trash2,
       onClick: onDelete,
       destructive: true
@@ -87,11 +81,11 @@ export function AuthTypesTable({
   // Define footer stats
   const footerStats: FooterStat[] = [
     {
-      label: `Showing ${filteredAuthTypes.length} of ${authTypes.length} authentication types`,
+      label: t('footer.showing', { filtered: filteredAuthTypes.length, total: authTypes.length }),
       value: ''
     },
     {
-      label: 'internal types',
+      label: t('footer.internalTypes'),
       value: authTypes.filter(a => a.type === 'internal').length
     }
   ]

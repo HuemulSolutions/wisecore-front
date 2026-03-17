@@ -1,5 +1,7 @@
 import * as React from "react";
-import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon } from "lucide-react";
+import { format, parseISO } from "date-fns";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -27,6 +29,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -43,7 +47,9 @@ export type HuemulFieldType =
   | "switch"
   | "file"
   | "combobox"
-  | "color";
+  | "color"
+  | "date"
+  | "radio";
 
 export interface HuemulFieldOption {
   /** Display label */
@@ -141,7 +147,9 @@ export interface HuemulFieldProps {
   autoFocus?: boolean;
   /** Autocomplete hint */
   autoComplete?: string;
-}
+  // ── Slot ─────────────────────────────────────────────────────────────────
+  /** Optional content rendered below the control (e.g. tag list) */
+  children?: React.ReactNode;}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -227,6 +235,7 @@ function ComboboxField({
   error?: string;
   inputClassName?: string;
 }) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
 
@@ -262,7 +271,7 @@ function ComboboxField({
           )}
         >
           <span className="truncate">
-            {selectedOption ? selectedOption.label : placeholder || "Select..."}
+            {selectedOption ? selectedOption.label : placeholder || t('selectPlaceholder')}
           </span>
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
@@ -270,7 +279,7 @@ function ComboboxField({
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <div className="flex items-center border-b px-3">
           <Input
-            placeholder="Search..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 h-9"
@@ -461,6 +470,63 @@ function ColorField({
   );
 }
 
+// ── Date Field ────────────────────────────────────────────────────────────
+
+function DateInputField({
+  fieldId,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  error,
+  inputClassName,
+}: {
+  fieldId: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const strValue = String(value ?? "");
+  const selected = strValue ? parseISO(strValue) : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id={fieldId}
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          aria-invalid={!!error || undefined}
+          className={cn(
+            "w-full justify-start font-normal hover:cursor-pointer gap-2",
+            !strValue && "text-muted-foreground",
+            error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+            inputClassName,
+          )}
+        >
+          <CalendarIcon className="h-4 w-4 shrink-0" />
+          {selected ? format(selected, "dd-MM-yyyy") : (placeholder || "Pick a date")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(day) => {
+            onChange?.(day ? day.toISOString() : "");
+            setOpen(false);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export function HuemulField({
@@ -490,9 +556,11 @@ export function HuemulField({
   inputClassName,
   autoFocus,
   autoComplete,
+  children,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
   const isInline = type === "checkbox" || type === "switch";
+  const { t } = useTranslation('common');
 
   // ── Handlers ────────────────────────────────────────────────────────
 
@@ -562,7 +630,7 @@ export function HuemulField({
               className={cn("w-full", inputClassName)}
               aria-invalid={baseInvalid || undefined}
             >
-              <SelectValue placeholder={placeholder || "Select..."} />
+              <SelectValue placeholder={placeholder || t('selectPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -607,6 +675,42 @@ export function HuemulField({
             error={error}
             inputClassName={inputClassName}
           />
+        );
+
+      case "date":
+        return (
+          <DateInputField
+            fieldId={fieldId}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            error={error}
+            inputClassName={inputClassName}
+          />
+        );
+
+      case "radio":
+        return (
+          <RadioGroup
+            id={fieldId}
+            value={String(value ?? "")}
+            onValueChange={handleSelectChange}
+            disabled={disabled}
+            className={cn("flex flex-row gap-6", inputClassName)}
+          >
+            {options.map((opt) => (
+              <div key={opt.value} className="flex items-center gap-2">
+                <RadioGroupItem value={opt.value} id={`${fieldId}-${opt.value}`} />
+                <Label
+                  htmlFor={`${fieldId}-${opt.value}`}
+                  className="hover:cursor-pointer font-normal"
+                >
+                  {opt.label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
         );
 
       case "checkbox":
@@ -743,7 +847,9 @@ export function HuemulField({
       ) : (
         <>
           {/* ── Label row ──────────────────────────────────────── */}
+          {(label || required || helpText || labelAction) && (
           <div className="flex items-center gap-1">
+            {label && (
             <Label
               htmlFor={fieldId}
               className={cn(
@@ -753,6 +859,7 @@ export function HuemulField({
             >
               {label}
             </Label>
+            )}
 
             {required && (
               <Asterisk
@@ -765,11 +872,15 @@ export function HuemulField({
 
             {labelAction && <FieldLabelAction action={labelAction} />}
           </div>
+          )}
 
           {/* ── Control ────────────────────────────────────────── */}
           <div>{renderControl()}</div>
         </>
       )}
+
+      {/* ── Children slot ───────────────────────────────────────── */}
+      {children && <div className="mt-1.5">{children}</div>}
 
       {/* ── Description ────────────────────────────────────────── */}
       {description && !error && (

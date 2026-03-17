@@ -176,6 +176,11 @@ export function ProtectedRoute({
 
   // Si no tiene acceso, mostrar error o redirigir
   if (!hasAccess) {
+    // Persist the intended URL so we can restore it after login / token refresh.
+    const intended = window.location.pathname + window.location.search;
+    if (intended !== redirectTo && intended !== '/') {
+      sessionStorage.setItem('returnUrl', intended);
+    }
     return showErrorPage ? <AccessDeniedPage /> : <Navigate to={redirectTo} replace />;
   }
 
