@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Clock, Loader2 } from 'lucide-react';
 import { listConversations } from '@/services/chatbot';
+import { useOrganization } from '@/contexts/organization-context';
 import { chatbotQueryKeys } from '@/hooks/use-chatbot';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import type { Conversation } from '@/types/chatbot';
@@ -92,6 +93,7 @@ export function ConversationList({
   activeConversationId,
 }: ConversationListProps) {
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
 
   // Accumulated conversations across all loaded pages
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -100,10 +102,17 @@ export function ConversationList({
 
   // Fetch current page
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: [...chatbotQueryKeys.conversations(), 'list', page],
+    queryKey: [...chatbotQueryKeys.conversations(selectedOrganizationId), 'list', page],
     queryFn: () => listConversations(page, PAGE_SIZE),
     refetchOnMount: 'always',
+    enabled: !!selectedOrganizationId,
   });
+
+  useEffect(() => {
+    setConversations([]);
+    setPage(1);
+    setHasNext(false);
+  }, [selectedOrganizationId]);
 
   // When data arrives, accumulate or replace conversations
   useEffect(() => {
@@ -129,10 +138,10 @@ export function ConversationList({
     return () => {
       // On unmount, invalidate so next mount gets fresh data
       queryClient.invalidateQueries({
-        queryKey: chatbotQueryKeys.conversations(),
+        queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
       });
     };
-  }, [queryClient]);
+  }, [queryClient, selectedOrganizationId]);
 
   const handleLoadMore = useCallback(() => {
     if (hasNext && !isFetching) {

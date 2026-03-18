@@ -51,11 +51,19 @@ export interface ConversationWithDetail extends Conversation {
 /**
  * Metadata de un mensaje del assistant.
  */
+export interface ChatMessageProgressMetadata {
+  state: 'running_tools';
+  tool_message: string;
+  tool_call_count: number;
+  has_multiple_tool_calls: boolean;
+}
+
 export interface ChatMessageMetadata {
   input_tokens?: number;
   output_tokens?: number;
   total_tokens?: number;
   error?: string;
+  progress?: ChatMessageProgressMetadata;
 }
 
 /**
@@ -87,6 +95,8 @@ export interface SendMessageRequest {
   content: string;
   /** References to associate with this message (e.g. current document/execution context). */
   references?: ConversationReference[];
+  /** Optional LLM override for the next assistant response generation. */
+  llm_id?: string;
 }
 
 export interface UpdateTitleRequest {

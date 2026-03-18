@@ -14,7 +14,7 @@ import { getExecutionById } from "@/services/executions";
 import { useState, useEffect } from "react";
 import SectionExecution from "@/components/sections/sections_execution";
 import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
-import Chatbot from "@/components/chatbot/chatbot";
+import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { useOrganization } from "@/contexts/organization-context";
 
 interface ExecutionInfoSheetProps {
@@ -78,6 +78,13 @@ export function ExecutionInfoSheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <ChatbotContextSync
+        sourceKey={`execution-sheet-${executionId}`}
+        executionId={executionId}
+        documentId={execution?.document_id}
+        enabled={isOpen && Boolean(executionId)}
+        priority={40}
+      />
       <SheetContent className="w-[90vw] sm:max-w-[90vw] max-h-[95vh] overflow-hidden flex flex-col">
         <SheetHeader className="flex-shrink-0 pb-4 border-b">
           <div className="flex items-center gap-2">
@@ -193,15 +200,6 @@ export function ExecutionInfoSheet({
                     <TableOfContents items={tocItems} />
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Compact Chatbot */}
-          {execution && (
-            <div className="absolute bottom-4 right-4 z-50">
-              <div className="scale-90 origin-bottom-right">
-                <Chatbot executionId={executionId} documentId={execution?.document_id} />
               </div>
             </div>
           )}

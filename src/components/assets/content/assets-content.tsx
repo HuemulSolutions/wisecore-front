@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import Chatbot from "@/components/chatbot/chatbot";
+import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl, DocumentActionButton } from "@/components/assets/content/assets-access-control";
@@ -3151,9 +3151,13 @@ export function AssetContent({
       )}
     </ResizablePanelGroup>
 
-      {documentContent && documentContent.content && (
-        <Chatbot executionId={documentContent.execution_id} documentId={selectedFile?.id} />
-      )}
+      <ChatbotContextSync
+        sourceKey="asset-content"
+        executionId={documentContent?.execution_id}
+        documentId={selectedFile?.id}
+        enabled={Boolean(documentContent && documentContent.content && selectedFile?.id)}
+        priority={20}
+      />
 
       {/* Direct Section Creation Dialog */}
       <AddSectionDialog

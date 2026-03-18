@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
+  Bot,
   MessageCircle,
   X,
   Send,
@@ -11,16 +13,21 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
 import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
-import { useChatbot } from '@/hooks/use-chatbot';
-import type { ConversationReference } from '@/types/chatbot';
-
-type ChatView = 'chat' | 'history';
+import { ChatbotProvider, useChatbotContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
+import { getDefaultLLM, getLLMs } from '@/services/llms';
 
 // ========================================
 // Types
@@ -54,24 +61,19 @@ function WelcomeMessage() {
 // Chatbot component
 // ========================================
 
-export default function Chatbot({ executionId, documentId }: ChatbotProps) {
-  // ── UI state ────────────────────────────────────────────────
-  const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [view, setView] = useState<ChatView>('chat');
-
+function ChatbotContent() {
   const endRef = useRef<HTMLDivElement>(null);
-
-  // ── Build references from current context (execution takes priority) ──
-  const references: ConversationReference[] | undefined = executionId
-    ? [{ type: 'execution', id: executionId }]
-    : documentId
-      ? [{ type: 'document', id: documentId }]
-      : undefined;
-
-  // ── Chatbot hook ────────────────────────────────────────────
   const {
+    isOpen,
+    setIsOpen,
+    isExpanded,
+    setIsExpanded,
+    inputValue,
+    setInputValue,
+    view,
+    setView,
+    selectedLlmId,
+    setSelectedLlmId,
     conversationId,
     messages,
     isTyping,
@@ -80,7 +82,37 @@ export default function Chatbot({ executionId, documentId }: ChatbotProps) {
     loadConversation,
     isSending,
     isLoadingConversation,
-  } = useChatbot({ references });
+  } = useChatbotContext();
+
+  const { data: llms = [], isLoading: isLoadingLlms } = useQuery({
+    queryKey: ['llms'],
+    queryFn: getLLMs,
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
+    queryKey: ['default-llm'],
+    queryFn: getDefaultLLM,
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000,
+    retry: 0,
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const hasSelectedModel =
+      selectedLlmId !== undefined && llms.some((llm) => llm.id === selectedLlmId);
+
+    if (hasSelectedModel) return;
+
+    const nextLlmId = defaultLLM?.id ?? llms[0]?.id;
+
+    if (nextLlmId) {
+      setSelectedLlmId(nextLlmId);
+    }
+  }, [defaultLLM?.id, isOpen, llms, selectedLlmId, setSelectedLlmId]);
 
   // ── Auto-scroll on new messages ─────────────────────────────
   useEffect(() => {
@@ -100,7 +132,7 @@ export default function Chatbot({ executionId, documentId }: ChatbotProps) {
   };
 
   const handleToggleHistory = () => {
-    setView((prev) => (prev === 'chat' ? 'history' : 'chat'));
+    setView(view === 'chat' ? 'history' : 'chat');
   };
 
   const handleSelectConversation = (selectedConversationId: string) => {
@@ -116,6 +148,15 @@ export default function Chatbot({ executionId, documentId }: ChatbotProps) {
   };
 
   const isInputDisabled = isSending || isTyping || isLoadingConversation;
+  const isModelSelectorDisabled =
+    isInputDisabled || isLoadingLlms || isLoadingDefaultLLM || llms.length === 0;
+  const modelSelectorHint = isTyping || isSending
+    ? 'Locked while generating'
+    : isLoadingConversation
+      ? 'Locked while loading conversation'
+      : llms.length === 0
+        ? 'No models available'
+        : 'Applies to the next message';
 
   return (
     <>
@@ -268,9 +309,46 @@ export default function Chatbot({ executionId, documentId }: ChatbotProps) {
                     disabled={!inputValue.trim() || isInputDisabled}
                     size="sm"
                     className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-white px-4 py-3 disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 rounded-xl h-[44px] min-w-[44px] transition-all"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                <div className="mt-2 flex items-center gap-2 px-1">
+                  <Bot className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+
+                  <Select
+                    value={selectedLlmId}
+                    onValueChange={setSelectedLlmId}
+                    disabled={isModelSelectorDisabled}
                   >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                    <SelectTrigger
+                      aria-label={modelSelectorHint}
+                      className="h-8 min-w-[132px] max-w-[180px] rounded-lg border-transparent bg-transparent px-2 text-xs text-slate-500 shadow-none transition-colors hover:cursor-pointer hover:border-slate-200 hover:bg-slate-50/70 focus:ring-[#4464f7]/15 disabled:hover:cursor-not-allowed"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <SelectValue placeholder={isLoadingLlms ? 'Loading...' : 'Select model'} />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-200 bg-white shadow-xl">
+                      {llms.map((llm) => (
+                        <SelectItem
+                          key={llm.id}
+                          value={llm.id}
+                          className="rounded-lg text-sm text-slate-700 hover:cursor-pointer"
+                        >
+                          <div className="flex w-full items-center justify-between gap-3 pr-4">
+                            <span className="truncate">{llm.name}</span>
+                            {defaultLLM?.id === llm.id && (
+                              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </>
@@ -278,5 +356,27 @@ export default function Chatbot({ executionId, documentId }: ChatbotProps) {
         </div>
       )}
     </>
+  );
+}
+
+export default function Chatbot({ executionId, documentId }: ChatbotProps) {
+  const existingContext = useOptionalChatbotContext();
+
+  if (existingContext) {
+    return <ChatbotContent />;
+  }
+
+  if (executionId || documentId) {
+    return (
+      <ChatbotProvider executionId={executionId} documentId={documentId}>
+        <ChatbotContent />
+      </ChatbotProvider>
+    );
+  }
+
+  return (
+    <ChatbotProvider>
+      <ChatbotContent />
+    </ChatbotProvider>
   );
 }

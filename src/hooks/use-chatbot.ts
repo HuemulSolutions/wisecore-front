@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   createConversation,
   getConversation,
   sendMessage as sendMessageService,
   updateConversationTitle,
 } from "@/services/chatbot";
+import { useOrganization } from "@/contexts/organization-context";
 import { useMessagePolling } from "@/hooks/use-message-polling";
 import type {
   ChatMessage,
@@ -19,9 +20,12 @@ import type {
 
 export const chatbotQueryKeys = {
   all: ["chatbot"] as const,
-  conversations: () => [...chatbotQueryKeys.all, "conversations"] as const,
-  conversation: (id: string) =>
-    [...chatbotQueryKeys.all, "conversation", id] as const,
+  org: (organizationId: string | null | undefined) =>
+    [...chatbotQueryKeys.all, organizationId ?? "no-org"] as const,
+  conversations: (organizationId: string | null | undefined) =>
+    [...chatbotQueryKeys.org(organizationId), "conversations"] as const,
+  conversation: (organizationId: string | null | undefined, id: string) =>
+    [...chatbotQueryKeys.org(organizationId), "conversation", id] as const,
 };
 
 // ========================================
@@ -67,6 +71,21 @@ function generateAutoTitle(content: string): string {
   return trimmed.slice(0, AUTO_TITLE_MAX_LENGTH).trimEnd() + "…";
 }
 
+function getLatestPendingAssistantMessage(
+  messages: ChatMessage[] | null | undefined
+): ChatMessage | null {
+  if (!messages || messages.length === 0) return null;
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === "assistant" && message.status === "pending") {
+      return message;
+    }
+  }
+
+  return null;
+}
+
 // ========================================
 // Hook
 // ========================================
@@ -78,6 +97,8 @@ interface UseChatbotProps {
    * Also used when creating a new conversation.
    */
   references?: ConversationReference[];
+  /** Optional LLM selected for the next message to send. */
+  selectedLlmId?: string;
 }
 
 interface UseChatbotReturn {
@@ -85,6 +106,8 @@ interface UseChatbotReturn {
   conversationId: string | null;
   /** Messages to render — includes optimistic entries */
   messages: ChatMessage[];
+  /** Latest assistant message received from polling */
+  assistantMessage: ChatMessage | null;
   /** True while the assistant is generating a response (polling active) */
   isTyping: boolean;
 
@@ -103,8 +126,48 @@ interface UseChatbotReturn {
 
 export function useChatbot({
   references,
+  selectedLlmId,
 }: UseChatbotProps = {}): UseChatbotReturn {
   const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
+
+  const mergeAssistantMessage = useCallback(
+    (nextAssistantMessage: ChatMessage) => {
+      setMessages((prev) => {
+        let matchedById = false;
+
+        const nextMessages = prev.map((msg) => {
+          if (msg.id === nextAssistantMessage.id) {
+            matchedById = true;
+            return nextAssistantMessage;
+          }
+
+          return msg;
+        });
+
+        if (matchedById) {
+          return nextMessages;
+        }
+
+        return nextMessages.map((msg) =>
+          msg.id.startsWith("optimistic-assistant")
+            ? {
+                ...msg,
+                id: nextAssistantMessage.id,
+                content: nextAssistantMessage.content,
+                metadata: nextAssistantMessage.metadata,
+                status: nextAssistantMessage.status,
+                created_at: nextAssistantMessage.created_at,
+                updated_at: nextAssistantMessage.updated_at,
+                created_by: nextAssistantMessage.created_by,
+                updated_by: nextAssistantMessage.updated_by,
+              }
+            : msg
+        );
+      });
+    },
+    []
+  );
 
   // ── Core state ──────────────────────────────────────────────
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -124,49 +187,46 @@ export function useChatbot({
   // ── Polling for assistant response ──────────────────────────
   const handlePollingComplete = useCallback(
     (completedMessage: ChatMessage) => {
-      // Replace the optimistic assistant placeholder with the real message
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id.startsWith("optimistic-assistant")
-            ? completedMessage
-            : msg
-        )
-      );
+      mergeAssistantMessage(completedMessage);
       setPendingAssistantId(null);
     },
-    []
+    [mergeAssistantMessage]
   );
 
   const handlePollingError = useCallback(
     (errorMessage: ChatMessage) => {
-      // Replace placeholder with the errored message so the UI can show the error state
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id.startsWith("optimistic-assistant")
-            ? errorMessage
-            : msg
-        )
-      );
+      mergeAssistantMessage(errorMessage);
       setPendingAssistantId(null);
     },
-    []
+    [mergeAssistantMessage]
   );
 
-  const { isPolling } = useMessagePolling({
+  const { message: assistantMessage, isPolling } = useMessagePolling({
     conversationId,
     assistantMessageId: pendingAssistantId,
     onComplete: handlePollingComplete,
     onError: handlePollingError,
   });
 
+  useEffect(() => {
+    if (!assistantMessage) return;
+
+    mergeAssistantMessage(assistantMessage);
+  }, [assistantMessage, mergeAssistantMessage]);
+
   // ── Send message mutation ───────────────────────────────────
   const sendMutation = useMutation<
     SendMessageResponse,
     Error,
-    { conversationId: string; content: string; references?: ConversationReference[] }
+    {
+      conversationId: string;
+      content: string;
+      references?: ConversationReference[];
+      llmId?: string;
+    }
   >({
-    mutationFn: ({ conversationId: convId, content, references: refs }) =>
-      sendMessageService(convId, content, refs),
+    mutationFn: ({ conversationId: convId, content, references: refs, llmId }) =>
+      sendMessageService(convId, content, refs, llmId),
     onSuccess: (data, variables) => {
       // Replace the optimistic user message ID with the real one
       setMessages((prev) =>
@@ -186,7 +246,7 @@ export function useChatbot({
         const title = generateAutoTitle(variables.content);
         updateConversationTitle(data.conversation_id, title).then(() => {
           queryClient.invalidateQueries({
-            queryKey: chatbotQueryKeys.conversations(),
+            queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
           });
         });
       }
@@ -227,7 +287,7 @@ export function useChatbot({
 
           // Invalidate conversations list so it picks up the new one
           queryClient.invalidateQueries({
-            queryKey: chatbotQueryKeys.conversations(),
+            queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
           });
         } catch {
           isSendingRef.current = false;
@@ -254,9 +314,10 @@ export function useChatbot({
         conversationId: activeConversationId,
         content: trimmed,
         references,
+        llmId: selectedLlmId,
       });
     },
-    [conversationId, references, queryClient, sendMutation]
+    [conversationId, references, queryClient, selectedLlmId, selectedOrganizationId, sendMutation]
   );
 
   const startNewConversation = useCallback(
@@ -284,13 +345,18 @@ export function useChatbot({
 
       try {
         const detail = await getConversation(targetConversationId);
-        setMessages(detail.messages ?? []);
+        const loadedMessages = detail.messages ?? [];
+        const pendingAssistantMessage = getLatestPendingAssistantMessage(loadedMessages);
+
+        setMessages(loadedMessages);
+        setPendingAssistantId(pendingAssistantMessage?.id ?? null);
         // If the conversation already has messages, it's not the first message
         isFirstMessageRef.current =
-          !detail.messages || detail.messages.length === 0;
+          loadedMessages.length === 0;
       } catch {
         // Global error handler shows toast
         setMessages([]);
+        setPendingAssistantId(null);
       } finally {
         setIsLoadingConversation(false);
       }
@@ -301,6 +367,7 @@ export function useChatbot({
   return {
     conversationId,
     messages,
+    assistantMessage,
     isTyping: isPolling,
 
     sendMessage,

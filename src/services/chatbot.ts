@@ -9,6 +9,7 @@ import type {
   ChatPaginatedResponse,
   SendMessageResponse,
   ArchiveConversationResponse,
+  SendMessageRequest,
 } from "@/types/chatbot";
 
 const CHATBOT_BASE = `${backendUrl}/chatbot`;
@@ -100,11 +101,15 @@ export async function archiveConversation(
 export async function sendMessage(
   conversationId: string,
   content: string,
-  references?: ConversationReference[]
+  references?: ConversationReference[],
+  llmId?: string
 ): Promise<SendMessageResponse> {
-  const body: { content: string; references?: ConversationReference[] } = { content };
+  const body: SendMessageRequest = { content };
   if (references && references.length > 0) {
     body.references = references;
+  }
+  if (llmId) {
+    body.llm_id = llmId;
   }
   const response = await httpClient.post(
     `${CHATBOT_BASE}/conversations/${conversationId}/messages`,

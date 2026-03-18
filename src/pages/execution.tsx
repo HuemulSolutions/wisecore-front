@@ -4,7 +4,7 @@ import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import ExecutionInfo from "@/components/execution/execution_info";
 import SectionExecution from "@/components/sections/sections_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Chatbot from "@/components/chatbot/chatbot";
+import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { 
     Tooltip,
     TooltipContent,
@@ -312,6 +312,13 @@ export default function ExecutionPage() {
 
     return (
         <div className="flex gap-8">
+            <ChatbotContextSync
+                sourceKey={`execution-page-${id ?? 'unknown'}`}
+                executionId={id}
+                documentId={execution?.document_id}
+                enabled={Boolean(id)}
+                priority={30}
+            />
             <div className="flex-1 space-y-4">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-4">
@@ -462,7 +469,6 @@ export default function ExecutionPage() {
             <div className="w-64 hidden lg:block">
                 <TableOfContents items={tocItems} />
             </div>
-            <Chatbot executionId={id!} documentId={execution?.document_id} />
         </div>
     );
 }
