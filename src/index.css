@@ -344,3 +344,15 @@
 .nav-item-enter {
   animation: nav-slide-in 0.3s ease-out both;
 }
+
+/* Chatbot typing indicator */
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+}

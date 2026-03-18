@@ -31,6 +31,8 @@ import { OrganizationSwitcher } from "@/components/organization/organization-swi
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
+import Chatbot from "@/components/chatbot/chatbot"
+import { ChatbotProvider } from "@/contexts/chatbot-context"
 import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
 import EditUserDialog from "@/components/users/users-edit-dialog"
 import { cn } from "@/lib/utils"
@@ -78,6 +80,7 @@ export default function AppLayout() {
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
   const isSwitchingOrgRef = useRef(false)
   const lastSyncedUrlOrgRef = useRef<string | null>(null)
+  const previousChatbotOrgRef = useRef<string | null>(null)
   // Remember whether the user previously had org-scoped nav access.
   // This lets us show loading placeholders instead of hiding items during
   // the brief gap when the token/permissions are being refreshed.
@@ -315,9 +318,25 @@ export default function AppLayout() {
     isSwitchingOrg
   ])
 
+  const shouldShowChatbot = location.pathname !== '/home' && !location.pathname.endsWith('/home')
+  const chatbotProviderKey = selectedOrganizationId ?? 'no-org'
+
+  useEffect(() => {
+    if (previousChatbotOrgRef.current === selectedOrganizationId) {
+      return
+    }
+
+    previousChatbotOrgRef.current = selectedOrganizationId
+
+    queryClient.removeQueries({
+      queryKey: ['chatbot'],
+    })
+  }, [queryClient, selectedOrganizationId])
+
   return (
-    <TooltipProvider>
-      <NavKnowledgeProvider>
+    <ChatbotProvider key={chatbotProviderKey}>
+      <TooltipProvider>
+        <NavKnowledgeProvider>
         <div className="flex flex-col h-screen overflow-hidden">
           <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
             {/* Left section: Organization Switcher */}
@@ -545,6 +564,8 @@ export default function AppLayout() {
             <Outlet />
           </div>
         </div>
+
+        {shouldShowChatbot && <Chatbot />}
         
         {/* Dialog de selección de organización */}
         <OrganizationSelectionDialog open={shouldShowDialog} />
@@ -557,7 +578,8 @@ export default function AppLayout() {
             onOpenChange={setProfileDialogOpen} 
           />
         )}
-      </NavKnowledgeProvider>
-    </TooltipProvider>
+        </NavKnowledgeProvider>
+      </TooltipProvider>
+    </ChatbotProvider>
   )
 }
