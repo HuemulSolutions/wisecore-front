@@ -125,7 +125,7 @@ export function GlobalAdminOrganizationsSection() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ["organizations"] })
-      toast.success(t('global-admin:toast.dataRefreshed'))
+      toast.success(t('common:dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }

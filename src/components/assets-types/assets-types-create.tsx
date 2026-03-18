@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Input } from "@/components/ui/input";
+import { useTranslation } from "react-i18next";
 import { useOrganization } from "@/contexts/organization-context";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulField } from "@/huemul/components/huemul-field";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
-import { ColorPicker } from "@/components/color-picker";
 import { Plus, Loader2 } from "lucide-react";
 import { type AssetTypeWithRoles } from "@/services/asset-types";
 
@@ -29,6 +28,7 @@ export default function CreateDocumentType({
   documentType,
   type = 'document'
 }: CreateDocumentTypeProps) {
+  const { t } = useTranslation(['asset-types', 'common'])
   const queryClient = useQueryClient();
   const [internalDialogOpen, setInternalDialogOpen] = useState(false);
   
@@ -81,8 +81,7 @@ export default function CreateDocumentType({
       setIsDialogOpen(false);
     },
     onError: (error: Error) => {
-      const action = isEditing ? 'updating' : 'creating';
-      setError(error.message || `An error occurred while ${action} the ${type} type`);
+      setError(error.message || t(isEditing ? 'form.errorUpdating' : 'form.errorCreating', { type }));
     },
   });
 
@@ -94,7 +93,7 @@ export default function CreateDocumentType({
 
   const handleAccept = () => {
     if (!name.trim()) {
-      setError("Name is required");
+      setError(t('form.nameRequired'));
       return;
     }
 
@@ -106,32 +105,37 @@ export default function CreateDocumentType({
     });
   };
 
-  const typeLabel = type === 'asset' ? 'Asset Type' : 'Document Type';
+  const dialogTitle = isEditing
+    ? t(type === 'asset' ? 'edit.assetTitle' : 'edit.documentTitle')
+    : t(type === 'asset' ? 'create.assetTitle' : 'create.documentTitle')
+  const dialogDescription = isEditing
+    ? t(type === 'asset' ? 'edit.assetDescription' : 'edit.documentDescription')
+    : t(type === 'asset' ? 'create.assetDescription' : 'create.documentDescription')
 
   return (
     <>
       {trigger && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            {trigger}
-          </DialogTrigger>
-        </Dialog>
+        <span onClick={() => setIsDialogOpen(true)}>
+          {trigger}
+        </span>
       )}
 
-      <ReusableDialog
+      <HuemulDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        title={isEditing ? `Edit ${typeLabel}` : `Create ${typeLabel}`}
-        description={isEditing ? `Update the ${typeLabel.toLowerCase()} name and color.` : `Create a new ${typeLabel.toLowerCase()} with a name and color.`}
+        title={dialogTitle}
+        description={dialogDescription}
         icon={Plus}
-        maxWidth="lg"
-        maxHeight="90vh"
-        onSubmit={handleAccept}
-        submitLabel={isEditing ? 'Update' : 'Create'}
-        cancelLabel="Cancel"
-        isSubmitting={mutation.isPending}
-        isValid={!!name.trim()}
-        showDefaultFooter={true}
+        maxWidth="sm:max-w-lg"
+        maxHeight="max-h-[90vh]"
+        saveAction={{
+          label: isEditing ? t('common:update') : t('common:create'),
+          onClick: handleAccept,
+          loading: mutation.isPending,
+          disabled: !name.trim(),
+          closeOnSuccess: false,
+        }}
+        cancelLabel={t('common:cancel')}
       >
         {isLoadingDocumentType ? (
           <div className="flex items-center justify-center py-8">
@@ -139,28 +143,32 @@ export default function CreateDocumentType({
           </div>
         ) : (
           <div className="space-y-4">
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={`${typeLabel} name`}
-                className="w-full"
-              />
+            <HuemulField
+              label={t(type === 'asset' ? 'form.assetNameLabel' : 'form.documentNameLabel')}
+              name="name"
+              value={name}
+              onChange={(v) => setName(String(v))}
+              placeholder={t(type === 'asset' ? 'form.assetNameLabel' : 'form.documentNameLabel')}
+              error={error === t('form.nameRequired') ? error : undefined}
+              required
+            />
 
-              <ColorPicker
-                label="Color"
-                value={selectedColor}
-                onChange={setSelectedColor}
-              />
+            <HuemulField
+              type="color"
+              label={t('form.color')}
+              name="color"
+              value={selectedColor}
+              onChange={(v) => setSelectedColor(String(v))}
+            />
 
-            {error && (
+            {error && error !== t('form.nameRequired') && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
                 {error}
               </div>
             )}
           </div>
         )}
-      </ReusableDialog>
+      </HuemulDialog>
     </>
   );
 }

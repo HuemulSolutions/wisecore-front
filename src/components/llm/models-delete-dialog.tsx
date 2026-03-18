@@ -23,7 +23,7 @@ export function DeleteModelDialog({
       onOpenChange={onOpenChange}
       title={t('deleteModelDialog.title')}
       description={t('deleteModelDialog.description', { name: model?.name })}
-      actionLabel={t('actions.delete')}
+      actionLabel={t('common:delete')}
       onAction={onAction}
     />
   )

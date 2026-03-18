@@ -135,6 +135,19 @@ export interface ExecutionInfo {
 }
 
 /**
+ * Lifecycle permissions for a document
+ */
+export interface LifecyclePermissions {
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  review: boolean;
+  approve: boolean;
+  publish: boolean;
+  archive: boolean;
+}
+
+/**
  * Response from asset content API
  */
 export interface AssetContentResponse {
@@ -146,6 +159,7 @@ export interface AssetContentResponse {
     executions: ExecutionInfo[];
     internal_code: string | null;
     access_levels: string[];
+    lifecycle_permissions?: LifecyclePermissions;
     content: ContentSection[];
     created_by_user: UserInfo | null;
     updated_by_user: UserInfo | null;

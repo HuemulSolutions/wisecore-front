@@ -454,6 +454,12 @@ export function AssetContent({
   } | null>(null);
   
   // ============================================================================
+  // STATE - VIEW / EDITOR MODE
+  // ============================================================================
+  // Always start in reader mode; switches to editor mode when user has extra lifecycle permissions
+  const [isViewMode, setIsViewMode] = useState(true);
+
+  // ============================================================================
   // STATE - EXPORT
   // ============================================================================
   const [isCustomWordExportDialogOpen, setIsCustomWordExportDialogOpen] = useState(false);
@@ -471,6 +477,20 @@ export function AssetContent({
   const [uploadingImageFieldId, setUploadingImageFieldId] = useState<string | null>(null);
   const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
   
+  // Reset to reader mode whenever a different asset is opened
+  useEffect(() => {
+    setIsViewMode(true);
+  }, [selectedFile?.id]);
+
+  // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or disappear)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      scrollRestoration.restoreScrollPosition();
+    }, 50);
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isViewMode]);
+
   // Clear created template when component unmounts or selectedFile changes
   useEffect(() => {
     if (createdTemplate && selectedFile) {
@@ -861,6 +881,22 @@ export function AssetContent({
   const accessLevels = useMemo(() => {
     return documentContent?.access_levels || selectedFile?.access_levels || [];
   }, [documentContent?.access_levels, selectedFile?.access_levels]);
+
+  // Lifecycle permissions from the document content response
+  const lifecyclePermissions = documentContent?.lifecycle_permissions as {
+    view?: boolean; create?: boolean; edit?: boolean; review?: boolean;
+    approve?: boolean; publish?: boolean; archive?: boolean;
+  } | undefined;
+
+  // Whether the reader/editor toggle is available (view=true + at least one other permission)
+  const canSwitchToEditorMode = useMemo(() => {
+    if (!lifecyclePermissions?.view) return false;
+    return !!(lifecyclePermissions.create || lifecyclePermissions.edit || lifecyclePermissions.review ||
+              lifecyclePermissions.approve || lifecyclePermissions.publish || lifecyclePermissions.archive);
+  }, [lifecyclePermissions]);
+
+  // Show editor action buttons only when: no lifecycle view mode OR user switched to editor mode
+  const showEditorActions = !lifecyclePermissions?.view || !isViewMode;
 
   // Get active executions on other versions (not currently viewed)
   const otherVersionActiveExecutions = useMemo(() => {
@@ -1540,6 +1576,41 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 animate-in fade-in duration-300">
+              {/* Mode Toggle - Mobile */}
+              {canSwitchToEditorMode && (
+                <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                    className={`h-7 w-7 p-0 hover:cursor-pointer rounded-md transition-all ${
+                      isViewMode
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    title="Reader mode"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                    className={`h-7 w-7 p-0 hover:cursor-pointer rounded-md transition-all ${
+                      !isViewMode
+                        ? 'bg-white text-[#4464f7] shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                    title="Editor mode"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Editor-only mobile actions */}
+              {showEditorActions && (
+                <>
               <DocumentActionButton
                 accessLevels={accessLevels}
                 requiredAccess={["create"]}
@@ -1624,6 +1695,8 @@ export function AssetContent({
                   accessLevels={accessLevels}
                 />
               </DocumentAccessControl>
+                </>
+              )}
               
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
@@ -1729,7 +1802,8 @@ export function AssetContent({
                 </DocumentAccessControl>
               )}
               
-              {/* Edit Button */}
+              {/* Edit Button - editor only */}
+              {showEditorActions && (
               <DocumentActionButton
                 accessLevels={accessLevels}
                 requiredAccess="edit"
@@ -1743,9 +1817,10 @@ export function AssetContent({
               >
                 <Edit3 className="h-4 w-4" />
               </DocumentActionButton>
+              )}
 
-              {/* Create Template from Document - only show if document has no template */}
-              {!documentContent?.template_name && canCreate('template') && (
+              {/* Create Template from Document - editor only */}
+              {showEditorActions && !documentContent?.template_name && canCreate('template') && (
                 <DocumentActionButton
                   accessLevels={accessLevels}
                   requiredAccess="edit"
@@ -1761,8 +1836,8 @@ export function AssetContent({
                 </DocumentActionButton>
               )}
 
-              {/* Clone Button - only show if there's an execution to clone */}
-              {selectedExecutionId && (
+              {/* Clone Button - editor only */}
+              {showEditorActions && selectedExecutionId && (
                 <DocumentActionButton
                   accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
@@ -1812,7 +1887,8 @@ export function AssetContent({
                 </DropdownMenu>
               </DocumentAccessControl>
               
-              {/* Delete Options */}
+              {/* Delete Options - editor only */}
+              {showEditorActions && (
               <DocumentAccessControl
                 accessLevels={accessLevels}
                 requiredAccess="delete"
@@ -1850,9 +1926,10 @@ export function AssetContent({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </DocumentAccessControl>
+              )}
 
-              {/* Approve/Disapprove Buttons - show conditionally based on execution status */}
-              {(() => {
+              {/* Approve/Disapprove Buttons - show conditionally based on execution status - editor only */}
+              {showEditorActions && (() => {
                 // Determine the current execution to show buttons for
                 let currentExecution = null;
                 let actualStatus = null;
@@ -2082,7 +2159,8 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center gap-2 flex-wrap animate-in fade-in duration-300">
-              {/* Primary Actions Group */}
+              {/* Primary Actions Group - hidden in reader mode */}
+              {showEditorActions && (
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
               <DocumentActionButton
                 accessLevels={accessLevels}
@@ -2155,6 +2233,39 @@ export function AssetContent({
                   />
                 </DocumentAccessControl>
               </div>
+              )}
+
+              {/* Mode Toggle - Reader / Editor */}
+              {canSwitchToEditorMode && (
+                <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                    className={`h-7 px-3 gap-1.5 hover:cursor-pointer text-xs font-medium rounded-md transition-all ${
+                      isViewMode
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Eye className="h-3 w-3" />
+                    Reader
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                    className={`h-7 px-3 gap-1.5 hover:cursor-pointer text-xs font-medium rounded-md transition-all ${
+                      !isViewMode
+                        ? 'bg-white text-[#4464f7] shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Edit3 className="h-3 w-3" />
+                    Editor
+                  </Button>
+                </div>
+              )}
               
               {/* Secondary Actions Group */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
@@ -2252,7 +2363,7 @@ export function AssetContent({
                 )}
                 
                 {/* Approve/Disapprove Buttons - Desktop Version - show conditionally based on execution status */}
-                {(() => {
+                {showEditorActions && (() => {
                   // Determine the current execution to show buttons for
                   let currentExecution = null;
                   let actualStatus = null;
@@ -2369,9 +2480,8 @@ export function AssetContent({
                   return null;
                 })()}
 
-                {/* Execution Actions Group */}
-                {/* Clone Button - Desktop - only show if there's an execution to clone */}
-                {selectedExecutionId && (
+                {/* Clone Button - Desktop - editor only */}
+                {showEditorActions && selectedExecutionId && (
                   <DocumentActionButton
                     accessLevels={accessLevels}
                     requiredAccess={["edit", "create"]}
@@ -2387,44 +2497,46 @@ export function AssetContent({
                     <Copy className="h-3.5 w-3.5" />
                   </DocumentActionButton>
                 )}
-                
-                
 
-                {/* Separator between execution and document actions */}
-                {selectedExecutionId && (
+                {/* Separator between execution and document actions - editor only */}
+                {showEditorActions && selectedExecutionId && (
                   <div className="h-5 w-px bg-gray-200 mx-1.5"></div>
                 )}
 
-                {/* Document Actions Group */}
-                <DocumentActionButton
-                  accessLevels={accessLevels}
-                  requiredAccess="edit"
-                  checkGlobalPermissions={true}
-                  resource="asset"
-                  onClick={openEditDialog}
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                  title="Edit Document"
-                >
-                  <Edit3 className="h-3 w-3" />
-                </DocumentActionButton>
+                {/* Document Actions Group - editor only */}
+                {showEditorActions && (
+                  <>
+                    <DocumentActionButton
+                      accessLevels={accessLevels}
+                      requiredAccess="edit"
+                      checkGlobalPermissions={true}
+                      resource="asset"
+                      onClick={openEditDialog}
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                      title="Edit Document"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </DocumentActionButton>
 
-                {/* Create Template from Document - only show if document has no template */}
-                {!documentContent?.template_name && canCreate('template') && (
-                  <DocumentActionButton
-                    accessLevels={accessLevels}
-                    requiredAccess="edit"
-                    checkGlobalPermissions={true}
-                    resource="asset"
-                    onClick={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                    title="Create Template from Asset"
-                  >
-                    <FileCode className="h-3 w-3" />
-                  </DocumentActionButton>
+                    {/* Create Template from Document - only show if document has no template */}
+                    {!documentContent?.template_name && canCreate('template') && (
+                      <DocumentActionButton
+                        accessLevels={accessLevels}
+                        requiredAccess="edit"
+                        checkGlobalPermissions={true}
+                        resource="asset"
+                        onClick={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                        title="Create Template from Asset"
+                      >
+                        <FileCode className="h-3 w-3" />
+                      </DocumentActionButton>
+                    )}
+                  </>
                 )}
                 
                 {/* <DocumentAccessControl
@@ -2459,44 +2571,46 @@ export function AssetContent({
                   </DropdownMenu>
                 {/* </DocumentAccessControl> */}
                 
-                {/* Delete Options */}
-                <DocumentAccessControl
-                  accessLevels={accessLevels}
-                  requiredAccess="delete"
-                  checkGlobalPermissions={true}
-                  resource="asset"
-                >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
-                        title="Delete Options"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      {selectedExecutionId && (
+                {/* Delete Options - editor only */}
+                {showEditorActions && (
+                  <DocumentAccessControl
+                    accessLevels={accessLevels}
+                    requiredAccess="delete"
+                    checkGlobalPermissions={true}
+                    resource="asset"
+                  >
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
+                          title="Delete Options"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        {selectedExecutionId && (
+                          <DropdownMenuItem
+                            onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Version
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
-                          onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
+                          onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Version
+                          <FileX className="mr-2 h-4 w-4" />
+                          Delete Document
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                      >
-                        <FileX className="mr-2 h-4 w-4" />
-                        Delete Document
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </DocumentAccessControl>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </DocumentAccessControl>
+                )}
               </div>
             </div>
             )}
@@ -2830,12 +2944,14 @@ export function AssetContent({
                             // New format: array of sections with separators
                             <>
                               {/* Add section button at the beginning */}
-                              <SectionSeparator 
-                                onAddSection={() => handleAddSectionAtPosition(-1)} 
-                                index={-1}
-                                isMobile={isMobile}
-                                accessLevels={accessLevels}
-                              />
+                              {showEditorActions && (
+                                <SectionSeparator 
+                                  onAddSection={() => handleAddSectionAtPosition(-1)} 
+                                  index={-1}
+                                  isMobile={isMobile}
+                                  accessLevels={accessLevels}
+                                />
+                              )}
                               
                               {documentContent.content.map((section: ContentSection, index: number) => {
                           const realSectionId = section.section_id;
@@ -2854,7 +2970,7 @@ export function AssetContent({
                                   onUpdate={() => {
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
                                   }}
-                                  readyToEdit={true}
+                                  readyToEdit={showEditorActions}
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
                                   executionId={
@@ -2887,14 +3003,16 @@ export function AssetContent({
                                 />
                               </div>
                               
-                              {/* Add separator after each section */}
-                              <SectionSeparator
-                                onAddSection={handleAddSectionAtPosition}
-                                index={index}
-                                isLastSection={index === documentContent.content.length - 1}
-                                isMobile={isMobile}
-                                accessLevels={accessLevels}
-                              />
+                              {/* Add separator after each section - editor mode only */}
+                              {showEditorActions && (
+                                <SectionSeparator
+                                  onAddSection={handleAddSectionAtPosition}
+                                  index={index}
+                                  isLastSection={index === documentContent.content.length - 1}
+                                  isMobile={isMobile}
+                                  accessLevels={accessLevels}
+                                />
+                              )}
                             </div>
                           );
                               })}
