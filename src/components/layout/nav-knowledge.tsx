@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2 } from "lucide-react"
+import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import type { MenuAction } from "@/types/menu-action"
 
 import {
@@ -25,6 +26,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
 import { moveDocument, deleteDocument } from "@/services/assets"
 import { CreateAssetDialog } from "@/components/assets/dialogs/assets-create-dialog"
+import { ImportAssetFromFileDialog } from "@/components/assets/dialogs/assets-import-from-file-dialog"
 import { CreateFolderDialog } from "@/components/assets/dialogs/assets-create-folder-dialog"
 import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-folder-dialog"
 import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog"
@@ -37,6 +39,7 @@ import { handleApiError } from "@/lib/error-utils"
 const NavKnowledgeContext = React.createContext<{
   fileTreeRef: React.RefObject<FileTreeRef | null>
   handleCreateAsset: (folderId?: string) => void
+  handleImportAsset: () => void
   handleCreateFolder: (folderId?: string) => void
   handleDeleteFolder: (folderId: string, folderName: string) => void
   handleEditFolder: (folderId: string, currentName: string) => void
@@ -46,10 +49,13 @@ const NavKnowledgeContext = React.createContext<{
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('layout')
   const navigate = useOrgNavigate()
   const fileTreeRef = useRef<FileTreeRef>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
   const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
+  const [importAssetDialogOpen, setImportAssetDialogOpen] = useState(false)
+  const [renderImportAssetDialog, setRenderImportAssetDialog] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false)
   const [deleteDocumentDialogOpen, setDeleteDocumentDialogOpen] = useState(false)
@@ -78,6 +84,11 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     setCurrentFolderId(folderId)
     setRenderCreateAssetDialog(true)
     setCreateAssetDialogOpen(true)
+  }, [])
+
+  const handleImportAsset = useCallback(() => {
+    setRenderImportAssetDialog(true)
+    setImportAssetDialogOpen(true)
   }, [])
 
   const handleCreateFolder = useCallback((folderId?: string) => {
@@ -149,15 +160,15 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
     try {
       await deleteFolder(folderToDelete.id, selectedOrganizationId)
-      toast.success(`Folder "${folderToDelete.name}" deleted successfully`)
+      toast.success(t('knowledge.folderDeletedSuccess', { name: folderToDelete.name }))
       setDeleteFolderDialogOpen(false)
       setFolderToDelete(null)
       fileTreeRef.current?.refresh()
     } catch (error) {
-      handleApiError(error, { fallbackMessage: 'Failed to delete folder. Please try again.' })
+      handleApiError(error, { fallbackMessage: t('knowledge.folderDeleteError') })
       throw error
     }
-  }, [folderToDelete, selectedOrganizationId])
+  }, [folderToDelete, selectedOrganizationId, t])
 
   // Stable callback for DeleteDocumentDialog onOpenChange.
   // Uses ref to read isDeletingDocument without closing over it.
@@ -178,7 +189,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     setIsDeletingDocument(true)
     try {
       await deleteDocument(doc.id, orgId)
-      toast.success(`Document "${doc.name}" deleted successfully`)
+      toast.success(t('knowledge.documentDeletedSuccess', { name: doc.name }))
 
       // ONLY close the dialog — keep isDeletingDocument=true so:
       //   1. ReusableAlertDialog's onOpenChange guard blocks any
@@ -200,7 +211,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         fileTreeRef.current?.refresh()
       }, 300)
     } catch (error) {
-      handleApiError(error, { fallbackMessage: 'Failed to delete document. Please try again.' })
+      handleApiError(error, { fallbackMessage: t('knowledge.documentDeleteError') })
       setIsDeletingDocument(false)
     }
   }, []) // stable — uses refs for mutable values
@@ -217,19 +228,33 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }
   }, [])
 
+  const handleImportAssetDialogChange = useCallback((open: boolean) => {
+    setImportAssetDialogOpen(open)
+    if (!open) {
+      setTimeout(() => setRenderImportAssetDialog(false), 300)
+    }
+  }, [])
+
   const refreshFileTree = useCallback(() => {
     console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
     fileTreeRef.current?.refresh()
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetDialog
           open={createAssetDialogOpen}
           onOpenChange={handleCreateAssetDialogChange}
           folderId={currentFolderId}
+          onAssetCreated={handleAssetCreated}
+        />
+      )}
+      {renderImportAssetDialog && (
+        <ImportAssetFromFileDialog
+          open={importAssetDialogOpen}
+          onOpenChange={handleImportAssetDialogChange}
           onAssetCreated={handleAssetCreated}
         />
       )}
@@ -296,8 +321,9 @@ export function useNavKnowledgeActions() {
 }
 
 export function NavKnowledgeHeader() {
+  const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleCreateFolder } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder } = useNavKnowledge()
   const { canCreate } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
@@ -311,7 +337,7 @@ export function NavKnowledgeHeader() {
   return (
     <SidebarGroup className="py-0">
       <div className="flex items-center justify-between">
-        <SidebarGroupLabel className="py-0 text-xs">Knowledge</SidebarGroupLabel>
+        <SidebarGroupLabel className="py-0 text-xs">{t('knowledge.sectionTitle')}</SidebarGroupLabel>
         <div className="flex items-center gap-1">
           <Button 
             variant="ghost" 
@@ -337,7 +363,18 @@ export function NavKnowledgeHeader() {
                     className="hover:cursor-pointer"
                   >
                     <File className="mr-2 h-4 w-4" />
-                    New Asset
+                    {t('knowledge.newAsset')}
+                  </DropdownMenuItem>
+                )}
+                {canCreateAsset && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setTimeout(() => handleImportAsset(), 0)
+                    }}
+                    className="hover:cursor-pointer"
+                  >
+                    <FileUp className="mr-2 h-4 w-4" />
+                    {t('knowledge.importAsset')}
                   </DropdownMenuItem>
                 )}
                 {canCreateFolder && (
@@ -348,7 +385,7 @@ export function NavKnowledgeHeader() {
                     className="hover:cursor-pointer"
                   >
                     <Folder className="mr-2 h-4 w-4" />
-                    New Folder
+                    {t('knowledge.newFolder')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -361,6 +398,7 @@ export function NavKnowledgeHeader() {
 }
 
 export function NavKnowledgeContent() {
+  const { t } = useTranslation('layout')
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
@@ -464,10 +502,10 @@ export function NavKnowledgeContent() {
 
       try {
         await moveFolder(folderId, parentFolderId === null ? undefined : parentFolderId, selectedOrganizationId)
-        toast.success('Folder moved successfully')
+        toast.success(t('knowledge.folderMovedSuccess'))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        handleApiError(error, { fallbackMessage: 'Failed to move folder. Please try again.' })
+        handleApiError(error, { fallbackMessage: t('knowledge.folderMoveError') })
       }
     },
     [selectedOrganizationId]
@@ -479,10 +517,10 @@ export function NavKnowledgeContent() {
 
       try {
         await moveDocument(documentId, folderId === null ? undefined : folderId, selectedOrganizationId)
-        toast.success('Document moved successfully')
+        toast.success(t('knowledge.documentMovedSuccess'))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        handleApiError(error, { fallbackMessage: 'Failed to move document. Please try again.' })
+        handleApiError(error, { fallbackMessage: t('knowledge.documentMoveError') })
       }
     },
     [selectedOrganizationId]
@@ -490,7 +528,7 @@ export function NavKnowledgeContent() {
 
   const menuActions: MenuAction[] = [
     {
-      label: "New Asset",
+      label: t('knowledge.newAsset'),
       icon: <File className="h-4 w-4" />,
       onClick: async (nodeId) => {
         handleCreateAsset(nodeId)
@@ -503,7 +541,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "New Folder",
+      label: t('knowledge.newFolder'),
       icon: <Folder className="h-4 w-4" />,
       onClick: async (nodeId) => {
         handleCreateFolder(nodeId)
@@ -516,7 +554,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "Edit Folder",
+      label: t('knowledge.editFolder'),
       icon: <Edit className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const folderName = folderNames.get(nodeId) || ""
@@ -530,7 +568,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "Delete Folder",
+      label: t('knowledge.deleteFolder'),
       icon: <Trash2 className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const folderName = folderNames.get(nodeId) || ""
@@ -544,7 +582,7 @@ export function NavKnowledgeContent() {
       variant: "destructive",
     },
     {
-      label: "Edit File",
+      label: t('knowledge.editFile'),
       icon: <Edit className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const documentName = documentNames.get(nodeId) || ""
@@ -558,7 +596,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "Delete File",
+      label: t('knowledge.deleteFile'),
       icon: <Trash2 className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const documentName = documentNames.get(nodeId) || ""
