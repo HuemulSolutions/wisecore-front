@@ -1,14 +1,16 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function SearchResultsSkeleton() {
+  const { t } = useTranslation('search');
   return (
     <div className="space-y-4">
       {/* Loading header with spinner */}
       <div className="flex items-center gap-2 mb-3">
         <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Searching through your documents...</p>
+        <p className="text-sm text-muted-foreground">{t('skeleton.searching')}</p>
       </div>
 
       {/* Skeleton for document cards */}

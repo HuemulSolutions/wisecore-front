@@ -1,11 +1,12 @@
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SectionResult } from "./search-section-result";
 import { useState } from "react";
 import { useOrganization } from "@/contexts/organization-context";
+import { HuemulButton } from "@/huemul/components/huemul-button";
+import { useTranslation } from "react-i18next";
 
 interface SearchResultSection {
   section_execution_id: string;
@@ -25,12 +26,15 @@ interface DocumentResultProps {
 }
 
 export function DocumentResult({ document }: DocumentResultProps) {
+  const { t } = useTranslation('search');
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedOrganizationId } = useOrganization();
 
   const handleOpenDocument = () => {
     window.open(`/${selectedOrganizationId}/asset/${document.document_id}`, '_blank');
   };
+
+  const sectionsCount = document.sections?.length || 0;
 
   return (
     <Card className="border border-border bg-card">
@@ -46,32 +50,32 @@ export function DocumentResult({ document }: DocumentResultProps) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-sm text-foreground mb-1">{document.document_name}</h3>
                 <div className="flex items-center gap-1.5 text-xs">
-                  <Badge className="bg-blue-100/80 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0.5">Documentación</Badge>
+                  <Badge className="bg-blue-100/80 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0.5">{t('document.badge')}</Badge>
                   <span className="text-muted-foreground text-[10px]">•</span>
                   <span className="text-muted-foreground text-[10px]">
-                    {document.sections?.length || 0} segmento{(document.sections?.length || 0) !== 1 ? 's' : ''} encontrado{(document.sections?.length || 0) !== 1 ? 's' : ''}
+                    {sectionsCount} {sectionsCount !== 1 ? t('document.segmentsFound') : t('document.segmentFound')}
                   </span>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
+              <HuemulButton
                 variant="outline"
                 size="sm"
+                icon={ExternalLink}
+                iconClassName="h-3 w-3 mr-1"
+                label={t('document.openAsset')}
                 onClick={handleOpenDocument}
                 className="hover:cursor-pointer h-8 text-xs px-2"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Open Asset
-              </Button>
+              />
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="hover:cursor-pointer h-8 w-8 p-0">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </Button>
+                <HuemulButton
+                  variant="ghost"
+                  size="sm"
+                  icon={isExpanded ? ChevronDown : ChevronRight}
+                  iconClassName="h-4 w-4"
+                  className="hover:cursor-pointer h-8 w-8 p-0"
+                />
               </CollapsibleTrigger>
             </div>
           </div>
@@ -82,7 +86,7 @@ export function DocumentResult({ document }: DocumentResultProps) {
             {document.sections && document.sections.length > 0 && (
               <div className="p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-3">
-                  Secciones encontradas:
+                  {t('document.sectionsFound')}
                 </h4>
                 <div className="space-y-2 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                   {document.sections.map((section, index) => (
