@@ -259,12 +259,11 @@ export function GlobalAdminOrganizationsSection() {
           open={!!state.deletingOrganization}
           onOpenChange={(open: boolean) => !open && closeDialog("deletingOrganization")}
           organization={state.deletingOrganization}
-          onConfirm={() => {
+          onConfirm={async () => {
             if (state.deletingOrganization) {
               deleteMutation.mutate(state.deletingOrganization.id)
             }
           }}
-          isDeleting={deleteMutation.isPending}
         />
       )}
 
