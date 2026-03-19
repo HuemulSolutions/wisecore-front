@@ -3,7 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import Markdown from "@/components/ui/markdown";
 import { useState } from 'react';
 import Editor from '../layout/editor';
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Textarea } from "@/components/ui/textarea";
 import {
     DropdownMenu,
@@ -11,7 +11,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { DeleteSectionExecutionDialog } from "@/components/assets/dialogs/assets-delete-section-execution-dialog";
 import { fixSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
@@ -40,7 +40,6 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [aiPreview, setAiPreview] = useState<string | null>(null);
     const [isAiProcessing, setIsAiProcessing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
 
     console.log('SectionExecution Props:', { sectionExecution });
 
@@ -60,16 +59,13 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
 
     const handleDelete = async () => {
         try {
-            setIsDeleting(true);
             const sectionId = sectionExecution.section_execution_id || sectionExecution.id;
             await deleteSectionExec(sectionId);
             toast.success("Section deleted successfully");
             onUpdate?.();
         } catch (error) {
             handleApiError(error, { fallbackMessage: 'Error deleting section. Please try again.' });
-        } finally {
-            setIsDeleting(false);
-            setShowDeleteDialog(false);
+            throw error;
         }
     };
 
@@ -77,24 +73,11 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
 
     return (
         <>
-            <ReusableAlertDialog
+            <DeleteSectionExecutionDialog
                 open={showDeleteDialog}
                 onOpenChange={setShowDeleteDialog}
-                title="Delete Section"
-                description={
-                    <>
-                        Are you sure you want to delete this section? This action cannot be undone.
-                        {sectionExecution.name && (
-                            <span className="block mt-2 font-medium">
-                                Section: {sectionExecution.name}
-                            </span>
-                        )}
-                    </>
-                }
-                onConfirm={handleDelete}
-                confirmLabel="Delete"
-                isProcessing={isDeleting}
-                variant="destructive"
+                sectionExecution={sectionExecution}
+                onAction={handleDelete}
             />
 
             <div className="p-4">
@@ -183,7 +166,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                         rows={3}
                     />
                     <div className="flex gap-2">
-                        <Button 
+                        <HuemulButton 
                             size="sm" 
                             onClick={() => {
                                 setIsAiProcessing(true);
@@ -208,22 +191,19 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 setAiPrompt('');
                             }}
                             disabled={!aiPrompt.trim() || isAiProcessing}
-                            className="hover:cursor-pointer"
                         >
                             <Send className="h-4 w-4 mr-2" />
                             Send
-                        </Button>
-                        <Button 
+                        </HuemulButton>
+                        <HuemulButton 
                             size="sm" 
                             variant="outline" 
                             onClick={() => {
                                 setIsAiEditing(false);
                                 setAiPrompt('');
                             }}
-                            className="hover:cursor-pointer"
-                        >
-                            Cancel
-                        </Button>
+                            label="Cancel"
+                        />
                     </div>
                 </div>
             )}
@@ -232,23 +212,19 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
                     <span className="text-sm text-amber-800">Vista previa de edición por IA lista. ¿Guardar cambios?</span>
                     <div className="flex gap-2">
-                        <Button
+                        <HuemulButton
                             size="sm"
                             onClick={() => handleSave(sectionExecution.section_execution_id || sectionExecution.id, aiPreview)}
                             disabled={isSaving}
-                            className="hover:cursor-pointer"
-                        >
-                            Guardar
-                        </Button>
-                        <Button
+                            label="Guardar"
+                        />
+                        <HuemulButton
                             size="sm"
                             variant="outline"
                             onClick={() => setAiPreview(null)}
                             disabled={isSaving}
-                            className="hover:cursor-pointer"
-                        >
-                            Deshacer
-                        </Button>
+                            label="Deshacer"
+                        />
                     </div>
                 </div>
             )}
