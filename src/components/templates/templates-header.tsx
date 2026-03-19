@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Button } from "@/components/ui/button";
 import { Plus, List, RefreshCw } from "lucide-react";
 
@@ -27,6 +29,8 @@ export function TemplateHeader({
   onAddSection,
   onRefresh,
 }: TemplateHeaderProps) {
+  const { t } = useTranslation('common');
+
   if (isMobile) {
     return (
       <div className="bg-white border-b border-gray-200 shadow-sm py-1 px-3 z-20 shrink-0">
@@ -52,27 +56,25 @@ export function TemplateHeader({
             )}
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              onClick={onRefresh}
+            <HuemulButton
+              icon={RefreshCw}
+              iconClassName="h-3.5 w-3.5"
               size="sm"
               variant="ghost"
+              loading={isRefreshing}
               disabled={isGenerating}
-              className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer shrink-0"
-            >
-              {isRefreshing ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            <Button
-              onClick={onAddSection}
+              tooltip={t('refresh')}
+              className="h-7 w-7 p-0 hover:bg-gray-100 shrink-0"
+              onClick={onRefresh}
+            />
+            <HuemulButton
+              icon={Plus}
+              iconClassName="h-3.5 w-3.5"
               size="sm"
               disabled={isGenerating}
-              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-7 shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
+              className="bg-[#4464f7] hover:bg-[#3451e6] h-7 shrink-0"
+              onClick={onAddSection}
+            />
           </div>
         </div>
       </div>

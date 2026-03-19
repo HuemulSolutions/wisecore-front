@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Input } from "@/components/ui/input";
 import {
   SidebarGroup,
@@ -56,6 +58,7 @@ export function TemplatesSidebar({
   canUpdate,
   canDelete,
 }: TemplatesSidebarProps) {
+  const { t } = useTranslation(['templates', 'common']);
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -92,21 +95,18 @@ export function TemplatesSidebar({
         <div className="py-2">
           <SidebarGroup className="py-0">
             <div className="flex items-center justify-between">
-              <SidebarGroupLabel className="py-0 text-xs">Templates</SidebarGroupLabel>
+              <SidebarGroupLabel className="py-0 text-xs">{t('templates:sidebar.title')}</SidebarGroupLabel>
               <div className="flex items-center gap-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-6 w-6 hover:cursor-pointer"
+                <HuemulButton
+                  icon={RefreshCw}
+                  iconClassName="h-4 w-4"
+                  variant="ghost"
+                  size="icon"
+                  loading={isLoading}
+                  tooltip={t('common:refresh')}
+                  className="h-6 w-6"
                   onClick={() => onRefresh?.()}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                </Button>
+                />
                 {canCreate && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -119,7 +119,7 @@ export function TemplatesSidebar({
                         setTimeout(() => setIsDialogOpen(true), 0);
                       }} className="hover:cursor-pointer">
                         <FileText className="mr-2 h-4 w-4" />
-                        New Template
+                        {t('templates:sidebar.newTemplate')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -133,7 +133,7 @@ export function TemplatesSidebar({
             <div className="relative">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
               <Input
-                placeholder="Search templates..."
+                placeholder={t('templates:sidebar.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-7 h-7 text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -150,34 +150,34 @@ export function TemplatesSidebar({
                   {error ? (
                 <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed p-6">
                   <p className="text-red-600 mb-3 font-medium text-sm">
-                    {(error as Error).message || 'Failed to load templates'}
+                    {(error as Error).message || t('templates:sidebar.loadError')}
                   </p>
                   <p className="text-xs text-muted-foreground mb-4">
-                    There was an error loading the templates. Please try again.
+                    {t('templates:sidebar.loadErrorDescription')}
                   </p>
-                  <Button 
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ["templates", organizationId] })} 
-                    variant="outline" 
+                  <HuemulButton
+                    icon={RefreshCw}
+                    iconClassName="h-3.5 w-3.5 mr-2"
+                    label={t('common:tryAgain')}
+                    variant="outline"
                     size="sm"
-                    className="hover:cursor-pointer h-8"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                    Try Again
-                  </Button>
+                    className="h-8"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ["templates", organizationId] })}
+                  />
                 </div>
               ) : isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                  <span className="ml-2 text-sm text-gray-500">{t('templates:sidebar.loading')}</span>
                 </div>
               ) : filteredTemplates.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm mb-2">
-                    {searchTerm ? 'No templates match your search' : 'No templates found'}
+                    {searchTerm ? t('templates:sidebar.noTemplatesMatchSearch') : t('templates:sidebar.noTemplatesFound')}
                   </p>
                   {!searchTerm && (
-                    <p className="text-xs">Create your first template to get started</p>
+                    <p className="text-xs">{t('templates:sidebar.noTemplatesHint')}</p>
                   )}
                 </div>
               ) : (

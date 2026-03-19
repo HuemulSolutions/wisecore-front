@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulField } from "@/huemul/components/huemul-field";
 import { updateTemplate } from "@/services/templates";
 import { Edit3 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ export function EditTemplateDialog({
   organizationId,
   onSuccess,
 }: EditTemplateDialogProps) {
+  const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -40,7 +41,7 @@ export function EditTemplateDialog({
   const updateTemplateMutation = useMutation({
     mutationFn: (data: any) => updateTemplate(templateId, data, organizationId),
     onSuccess: () => {
-      toast.success("Template updated successfully");
+      toast.success(t('edit.success'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
       onSuccess();
       onOpenChange(false);
@@ -55,43 +56,40 @@ export function EditTemplateDialog({
   };
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit Template"
-      description="Update the template name and description."
+      title={t('edit.title')}
+      description={t('edit.description')}
       icon={Edit3}
-      onSubmit={handleSubmit}
-      submitLabel="Update Template"
-      isSubmitting={updateTemplateMutation.isPending}
-      isValid={!!editName.trim()}
-      showDefaultFooter
-      maxHeight="90vh"
+      saveAction={{
+        label: t('edit.submitLabel'),
+        onClick: handleSubmit,
+        disabled: !editName.trim(),
+        loading: updateTemplateMutation.isPending,
+        closeOnSuccess: false,
+      }}
     >
-      <div className="space-y-3">
-        <div>
-          <label className="text-sm font-medium text-gray-900 block mb-2">
-            Template Name *
-          </label>
-          <Input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            placeholder="Enter template name..."
-            required
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-gray-900 block mb-2">
-            Description
-          </label>
-          <Textarea
-            value={editDescription}
-            onChange={(e) => setEditDescription(e.target.value)}
-            placeholder="Enter template description (optional)..."
-            rows={3}
-          />
-        </div>
+      <div className="space-y-4 py-2">
+        <HuemulField
+          label={t('form.templateName')}
+          type="text"
+          value={editName}
+          onChange={(v) => setEditName(String(v))}
+          placeholder={t('form.templateNamePlaceholder')}
+          required
+          disabled={updateTemplateMutation.isPending}
+        />
+        <HuemulField
+          label={t('form.description')}
+          type="textarea"
+          value={editDescription}
+          onChange={(v) => setEditDescription(String(v))}
+          placeholder={t('form.descriptionPlaceholder')}
+          rows={3}
+          disabled={updateTemplateMutation.isPending}
+        />
       </div>
-    </ReusableDialog>
+    </HuemulDialog>
   );
 }
