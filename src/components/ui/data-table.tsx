@@ -4,6 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MoreVertical, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import type { DataTableProps } from "@/types/data-table"
+import { useTranslation } from "react-i18next"
 
 export type { TableColumn, TableAction, EmptyState, FooterStat, DataTableProps, PaginationConfig } from "@/types/data-table"
 
@@ -23,6 +24,7 @@ export function DataTable<T>({
   pagination,
   showFooterStats = true
 }: DataTableProps<T>) {
+  const { t } = useTranslation('common')
   const EmptyIcon = emptyState?.icon
   const isAllSelected = showCheckbox && data.length > 0 && selectedItems?.size === data.length
   const isIndeterminate = showCheckbox && selectedItems && selectedItems.size > 0 && selectedItems.size < data.length
@@ -73,7 +75,7 @@ export function DataTable<T>({
                 </th>
               ))}
               {actions && actions.length > 0 && (
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground w-20">Actions</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground w-20">{t('actions')}</th>
               )}
             </tr>
           </thead>
@@ -169,7 +171,7 @@ export function DataTable<T>({
           {/* Items per page selector */}
           {pagination.onPageSizeChange && pagination.pageSizeOptions && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Items per page:</span>
+              <span className="text-xs text-muted-foreground">{t('pagination.itemsPerPage')}</span>
               <Select
                 value={pagination.pageSize.toString()}
                 onValueChange={(value) => pagination.onPageSizeChange?.(Number(value))}
@@ -193,12 +195,12 @@ export function DataTable<T>({
             <span className="text-xs text-muted-foreground">
               {pagination.totalItems !== undefined ? (
                 <>
-                  Page {pagination.page} of {Math.ceil(pagination.totalItems / pagination.pageSize) || 1}
-                  {" "}({pagination.totalItems} items)
+                  {t('pagination.page')} {pagination.page} {t('pagination.of')} {Math.ceil(pagination.totalItems / pagination.pageSize) || 1}
+                  {" "}({pagination.totalItems} {t('pagination.items')})
                 </>
               ) : (
                 <>
-                  Page {pagination.page} ({data.length} items)
+                  {t('pagination.page')} {pagination.page} ({data.length} {t('pagination.items')})
                 </>
               )}
             </span>
