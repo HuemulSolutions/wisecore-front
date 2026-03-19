@@ -1,28 +1,28 @@
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { useTranslation } from "react-i18next"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 
 interface RemoveDependencyDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: () => void
-  isProcessing: boolean
+  onAction: () => Promise<void>
 }
 
 export function RemoveDependencyDialog({
   open,
   onOpenChange,
-  onConfirm,
-  isProcessing,
+  onAction,
 }: RemoveDependencyDialogProps) {
+  const { t } = useTranslation('dependencies')
+
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Remove Dependency"
-      description="Are you sure you want to remove this dependency? This action cannot be undone and may affect document relationships."
-      onConfirm={onConfirm}
-      confirmLabel="Remove"
-      isProcessing={isProcessing}
-      variant="destructive"
+      title={t('deleteDialog.title')}
+      description={t('deleteDialog.description')}
+      onAction={onAction}
+      actionLabel={t('deleteDialog.removeButton')}
+      actionVariant="destructive"
     />
   )
 }
