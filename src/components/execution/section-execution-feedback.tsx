@@ -105,13 +105,23 @@ export function SectionExecutionFeedback({
   useEffect(() => {
     if (!sectionsStatus || isDismissed) return;
 
-    // Check if all sections are done (completed successfully)
-    const allSectionsDone = sectionsStatus.sections?.every(
-      (section: any) => section.status === 'done'
-    );
+    // Check completion based on execution mode:
+    // - 'single': only the target section needs to be done
+    // - 'from': all sections from the target order onwards must be done
+    let relevantSectionsDone: boolean;
+    if (executionMode === 'single') {
+      relevantSectionsDone = currentSectionStatus?.status === 'done';
+    } else {
+      const sectionsFromTarget = sectionsStatus.sections?.filter(
+        (s: any) => s.order >= targetOrder
+      ) ?? [];
+      relevantSectionsDone =
+        sectionsFromTarget.length > 0 &&
+        sectionsFromTarget.every((s: any) => s.status === 'done');
+    }
 
-    if (allSectionsDone) {
-      console.log(`🛑 All sections completed, stopping polling`);
+    if (relevantSectionsDone) {
+      console.log(`🛑 Relevant sections completed (mode: ${executionMode}), stopping polling`);
       setPollingInterval(false);
 
       // Show toast only once but don't dismiss banner automatically
@@ -126,7 +136,7 @@ export function SectionExecutionFeedback({
         onComplete?.();
       }
     }
-  }, [sectionsStatus, hasShownCompletedToast, executionMode, onComplete, isDismissed]);
+  }, [sectionsStatus, currentSectionStatus?.status, hasShownCompletedToast, executionMode, onComplete, isDismissed, targetOrder]);
 
   // Separate effect to handle errors via overall execution status
   const { data: executionStatus } = useQuery({

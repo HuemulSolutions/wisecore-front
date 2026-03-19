@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
-import { Button } from "@/components/ui/button";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { createTemplateSection } from "@/services/template_section";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { Plus } from "lucide-react";
@@ -24,6 +24,7 @@ export function AddSectionDialog({
   existingSections,
   onGeneratingChange,
 }: AddSectionDialogProps) {
+  const { t } = useTranslation(['sections', 'templates', 'common']);
   const queryClient = useQueryClient();
   const [isFormValid, setIsFormValid] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -36,7 +37,7 @@ export function AddSectionDialog({
   const addSectionMutation = useMutation({
     mutationFn: (sectionData: any) => createTemplateSection(sectionData, organizationId),
     onSuccess: () => {
-      toast.success("Section created successfully");
+      toast.success(t('sections:toast.sectionCreated'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
       onOpenChange(false);
       setIsFormValid(false);
@@ -44,58 +45,37 @@ export function AddSectionDialog({
   });
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
-      onOpenChange={onOpenChange}
-      title="Add New Section"
-      description="Create a structured section for your template with custom content and dependencies."
+      onOpenChange={(o) => {
+        if (!o) setIsFormValid(false);
+        onOpenChange(o);
+      }}
+      title={t('sections:addDialog.title')}
+      description={t('templates:addSection.description')}
       icon={Plus}
-      maxWidth="xl"
-      maxHeight="90vh"
-      footer={
-        <>
-          <Button
-            variant="outline"
-            onClick={() => {
-              onOpenChange(false);
-              setIsFormValid(false);
-            }}
-            className="hover:cursor-pointer"
-            disabled={addSectionMutation.isPending || isGenerating}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="add-section-form"
-            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-            disabled={addSectionMutation.isPending || !isFormValid}
-          >
-            {addSectionMutation.isPending ? (
-              <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Adding Section...
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Save Section
-              </>
-            )}
-          </Button>
-        </>
-      }
+      maxWidth="sm:max-w-3xl"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('common:cancel')}
+      saveAction={{
+        label: addSectionMutation.isPending ? t('templates:addSection.saving') : t('templates:addSection.save'),
+        icon: Plus,
+        disabled: !isFormValid || addSectionMutation.isPending || isGenerating,
+        loading: addSectionMutation.isPending,
+        closeOnSuccess: false,
+        onClick: () => {
+          (document.getElementById("add-section-form") as HTMLFormElement)?.requestSubmit();
+        },
+      }}
     >
-      <div className="space-y-4">
-        <AddSectionFormSheet
-          templateId={templateId}
-          onSubmit={(values: any) => addSectionMutation.mutate(values)}
-          isPending={addSectionMutation.isPending}
-          existingSections={existingSections}
-          onValidationChange={setIsFormValid}
-          onGeneratingChange={handleGeneratingChange}
-        />
-      </div>
-    </ReusableDialog>
+      <AddSectionFormSheet
+        templateId={templateId}
+        onSubmit={(values: any) => addSectionMutation.mutate(values)}
+        isPending={addSectionMutation.isPending}
+        existingSections={existingSections}
+        onValidationChange={setIsFormValid}
+        onGeneratingChange={handleGeneratingChange}
+      />
+    </HuemulDialog>
   );
 }

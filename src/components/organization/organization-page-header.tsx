@@ -1,6 +1,7 @@
 "use client"
 
 import { Plus, Building2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 
 interface OrganizationPageHeaderProps {
@@ -22,22 +23,24 @@ export function OrganizationPageHeader({
   onSearchChange,
   canManage = false
 }: OrganizationPageHeaderProps) {
+  const { t } = useTranslation(['organizations'])
+
   return (
     <PageHeader
       icon={Building2}
-      title="Organizations"
+      title={t('organizations:header.title')}
       badges={[
         { label: "", value: isLoading ? "..." : organizationCount }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       primaryAction={canManage ? {
-        label: "Create Organization",
+        label: t('organizations:header.createOrganization'),
         icon: Plus,
         onClick: onCreateOrganization
       } : undefined}
       searchConfig={{
-        placeholder: "Search organizations...",
+        placeholder: t('organizations:header.searchPlaceholder'),
         value: searchTerm,
         onChange: onSearchChange
       }}

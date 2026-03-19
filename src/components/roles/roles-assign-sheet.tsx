@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
-import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -148,14 +148,12 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                 <p className="text-sm text-muted-foreground mb-6">
                   {t('roles:assignRoles.errorDescription')}
                 </p>
-                <Button
+                <HuemulButton
+                  label={t('common:tryAgain')}
+                  icon={RefreshCw}
                   onClick={handleRetry}
                   variant="outline"
-                  className="hover:cursor-pointer"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  {t('common:tryAgain')}
-                </Button>
+                />
               </div>
             ) : roles.length === 0 ? (
               <Card className="p-6 text-center">

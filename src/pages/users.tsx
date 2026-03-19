@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from 'react-i18next'
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type User, type UsersResponse } from "@/types/users"
@@ -40,6 +41,7 @@ export default function UsersPage() {
   const { canAccessUsers, isOrgAdmin, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const queryClient = useQueryClient()
+  const { t } = useTranslation(['users', 'common'])
   
   // Permisos específicos
   const canListUsers = isOrgAdmin || hasAnyPermission(['user:l', 'user:r'])
@@ -107,9 +109,9 @@ export default function UsersPage() {
       await queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       // Refetch to trigger the query execution
       await refetch()
-      toast.success('Data refreshed')
+      toast.success(t('common:dataRefreshed'))
     } catch (error) {
-      handleApiError(error, { fallbackMessage: 'Failed to refresh data' })
+      handleApiError(error, { fallbackMessage: t('common:refreshFailed') })
     } finally {
       setIsRefreshing(false)
     }
@@ -181,7 +183,7 @@ export default function UsersPage() {
         {isError ? (
           <UserContentEmptyState 
             type="error" 
-            message="Error loading users" 
+            message={t('users:emptyState.errorLoading')} 
             onRetry={handleRefresh}
           />
         ) : filteredUsers.length === 0 ? (

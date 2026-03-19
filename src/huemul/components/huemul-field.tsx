@@ -1,7 +1,10 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon } from "lucide-react";
+import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import type { Value } from "platejs";
+
+import { PlateRichEditor } from "@/components/plate-editor";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -41,6 +44,8 @@ export type HuemulFieldType =
   | "number"
   | "tel"
   | "url"
+  | "time"
+  | "datetime"
   | "textarea"
   | "select"
   | "checkbox"
@@ -49,7 +54,8 @@ export type HuemulFieldType =
   | "combobox"
   | "color"
   | "date"
-  | "radio";
+  | "radio"
+  | "richtext";
 
 export interface HuemulFieldOption {
   /** Display label */
@@ -60,6 +66,8 @@ export interface HuemulFieldOption {
   description?: string;
   /** Optional icon for each option */
   icon?: LucideIcon;
+  /** Optional hex color — renders a filled circle before the label */
+  color?: string;
 }
 
 export interface HuemulFieldLabelAction {
@@ -121,6 +129,8 @@ export interface HuemulFieldProps {
   accept?: string;
   /** Allow multiple files */
   multiple?: boolean;
+  /** Called with the selected FileList (use this to access actual File objects) */
+  onFileChange?: (files: FileList | null) => void;
 
   // ── Textarea ──────────────────────────────────────────────────────────
   /** Number of visible rows for textarea (default: 3) */
@@ -138,7 +148,19 @@ export interface HuemulFieldProps {
   /** Label for checkbox / switch placed inline after the control */
   checkLabel?: string;
 
+  // ── Rich text ─────────────────────────────────────────────────────────
+  /** Current Plate editor value (for richtext type) */
+  richTextValue?: Value;
+  /** Change handler for richtext type — receives Plate Value nodes */
+  onRichTextChange?: (value: Value) => void;
+  /** Minimum height for the rich text editor */
+  richTextMinHeight?: string;
+
   // ── Layout ────────────────────────────────────────────────────────────
+  /** Force the control to render stacked (label above, control below) even for switch/checkbox. Defaults to true for switch/checkbox. */
+  inline?: boolean;
+  /** When inline=true (switch/checkbox), render label before the control instead of after. */
+  labelFirst?: boolean;
   /** Additional className on the outermost wrapper */
   className?: string;
   /** Additional className on the input / control element */
@@ -294,7 +316,7 @@ function ComboboxField({
             </button>
           )}
         </div>
-        <div className="max-h-60 overflow-y-auto p-1">
+        <div className="max-h-60 overflow-y-auto p-1" onWheel={(e) => e.stopPropagation()}>
           {filtered.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               No results found.
@@ -470,6 +492,89 @@ function ColorField({
   );
 }
 
+// ── File Field ────────────────────────────────────────────────────────────
+
+function FileInputField({
+  fieldId,
+  name,
+  accept,
+  multiple,
+  disabled,
+  required,
+  autoFocus,
+  error,
+  inputClassName,
+  onChange,
+  onFileChange,
+}: {
+  fieldId: string;
+  name?: string;
+  accept?: string;
+  multiple?: boolean;
+  disabled?: boolean;
+  required?: boolean;
+  autoFocus?: boolean;
+  error?: string;
+  inputClassName?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileChange?: (files: FileList | null) => void;
+}) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = React.useState<string | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      setFileName(
+        files.length === 1
+          ? files[0].name
+          : `${files.length} files selected`,
+      );
+    } else {
+      setFileName(null);
+    }
+    onFileChange?.(files);
+    onChange?.(e);
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        id={fieldId}
+        name={name}
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        disabled={disabled}
+        required={required}
+        autoFocus={autoFocus}
+        aria-invalid={!!error || undefined}
+        className="sr-only"
+        onChange={handleChange}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        aria-invalid={!!error || undefined}
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "w-full justify-start gap-2 font-normal hover:cursor-pointer",
+          !fileName && "text-muted-foreground",
+          error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+          inputClassName,
+        )}
+      >
+        <UploadIcon className="size-4 shrink-0" />
+        <span className="truncate">
+          {fileName ?? "Choose a file..."}
+        </span>
+      </Button>
+    </>
+  );
+}
+
 // ── Date Field ────────────────────────────────────────────────────────────
 
 function DateInputField({
@@ -547,19 +652,25 @@ export function HuemulField({
   options = [],
   accept,
   multiple,
+  onFileChange,
   rows = 3,
   min,
   max,
   step,
   checkLabel,
+  richTextValue,
+  onRichTextChange,
+  richTextMinHeight = "200px",
   className,
   inputClassName,
   autoFocus,
   autoComplete,
+  inline,
+  labelFirst,
   children,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
-  const isInline = type === "checkbox" || type === "switch";
+  const isInline = (type === "checkbox" || type === "switch") && inline !== false;
   const { t } = useTranslation('common');
 
   // ── Handlers ────────────────────────────────────────────────────────
@@ -637,7 +748,13 @@ export function HuemulField({
                 {options.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     <span className="flex items-center gap-2">
-                      {opt.icon &&
+                      {opt.color && (
+                        <span
+                          className="size-3 rounded-full shrink-0 border border-border/40 inline-block"
+                          style={{ backgroundColor: opt.color }}
+                        />
+                      )}
+                      {opt.icon && !opt.color &&
                         React.createElement(opt.icon, {
                           className: "size-4 text-muted-foreground",
                         })}
@@ -697,19 +814,40 @@ export function HuemulField({
             value={String(value ?? "")}
             onValueChange={handleSelectChange}
             disabled={disabled}
-            className={cn("flex flex-row gap-6", inputClassName)}
+            className={cn("flex flex-row flex-wrap gap-4", inputClassName)}
           >
-            {options.map((opt) => (
-              <div key={opt.value} className="flex items-center gap-2">
-                <RadioGroupItem value={opt.value} id={`${fieldId}-${opt.value}`} />
-                <Label
-                  htmlFor={`${fieldId}-${opt.value}`}
-                  className="hover:cursor-pointer font-normal"
-                >
-                  {opt.label}
-                </Label>
-              </div>
-            ))}
+            {options.map((opt) => {
+              const isSelected = String(value ?? "") === opt.value;
+              return (
+                <div key={opt.value} className="flex items-center">
+                  <RadioGroupItem
+                    value={opt.value}
+                    id={`${fieldId}-${opt.value}`}
+                    className="sr-only"
+                  />
+                  <Label
+                    htmlFor={`${fieldId}-${opt.value}`}
+                    className={cn(
+                      "inline-flex items-center gap-2 text-sm font-medium transition-colors hover:cursor-pointer select-none",
+                      isSelected ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                      disabled && "pointer-events-none opacity-50",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-full border-1 transition-colors",
+                        isSelected ? "border-primary" : "border-muted-foreground/50",
+                      )}
+                    >
+                      {isSelected && (
+                        <span className="size-2 rounded-full bg-primary" />
+                      )}
+                    </span>
+                    {opt.label}
+                  </Label>
+                </div>
+              );
+            })}
           </RadioGroup>
         );
 
@@ -759,16 +897,54 @@ export function HuemulField({
           </div>
         );
 
+      case "richtext":
+        return (
+          <div
+            className={cn(
+              "w-full rounded-md",
+              error && "ring-2 ring-destructive/30 rounded-md",
+              inputClassName,
+            )}
+            style={{ minHeight: richTextMinHeight }}
+          >
+            <PlateRichEditor
+              value={richTextValue}
+              onChange={onRichTextChange}
+              readOnly={disabled || readOnly}
+              variant="section"
+              showToolbar={!readOnly}
+            />
+          </div>
+        );
+
       case "file":
+        return (
+          <FileInputField
+            fieldId={fieldId}
+            name={name}
+            accept={accept}
+            multiple={multiple}
+            disabled={disabled}
+            required={required}
+            autoFocus={autoFocus}
+            error={error}
+            inputClassName={inputClassName}
+            onChange={handleInputChange}
+            onFileChange={onFileChange}
+          />
+        );
+
+      case "datetime":
         return (
           <Input
             id={fieldId}
             name={name}
-            type="file"
+            type="datetime-local"
+            value={String(value ?? "")}
             onChange={handleInputChange}
-            accept={accept}
-            multiple={multiple}
+            placeholder={placeholder}
             disabled={disabled}
+            readOnly={readOnly}
             required={required}
             autoFocus={autoFocus}
             aria-invalid={baseInvalid || undefined}
@@ -776,7 +952,7 @@ export function HuemulField({
           />
         );
 
-      // text, email, password, number, tel, url
+      // text, email, password, number, tel, url, time
       default:
         return (
           <Input
@@ -818,10 +994,32 @@ export function HuemulField({
       {/* ── Inline row (switch/checkbox) or stacked label+control ── */}
       {isInline ? (
         <div className="flex flex-row items-center gap-3">
-          {/* Control first */}
+          {/* Label row (left) */}
+          {labelFirst && (
+            <div className="flex items-center gap-1">
+              <Label
+                htmlFor={fieldId}
+                className={cn(
+                  "text-sm font-medium leading-snug",
+                  disabled && "opacity-50",
+                )}
+              >
+                {label}
+              </Label>
+              {required && (
+                <Asterisk
+                  className="size-3 text-destructive shrink-0"
+                  aria-label="required"
+                />
+              )}
+              {helpText && <FieldHelpButton helpText={helpText} />}
+              {labelAction && <FieldLabelAction action={labelAction} />}
+            </div>
+          )}
+          {/* Control */}
           <div>{renderControl()}</div>
-          {/* Label row */}
-          <div className="flex items-center gap-1">
+          {/* Label row (right) */}
+          {!labelFirst && <div className="flex items-center gap-1">
             <Label
               htmlFor={fieldId}
               className={cn(
@@ -842,7 +1040,7 @@ export function HuemulField({
             {helpText && <FieldHelpButton helpText={helpText} />}
 
             {labelAction && <FieldLabelAction action={labelAction} />}
-          </div>
+          </div>}
         </div>
       ) : (
         <>

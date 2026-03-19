@@ -4,8 +4,9 @@ import * as React from "react"
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { createDocument } from "@/services/assets"
 import { getAllTemplates } from "@/services/templates"
 import { useOrganization } from "@/contexts/organization-context"
@@ -18,6 +19,8 @@ import AssetFormFields from "@/components/assets/content/assets-form-fields"
 function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
+  const { t } = useTranslation('assets')
+  const { t: tCommon } = useTranslation('common')
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [internalCode, setInternalCode] = useState("")
@@ -63,7 +66,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
     queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
     queryClient.invalidateQueries({ queryKey: ['document-types'] })
     
-    toast.success(`Asset type "${newDocType.name}" created and selected`)
+    toast.success(t('create.assetTypeCreatedAndSelected', { name: newDocType.name }))
   }
 
   // Handle document type dialog close
@@ -89,7 +92,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
     },
     onSuccess: (createdAsset) => {
       console.log('✅ [CREATE-DIALOG] Asset created successfully:', createdAsset)
-      toast.success("Asset created successfully")
+      toast.success(t('create.success'))
       
       // Close dialog first
       console.log('🚪 [CREATE-DIALOG] Closing dialog')
@@ -111,22 +114,20 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
       // Extract error message from response
       const errorMessage = error?.response?.data?.error || 
                           error?.message || 
-                          "Failed to create asset"
+                          t('create.errorFailed')
       
       toast.error(errorMessage)
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleCreate = () => {
     if (!selectedOrganizationId) {
-      toast.error("Organization is required")
+      toast.error(t('create.errorOrganizationRequired'))
       return
     }
 
     if (!documentTypeId) {
-      toast.error("Asset type is required")
+      toast.error(t('create.errorAssetTypeRequired'))
       return
     }
 
@@ -156,23 +157,29 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
     createAssetMutation.mutate(assetData)
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    handleCreate()
+  }
+
   return (
     <>
-      <ReusableDialog
+      <HuemulDialog
         open={open}
         onOpenChange={onOpenChange}
-        title="Create Asset"
-        description="Enter the asset information to create a new asset."
+        title={t('create.title')}
+        description={t('create.description')}
         icon={Plus}
-        maxWidth="lg"
-        maxHeight="90vh"
-        showDefaultFooter
-        onCancel={() => onOpenChange(false)}
-        submitLabel="Create Asset"
-        cancelLabel="Cancel"
-        isSubmitting={createAssetMutation.isPending}
-        isValid={!!name.trim() && !!documentTypeId && !!selectedOrganizationId}
-        formId="create-asset-form"
+        maxWidth="sm:max-w-2xl"
+        maxHeight="max-h-[90vh]"
+        cancelLabel={tCommon('cancel')}
+        saveAction={{
+          label: t('create.submitLabel'),
+          onClick: handleCreate,
+          loading: createAssetMutation.isPending,
+          disabled: !name.trim() || !documentTypeId || !selectedOrganizationId,
+          closeOnSuccess: false,
+        }}
       >
         <form id="create-asset-form" onSubmit={handleSubmit}>
           <AssetFormFields
@@ -196,7 +203,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
             disabled={createAssetMutation.isPending}
           />
         </form>
-      </ReusableDialog>
+      </HuemulDialog>
       
       {/* Create Document Type Dialog */}
       {showCreateDocTypeDialog && (

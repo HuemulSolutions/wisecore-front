@@ -228,7 +228,7 @@ export function ConfigStepContent({
               }
             }}
             disabled={!isEditing}
-            className="w-auto"
+            labelFirst
           />
           {slaEnabled && (
             <div className="flex items-center gap-2 pl-1">

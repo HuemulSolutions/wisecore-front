@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { ReusableDialog } from '@/components/ui/reusable-dialog';
-import NameDescriptionFields from '../assets/content/name-description-fields';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { HuemulField } from '@/huemul/components/huemul-field';
+import { useTranslation } from 'react-i18next';
 
 interface CreateOrganizationDialogProps {
   open: boolean;
@@ -18,6 +19,7 @@ export function CreateOrganizationDialog({
 }: CreateOrganizationDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const { t } = useTranslation('organizations');
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -27,48 +29,54 @@ export function CreateOrganizationDialog({
     }
   }, [open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim()) {
-      onSubmit({
-        name: name.trim(),
-        description: description.trim() || undefined
-      });
-    }
-  };
-
   const isValid = name.trim().length > 0;
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Create New Organization"
-      description="Create a new organization to manage documents and users."
+      title={t('create.title')}
+      description={t('create.description')}
       icon={Plus}
-      maxWidth="md"
-      formId="create-organization-form"
-      isValid={isValid}
-      isSubmitting={isPending}
-      submitLabel="Create Organization"
-      maxHeight="90vh"
-      showDefaultFooter={true}
+      maxWidth="sm:max-w-lg"
+      saveAction={{
+        label: t('create.button'),
+        icon: Plus,
+        disabled: !isValid || isPending,
+        loading: isPending,
+        closeOnSuccess: false,
+        onClick: () => {
+          if (name.trim()) {
+            onSubmit({
+              name: name.trim(),
+              description: description.trim() || undefined
+            });
+          }
+        }
+      }}
     >
-      <form id="create-organization-form" onSubmit={handleSubmit} className="grid gap-6">
-        <NameDescriptionFields
-          name={name}
-          description={description}
-          onNameChange={setName}
-          onDescriptionChange={setDescription}
-          nameLabel="Organization Name *"
-          descriptionLabel="Description (Optional)"
-          namePlaceholder="Enter organization name"
-          descriptionPlaceholder="Enter organization description"
+      <div className="grid gap-5 py-2">
+        <HuemulField
+          type="text"
+          label={t('form.name')}
+          name="name"
+          placeholder={t('form.namePlaceholder')}
+          value={name}
+          onChange={(v) => setName(String(v))}
+          required
           disabled={isPending}
-          nameRequired={true}
-          descriptionRequired={false}
         />
-      </form>
-    </ReusableDialog>
+        <HuemulField
+          type="textarea"
+          label={t('form.description')}
+          name="description"
+          placeholder={t('form.descriptionPlaceholder')}
+          value={description}
+          onChange={(v) => setDescription(String(v))}
+          disabled={isPending}
+          rows={3}
+        />
+      </div>
+    </HuemulDialog>
   );
 }

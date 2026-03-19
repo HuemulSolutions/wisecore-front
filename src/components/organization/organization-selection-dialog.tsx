@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ReusableDialog } from '@/components/ui/reusable-dialog';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import {
   Select,
   SelectContent,
@@ -9,13 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
+import { HuemulButton } from '@/huemul/components/huemul-button';
 import { Label } from '@/components/ui/label';
 import { Building2, CheckCircle, Settings } from 'lucide-react';
 import { getUserOrganizations, generateOrganizationToken } from '@/services/organizations';
 import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useTranslation } from 'react-i18next';
 import ProtectedComponent from '../protected-component';
 import type { UserOrganization } from '@/types/users';
 
@@ -27,6 +28,7 @@ interface OrganizationSelectionDialogProps {
 
 export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrganizationId }: OrganizationSelectionDialogProps) {
   const [selectedOrgId, setSelectedOrgId] = useState<string>(preselectedOrganizationId || '');
+  const { t } = useTranslation('organizations');
   
   const { selectedOrganizationId, setSelectedOrganizationId, setOrganizations, setOrganizationToken, organizationToken, setRequiresOrganizationSelection } = useOrganization();
   const { user } = useAuth();
@@ -119,116 +121,115 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
   };
 
   return (
-      <ReusableDialog
+      <HuemulDialog
         open={open}
         onOpenChange={onOpenChange || (() => {})}
-        title="Select Organization"
-        description="Please select an organization to continue using Wisecore."
+        title={t('selection.title')}
+        description={t('selection.description')}
         icon={Building2}
-        maxWidth="md"
-        maxHeight="90vh"
-        footer={
-            <div className="flex flex-col gap-3 w-full">
-              <Button
-                onClick={() => handleSelectOrganization()}
-                disabled={Boolean(!selectedOrgId || isLoading || generateTokenMutation.isPending || (organizationToken && permissionsLoading))}
-                className="w-full bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                {generateTokenMutation.isPending 
-                  ? 'Generating token...' 
-                  : (organizationToken && permissionsLoading)
-                  ? 'Loading permissions...'
-                  : 'Continue with Selected Organization'}
-              </Button>
-              
-              {organizationToken && permissionsLoading && (
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Setting up your workspace permissions...
-                  </p>
-                </div>
-              )}
-
-              <ProtectedComponent requireRootAdmin>
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or</span>
-                  </div>
-                </div>
-
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setRequiresOrganizationSelection(false);
-                    if (onOpenChange) onOpenChange(false);
-                    navigate('/_/global-admin');
-                  }}
-                  className="w-full hover:cursor-pointer"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Go to Global Admin
-                </Button>
-              </ProtectedComponent>
-              
-              {onOpenChange && (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedOrgId(selectedOrganizationId || '');
-                    onOpenChange(false);
-                  }}
-                  className="w-full hover:cursor-pointer"
-                >
-                  Cancel
-                </Button>
-              )}
-            </div>
-        }
+        maxWidth="sm:max-w-lg"
+        showFooter={false}
       >
-        <div className="space-y-4">
-          <Label htmlFor="org-select" className="text-sm font-medium">
-            Available Organizations
-          </Label>
-          <Select 
-            value={selectedOrgId} 
-            onValueChange={setSelectedOrgId}
-            disabled={isLoading}
-          >
-            <SelectTrigger id="org-select" className="w-full">
-              <SelectValue placeholder={isLoading ? "Loading organizations..." : "Select an organization"} />
-            </SelectTrigger>
-            <SelectContent>
-              {organizationsData?.map((org: UserOrganization) => (
-                <SelectItem 
-                  key={org.id} 
-                  value={org.id} 
-                  className={org.member ? "hover:cursor-pointer" : "opacity-50 cursor-not-allowed"}
-                  disabled={!org.member}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`flex h-6 w-6 items-center justify-center rounded-md font-semibold text-xs ${
-                      org.member 
-                        ? "bg-[#4464f7] text-white" 
-                        : "bg-gray-300 text-gray-500"
-                    }`}>
-                      {org.name.substring(0, 2).toUpperCase()}
+        <div className="flex flex-col gap-4 py-2">
+          <div className="space-y-4">
+            <Label htmlFor="org-select" className="text-sm font-medium">
+              {t('selection.availableOrganizations')}
+            </Label>
+            <Select
+              value={selectedOrgId}
+              onValueChange={setSelectedOrgId}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="org-select" className="w-full">
+                <SelectValue placeholder={isLoading ? t('selection.loadingOrganizations') : t('selection.selectAnOrganization')} />
+              </SelectTrigger>
+              <SelectContent>
+                {organizationsData?.map((org: UserOrganization) => (
+                  <SelectItem
+                    key={org.id}
+                    value={org.id}
+                    className={org.member ? "hover:cursor-pointer" : "opacity-50 cursor-not-allowed"}
+                    disabled={!org.member}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`flex h-6 w-6 items-center justify-center rounded-md font-semibold text-xs ${
+                        org.member
+                          ? "bg-[#4464f7] text-white"
+                          : "bg-gray-300 text-gray-500"
+                      }`}>
+                        {org.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <span className={!org.member ? "text-muted-foreground" : ""}>
+                        {org.name}
+                      </span>
+                      {!org.member && (
+                        <span className="text-xs text-muted-foreground ml-auto">{t('selection.notAMember')}</span>
+                      )}
                     </div>
-                    <span className={!org.member ? "text-muted-foreground" : ""}>
-                      {org.name}
-                    </span>
-                    {!org.member && (
-                      <span className="text-xs text-muted-foreground ml-auto">(Not a member)</span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-2 border-t">
+            <HuemulButton
+              icon={CheckCircle}
+              label={generateTokenMutation.isPending
+                ? t('selection.generatingToken')
+                : (organizationToken && permissionsLoading)
+                ? t('selection.loadingPermissions')
+                : t('selection.continueButton')}
+              onClick={() => handleSelectOrganization()}
+              disabled={Boolean(!selectedOrgId || isLoading || generateTokenMutation.isPending || (organizationToken && permissionsLoading))}
+              loading={generateTokenMutation.isPending}
+              className="w-full bg-[#4464f7] hover:bg-[#3451e6]"
+            />
+
+            {organizationToken && permissionsLoading && (
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  {t('selection.settingUpPermissions')}
+                </p>
+              </div>
+            )}
+
+            <ProtectedComponent requireRootAdmin>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+
+              <HuemulButton
+                variant="outline"
+                icon={Settings}
+                label={t('selection.goToGlobalAdmin')}
+                onClick={() => {
+                  setRequiresOrganizationSelection(false);
+                  if (onOpenChange) onOpenChange(false);
+                  navigate('/_/global-admin');
+                }}
+                className="w-full"
+              />
+            </ProtectedComponent>
+
+            {onOpenChange && (
+              <HuemulButton
+                variant="ghost"
+                label={t('common:cancel')}
+                onClick={() => {
+                  setSelectedOrgId(selectedOrganizationId || '');
+                  onOpenChange(false);
+                }}
+                className="w-full"
+              />
+            )}
+          </div>
         </div>
-      </ReusableDialog>
+      </HuemulDialog>
   );
 }

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionForm } from "@/components/sections/sections-form";
 import { useState } from "react";
@@ -41,12 +41,8 @@ export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, exis
         />
       </CardContent>
       <CardFooter className="flex justify-end space-x-2 py-3">
-        <Button type="button" variant="ghost" onClick={onCancel} className="hover:cursor-pointer" disabled={isPending}>
-          Cancel
-        </Button>
-        <Button type="submit" form="add-template-section-form" disabled={!isFormValid || isPending} className="hover:cursor-pointer">
-          Save
-        </Button>
+        <HuemulButton type="button" variant="ghost" onClick={onCancel} disabled={isPending} label="Cancel" />
+        <HuemulButton type="submit" form="add-template-section-form" disabled={!isFormValid || isPending} label="Save" />
       </CardFooter>
     </Card>
   );

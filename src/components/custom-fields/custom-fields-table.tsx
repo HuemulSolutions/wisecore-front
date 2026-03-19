@@ -4,6 +4,7 @@ import type { CustomField } from "@/types/custom-fields"
 import type { useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
 import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { useTranslation } from "react-i18next"
 
 interface CustomFieldTableProps {
   customFields: CustomField[]
@@ -18,40 +19,6 @@ interface CustomFieldTableProps {
   canManage?: boolean
 }
 
-const formatDataType = (dataType: string) => {
-  switch (dataType) {
-    case "string":
-      return "Text"
-    case "int":
-      return "Integer"
-    case "decimal":
-      return "Decimal"
-    case "date":
-      return "Date"
-    case "time":
-      return "Time"
-    case "datetime":
-      return "Date Time"
-    case "bool":
-      return "Boolean"
-    case "image":
-      return "Image"
-    case "url":
-      return "URL"
-    default:
-      return dataType
-  }
-}
-
-// Helper function for date formatting
-export const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
-
 export function CustomFieldTable({
   customFields,
   selectedCustomFields,
@@ -63,11 +30,18 @@ export function CustomFieldTable({
   showFooterStats,
   canManage = false
 }: CustomFieldTableProps) {
+  const { t, i18n } = useTranslation('custom-fields')
+
+  const formatDataType = (dataType: string) => {
+    const key = dataType as keyof object
+    return t(`dataTypes.${key}` as Parameters<typeof t>[0], { defaultValue: dataType })
+  }
+
   // Define columns
   const columns: TableColumn<CustomField>[] = [
     {
       key: "name",
-      label: "Name",
+      label: t('columns.name'),
       render: (customField) => (
         <div className="flex flex-col">
           <span className="text-xs font-medium text-foreground">{customField.name}</span>
@@ -79,16 +53,16 @@ export function CustomFieldTable({
     },
     {
       key: "description",
-      label: "Description",
+      label: t('columns.description'),
       render: (customField) => (
         <div className="max-w-xs truncate text-xs text-foreground" title={customField.description}>
-          {customField.description || "No description"}
+          {customField.description || t('columns.noDescription')}
         </div>
       )
     },
     {
       key: "dataType",
-      label: "Data Type",
+      label: t('columns.dataType'),
       render: (customField) => (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
           {formatDataType(customField.data_type)}
@@ -97,18 +71,24 @@ export function CustomFieldTable({
     },
     {
       key: "mask",
-      label: "Mask",
+      label: t('columns.mask'),
       render: (customField) => (
         <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded border">
-          {customField.masc || "None"}
+          {customField.masc || t('columns.none')}
         </code>
       )
     },
     {
       key: "created",
-      label: "Created",
+      label: t('columns.created'),
       render: (customField) => (
-        <span className="text-xs text-foreground">{formatDate(customField.created_at)}</span>
+        <span className="text-xs text-foreground">
+          {new Date(customField.created_at).toLocaleDateString(i18n.language, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })}
+        </span>
       )
     }
   ]
@@ -117,14 +97,14 @@ export function CustomFieldTable({
   const actions: TableAction<CustomField>[] = canManage ? [
     {
       key: "edit",
-      label: "Edit Custom Field",
+      label: t('actions.editCustomField'),
       icon: Edit2,
       onClick: onEditCustomField,
       separator: true
     },
     {
       key: "delete",
-      label: "Delete Custom Field",
+      label: t('actions.deleteCustomField'),
       icon: Trash2,
       onClick: onDeleteCustomField,
       destructive: true
@@ -134,11 +114,13 @@ export function CustomFieldTable({
   // Define footer stats
   const footerStats: FooterStat[] = [
     {
-      label: `Showing ${customFields.length} custom field${customFields.length !== 1 ? 's' : ''}`,
+      label: customFields.length !== 1
+        ? t('footer.showingPlural', { count: customFields.length })
+        : t('footer.showing', { count: customFields.length }),
       value: ''
     },
     {
-      label: 'selected',
+      label: t('footer.selected'),
       value: selectedCustomFields.size
     }
   ]
@@ -151,8 +133,8 @@ export function CustomFieldTable({
       getRowKey={(customField) => customField.id}
       emptyState={{
         icon: FileText,
-        title: "No custom fields found",
-        description: "No custom fields have been created yet or match your search criteria."
+        title: t('contentEmptyState.tableEmptyTitle'),
+        description: t('contentEmptyState.tableEmptyDescription')
       }}
       footerStats={footerStats}
       showCheckbox={true}

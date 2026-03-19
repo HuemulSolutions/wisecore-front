@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu } from "lucide-react"
 import { useState, useMemo, useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
 import { useQueryClient } from "@tanstack/react-query"
 import { generateOrganizationToken } from "@/services/organizations"
@@ -66,6 +67,7 @@ const navigationItems = [
 ]
 
 export default function AppLayout() {
+  const { t } = useTranslation('layout')
   const location = useLocation()
   const rawNavigate = useNavigate()
   const { orgId } = useParams<{ orgId: string }>()
@@ -372,7 +374,7 @@ export default function AppLayout() {
                     tabIndex={item.loading ? -1 : undefined}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span>{item.title}</span>
+                    <span>{t(`nav.${item.title.toLowerCase()}`)}</span>
                   </Link>
                 )
               })}
@@ -387,7 +389,7 @@ export default function AppLayout() {
               </SheetTrigger>
               <SheetContent side="left" className="w-64">
                 <div className="flex flex-col gap-4 py-4">
-                  <div className="px-2 text-lg font-semibold">Navigation</div>
+                  <div className="px-2 text-lg font-semibold">{t('nav.navigationMenuTitle')}</div>
                   <nav className="flex flex-col gap-1">
                     {filteredNavigationItems.map((item, index) => {
                       const Icon = item.icon
@@ -415,7 +417,7 @@ export default function AppLayout() {
                           tabIndex={item.loading ? -1 : undefined}
                         >
                           <Icon className="h-4 w-4 shrink-0" />
-                          <span>{item.title}</span>
+                          <span>{t(`nav.${item.title.toLowerCase()}`)}</span>
                         </Link>
                       )
                     })}
@@ -435,7 +437,7 @@ export default function AppLayout() {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Application Version</p>
+                  <p>{t('header.applicationVersion')}</p>
                 </TooltipContent>
               </Tooltip>
               
@@ -445,24 +447,24 @@ export default function AppLayout() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:cursor-pointer">
                       <Settings className="h-4 w-4" />
-                      <span className="sr-only">Settings menu</span>
+                      <span className="sr-only">{t('header.settingsMenuSrOnly')}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     {hasAssetManagementAccess && (
                       <>
-                        <DropdownMenuLabel>Asset Management</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t('settings.assetManagement')}</DropdownMenuLabel>
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/asset-types")} className="hover:cursor-pointer">
-                              Asset Types
+                              {t('settings.assetTypes')}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/custom-fields")} className="hover:cursor-pointer">
-                              Custom Fields
+                              {t('settings.customFields')}
                             </Link>
                           </DropdownMenuItem>
                         )}
@@ -472,46 +474,46 @@ export default function AppLayout() {
                     
                     {hasAdministrationAccess && (
                       <>
-                        <DropdownMenuLabel>Administration</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t('settings.administration')}</DropdownMenuLabel>
                         {(canAccessOrganizations || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/organizations")} className="hover:cursor-pointer">
-                              Organizations
+                              {t('settings.organizations')}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {isRootAdmin && (
                           <DropdownMenuItem asChild>
                             <Link to="/global-admin" className="hover:cursor-pointer">
-                              Global Admin Settings
+                              {t('settings.globalAdminSettings')}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessUsers || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/users")} className="hover:cursor-pointer">
-                              Users
+                              {t('settings.users')}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessRoles || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/roles")} className="hover:cursor-pointer">
-                              Roles
+                              {t('settings.roles')}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessModels || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/models")} className="hover:cursor-pointer">
-                              Models
+                              {t('settings.models')}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/auth-types")} className="hover:cursor-pointer">
-                              Auth Types
+                              {t('settings.authTypes')}
                             </Link>
                           </DropdownMenuItem>
                         )}
@@ -547,12 +549,12 @@ export default function AppLayout() {
                       onSelect={handleUpdateProfile}
                     >
                       <User className="h-4 w-4 mr-2" />
-                      Update Profile
+                      {t('header.updateProfile')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
-                      Sign out
+                      {t('header.signOut')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

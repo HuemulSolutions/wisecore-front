@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { 
   FileText, 
   Plus, 
@@ -10,12 +11,12 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteContextDialog } from "@/components/context/context-delete-dialog";
 import { EditContextDialog } from "@/components/context/context-edit-dialog";
 import { AddContextDialog } from "@/components/context/context-add-dialog";
-import { getContext, deleteContext, editTextContext, editFileContext } from "@/services/context";
+import { getContext, deleteContext, editTextContext } from "@/services/context";
 import { ContextDisplay } from "./context-content";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
@@ -26,6 +27,7 @@ interface AddContextSheetProps {
 }
 
 export default function AddContext({ id, isSheetOpen = true }: AddContextSheetProps) {
+  const { t } = useTranslation('context')
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
@@ -46,30 +48,18 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
   const deleteContextMutation = useMutation({
     mutationFn: (contextId: string) => deleteContext(contextId, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Context deleted successfully");
+      toast.success(t('toast.contextDeleted'));
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
       setContextToDelete(null);
     }
   });
 
-  // Mutation to edit text context
+  // Mutation to edit context
   const editTextContextMutation = useMutation({
     mutationFn: ({ contextId, name, content }: { contextId: string; name: string; content: string }) =>
       editTextContext(contextId, name, content, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Context updated successfully");
-      queryClient.invalidateQueries({ queryKey: ['contexts', id] });
-      setEditDialogOpen(false);
-      setContextToEdit(null);
-    }
-  });
-
-  // Mutation to edit file context
-  const editFileContextMutation = useMutation({
-    mutationFn: ({ contextId, file, name }: { contextId: string; file: File; name?: string }) =>
-      editFileContext(contextId, file, selectedOrganizationId!, name),
-    onSuccess: () => {
-      toast.success("Context updated successfully");
+      toast.success(t('toast.contextUpdated'));
       queryClient.invalidateQueries({ queryKey: ['contexts', id] });
       setEditDialogOpen(false);
       setContextToEdit(null);
@@ -92,19 +82,15 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
     setEditDialogOpen(true);
   };
 
-  const confirmEditContext = (contextId: string, name: string, content: string, file?: File) => {
-    if (file) {
-      editFileContextMutation.mutate({ contextId, file, name });
-    } else {
-      editTextContextMutation.mutate({ contextId, name, content });
-    }
+  const confirmEditContext = (contextId: string, name: string, content: string) => {
+    editTextContextMutation.mutate({ contextId, name, content });
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">Loading contexts...</span>
+        <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
       </div>
     );
   }
@@ -114,7 +100,7 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <div className="flex items-center gap-2 text-red-800">
           <AlertCircle className="h-4 w-4" />
-          <span className="text-sm font-medium">Error loading contexts</span>
+          <span className="text-sm font-medium">{t('errorLoading')}</span>
         </div>
         <p className="text-sm text-red-600 mt-1">{(error as Error).message}</p>
       </div>
@@ -130,19 +116,19 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
           <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-[#4464f7]" />
-              <h3 className="text-sm font-medium text-gray-900">Current Contexts</h3>
+              <h3 className="text-sm font-medium text-gray-900">{t('currentContexts')}</h3>
               <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                {contexts?.length || 0} contexts
+                {t('contextsCount', { count: contexts?.length || 0 })}
               </Badge>
             </div>
-            <Button
+            <HuemulButton
               size="sm"
               onClick={() => setAddDialogOpen(true)}
-              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-xs"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add Context
-            </Button>
+              className="bg-[#4464f7] hover:bg-[#3451e6] text-xs"
+              icon={Plus}
+              iconClassName="h-3.5 w-3.5 mr-1.5"
+              label={t('addContext')}
+            />
           </div>
 
           {/* Content */}
@@ -150,8 +136,8 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
             {!contexts || contexts.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No contexts configured</p>
-                <p className="text-xs text-gray-400 mt-1">Add context to provide additional information and variables for document execution.</p>
+                <p className="text-sm text-gray-500">{t('noContexts')}</p>
+                <p className="text-xs text-gray-400 mt-1">{t('noContextsDescription')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -177,32 +163,32 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
                                 : 'bg-green-50 text-green-700 border-green-200'
                             }`}
                           >
-                            {ctx.context_type === 'text' ? 'Text' : 'Document'}
+                            {ctx.context_type === 'text' ? t('badgeText') : t('badgeDocument')}
                           </Badge>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-1">
-                        <Button
+                        <HuemulButton
                           size="sm"
                           variant="outline"
                           onClick={() => handleEditContext({ id: ctx.id, name: ctx.name, content: ctx.content || '', context_type: ctx.context_type })}
-                          disabled={editTextContextMutation.isPending || editFileContextMutation.isPending}
-                          className="h-7 w-7 p-0 text-[#4464f7] hover:text-white hover:bg-[#4464f7] hover:cursor-pointer"
-                          title="Edit Context"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
+                          disabled={editTextContextMutation.isPending}
+                          className="h-7 w-7 p-0 text-[#4464f7] hover:text-white hover:bg-[#4464f7]"
+                          icon={Pencil}
+                          iconClassName="h-3 w-3"
+                          title={t('editContextTitle')}
+                        />
+                        <HuemulButton
                           size="sm"
                           variant="outline"
                           onClick={() => handleDeleteContext(ctx.id)}
                           disabled={deleteContextMutation.isPending}
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                          title="Delete Context"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          icon={Trash2}
+                          iconClassName="h-3 w-3"
+                          title={t('deleteContextTitle')}
+                        />
                       </div>
                     </div>
                     
@@ -212,7 +198,7 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
                         item={{
                           id: ctx.id,
                           name: ctx.name,
-                          content: ctx.content || 'No content available'
+                          content: ctx.content || t('noContentAvailable')
                         }}
                         hideHeader={true}
                       />
@@ -242,7 +228,7 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
         onOpenChange={setEditDialogOpen}
         context={contextToEdit}
         onConfirm={confirmEditContext}
-        isProcessing={editTextContextMutation.isPending || editFileContextMutation.isPending}
+        isProcessing={editTextContextMutation.isPending}
       />
     </>
   );

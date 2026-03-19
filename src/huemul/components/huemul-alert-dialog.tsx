@@ -27,7 +27,7 @@ export interface HuemulAlertDialogProps {
   /** Dialog title (default: "Are you sure?") */
   title?: string;
   /** Optional description below the title */
-  description?: string;
+  description?: React.ReactNode;
   /** Optional icon rendered to the left of the title (default: AlertTriangle) */
   icon?: LucideIcon;
   /** Icon className overrides (e.g. size, color) */
@@ -119,7 +119,9 @@ export function HuemulAlertDialog({
             <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
           {description && (
-            <AlertDialogDescription>{description}</AlertDialogDescription>
+            <AlertDialogDescription asChild={typeof description !== "string"}>
+              {typeof description === "string" ? description : <div>{description}</div>}
+            </AlertDialogDescription>
           )}
         </AlertDialogHeader>
 

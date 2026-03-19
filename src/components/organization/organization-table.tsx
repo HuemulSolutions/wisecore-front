@@ -1,5 +1,7 @@
 import { Edit2, Trash2, Building2, Shield } from "lucide-react"
 import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
+import { useTranslation } from "react-i18next"
+import i18n from "@/i18n"
 import type { TableColumn, TableAction, FooterStat, EmptyState } from "@/types/data-table"
 
 export interface Organization {
@@ -31,7 +33,7 @@ interface OrganizationTableProps {
 
 // Helper function for date formatting
 export const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -54,11 +56,13 @@ export function OrganizationTable({
   isRootAdmin = false,
   maxHeight
 }: OrganizationTableProps) {
+  const { t } = useTranslation('organizations')
+
   // Define columns
   const columns: TableColumn<Organization>[] = [
     {
       key: "name",
-      label: "Name",
+      label: t('columns.name'),
       render: (organization) => (
         <div className="flex items-center gap-3">
           <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -75,39 +79,39 @@ export function OrganizationTable({
     },
     {
       key: "description",
-      label: "Description",
+      label: t('columns.description'),
       render: (organization) => (
-        <div 
-          className="max-w-xs truncate text-xs text-foreground" 
+        <div
+          className="max-w-xs truncate text-xs text-foreground"
           title={organization.description || undefined}
         >
-          {organization.description || "No description"}
+          {organization.description || t('columns.noDescription')}
         </div>
       )
     },
     ...(isRootAdmin ? [
       {
         key: "max_users" as const,
-        label: "Max Users",
+        label: t('columns.maxUsers'),
         render: (organization: Organization) => (
           <div className="text-xs text-foreground">
-            {organization.max_users ?? "Unlimited"}
+            {organization.max_users ?? t('columns.unlimited')}
           </div>
         )
       },
       {
         key: "token_limit" as const,
-        label: "Token Limit",
+        label: t('columns.tokenLimit'),
         render: (organization: Organization) => (
           <div className="text-xs text-foreground">
-            {organization.token_limit ? organization.token_limit.toLocaleString() : "Unlimited"}
+            {organization.token_limit ? organization.token_limit.toLocaleString() : t('columns.unlimited')}
           </div>
         )
       }
     ] : []),
     {
       key: "created_at",
-      label: "Created At",
+      label: t('columns.createdAt'),
       render: (organization) => (
         <div className="text-xs text-muted-foreground">
           {organization.created_at ? formatDate(organization.created_at) : "N/A"}
@@ -120,19 +124,19 @@ export function OrganizationTable({
   const actions: TableAction<Organization>[] = [
     ...(canSetAdmin && onSetAdmin ? [{
       key: "setAdmin" as const,
-      label: "Set Admin",
+      label: t('actions.setAdmin'),
       icon: Shield,
       onClick: onSetAdmin
     }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
-      label: "Edit",
+      label: t('actions.edit'),
       icon: Edit2,
       onClick: onEditOrganization
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
-      label: "Delete",
+      label: t('actions.delete'),
       icon: Trash2,
       onClick: onDeleteOrganization,
       destructive: true
@@ -142,18 +146,18 @@ export function OrganizationTable({
   // Define empty state
   const emptyState: EmptyState = {
     icon: Building2,
-    title: "No Organizations Found",
-    description: "No organizations match your search criteria"
+    title: t('table.noOrgsFound'),
+    description: t('table.noOrgsFoundDescription')
   }
 
   // Define footer stats
   const footerStatsList: FooterStat[] = showFooterStats ? [
     {
-      label: "Total Organizations",
+      label: t('table.totalOrganizations'),
       value: organizations.length
     },
     {
-      label: "Selected",
+      label: t('table.selected'),
       value: selectedOrganizations.size
     }
   ] : []

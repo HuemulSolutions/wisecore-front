@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, 
@@ -9,7 +10,7 @@ import {
   Loader2,
   AlertCircle 
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree";
 import type { FileNode } from "@/types/assets";
@@ -41,6 +42,7 @@ interface AddDependencySheetProps {
 }
 
 export default function AddDependencySheet({ id, isSheetOpen = true }: AddDependencySheetProps) {
+    const { t } = useTranslation('dependencies')
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);
     const fileTreeRef = useRef<FileTreeRef>(null);
@@ -65,7 +67,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         onSuccess: async () => {
             // Wait for the dependencies to be reloaded
             await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
-            toast.success("Dependency added successfully");
+            toast.success(t('toast.added'));
             // Refresh the file tree to update disabled states after dependencies are updated
             await fileTreeRef.current?.refresh();
         },
@@ -76,9 +78,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         onSuccess: async () => {
             // Wait for the dependencies to be reloaded
             await queryClient.refetchQueries({ queryKey: ['documentDependencies', id] });
-            toast.success("Dependency removed successfully");
-            setDeleteDialogOpen(false);
-            setDependencyToDelete(null);
+            toast.success(t('toast.removed'));
             // Refresh the file tree to update disabled states after dependencies are updated
             await fileTreeRef.current?.refresh();
         },
@@ -110,7 +110,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                 disabled: item.type === "document" && excludedIds.has(item.id),
             }));
         } catch (error) {
-            handleApiError(error, { fallbackMessage: "Failed to load folder content" });
+            handleApiError(error, { fallbackMessage: t('toast.loadFailed') });
             return [];
         }
     };
@@ -120,9 +120,10 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         setDeleteDialogOpen(true);
     };
 
-    const confirmRemoveDependency = () => {
+    const confirmRemoveDependency = async () => {
         if (dependencyToDelete) {
-            removeDependencyMutation.mutate(dependencyToDelete);
+            await removeDependencyMutation.mutateAsync(dependencyToDelete);
+            setDependencyToDelete(null);
         }
     };
 
@@ -130,7 +131,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         return (
             <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                <span className="ml-2 text-sm text-gray-500">Loading dependencies...</span>
+                <span className="ml-2 text-sm text-gray-500">{t('loading')}</span>
             </div>
         );
     }
@@ -140,7 +141,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center gap-2 text-red-800">
                     <AlertCircle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Error loading dependencies</span>
+                    <span className="text-sm font-medium">{t('errorLoading')}</span>
                 </div>
                 <p className="text-sm text-red-600 mt-1">{(error as Error).message}</p>
             </div>
@@ -155,7 +156,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                     {/* Header */}
                     <div className="flex items-center gap-2 p-4 border-b border-gray-100 bg-gray-50">
                         <Plus className="h-4 w-4 text-[#4464f7]" />
-                        <h3 className="text-sm font-medium text-gray-900">Add New Dependency</h3>
+                        <h3 className="text-sm font-medium text-gray-900">{t('addSection.title')}</h3>
                     </div>
 
                     {/* Content */}
@@ -173,7 +174,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                         {addDependencyMutation.isPending && (
                             <div className="flex items-center gap-2 text-sm text-blue-600 mt-3 p-3 bg-blue-50 rounded-lg">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Adding dependency...
+                                {t('addSection.adding')}
                             </div>
                         )}
                     </div>
@@ -185,9 +186,9 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                     <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
                         <div className="flex items-center gap-2">
                             <Link2 className="h-4 w-4 text-[#4464f7]" />
-                            <h3 className="text-sm font-medium text-gray-900">Current Dependencies</h3>
+                            <h3 className="text-sm font-medium text-gray-900">{t('currentSection.title')}</h3>
                             <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                {dependencies.length} dependencies
+                                {t('currentSection.badge', { count: dependencies.length })}
                             </Badge>
                         </div>
                     </div>
@@ -197,8 +198,8 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                         {dependencies.length === 0 ? (
                             <div className="text-center py-8">
                                 <Link2 className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                                <p className="text-sm text-gray-500">No dependencies configured</p>
-                                <p className="text-xs text-gray-400 mt-1">Add document dependencies to create relationships and shared context.</p>
+                                <p className="text-sm text-gray-500">{t('empty.title')}</p>
+                                <p className="text-xs text-gray-400 mt-1">{t('empty.description')}</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -212,7 +213,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                                                 </span>
                                                 {dependency.section_name && (
                                                     <span className="text-xs text-gray-500">
-                                                        Section: {dependency.section_name}
+                                                        {t('sectionLabel', { name: dependency.section_name })}
                                                     </span>
                                                 )}
                                                 <Badge variant="outline" className="text-xs w-fit mt-1 bg-green-50 text-green-700 border-green-200">
@@ -222,25 +223,25 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                                         </div>
                                         
                                         <div className="flex items-center gap-2">
-                                            <Button
+                                            <HuemulButton
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => window.open(`/${orgId}/asset/${dependency.document_id}`, '_blank')}
-                                                className="h-7 w-7 p-0 hover:cursor-pointer"
-                                                title="View Document"
-                                            >
-                                                <ExternalLink className="h-3 w-3" />
-                                            </Button>
-                                            <Button
+                                                icon={ExternalLink}
+                                                iconClassName="h-3 w-3"
+                                                onClick={() => { window.open(`/${orgId}/asset/${dependency.document_id}`, '_blank'); }}
+                                                className="h-7 w-7 p-0"
+                                                tooltip={t('viewDocument')}
+                                            />
+                                            <HuemulButton
                                                 size="sm"
                                                 variant="outline"
+                                                icon={Trash2}
+                                                iconClassName="h-3 w-3"
                                                 onClick={() => handleRemoveDependency(dependency.document_id)}
                                                 disabled={removeDependencyMutation.isPending}
-                                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                                                title="Remove Dependency"
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
+                                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                tooltip={t('removeDependency')}
+                                            />
                                         </div>
                                     </div>
                                 ))}
@@ -253,8 +254,7 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
             <RemoveDependencyDialog
                 open={deleteDialogOpen}
                 onOpenChange={setDeleteDialogOpen}
-                onConfirm={confirmRemoveDependency}
-                isProcessing={removeDependencyMutation.isPending}
+                onAction={confirmRemoveDependency}
             />
         </>
     );

@@ -1,10 +1,11 @@
 // Dialog component for viewing user organizations
 import { useState } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { useTranslation } from 'react-i18next'
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building, Plus, Trash2 } from "lucide-react"
 import { useUserOrganizations } from "@/hooks/useUsers"
@@ -22,6 +23,7 @@ interface UserOrganizationsDialogProps {
 }
 
 export default function UserOrganizationsDialog({ user, open, onOpenChange }: UserOrganizationsDialogProps) {
+  const { t } = useTranslation(['users'])
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>("")
   const [orgToRemove, setOrgToRemove] = useState<{ id: string; name: string } | null>(null)
   const queryClient = useQueryClient()
@@ -42,7 +44,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
       assignUserToOrganization(organizationId, { user_id: user!.id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
-      toast.success('User assigned to organization successfully')
+      toast.success(t('users:organizations.assignedSuccess'))
       setSelectedOrganizationId("")
     },
   })
@@ -52,8 +54,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
       removeUserFromOrganization(organizationId, user!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
-      toast.success('User removed from organization successfully')
-      setOrgToRemove(null)
+      toast.success(t('users:organizations.removedSuccess'))
     },
   })
 
@@ -75,25 +76,25 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
 
   return (
     <>
-      <ReusableDialog
+      <HuemulDialog
         open={open}
         onOpenChange={onOpenChange}
-        title={`Organizations - ${user.name} ${user.last_name}`}
-        description="Organizations that this user belongs to and their roles."
+        title={t('users:organizations.dialogTitle', { name: `${user.name} ${user.last_name}` })}
+        description={t('users:organizations.dialogDescription')}
         icon={Building}
-        maxWidth="md"
-        maxHeight="90vh"
-        showDefaultFooter={false}
+        maxWidth="sm:max-w-md"
+        maxHeight="max-h-[90vh]"
+        showFooter={false}
       >
         <div className="space-y-4">
           {/* Assign organization section */}
           {availableOrganizations.length > 0 && (
             <div className="border rounded-lg p-4 bg-muted/20">
-              <div className="text-sm font-medium mb-3">Assign to Organization</div>
+              <div className="text-sm font-medium mb-3">{t('users:organizations.assignTitle')}</div>
               <div className="flex gap-2">
                 <Select value={selectedOrganizationId} onValueChange={setSelectedOrganizationId}>
                   <SelectTrigger className="flex-1 w-full">
-                    <SelectValue placeholder="Select organization..." />
+                    <SelectValue placeholder={t('users:organizations.selectPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableOrganizations.map((org: Organization) => (
@@ -103,15 +104,14 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
+                <HuemulButton
+                  label={t('users:organizations.assignButton')}
+                  icon={Plus}
                   onClick={() => assignMutation.mutate(selectedOrganizationId)}
-                  disabled={!selectedOrganizationId || assignMutation.isPending}
+                  disabled={!selectedOrganizationId}
+                  loading={assignMutation.isPending}
                   size="sm"
-                  className="hover:cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Assign
-                </Button>
+                />
               </div>
             </div>
           )}
@@ -131,7 +131,7 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
           ) : error ? (
             <div className="text-center py-8">
               <div className="text-sm text-muted-foreground">
-                Failed to load organizations: {error.message}
+                {t('users:organizations.failedToLoad', { error: error.message })}
               </div>
             </div>
           ) : memberOrganizations.length > 0 ? (
@@ -146,17 +146,18 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
-                      Member
+                      {t('users:organizations.memberBadge')}
                     </Badge>
-                    <Button
+                    <HuemulButton
+                      icon={Trash2}
                       size="sm"
                       variant="destructive"
-                      className="hover:cursor-pointer h-6 px-2"
-                      disabled={removeMutation.isPending}
+                      className="h-6 px-2"
+                      loading={removeMutation.isPending}
                       onClick={() => setOrgToRemove({ id: org.id, name: org.name })}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                      tooltip={t('users:organizations.removeTooltip')}
+                      tooltipSide="left"
+                    />
                   </div>
                 </div>
               ))}
@@ -164,30 +165,30 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
           ) : (
             <div className="text-center py-8">
               <Building className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <div className="text-sm font-medium text-foreground mb-1">No organizations found</div>
+              <div className="text-sm font-medium text-foreground mb-1">{t('users:organizations.noOrganizations')}</div>
               <div className="text-sm text-muted-foreground">
-                This user is not a member of any organizations.
+                {t('users:organizations.noOrganizationsDescription')}
               </div>
             </div>
           )}
         </div>
-      </ReusableDialog>
+      </HuemulDialog>
 
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={!!orgToRemove}
         onOpenChange={(open) => !open && setOrgToRemove(null)}
-        title="Remove User from Organization"
-        description={
-          <>
-            Are you sure you want to remove <strong>{user.name} {user.last_name}</strong> from{" "}
-            <strong>{orgToRemove?.name}</strong>? This action cannot be undone.
-          </>
-        }
-        onConfirm={() => orgToRemove && removeMutation.mutate(orgToRemove.id)}
-        confirmLabel="Remove User"
-        cancelLabel="Cancel"
-        isProcessing={removeMutation.isPending}
-        variant="destructive"
+        title={t('users:organizations.removeTitle')}
+        description={t('users:organizations.removeDescription', { userName: `${user.name} ${user.last_name}`, orgName: orgToRemove?.name })}
+        actionLabel={t('users:organizations.removeButton')}
+        onAction={async () => {
+          if (!orgToRemove) return
+          await new Promise<void>((resolve, reject) => {
+            removeMutation.mutate(orgToRemove.id, {
+              onSuccess: () => resolve(),
+              onError: (e) => reject(e)
+            })
+          })
+        }}
       />
     </>
   )

@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 
 interface DeleteContextDialogProps {
@@ -12,13 +13,15 @@ export function DeleteContextDialog({
   onOpenChange,
   onConfirm,
 }: DeleteContextDialogProps) {
+  const { t } = useTranslation('context')
+
   return (
     <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Context"
-      description="Are you sure you want to delete this context? This action cannot be undone and may affect document execution."
-      actionLabel="Delete"
+      title={t('deleteDialog.title')}
+      description={t('deleteDialog.description')}
+      actionLabel={t('deleteDialog.deleteButton')}
       onAction={onConfirm}
       actionVariant="destructive"
       actionIcon={Trash2}

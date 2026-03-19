@@ -94,11 +94,13 @@ export function useLifecycleMutations(documentTypeId: string, stepType: string |
   const createStep = useMutation({
     mutationFn: (data: CreateLifecycleStepData) =>
       createLifecycleStep(documentTypeId, data),
+    onSuccess: invalidateSteps,
     onError: () => toast.error('Failed to create step'),
   })
 
   const deleteStep = useMutation({
     mutationFn: (stepId: string) => deleteLifecycleStep(stepId),
+    onSuccess: invalidateSteps,
     onError: () => toast.error('Failed to delete step'),
   })
 

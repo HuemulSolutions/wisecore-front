@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Shield, User, Crown, UserPlus } from "lucide-react"
 import { useOrganizationUsers, useSetOrganizationAdmin } from "@/hooks/useOrganizations"
+import { useTranslation } from "react-i18next"
 import type { Organization } from "./organization-table"
 
 interface SetOrganizationAdminDialogProps {
@@ -21,6 +22,7 @@ export function SetOrganizationAdminDialog({
   onSuccess,
 }: SetOrganizationAdminDialogProps) {
   const [selectedUserId, setSelectedUserId] = useState<string>("")
+  const { t } = useTranslation('organizations')
 
   const { data: usersResponse, isLoading, error } = useOrganizationUsers(
     open ? organization?.id : undefined
@@ -35,8 +37,7 @@ export function SetOrganizationAdminDialog({
     }
   }, [open, organization?.id])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSave = () => {
     if (!organization?.id || !selectedUserId) return
 
     setAdminMutation.mutate(
@@ -59,22 +60,22 @@ export function SetOrganizationAdminDialog({
   const availableUsers = users.filter(user => !user.is_org_admin)
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Set Organization Admin"
-      description={`Manage administrators for "${organization.name}".`}
+      title={t('setAdmin.title')}
+      description={t('setAdmin.description', { name: organization.name })}
       icon={Shield}
-      maxWidth="md"
-      maxHeight="90vh"
-      showDefaultFooter
-      submitLabel="Set as Admin"
-      cancelLabel="Cancel"
-      isSubmitting={setAdminMutation.isPending}
-      isValid={!!selectedUserId}
-      formId="set-admin-form"
+      maxWidth="sm:max-w-lg"
+      saveAction={{
+        label: t('setAdmin.button'),
+        disabled: !selectedUserId || setAdminMutation.isPending,
+        loading: setAdminMutation.isPending,
+        closeOnSuccess: false,
+        onClick: handleSave,
+      }}
     >
-      <form id="set-admin-form" onSubmit={handleSubmit} className="space-y-5">
+      <div className="space-y-5 py-2">
         {/* Loading state */}
         {isLoading ? (
           <div className="space-y-4">
@@ -89,13 +90,13 @@ export function SetOrganizationAdminDialog({
           </div>
         ) : error ? (
           <div className="text-sm text-destructive p-3 border border-destructive/20 rounded-lg bg-destructive/5">
-            Failed to load users: {error.message}
+            {t('setAdmin.failedToLoadUsers', { error: error.message })}
           </div>
         ) : users.length === 0 ? (
           <div className="text-center py-6 border rounded-lg bg-muted/20">
             <User className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
             <div className="text-sm text-muted-foreground">
-              No users found in this organization.
+              {t('setAdmin.noUsersFound')}
             </div>
           </div>
         ) : (
@@ -104,13 +105,13 @@ export function SetOrganizationAdminDialog({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Crown className="w-4 h-4 text-amber-500" />
-                Current Admins ({currentAdmins.length})
+                {t('setAdmin.currentAdmins', { count: currentAdmins.length })}
               </div>
-              
+
               {currentAdmins.length === 0 ? (
                 <div className="border rounded-lg p-4 bg-muted/20">
                   <p className="text-sm text-muted-foreground text-center">
-                    No admins configured yet
+                    {t('setAdmin.noAdmins')}
                   </p>
                 </div>
               ) : (
@@ -129,7 +130,7 @@ export function SetOrganizationAdminDialog({
                         </div>
                       </div>
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
-                        Admin
+                        {t('setAdmin.adminBadge')}
                       </Badge>
                     </div>
                   ))}
@@ -141,40 +142,39 @@ export function SetOrganizationAdminDialog({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <UserPlus className="w-4 h-4 text-[#4464f7]" />
-                Add New Admin
+                {t('setAdmin.addNewAdmin')}
               </div>
-              
+
               {availableUsers.length === 0 ? (
                 <div className="border rounded-lg p-4 bg-muted/20">
                   <p className="text-sm text-muted-foreground text-center">
-                    All users in this organization are already admins
+                    {t('setAdmin.allUsersAdmins')}
                   </p>
                 </div>
               ) : (
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a user to make admin..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name} {user.last_name} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <HuemulField
+                  type="select"
+                  label=""
+                  placeholder={t('setAdmin.selectUserPlaceholder')}
+                  value={selectedUserId}
+                  onChange={(v) => setSelectedUserId(String(v))}
+                  options={availableUsers.map((user) => ({
+                    label: `${user.name} ${user.last_name} (${user.email})`,
+                    value: user.id,
+                  }))}
+                />
               )}
             </div>
 
             {/* Info message */}
             {selectedUserId && (
               <div className="text-xs text-muted-foreground p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                The selected user will become an administrator of this organization and will have full management permissions.
+                {t('setAdmin.adminInfoMessage')}
               </div>
             )}
           </>
         )}
-      </form>
-    </ReusableDialog>
+      </div>
+    </HuemulDialog>
   )
 }

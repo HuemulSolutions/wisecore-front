@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Badge } from "@/components/ui/badge"
+import { Trash2 } from "lucide-react"
 import type { CustomField } from "@/types/custom-fields"
+import { useTranslation } from "react-i18next"
 
 interface DeleteCustomFieldDialogProps {
   open: boolean
@@ -12,110 +13,73 @@ interface DeleteCustomFieldDialogProps {
   onConfirm: (customField: CustomField) => void
 }
 
-const formatDataType = (dataType: string) => {
-  switch (dataType) {
-    case "string":
-      return "Text"
-    case "int":
-      return "Integer"
-    case "decimal":
-      return "Decimal"
-    case "date":
-      return "Date"
-    case "time":
-      return "Time"
-    case "datetime":
-      return "Date Time"
-    case "bool":
-      return "Boolean"
-    case "image":
-      return "Image"
-    case "url":
-      return "URL"
-    default:
-      return dataType
-  }
-}
-
 export function DeleteCustomFieldDialog({
   open,
   onOpenChange,
   customField,
   onConfirm,
 }: DeleteCustomFieldDialogProps) {
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { t } = useTranslation('custom-fields')
 
   const handleDelete = async () => {
-    if (!customField) return
-
-    setIsDeleting(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          try {
-            onConfirm(customField)
-            resolve()
-          } catch (error) {
-            reject(error)
-          }
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeleting(false)
-      onOpenChange(false)
-    }
+    onConfirm(customField!)
   }
 
   if (!customField) return null
 
+  const formatDataType = (dataType: string) => {
+    return t(`dataTypes.${dataType}` as Parameters<typeof t>[0], { defaultValue: dataType })
+  }
+
   return (
-    <ReusableAlertDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Custom Field"
-      description={
-        <div className="space-y-3">
-          <p>
-            Are you sure you want to delete this custom field? This action cannot be undone.
-          </p>
-          
-          <div className="rounded-lg border p-3 bg-muted/50">
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium">Name:</span> {customField.name}
-              </div>
-              <div>
-                <span className="font-medium">Description:</span> {customField.description}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Data Type:</span>
-                <Badge variant="outline">
-                  {formatDataType(customField.data_type)}
-                </Badge>
-              </div>
-              {customField.masc && (
-                <div>
-                  <span className="font-medium">Mask:</span>
-                  <code className="ml-1 text-xs bg-background px-1 py-0.5 rounded">
-                    {customField.masc}
-                  </code>
-                </div>
-              )}
-            </div>
-          </div>
+      title={t('deleteDialog.title')}
+      icon={Trash2}
+      iconClassName="text-destructive"
+      closeDelay={800}
+      saveAction={{
+        label: t('actions.deleteCustomField'),
+        onClick: handleDelete,
+        variant: "destructive",
+        icon: Trash2,
+      }}
+    >
+      <div className="space-y-3">
+        <p>
+          {t('deleteDialog.description')}
+        </p>
 
-          <p className="text-sm text-muted-foreground">
-            <strong>Warning:</strong> Deleting this custom field will remove it from all documents
-            that currently use it. Any data stored in this field will be lost permanently.
-          </p>
+        <div className="rounded-lg border p-3 bg-muted/50">
+          <div className="space-y-2 text-sm">
+            <div>
+              <span className="font-medium">{t('deleteDialog.nameLabel')}:</span> {customField.name}
+            </div>
+            <div>
+              <span className="font-medium">{t('deleteDialog.descriptionLabel')}:</span> {customField.description}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{t('deleteDialog.dataTypeLabel')}:</span>
+              <Badge variant="outline">
+                {formatDataType(customField.data_type)}
+              </Badge>
+            </div>
+            {customField.masc && (
+              <div>
+                <span className="font-medium">{t('deleteDialog.maskLabel')}:</span>
+                <code className="ml-1 text-xs bg-background px-1 py-0.5 rounded">
+                  {customField.masc}
+                </code>
+              </div>
+            )}
+          </div>
         </div>
-      }
-      onConfirm={handleDelete}
-      confirmLabel="Delete Custom Field"
-      isProcessing={isDeleting}
-    />
+
+        <p className="text-sm text-muted-foreground">
+          <strong>{t('deleteDialog.warningTitle')}:</strong> {t('deleteDialog.warningMessage')}
+        </p>
+      </div>
+    </HuemulDialog>
   )
 }

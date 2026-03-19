@@ -367,6 +367,8 @@ function SectionEditorToolbar({ actions }: { actions?: React.ReactNode }) {
 export interface PlateRichEditorRef {
   /** Serialize the current editor content to Markdown */
   getMarkdown: () => string;
+  /** Return the current editor content as Plate Value (JSON nodes) */
+  getValue: () => Value;
   /** Reset the editor content from a markdown string */
   resetContent: (markdown: string) => void;
 }
@@ -428,9 +430,10 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     value: externalValue ?? normalizeNodeId([{ children: [{ text: '' }], type: 'p' }]),
   });
 
-  // Expose getMarkdown and resetContent via ref
+  // Expose getMarkdown, getValue and resetContent via ref
   React.useImperativeHandle(ref, () => ({
     getMarkdown: () => editor.getApi(MarkdownPlugin).markdown.serialize(),
+    getValue: () => editor.children as Value,
     resetContent: (markdown: string) => {
       try {
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(markdown);

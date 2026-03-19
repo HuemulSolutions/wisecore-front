@@ -8,10 +8,11 @@ import { CreateOrganizationDialog } from '@/components/organization/organization
 import { EditOrganizationDialog } from '@/components/organization/organization-edit-dialog'
 import { DeleteOrganizationDialog } from '@/components/organization/organization-delete-dialog'
 
-import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { getUserOrganizations, addOrganization, updateOrganization, deleteOrganization } from '@/services/organizations'
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
+import { useTranslation } from 'react-i18next'
 
 // Tipo para los dialogs de edición/eliminación (subset de UserOrganization)
 interface OrganizationDialogData {
@@ -33,6 +34,7 @@ export function OrganizationSwitcher() {
   
   const { selectedOrganizationId, organizations, setSelectedOrganizationId, setOrganizations, setOrganizationToken } = useOrganization()
   const { user } = useAuth()
+  const { t } = useTranslation('organizations')
   const queryClient = useQueryClient()
 
   const { data: organizationsData } = useQuery({
@@ -64,8 +66,6 @@ export function OrganizationSwitcher() {
     mutationFn: deleteOrganization,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-organizations'] })
-      setDeletingOrg(null)
-      setIsDeleteDialogOpen(false)
       // If deleted org was selected, clear selection and reset context
       if (deletingOrg && selectedOrganizationId === deletingOrg.id) {
         setSelectedOrganizationId('')
@@ -103,27 +103,27 @@ export function OrganizationSwitcher() {
   const renderButton = () => {
     if (!selectedOrganization) {
       return (
-        <Button
+        <HuemulButton
           variant="ghost"
-          className="w-full justify-start gap-2 px-2 h-12 hover:cursor-pointer hover:bg-accent hover:text-accent-foreground"
+          className="w-full justify-start gap-2 px-2 h-12 hover:bg-accent hover:text-accent-foreground"
           onClick={() => setIsOrgSelectionOpen(true)}
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-200 text-gray-500 font-semibold text-xs shrink-0">
             --
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium text-gray-500">Select Organization</span>
-            <span className="truncate text-xs text-muted-foreground">Choose from list</span>
+            <span className="truncate font-medium text-gray-500">{t('switcher.selectOrganization')}</span>
+            <span className="truncate text-xs text-muted-foreground">{t('switcher.chooseFromList')}</span>
           </div>
           <ChevronsUpDown className="ml-auto h-4 w-4" />
-        </Button>
+        </HuemulButton>
       )
     }
 
     return (
-      <Button
+      <HuemulButton
         variant="ghost"
-        className="w-full justify-start gap-2 px-2 h-12 hover:cursor-pointer hover:bg-accent hover:text-accent-foreground"
+        className="w-full justify-start gap-2 px-2 h-12 hover:bg-accent hover:text-accent-foreground"
         onClick={() => setIsOrgSelectionOpen(true)}
       >
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold text-xs shrink-0">
@@ -131,10 +131,10 @@ export function OrganizationSwitcher() {
         </div>
         <div className="grid flex-1 text-left text-sm leading-tight">
           <span className="truncate font-medium">{selectedOrganization.name}</span>
-          <span className="truncate text-xs text-muted-foreground">Organization</span>
+          <span className="truncate text-xs text-muted-foreground">{t('switcher.organization')}</span>
         </div>
         <ChevronsUpDown className="ml-auto h-4 w-4" />
-      </Button>
+      </HuemulButton>
     )
   }
 
@@ -174,14 +174,16 @@ export function OrganizationSwitcher() {
     
     <DeleteOrganizationDialog
       open={isDeleteDialogOpen}
-      onOpenChange={setIsDeleteDialogOpen}
+      onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open)
+        if (!open) setDeletingOrg(null)
+      }}
       organization={deletingOrg}
-      onConfirm={() => {
+      onConfirm={async () => {
         if (deletingOrg) {
-          deleteOrgMutation.mutate(deletingOrg.id)
+          await deleteOrgMutation.mutateAsync(deletingOrg.id)
         }
       }}
-      isDeleting={deleteOrgMutation.isPending}
     />
   </>
   )

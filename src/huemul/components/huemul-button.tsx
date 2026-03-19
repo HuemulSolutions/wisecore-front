@@ -10,6 +10,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { type VariantProps } from "class-variance-authority";
+import { useDocumentAccess } from "@/hooks/useDocumentAccess";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,112 +51,173 @@ export interface HuemulButtonProps
   // ── Slot ────────────────────────────────────────────────────────────────
   /** Render as child (Radix Slot) */
   asChild?: boolean;
+
+  // ── Permission guard ────────────────────────────────────────────────────
+  /** Document access levels to check (e.g. from the document's access_levels field) */
+  accessLevels?: string[];
+  /** Required access level(s) on the document (e.g. "edit", ["edit", "create"]) */
+  requiredAccess?: string | string[];
+  /** When true ALL required access levels must be present (default: false = any) */
+  requireAll?: boolean;
+  /** Also verify the user's global CRUD permissions for the given resource */
+  checkGlobalPermissions?: boolean;
+  /** Resource name for global permission check (e.g. "asset", "folder") */
+  resource?: string;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function HuemulButton({
-  label,
-  icon: Icon,
-  iconPosition = "left",
-  iconClassName,
-  loading: controlledLoading,
-  onClick,
-  tooltip,
-  tooltipSide = "top",
-  variant,
-  size,
-  asChild = false,
-  disabled,
-  className,
-  children,
-  ...props
-}: HuemulButtonProps) {
-  const [asyncLoading, setAsyncLoading] = React.useState(false);
-  const isLoading = controlledLoading || asyncLoading;
+export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProps>(
+  function HuemulButton(
+    {
+      label,
+      icon: Icon,
+      iconPosition = "left",
+      iconClassName,
+      loading: controlledLoading,
+      onClick,
+      tooltip,
+      tooltipSide = "top",
+      variant,
+      size,
+      asChild = false,
+      disabled,
+      className,
+      children,
+      accessLevels,
+      requiredAccess,
+      requireAll = false,
+      checkGlobalPermissions = false,
+      resource,
+      ...props
+    }: HuemulButtonProps,
+    ref: React.Ref<HTMLButtonElement>,
+  ) {
+    const { hasAccess, hasAnyAccess, hasAllAccess } = useDocumentAccess(accessLevels);
+    const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions();
+    const [asyncLoading, setAsyncLoading] = React.useState(false);
 
-  const handleClick = React.useCallback(
-    async (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (!onClick || isLoading) return;
-      const result = onClick(e);
-      if (result instanceof Promise) {
-        setAsyncLoading(true);
-        try {
-          await result;
-        } finally {
-          setAsyncLoading(false);
-        }
+    // ── Permission guard ─────────────────────────────────────────────────
+    let isAllowed = true;
+    if (requiredAccess !== undefined) {
+      let hasDocumentPermission = false;
+      if (typeof requiredAccess === "string") {
+        hasDocumentPermission = hasAccess(requiredAccess);
+      } else {
+        hasDocumentPermission = requireAll
+          ? hasAllAccess(requiredAccess)
+          : hasAnyAccess(requiredAccess);
       }
-    },
-    [onClick, isLoading],
-  );
 
-  // Determine if this is an icon-only button (no label and no children)
-  const isIconOnly = !label && !children && !!Icon;
+      if (checkGlobalPermissions && resource && !isRootAdmin) {
+        const accessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess];
+        const globalChecks = accessArray.map((access) => {
+          switch (access) {
+            case "create": return canCreate(resource);
+            case "read":   return canRead(resource);
+            case "edit":   return canUpdate(resource);
+            case "delete": return canDelete(resource);
+            case "approve": return canUpdate(resource);
+            default:       return true;
+          }
+        });
+        const hasGlobalPermission = requireAll
+          ? globalChecks.every(Boolean)
+          : globalChecks.some(Boolean);
+        if (!hasDocumentPermission || !hasGlobalPermission) isAllowed = false;
+      } else if (!hasDocumentPermission) {
+        isAllowed = false;
+      }
+    }
 
-  // Auto-select an icon size if the user chose an icon-* size or the button is icon-only
-  const resolvedSize =
-    size ??
-    (isIconOnly ? "icon" : "default");
+    const isLoading = controlledLoading || asyncLoading;
 
-  // ── Icon element ────────────────────────────────────────────────────────
-  const iconElement = isLoading ? (
-    <Loader2 className={cn("animate-spin", iconClassName)} />
-  ) : Icon ? (
-    <Icon className={cn(iconClassName)} />
-  ) : null;
+    const handleClick = React.useCallback(
+      async (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!onClick || isLoading) return;
+        const result = onClick(e);
+        if (result instanceof Promise) {
+          setAsyncLoading(true);
+          try {
+            await result;
+          } finally {
+            setAsyncLoading(false);
+          }
+        }
+      },
+      [onClick, isLoading],
+    );
 
-  // ── Button content ──────────────────────────────────────────────────────
-  const content = children ?? (
-    <>
-      {iconPosition === "left" && iconElement}
-      {label && <span>{label}</span>}
-      {iconPosition === "right" && iconElement}
-      {/* Show spinner when loading + icon is on the opposite side or there's no icon */}
-      {isLoading && !Icon && !children && !label && (
-        <Loader2 className="animate-spin" />
-      )}
-    </>
-  );
+    if (!isAllowed) return null;
 
-  // When loading with no icon and we have a label, put the spinner before the label
-  const contentWithLoadingFallback =
-    isLoading && !Icon && label ? (
+    // Determine if this is an icon-only button (no label and no children)
+    const isIconOnly = !label && !children && !!Icon;
+
+    // Auto-select an icon size if the user chose an icon-* size or the button is icon-only
+    const resolvedSize =
+      size ??
+      (isIconOnly ? "icon" : "default");
+
+    // ── Icon element ──────────────────────────────────────────────────────
+    const iconElement = isLoading ? (
+      <Loader2 className={cn("animate-spin", iconClassName)} />
+    ) : Icon ? (
+      <Icon className={cn(iconClassName)} />
+    ) : null;
+
+    // ── Button content ────────────────────────────────────────────────────
+    const content = children ?? (
       <>
-        {iconPosition === "left" && <Loader2 className="animate-spin" />}
-        <span>{label}</span>
-        {iconPosition === "right" && <Loader2 className="animate-spin" />}
+        {iconPosition === "left" && iconElement}
+        {label && <span>{label}</span>}
+        {iconPosition === "right" && iconElement}
+        {/* Show spinner when loading + icon is on the opposite side or there's no icon */}
+        {isLoading && !Icon && !children && !label && (
+          <Loader2 className="animate-spin" />
+        )}
       </>
-    ) : (
-      content
     );
 
-  const button = (
-    <Button
-      variant={variant}
-      size={resolvedSize}
-      asChild={asChild}
-      disabled={disabled || isLoading}
-      className={cn("hover:cursor-pointer", className)}
-      onClick={handleClick}
-      {...props}
-    >
-      {contentWithLoadingFallback}
-    </Button>
-  );
+    // When loading with no icon and we have a label, put the spinner before the label
+    const contentWithLoadingFallback =
+      isLoading && !Icon && label ? (
+        <>
+          {iconPosition === "left" && <Loader2 className="animate-spin" />}
+          <span>{label}</span>
+          {iconPosition === "right" && <Loader2 className="animate-spin" />}
+        </>
+      ) : (
+        content
+      );
 
-  if (tooltip) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
-          <TooltipContent side={tooltipSide}>
-            <p>{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+    const button = (
+      <Button
+        ref={ref}
+        variant={variant}
+        size={resolvedSize}
+        asChild={asChild}
+        disabled={disabled || isLoading}
+        className={cn("hover:cursor-pointer", className)}
+        onClick={handleClick}
+        {...props}
+      >
+        {contentWithLoadingFallback}
+      </Button>
     );
-  }
 
-  return button;
-}
+    if (tooltip) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent side={tooltipSide}>
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return button;
+  },
+);

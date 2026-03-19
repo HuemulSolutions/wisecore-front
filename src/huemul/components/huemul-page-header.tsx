@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { RefreshCw, Plus, Search } from "lucide-react"
+import { RefreshCw, Plus } from "lucide-react"
+import { HuemulButton } from "./huemul-button"
+import { HuemulField } from "./huemul-field"
 import { useTranslation } from "react-i18next"
 import type { PageHeaderProps } from "@/types/page-header"
 
@@ -47,37 +47,33 @@ export function PageHeader({
 
           {/* Refresh Button */}
           {showRefresh && onRefresh && (
-            <Button 
+            <HuemulButton
               variant="outline"
               size="sm"
+              icon={RefreshCw}
+              iconClassName="w-3 h-3 mr-1"
+              label={t('refresh')}
+              loading={isLoading}
               onClick={onRefresh}
-              disabled={isLoading}
-              className="hover:cursor-pointer h-8 text-xs px-2"
-            >
-              {isLoading ? (
-                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-              ) : (
-                <RefreshCw className="w-3 h-3 mr-1" />
-              )}
-              {t('refresh')}
-            </Button>
+              className="h-8 text-xs px-2"
+            />
           )}
 
           {/* Additional Actions */}
           {additionalActions.map((action, index) => {
             const ActionIcon = action.icon || Plus
             const button = (
-              <Button 
+              <HuemulButton
                 key={index}
                 variant={action.variant || "outline"}
                 size="sm"
+                icon={ActionIcon}
+                iconClassName="w-3 h-3 mr-1"
+                label={action.label}
                 onClick={action.onClick}
                 disabled={action.disabled || hasError}
-                className="hover:cursor-pointer h-8 text-xs px-2"
-              >
-                <ActionIcon className="w-3 h-3 mr-1" />
-                {action.label}
-              </Button>
+                className="h-8 text-xs px-2"
+              />
             )
 
             return action.protectedContent ? (
@@ -93,17 +89,16 @@ export function PageHeader({
               {primaryAction.protectedContent ? (
                 primaryAction.protectedContent
               ) : (
-                <Button 
+                <HuemulButton
                   size="sm"
                   variant={primaryAction.variant || "default"}
+                  icon={primaryAction.icon || Plus}
+                  iconClassName="w-3 h-3 mr-1"
+                  label={primaryAction.label}
                   onClick={primaryAction.onClick}
                   disabled={primaryAction.disabled || hasError}
-                  className="hover:cursor-pointer h-8 text-xs px-2"
-                >
-                  {primaryAction.icon && <primaryAction.icon className="w-3 h-3 mr-1" />}
-                  {!primaryAction.icon && <Plus className="w-3 h-3 mr-1" />}
-                  {primaryAction.label}
-                </Button>
+                  className="h-8 text-xs px-2"
+                />
               )}
             </>
           )}
@@ -116,14 +111,13 @@ export function PageHeader({
       {/* Search Row */}
       {searchConfig && (
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
-            <Input
+          <div className="flex-1 w-full" onKeyDown={searchConfig.onKeyDown}>
+            <HuemulField
+              label=""
               placeholder={searchConfig.placeholder}
               value={searchConfig.value}
-              onChange={(e) => searchConfig.onChange(e.target.value)}
-              onKeyDown={searchConfig.onKeyDown}
-              className="pl-7 h-8 text-xs bg-white"
+              onChange={(value) => searchConfig.onChange(String(value))}
+              inputClassName="h-8 text-xs bg-white"
             />
           </div>
           {children}

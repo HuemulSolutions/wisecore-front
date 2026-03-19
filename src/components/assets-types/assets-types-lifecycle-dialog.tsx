@@ -2,6 +2,7 @@
 import { useTranslation } from "react-i18next"
 import { Activity, X } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import {
@@ -95,6 +96,7 @@ function DefaultStepContent({
               ? t("lifecycle.allowAnyoneDescOn")
               : t("lifecycle.allowAnyoneDescOff")
           }
+          labelFirst
         />
 
         <div className="h-px bg-border" />
@@ -113,6 +115,7 @@ function DefaultStepContent({
           }
           disabled={isMutating}
           description={t("lifecycle.customRolesDesc")}
+          labelFirst
         />
       </div>
 
@@ -193,7 +196,7 @@ function StepContent({
     )
   }
   if (stepType === "edit" || stepType === "review" || stepType === "approve") {
-    return <EditStepContent documentTypeId={documentTypeId} stepType={stepType} />
+    return <EditStepContent documentTypeId={documentTypeId} stepType={stepType} onEditingChange={onEditingChange} />
   }
   return (
     <DefaultStepContent
@@ -203,8 +206,6 @@ function StepContent({
     />
   )
 }
-
-// â”€â”€â”€ AssetTypeLifecycleDialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface AssetTypeLifecycleDialogProps {
   assetType: AssetTypeWithRoles | null
@@ -223,6 +224,33 @@ export default function AssetTypeLifecycleDialog({
 
   const [activeStep, setActiveStep] = useState<string | null>(null)
   const [activeStepIsEditing, setActiveStepIsEditing] = useState(false)
+
+  // Unsaved-changes guard
+  const [showUnsavedAlert, setShowUnsavedAlert] = useState(false)
+  const pendingActionRef = useRef<(() => void) | null>(null)
+
+  const guardedAction = useCallback(
+    (action: () => void) => {
+      if (activeStepIsEditing) {
+        pendingActionRef.current = action
+        setShowUnsavedAlert(true)
+      } else {
+        action()
+      }
+    },
+    [activeStepIsEditing]
+  )
+
+  const handleGuardedOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        guardedAction(() => onOpenChange(false))
+      } else {
+        onOpenChange(true)
+      }
+    },
+    [guardedAction, onOpenChange]
+  )
 
   // Save fn + pending state lifted to dialog footer (shared across all editable steps) â€” lifted to dialog footer
   const activeStepSaveFnRef = useRef<(() => Promise<void>) | null>(null)
@@ -260,9 +288,24 @@ export default function AssetTypeLifecycleDialog({
     stepTypes.find((s) => s.value === activeStep)?.label ?? activeStep ?? ""
 
   return (
+    <>
+      <HuemulAlertDialog
+        open={showUnsavedAlert}
+        onOpenChange={setShowUnsavedAlert}
+        title={t("lifecycle.unsavedChanges.title")}
+        description={t("lifecycle.unsavedChanges.description")}
+        actionLabel={t("lifecycle.unsavedChanges.discard")}
+        cancelLabel={t("lifecycle.unsavedChanges.keepEditing")}
+        actionVariant="destructive"
+        onAction={async () => {
+          pendingActionRef.current?.()
+          pendingActionRef.current = null
+          setActiveStepIsEditing(false)
+        }}
+      />
     <HuemulDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleGuardedOpenChange}
       title={t("lifecycle.title")}
       description={t("lifecycle.description", {
         name: assetType?.document_type_name ?? "",
@@ -300,7 +343,7 @@ export default function AssetTypeLifecycleDialog({
                   key={step.value}
                   variant={activeStep === step.value ? "default" : "outline"}
                   className="cursor-pointer select-none text-sm px-4 py-1.5 transition-colors"
-                  onClick={() => setActiveStep(step.value)}
+                  onClick={() => guardedAction(() => setActiveStep(step.value))}
                 >
                   {t(`lifecycle.stepTypes.${step.value}`, {
                     defaultValue: step.label,
@@ -324,5 +367,6 @@ export default function AssetTypeLifecycleDialog({
         )}
       </div>
     </HuemulDialog>
+    </>
   )
 }

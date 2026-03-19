@@ -1,29 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { 
   Play, 
   Loader2, 
   CircleX,
   Plus 
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
-import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { 
   getExecutionById, 
   executeDocument 
@@ -69,18 +56,15 @@ export function ExecuteSheet({
   accessLevels}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
-  const [isGeneratingInSheet, setIsGeneratingInSheet] = useState(false);
+
   const [sheetInstructions, setSheetInstructions] = useState("");
   const [sheetSelectedLLM, setSheetSelectedLLM] = useState<string>("");
-  const [] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false);
   const [executionType, setExecutionType] = useState<'full' | 'full-single' | 'single' | 'from'>('full-single');
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
-  // Query client para invalidar queries
-  const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
+  const { t } = useTranslation('execute');
   
   // Refs para la inicialización
   const instructionsInitialized = useRef<boolean>(false);
@@ -142,7 +126,7 @@ export function ExecuteSheet({
         executionId
       }),
     onSuccess: (executionData) => {
-      toast.success("Document execution started successfully");
+      toast.success(t('toast.success'));
       
       // El backend devuelve {execution: {...}, job: {...}}
       // Necesitamos acceder a execution.id
@@ -191,13 +175,13 @@ export function ExecuteSheet({
   // Nueva función para ejecutar documento directamente
   const handleExecuteDocument = () => {
     if (!selectedFile?.id) {
-      toast.error("Document ID not available");
+      toast.error(t('toast.noDocumentId'));
       return;
     }
 
     const llmToUse = sheetSelectedLLM || defaultLLM?.id;
     if (!llmToUse) {
-      toast.error("Please select a language model");
+      toast.error(t('toast.noModel'));
       return;
     }
 
@@ -205,21 +189,21 @@ export function ExecuteSheet({
     if (executionType === 'single') {
       // Single: requiere ejecución existente y sección seleccionada
       if (!selectedSectionId) {
-        toast.error("Please select a section");
+        toast.error(t('toast.noSection'));
         return;
       }
       if (!currentExecutionId && !selectedExecutionId) {
-        toast.error("Please select an existing execution to modify");
+        toast.error(t('toast.noExecution'));
         return;
       }
     } else if (executionType === 'from') {
       // From: requiere ejecución existente y sección seleccionada  
       if (!selectedSectionId) {
-        toast.error("Please select a section");
+        toast.error(t('toast.noSection'));
         return;
       }
       if (!currentExecutionId && !selectedExecutionId) {
-        toast.error("Please select an existing execution to modify");
+        toast.error(t('toast.noExecution'));
         return;
       }
     }
@@ -278,22 +262,9 @@ export function ExecuteSheet({
     }
   }, [currentExecution]);
 
-  // Effect para sincronizar el estado de generación con el estado real de la ejecución
-  useEffect(() => {
-    if (currentExecution?.status === "completed" || currentExecution?.status === "failed") {
-      setIsGeneratingInSheet(false);
-    } else if (currentExecution?.status === "running") {
-      // Si la ejecución está corriendo, marcar como generando
-      setIsGeneratingInSheet(true);
-    }
-  }, [currentExecution?.status]);
+
 
   // No longer auto-selecting existing executions on sheet open
-
-  // Helper function to determine if execution is actively running
-  const isExecutionRunning = () => {
-    return currentExecution?.status === "running" || isGeneratingInSheet;
-  };
 
   // Helper function to determine if a pending execution is new (never executed) or paused
 
@@ -313,10 +284,6 @@ export function ExecuteSheet({
       setHasAttemptedCreation(false); // Reset the attempt flag when closing
       setExecutionType('full-single'); // Siempre resetear a 'full-single'
       setSelectedSectionId("");
-      // No resetear isGeneratingInSheet aquí si la ejecución sigue corriendo
-      if (currentExecution?.status !== "running") {
-        setIsGeneratingInSheet(false);
-      }
       instructionsInitialized.current = false; // Resetear el flag de inicialización
     }
   }, [isOpen, currentExecution?.status]);
@@ -408,74 +375,72 @@ export function ExecuteSheet({
     }
   }, [isOpen, executionType, selectedSectionId, currentExecutionId, selectedExecutionId, fullDocument?.sections, fullDocument, defaultLLM?.id, sheetSelectedLLM, executeDocumentMutation.isPending, isLoadingDefaultLLM, isLoadingFullDocument, isActuallyLoadingFullDocument, executionContext]);
 
+  // Computed options for HuemulField selects
+  const executionScopeOptions = executionContext?.type === 'section'
+    ? [
+        { label: t('executionScope.thisSectionOnly'), value: 'single' },
+        { label: t('executionScope.fromThisSection'), value: 'from' },
+      ]
+    : [
+        { label: t('executionScope.firstSectionOnly'), value: 'full-single' },
+        { label: t('executionScope.entireDocument'), value: 'full' },
+      ];
+
+  const executionScopeDescription =
+    executionType === 'full' ? t('executionScope.desc.full') :
+    executionType === 'full-single' ? t('executionScope.desc.fullSingle') :
+    executionType === 'single' ? t('executionScope.desc.single') :
+    executionType === 'from' ? t('executionScope.desc.from') : '';
+
+  const sectionOptions = fullDocument?.sections?.map((section: any, index: number) => ({
+    label: `#${index + 1} ${section.name}`,
+    value: section.id,
+  })) ?? [];
+
+  const llmOptions = llms?.map((llm: any) => ({
+    label: defaultLLM?.id === llm.id ? `${llm.name} (${t('languageModel.defaultBadge')})` : llm.name,
+    value: llm.id,
+  })) ?? [];
+
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent 
-          side="right" 
-          className="w-full sm:max-w-[90vw] lg:max-w-[900px] p-0"
-          onPointerDownOutside={isExecutionRunning() ? (e: { preventDefault: () => any; }) => e.preventDefault() : undefined}
-          onEscapeKeyDown={isExecutionRunning() ? (e: { preventDefault: () => any; }) => e.preventDefault() : undefined}
-        >
-          <div className="flex flex-col h-full">
-            <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-1">
-                  <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
-                    <Play className="h-4 w-4" />
-                    Execute Version
-                  </SheetTitle>
-                  <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                    Configure and execute this document to generate content based on its sections.
-                  </SheetDescription>
-                </div>
-                {/* Botón de acción centrado verticalmente */}
-                <div className="flex items-center h-full gap-2 ml-4">
-                  <DocumentActionButton
-                    accessLevels={accessLevels || selectedFile?.access_levels || []}
-                    requiredAccess={["create", "edit"]}
-                    requireAll={false}
-                    checkGlobalPermissions={true}
-                    resource="asset"
-                    onClick={handleExecuteDocument}
-                    disabled={
-                      // Prioridad 1: Estados de carga - mantener deshabilitado durante carga
-                      isActuallyLoadingFullDocument ||
-                      isLoadingDefaultLLM ||
-                      // Prioridad 2: Mutation en proceso
-                      executeDocumentMutation.isPending ||
-                      // Prioridad 3: Validaciones de datos (solo si NO está cargando)
-                      (!isActuallyLoadingFullDocument && (!fullDocument?.sections || fullDocument.sections.length === 0)) ||
-                      (!isLoadingDefaultLLM && !sheetSelectedLLM && !defaultLLM?.id) ||
-                      // Prioridad 4: Validación específica para single y from
-                      ((executionType === 'single' || executionType === 'from') && 
-                        (!selectedSectionId || (!currentExecutionId && !selectedExecutionId)))
-                    }
-                    className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-                    style={{ alignSelf: 'center' }}
-                  >
-                    {executeDocumentMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-2" />
-                        Execute Version
-                      </>
-                    )}
-                  </DocumentActionButton>
-                </div>
-              </div>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-              <div className="space-y-6">
+      <HuemulSheet
+        open={isOpen}
+        onOpenChange={onOpenChange}
+        title={t('sheet.title')}
+        description={t('sheet.description')}
+        icon={Play}
+        showFooter={false}
+        maxWidth="w-full sm:max-w-[90vw] lg:max-w-[900px]"
+        headerExtra={
+          <HuemulButton
+            accessLevels={accessLevels || selectedFile?.access_levels || []}
+            requiredAccess={["create", "edit"]}
+            requireAll={false}
+            checkGlobalPermissions={true}
+            resource="asset"
+            onClick={handleExecuteDocument}
+            loading={executeDocumentMutation.isPending || isActuallyLoadingFullDocument || isLoadingDefaultLLM}
+            icon={Play}
+            label={
+              executeDocumentMutation.isPending ? t('button.creating') :
+              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('button.loading') :
+              t('button.execute')
+            }
+            disabled={
+              isActuallyLoadingFullDocument ||
+              isLoadingDefaultLLM ||
+              executeDocumentMutation.isPending ||
+              (!isActuallyLoadingFullDocument && (!fullDocument?.sections || fullDocument.sections.length === 0)) ||
+              (!isLoadingDefaultLLM && !sheetSelectedLLM && !defaultLLM?.id) ||
+              ((executionType === 'single' || executionType === 'from') &&
+                (!selectedSectionId || (!currentExecutionId && !selectedExecutionId)))
+            }
+            className="bg-[#4464f7] hover:bg-[#3451e6]"
+          />
+        }
+      >
+        <div className="space-y-6">
                   {/* Estado de carga mientras se ejecuta el documento */}
                   {executeDocumentMutation.isPending ? (
                     <Card className="border-0 shadow-sm border-l-4 border-l-[#4464f7]">
@@ -484,8 +449,8 @@ export function ExecuteSheet({
                           <div className="w-16 h-16 mx-auto mb-4 bg-[#4464f7]/10 rounded-full flex items-center justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-[#4464f7]" />
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Executing Document</h3>
-                          <p className="text-sm text-gray-600">Starting document execution, this may take a few moments...</p>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('pending.title')}</h3>
+                          <p className="text-sm text-gray-600">{t('pending.description')}</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -496,18 +461,18 @@ export function ExecuteSheet({
                           <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
                             <CircleX className="h-8 w-8 text-red-500" />
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Execute a New Version</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('error.title')}</h3>
                           <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
-                            There was an error executing the document. Please check your configuration and try again.
+                            {t('error.description')}
                           </p>
-                        <Button
+                        <HuemulButton
                           onClick={handleExecuteDocument}
+                          loading={executeDocumentMutation.isPending}
                           disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || (!sheetSelectedLLM && !defaultLLM?.id)}
-                          className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer px-6"
-                        >
-                          <Play className="h-4 w-4 mr-2" />
-                          Try Again
-                        </Button>
+                          icon={Play}
+                          label={t('button.tryAgain')}
+                          className="bg-[#4464f7] hover:bg-[#3451e6] px-6"
+                        />
                         </div>
                       </CardContent>
                     </Card>
@@ -518,20 +483,19 @@ export function ExecuteSheet({
                           <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                             <Play className="h-8 w-8 text-gray-400" />
                           </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Sections Available</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('noSections.title')}</h3>
                           <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
-                            This document needs sections before it can be executed. Add some sections to get started with content generation.
+                            {t('noSections.description')}
                           </p>
-                          <Button
+                          <HuemulButton
                             onClick={() => {
                               onOpenChange(false);
                               onSectionSheetOpen();
                             }}
-                            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer px-6"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Sections
-                          </Button>
+                            icon={Plus}
+                            label={t('button.addSections')}
+                            className="bg-[#4464f7] hover:bg-[#3451e6] px-6"
+                          />
                         </div>
                       </CardContent>
                     </Card>
@@ -548,193 +512,91 @@ export function ExecuteSheet({
                       </div> */}
 
                       <div className="space-y-6">
-                        <div className="space-y-3">
-                          <label className="block text-sm font-medium text-gray-900">
-                            Execution Scope <span className="text-red-500">*</span>
-                          </label>
-                          <Select
-                            value={executionType}
-                            onValueChange={(value: 'full' | 'full-single' | 'single' | 'from') => {
-                              setExecutionType(value);
-                              // Solo resetear section selection si no viene del contexto de sección
-                              if (executionContext?.type !== 'section') {
-                                setSelectedSectionId("");
-                              }
-                            }}
-                            disabled={executeDocumentMutation.isPending}
-                          >
-                            <SelectTrigger className="w-full h-11 bg-white border-gray-300 hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors hover:cursor-pointer">
-                              <SelectValue placeholder="Select execution scope" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {/* Opciones disponibles desde header */}
-                              {(!executionContext || executionContext.type === 'header') && (
-                                <>
-                                  <SelectItem value="full-single" className="cursor-pointer">
-                                    <span className="font-medium">Execute First Section Only</span>
-                                  </SelectItem>
-
-                                  <SelectItem value="full" className="cursor-pointer">
-                                    <span className="font-medium">Execute Entire Document</span>
-                                  </SelectItem>
-                                </>
-                              )}
-                              
-                              {/* Opciones disponibles desde sección */}
-                              {executionContext?.type === 'section' && (
-                                <>
-                                  <SelectItem value="single" className="cursor-pointer">
-                                    <span className="font-medium">Execute This Section Only</span>
-                                  </SelectItem>
-                                  
-                                  <SelectItem value="from" className="cursor-pointer">
-                                    <span className="font-medium">Execute From This Section Onwards</span>
-                                  </SelectItem>
-                                </>
-                              )}
-                            </SelectContent>
-                          </Select>
-                          {executionType && (
-                            <p className="text-xs text-gray-500">
-                              {executionType === 'full' && 'Generate content for all sections (new version)'}
-                              {executionType === 'full-single' && 'Generate content for the first section only (new version)'}
-                              {executionType === 'single' && 'Generate content for this specific section (modifies existing)'}
-                              {executionType === 'from' && 'Generate from this section to the end (modifies existing)'}
-                            </p>
-                          )}
-                        </div>
+                        <HuemulField
+                          type="select"
+                          label={t('executionScope.label')}
+                          required
+                          value={executionType}
+                          onChange={(v) => {
+                            setExecutionType(v as 'full' | 'full-single' | 'single' | 'from');
+                            if (executionContext?.type !== 'section') {
+                              setSelectedSectionId("");
+                            }
+                          }}
+                          options={executionScopeOptions}
+                          placeholder={t('executionScope.placeholder')}
+                          disabled={executeDocumentMutation.isPending}
+                          description={executionScopeDescription}
+                        />
 
                         {(executionType === 'single' || executionType === 'from') && (
-                          <div className="space-y-3">
-                            <label className="block text-sm font-medium text-gray-900">
-                              Selected Section
-                              <span className="text-red-500">*</span>
-                            </label>
-                            
-                            {executionContext?.type === 'section' ? (
-                              // Mostrar badge cuando viene del contexto de sección
+                          executionContext?.type === 'section' ? (
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-gray-900">
+                                {t('selectedSection.label')} <span className="text-red-500">*</span>
+                              </label>
                               <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                                   <span className="text-sm font-medium text-blue-900">
-                                    Section #{(executionContext.sectionIndex || 0) + 1}
+                                    {t('selectedSection.sectionNumber', { number: (executionContext.sectionIndex || 0) + 1 })}
                                   </span>
                                 </div>
                                 <div className="text-sm text-blue-700">
-                                  {fullDocument?.sections?.[executionContext.sectionIndex || 0]?.name || 'Selected Section'}
+                                  {fullDocument?.sections?.[executionContext.sectionIndex || 0]?.name || t('selectedSection.label')}
                                 </div>
                               </div>
-                            ) : (
-                              // Selector normal cuando viene del header
-                              <>
-                                <Select
-                                  value={selectedSectionId}
-                                  onValueChange={setSelectedSectionId}
-                                  disabled={executeDocumentMutation.isPending}
-                                >
-                                  <SelectTrigger className="w-full h-11 bg-white border-gray-300 hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors hover:cursor-pointer">
-                                    <SelectValue placeholder="Select a section" />
-                                  </SelectTrigger>
-                                  <SelectContent className="max-w-full">
-                                    {fullDocument?.sections?.map((section: any, index: number) => (
-                                      <SelectItem key={section.id} value={section.id} className="cursor-pointer">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs text-gray-500 font-mono">#{index + 1}</span>
-                                          <span className="font-medium truncate">{section.name}</span>
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </>
-                            )}
-                            
-                            <p className="text-xs text-gray-500">
-                              {executionType === 'single' 
-                                ? 'Only this section will be executed'
-                                : 'All sections from this one onwards will be executed'
-                              }
-                            </p>
-                          </div>
+                              <p className="text-xs text-gray-500">
+                                {executionType === 'single'
+                                  ? t('selectedSection.desc.single')
+                                  : t('selectedSection.desc.from')
+                                }
+                              </p>
+                            </div>
+                          ) : (
+                            <HuemulField
+                              type="select"
+                              label={t('selectedSection.label')}
+                              required
+                              value={selectedSectionId}
+                              onChange={(v) => setSelectedSectionId(String(v))}
+                              options={sectionOptions}
+                              placeholder={t('selectedSection.placeholder')}
+                              disabled={executeDocumentMutation.isPending}
+                              description={executionType === 'single' ? t('selectedSection.desc.single') : t('selectedSection.desc.from')}
+                            />
+                          )
                         )}
 
-                        <div className="space-y-3">
-                          <label className="block text-sm font-medium text-gray-900">
-                            Language Model <span className="text-red-500">*</span>
-                          </label>
-                          <Select
-                            value={sheetSelectedLLM}
-                            onValueChange={setSheetSelectedLLM}
-                            disabled={executeDocumentMutation.isPending}
-                          >
-                            <SelectTrigger className="w-full h-11 bg-white border-gray-300 hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors hover:cursor-pointer">
-                              <SelectValue placeholder="Select a language model" />
-                            </SelectTrigger>
-                            <SelectContent className="max-w-full">
-                              {llms?.map((llm: any) => (
-                                <SelectItem key={llm.id} value={llm.id} className="cursor-pointer">
-                                  <div className="flex items-center justify-between w-full gap-3">
-                                    <span className="font-medium">{llm.name}</span>
-                                    {defaultLLM?.id === llm.id && (
-                                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium border border-blue-200">
-                                        Default
-                                      </span>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {!sheetSelectedLLM && (
-                            <p className="text-xs text-gray-500">
-                              Please select a language model to proceed with the execution.
-                            </p>
-                          )}
-                        </div>
+                        <HuemulField
+                          type="select"
+                          label={t('languageModel.label')}
+                          required
+                          value={sheetSelectedLLM}
+                          onChange={(v) => setSheetSelectedLLM(String(v))}
+                          options={llmOptions}
+                          placeholder={t('languageModel.placeholder')}
+                          disabled={executeDocumentMutation.isPending}
+                          description={!sheetSelectedLLM ? t('languageModel.noModelDesc') : undefined}
+                        />
                         
-                        <div className="space-y-3">
-                          <label htmlFor="new-instructions" className="block text-sm font-medium text-gray-900">
-                            Execution Instructions
-                            <span className="text-sm font-normal text-gray-500 ml-1">(Optional)</span>
-                          </label>
-                          <textarea
-                            id="new-instructions"
-                            value={sheetInstructions}
-                            onChange={(e) => setSheetInstructions(e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg hover:border-[#4464f7] focus:outline-none focus:ring-2 focus:ring-[#4464f7]/20 focus:border-[#4464f7] resize-none transition-colors"
-                            rows={5}
-                            placeholder="Enter any specific instructions for this execution. For example: 'Focus on technical details' or 'Keep it concise and professional'..."
-                            disabled={executeDocumentMutation.isPending}
-                          />
-                          <p className="text-xs text-gray-500">
-                            These instructions will guide the AI during content generation.
-                          </p>
-                        </div>
+                        <HuemulField
+                          type="textarea"
+                          label={t('instructions.label')}
+                          name="new-instructions"
+                          value={sheetInstructions}
+                          onChange={(v) => setSheetInstructions(String(v))}
+                          rows={16}
+                          placeholder={t('instructions.placeholder')}
+                          disabled={executeDocumentMutation.isPending}
+                          description={t('instructions.description')}
+                          inputClassName="min-h-[280px]"
+                        />
                       </div>
                     </div>
                   )}
-            </div>
-          </div>
-          
-          {/* SheetFooter eliminado, el botón ahora está solo en el header */}
         </div>
-      </SheetContent>
-      </Sheet>
-
-      {/* Edit Document Dialog */}
-      <EditDocumentDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        documentId={selectedFile?.id || ''}
-        currentName={selectedFile?.name || ''}
-        currentDescription={fullDocument?.description}
-        onUpdated={(newName) => {
-          // Invalidate queries to refresh document data
-          queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-          console.log('Document updated with new name:', newName);
-        }}
-      />
+      </HuemulSheet>
     </>
   );
 }

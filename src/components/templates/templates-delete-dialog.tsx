@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { useTranslation } from "react-i18next";
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { deleteTemplate } from "@/services/templates";
 import { toast } from "sonner";
 
@@ -21,48 +21,35 @@ export function DeleteTemplateDialog({
   organizationId,
   onSuccess,
 }: DeleteTemplateDialogProps) {
+  const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const deleteTemplateMutation = useMutation({
     mutationFn: () => deleteTemplate(templateId, organizationId),
     onSuccess: () => {
-      toast.success("Template deleted successfully");
+      toast.success(t('delete.success'));
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
     },
   });
 
   const handleDelete = async () => {
-    setIsDeleting(true);
-    
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800));
-    
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteTemplateMutation.mutate(undefined, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          });
-        }),
-        minDelay
-      ]);
-      
-      onSuccess();
-    } finally {
-      setIsDeleting(false);
-    }
+    await new Promise<void>((resolve, reject) => {
+      deleteTemplateMutation.mutate(undefined, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error),
+      });
+    });
+    onSuccess();
   };
 
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Template"
-      description={`Are you sure you want to delete "${templateName}"? This action cannot be undone and will remove all template sections.`}
-      onConfirm={handleDelete}
-      confirmLabel="Deleting"
-      isProcessing={isDeleting}
+      title={t('delete.title')}
+      description={t('delete.description', { name: templateName })}
+      actionLabel={t('delete.actionLabel')}
+      onAction={handleDelete}
     />
   );
 }
