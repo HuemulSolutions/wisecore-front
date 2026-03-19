@@ -173,19 +173,17 @@ export function CreateStepContent({
           {isEditing ? (
             <HuemulButton
               icon={Ban}
+              label={t("lifecycle.cancel")}
               variant="ghost"
-              size="icon"
               onClick={handleCancel}
-              tooltip={t("lifecycle.cancel")}
-              className="text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             />
           ) : (
             <HuemulButton
               icon={Pencil}
+              label={t("lifecycle.edit")}
               variant="ghost"
-              size="icon"
               onClick={handleEdit}
-              tooltip={t("lifecycle.edit")}
               className="text-muted-foreground"
             />
           )}
@@ -224,7 +222,7 @@ export function CreateStepContent({
               }
             }}
             disabled={!isEditing}
-            className="w-auto"
+            labelFirst
           />
           {slaEnabled && (
             <div className="flex items-center gap-2 pl-1">

@@ -69,7 +69,6 @@ export default function SectionExecution({
     const [aiPreview, setAiPreview] = useState<string | null>(null);
     const [isAiProcessing, setIsAiProcessing] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
@@ -281,15 +280,12 @@ export default function SectionExecution({
 
     const handleDelete = async () => {
         try {
-            setIsDeleting(true);
             await deleteSectionExec(sectionExecution.id);
             toast.success('Section deleted successfully!');
-            closeDeleteDialog();
             onUpdate?.();
         } catch (error) {
             handleApiError(error, { fallbackMessage: 'Failed to delete section. Please try again.' });
-        } finally {
-            setIsDeleting(false);
+            throw error;
         }
     };
 
@@ -308,7 +304,7 @@ export default function SectionExecution({
         <div ref={containerRef} className="p-2 relative">
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
-                <div className="sticky top-0 z-20 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
+                <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
                     {(sectionName || sectionType) && (
                         <div className="mr-auto flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
                             <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
@@ -395,18 +391,14 @@ export default function SectionExecution({
 
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        {/* <DocumentActionButton
-                                            accessLevels={accessLevels}
-                                            requiredAccess="read"
-                                            checkGlobalPermissions={true}
-                                            resource="asset"
+                                        <Button
                                             variant="ghost"
                                             size="sm"
                                             className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
                                             onClick={handleCopy}
-                                        > */}
+                                        >
                                             <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                        {/* </DocumentActionButton> */}
+                                        </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         <p>Copy content</p>
@@ -687,8 +679,7 @@ export default function SectionExecution({
         <DeleteSectionDialog
             open={isDeleteDialogOpen}
             onOpenChange={handleDeleteDialogChange}
-            onConfirm={handleDelete}
-            isDeleting={isDeleting}
+            onAction={handleDelete}
         />
 
         {/* Execution Configuration Dialog */}

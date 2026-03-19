@@ -21,7 +21,8 @@ import {
 import Chatbot from "@/components/chatbot/chatbot";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { DocumentAccessControl, DocumentActionButton } from "@/components/assets/content/assets-access-control";
+import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 
 import {
   DropdownMenu,
@@ -648,11 +649,10 @@ export function AssetContent({
       setNeedsFullDocument(true);
       setNeedsDefaultLLM(true);
 
-      // Si se ejecuta desde una sección, asegurar que el índice y modo estén bien definidos para el feedback
+      // Only set execution context for the sheet - do NOT update tracking state
+      // (currentSectionIndex / currentExecutionMode) here. Those must only be set
+      // in handleExecutionCreated, once the user actually triggers an execution.
       if (context?.type === 'section' && typeof context.sectionIndex === 'number') {
-        setCurrentSectionIndex(context.sectionIndex);
-        setCurrentExecutionMode('single'); // O 'from' si aplica, según la acción
-        // setExecutionContext y setIsExecuteSheetOpen deben ejecutarse después para asegurar el render correcto
         setTimeout(() => {
           setExecutionContext(context);
           setIsExecuteSheetOpen(true);
@@ -737,7 +737,7 @@ export function AssetContent({
     refetchInterval: (query) => {
       // Stop polling if execution is in a terminal state
       const status = query.state.data?.status;
-      if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
         return false;
       }
       return 2000; // Poll every 2 seconds
@@ -769,7 +769,7 @@ export function AssetContent({
   useEffect(() => {
     if (currentExecutionStatus && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
       const status = currentExecutionStatus.status;
-      if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
         console.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
         
         // Preserve scroll position before refreshing content
@@ -848,7 +848,7 @@ export function AssetContent({
     const executions = documentContent?.executions || documentExecutions;
     if (!executions) return false;
     return executions.some((execution: any) => 
-      ['running', 'queued', 'pending', 'processing', 'approving'].includes(execution.status)
+      ['running', 'queued', 'pending', 'processing', 'approving', 'importing'].includes(execution.status)
     );
   }, [documentContent?.executions, documentExecutions]);
 
@@ -931,7 +931,7 @@ export function AssetContent({
 
     const selectedExecution = executions.find((execution: any) => 
       execution.id === selectedExecutionId && 
-      ['running', 'pending'].includes(execution.status)
+      ['running', 'pending', 'importing', 'import_failed'].includes(execution.status)
     );
 
     return selectedExecution || null;
@@ -1611,7 +1611,7 @@ export function AssetContent({
               {/* Editor-only mobile actions */}
               {showEditorActions && (
                 <>
-              <DocumentActionButton
+              <HuemulButton
                 accessLevels={accessLevels}
                 requiredAccess={["create"]}
                 requireAll={false}
@@ -1634,7 +1634,7 @@ export function AssetContent({
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-              </DocumentActionButton>
+              </HuemulButton>
               
               <DocumentAccessControl
                 accessLevels={accessLevels}
@@ -1646,6 +1646,7 @@ export function AssetContent({
                 <SectionSheet
                   selectedFile={selectedFile}
                   fullDocument={fullDocument}
+                  documentName={documentContent?.document_name}
                   isOpen={isSectionSheetOpen}
                   onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
                     if (!open) preserveScrollPosition();
@@ -1665,16 +1666,17 @@ export function AssetContent({
                 checkGlobalPermissions={true}
                 resource="asset"
               >
-                <DependenciesSheet
-                  selectedFile={selectedFile}
-                  isOpen={isDependenciesSheetOpen}
-                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
+                  <DependenciesSheet
+                    selectedFile={selectedFile}
+                    isOpen={isDependenciesSheetOpen}
+                    onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
                     if (!open) preserveScrollPosition();
                     setIsDependenciesSheetOpen(open);
                   }}
-                  isMobile={isMobile}
-                  accessLevels={accessLevels}
-                />
+                    isMobile={isMobile}
+                    accessLevels={accessLevels}
+                    documentName={documentContent?.document_name}
+                  />
               </DocumentAccessControl>
               
               <DocumentAccessControl
@@ -1693,6 +1695,7 @@ export function AssetContent({
                   }}
                   isMobile={isMobile}
                   accessLevels={accessLevels}
+                  documentName={documentContent?.document_name}
                 />
               </DocumentAccessControl>
                 </>
@@ -1707,7 +1710,7 @@ export function AssetContent({
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <DocumentActionButton
+                      <HuemulButton
                         accessLevels={accessLevels}
                         requiredAccess="read"
                         size="sm"
@@ -1733,7 +1736,7 @@ export function AssetContent({
                           })()
                           }
                         </span>
-                      </DocumentActionButton>
+                      </HuemulButton>
                     </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64">
                     <div className="px-3 py-2 border-b border-gray-100">
@@ -1804,7 +1807,7 @@ export function AssetContent({
               
               {/* Edit Button - editor only */}
               {showEditorActions && (
-              <DocumentActionButton
+              <HuemulButton
                 accessLevels={accessLevels}
                 requiredAccess="edit"
                 checkGlobalPermissions={true}
@@ -1816,12 +1819,12 @@ export function AssetContent({
                 title="Edit Document"
               >
                 <Edit3 className="h-4 w-4" />
-              </DocumentActionButton>
+              </HuemulButton>
               )}
 
               {/* Create Template from Document - editor only */}
               {showEditorActions && !documentContent?.template_name && canCreate('template') && (
-                <DocumentActionButton
+                <HuemulButton
                   accessLevels={accessLevels}
                   requiredAccess="edit"
                   checkGlobalPermissions={true}
@@ -1833,25 +1836,25 @@ export function AssetContent({
                   title="Create Template from Asset"
                 >
                   <FileCode className="h-4 w-4" />
-                </DocumentActionButton>
+                </HuemulButton>
               )}
 
               {/* Clone Button - editor only */}
               {showEditorActions && selectedExecutionId && (
-                <DocumentActionButton
+                <HuemulButton
                   accessLevels={accessLevels}
                   requiredAccess={["edit", "create"]}
                   requireAll={false}
                   checkGlobalPermissions={true}
                   resource="asset"
-                  onClick={() => setTimeout(() => openCloneDialog(), 0)}
+                  onClick={() => void setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
                   variant="ghost"
                   className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
                   title="Clone Execution"
                 >
                   <Copy className="h-4 w-4" />
-                </DocumentActionButton>
+                </HuemulButton>
               )}
               
               {/* Export Dropdown */}
@@ -1959,7 +1962,7 @@ export function AssetContent({
                 // Show Approve button when status is 'completed'
                 if (actualStatus === 'completed') {
                   return (
-                    <DocumentActionButton
+                    <HuemulButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
                       checkGlobalPermissions={true}
@@ -1986,14 +1989,14 @@ export function AssetContent({
                       ) : (
                         <Check className="h-4 w-4" />
                       )}
-                    </DocumentActionButton>
+                    </HuemulButton>
                   );
                 }
                 
                 // Show spinner when status is 'approving'
                 if (actualStatus === 'approving') {
                   return (
-                    <DocumentActionButton
+                    <HuemulButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
                       checkGlobalPermissions={true}
@@ -2005,14 +2008,14 @@ export function AssetContent({
                       title="Approving..."
                     >
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    </DocumentActionButton>
+                    </HuemulButton>
                   );
                 }
                 
                 // Show Disapprove button when status is 'approved'
                 if (actualStatus === 'approved') {
                   return (
-                    <DocumentActionButton
+                    <HuemulButton
                       accessLevels={accessLevels}
                       requiredAccess="approve"
                       checkGlobalPermissions={true}
@@ -2039,7 +2042,7 @@ export function AssetContent({
                       ) : (
                         <X className="h-4 w-4" />
                       )}
-                    </DocumentActionButton>
+                    </HuemulButton>
                   );
                 }
                 
@@ -2162,7 +2165,7 @@ export function AssetContent({
               {/* Primary Actions Group - hidden in reader mode */}
               {showEditorActions && (
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
-              <DocumentActionButton
+              <HuemulButton
                 accessLevels={accessLevels}
                 requiredAccess={["create", "edit"]}
                 requireAll={false}
@@ -2189,7 +2192,7 @@ export function AssetContent({
                     New Version
                   </>
                 )}
-              </DocumentActionButton>
+              </HuemulButton>
                 
                 <DocumentAccessControl
                   accessLevels={accessLevels}
@@ -2217,6 +2220,7 @@ export function AssetContent({
                     isOpen={isDependenciesSheetOpen}
                     onOpenChange={setIsDependenciesSheetOpen}
                     accessLevels={accessLevels}
+                    documentName={documentContent?.document_name}
                   />
                 </DocumentAccessControl>
                 
@@ -2230,6 +2234,7 @@ export function AssetContent({
                     isOpen={isContextSheetOpen}
                     onOpenChange={setIsContextSheetOpen}
                     accessLevels={accessLevels}
+                    documentName={documentContent?.document_name}
                   />
                 </DocumentAccessControl>
               </div>
@@ -2393,7 +2398,7 @@ export function AssetContent({
                   // Show Approve button when status is 'completed'
                   if (actualStatus === 'completed') {
                     return (
-                      <DocumentActionButton
+                      <HuemulButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
                         checkGlobalPermissions={true}
@@ -2420,14 +2425,14 @@ export function AssetContent({
                         ) : (
                           <Check className="h-3.5 w-3.5" />
                         )}
-                      </DocumentActionButton>
+                      </HuemulButton>
                     );
                   }
                   
                   // Show spinner when status is 'approving'
                   if (actualStatus === 'approving') {
                     return (
-                      <DocumentActionButton
+                      <HuemulButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
                         checkGlobalPermissions={true}
@@ -2439,14 +2444,14 @@ export function AssetContent({
                         title="Approving..."
                       >
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      </DocumentActionButton>
+                      </HuemulButton>
                     );
                   }
                   
                   // Show Disapprove button when status is 'approved'
                   if (actualStatus === 'approved') {
                     return (
-                      <DocumentActionButton
+                      <HuemulButton
                         accessLevels={accessLevels}
                         requiredAccess="approve"
                         checkGlobalPermissions={true}
@@ -2473,7 +2478,7 @@ export function AssetContent({
                         ) : (
                           <X className="h-3.5 w-3.5" />
                         )}
-                      </DocumentActionButton>
+                      </HuemulButton>
                     );
                   }
                   
@@ -2482,20 +2487,20 @@ export function AssetContent({
 
                 {/* Clone Button - Desktop - editor only */}
                 {showEditorActions && selectedExecutionId && (
-                  <DocumentActionButton
+                  <HuemulButton
                     accessLevels={accessLevels}
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
                     resource="asset"
-                    onClick={() => setTimeout(() => openCloneDialog(), 0)}
+                    onClick={() => void setTimeout(() => openCloneDialog(), 0)}
                     size="sm"
                     variant="ghost"
                     className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
                     title="Clone Execution"
                   >
                     <Copy className="h-3.5 w-3.5" />
-                  </DocumentActionButton>
+                  </HuemulButton>
                 )}
 
                 {/* Separator between execution and document actions - editor only */}
@@ -2506,7 +2511,7 @@ export function AssetContent({
                 {/* Document Actions Group - editor only */}
                 {showEditorActions && (
                   <>
-                    <DocumentActionButton
+                    <HuemulButton
                       accessLevels={accessLevels}
                       requiredAccess="edit"
                       checkGlobalPermissions={true}
@@ -2518,11 +2523,11 @@ export function AssetContent({
                       title="Edit Document"
                     >
                       <Edit3 className="h-3 w-3" />
-                    </DocumentActionButton>
+                    </HuemulButton>
 
                     {/* Create Template from Document - only show if document has no template */}
                     {!documentContent?.template_name && canCreate('template') && (
-                      <DocumentActionButton
+                      <HuemulButton
                         accessLevels={accessLevels}
                         requiredAccess="edit"
                         checkGlobalPermissions={true}
@@ -2534,7 +2539,7 @@ export function AssetContent({
                         title="Create Template from Asset"
                       >
                         <FileCode className="h-3 w-3" />
-                      </DocumentActionButton>
+                      </HuemulButton>
                     )}
                   </>
                 )}
@@ -2723,8 +2728,8 @@ export function AssetContent({
                     error={contentError}
                     onRetry={() => refetchContent()}
                   />
-                ) : isSelectedVersionExecuting && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
-                  // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY)
+                ) : isSelectedVersionExecuting && isSelectedVersionExecuting.status !== 'import_failed' && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
+                  // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY) — not for import_failed
                   <div className="space-y-6 min-h-150">
                     {/* Skeleton for document content */}
                     <div className="animate-pulse space-y-4">
@@ -2785,6 +2790,7 @@ export function AssetContent({
                   (() => {
                     // Check if the current execution has failed
                     const hasFailedExecution = selectedExecutionInfo?.status === 'failed';
+                    const hasImportFailed = selectedExecutionInfo?.status === 'import_failed';
                     
                     // Si no hay ejecuciones o no hay contenido
                     if ((!documentExecutions || documentExecutions.length === 0) || (!documentContent?.content)) {
@@ -2792,7 +2798,24 @@ export function AssetContent({
                         <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
                           <Empty className="max-w-full">
                             <div className="p-8 text-center">
-                              {hasFailedExecution ? (
+                              {hasImportFailed ? (
+                                <div className="max-w-full mx-auto">
+                                  <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
+                                    <div className="mb-6 inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 border-4 border-red-200">
+                                      <AlertCircle className="h-8 w-8 text-red-600" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-red-900 mb-3">
+                                      Import Failed
+                                    </h3>
+                                    <p className="text-base text-red-800/90 mb-2 leading-relaxed max-w-full mx-auto">
+                                      {selectedExecutionInfo?.status_message || "The file could not be imported. Please try again with a supported file."}
+                                    </p>
+                                    <p className="text-xs text-red-600/70 mt-6">
+                                      Supported formats: PDF, DOCX
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : hasFailedExecution ? (
                                 <>
                                   <div className="max-w-full mx-auto">
                                     <div className="bg-linear-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-8 shadow-lg">
@@ -2813,7 +2836,7 @@ export function AssetContent({
                                       
                                       {/* Action Buttons */}
                                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                        <DocumentActionButton
+                                        <HuemulButton
                                           accessLevels={accessLevels}
                                           requiredAccess={["create"]}
                                           requireAll={false}
@@ -2836,8 +2859,8 @@ export function AssetContent({
                                               Retry Execution
                                             </>
                                           )}
-                                        </DocumentActionButton>
-                                        <DocumentActionButton
+                                        </HuemulButton>
+                                        <HuemulButton
                                           accessLevels={accessLevels}
                                           requiredAccess={["edit", "create"]}
                                           requireAll={false}
@@ -2851,7 +2874,7 @@ export function AssetContent({
                                         >
                                           <Edit3 className="h-5 w-5 mr-2" />
                                           Edit Sections
-                                        </DocumentActionButton>
+                                        </HuemulButton>
                                       </div>
                                       
                                       {/* Additional Help Text */}
@@ -2873,10 +2896,10 @@ export function AssetContent({
                                       : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
                                     }
                                   </EmptyDescription>
-                                  {!hasFailedExecution && (
+                                  {!hasFailedExecution && !hasImportFailed && (
                                     <EmptyActions>
                                       {fullDocument?.sections?.length === 0 ? (
-                                        <DocumentActionButton
+                                        <HuemulButton
                                           accessLevels={accessLevels}
                                           requiredAccess={["edit", "create"]}
                                           requireAll={false}
@@ -2885,10 +2908,10 @@ export function AssetContent({
                                         >
                                           <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                                           Add Sections
-                                        </DocumentActionButton>
+                                        </HuemulButton>
                                       ) : (
                                         <>
-                                          <DocumentActionButton
+                                          <HuemulButton
                                             accessLevels={accessLevels}
                                             requiredAccess={["create"]}
                                             requireAll={false}
@@ -2910,8 +2933,8 @@ export function AssetContent({
                                                 {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
                                               </>
                                             )}
-                                          </DocumentActionButton>
-                                          <DocumentActionButton
+                                          </HuemulButton>
+                                          <HuemulButton
                                             accessLevels={accessLevels}
                                             requiredAccess={["edit", "create"]}
                                             requireAll={false}
@@ -2923,7 +2946,7 @@ export function AssetContent({
                                           >
                                             <Plus className="h-4 w-4 mr-2" />
                                             Add More Sections
-                                          </DocumentActionButton>
+                                          </HuemulButton>
                                         </>
                                       )}
                                     </EmptyActions>
@@ -3034,7 +3057,7 @@ export function AssetContent({
                           <p className="text-sm text-gray-400 mt-1 mb-6">This document doesn't have any content yet</p>
                           
                           <div className="flex gap-3 justify-center">
-                            <DocumentActionButton
+                            <HuemulButton
                               accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
@@ -3044,9 +3067,9 @@ export function AssetContent({
                             >
                               <BetweenHorizontalStart className="h-4 w-4 mr-2" />
                               Add Section
-                            </DocumentActionButton>
+                            </HuemulButton>
                             
-                            <DocumentActionButton
+                            <HuemulButton
                               accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
@@ -3067,7 +3090,7 @@ export function AssetContent({
                                   Execute New Version
                                 </>
                               )}
-                            </DocumentActionButton>
+                            </HuemulButton>
                           </div>
                         </div>
                       </div>

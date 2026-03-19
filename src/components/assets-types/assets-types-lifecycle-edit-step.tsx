@@ -47,6 +47,7 @@ export interface EditStepCardData {
 export interface EditStepContentProps {
   documentTypeId: string
   stepType: string
+  onEditingChange?: (isEditing: boolean) => void
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ interface EditStepCardProps {
   t: (key: string) => string
   isDeleting: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
+  onEditingChange?: (isEditing: boolean) => void
 }
 
 function EditStepCard({
@@ -90,6 +92,7 @@ function EditStepCard({
   t,
   isDeleting,
   dragHandleProps,
+  onEditingChange,
 }: EditStepCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -106,12 +109,14 @@ function EditStepCard({
         await onSave()
         setIsEditing(false)
         setSnapshot(null)
+        onEditingChange?.(false)
       } finally {
         setIsSaving(false)
       }
     } else {
       setSnapshot({ ...card })
       setIsEditing(true)
+      onEditingChange?.(true)
     }
   }
 
@@ -119,6 +124,7 @@ function EditStepCard({
     if (snapshot) onChange(snapshot)
     setIsEditing(false)
     setSnapshot(null)
+    onEditingChange?.(false)
   }
 
   return (
@@ -156,23 +162,21 @@ function EditStepCard({
         />
         <HuemulButton
           icon={isEditing ? Check : Pencil}
+          label={isEditing ? t("lifecycle.done") : t("lifecycle.edit")}
           variant="ghost"
-          size="icon"
           onClick={handleCheckClick}
           loading={isSaving}
           disabled={isSaving}
-          tooltip={isEditing ? t("lifecycle.done") : t("lifecycle.edit")}
           className={isEditing ? "text-primary" : "text-muted-foreground"}
         />
         {isEditing && (
           <HuemulButton
             icon={Ban}
+            label={t("lifecycle.cancel")}
             variant="ghost"
-            size="icon"
             onClick={handleCancel}
             disabled={isSaving}
-            tooltip={t("lifecycle.cancel")}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           />
         )}
         <HuemulButton
@@ -182,7 +186,7 @@ function EditStepCard({
           onClick={onDelete}
           disabled={isDeleting}
           tooltip={t("lifecycle.deleteGroup")}
-          className="text-muted-foreground hover:text-destructive"
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         />
       </div>
 
@@ -203,7 +207,7 @@ function EditStepCard({
             })
           }
           disabled={ro}
-          className="w-auto"
+          labelFirst
         />
         {card.hasSla && (
           <div className="flex items-center gap-2 pl-1">
@@ -334,7 +338,7 @@ function SortableEditStepCard(
 
 // ─── EditStepContent ──────────────────────────────────────────────────────────
 
-export function EditStepContent({ documentTypeId, stepType }: EditStepContentProps) {
+export function EditStepContent({ documentTypeId, stepType, onEditingChange }: EditStepContentProps) {
   const { t } = useTranslation("asset-types")
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
@@ -475,6 +479,7 @@ export function EditStepContent({ documentTypeId, stepType }: EditStepContentPro
                 allRoles={allRoles}
                 onChange={(updated) => handleCardChange(card.id, updated)}
                 onDelete={() => setDeleteConfirmId(card.id)}
+                onEditingChange={(editing) => onEditingChange?.(editing)}
                 onSave={async () => {
                   const currentCard = localSteps.find((c) => c.id === card.id)!
                   const index = localSteps.findIndex((c) => c.id === card.id)
@@ -551,7 +556,7 @@ export function EditStepContent({ documentTypeId, stepType }: EditStepContentPro
                   setNewGroupSlaUnit("")
                 }
               }}
-              className="w-auto"
+              labelFirst
             />
             {newGroupHasSla && (
               <div className="flex items-center gap-2 pl-1">

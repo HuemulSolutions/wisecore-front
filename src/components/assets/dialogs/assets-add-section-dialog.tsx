@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { PlusCircle } from "lucide-react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet"
 
 interface Section {
@@ -51,24 +51,27 @@ export function AddSectionDialog({
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(o) => {
+        if (!o) setIsFormValid(false)
+        onOpenChange(o)
+      }}
       title="Add New Section"
       description={getDescription()}
       icon={PlusCircle}
-      maxWidth="lg"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => {
-        onOpenChange(false)
-        setIsFormValid(false)
-      }}
-      submitLabel="Create Section"
+      maxWidth="sm:max-w-2xl"
+      maxHeight="max-h-[90vh]"
       cancelLabel="Cancel"
-      isSubmitting={isPending}
-      isValid={isFormValid}
-      formId="add-section-form"
+      saveAction={{
+        label: isPending ? "Creating..." : "Create Section",
+        disabled: !isFormValid || isPending,
+        loading: isPending,
+        closeOnSuccess: false,
+        onClick: () => {
+          (document.getElementById("add-section-form") as HTMLFormElement)?.requestSubmit()
+        },
+      }}
     >
       <AddSectionFormSheet
         documentId={documentId}
@@ -77,6 +80,6 @@ export function AddSectionDialog({
         existingSections={existingSections}
         onValidationChange={setIsFormValid}
       />
-    </ReusableDialog>
+    </HuemulDialog>
   )
 }
