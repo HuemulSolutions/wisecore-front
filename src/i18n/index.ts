@@ -10,6 +10,16 @@ import models from './locales/models'
 import authTypes from './locales/auth-types'
 import roles from './locales/roles'
 import assetTypes from './locales/asset-types'
+import assets from './locales/assets'
+import customFields from './locales/custom-fields'
+import context from './locales/context'
+import dependencies from './locales/dependencies'
+import sections from './locales/sections'
+import execute from './locales/execute'
+import home from './locales/home'
+import layout from './locales/layout'
+import templates from './locales/templates'
+import search from './locales/search'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -39,6 +49,16 @@ const modules = {
   'auth-types': authTypes,
   roles,
   'asset-types': assetTypes,
+  assets,
+  'custom-fields': customFields,
+  context,
+  dependencies,
+  sections,
+  execute,
+  home,
+  layout,
+  templates,
+  search,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const

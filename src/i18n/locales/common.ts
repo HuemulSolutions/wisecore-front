@@ -32,6 +32,12 @@ const translations = {
   noPermission: { en: "You don't have permission to access this page.", es: "No tienes permiso para acceder a esta página." },
   selectPlaceholder: { en: "Select...", es: "Seleccionar..." },
   searchPlaceholder: { en: "Search...", es: "Buscar..." },
+  pagination: {
+    itemsPerPage: { en: "Items per page:", es: "Elementos por página:" },
+    page: { en: "Page", es: "Página" },
+    of: { en: "of", es: "de" },
+    items: { en: "items", es: "elementos" },
+  },
 }
 
 export default translations

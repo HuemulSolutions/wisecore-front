@@ -134,6 +134,12 @@ const translations = {
       archive: { en: "Archive", es: "Archivado" },
       view: { en: "Reader", es: "Lector" },
     },
+    unsavedChanges: {
+      title: { en: "Unsaved changes", es: "Cambios sin guardar" },
+      description: { en: "You have unsaved changes. If you continue, your changes will be lost.", es: "Tienes cambios sin guardar. Si continúas, se perderán los cambios." },
+      discard: { en: "Discard changes", es: "Descartar cambios" },
+      keepEditing: { en: "Keep editing", es: "Seguir editando" },
+    },
   },
 }
 
