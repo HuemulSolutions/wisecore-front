@@ -1,19 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Plus } from "lucide-react"
 import { useCustomFields, useCustomFieldDataTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useOrganization } from "@/contexts/organization-context"
 import type { CustomField } from "@/types/custom-fields"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
+import { useTranslation } from "react-i18next"
 
 interface AddCustomFieldDialogProps {
   isOpen: boolean
@@ -71,6 +67,7 @@ export function AddCustomFieldDialog({
 
   // Custom field mutations for creating new custom fields
   const customFieldMutations = useCustomFieldMutations()
+  const { t } = useTranslation('custom-fields')
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -118,7 +115,7 @@ export function AddCustomFieldDialog({
       onImageUploadComplete?.()
     } catch (error) {
       console.error("Error uploading image:", error)
-      setFormErrors(prev => ({ ...prev, value: "Failed to upload image" }))
+      setFormErrors(prev => ({ ...prev, value: t('addDialog.uploadFailed') }))
       onImageUploadComplete?.()
     } finally {
       setIsUploadingImage(false)
@@ -154,17 +151,17 @@ export function AddCustomFieldDialog({
     const newErrors: Record<string, string> = {}
 
     if (!newCustomFieldData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = t('form.nameRequired')
     } else if (newCustomFieldData.name.length > 255) {
-      newErrors.name = "Name must be less than 255 characters"
+      newErrors.name = t('form.nameTooLong')
     }
 
     if (newCustomFieldData.description.length > 1000) {
-      newErrors.description = "Description must be less than 1000 characters"
+      newErrors.description = t('form.descriptionTooLong')
     }
 
     if (!newCustomFieldData.data_type) {
-      newErrors.data_type = "Data type is required"
+      newErrors.data_type = t('form.dataTypeRequired')
     }
 
     setFormErrors(newErrors)
@@ -180,28 +177,7 @@ export function AddCustomFieldDialog({
   }
 
   const formatDataType = (dataType: string) => {
-    switch (dataType) {
-      case "string":
-        return "Text"
-      case "int":
-        return "Integer"
-      case "decimal":
-        return "Decimal"
-      case "date":
-        return "Date"
-      case "time":
-        return "Time"
-      case "datetime":
-        return "Date Time"
-      case "bool":
-        return "Boolean"
-      case "image":
-        return "Image"
-      case "url":
-        return "URL"
-      default:
-        return dataType
-    }
+    return t(`dataTypes.${dataType}` as Parameters<typeof t>[0], { defaultValue: dataType })
   }
 
   const resetForm = () => {
@@ -311,7 +287,7 @@ export function AddCustomFieldDialog({
     if (!dataType) {
       return (
         <Input
-          placeholder="Select a custom field or data type first"
+          placeholder={t('addDialog.selectFirstPlaceholder')}
           disabled
         />
       )
@@ -320,106 +296,109 @@ export function AddCustomFieldDialog({
     switch (dataType) {
       case "bool":
         return (
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={value === "true" || value === "1"}
-              onCheckedChange={(checked) => setValue(checked.toString())}
-            />
-            <Label className="text-sm">
-              {(value === "true" || value === "1") ? "True" : "False"}
-            </Label>
-          </div>
+          <HuemulField
+            type="switch"
+            label={t('addDialog.valueLabel')}
+            value={value === "true" || value === "1"}
+            onChange={(v) => setValue(v.toString())}
+            checkLabel={(value === "true" || value === "1") ? "True" : "False"}
+          />
         )
       case "int":
         return (
-          <Input
+          <HuemulField
             type="number"
-            step="1"
-            placeholder="Enter integer value"
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderInt')}
             value={value}
-            onChange={(e) => {
-              const inputValue = e.target.value
-              if (inputValue === '' || /^-?\d+$/.test(inputValue)) {
-                setValue(inputValue)
-              }
+            step={1}
+            onChange={(v) => {
+              const strVal = String(v)
+              if (strVal === '' || /^-?\d+$/.test(strVal)) setValue(strVal)
             }}
-            onKeyPress={(e) => {
-              if (e.key === '.' || e.key === 'e' || e.key === 'E' || e.key === '+') {
-                e.preventDefault()
-              }
-            }}
+            error={formErrors.value}
           />
         )
       case "decimal":
         return (
-          <Input
+          <HuemulField
             type="number"
-            step="any"
-            placeholder="Enter decimal value"
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderDecimal')}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "date":
         return (
-          <Input
+          <HuemulField
             type="date"
-            placeholder="YYYY-MM-DD"
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderDate')}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "time":
         return (
-          <Input
+          <HuemulField
             type="time"
-            placeholder="HH:MM:SS"
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderTime')}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "datetime":
         return (
-          <Input
-            type="datetime-local"
-            placeholder="YYYY-MM-DDTHH:MM:SS"
+          <HuemulField
+            type="datetime"
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderDatetime')}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "image":
         return (
-          <div className="space-y-2">
-            <Input
-              type="file"
-              accept="image/*"
-              disabled={isUploadingImage}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  setSelectedFile(file)
-                  setValue(file.name)
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">
-              Image will be uploaded after creating the custom field {entityType}
-            </p>
+          <HuemulField
+            type="file"
+            label={t('addDialog.imageLabel')}
+            accept="image/*"
+            disabled={isUploadingImage}
+            onFileChange={(files) => {
+              const file = files?.[0]
+              if (file) {
+                setSelectedFile(file)
+                setValue(file.name)
+              }
+            }}
+            description={!isUploadingImage
+              ? t(entityType === "document" ? 'addDialog.imageUploadDescDocument' : 'addDialog.imageUploadDescTemplate')
+              : undefined}
+            error={formErrors.value}
+          >
             {isUploadingImage && (
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Uploading image...</span>
+                <span>{t('addDialog.uploadingImage')}</span>
               </div>
             )}
-          </div>
+          </HuemulField>
         )
       default: // string, url
         return (
-          <Input
+          <HuemulField
             type={dataType === "url" ? "url" : "text"}
-            placeholder={`Enter ${dataType} value`}
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderGeneric')}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
     }
@@ -429,161 +408,100 @@ export function AddCustomFieldDialog({
     ? selectedCustomFieldId && selectedSource
     : newCustomFieldData.name && newCustomFieldData.data_type
 
-  const entityLabel = entityType === "document" ? "document" : "template"
-
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={isOpen}
-      onOpenChange={closeDialog}
-      title="Add Custom Field"
-      description={`Add an existing custom field to this ${entityLabel} or create a new one.`}
+      onOpenChange={(open) => { if (!open) closeDialog() }}
+      title={t('addDialog.title')}
+      description={entityType === "document"
+        ? t('addDialog.descriptionDocument')
+        : t('addDialog.descriptionTemplate')}
       icon={Plus}
-      maxWidth="lg"
-      maxHeight="90vh"
-      footer={
-        <>
-          <Button 
-            variant="outline"
-            onClick={closeDialog}
-            className="hover:cursor-pointer"
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={!isValid}
-            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-          >
-            {fieldType === "new" ? "Create & Add Field" : "Add Custom Field"}
-          </Button>
-        </>
-      }
+      maxWidth="sm:max-w-[600px]"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('common:cancel', 'Cancel')}
+      saveAction={{
+        label: fieldType === "new" ? t('addDialog.saveNew') : t('addDialog.saveExisting'),
+        onClick: handleSubmit,
+        disabled: !isValid,
+        closeOnSuccess: false,
+      }}
     >
       <div className="space-y-6">
         {/* Radio Group for Field Type */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Choose an option</Label>
-          <RadioGroup 
-            value={fieldType} 
-            onValueChange={(value: "existing" | "new") => setFieldType(value)}
-            className="space-y-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="existing" id="existing" />
-              <Label htmlFor="existing" className="hover:cursor-pointer">
-                Use existing custom field
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="new" id="new" />
-              <Label htmlFor="new" className="hover:cursor-pointer">
-                Create new custom field
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
+        <HuemulField
+          type="radio"
+          label={t('addDialog.chooseOption')}
+          name="field-type"
+          value={fieldType}
+          onChange={(v) => setFieldType(v as "existing" | "new")}
+          options={[
+            { label: t('addDialog.useExisting'), value: "existing" },
+            { label: t('addDialog.createNew'), value: "new" },
+          ]}
+          inputClassName="flex-col gap-2"
+        />
 
         {/* Existing Custom Field Selection */}
         {fieldType === "existing" && (
           <div className="space-y-4">
             {/* Custom Field Selector */}
-            <div className="space-y-2">
-              <Label htmlFor="custom-field" className="text-sm font-medium">
-                Select Custom Field
-              </Label>
-              {isLoadingCustomFields ? (
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading custom fields...</span>
-                </div>
-              ) : (
-                <Select 
-                  value={selectedCustomFieldId} 
-                  onValueChange={setSelectedCustomFieldId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a custom field" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customFields.map((field: CustomField) => (
-                      <SelectItem key={field.id} value={field.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{field.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDataType(field.data_type)}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            <HuemulField
+              type="combobox"
+              label={t('addDialog.selectCustomField')}
+              name="custom-field"
+              placeholder={t('addDialog.selectCustomFieldPlaceholder')}
+              value={selectedCustomFieldId}
+              onChange={(v) => setSelectedCustomFieldId(String(v))}
+              disabled={isLoadingCustomFields}
+              options={customFields.map((field: CustomField) => ({
+                label: field.name,
+                value: field.id,
+                description: formatDataType(field.data_type),
+              }))}
+            />
 
             {/* Source Radio Group */}
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Value Source</Label>
-              {isLoadingSources ? (
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading sources...</span>
-                </div>
-              ) : (
-                <RadioGroup 
-                  value={selectedSource} 
-                  onValueChange={setSelectedSource}
-                  className="space-y-2"
-                >
-                  {sources.map((source) => (
-                    <div key={source} className="flex items-center space-x-2">
-                      <RadioGroupItem value={source} id={`${source}`} />
-                      <Label htmlFor={`${source}`} className="hover:cursor-pointer capitalize">
-                        {source}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              )}
-            </div>
+            <HuemulField
+              type="radio"
+              label={t('addDialog.valueSource')}
+              name="source"
+              value={selectedSource}
+              onChange={(v) => setSelectedSource(String(v))}
+              disabled={isLoadingSources}
+              options={sources.map((source) => ({
+                label: source.charAt(0).toUpperCase() + source.slice(1),
+                value: source,
+              }))}
+              inputClassName="flex-col gap-2"
+            />
 
             {/* Required Switch */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-medium">Required Field</Label>
-                <p className="text-xs text-muted-foreground">
-                  Make this field mandatory for this {entityLabel}
-                </p>
-              </div>
-              <Switch
-                checked={isRequired}
-                onCheckedChange={setIsRequired}
-              />
-            </div>
+            <HuemulField
+              type="switch"
+              label={t('addDialog.requiredField')}
+              description={entityType === "document"
+                ? t('addDialog.requiredFieldDescDocument')
+                : t('addDialog.requiredFieldDescTemplate')}
+              value={isRequired}
+              onChange={(v) => setIsRequired(Boolean(v))}
+            />
 
             {/* Prompt - only show when source is inferred */}
             {selectedSource === "inferred" && (
-              <div className="space-y-2">
-                <Label htmlFor="existing-prompt">Prompt (Required for Inferred)</Label>
-                <Textarea
-                  id="existing-prompt"
-                  placeholder="Enter prompt for this custom field"
-                  rows={3}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
-              </div>
+              <HuemulField
+                type="textarea"
+                label={t('addDialog.promptLabel')}
+                name="existing-prompt"
+                placeholder={t('addDialog.promptPlaceholder')}
+                rows={3}
+                value={prompt}
+                onChange={(v) => setPrompt(String(v))}
+              />
             )}
 
             {/* Value */}
-            {selectedSource !== "inferred" && (
-              <div className="space-y-2">
-                <Label htmlFor="existing-value">Value (Optional)</Label>
-                {renderValueField()}
-                {formErrors.value && (
-                  <p className="text-sm text-destructive">{formErrors.value}</p>
-                )}
-              </div>
-            )}
+            {selectedSource !== "inferred" && renderValueField()}
           </div>
         )}
 
@@ -607,6 +525,6 @@ export function AddCustomFieldDialog({
           </div>
         )}
       </div>
-    </ReusableDialog>
+    </HuemulDialog>
   )
 }

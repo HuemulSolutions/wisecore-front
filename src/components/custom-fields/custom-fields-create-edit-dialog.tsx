@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { PenLine, Plus } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
+import { useTranslation } from "react-i18next"
 
 import type { CustomField } from "@/types/custom-fields"
 import type { useCustomFieldMutations } from "@/hooks/useCustomFields"
@@ -34,6 +35,7 @@ export function CreateEditCustomFieldDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const isEditing = !!customField
+  const { t } = useTranslation('custom-fields')
 
   // Fetch data types (lazy loading: only when dialog is open)
   const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: open })
@@ -65,26 +67,24 @@ export function CreateEditCustomFieldDialog({
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
+      newErrors.name = t('form.nameRequired')
     } else if (formData.name.length > 255) {
-      newErrors.name = "Name must be less than 255 characters"
+      newErrors.name = t('form.nameTooLong')
     }
 
     if (formData.description.length > 1000) {
-      newErrors.description = "Description must be less than 1000 characters"
+      newErrors.description = t('form.descriptionTooLong')
     }
 
     if (!formData.data_type) {
-      newErrors.data_type = "Data type is required"
+      newErrors.data_type = t('form.dataTypeRequired')
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSave = async () => {
     if (!validateForm()) {
       return
     }
@@ -127,51 +127,30 @@ export function CreateEditCustomFieldDialog({
   }
 
   const formatDataType = (dataType: string) => {
-    switch (dataType) {
-      case "string":
-        return "Text"
-      case "int":
-        return "Integer"
-      case "decimal":
-        return "Decimal"
-      case "date":
-        return "Date"
-      case "time":
-        return "Time"
-      case "datetime":
-        return "Date Time"
-      case "bool":
-        return "Boolean"
-      case "image":
-        return "Image"
-      case "url":
-        return "URL"
-      default:
-        return dataType
-    }
+    return t(`dataTypes.${dataType}` as Parameters<typeof t>[0], { defaultValue: dataType })
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEditing ? "Edit Custom Field" : "Create Custom Field"}
+      title={isEditing ? t('editDialog.title') : t('createDialog.title')}
       description={
         isEditing
-          ? "Update the custom field details."
-          : "Create a new custom field to extend your documents with additional data."
+          ? t('editDialog.description')
+          : t('createDialog.description')
       }
       icon={isEditing ? PenLine : Plus}
-      maxWidth="lg"
-      maxHeight="90vh"
-      formId="custom-field-form"
-      submitLabel={isEditing ? "Update Custom Field" : "Create Custom Field"}
-      cancelLabel="Cancel"
-      isSubmitting={isSubmitting}
-      isValid={true}
-      showDefaultFooter={true}
+      maxWidth="sm:max-w-[600px]"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('common:cancel', 'Cancel')}
+      saveAction={{
+        label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
+        onClick: handleSave,
+        closeOnSuccess: false,
+      }}
     >
-      <form id="custom-field-form" onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
         <CustomFieldFormFields
           name={formData.name}
           description={formData.description}
@@ -187,7 +166,7 @@ export function CreateEditCustomFieldDialog({
           disabled={isSubmitting}
           loadingDataTypes={loadingDataTypes}
         />
-      </form>
-      </ReusableDialog>
+      </div>
+    </HuemulDialog>
   )
 }
