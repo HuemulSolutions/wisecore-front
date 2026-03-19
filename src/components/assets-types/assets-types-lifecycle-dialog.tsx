@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { Activity, X } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
@@ -303,7 +303,7 @@ export default function AssetTypeLifecycleDialog({
           setActiveStepIsEditing(false)
         }}
       />
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={handleGuardedOpenChange}
       title={t("lifecycle.title")}
@@ -366,7 +366,7 @@ export default function AssetTypeLifecycleDialog({
           />
         )}
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
     </>
   )
 }
