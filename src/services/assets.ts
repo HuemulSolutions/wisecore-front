@@ -225,3 +225,39 @@ export async function syncTemplateFromDocument(
   console.log('Template synced from document:', data.data);
   return data.data;
 }
+
+export interface ImportDocumentFromFileParams {
+  name: string;
+  description?: string;
+  internal_code?: string;
+  document_type_id: string;
+  section_separator?: 'h1' | 'h2' | 'h3';
+  force_import?: boolean;
+  file: File;
+  organizationId: string;
+}
+
+export async function importDocumentFromFile(params: ImportDocumentFromFileParams) {
+  const url = new URL(`${backendUrl}/documents/import-from-file`);
+  url.searchParams.append('name', params.name);
+  url.searchParams.append('document_type_id', params.document_type_id);
+  if (params.description) url.searchParams.append('description', params.description);
+  if (params.internal_code) url.searchParams.append('internal_code', params.internal_code);
+  if (params.section_separator) url.searchParams.append('section_separator', params.section_separator);
+  if (params.force_import !== undefined) url.searchParams.append('force_import', String(params.force_import));
+
+  const formData = new FormData();
+  formData.append('file', params.file);
+
+  const response = await httpClient.fetch(url.toString(), {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Org-Id': params.organizationId,
+    },
+  });
+
+  const data = await response.json();
+  console.log('Document imported from file:', data.data);
+  return data.data;
+}
