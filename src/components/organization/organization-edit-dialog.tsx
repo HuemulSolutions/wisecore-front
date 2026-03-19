@@ -1,8 +1,7 @@
 import { Pencil } from 'lucide-react';
-import { ReusableDialog } from '@/components/ui/reusable-dialog';
-import NameDescriptionFields from '@/components/assets/content/name-description-fields';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { HuemulField } from '@/huemul/components/huemul-field';
+import { useTranslation } from 'react-i18next';
 
 interface Organization {
   id: string;
@@ -36,87 +35,82 @@ export function EditOrganizationDialog({
 }: EditOrganizationDialogProps) {
   if (!organization) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave();
-  };
-
+  const { t } = useTranslation('organizations');
   const isValid = organization.name.trim().length > 0;
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit Organization"
-      description="Update the name and description of this organization."
+      title={t('edit.title')}
+      description={t('edit.description')}
       icon={Pencil}
-      maxWidth="md"
-      formId="edit-organization-form"
-      isValid={isValid}
-      isSubmitting={isSaving}
-      submitLabel="Save Changes"
-      maxHeight="90vh"
-      showDefaultFooter={true}
+      maxWidth="sm:max-w-lg"
+      saveAction={{
+        label: t('edit.button'),
+        disabled: !isValid || isSaving,
+        loading: isSaving,
+        closeOnSuccess: false,
+        onClick: () => {
+          if (isValid) onSave();
+        }
+      }}
     >
-      <form id="edit-organization-form" onSubmit={handleSubmit} className="grid gap-6">
-        <NameDescriptionFields
-          name={organization.name}
-          description={organization.description || ''}
-          onNameChange={(name) => onOrgChange({ ...organization, name })}
-          onDescriptionChange={(description) => onOrgChange({ ...organization, description })}
-          nameLabel="Organization Name *"
-          descriptionLabel="Description (Optional)"
-          namePlaceholder="Enter organization name"
-          descriptionPlaceholder="Enter organization description"
+      <div className="grid gap-5 py-2">
+        <HuemulField
+          type="text"
+          label={t('form.name')}
+          name="name"
+          placeholder={t('form.namePlaceholder')}
+          value={organization.name}
+          onChange={(v) => onOrgChange({ ...organization, name: String(v) })}
+          required
           disabled={isSaving}
-          nameRequired={true}
-          descriptionRequired={false}
+        />
+        <HuemulField
+          type="textarea"
+          label={t('form.description')}
+          name="description"
+          placeholder={t('form.descriptionPlaceholder')}
+          value={organization.description || ''}
+          onChange={(v) => onOrgChange({ ...organization, description: String(v) })}
+          disabled={isSaving}
+          rows={3}
         />
 
         {isRootAdmin && (
           <>
-            <div className="grid gap-2">
-              <Label htmlFor="max_users">Max Users (Optional)</Label>
-              <Input
-                id="max_users"
-                name="max_users"
-                type="number"
-                min="1"
-                value={organization.max_users ?? ''}
-                onChange={(e) => onOrgChange({ 
-                  ...organization, 
-                  max_users: e.target.value ? parseInt(e.target.value) : null 
-                })}
-                placeholder="Leave empty for unlimited"
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Maximum number of users allowed in this organization
-              </p>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="token_limit">Token Limit (Optional)</Label>
-              <Input
-                id="token_limit"
-                name="token_limit"
-                type="number"
-                min="1"
-                value={organization.token_limit ?? ''}
-                onChange={(e) => onOrgChange({ 
-                  ...organization, 
-                  token_limit: e.target.value ? parseInt(e.target.value) : null 
-                })}
-                placeholder="Leave empty for unlimited"
-                disabled={isSaving}
-              />
-              <p className="text-xs text-muted-foreground">
-                Maximum number of tokens allowed for this organization
-              </p>
-            </div>
+            <HuemulField
+              type="number"
+              label={t('form.maxUsers')}
+              name="max_users"
+              placeholder={t('form.maxUsersPlaceholder')}
+              value={organization.max_users ?? ''}
+              onChange={(v) => onOrgChange({
+                ...organization,
+                max_users: v !== '' ? parseInt(String(v)) : null
+              })}
+              min={1}
+              disabled={isSaving}
+              description={t('form.maxUsersDescription')}
+            />
+            <HuemulField
+              type="number"
+              label={t('form.tokenLimit')}
+              name="token_limit"
+              placeholder={t('form.tokenLimitPlaceholder')}
+              value={organization.token_limit ?? ''}
+              onChange={(v) => onOrgChange({
+                ...organization,
+                token_limit: v !== '' ? parseInt(String(v)) : null
+              })}
+              min={1}
+              disabled={isSaving}
+              description={t('form.tokenLimitDescription')}
+            />
           </>
         )}
-      </form>
-    </ReusableDialog>
+      </div>
+    </HuemulDialog>
   );
 }
