@@ -44,11 +44,21 @@ export default function SectionPlateEditor({
 }: SectionPlateEditorProps) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
+  const prevContentRef = useRef<string>(content);
 
   // Reset dirty flag when editing mode changes
   useEffect(() => {
     if (!isEditing) setDirty(false);
   }, [isEditing]);
+
+  // When content prop changes from outside (e.g. after a section execution refresh),
+  // reset the editor so the new content is displayed – but only when not actively editing.
+  useEffect(() => {
+    if (!isEditing && content !== prevContentRef.current) {
+      prevContentRef.current = content;
+      editorRef.current?.resetContent(content);
+    }
+  }, [content, isEditing]);
 
   const handleChange = useCallback(() => {
     if (!dirty) setDirty(true);
