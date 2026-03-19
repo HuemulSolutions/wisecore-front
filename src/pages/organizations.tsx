@@ -1,10 +1,9 @@
-"use client"
-
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
 import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
 
 // Components
 import {
@@ -28,6 +27,7 @@ interface OrganizationPageState {
 }
 
 export default function Organizations() {
+  const { t } = useTranslation('organizations')
   const [state, setState] = useState<OrganizationPageState>({
     searchTerm: "",
     selectedOrganizations: new Set(),
@@ -62,17 +62,17 @@ export default function Organizations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("showCreateDialog")
-      toast.success("Organization created successfully")
+      toast.success(t('toasts.created'))
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) => 
+    mutationFn: ({ id, data }: { id: string; data: { name: string; description?: string } }) =>
       updateOrganization(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
       closeDialog("editingOrganization")
-      toast.success("Organization updated successfully")
+      toast.success(t('toasts.updated'))
     },
   })
 
@@ -80,8 +80,7 @@ export default function Organizations() {
     mutationFn: (id: string) => deleteOrganization(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] })
-      closeDialog("deletingOrganization")
-      toast.success("Organization deleted successfully")
+      toast.success(t('toasts.deleted'))
     },
   })
 
@@ -127,7 +126,7 @@ export default function Organizations() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ["organizations"] })
-      toast.success("Data refreshed")
+      toast.success(t('toasts.dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -256,12 +255,11 @@ export default function Organizations() {
             open={!!state.deletingOrganization}
             onOpenChange={(open: boolean) => !open && closeDialog("deletingOrganization")}
             organization={state.deletingOrganization}
-            onConfirm={() => {
+            onConfirm={async () => {
               if (state.deletingOrganization) {
-                deleteMutation.mutate(state.deletingOrganization.id)
+                await deleteMutation.mutateAsync(state.deletingOrganization.id)
               }
             }}
-            isDeleting={deleteMutation.isPending}
           />
         )}
       </div>

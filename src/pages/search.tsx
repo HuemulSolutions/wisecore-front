@@ -11,6 +11,7 @@ import { DocumentResult } from "@/components/search/search-document-result";
 import { SearchResultsSkeleton } from "@/components/search/search-results-skeleton";
 import { getErrorMessage } from "@/lib/error-utils";
 import { ApiError } from "@/types/api-error";
+import { useTranslation } from "react-i18next";
 
 interface SearchResultSection {
   section_execution_id: string;
@@ -26,6 +27,7 @@ interface SearchResultData {
 }
 
 export default function SearchPage() {
+  const { t } = useTranslation('search');
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState(searchParams.get("mode") || "normal");
   const [query, setQuery] = useState(searchParams.get("q") || "");
@@ -89,10 +91,10 @@ export default function SearchPage() {
         {/* Header */}
         <PageHeader
           icon={Search}
-          title="Search"
+          title={t('page.title')}
           showRefresh={false}
           searchConfig={{
-            placeholder: "Enter your search query...",
+            placeholder: t('page.searchPlaceholder'),
             value: query,
             onChange: setQuery,
             onKeyDown: handleKeyDown
@@ -104,8 +106,8 @@ export default function SearchPage() {
                 <SelectValue placeholder="Mode" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="deep">Deep</SelectItem>
+                <SelectItem value="normal">{t('page.modeNormal')}</SelectItem>
+                <SelectItem value="deep">{t('page.modeDeep')}</SelectItem>
               </SelectContent>
             </Select>
             <Button 
@@ -118,7 +120,7 @@ export default function SearchPage() {
               ) : (
                 <Search className="h-3 w-3 mr-1" />
               )}
-              Search
+              {t('page.searchButton')}
             </Button>
             {searchQuery && (
               <Button 
@@ -126,7 +128,7 @@ export default function SearchPage() {
                 size="sm"
                 onClick={handleClearSearch} 
                 className="hover:cursor-pointer h-8 text-xs px-2"
-                title="Clear search"
+                title={t('page.clearSearch')}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -143,13 +145,13 @@ export default function SearchPage() {
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
                 <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
                 <p className="text-red-600 mb-2 font-medium">
-                  {getErrorMessage(error, 'Error performing search')}
+                  {getErrorMessage(error, t('errors.performSearch'))}
                 </p>
                 {ApiError.isApiError(error) && error.detail && (
                   <p className="text-sm text-muted-foreground mb-4">{error.detail}</p>
                 )}
                 {!ApiError.isApiError(error) && (
-                  <p className="text-sm text-muted-foreground mb-4">Please try again.</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t('errors.tryAgain')}</p>
                 )}
                 <Button
                   variant="outline"
@@ -157,7 +159,7 @@ export default function SearchPage() {
                   onClick={() => refetch()}
                   className="hover:cursor-pointer"
                 >
-                  Retry
+                  {t('errors.retry')}
                 </Button>
               </div>
             )}
@@ -165,15 +167,15 @@ export default function SearchPage() {
             {searchResults && searchResults.length === 0 && !isLoading && (
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
                 <FileText className="w-8 h-8 text-muted-foreground mb-3" />
-                <h3 className="text-sm font-medium text-foreground mb-1">No results found</h3>
-                <p className="text-xs text-muted-foreground">Try adjusting your search query or using different keywords.</p>
+                <h3 className="text-sm font-medium text-foreground mb-1">{t('empty.noResultsTitle')}</h3>
+                <p className="text-xs text-muted-foreground">{t('empty.noResultsDescription')}</p>
               </div>
             )}
 
             {searchResults && searchResults.length > 0 && (
               <div className="space-y-4">
                 <div className="mb-4">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Supporting Documents</h2>
+                  <h2 className="text-sm font-semibold text-foreground mb-3">{t('page.supportingDocuments')}</h2>
                   <div className="space-y-3">
                     {searchResults.map((document) => (
                       <DocumentResult 
