@@ -28,7 +28,7 @@ export function ExecutionStatusBanner({
   const { execution, stopPolling, invalidateExecution, error } = useExecutionPolling({
     executionId,
     enabled: !!executionId && !!selectedOrganizationId,
-    pollingInterval: 5000, // Poll every 5 seconds for better responsiveness
+    pollingInterval: 3000,
     onStatusChange: (status, executionData) => {
       console.log('Banner - Execution status changed:', status, executionData);
       
@@ -40,24 +40,24 @@ export function ExecutionStatusBanner({
         }
         
         if (status === 'completed') {
-          toast.success('Document generation completed successfully!');
+          toast.success('Document imported successfully!');
           onExecutionComplete?.(executionData?.execution_id || executionId);
           stopPolling();
-          // Force re-render by invalidating current query
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
           }, 100);
         } else if (status === 'approved') {
-          // Execution was approved - this is also a successful completion state
-          // Don't show toast here as it's already handled in assets-content.tsx
           onExecutionComplete?.(executionData?.execution_id || executionId);
           stopPolling();
-          // Force re-render by invalidating current query
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
           }, 100);
         } else if (status === 'failed') {
           toast.error('Document generation failed. Please try again.');
+          stopPolling();
+        } else if (status === 'import_failed') {
+          const message = executionData?.status_message || executionData?.error || 'Document import failed. Please try again.';
+          toast.error(message);
           stopPolling();
         }
       } catch (error) {
@@ -78,7 +78,7 @@ export function ExecutionStatusBanner({
     }
   }, [error]);
 
-  // Don't show banner if no execution or if execution is in final state
+  // Don't show banner if no execution or if execution is in final successful state
   if (!currentExecution || ['completed', 'approved'].includes(currentExecution.status)) {
     console.log('Banner hidden - no execution or final state:', currentExecution?.status);
     return null;
@@ -86,6 +86,24 @@ export function ExecutionStatusBanner({
 
   const getStatusConfig = (status: string) => {
     switch (status) {
+      case 'importing':
+        return {
+          icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
+          text: 'importing',
+          description: 'Your document is being imported and processed. This may take a moment.',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200',
+          textColor: 'text-blue-800'
+        };
+      case 'import_failed':
+        return {
+          icon: <XCircle className="h-5 w-5 text-red-600" />,
+          text: 'import failed',
+          description: currentExecution?.status_message || currentExecution?.error || 'There was an error importing your document. Please try again.',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200',
+          textColor: 'text-red-800'
+        };
       case 'running':
         return {
           icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
@@ -186,15 +204,17 @@ export function ExecutionStatusBanner({
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-sm font-medium", statusConfig.textColor)}>
-              Document is {statusConfig.text}
+              {statusConfig.text === 'import failed' || statusConfig.text === 'failed'
+                ? `Document ${statusConfig.text}`
+                : `Document is ${statusConfig.text}`}
             </p>
-            <p className="text-xs text-gray-600 mt-1">
+            <p className={cn("text-xs mt-1", statusConfig.textColor)}>
               {statusConfig.description}
             </p>
           </div>
         </div>
         <div className="flex items-center space-x-2 ml-4">
-          {(currentExecution.status === 'running' || currentExecution.status === 'pending' || currentExecution.status === 'approving') && (
+          {(currentExecution.status === 'running' || currentExecution.status === 'pending' || currentExecution.status === 'approving' || currentExecution.status === 'importing') && (
             <Button
               variant="ghost"
               size="sm"
