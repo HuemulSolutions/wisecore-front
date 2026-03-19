@@ -76,6 +76,8 @@ export interface HuemulSheetProps {
   maxWidth?: string;
   /** Additional className on SheetContent */
   className?: string;
+  /** Custom React node rendered in the header row (right-aligned, after title) */
+  headerExtra?: React.ReactNode;
   /** Body content */
   children: React.ReactNode;
 }
@@ -132,6 +134,7 @@ export function HuemulSheet({
   side = "right",
   maxWidth = "sm:max-w-md",
   className,
+  headerExtra,
   children,
 }: HuemulSheetProps) {
   // Shared helper — all close paths go through Radix's onOpenChange
@@ -218,8 +221,9 @@ export function HuemulSheet({
             <SheetTitle>{title}</SheetTitle>
 
             {/* Header-positioned actions (right-aligned) */}
-            {(headerActions.length > 0 || saveInHeader) && (
+            {(headerActions.length > 0 || saveInHeader || headerExtra) && (
               <div className="ml-auto flex items-center gap-2 pr-6">
+                {headerExtra}
                 {headerActions.map((action, _index) => {
                   const globalIndex = extraActions!.indexOf(action);
                   return (
