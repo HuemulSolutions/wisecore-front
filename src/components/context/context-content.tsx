@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 // import ReactMarkdown from 'react-markdown';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -23,6 +24,7 @@ export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   onDelete,
   hideHeader = false
 }) => {
+  const { t } = useTranslation('context')
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (hideHeader) {
@@ -42,7 +44,7 @@ export const ContextDisplay: React.FC<ContextDisplayProps> = ({
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
             className="ml-2 h-6 w-6 p-0 hover:cursor-pointer text-gray-500 hover:text-gray-700"
-            title={isExpanded ? "Collapse" : "Expand"}
+            title={isExpanded ? t('content.collapse') : t('content.expand')}
           >
             {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
