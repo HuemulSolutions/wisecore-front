@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical } from "lucide-react";
+import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X } from "lucide-react";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
@@ -40,6 +40,8 @@ interface TemplatesSidebarProps {
   onTemplateDeleted?: () => void;
   organizationId: string | null;
   onRefresh?: () => void;
+  onSearch?: (term: string) => void;
+  searchValue?: string;
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
@@ -54,23 +56,21 @@ export function TemplatesSidebar({
   onTemplateDeleted,
   organizationId,
   onRefresh,
+  onSearch,
+  searchValue = '',
   canCreate,
   canUpdate,
   canDelete,
 }: TemplatesSidebarProps) {
   const { t } = useTranslation(['templates', 'common']);
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [localSearch, setLocalSearch] = useState(searchValue);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editDialogTemplate, setEditDialogTemplate] = useState<TemplateItem | null>(null);
   const [deleteDialogTemplate, setDeleteDialogTemplate] = useState<TemplateItem | null>(null);
 
-  // Filtrar templates basado en búsqueda
-  const filteredTemplates = searchTerm
-    ? templates.filter((template) =>
-        template.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : templates;
+  const filteredTemplates = templates;
 
   const openEditDialog = (template: TemplateItem) => {
     setEditDialogTemplate(template);
@@ -97,6 +97,17 @@ export function TemplatesSidebar({
             <div className="flex items-center justify-between">
               <SidebarGroupLabel className="py-0 text-xs">{t('templates:sidebar.title')}</SidebarGroupLabel>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 hover:cursor-pointer"
+                  onClick={() => {
+                    if (isSearchOpen) { setLocalSearch(''); onSearch?.('') }
+                    setIsSearchOpen(!isSearchOpen)
+                  }}
+                >
+                  {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                </Button>
                 <HuemulButton
                   icon={RefreshCw}
                   iconClassName="h-4 w-4"
@@ -129,17 +140,21 @@ export function TemplatesSidebar({
           </SidebarGroup>
           
           {/* Search bar */}
-          <div className="mt-2 px-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
+          {isSearchOpen && (
+            <div className="px-2 pt-1 pb-1">
               <Input
                 placeholder={t('templates:sidebar.searchPlaceholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 h-7 text-xs border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onSearch?.(localSearch)
+                  if (e.key === 'Escape') { setLocalSearch(''); onSearch?.(''); setIsSearchOpen(false) }
+                }}
+                className="h-7 text-xs"
+                autoFocus
               />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Content */}
@@ -174,9 +189,9 @@ export function TemplatesSidebar({
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm mb-2">
-                    {searchTerm ? t('templates:sidebar.noTemplatesMatchSearch') : t('templates:sidebar.noTemplatesFound')}
+                    {searchValue ? t('templates:sidebar.noTemplatesMatchSearch') : t('templates:sidebar.noTemplatesFound')}
                   </p>
-                  {!searchTerm && (
+                  {!searchValue && (
                     <p className="text-xs">{t('templates:sidebar.noTemplatesHint')}</p>
                   )}
                 </div>

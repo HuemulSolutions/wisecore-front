@@ -1,34 +1,27 @@
 import { Badge } from "@/components/ui/badge"
 import { Edit2, Trash2, FileText } from "lucide-react"
 import type { CustomField } from "@/types/custom-fields"
-import type { useCustomFieldMutations } from "@/hooks/useCustomFields"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
 
 interface CustomFieldTableProps {
   customFields: CustomField[]
-  selectedCustomFields: Set<string>
-  onCustomFieldSelection: (customFieldId: string) => void
-  onSelectAll: () => void
   onEditCustomField: (customField: CustomField) => void
   onDeleteCustomField: (customField: CustomField) => void
-  customFieldMutations: ReturnType<typeof useCustomFieldMutations>
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canManage?: boolean
+  isLoading?: boolean
+  isFetching?: boolean
 }
 
 export function CustomFieldTable({
   customFields,
-  selectedCustomFields,
-  onCustomFieldSelection,
-  onSelectAll,
   onEditCustomField,
   onDeleteCustomField,
   pagination,
-  showFooterStats,
-  canManage = false
+  canManage = false,
+  isLoading = false,
+  isFetching = false
 }: CustomFieldTableProps) {
   const { t, i18n } = useTranslation('custom-fields')
 
@@ -38,7 +31,7 @@ export function CustomFieldTable({
   }
 
   // Define columns
-  const columns: TableColumn<CustomField>[] = [
+  const columns: HuemulTableColumn<CustomField>[] = [
     {
       key: "name",
       label: t('columns.name'),
@@ -94,7 +87,7 @@ export function CustomFieldTable({
   ]
 
   // Define actions - solo si es admin
-  const actions: TableAction<CustomField>[] = canManage ? [
+  const actions: HuemulTableAction<CustomField>[] = canManage ? [
     {
       key: "edit",
       label: t('actions.editCustomField'),
@@ -111,22 +104,8 @@ export function CustomFieldTable({
     }
   ] : []
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: customFields.length !== 1
-        ? t('footer.showingPlural', { count: customFields.length })
-        : t('footer.showing', { count: customFields.length }),
-      value: ''
-    },
-    {
-      label: t('footer.selected'),
-      value: selectedCustomFields.size
-    }
-  ]
-
   return (
-    <DataTable
+    <HuemulTable
       data={customFields}
       columns={columns}
       actions={actions}
@@ -136,13 +115,9 @@ export function CustomFieldTable({
         title: t('contentEmptyState.tableEmptyTitle'),
         description: t('contentEmptyState.tableEmptyDescription')
       }}
-      footerStats={footerStats}
-      showCheckbox={true}
-      selectedItems={selectedCustomFields}
-      onItemSelection={onCustomFieldSelection}
-      onSelectAll={onSelectAll}
       pagination={pagination}
-      showFooterStats={showFooterStats}
+      isLoading={isLoading}
+      isFetching={isFetching}
     />
   )
 }

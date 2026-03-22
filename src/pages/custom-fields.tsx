@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type CustomField } from "@/types/custom-fields"
 import { useCustomFields, useCustomFieldMutations } from "@/hooks/useCustomFields"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -21,7 +22,6 @@ import {
 export default function CustomFieldsPage() {
   const [state, setState] = useState<CustomFieldPageState>({
     searchTerm: "",
-    selectedCustomFields: new Set(),
     editingCustomField: null,
     showCreateDialog: false,
     deletingCustomField: null,
@@ -35,12 +35,19 @@ export default function CustomFieldsPage() {
   const queryClient = useQueryClient()
   
   // Fetch custom fields and mutations - solo si es admin
-  const { data: customFieldsResponse, isLoading, error } = useCustomFields({ 
+  const { data: customFieldsResponse, isLoading, isFetching, error } = useCustomFields({ 
     page, 
     page_size: pageSize,
+    search: state.searchTerm || undefined,
     enabled: isRootAdmin 
   })
   const customFieldMutations = useCustomFieldMutations()
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!customFieldsResponse,
+  })
 
   // Loading state for permissions
   if (isLoadingPermissions) {
@@ -53,22 +60,12 @@ export default function CustomFieldsPage() {
   }
 
   // Loading state
-  if (isLoading) {
+  if (showPageLoader) {
     return <CustomFieldPageSkeleton />
   }
 
   const customFields = customFieldsResponse?.data || []
-
-  const filteredCustomFields = customFields.filter((customField: CustomField) => {
-    const matchesSearch = customField.name
-      .toLowerCase()
-      .includes(state.searchTerm.toLowerCase()) ||
-      customField.description
-        ?.toLowerCase()
-        .includes(state.searchTerm.toLowerCase())
-
-    return matchesSearch
-  })
+  const filteredCustomFields = customFields
 
   // State update helpers
   const updateState = (updates: Partial<CustomFieldPageState>) => {
@@ -90,32 +87,13 @@ export default function CustomFieldsPage() {
     }
   }
 
-  // Custom field selection handlers
-  const handleCustomFieldSelection = (customFieldId: string) => {
-    const newSelection = new Set(state.selectedCustomFields)
-    if (newSelection.has(customFieldId)) {
-      newSelection.delete(customFieldId)
-    } else {
-      newSelection.add(customFieldId)
-    }
-    updateState({ selectedCustomFields: newSelection })
-  }
-
   // Custom field action handlers
-  const handleEditCustomField = async (customField: CustomField) => {
+  const handleEditCustomField = (customField: CustomField) => {
     updateState({ editingCustomField: customField })
   }
 
-  const handleDeleteCustomField = async (customField: CustomField) => {
+  const handleDeleteCustomField = (customField: CustomField) => {
     updateState({ deletingCustomField: customField })
-  }
-
-  const handleSelectAll = () => {
-    if (state.selectedCustomFields.size === filteredCustomFields.length) {
-      updateState({ selectedCustomFields: new Set() })
-    } else {
-      updateState({ selectedCustomFields: new Set(filteredCustomFields.map((customField: CustomField) => customField.id)) })
-    }
   }
 
   const handleClearFilters = () => {
@@ -130,9 +108,12 @@ export default function CustomFieldsPage() {
           customFieldCount={filteredCustomFields.length}
           onCreateCustomField={() => updateState({ showCreateDialog: true })}
           onRefresh={handleRefresh}
-          isLoading={isLoading || isRefreshing}
+          isLoading={isRefreshing}
           searchTerm={state.searchTerm}
-          onSearchChange={(value: string) => updateState({ searchTerm: value })}
+          onSearchChange={(value: string) => {
+            updateState({ searchTerm: value })
+            setPage(1)
+          }}
           canManage={isRootAdmin}
         />
 
@@ -156,14 +137,11 @@ export default function CustomFieldsPage() {
         ) : (
           <CustomFieldTable
             customFields={filteredCustomFields}
-            selectedCustomFields={state.selectedCustomFields}
-            onCustomFieldSelection={handleCustomFieldSelection}
-            onSelectAll={handleSelectAll}
             onEditCustomField={handleEditCustomField}
             onDeleteCustomField={handleDeleteCustomField}
-            customFieldMutations={customFieldMutations}
-            showFooterStats={false}
             canManage={isRootAdmin}
+            isLoading={isTableLoading}
+            isFetching={isTableFetching}
             pagination={{
               page: customFieldsResponse?.page || page,
               pageSize: customFieldsResponse?.page_size || pageSize,

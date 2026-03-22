@@ -59,6 +59,8 @@ const translations = {
       en: "Failed to move document. Please try again.",
       es: "Error al mover el documento. Inténtalo de nuevo.",
     },
+    searchPlaceholder: { en: "Search assets...", es: "Buscar activos..." },
+    searchNoResults: { en: "No results found", es: "No se encontraron resultados" },
   },
 }
 

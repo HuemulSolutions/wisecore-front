@@ -42,7 +42,8 @@ export function RolesSearch({
       searchConfig={{
         placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true
       }}
     />
   )

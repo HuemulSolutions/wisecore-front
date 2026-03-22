@@ -131,11 +131,15 @@ const getHeaders = (): Record<string, string> => {
 };
 
 // Get all roles
-export const getRoles = async (page: number = 1, pageSize: number = 10): Promise<RolesResponse> => {
+export const getRoles = async (page: number = 1, pageSize: number = 10, search?: string): Promise<RolesResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString()
   });
+
+  if (search && search.trim()) {
+    params.set('search', search.trim());
+  }
 
   const response = await httpClient.get(`${backendUrl}/rbac/roles/with_perm_count?${params.toString()}`, {
     headers: getHeaders(),
@@ -259,4 +263,17 @@ export const assignUsersToRole = async (roleId: string, userIds: string[]): Prom
   }, {
     headers: getHeaders(),
   });
+};
+
+export interface CloneRoleData {
+  copy_users: boolean;
+}
+
+// Clone an existing role
+export const cloneRole = async (roleId: string, data: CloneRoleData): Promise<Role> => {
+  const response = await httpClient.post(`${backendUrl}/rbac/roles/${roleId}/clone`, data, {
+    headers: getHeaders(),
+  });
+
+  return response.json();
 };

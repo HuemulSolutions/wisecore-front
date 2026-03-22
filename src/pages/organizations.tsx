@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -50,10 +51,17 @@ export default function Organizations() {
   const canCreateOrg = isOrgAdmin || hasPermission('organization:c')
   
   // Fetch organizations - solo si tiene permisos de listar
-  const { data: organizationsResponse, isLoading, error: queryError } = useQuery({
-    queryKey: ["organizations", page, pageSize],
-    queryFn: () => getAllOrganizations(page, pageSize),
+  const { data: organizationsResponse, isLoading, isFetching, error: queryError } = useQuery({
+    queryKey: ["organizations", page, pageSize, state.searchTerm],
+    queryFn: () => getAllOrganizations(page, pageSize, state.searchTerm || undefined),
+    placeholderData: (prev) => prev,
     enabled: canListOrgs,
+  })
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!organizationsResponse,
   })
 
   // Mutations
@@ -95,22 +103,11 @@ export default function Organizations() {
   }
 
   // Loading state
-  if (isLoading) {
+  if (showPageLoader) {
     return <OrganizationPageSkeleton />
   }
 
   const organizations = (organizationsResponse?.data || []) as Organization[]
-
-  const filteredOrganizations = organizations.filter((org: Organization) => {
-    const matchesSearch = org.name
-      .toLowerCase()
-      .includes(state.searchTerm.toLowerCase()) ||
-      org.description
-        ?.toLowerCase()
-        .includes(state.searchTerm.toLowerCase())
-
-    return matchesSearch
-  })
 
   // State update helpers
   const updateState = (updates: Partial<OrganizationPageState>) => {
@@ -132,17 +129,6 @@ export default function Organizations() {
     }
   }
 
-  // Organization selection handlers
-  const handleOrganizationSelection = (organizationId: string) => {
-    const newSelection = new Set(state.selectedOrganizations)
-    if (newSelection.has(organizationId)) {
-      newSelection.delete(organizationId)
-    } else {
-      newSelection.add(organizationId)
-    }
-    updateState({ selectedOrganizations: newSelection })
-  }
-
   // Organization action handlers
   const handleEditOrganization = async (organization: Organization) => {
     updateState({ editingOrganization: organization })
@@ -150,14 +136,6 @@ export default function Organizations() {
 
   const handleDeleteOrganization = async (organization: Organization) => {
     updateState({ deletingOrganization: organization })
-  }
-
-  const handleSelectAll = () => {
-    if (state.selectedOrganizations.size === filteredOrganizations.length) {
-      updateState({ selectedOrganizations: new Set() })
-    } else {
-      updateState({ selectedOrganizations: new Set(filteredOrganizations.map((org: Organization) => org.id)) })
-    }
   }
 
   const handleClearFilters = () => {
@@ -169,12 +147,15 @@ export default function Organizations() {
       <div className="mx-auto">
         {/* Header */}
         <OrganizationPageHeader
-          organizationCount={organizationsResponse?.total || filteredOrganizations.length}
+          organizationCount={organizationsResponse?.total || organizations.length}
           onCreateOrganization={() => updateState({ showCreateDialog: true })}
           onRefresh={handleRefresh}
-          isLoading={isLoading || isRefreshing}
+          isLoading={isRefreshing}
           searchTerm={state.searchTerm}
-          onSearchChange={(value: string) => updateState({ searchTerm: value })}
+          onSearchChange={(value: string) => {
+            updateState({ searchTerm: value })
+            setPage(1)
+          }}
           canManage={canCreateOrg}
         />
 
@@ -185,24 +166,23 @@ export default function Organizations() {
             message={(queryError as Error).message} 
             onRetry={handleRefresh}
           />
-        ) : filteredOrganizations.length === 0 && organizations.length === 0 ? (
+        ) : !isTableLoading && !isTableFetching && organizations.length === 0 && !state.searchTerm ? (
           <OrganizationContentEmptyState 
             type="empty"
             onCreateFirst={() => updateState({ showCreateDialog: true })}
           />
-        ) : filteredOrganizations.length === 0 ? (
+        ) : !isTableLoading && !isTableFetching && organizations.length === 0 ? (
           <OrganizationContentEmptyState 
             type="no-results"
             onClearFilters={handleClearFilters}
           />
         ) : (
           <OrganizationTable
-            organizations={filteredOrganizations}
-            selectedOrganizations={state.selectedOrganizations}
-            onOrganizationSelection={handleOrganizationSelection}
-            onSelectAll={handleSelectAll}
+            organizations={organizations}
             onEditOrganization={handleEditOrganization}
             onDeleteOrganization={handleDeleteOrganization}
+            isLoading={isTableLoading}
+            isFetching={isTableFetching}
             pagination={{
               page: organizationsResponse?.page || page,
               pageSize: organizationsResponse?.page_size || pageSize,
@@ -215,7 +195,6 @@ export default function Organizations() {
               },
               pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
             }}
-            showFooterStats={false}
             canUpdate={canUpdateOrg}
             canDelete={canDeleteOrg}
           />

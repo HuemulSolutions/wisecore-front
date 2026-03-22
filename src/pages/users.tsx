@@ -7,6 +7,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type User, type UsersResponse } from "@/types/users"
 import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
 
@@ -50,18 +51,26 @@ export default function UsersPage() {
   const canDeleteUser = isOrgAdmin || hasPermission('user:d')
   
   // Fetch users and mutations - solo si tiene permisos de listar
-  const { data: usersResponse, isLoading, isError, refetch } = useUsers(
+  const { data: usersResponse, isLoading, isFetching, isError, refetch } = useUsers(
     !!selectedOrganizationId && !!organizationToken && canListUsers,
     selectedOrganizationId || undefined,
     page,
-    pageSize
+    pageSize,
+    state.searchTerm || undefined
   ) as {
     data: UsersResponse | undefined,
     isLoading: boolean,
+    isFetching: boolean,
     isError: boolean,
     refetch: () => Promise<unknown>
   }
   const userMutations = useUserMutations()
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!usersResponse,
+  })
 
   // Loading state for permissions
   if (isLoadingPermissions) {
@@ -79,18 +88,14 @@ export default function UsersPage() {
   }
 
   // Loading state
-  if (isLoading) {
+  if (showPageLoader) {
     return <UserPageSkeleton />
   }
 
-  const filteredUsers = usersResponse?.data?.filter((user: User) => {
-    const matchesSearch = `${user.name} ${user.last_name} ${user.email}`
-      .toLowerCase()
-      .includes(state.searchTerm.toLowerCase())
-    const matchesFilter = state.filterStatus === "all" || user.status === state.filterStatus
-
-    return matchesSearch && matchesFilter
-  }) || []
+  const users = usersResponse?.data || []
+  const filteredUsers = state.filterStatus === "all"
+    ? users
+    : users.filter((user: User) => user.status === state.filterStatus)
 
   // State update helpers
   const updateState = (updates: Partial<UserPageState>) => {
@@ -170,23 +175,25 @@ export default function UsersPage() {
           userCount={filteredUsers.length}
           onCreateUser={() => updateState({ showCreateDialog: true })}
           onRefresh={handleRefresh}
-          isLoading={isLoading || isRefreshing}
+          isLoading={isRefreshing}
           hasError={isError}
           searchTerm={state.searchTerm}
-          onSearchChange={(value) => updateState({ searchTerm: value })}
+          onSearchChange={(value) => {
+            updateState({ searchTerm: value })
+            setPage(1)
+          }}
           filterStatus={state.filterStatus}
           onStatusFilterChange={(value) => updateState({ filterStatus: value })}
           canCreate={canCreateUser}
         />
 
-        {/* Content Area - Table or Error */}
         {isError ? (
           <UserContentEmptyState 
             type="error" 
             message={t('users:emptyState.errorLoading')} 
             onRetry={handleRefresh}
           />
-        ) : filteredUsers.length === 0 ? (
+        ) : !isTableLoading && !isTableFetching && filteredUsers.length === 0 ? (
           <UserContentEmptyState 
             type="empty"
           />
@@ -203,9 +210,10 @@ export default function UsersPage() {
             onManageRootAdmin={handleManageRootAdmin}
             isCurrentUserRootAdmin={isRootAdmin}
             userMutations={userMutations}
-            showFooterStats={false}
             canUpdate={canUpdateUser}
             canDelete={canDeleteUser}
+            isLoading={isTableLoading}
+            isFetching={isTableFetching}
             pagination={{
               page: usersResponse?.page || page,
               pageSize: usersResponse?.page_size || pageSize,

@@ -25,10 +25,12 @@ export const customFieldsQueryKeys = {
 
 // Hook for fetching custom fields list
 export function useCustomFields(options?: PaginationParams & { enabled?: boolean }) {
-  const { enabled = true, ...params } = options || {}
+  const { enabled = true, search, ...params } = options || {}
+  const queryParams = { ...params, ...(search ? { search } : {}) }
   return useQuery({
-    queryKey: customFieldsQueryKeys.list(params),
-    queryFn: () => getCustomFields(params),
+    queryKey: customFieldsQueryKeys.list(queryParams),
+    queryFn: () => getCustomFields(queryParams),
+    placeholderData: (prev) => prev,
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })

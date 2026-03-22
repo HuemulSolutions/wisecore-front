@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -21,7 +22,6 @@ import {
 export default function AssetTypesPage() {
   const [state, setState] = useState<AssetTypePageState>({
     searchTerm: "",
-    selectedAssetTypes: new Set(),
     editingAssetType: null,
     showCreateDialog: false,
     deletingAssetType: null,
@@ -43,8 +43,14 @@ export default function AssetTypesPage() {
   const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
   
   // Fetch asset types and mutations - solo si tiene permisos
-  const { data: assetTypesResponse, isLoading, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes)
+  const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
   const assetTypeMutations = useAssetTypeMutations()
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!assetTypesResponse,
+  })
 
   // Loading permissions check
   if (isLoadingPermissions) {
@@ -57,19 +63,11 @@ export default function AssetTypesPage() {
   }
 
   // Loading state
-  if (isLoading) {
+  if (showPageLoader) {
     return <AssetTypePageSkeleton />
   }
 
   const assetTypes = assetTypesResponse?.data || []
-
-  const filteredAssetTypes = assetTypes.filter((assetType: AssetTypeWithRoles) => {
-    const matchesSearch = assetType.document_type_name
-      .toLowerCase()
-      .includes(state.searchTerm.toLowerCase())
-
-    return matchesSearch
-  })
 
   // State update helpers
   const updateState = (updates: Partial<AssetTypePageState>) => {
@@ -91,27 +89,16 @@ export default function AssetTypesPage() {
     }
   }
 
-  // Asset type selection handlers
-  const handleAssetTypeSelection = (assetTypeId: string) => {
-    const newSelection = new Set(state.selectedAssetTypes)
-    if (newSelection.has(assetTypeId)) {
-      newSelection.delete(assetTypeId)
-    } else {
-      newSelection.add(assetTypeId)
-    }
-    updateState({ selectedAssetTypes: newSelection })
-  }
-
   // Asset type action handlers
-  const handleEditAssetType = async (assetType: AssetTypeWithRoles) => {
+  const handleEditAssetType = (assetType: AssetTypeWithRoles) => {
     updateState({ editingAssetType: assetType })
   }
 
-  const handleManagePermissions = async (assetType: AssetTypeWithRoles) => {
+  const handleManagePermissions = (assetType: AssetTypeWithRoles) => {
     updateState({ rolePermissionsAssetType: assetType })
   }
 
-  const handleDeleteAssetType = async (assetType: AssetTypeWithRoles) => {
+  const handleDeleteAssetType = (assetType: AssetTypeWithRoles) => {
     updateState({ deletingAssetType: assetType })
   }
 
@@ -119,26 +106,21 @@ export default function AssetTypesPage() {
     updateState({ lifecycleAssetType: assetType })
   }
 
-  const handleSelectAll = () => {
-    if (state.selectedAssetTypes.size === filteredAssetTypes.length) {
-      updateState({ selectedAssetTypes: new Set() })
-    } else {
-      updateState({ selectedAssetTypes: new Set(filteredAssetTypes.map((assetType: AssetTypeWithRoles) => assetType.document_type_id)) })
-    }
-  }
-
   return (
     <div className="bg-background p-6 md:p-8">
       <div className="mx-auto">
         {/* Header */}
         <AssetTypePageHeader
-          assetTypeCount={filteredAssetTypes.length}
+          assetTypeCount={assetTypes.length}
           onCreateAssetType={() => updateState({ showCreateDialog: true })}
           onRefresh={handleRefresh}
-          isLoading={isLoading || isRefreshing}
+          isLoading={isRefreshing}
           hasError={!!error}
           searchTerm={state.searchTerm}
-          onSearchChange={(value) => updateState({ searchTerm: value })}
+          onSearchChange={(value) => {
+            updateState({ searchTerm: value })
+            setPage(1)
+          }}
           canCreate={canCreateDocumentType}
         />
 
@@ -149,25 +131,22 @@ export default function AssetTypesPage() {
             message={error.message} 
             onRetry={handleRefresh}
           />
-        ) : filteredAssetTypes.length === 0 && assetTypes.length === 0 ? (
+        ) : assetTypes.length === 0 ? (
           <AssetTypeContentEmptyState 
             type="empty"
             onCreateFirst={() => updateState({ showCreateDialog: true })}
           />
         ) : (
           <AssetTypeTable
-            assetTypes={filteredAssetTypes}
-            selectedAssetTypes={state.selectedAssetTypes}
-            onAssetTypeSelection={handleAssetTypeSelection}
-            onSelectAll={handleSelectAll}
+            assetTypes={assetTypes}
             onEditAssetType={handleEditAssetType}
             onManagePermissions={handleManagePermissions}
             onDeleteAssetType={handleDeleteAssetType}
             onLifecycle={handleLifecycle}
-            assetTypeMutations={assetTypeMutations}
-            showFooterStats={false}
             canUpdate={canUpdateDocumentType}
             canDelete={canDeleteDocumentType}
+            isLoading={isTableLoading}
+            isFetching={isTableFetching}
             pagination={{
               page: assetTypesResponse?.page || page,
               pageSize: assetTypesResponse?.page_size || pageSize,

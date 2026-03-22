@@ -1,29 +1,31 @@
-import { Edit2, Trash2 } from "lucide-react"
+import { Edit2, Trash2, Shield } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
-import { DataTable } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 
 interface AuthTypesTableProps {
   authTypes: AuthType[]
-  filteredAuthTypes: AuthType[]
   onEdit: (authType: AuthType) => void
   onDelete: (authType: AuthType) => void
+  isLoading?: boolean
+  isFetching?: boolean
+  pagination?: HuemulTablePagination
 }
 
 
 export function AuthTypesTable({ 
   authTypes, 
-  filteredAuthTypes, 
   onEdit, 
-  onDelete 
+  onDelete,
+  isLoading = false,
+  isFetching = false,
+  pagination,
 }: AuthTypesTableProps) {
   const { t } = useTranslation(['auth-types', 'common'])
   const { isRootAdmin } = useUserPermissions()
 
-  // Define columns
-  const columns: TableColumn<AuthType>[] = [
+  const columns: HuemulTableColumn<AuthType>[] = [
     {
       key: "name",
       label: t('common:name'),
@@ -60,8 +62,7 @@ export function AuthTypesTable({
     }
   ]
 
-  // Define actions (solo para admins)
-  const actions: TableAction<AuthType>[] = isRootAdmin ? [
+  const actions: HuemulTableAction<AuthType>[] = isRootAdmin ? [
     {
       key: "edit",
       label: t('actions.editAuthType'),
@@ -78,26 +79,21 @@ export function AuthTypesTable({
     }
   ] : []
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: t('footer.showing', { filtered: filteredAuthTypes.length, total: authTypes.length }),
-      value: ''
-    },
-    {
-      label: t('footer.internalTypes'),
-      value: authTypes.filter(a => a.type === 'internal').length
-    }
-  ]
-
   return (
-    <DataTable
-      data={filteredAuthTypes}
+    <HuemulTable
+      data={authTypes}
       columns={columns}
       actions={actions}
       getRowKey={(authType) => authType.id}
-      footerStats={footerStats}
+      emptyState={{
+        icon: Shield,
+        title: t('emptyState.empty'),
+        description: t('emptyState.noResults'),
+      }}
       maxHeight="max-h-[70vh]"
+      isLoading={isLoading}
+      isFetching={isFetching}
+      pagination={pagination}
     />
   )
 }

@@ -1,10 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp } from "lucide-react"
+import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+
 import type { MenuAction } from "@/types/menu-action"
 
 import {
@@ -18,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
 import { useLocation } from "react-router-dom"
@@ -46,6 +48,12 @@ const NavKnowledgeContext = React.createContext<{
   handleDeleteDocument: (documentId: string, documentName: string) => void
   handleEditDocument: (documentId: string, currentName: string) => void
   refreshFileTree: () => void
+  isSearchOpen: boolean
+  setIsSearchOpen: (open: boolean) => void
+  searchTerm: string
+  setSearchTerm: (term: string) => void
+  committedSearch: string
+  setCommittedSearch: (term: string) => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
@@ -68,6 +76,9 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [folderToEdit, setFolderToEdit] = useState<{ id: string; name: string } | null>(null)
   const [documentToEdit, setDocumentToEdit] = useState<{ id: string; name: string } | null>(null)
   const [isDeletingDocument, setIsDeletingDocument] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [committedSearch, setCommittedSearch] = useState('')
   const { selectedOrganizationId } = useOrganization()
 
   // Refs to keep callbacks stable across re-renders while accessing latest state
@@ -241,7 +252,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetDialog
@@ -323,7 +334,7 @@ export function useNavKnowledgeActions() {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
   const { canCreate } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
@@ -334,11 +345,27 @@ export function NavKnowledgeHeader() {
     return null
   }
 
+  const handleToggleSearch = () => {
+    if (isSearchOpen) {
+      setSearchTerm('')
+      setCommittedSearch('')
+    }
+    setIsSearchOpen(!isSearchOpen)
+  }
+
   return (
     <SidebarGroup className="py-0">
       <div className="flex items-center justify-between">
         <SidebarGroupLabel className="py-0 text-xs">{t('knowledge.sectionTitle')}</SidebarGroupLabel>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 hover:cursor-pointer"
+            onClick={handleToggleSearch}
+          >
+            {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -393,6 +420,18 @@ export function NavKnowledgeHeader() {
           )}
         </div>
       </div>
+      {isSearchOpen && (
+        <div className="px-2 pt-1 pb-1">
+          <Input
+            placeholder={t('knowledge.searchPlaceholder')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setCommittedSearch(searchTerm) }}
+            className="h-7 text-xs"
+            autoFocus
+          />
+        </div>
+      )}
     </SidebarGroup>
   )
 }
@@ -402,11 +441,44 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, committedSearch } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
+
+  const [searchResults, setSearchResults] = React.useState<FileNode[]>([])
+  const [isSearching, setIsSearching] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!committedSearch || !selectedOrganizationId) {
+      setSearchResults([])
+      return
+    }
+    let cancelled = false
+    setIsSearching(true)
+    getLibraryContent(selectedOrganizationId, undefined, 1, 1000, committedSearch)
+      .then((data) => {
+        if (!cancelled) {
+          setSearchResults(
+            data?.content?.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              type: item.type,
+              document_type: item.document_type,
+              access_levels: item.access_levels,
+            })) ?? []
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSearchResults([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsSearching(false)
+      })
+    return () => { cancelled = true }
+  }, [committedSearch, selectedOrganizationId])
 
   // Extract active asset ID from URL (pattern: /:orgId/asset/:assetId)
   const activeAssetId = React.useMemo(() => {
@@ -541,6 +613,18 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
+      label: t('knowledge.importAsset'),
+      icon: <FileUp className="h-4 w-4" />,
+      onClick: async () => {
+        handleImportAsset()
+      },
+      show: (node) => {
+        if (node.type !== "folder") return false
+        return canCreate('asset') || node.access_levels?.includes('create') || false
+      },
+      variant: "default",
+    },
+    {
       label: t('knowledge.newFolder'),
       icon: <Folder className="h-4 w-4" />,
       onClick: async (nodeId) => {
@@ -630,22 +714,51 @@ export function NavKnowledgeContent() {
 
   return (
     <SidebarGroup>
-      <FileTree
-        key={selectedOrganizationId}
-        ref={fileTreeRef}
-        onLoadChildren={handleLoadChildren}
-        onFileClick={handleFileClick}
-        onMoveFolder={handleMoveFolder}
-        onMoveFile={handleMoveFile}
-        onDelete={handleDelete}
-        activeNodeId={activeAssetId}
-        menuActions={menuActions}
-        showDefaultActions={{ create: false, delete: false, share: false }}
-        showCreateButtons={false}
-        initialFolderId={null}
-        showBorder={false}
-        showRefreshButton={false}
-      />
+      {committedSearch ? (
+        isSearching ? (
+          <div className="px-4 py-3 flex justify-center">
+            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : searchResults.length === 0 ? (
+          <div className="px-4 py-3 text-center text-xs text-muted-foreground">
+            {t('knowledge.searchNoResults')}
+          </div>
+        ) : (
+          <div className="space-y-0.5 px-1">
+            {searchResults.map((node) => (
+              <button
+                key={node.id}
+                className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-sidebar-accent hover:cursor-pointer text-left${node.type === 'document' && activeAssetId === node.id ? ' bg-sidebar-accent' : ''}`}
+                onClick={() => node.type === 'document' && handleFileClick(node)}
+              >
+                {node.type === 'folder' ? (
+                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <File className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="truncate">{node.name}</span>
+              </button>
+            ))}
+          </div>
+        )
+      ) : (
+        <FileTree
+          key={selectedOrganizationId}
+          ref={fileTreeRef}
+          onLoadChildren={handleLoadChildren}
+          onFileClick={handleFileClick}
+          onMoveFolder={handleMoveFolder}
+          onMoveFile={handleMoveFile}
+          onDelete={handleDelete}
+          activeNodeId={activeAssetId}
+          menuActions={menuActions}
+          showDefaultActions={{ create: false, delete: false, share: false }}
+          showCreateButtons={false}
+          initialFolderId={null}
+          showBorder={false}
+          showRefreshButton={false}
+        />
+      )}
     </SidebarGroup>
   )
 }

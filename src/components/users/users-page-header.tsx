@@ -62,7 +62,8 @@ export default function UserPageHeader({
       searchConfig={{
         placeholder: t('users:header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true,
       }}
     >
       <Select value={filterStatus} onValueChange={onStatusFilterChange}>

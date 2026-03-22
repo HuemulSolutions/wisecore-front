@@ -7,21 +7,22 @@ import type { UpdateUserData } from "@/types/users"
 export const userQueryKeys = {
   all: ['users'] as const,
   listBase: () => [...userQueryKeys.all, 'list'] as const,
-  list: (organizationId?: string, page?: number, pageSize?: number) => [
+  list: (organizationId?: string, page?: number, pageSize?: number, search?: string) => [
     ...userQueryKeys.listBase(),
     organizationId ?? 'all',
     page,
-    pageSize
+    pageSize,
+    search ?? ''
   ] as const,
   detail: (id: string) => [...userQueryKeys.all, 'detail', id] as const,
   organizations: (userId?: string) => [...userQueryKeys.all, 'organizations', userId] as const,
 }
 
 // Hook for fetching users
-export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100) {
+export function useUsers(enabled: boolean = true, organizationId?: string, page: number = 1, pageSize: number = 100, search?: string) {
   return useQuery({
-    queryKey: userQueryKeys.list(organizationId, page, pageSize),
-    queryFn: () => getUsers(organizationId, page, pageSize),
+    queryKey: userQueryKeys.list(organizationId, page, pageSize, search),
+    queryFn: () => getUsers(organizationId, page, pageSize, search),
     staleTime: 2 * 60 * 1000, // 2 minutes - reasonable cache time
     gcTime: 5 * 60 * 1000, // 5 minutes cache (formerly cacheTime)
     refetchOnMount: true, // Refetch on mount to ensure fresh data

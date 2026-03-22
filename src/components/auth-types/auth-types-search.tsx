@@ -55,7 +55,9 @@ export function AuthTypesSearch({
       searchConfig={{
         placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        minLength: 1,
+        triggerOnEnter: true,
       }}
     />
   )

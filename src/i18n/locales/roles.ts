@@ -18,6 +18,7 @@ const translations = {
     assignToUsers: { en: "Assign to Users", es: "Asignar a Usuarios" },
     managePermissions: { en: "Manage Permissions", es: "Gestionar Permisos" },
     deleteRole: { en: "Delete Role", es: "Eliminar Rol" },
+    cloneRole: { en: "Clone Role", es: "Clonar Rol" },
     loadingUsers: { en: "Loading users...", es: "Cargando usuarios..." },
   },
   create: {
@@ -32,6 +33,13 @@ const translations = {
   delete: {
     title: { en: "Delete Role", es: "Eliminar Rol" },
     description: { en: "Are you sure you want to delete the role \"{{name}}\"? This action cannot be undone and will remove all assignments of this role.", es: "¿Estás seguro de que deseas eliminar el rol \"{{name}}\"? Esta acción no se puede deshacer y eliminará todas las asignaciones de este rol." },
+  },
+  clone: {
+    title: { en: "Clone Role", es: "Clonar Rol" },
+    description: { en: "Create a copy of the role \"{{name}}\" with all its permissions.", es: "Crear una copia del rol \"{{name}}\" con todos sus permisos." },
+    button: { en: "Clone Role", es: "Clonar Rol" },
+    copyUsers: { en: "Copy Users", es: "Copiar Usuarios" },
+    copyUsersDescription: { en: "Also assign all current users of this role to the new cloned role.", es: "También asignar todos los usuarios actuales de este rol al nuevo rol clonado." },
   },
   assignToUsers: {
     title: { en: "Assign Users", es: "Asignar Usuarios" },
