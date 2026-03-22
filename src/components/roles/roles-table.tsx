@@ -6,7 +6,6 @@ import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type Huemu
 
 interface RolesTableProps {
   roles: Role[]
-  totalPermissions: number
   isLoadingUsers: boolean
   isTableLoading?: boolean
   isTableFetching?: boolean
@@ -19,7 +18,6 @@ interface RolesTableProps {
 
 export function RolesTable({ 
   roles, 
-  totalPermissions, 
   isLoadingUsers,
   isTableLoading = false,
   isTableFetching = false,
