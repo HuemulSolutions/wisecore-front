@@ -2,37 +2,36 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Shield, RefreshCw, UserPlus, Trash2 } from "lucide-react"
 import { type Role } from "@/services/rbac"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
 interface RolesTableProps {
   roles: Role[]
-  filteredRoles: Role[]
   totalPermissions: number
   isLoadingUsers: boolean
+  isTableLoading?: boolean
+  isTableFetching?: boolean
   onAssignToUsers: (role: Role) => void
   onEditRole: (role: Role) => void
   onDeleteRole: (role: Role) => void
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canManage?: boolean
 }
 
 export function RolesTable({ 
   roles, 
-  filteredRoles, 
   totalPermissions, 
   isLoadingUsers,
+  isTableLoading = false,
+  isTableFetching = false,
   onAssignToUsers,
   onEditRole,
   onDeleteRole,
   pagination,
-  showFooterStats,
   canManage = false
 }: RolesTableProps) {
   const { t } = useTranslation('roles')
   // Define columns
-  const columns: TableColumn<Role>[] = [
+  const columns: HuemulTableColumn<Role>[] = [
     {
       key: "name",
       label: t('columns.roleName'),
@@ -94,7 +93,7 @@ export function RolesTable({
   ]
 
   // Define actions - solo si tiene permisos de manage
-  const actions: TableAction<Role>[] = canManage ? [
+  const actions: HuemulTableAction<Role>[] = canManage ? [
     {
       key: "assign",
       label: isLoadingUsers ? t('actions.loadingUsers') : t('actions.assignToUsers'),
@@ -118,27 +117,20 @@ export function RolesTable({
     }
   ] : []
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: t('table.showingOf', { filtered: filteredRoles.length, total: roles.length }),
-      value: ''
-    },
-    {
-      label: t('table.totalPermissions'),
-      value: totalPermissions
-    }
-  ]
-
   return (
-    <DataTable
-      data={filteredRoles}
+    <HuemulTable
+      data={roles}
       columns={columns}
       actions={actions}
       getRowKey={(role) => role.id}
-      footerStats={footerStats}
+      emptyState={{
+        icon: Shield,
+        title: t('emptyState.noRolesFound'),
+        description: t('emptyState.noRolesCreated'),
+      }}
       pagination={pagination}
-      showFooterStats={showFooterStats}
+      isLoading={isTableLoading}
+      isFetching={isTableFetching}
     />
   )
 }

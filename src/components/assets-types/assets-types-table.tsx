@@ -2,9 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Edit2, Trash2, Shield, FileStack, Activity } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
-import { type UseMutationResult } from "@tanstack/react-query"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
 // Helper functions
 export const formatDate = (dateString: string) => {
@@ -17,45 +15,33 @@ export const formatDate = (dateString: string) => {
 
 interface AssetTypeTableProps {
   assetTypes: AssetTypeWithRoles[]
-  selectedAssetTypes: Set<string>
-  onAssetTypeSelection: (assetTypeId: string) => void
-  onSelectAll: () => void
   onEditAssetType: (assetType: AssetTypeWithRoles) => void
   onManagePermissions: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onLifecycle: (assetType: AssetTypeWithRoles) => void
-  assetTypeMutations: {
-    createAssetType: UseMutationResult<any, any, any, unknown>
-    updateAssetType: UseMutationResult<any, any, any, unknown>
-    deleteAssetType: UseMutationResult<any, any, string, unknown>
-  }
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  isLoading?: boolean
+  isFetching?: boolean
 }
 
 export default function AssetTypeTable({
   assetTypes,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  selectedAssetTypes: _selectedAssetTypes,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAssetTypeSelection: _onAssetTypeSelection,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSelectAll: _onSelectAll,
   onEditAssetType,
   onManagePermissions,
   onDeleteAssetType,
   onLifecycle,
   pagination,
-  showFooterStats,
   canUpdate = true,
   canDelete = true,
+  isLoading = false,
+  isFetching = false,
 }: AssetTypeTableProps) {
   const { t } = useTranslation('asset-types')
 
   // Define columns
-  const columns: TableColumn<AssetTypeWithRoles>[] = [
+  const columns: HuemulTableColumn<AssetTypeWithRoles>[] = [
     {
       key: "color",
       label: t('columns.color'),
@@ -118,7 +104,7 @@ export default function AssetTypeTable({
   ]
 
   // Define actions - construir condicionalmente
-  const actions: TableAction<AssetTypeWithRoles>[] = [
+  const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
     {
       key: "permissions",
       label: t('actions.managePermissions'),
@@ -147,20 +133,8 @@ export default function AssetTypeTable({
     }] : [])
   ]
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: t('table.showing', { count: assetTypes.length }),
-      value: ''
-    },
-    {
-      label: t('table.totalAssets'),
-      value: assetTypes.reduce((acc, type) => acc + (type.document_count || 0), 0)
-    }
-  ]
-
   return (
-    <DataTable
+    <HuemulTable
       data={assetTypes}
       columns={columns}
       actions={actions}
@@ -170,9 +144,9 @@ export default function AssetTypeTable({
         title: t('emptyState.noAssetTypesFound'),
         description: t('emptyState.noResultsDescription')
       }}
-      footerStats={footerStats}
       pagination={pagination}
-      showFooterStats={showFooterStats}
+      isLoading={isLoading}
+      isFetching={isFetching}
     />
   )
 }

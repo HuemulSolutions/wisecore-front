@@ -42,7 +42,8 @@ export function OrganizationPageHeader({
       searchConfig={{
         placeholder: t('organizations:header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true,
       }}
     />
   )

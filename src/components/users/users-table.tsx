@@ -4,8 +4,7 @@ import i18n from "@/i18n"
 import { Trash2, Check, X, Edit, Shield, Users, Building, UserPlus, ShieldCheck } from "lucide-react"
 import { type User } from "@/types/users"
 import { type UseMutationResult } from "@tanstack/react-query"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
 // Helper functions
 export const formatDate = (dateString: string) => {
@@ -66,10 +65,11 @@ interface UserTableProps {
     rejectUser: UseMutationResult<any, any, string, unknown>
     deleteUser: UseMutationResult<any, any, string, unknown>
   }
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  isLoading?: boolean
+  isFetching?: boolean
 }
 
 export default function UserTable({
@@ -89,14 +89,15 @@ export default function UserTable({
   isCurrentUserRootAdmin = false,
   userMutations,
   pagination,
-  showFooterStats,
   canUpdate = false,
-  canDelete = false
+  canDelete = false,
+  isLoading = false,
+  isFetching = false
 }: UserTableProps) {
   const { t } = useTranslation(['users'])
 
   // Define columns
-  const columns: TableColumn<User>[] = [
+  const columns: HuemulTableColumn<User>[] = [
     {
       key: "name",
       label: t('users:columns.name'),
@@ -188,7 +189,7 @@ export default function UserTable({
   ]
 
   // Define actions - note: conditional actions using show property
-  const actions: TableAction<User>[] = [
+  const actions: HuemulTableAction<User>[] = [
     {
       key: "approve",
       label: t('users:actions.approveUser'),
@@ -254,20 +255,8 @@ export default function UserTable({
     }
   ]
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: t('users:emptyState.showingCount', { count: users.length }),
-      value: ''
-    },
-    {
-      label: t('users:emptyState.activeUsers'),
-      value: users.filter(u => u.status === 'active').length
-    }
-  ]
-
   return (
-    <DataTable
+    <HuemulTable
       data={users}
       columns={columns}
       actions={actions}
@@ -277,9 +266,9 @@ export default function UserTable({
         title: t('users:emptyState.title'),
         description: t('users:emptyState.description')
       }}
-      footerStats={footerStats}
       pagination={pagination}
-      showFooterStats={showFooterStats}
+      isLoading={isLoading}
+      isFetching={isFetching}
     />
   )
 }

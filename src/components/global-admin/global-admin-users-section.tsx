@@ -7,10 +7,11 @@ import { useTranslation } from "react-i18next"
 import { handleApiError } from "@/lib/error-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useUserMutations } from "@/hooks/useUsers"
 import { getGlobalUsers } from "@/services/users"
 import { type User } from "@/types/users"
@@ -60,19 +61,27 @@ export function GlobalAdminUsersSection() {
   const canUpdateUser = isRootAdmin || hasPermission('user:u')
   const canDeleteUser = isRootAdmin || hasPermission('user:d')
 
-  const globalUsersQueryKey = ["global-users", page, pageSize] as const
+  const globalUsersQueryKey = ["global-users", page, pageSize, state.searchTerm] as const
 
-  const { data: usersResponse, isLoading, error, refetch } = useQuery({
+  const { data: usersResponse, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: globalUsersQueryKey,
-    queryFn: () => getGlobalUsers(page, pageSize),
+    queryFn: () => getGlobalUsers(page, pageSize, state.searchTerm || undefined),
+    placeholderData: (prev) => prev,
     enabled: canListUsers
   }) as {
     data: GlobalUsersResponse | undefined
     isLoading: boolean
+    isFetching: boolean
     error: any
     refetch: () => Promise<any>
   }
   const userMutations = useUserMutations([["global-users"]])
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!usersResponse,
+  })
 
   if (isLoadingPermissions) {
     return <UserPageSkeleton />
@@ -82,19 +91,14 @@ export function GlobalAdminUsersSection() {
     return <UserPageEmptyState type="access-denied" />
   }
 
-  if (isLoading) {
+  if (showPageLoader) {
     return <UserPageSkeleton />
   }
 
   const users = usersResponse?.data ?? []
-  const filteredUsers = users.filter((user: User) => {
-    const matchesSearch = `${user.name} ${user.last_name} ${user.email}`
-      .toLowerCase()
-      .includes(state.searchTerm.toLowerCase())
-    const matchesFilter = state.filterStatus === "all" || user.status === state.filterStatus
-
-    return matchesSearch && matchesFilter
-  }) || []
+  const filteredUsers = state.filterStatus === "all"
+    ? users
+    : users.filter((user: User) => user.status === state.filterStatus)
 
   const updateState = (updates: Partial<UserPageState>) => {
     setState(prev => ({ ...prev, ...updates }))
@@ -131,7 +135,7 @@ export function GlobalAdminUsersSection() {
     return statusMap[status] || status
   }
 
-  const columns: TableColumn<User>[] = [
+  const columns: HuemulTableColumn<User>[] = [
     {
       key: "name",
       label: t('common:name'),
@@ -187,7 +191,7 @@ export function GlobalAdminUsersSection() {
     }
   ]
 
-  const actions: TableAction<User>[] = [
+  const actions: HuemulTableAction<User>[] = [
     {
       key: "approve",
       label: t('actions.approveUser'),
@@ -252,10 +256,10 @@ export function GlobalAdminUsersSection() {
           icon={Users}
           title={t('header.title')}
           badges={[
-            { label: "", value: t('header.usersCount', { count: filteredUsers.length }) }
+            { label: "", value: t('header.usersCount', { count: usersResponse?.total ?? filteredUsers.length }) }
           ]}
           onRefresh={handleRefresh}
-          isLoading={isLoading || isRefreshing}
+          isLoading={isRefreshing}
           hasError={!!error}
           primaryAction={canCreateUser ? {
             label: t('header.addUser'),
@@ -278,7 +282,11 @@ export function GlobalAdminUsersSection() {
           searchConfig={{
             placeholder: t('header.searchPlaceholder'),
             value: state.searchTerm,
-            onChange: (value) => updateState({ searchTerm: value })
+            onChange: (value) => {
+              updateState({ searchTerm: value })
+              setPage(1)
+            },
+            triggerOnEnter: true,
           }}
         >
           <Select value={state.filterStatus} onValueChange={(value) => updateState({ filterStatus: value })}>
@@ -301,12 +309,12 @@ export function GlobalAdminUsersSection() {
           message={error.message} 
           onRetry={handleRefresh}
         />
-      ) : filteredUsers.length === 0 ? (
+      ) : !isTableLoading && !isTableFetching && filteredUsers.length === 0 ? (
         <UserContentEmptyState 
           type="empty"
         />
       ) : (
-        <DataTable
+        <HuemulTable
           data={filteredUsers}
           columns={columns}
           actions={actions}
@@ -316,8 +324,9 @@ export function GlobalAdminUsersSection() {
             title: t('emptyState.title'),
             description: t('emptyState.description')
           }}
-          showFooterStats={false}
           maxHeight="flex-1 min-h-0"
+          isLoading={isTableLoading}
+          isFetching={isTableFetching}
           pagination={{
             page: usersResponse?.page || page,
             pageSize: usersResponse?.page_size || pageSize,

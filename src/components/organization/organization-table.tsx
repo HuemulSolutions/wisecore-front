@@ -1,8 +1,7 @@
 import { Edit2, Trash2, Building2, Shield } from "lucide-react"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
 import i18n from "@/i18n"
-import type { TableColumn, TableAction, FooterStat, EmptyState } from "@/types/data-table"
 
 export interface Organization {
   id: string
@@ -16,19 +15,17 @@ export interface Organization {
 
 interface OrganizationTableProps {
   organizations: Organization[]
-  selectedOrganizations: Set<string>
-  onOrganizationSelection: (organizationId: string) => void
-  onSelectAll: () => void
   onEditOrganization: (organization: Organization) => void
   onDeleteOrganization: (organization: Organization) => void
   onSetAdmin?: (organization: Organization) => void
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
   canSetAdmin?: boolean
   isRootAdmin?: boolean
   maxHeight?: string
+  isLoading?: boolean
+  isFetching?: boolean
 }
 
 // Helper function for date formatting
@@ -42,24 +39,22 @@ export const formatDate = (dateString: string) => {
 
 export function OrganizationTable({
   organizations,
-  selectedOrganizations,
-  onOrganizationSelection,
-  onSelectAll,
   onEditOrganization,
   onDeleteOrganization,
   onSetAdmin,
   pagination,
-  showFooterStats,
   canUpdate = false,
   canDelete = false,
   canSetAdmin = false,
   isRootAdmin = false,
-  maxHeight
+  maxHeight,
+  isLoading = false,
+  isFetching = false
 }: OrganizationTableProps) {
   const { t } = useTranslation('organizations')
 
   // Define columns
-  const columns: TableColumn<Organization>[] = [
+  const columns: HuemulTableColumn<Organization>[] = [
     {
       key: "name",
       label: t('columns.name'),
@@ -121,7 +116,7 @@ export function OrganizationTable({
   ]
 
   // Define actions - basado en permisos específicos
-  const actions: TableAction<Organization>[] = [
+  const actions: HuemulTableAction<Organization>[] = [
     ...(canSetAdmin && onSetAdmin ? [{
       key: "setAdmin" as const,
       label: t('actions.setAdmin'),
@@ -143,40 +138,21 @@ export function OrganizationTable({
     }] : [])
   ]
 
-  // Define empty state
-  const emptyState: EmptyState = {
-    icon: Building2,
-    title: t('table.noOrgsFound'),
-    description: t('table.noOrgsFoundDescription')
-  }
-
-  // Define footer stats
-  const footerStatsList: FooterStat[] = showFooterStats ? [
-    {
-      label: t('table.totalOrganizations'),
-      value: organizations.length
-    },
-    {
-      label: t('table.selected'),
-      value: selectedOrganizations.size
-    }
-  ] : []
-
   return (
-    <DataTable<Organization>
+    <HuemulTable
       data={organizations}
       columns={columns}
       actions={actions}
       getRowKey={(org) => org.id}
-      emptyState={emptyState}
-      selectedItems={selectedOrganizations}
-      onItemSelection={onOrganizationSelection}
-      onSelectAll={onSelectAll}
+      emptyState={{
+        icon: Building2,
+        title: t('table.noOrgsFound'),
+        description: t('table.noOrgsFoundDescription')
+      }}
       pagination={pagination}
-      footerStats={footerStatsList}
-      showCheckbox={canUpdate || canDelete}
-      showFooterStats={showFooterStats}
       maxHeight={maxHeight}
+      isLoading={isLoading}
+      isFetching={isFetching}
     />
   )
 }

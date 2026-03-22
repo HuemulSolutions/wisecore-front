@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next"
 import { Plus, Building2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
 
 import {
@@ -51,10 +52,17 @@ export function GlobalAdminOrganizationsSection() {
   const canUpdateOrg = isRootAdmin || hasPermission('organization:u')
   const canDeleteOrg = isRootAdmin || hasPermission('organization:d')
 
-  const { data: organizationsResponse, isLoading, error } = useQuery({
-    queryKey: ["organizations", page, pageSize],
-    queryFn: () => getAllOrganizations(page, pageSize),
+  const { data: organizationsResponse, isLoading, isFetching, error } = useQuery({
+    queryKey: ["organizations", page, pageSize, state.searchTerm],
+    queryFn: () => getAllOrganizations(page, pageSize, state.searchTerm || undefined),
+    placeholderData: (prev) => prev,
     enabled: canListOrgs,
+  })
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!organizationsResponse,
   })
 
   const createMutation = useMutation({
@@ -93,22 +101,11 @@ export function GlobalAdminOrganizationsSection() {
     return <OrganizationPageEmptyState type="access-denied" />
   }
 
-  if (isLoading) {
+  if (showPageLoader) {
     return <OrganizationPageSkeleton />
   }
 
   const organizations = (organizationsResponse?.data || []) as Organization[]
-
-  const filteredOrganizations = organizations.filter((org: Organization) => {
-    const matchesSearch = org.name
-      .toLowerCase()
-      .includes(state.searchTerm.toLowerCase()) ||
-      org.description
-        ?.toLowerCase()
-        .includes(state.searchTerm.toLowerCase())
-
-    return matchesSearch
-  })
 
   const updateState = (updates: Partial<OrganizationPageState>) => {
     setState(prev => ({ ...prev, ...updates }))
@@ -131,24 +128,6 @@ export function GlobalAdminOrganizationsSection() {
     }
   }
 
-  const handleOrganizationSelection = (organizationId: string) => {
-    const newSelection = new Set(state.selectedOrganizations)
-    if (newSelection.has(organizationId)) {
-      newSelection.delete(organizationId)
-    } else {
-      newSelection.add(organizationId)
-    }
-    updateState({ selectedOrganizations: newSelection })
-  }
-
-  const handleSelectAll = () => {
-    if (state.selectedOrganizations.size === filteredOrganizations.length) {
-      updateState({ selectedOrganizations: new Set() })
-    } else {
-      updateState({ selectedOrganizations: new Set(filteredOrganizations.map((org: Organization) => org.id)) })
-    }
-  }
-
   const handleClearFilters = () => {
     updateState({ searchTerm: "" })
   }
@@ -160,10 +139,10 @@ export function GlobalAdminOrganizationsSection() {
           icon={Building2}
           title={t('header.title')}
           badges={[
-            { label: "", value: isLoading ? "..." : (organizationsResponse?.total || filteredOrganizations.length) }
+            { label: "", value: organizationsResponse?.total ?? organizations.length }
           ]}
           onRefresh={handleRefresh}
-          isLoading={isLoading || isRefreshing}
+          isLoading={isRefreshing}
           primaryAction={isRootAdmin ? {
             label: t('header.createOrganization'),
             icon: Plus,
@@ -172,7 +151,11 @@ export function GlobalAdminOrganizationsSection() {
           searchConfig={{
             placeholder: t('header.searchPlaceholder'),
             value: state.searchTerm,
-            onChange: (value: string) => updateState({ searchTerm: value })
+            onChange: (value: string) => {
+              updateState({ searchTerm: value })
+              setPage(1)
+            },
+            triggerOnEnter: true,
           }}
         />
       </div>
@@ -183,26 +166,25 @@ export function GlobalAdminOrganizationsSection() {
           message={(error as Error).message} 
           onRetry={handleRefresh}
         />
-      ) : filteredOrganizations.length === 0 && organizations.length === 0 ? (
+      ) : !isTableLoading && !isTableFetching && organizations.length === 0 && !state.searchTerm ? (
         <OrganizationContentEmptyState 
           type="empty"
           onCreateFirst={() => updateState({ showCreateDialog: true })}
         />
-      ) : filteredOrganizations.length === 0 ? (
+      ) : !isTableLoading && !isTableFetching && organizations.length === 0 ? (
         <OrganizationContentEmptyState 
           type="no-results"
           onClearFilters={handleClearFilters}
         />
       ) : (
         <OrganizationTable
-          organizations={filteredOrganizations}
-          selectedOrganizations={state.selectedOrganizations}
-          onOrganizationSelection={handleOrganizationSelection}
-          onSelectAll={handleSelectAll}
+          organizations={organizations}
           onEditOrganization={(org: Organization) => updateState({ editingOrganization: org })}
           onDeleteOrganization={(org: Organization) => updateState({ deletingOrganization: org })}
           onSetAdmin={(org: Organization) => updateState({ settingAdminOrganization: org })}
           maxHeight="flex-1 min-h-0"
+          isLoading={isTableLoading}
+          isFetching={isTableFetching}
           pagination={{
             page: organizationsResponse?.page || page,
             pageSize: organizationsResponse?.page_size || pageSize,
@@ -215,7 +197,6 @@ export function GlobalAdminOrganizationsSection() {
             },
             pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
           }}
-          showFooterStats={false}
           canUpdate={canUpdateOrg}
           canDelete={canDeleteOrg}
           canSetAdmin={isRootAdmin}

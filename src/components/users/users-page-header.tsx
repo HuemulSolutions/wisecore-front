@@ -13,6 +13,7 @@ interface UserPageHeaderProps {
   hasError?: boolean
   searchTerm: string
   onSearchChange: (value: string) => void
+  onSearchSubmit?: (value: string) => void
   filterStatus: string
   onStatusFilterChange: (value: string) => void
   canCreate?: boolean
@@ -26,6 +27,7 @@ export default function UserPageHeader({
   hasError,
   searchTerm,
   onSearchChange,
+  onSearchSubmit,
   filterStatus,
   onStatusFilterChange,
   canCreate = false
@@ -62,7 +64,8 @@ export default function UserPageHeader({
       searchConfig={{
         placeholder: t('users:header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true,
       }}
     >
       <Select value={filterStatus} onValueChange={onStatusFilterChange}>
