@@ -264,3 +264,16 @@ export const assignUsersToRole = async (roleId: string, userIds: string[]): Prom
     headers: getHeaders(),
   });
 };
+
+export interface CloneRoleData {
+  copy_users: boolean;
+}
+
+// Clone an existing role
+export const cloneRole = async (roleId: string, data: CloneRoleData): Promise<Role> => {
+  const response = await httpClient.post(`${backendUrl}/rbac/roles/${roleId}/clone`, data, {
+    headers: getHeaders(),
+  });
+
+  return response.json();
+};

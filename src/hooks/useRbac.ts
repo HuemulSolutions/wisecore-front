@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole } from "@/services/rbac"
+import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
 import { toast } from "sonner"
 
 // Query keys
@@ -133,11 +133,21 @@ export function useRoleMutations() {
     },
   })
 
+  const cloneRoleMutation = useMutation({
+    mutationFn: ({ roleId, copyUsers }: { roleId: string; copyUsers: boolean }) =>
+      cloneRole(roleId, { copy_users: copyUsers }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
+      toast.success('Role cloned successfully')
+    },
+  })
+
   return {
     createRole: createRoleMutation,
     updateRole: updateRoleMutation,
     deleteRole: deleteRoleMutation,
     assignRoles: assignRolesMutation,
     assignUsersToRole: assignUsersToRoleMutation,
+    cloneRole: cloneRoleMutation,
   }
 }

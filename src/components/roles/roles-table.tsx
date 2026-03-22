@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Shield, RefreshCw, UserPlus, Trash2 } from "lucide-react"
+import { Shield, RefreshCw, UserPlus, Trash2, Copy } from "lucide-react"
 import { type Role } from "@/services/rbac"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
@@ -12,6 +12,7 @@ interface RolesTableProps {
   onAssignToUsers: (role: Role) => void
   onEditRole: (role: Role) => void
   onDeleteRole: (role: Role) => void
+  onCloneRole: (role: Role) => void
   pagination?: HuemulTablePagination
   canManage?: boolean
 }
@@ -24,6 +25,7 @@ export function RolesTable({
   onAssignToUsers,
   onEditRole,
   onDeleteRole,
+  onCloneRole,
   pagination,
   canManage = false
 }: RolesTableProps) {
@@ -105,6 +107,12 @@ export function RolesTable({
       icon: Shield,
       onClick: onEditRole,
       separator: true
+    },
+    {
+      key: "clone",
+      label: t('actions.cloneRole'),
+      icon: Copy,
+      onClick: onCloneRole,
     },
     {
       key: "delete",

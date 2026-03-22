@@ -17,7 +17,8 @@ import {
   RolesAccessDenied, 
   RolesSearch, 
   RolesTable,
-  DeleteRoleDialog
+  DeleteRoleDialog,
+  CloneRoleDialog
 } from "@/components/roles"
 
 /**
@@ -34,6 +35,7 @@ export default function Roles() {
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
   const [assigningRoleToUsers, setAssigningRoleToUsers] = useState<Role | null>(null)
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
+  const [cloningRole, setCloningRole] = useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingUsers] = useState(false)
   const [page, setPage] = useState(1)
@@ -48,7 +50,7 @@ export default function Roles() {
 
   // Data fetching - solo si tiene permisos de lectura
   const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize, searchTerm)
-  const { deleteRole } = useRoleMutations()
+  const { deleteRole, cloneRole } = useRoleMutations()
   // Users data - we'll use refetch to load on demand, so disable automatic fetching
   const { data: usersResponse } = useUsers(false)
 
@@ -89,6 +91,11 @@ export default function Roles() {
       setTimeout(() => {
         setDeletingRole(role)
       }, 0)
+    },
+    clone: (role: Role) => {
+      setTimeout(() => {
+        setCloningRole(role)
+      }, 0)
     }
   }
 
@@ -97,7 +104,8 @@ export default function Roles() {
     assignToUsers: () => setAssigningRoleToUsers(null),
     edit: () => setEditingRole(null),
     delete: () => setDeletingRole(null),
-    assignUser: () => setAssigningUserId(null)
+    assignUser: () => setAssigningUserId(null),
+    clone: () => setCloningRole(null)
   }
 
   const confirmDeleteRole = async () => {
@@ -111,15 +119,26 @@ export default function Roles() {
     })
   }
 
+  const confirmCloneRole = async (copyUsers: boolean) => {
+    if (!cloningRole) return
+
+    await new Promise<void>((resolve, reject) => {
+      cloneRole.mutate({ roleId: cloningRole.id, copyUsers }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
+  }
+
   // Early returns for different states
   if (isLoadingPermissions) return <RolesLoadingState />
   if (!canAccessRoles) return <RolesAccessDenied />
   if (showPageLoader) return <RolesLoadingState />
 
-  const totalPermissions = error ? 0 : roles.reduce(
-    (acc, role) => acc + (role.permission_num || role.permissions?.length || 0), 
-    0
-  )
+  // const totalPermissions = error ? 0 : roles.reduce(
+  //   (acc, role) => acc + (role.permission_num || role.permissions?.length || 0), 
+  //   0
+  // )
 
   return (
     <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
@@ -146,11 +165,11 @@ export default function Roles() {
             roles={roles}
             isTableLoading={isTableLoading}
             isTableFetching={isTableFetching}
-            totalPermissions={totalPermissions}
             isLoadingUsers={isLoadingUsers}
             onAssignToUsers={openDialog.assignToUsers}
             onEditRole={openDialog.edit}
             onDeleteRole={openDialog.delete}
+            onCloneRole={openDialog.clone}
             canManage={canManageRbac}
             pagination={{
               page: rolesResponse?.page || page,
@@ -200,6 +219,17 @@ export default function Roles() {
           }}
           role={deletingRole}
           onConfirm={confirmDeleteRole}
+        />
+
+        <CloneRoleDialog
+          open={!!cloningRole}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeDialog.clone()
+            }
+          }}
+          role={cloningRole}
+          onConfirm={confirmCloneRole}
         />
       </div>
     </div>
