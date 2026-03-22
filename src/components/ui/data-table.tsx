@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MoreVertical, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { DataTableProps } from "@/types/data-table"
 import { useTranslation } from "react-i18next"
 
@@ -22,7 +23,9 @@ export function DataTable<T>({
   rowClassName,
   maxHeight = "max-h-[75vh]",
   pagination,
-  showFooterStats = true
+  showFooterStats = true,
+  isLoading = false,
+  isFetching = false
 }: DataTableProps<T>) {
   const { t } = useTranslation('common')
   const EmptyIcon = emptyState?.icon
@@ -30,7 +33,7 @@ export function DataTable<T>({
   const isIndeterminate = showCheckbox && selectedItems && selectedItems.size > 0 && selectedItems.size < data.length
 
   // Empty state
-  if (data.length === 0 && emptyState) {
+  if (data.length === 0 && emptyState && !isLoading) {
     return (
       <Card className="border border-border bg-card">
         <div className="text-center py-12">
@@ -43,7 +46,11 @@ export function DataTable<T>({
   }
 
   return (
-    <Card className={`border border-border bg-card overflow-auto ${maxHeight}`}>
+    <Card className={`border border-border bg-card overflow-auto ${maxHeight} relative`}>
+      {/* Fetching indicator bar */}
+      <div className={`sticky top-0 z-20 h-[2px] overflow-hidden transition-opacity duration-300 ${isFetching ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="h-full w-full bg-primary animate-pulse" />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="sticky top-0 bg-white z-10">
@@ -79,8 +86,23 @@ export function DataTable<T>({
               )}
             </tr>
           </thead>
-          <tbody className="bg-background divide-y divide-border">
-            {data.map((item) => {
+          <tbody className={`bg-background divide-y divide-border transition-opacity duration-200 ${isFetching && !isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-border">
+                  {showCheckbox && <td className="px-6 py-4"><Skeleton className="h-4 w-4" /></td>}
+                  {columns.map((column) => (
+                    <td key={column.key} className={`px-6 py-4 ${column.hideOnMobile ? "hidden sm:table-cell" : ""}`}>
+                      <Skeleton className="h-4 w-full max-w-[160px]" />
+                    </td>
+                  ))}
+                  {actions && actions.length > 0 && (
+                    <td className="px-6 py-4 text-right"><Skeleton className="h-6 w-6 ml-auto" /></td>
+                  )}
+                </tr>
+              ))
+            ) : (
+              data.map((item) => {
               const rowKey = getRowKey(item)
               const isSelected = selectedItems?.has(rowKey)
 
@@ -149,7 +171,8 @@ export function DataTable<T>({
                   )}
                 </tr>
               )
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>

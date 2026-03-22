@@ -3,7 +3,6 @@ import type { CustomField } from "@/types/custom-fields";
 // Main types
 export interface CustomFieldPageState {
   searchTerm: string;
-  selectedCustomFields: Set<string>;
   editingCustomField: CustomField | null;
   showCreateDialog: boolean;
   deletingCustomField: CustomField | null;
