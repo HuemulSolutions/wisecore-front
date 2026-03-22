@@ -5,13 +5,12 @@ import { useAuth } from "@/contexts/auth-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles, useRoleMutations } from "@/hooks/useRbac"
 import { useUsers } from "@/hooks/useUsers"
-import { useRoleFiltering } from "@/hooks/useRoleManagement"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { type Role } from "@/services/rbac"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import EditRoleSheet from "@/components/roles/roles-edit-sheet"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import AssignRoleToUsersDialog from "@/components/roles/roles-assign-to-users-sheet"
-import RolesEmptyState from "@/components/roles/roles-empty-state"
 import { 
   RolesLoadingState, 
   RolesContentEmptyState, 
@@ -48,7 +47,7 @@ export default function Roles() {
   const canManageRbac = isRootAdmin || hasAnyPermission(['rbac:c', 'rbac:u', 'rbac:d'])
 
   // Data fetching - solo si tiene permisos de lectura
-  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize)
+  const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize, searchTerm)
   const { deleteRole } = useRoleMutations()
   // Users data - we'll use refetch to load on demand, so disable automatic fetching
   const { data: usersResponse } = useUsers(false)
@@ -56,7 +55,12 @@ export default function Roles() {
   // Derived data
   const roles = rolesResponse?.data || []
   const users = usersResponse?.data || []
-  const filteredRoles = useRoleFiltering(roles, searchTerm)
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!rolesResponse,
+  })
 
   // Event handlers
 
@@ -110,7 +114,7 @@ export default function Roles() {
   // Early returns for different states
   if (isLoadingPermissions) return <RolesLoadingState />
   if (!canAccessRoles) return <RolesAccessDenied />
-  if (isLoading) return <RolesLoadingState />
+  if (showPageLoader) return <RolesLoadingState />
 
   const totalPermissions = error ? 0 : roles.reduce(
     (acc, role) => acc + (role.permission_num || role.permissions?.length || 0), 
@@ -122,8 +126,11 @@ export default function Roles() {
       <div className="mx-auto">
         <RolesSearch
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          rolesCount={filteredRoles.length}
+          onSearchChange={(value) => {
+            setSearchTerm(value)
+            setPage(1)
+          }}
+          rolesCount={rolesResponse?.total ?? roles.length}
           isRefreshing={isRefreshing}
           onRefresh={handleRefresh}
           onCreateRole={openDialog.create}
@@ -134,18 +141,16 @@ export default function Roles() {
         {/* Show error state or content */}
         {error ? (
           <RolesContentEmptyState error={error} onRetry={handleRefresh} />
-        ) : filteredRoles.length === 0 ? (
-          <RolesEmptyState hasSearchTerm={searchTerm.length > 0} onCreateRole={openDialog.create} />
         ) : (
           <RolesTable
             roles={roles}
-            filteredRoles={filteredRoles}
+            isTableLoading={isTableLoading}
+            isTableFetching={isTableFetching}
             totalPermissions={totalPermissions}
             isLoadingUsers={isLoadingUsers}
             onAssignToUsers={openDialog.assignToUsers}
             onEditRole={openDialog.edit}
             onDeleteRole={openDialog.delete}
-            showFooterStats={false}
             canManage={canManageRbac}
             pagination={{
               page: rolesResponse?.page || page,

@@ -40,12 +40,13 @@ export default function Templates() {
   
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const hasRestoredRef = useRef(false);
 
   // Query para listar templates - solo si tiene permisos
   const { data: templatesData, error: queryError, isFetching } = useQuery({
-    queryKey: ["templates", selectedOrganizationId],
-    queryFn: () => getAllTemplates(selectedOrganizationId!),
+    queryKey: ["templates", selectedOrganizationId, searchTerm],
+    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined),
     enabled: !!selectedOrganizationId && canListTemplates,
     retry: false,
   });
@@ -94,7 +95,9 @@ export default function Templates() {
               navigate('/templates', { replace: true });
             }}
             organizationId={selectedOrganizationId}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm] })}
+            onSearch={setSearchTerm}
+            searchValue={searchTerm}
             canCreate={canCreateTemplate}
             canUpdate={canUpdateTemplate}
             canDelete={canDeleteTemplate}
