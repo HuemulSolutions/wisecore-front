@@ -1,9 +1,11 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000) {
+export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string) {
     const folderPath = folderId || 'root';
-    const url = `${backendUrl}/folder/${folderPath}/get_content?page=${page}&page_size=${pageSize}`;
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    if (search) params.set('search', search);
+    const url = `${backendUrl}/folder/${folderPath}/get_content?${params.toString()}`;
     const response = await httpClient.get(url, {
         headers: {
             'X-Org-Id': organizationId,

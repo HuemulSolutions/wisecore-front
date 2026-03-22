@@ -1,8 +1,11 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function getAllTemplates(organizationId: string) {
-    const response = await httpClient.get(`${backendUrl}/templates/`, {
+export async function getAllTemplates(organizationId: string, search?: string) {
+    const url = search
+        ? `${backendUrl}/templates/?search=${encodeURIComponent(search)}`
+        : `${backendUrl}/templates/`;
+    const response = await httpClient.get(url, {
         headers: {
             'X-Org-Id': organizationId,
         },

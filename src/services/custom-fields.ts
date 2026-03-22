@@ -52,6 +52,10 @@ export const getCustomFields = async (params?: PaginationParams): Promise<Custom
     searchParams.append("page_size", params.page_size.toString());
   }
 
+  if (params?.search) {
+    searchParams.append("search", params.search);
+  }
+
   const url = `${backendUrl}/custom_fields/${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const response = await httpClient.get(url, {
     headers: getHeaders(),
