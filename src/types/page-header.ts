@@ -21,6 +21,12 @@ export interface PageHeaderSearchConfig {
   value: string
   onChange: (value: string) => void
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  /** Minimum character length before onChange is emitted (0 = no minimum) */
+  minLength?: number
+  /** Debounce delay in ms before onChange fires (0 = no debounce) */
+  debounceMs?: number
+  /** Only emit onChange when the user presses Enter (clears still trigger immediately) */
+  triggerOnEnter?: boolean
 }
 
 export interface PageHeaderProps {

@@ -24,6 +24,7 @@ export interface CustomField {
 export interface PaginationParams {
   page?: number;
   page_size?: number;
+  search?: string;
 }
 
 export interface CustomFieldsResponse {

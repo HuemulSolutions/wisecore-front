@@ -81,7 +81,6 @@ export interface UpdateAssetTypeData {
  */
 export interface AssetTypePageState {
   searchTerm: string;
-  selectedAssetTypes: Set<string>;
   editingAssetType: AssetTypeWithRoles | null;
   showCreateDialog: boolean;
   deletingAssetType: AssetTypeWithRoles | null;
@@ -95,8 +94,6 @@ export interface AssetTypePageState {
 export interface AssetTypePageActions {
   updateState: (updates: Partial<AssetTypePageState>) => void;
   closeDialog: (dialog: keyof AssetTypePageState) => void;
-  handleAssetTypeSelection: (assetTypeId: string) => void;
-  handleSelectAll: () => void;
 }
 
 // ========================================
