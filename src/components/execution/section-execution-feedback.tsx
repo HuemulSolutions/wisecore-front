@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Clock, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { getExecutionStatus, getExecutionSectionsStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ export function SectionExecutionFeedback({
 }: SectionExecutionFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('execute');
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
   const [hasShownCompletedToast, setHasShownCompletedToast] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -129,8 +131,8 @@ export function SectionExecutionFeedback({
         console.log('✅ Section execution completed!');
         toast.success(
           executionMode === 'single' 
-            ? 'Section regenerated successfully!' 
-            : 'Sections regenerated successfully!'
+            ? t('sectionFeedback.toast.successSingle') 
+            : t('sectionFeedback.toast.successMultiple')
         );
         setHasShownCompletedToast(true);
         onComplete?.();
@@ -164,12 +166,12 @@ export function SectionExecutionFeedback({
       if (!hasShownCompletedToast) {
         if (overallStatus === 'failed') {
           console.log('❌ Section execution failed!');
-          toast.error('Section regeneration failed');
+          toast.error(t('sectionFeedback.toast.failed'));
           setHasShownCompletedToast(true);
           onComplete?.();
         } else if (overallStatus === 'cancelled') {
           console.log('🚫 Section execution cancelled!');
-          toast.info('Section regeneration was cancelled');
+          toast.info(t('sectionFeedback.toast.cancelled'));
           setHasShownCompletedToast(true);
           onComplete?.();
         }
@@ -215,10 +217,10 @@ export function SectionExecutionFeedback({
       case 'pending':
         return {
           icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: 'pending',
+          text: t('sectionFeedback.status.pending'),
           description: executionMode === 'single' 
-            ? 'This section is queued for regeneration'
-            : 'Waiting for previous sections to complete',
+            ? t('sectionFeedback.description.pendingSingle')
+            : t('sectionFeedback.description.pendingFrom'),
           bgColor: 'bg-amber-50',
           borderColor: 'border-amber-200',
           textColor: 'text-amber-800'
@@ -226,10 +228,10 @@ export function SectionExecutionFeedback({
       case 'generating':
         return {
           icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-          text: 'generating',
+          text: t('sectionFeedback.status.generating'),
           description: executionMode === 'single'
-            ? 'AI is regenerating this section...'
-            : 'AI is working on this section...',
+            ? t('sectionFeedback.description.generatingSingle')
+            : t('sectionFeedback.description.generatingFrom'),
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           textColor: 'text-blue-800'
@@ -237,10 +239,10 @@ export function SectionExecutionFeedback({
       case 'done':
         return {
           icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-          text: 'completed',
+          text: t('sectionFeedback.status.completed'),
           description: executionMode === 'single' 
-            ? 'This section has been successfully regenerated. Click dismiss to remove this message.'
-            : 'This section has been regenerated. Click dismiss to remove this message.',
+            ? t('sectionFeedback.description.doneSingle')
+            : t('sectionFeedback.description.doneFrom'),
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           textColor: 'text-green-800'
@@ -248,8 +250,8 @@ export function SectionExecutionFeedback({
       default:
         return {
           icon: <Clock className="h-5 w-5 text-gray-600" />,
-          text: 'processing',
-          description: 'Section is being processed',
+          text: t('sectionFeedback.status.processing'),
+          description: t('sectionFeedback.description.default'),
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200',
           textColor: 'text-gray-800'
@@ -273,7 +275,7 @@ export function SectionExecutionFeedback({
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-sm font-medium", statusDisplay.textColor)}>
-              Section is {statusDisplay.text}
+              {t('sectionFeedback.sectionIs', { status: statusDisplay.text })}
             </p>
             <p className="text-xs text-gray-600 mt-1">
               {statusDisplay.description}
@@ -287,7 +289,7 @@ export function SectionExecutionFeedback({
               size="sm"
               onClick={handleRefresh}
               className="hover:cursor-pointer"
-              title="Refresh status"
+              title={t('sectionFeedback.refreshStatus')}
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -297,7 +299,7 @@ export function SectionExecutionFeedback({
             size="sm"
             onClick={handleDismiss}
             className="hover:cursor-pointer"
-            title="Dismiss"
+            title={t('sectionFeedback.dismiss')}
           >
             <XCircle className="h-4 w-4" />
           </Button>

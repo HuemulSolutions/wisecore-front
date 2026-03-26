@@ -24,9 +24,10 @@ import { useOrganization } from "@/contexts/organization-context";
 interface AddContextSheetProps {
   id: string;
   isSheetOpen?: boolean;
+  canEdit?: boolean;
 }
 
-export default function AddContext({ id, isSheetOpen = true }: AddContextSheetProps) {
+export default function AddContext({ id, isSheetOpen = true, canEdit = true }: AddContextSheetProps) {
   const { t } = useTranslation('context')
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -121,14 +122,20 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
                 {t('contextsCount', { count: contexts?.length || 0 })}
               </Badge>
             </div>
-            <HuemulButton
-              size="sm"
-              onClick={() => setAddDialogOpen(true)}
-              className="bg-[#4464f7] hover:bg-[#3451e6] text-xs"
-              icon={Plus}
-              iconClassName="h-3.5 w-3.5 mr-1.5"
-              label={t('addContext')}
-            />
+            {canEdit && (
+              <HuemulButton
+                requiredAccess={["edit", "create"]}
+                requireAll={false}
+                checkGlobalPermissions={true}
+                resource="context"
+                size="sm"
+                onClick={() => setAddDialogOpen(true)}
+                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-xs"
+                icon={Plus}
+                iconClassName="h-3.5 w-3.5 mr-1.5"
+                label={t('addContext')}
+              />
+            )}
           </div>
 
           {/* Content */}
@@ -168,28 +175,36 @@ export default function AddContext({ id, isSheetOpen = true }: AddContextSheetPr
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1">
-                        <HuemulButton
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditContext({ id: ctx.id, name: ctx.name, content: ctx.content || '', context_type: ctx.context_type })}
-                          disabled={editTextContextMutation.isPending}
-                          className="h-7 w-7 p-0 text-[#4464f7] hover:text-white hover:bg-[#4464f7]"
-                          icon={Pencil}
-                          iconClassName="h-3 w-3"
-                          title={t('editContextTitle')}
-                        />
-                        <HuemulButton
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteContext(ctx.id)}
-                          disabled={deleteContextMutation.isPending}
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          icon={Trash2}
-                          iconClassName="h-3 w-3"
-                          title={t('deleteContextTitle')}
-                        />
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1">
+                          <HuemulButton
+                            requiredAccess="edit"
+                            checkGlobalPermissions={true}
+                            resource="context"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditContext({ id: ctx.id, name: ctx.name, content: ctx.content || '', context_type: ctx.context_type })}
+                            disabled={editTextContextMutation.isPending}
+                            className="h-7 w-7 p-0 text-[#4464f7] hover:text-white hover:bg-[#4464f7] hover:cursor-pointer"
+                            icon={Pencil}
+                            iconClassName="h-3 w-3"
+                            title={t('editContextTitle')}
+                          />
+                          <HuemulButton
+                            requiredAccess="delete"
+                            checkGlobalPermissions={true}
+                            resource="context"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteContext(ctx.id)}
+                            disabled={deleteContextMutation.isPending}
+                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
+                            icon={Trash2}
+                            iconClassName="h-3 w-3"
+                            title={t('deleteContextTitle')}
+                          />
+                        </div>
+                      )}
                     </div>
                     
                     {/* Context Content */}

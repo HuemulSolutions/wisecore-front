@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -20,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X } from "lucide-react";
+import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
@@ -29,6 +30,15 @@ interface TemplateItem {
   id: string;
   name: string;
   description?: string;
+}
+
+interface TemplatesPagination {
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
 }
 
 interface TemplatesSidebarProps {
@@ -45,6 +55,7 @@ interface TemplatesSidebarProps {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  pagination?: TemplatesPagination;
 }
 
 export function TemplatesSidebar({
@@ -61,6 +72,7 @@ export function TemplatesSidebar({
   canCreate,
   canUpdate,
   canDelete,
+  pagination,
 }: TemplatesSidebarProps) {
   const { t } = useTranslation(['templates', 'common']);
   const queryClient = useQueryClient();
@@ -322,6 +334,52 @@ export function TemplatesSidebar({
             </ContextMenuContent>
           </ContextMenu>
         </div>
+
+        {/* Pagination footer - always visible */}
+        {pagination && (
+          <div className="shrink-0 flex items-center justify-between gap-2 px-2 py-1.5 border-t border-gray-200 bg-white">
+            <Select
+              value={pagination.pageSize.toString()}
+              onValueChange={(v) => pagination.onPageSizeChange(Number(v))}
+            >
+              <SelectTrigger className="h-6 w-[72px] text-[10px] hover:cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[25, 50, 100, 250].map((s) => (
+                  <SelectItem key={s} value={s.toString()} className="text-xs">
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <span className="text-[10px] text-muted-foreground shrink-0">
+              {t('common:pagination.page')} {pagination.page}
+            </span>
+
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="outline"
+                size="icon"
+                className={`h-6 w-6 hover:cursor-pointer transition-opacity ${!pagination.hasPrevious ? 'opacity-40 cursor-not-allowed' : ''}`}
+                disabled={!pagination.hasPrevious}
+                onClick={() => pagination.onPageChange(pagination.page - 1)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className={`h-6 w-6 hover:cursor-pointer transition-opacity ${!pagination.hasNext ? 'opacity-40 cursor-not-allowed' : ''}`}
+                disabled={!pagination.hasNext}
+                onClick={() => pagination.onPageChange(pagination.page + 1)}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <CreateTemplateDialog
