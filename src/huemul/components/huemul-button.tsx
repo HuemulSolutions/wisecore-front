@@ -10,8 +10,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { type VariantProps } from "class-variance-authority";
-import { useDocumentAccess } from "@/hooks/useDocumentAccess";
+import { lifecycleAllows } from "@/hooks/useDocumentAccess";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import type { LifecyclePermissions } from "@/types/assets";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,9 +54,7 @@ export interface HuemulButtonProps
   asChild?: boolean;
 
   // ── Permission guard ────────────────────────────────────────────────────
-  /** Document access levels to check (e.g. from the document's access_levels field) */
-  accessLevels?: string[];
-  /** Required access level(s) on the document (e.g. "edit", ["edit", "create"]) */
+  /** Required access level(s) to gate this button (e.g. "edit", ["edit", "create"]) */
   requiredAccess?: string | string[];
   /** When true ALL required access levels must be present (default: false = any) */
   requireAll?: boolean;
@@ -63,6 +62,8 @@ export interface HuemulButtonProps
   checkGlobalPermissions?: boolean;
   /** Resource name for global permission check (e.g. "asset", "folder") */
   resource?: string;
+  /** Lifecycle permissions from the document content — when provided, the button is also gated by these */
+  lifecyclePermissions?: LifecyclePermissions;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -84,33 +85,34 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
       disabled,
       className,
       children,
-      accessLevels,
       requiredAccess,
       requireAll = false,
       checkGlobalPermissions = false,
       resource,
+      lifecyclePermissions,
       ...props
     }: HuemulButtonProps,
     ref: React.Ref<HTMLButtonElement>,
   ) {
-    const { hasAccess, hasAnyAccess, hasAllAccess } = useDocumentAccess(accessLevels);
     const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions();
     const [asyncLoading, setAsyncLoading] = React.useState(false);
 
     // ── Permission guard ─────────────────────────────────────────────────
     let isAllowed = true;
     if (requiredAccess !== undefined) {
-      let hasDocumentPermission = false;
-      if (typeof requiredAccess === "string") {
-        hasDocumentPermission = hasAccess(requiredAccess);
-      } else {
-        hasDocumentPermission = requireAll
-          ? hasAllAccess(requiredAccess)
-          : hasAnyAccess(requiredAccess);
+      const accessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess];
+
+      // Lifecycle permissions check (when provided)
+      if (lifecyclePermissions) {
+        const lifecycleChecks = accessArray.map(access => lifecycleAllows(lifecyclePermissions, access));
+        const hasLifecyclePermission = requireAll
+          ? lifecycleChecks.every(Boolean)
+          : lifecycleChecks.some(Boolean);
+        if (!hasLifecyclePermission) isAllowed = false;
       }
 
-      if (checkGlobalPermissions && resource && !isRootAdmin) {
-        const accessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess];
+      // Global permissions check (when requested)
+      if (isAllowed && checkGlobalPermissions && resource && !isRootAdmin) {
         const globalChecks = accessArray.map((access) => {
           switch (access) {
             case "create": return canCreate(resource);
@@ -124,9 +126,7 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
         const hasGlobalPermission = requireAll
           ? globalChecks.every(Boolean)
           : globalChecks.some(Boolean);
-        if (!hasDocumentPermission || !hasGlobalPermission) isAllowed = false;
-      } else if (!hasDocumentPermission) {
-        isAllowed = false;
+        if (!hasGlobalPermission) isAllowed = false;
       }
     }
 
