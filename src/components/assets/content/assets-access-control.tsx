@@ -1,10 +1,10 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
-import { useDocumentAccess } from '@/hooks/useDocumentAccess'
+import { lifecycleAllows } from '@/hooks/useDocumentAccess'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
+import type { LifecyclePermissions } from '@/types/assets'
 
 interface DocumentAccessControlProps {
-  accessLevels?: string[]
   requiredAccess: string | string[]
   requireAll?: boolean
   children: React.ReactNode
@@ -13,6 +13,8 @@ interface DocumentAccessControlProps {
   checkGlobalPermissions?: boolean
   /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
   resource?: string
+  /** Lifecycle permissions from the document content response */
+  lifecyclePermissions?: LifecyclePermissions
 }
 
 /**
@@ -20,35 +22,30 @@ interface DocumentAccessControlProps {
  * y opcionalmente en los permisos globales del usuario
  */
 export function DocumentAccessControl({
-  accessLevels,
   requiredAccess,
   requireAll = false,
   children,
   fallback = null,
   checkGlobalPermissions = false,
-  resource
+  resource,
+  lifecyclePermissions,
 }: DocumentAccessControlProps) {
-  const { hasAccess, hasAnyAccess, hasAllAccess } = useDocumentAccess(accessLevels)
   const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions()
-  
-  let hasDocumentPermission = false
-  
-  // Verificar access levels del documento
-  if (typeof requiredAccess === 'string') {
-    hasDocumentPermission = hasAccess(requiredAccess)
-  } else if (Array.isArray(requiredAccess)) {
-    if (requireAll) {
-      hasDocumentPermission = hasAllAccess(requiredAccess)
-    } else {
-      hasDocumentPermission = hasAnyAccess(requiredAccess)
-    }
+
+  // Verificar lifecycle permissions (si se proporcionan)
+  if (lifecyclePermissions) {
+    const requiredAccessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess]
+    const lifecycleChecks = requiredAccessArray.map(access => lifecycleAllows(lifecyclePermissions, access))
+    const hasLifecyclePermission = requireAll
+      ? lifecycleChecks.every(Boolean)
+      : lifecycleChecks.some(Boolean)
+    if (!hasLifecyclePermission) return <>{fallback}</>
   }
-  
+
   // Si se requiere verificación de permisos globales
   if (checkGlobalPermissions && resource && !isRootAdmin) {
     const requiredAccessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess]
-    
-    // Mapear access levels del documento a acciones CRUD
+
     const globalPermissionChecks = requiredAccessArray.map(access => {
       switch (access) {
         case 'create':
@@ -60,22 +57,20 @@ export function DocumentAccessControl({
         case 'delete':
           return canDelete(resource)
         case 'approve':
-          return canUpdate(resource) // approve requiere permiso de actualización
+          return canUpdate(resource)
         default:
-          return true // Por defecto permitir si no es una acción reconocida
+          return true
       }
     })
-    
-    const hasGlobalPermission = requireAll 
+
+    const hasGlobalPermission = requireAll
       ? globalPermissionChecks.every(check => check)
       : globalPermissionChecks.some(check => check)
-    
-    // Debe tener AMBOS: access level del documento Y permiso global
-    return (hasDocumentPermission && hasGlobalPermission) ? <>{children}</> : <>{fallback}</>
+
+    return hasGlobalPermission ? <>{children}</> : <>{fallback}</>
   }
-  
-  // Si no se requiere verificación global, solo verificar access levels del documento
-  return hasDocumentPermission ? <>{children}</> : <>{fallback}</>
+
+  return <>{children}</>
 }
 
 /**
@@ -83,7 +78,6 @@ export function DocumentAccessControl({
  * Combina verificación de access levels del documento con permisos globales del usuario
  */
 interface DocumentActionButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
-  accessLevels?: string[]
   requiredAccess: string | string[]
   requireAll?: boolean
   children: React.ReactNode
@@ -96,7 +90,6 @@ interface DocumentActionButtonProps extends Omit<React.ButtonHTMLAttributes<HTML
 }
 
 export function DocumentActionButton({
-  accessLevels,
   requiredAccess,
   requireAll = false,
   children,
@@ -104,27 +97,12 @@ export function DocumentActionButton({
   resource,
   ...buttonProps
 }: DocumentActionButtonProps) {
-  const { hasAccess, hasAnyAccess, hasAllAccess } = useDocumentAccess(accessLevels)
   const { canCreate, canRead, canUpdate, canDelete, isRootAdmin } = useUserPermissions()
-  
-  let hasDocumentPermission = false
-  
-  // Verificar access levels del documento
-  if (typeof requiredAccess === 'string') {
-    hasDocumentPermission = hasAccess(requiredAccess)
-  } else if (Array.isArray(requiredAccess)) {
-    if (requireAll) {
-      hasDocumentPermission = hasAllAccess(requiredAccess)
-    } else {
-      hasDocumentPermission = hasAnyAccess(requiredAccess)
-    }
-  }
-  
+
   // Si se requiere verificación de permisos globales
   if (checkGlobalPermissions && resource && !isRootAdmin) {
     const requiredAccessArray = Array.isArray(requiredAccess) ? requiredAccess : [requiredAccess]
-    
-    // Mapear access levels del documento a acciones CRUD
+
     const globalPermissionChecks = requiredAccessArray.map(access => {
       switch (access) {
         case 'create':
@@ -136,25 +114,19 @@ export function DocumentActionButton({
         case 'delete':
           return canDelete(resource)
         case 'approve':
-          return canUpdate(resource) // approve requiere permiso de actualización
+          return canUpdate(resource)
         default:
           return true
       }
     })
-    
-    const hasGlobalPermission = requireAll 
+
+    const hasGlobalPermission = requireAll
       ? globalPermissionChecks.every(check => check)
       : globalPermissionChecks.some(check => check)
-    
-    // Debe tener AMBOS: access level del documento Y permiso global
-    if (!hasDocumentPermission || !hasGlobalPermission) {
-      return null
-    }
-  } else if (!hasDocumentPermission) {
-    // Si no tiene permiso de documento, no renderizar
-    return null
+
+    if (!hasGlobalPermission) return null
   }
-  
+
   return (
     <Button className="hover:cursor-pointer" {...buttonProps}>
       {children}

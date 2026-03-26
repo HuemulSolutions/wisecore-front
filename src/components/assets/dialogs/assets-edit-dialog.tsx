@@ -1,13 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { updateDocument, getDocumentById } from '@/services/assets';
 import { useOrganization } from '@/contexts/organization-context';
-import { useRoleDocumentTypes } from '@/hooks/useRoleDocumentTypes';
-import { ReusableDialog } from '@/components/ui/reusable-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { HuemulField, HuemulFieldGroup, type FetchOptionsParams } from '@/huemul/components/huemul-field';
+import { getDocumentTypesWithInfo } from '@/services/role-document-type';
 import { toast } from 'sonner';
 import { Edit3 } from 'lucide-react';
 import type { EditDocumentDialogProps } from "@/types/assets";
@@ -23,14 +21,14 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
 }) => {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['assets', 'common']);
 
   const [name, setName] = useState(currentName);
   const [description, setDescription] = useState(currentDescription || '');
   const [internalCode, setInternalCode] = useState('');
   const [documentTypeId, setDocumentTypeId] = useState(currentDocumentTypeId || '');
-
-  // Fetch document types based on current user's role
-  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes(open && !!selectedOrganizationId);
+  const [documentTypeName, setDocumentTypeName] = useState('');
+  const [documentTypeColor, setDocumentTypeColor] = useState<string | undefined>(undefined);
 
   // Prefill cuando se abre o cambia el doc
   useEffect(() => {
@@ -47,6 +45,8 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           setDescription(doc?.description || '');
           setInternalCode(doc?.internal_code || '');
           setDocumentTypeId(doc?.document_type?.id || '');
+          setDocumentTypeName(doc?.document_type?.name || '');
+          setDocumentTypeColor(doc?.document_type?.color ?? undefined);
         }
       } catch (e) {
         console.error('Error loading document:', e);
@@ -65,7 +65,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       return updateDocument(documentId, payload, selectedOrganizationId);
     },
     onSuccess: (data) => {
-      toast.success('Asset updated successfully');
+      toast.success(t('assets:edit.success'));
       // Refresh file tree/library to show updated asset info
       queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
       queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -77,13 +77,24 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
     },
   });
 
+  const fetchDocumentTypeOptions = useCallback(async ({ search, page, pageSize }: FetchOptionsParams) => {
+    const response = await getDocumentTypesWithInfo(page, pageSize);
+    const filtered = search
+      ? response.data.filter((dt) => dt.name.toLowerCase().includes(search.toLowerCase()))
+      : response.data;
+    return {
+      options: filtered.map((dt) => ({ value: dt.id, label: dt.name, color: dt.color ?? undefined })),
+      hasMore: response.has_next,
+    };
+  }, []);
+
   const handleSave = useCallback(() => {
     if (!name.trim()) {
-      toast.error('Asset name is required');
+      toast.error(t('assets:edit.errorNameRequired'));
       return;
     }
     if (!documentTypeId || !documentTypeId.trim()) {
-      toast.error('Asset type is required');
+      toast.error(t('assets:edit.errorTypeRequired'));
       return;
     }
     
@@ -105,103 +116,70 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   }, [name, description, internalCode, documentTypeId, mutation]);
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit Asset"
-      description="Update the asset information."
+      title={t('assets:edit.title')}
+      description={t('assets:edit.description')}
       icon={Edit3}
-      maxWidth="lg"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => onOpenChange(false)}
-      submitLabel="Update Asset"
-      cancelLabel="Cancel"
-      isSubmitting={mutation.isPending}
-      isValid={!!name.trim() && !!documentTypeId}
-      formId="edit-document-form"
+      maxWidth="sm:max-w-xl"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('common:cancel')}
+      saveAction={{
+        label: t('assets:edit.submitLabel'),
+        onClick: handleSave,
+        loading: mutation.isPending,
+        disabled: !name.trim() || !documentTypeId,
+      }}
     >
-      <form id="edit-document-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-        <div className="grid gap-6">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Asset Name *</Label>
-            <Input
-              id="name"
-              name="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter asset name"
-              autoFocus
-              required
-              disabled={mutation.isPending}
-            />
-          </div>
+      <HuemulFieldGroup>
+        <HuemulField
+          label={t('assets:form.assetName')}
+          name="name"
+          value={name}
+          onChange={(v) => setName(String(v))}
+          placeholder={t('assets:form.assetNamePlaceholder')}
+          required
+          autoFocus
+          disabled={mutation.isPending}
+        />
 
-          <div className="grid gap-2">
-            <Label htmlFor="internalCode">Internal Code (Optional)</Label>
-            <Input
-              id="internalCode"
-              name="internalCode"
-              value={internalCode}
-              onChange={(e) => setInternalCode(e.target.value)}
-              placeholder="Enter internal code"
-              disabled={mutation.isPending}
-            />
-          </div>
+        <HuemulField
+          label={t('assets:form.internalCode')}
+          name="internalCode"
+          value={internalCode}
+          onChange={(v) => setInternalCode(String(v))}
+          placeholder={t('assets:form.internalCodePlaceholder')}
+          disabled={mutation.isPending}
+        />
 
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter asset description"
-              rows={4}
-              disabled={mutation.isPending}
-            />
-          </div>
+        <HuemulField
+          type="textarea"
+          label={t('assets:form.description')}
+          name="description"
+          value={description}
+          onChange={(v) => setDescription(String(v))}
+          placeholder={t('assets:form.descriptionPlaceholder')}
+          rows={4}
+          disabled={mutation.isPending}
+        />
 
-          <div className="grid gap-2">
-            <Label htmlFor="documentType">Asset Type *</Label>
-            <Select value={documentTypeId} onValueChange={setDocumentTypeId} disabled={mutation.isPending}>
-              <SelectTrigger id="documentType" className="w-full">
-                <SelectValue placeholder="Select asset type" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingDocTypes ? (
-                  <div className="px-2 py-2 text-sm text-muted-foreground">
-                    Loading asset types...
-                  </div>
-                ) : docTypesError ? (
-                  <div className="px-2 py-2 text-sm text-red-500">
-                    Error loading asset types
-                  </div>
-                ) : documentTypes.length > 0 ? (
-                  documentTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      <div className="flex items-center gap-2">
-                        {type.color && (
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: type.color }}
-                          />
-                        )}
-                        {type.name}
-                      </div>
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="px-2 py-2 text-sm text-muted-foreground">
-                    No asset types available
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </form>
-    </ReusableDialog>
+        <HuemulField
+          type="async-select"
+          label={t('assets:form.assetType')}
+          name="documentType"
+          value={documentTypeId}
+          onChange={(v) => setDocumentTypeId(String(v))}
+          placeholder={t('assets:form.assetTypePlaceholder')}
+          required
+          disabled={mutation.isPending}
+          fetchOptions={fetchDocumentTypeOptions}
+          selectedLabel={documentTypeName}
+          selectedColor={documentTypeColor}
+          pageSize={100}
+        />
+      </HuemulFieldGroup>
+    </HuemulDialog>
   );
 });
 

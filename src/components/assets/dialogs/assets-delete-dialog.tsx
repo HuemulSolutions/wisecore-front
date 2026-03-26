@@ -1,6 +1,7 @@
 import { memo } from "react"
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
 import type { DeleteDocumentDialogProps } from "@/types/assets"
+import { useTranslation } from "react-i18next"
 
 export const DeleteDocumentDialog = memo(function DeleteDocumentDialog({
   open,
@@ -9,14 +10,15 @@ export const DeleteDocumentDialog = memo(function DeleteDocumentDialog({
   onConfirm,
   isDeleting = false,
 }: DeleteDocumentDialogProps) {
+  const { t } = useTranslation('assets');
   return (
     <ReusableAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Document"
-      description={`Are you sure you want to delete "${documentName}"? This action cannot be undone and all associated data will be permanently deleted.`}
+      title={t('deleteDocument.title')}
+      description={t('deleteDocument.description', { name: documentName })}
       onConfirm={onConfirm}
-      confirmLabel="Delete"
+      confirmLabel={t('deleteDocument.confirmLabel')}
       isProcessing={isDeleting}
       variant="destructive"
     />

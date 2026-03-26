@@ -2,28 +2,24 @@ import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2 } fro
 import { useState, useEffect, useRef } from 'react';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
-import { DocumentActionButton, DocumentAccessControl } from "@/components/assets/content/assets-access-control";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution/execution-config-dialog';
 import { DeleteSectionDialog } from '@/components/assets/dialogs/assets-delete-section-dialog';
 import { AiEditSectionDialog } from '@/components/assets/dialogs/assets-ai-edit-section-dialog';
 import { SectionExecutionFeedback } from '@/components/execution/section-execution-feedback';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { fixSection, executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { useTranslation } from 'react-i18next';
 
 interface SectionExecutionProps {
     sectionExecution: {
@@ -38,12 +34,12 @@ interface SectionExecutionProps {
     executionId?: string;
     onExecutionStart?: (executionId?: string) => void;
     executionStatus?: string;
-    accessLevels?: string[];
     onOpenExecuteSheet?: () => void;
     executionMode?: 'single' | 'from' | 'full' | 'full-single';
     showExecutionFeedback?: boolean;
     sectionType?: 'ai' | 'manual' | 'reference' | null;
     sectionName?: string;
+    canEditSections?: boolean;
 }
 
 export default function SectionExecution({ 
@@ -55,12 +51,12 @@ export default function SectionExecution({
     executionId, 
     onExecutionStart, 
     executionStatus,
-    accessLevels,
     onOpenExecuteSheet,
     executionMode = 'single',
     showExecutionFeedback = false,
     sectionType = 'ai',
-    sectionName
+    sectionName,
+    canEditSections = false,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const [isEditing, setIsEditing] = useState(false);
@@ -73,6 +69,7 @@ export default function SectionExecution({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
+    const { t } = useTranslation('assets');
     const isExecutionApproved = executionStatus === 'approved';
     
     // Determine which actions are available based on section type
@@ -180,10 +177,10 @@ export default function SectionExecution({
         try {
             const contentToCopy = displayedContent;
             await navigator.clipboard.writeText(contentToCopy);
-            toast.success('Content copied to clipboard!');
+            toast.success(t('section.contentCopied'));
         } catch (error) {
             console.error('Error copying to clipboard:', error);
-            toast.error('Failed to copy content to clipboard');
+            toast.error(t('section.copyFailed'));
         }
     };
 
@@ -194,7 +191,7 @@ export default function SectionExecution({
 
     const handleExecuteWithConfig = async (config: ExecutionConfig) => {
         if (!documentId || !executionId || !sectionIdForExecution) {
-            toast.error('Missing required information for section execution');
+            toast.error(t('section.missingInfo'));
             return;
         }
 
@@ -212,7 +209,7 @@ export default function SectionExecution({
                     config.llmModel,
                     config.instructions
                 );
-                toast.success('Section execution started successfully');
+                toast.success(t('section.sectionExecutionStarted'));
             } else {
                 await executeFromSection(
                     documentId,
@@ -222,12 +219,12 @@ export default function SectionExecution({
                     config.llmModel,
                     config.instructions
                 );
-                toast.success('Execution from this section started successfully');
+                toast.success(t('section.executionFromSectionStarted'));
             }
 
             onUpdate?.();
         } catch (error) {
-            handleApiError(error, { fallbackMessage: 'Failed to execute section. Please try again.' });
+            handleApiError(error, { fallbackMessage: t('section.executionFailed') });
         } finally {
             setIsExecuting(false);
         }
@@ -281,10 +278,10 @@ export default function SectionExecution({
     const handleDelete = async () => {
         try {
             await deleteSectionExec(sectionExecution.id);
-            toast.success('Section deleted successfully!');
+            toast.success(t('section.sectionDeleted'));
             onUpdate?.();
         } catch (error) {
-            handleApiError(error, { fallbackMessage: 'Failed to delete section. Please try again.' });
+            handleApiError(error, { fallbackMessage: t('section.deleteFailed') });
             throw error;
         }
     };
@@ -308,7 +305,7 @@ export default function SectionExecution({
                     {(sectionName || sectionType) && (
                         <div className="mr-auto flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
                             <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
-                                {sectionName || 'Untitled section'}
+                                {sectionName || t('section.untitled')}
                             </span>
                             <span className="mx-1.5 text-[10px] text-blue-300">•</span>
                             <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
@@ -322,109 +319,63 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
-                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <DocumentActionButton
-                                                accessLevels={accessLevels}
-                                                requiredAccess={["create", "edit"]}
-                                                checkGlobalPermissions={true}
-                                                resource="asset"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
-                                                onClick={onOpenExecuteSheet}
-                                                disabled={isExecutionInProgress}
-                                            >
-                                                <Play className="h-3.5 w-3.5 text-blue-600" />
-                                            </DocumentActionButton>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{isExecutionInProgress ? 'Execution in progress' : 'Open Execute Sheet'}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && (
+                                    <HuemulButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={Play}
+                                        iconClassName="h-3.5 w-3.5 text-blue-600"
+                                        className="h-7 w-7 hover:bg-blue-50"
+                                        tooltip={isExecutionInProgress ? t('section.executionInProgress') : t('section.openExecuteSheet')}
+                                        onClick={onOpenExecuteSheet}
+                                        disabled={isExecutionInProgress}
+                                    />
                                 )}
 
-                                {!isEditing && !isExecutionApproved && canAiEdit && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <DocumentActionButton
-                                                accessLevels={accessLevels}
-                                                requiredAccess={["create", "edit"]}
-                                                checkGlobalPermissions={true}
-                                                resource="asset"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-blue-50 hover:cursor-pointer"
-                                                onClick={() => setIsAiEditDialogOpen(true)}
-                                            >
-                                                <Bot className="h-3.5 w-3.5 text-blue-600" />
-                                            </DocumentActionButton>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Ask AI to edit</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
+                                    <HuemulButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={Bot}
+                                        iconClassName="h-3.5 w-3.5 text-blue-600"
+                                        className="h-7 w-7 hover:bg-blue-50"
+                                        tooltip={t('section.askAiToEdit')}
+                                        onClick={() => setIsAiEditDialogOpen(true)}
+                                    />
                                 )}
 
-                                {!isEditing && !isExecutionApproved && canEdit && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <DocumentActionButton
-                                                accessLevels={accessLevels}
-                                                requiredAccess="edit"
-                                                checkGlobalPermissions={true}
-                                                resource="asset"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                                onClick={handleStartEditing}
-                                            >
-                                                <Edit className="h-3.5 w-3.5 text-gray-600" />
-                                            </DocumentActionButton>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Edit section</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                {!isEditing && !isExecutionApproved && canEdit && canEditSections && (
+                                    <HuemulButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={Edit}
+                                        iconClassName="h-3.5 w-3.5 text-gray-600"
+                                        className="h-7 w-7 hover:bg-gray-100"
+                                        tooltip={t('section.editSection')}
+                                        onClick={handleStartEditing}
+                                    />
                                 )}
 
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                                            onClick={handleCopy}
-                                        >
-                                            <Copy className="h-3.5 w-3.5 text-gray-600" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Copy content</p>
-                                    </TooltipContent>
-                                </Tooltip>
+                                <HuemulButton
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={Copy}
+                                    iconClassName="h-3.5 w-3.5 text-gray-600"
+                                    className="h-7 w-7 hover:bg-gray-100"
+                                    tooltip={t('section.copyContent')}
+                                    onClick={handleCopy}
+                                />
 
-                                {!isEditing && !isExecutionApproved && canDelete && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <DocumentActionButton
-                                                accessLevels={accessLevels}
-                                                requiredAccess={["create", "edit"]}
-                                                checkGlobalPermissions={true}
-                                                resource="asset"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 w-7 p-0 hover:bg-red-50 hover:cursor-pointer"
-                                                onClick={() => openDeleteDialog()}
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                                            </DocumentActionButton>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Delete section</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                {!isEditing && !isExecutionApproved && canDelete && canEditSections && (
+                                    <HuemulButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={Trash2}
+                                        iconClassName="h-3.5 w-3.5 text-red-600"
+                                        className="h-7 w-7 hover:bg-red-50"
+                                        tooltip={t('section.deleteSection')}
+                                        onClick={() => openDeleteDialog()}
+                                    />
                                 )}
                             </div>
                         )}
@@ -439,7 +390,6 @@ export default function SectionExecution({
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     {/* <DocumentAccessControl
-                                        accessLevels={accessLevels}
                                         requiredAccess=""
                                         checkGlobalPermissions={false}
                                         resource="asset"
@@ -449,118 +399,75 @@ export default function SectionExecution({
                                             onClick={handleCopy}
                                         >
                                             <Copy className="h-4 w-4 mr-2" />
-                                            Copy
+                                            {t('section.copy')}
                                         </DropdownMenuItem>
                                     {/* </DocumentAccessControl> */}
-                                    {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && (
+                                    {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && canEditSections && (
                                         <>
-                                            <DocumentAccessControl
-                                                accessLevels={accessLevels}
-                                                requiredAccess={["approve", "create"]}
-                                                checkGlobalPermissions={true}
-                                                resource="asset"
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onSelect={() => {
+                                                    setTimeout(() => handleOpenExecutionConfig('single'), 0);
+                                                }}
+                                                disabled={isExecuting}
                                             >
-                                                <DropdownMenuItem
-                                                    className='hover:cursor-pointer'
-                                                    onSelect={() => {
-                                                        setTimeout(() => handleOpenExecutionConfig('single'), 0);
-                                                    }}
-                                                    disabled={isExecuting}
-                                                >
-                                                    <Play className="h-4 w-4 mr-2" />
-                                                    Execute Section
-                                                </DropdownMenuItem>
-                                            </DocumentAccessControl>
-                                            <DocumentAccessControl
-                                                accessLevels={accessLevels}
-                                                requiredAccess={["approve", "create"]}
-                                                checkGlobalPermissions={true}
-                                                resource="asset"
+                                                <Play className="h-4 w-4 mr-2" />
+                                                {t('section.executeSection')}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onSelect={() => {
+                                                    setTimeout(() => handleOpenExecutionConfig('from'), 0);
+                                                }}
+                                                disabled={isExecuting}
                                             >
-                                                <DropdownMenuItem
-                                                    className='hover:cursor-pointer'
-                                                    onSelect={() => {
-                                                        setTimeout(() => handleOpenExecutionConfig('from'), 0);
-                                                    }}
-                                                    disabled={isExecuting}
-                                                >
-                                                    <FastForward className="h-4 w-4 mr-2" />
-                                                    Execute From Section
-                                                </DropdownMenuItem>
-                                            </DocumentAccessControl>
+                                                <FastForward className="h-4 w-4 mr-2" />
+                                                {t('section.executeFromSection')}
+                                            </DropdownMenuItem>
                                         </>
                                     )}
-                                    {!isEditing && !isExecutionApproved && canEdit && (
-                                        <DocumentAccessControl
-                                            accessLevels={accessLevels}
-                                            requiredAccess="edit"
-                                            checkGlobalPermissions={true}
-                                            resource="asset"
+                                    {!isEditing && !isExecutionApproved && canEdit && canEditSections && (
+                                        <DropdownMenuItem
+                                            className='hover:cursor-pointer'
+                                            onClick={handleStartEditing}
                                         >
-                                            <DropdownMenuItem
-                                                className='hover:cursor-pointer'
-                                                onClick={handleStartEditing}
-                                            >
-                                                <Edit className="h-4 w-4 mr-2" />
-                                                Edit
-                                            </DropdownMenuItem>
-                                        </DocumentAccessControl>
+                                            <Edit className="h-4 w-4 mr-2" />
+                                            {t('section.edit')}
+                                        </DropdownMenuItem>
                                     )}
-                                    {!isEditing && !isExecutionApproved && canAiEdit && (
-                                        <DocumentAccessControl
-                                            accessLevels={accessLevels}
-                                            requiredAccess="edit"
-                                            checkGlobalPermissions={true}
-                                            resource="asset"
+                                    {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
+                                        <DropdownMenuItem 
+                                            className="hover:cursor-pointer"
+                                            onSelect={() => {
+                                                setTimeout(() => setIsAiEditDialogOpen(true), 0);
+                                            }}
                                         >
-                                            <DropdownMenuItem 
-                                                className="hover:cursor-pointer"
-                                                onSelect={() => {
-                                                    setTimeout(() => setIsAiEditDialogOpen(true), 0);
-                                                }}
-                                            >
-                                                <Bot className="h-4 w-4 mr-2" />
-                                                Ask AI to Edit
-                                            </DropdownMenuItem>
-                                        </DocumentAccessControl>
+                                            <Bot className="h-4 w-4 mr-2" />
+                                            {t('section.askAiToEditMenu')}
+                                        </DropdownMenuItem>
                                     )}
-                                    {!isEditing && !isExecutionApproved && canDelete && (
-                                        <DocumentAccessControl
-                                            accessLevels={accessLevels}
-                                            requiredAccess={["create", "edit"]}
-                                            checkGlobalPermissions={true}
-                                            resource="asset"
+                                    {!isEditing && !isExecutionApproved && canDelete && canEditSections && (
+                                        <DropdownMenuItem 
+                                            className="text-red-600 hover:cursor-pointer"
+                                            onSelect={() => {
+                                                setTimeout(() => openDeleteDialog(), 0);
+                                            }}
                                         >
-                                            <DropdownMenuItem 
-                                                className="text-red-600 hover:cursor-pointer"
-                                                onSelect={() => {
-                                                    // Sincroniza apertura al ciclo de cierre del dropdown
-                                                    setTimeout(() => openDeleteDialog(), 0);
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                Delete
-                                            </DropdownMenuItem>
-                                        </DocumentAccessControl>
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            {t('section.delete')}
+                                        </DropdownMenuItem>
                                     )}
-                                    {onOpenExecuteSheet && !isExecutionApproved && canExecute && (
-                                        <DocumentAccessControl
-                                            accessLevels={accessLevels}
-                                            requiredAccess={["create", "edit"]}
-                                            checkGlobalPermissions={true}
-                                            resource="asset"
+                                    {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && (
+                                        <DropdownMenuItem
+                                            className='hover:cursor-pointer'
+                                            onSelect={() => {
+                                                setTimeout(() => onOpenExecuteSheet(), 0);
+                                            }}
+                                            disabled={isExecutionInProgress}
                                         >
-                                            <DropdownMenuItem
-                                                className='hover:cursor-pointer'
-                                                onSelect={() => {
-                                                    setTimeout(() => onOpenExecuteSheet(), 0);
-                                                }}
-                                                disabled={isExecutionInProgress}
-                                            >
-                                                <Play className="h-4 w-4 mr-2 text-blue-600" />
-                                                {isExecutionInProgress ? 'Execution in progress' : 'Open Execute Sheet'}
-                                            </DropdownMenuItem>
-                                        </DocumentAccessControl>
+                                            <Play className="h-4 w-4 mr-2 text-blue-600" />
+                                            {isExecutionInProgress ? t('section.executionInProgress') : t('section.openExecuteSheet')}
+                                        </DropdownMenuItem>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -591,7 +498,7 @@ export default function SectionExecution({
             
             {aiPreview !== null && !isAiProcessing && (
                 <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
-                    <span className="text-sm text-amber-800">Vista previa de edición por IA lista. ¿Guardar cambios?</span>
+                    <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
                         <Button
                             size="sm"
@@ -599,7 +506,7 @@ export default function SectionExecution({
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
-                            Guardar
+                            {t('section.save')}
                         </Button>
                         <Button
                             size="sm"
@@ -608,14 +515,14 @@ export default function SectionExecution({
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
-                            Deshacer
+                            {t('section.undo')}
                         </Button>
                     </div>
                 </div>
             )}
             {aiPreview !== null && isAiProcessing && (
                 <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 relative z-30 shadow-lg">
-                    Generando propuesta con IA...
+                    {t('section.generatingAiProposal')}
                 </div>
             )}
             
@@ -657,7 +564,7 @@ export default function SectionExecution({
                         {/* Loading indicator */}
                         <div className="flex items-center justify-center pt-4 pb-2">
                             <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                            <span className="ml-2 text-xs text-gray-500">Generating section content...</span>
+                            <span className="ml-2 text-xs text-gray-500">{t('section.generatingSectionContent')}</span>
                         </div>
                     </div>
                 </div>

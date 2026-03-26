@@ -39,7 +39,6 @@ interface ExecuteSheetProps {
   disabledReason?: string;
   selectedExecutionId?: string | null;
   executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null;
-  accessLevels?: string[];
 }
 
 export function ExecuteSheet({
@@ -52,8 +51,7 @@ export function ExecuteSheet({
   onExecutionComplete,
   onExecutionCreated,
   selectedExecutionId,
-  executionContext,
-  accessLevels}: ExecuteSheetProps) {
+  executionContext}: ExecuteSheetProps) {
   // Estados para el Execute Sheet
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null);
 
@@ -414,7 +412,6 @@ export function ExecuteSheet({
         maxWidth="w-full sm:max-w-[90vw] lg:max-w-[900px]"
         headerExtra={
           <HuemulButton
-            accessLevels={accessLevels || selectedFile?.access_levels || []}
             requiredAccess={["create", "edit"]}
             requireAll={false}
             checkGlobalPermissions={true}

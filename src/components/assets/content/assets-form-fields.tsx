@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { HuemulField } from '@/huemul/components/huemul-field';
+import { HuemulField, type FetchOptionsParams, type FetchOptionsResult } from '@/huemul/components/huemul-field';
 import { PlusCircle } from 'lucide-react';
 import { isRootAdmin } from '@/lib/jwt-utils';
 
@@ -9,6 +9,8 @@ interface AssetFormFieldsProps {
   internalCode: string;
   templateId: string;
   documentTypeId: string;
+  selectedDocTypeLabel?: string;
+  selectedDocTypeColor?: string;
   createInitialVersion: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
@@ -17,10 +19,8 @@ interface AssetFormFieldsProps {
   onDocumentTypeIdChange: (value: string) => void;
   onCreateInitialVersionChange: (value: boolean) => void;
   onCreateDocType?: () => void;
-  templates: any[];
-  documentTypes: any[];
-  isLoadingDocTypes?: boolean;
-  docTypesError?: any;
+  fetchTemplateOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
+  fetchDocumentTypeOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   disabled?: boolean;
 }
 
@@ -30,6 +30,8 @@ export default function AssetFormFields({
   internalCode,
   templateId,
   documentTypeId,
+  selectedDocTypeLabel,
+  selectedDocTypeColor,
   createInitialVersion,
   onNameChange,
   onDescriptionChange,
@@ -38,10 +40,8 @@ export default function AssetFormFields({
   onDocumentTypeIdChange,
   onCreateInitialVersionChange,
   onCreateDocType,
-  templates,
-  documentTypes,
-  isLoadingDocTypes = false,
-  docTypesError = null,
+  fetchTemplateOptions,
+  fetchDocumentTypeOptions,
   disabled = false,
 }: AssetFormFieldsProps) {
   const { t } = useTranslation('assets')
@@ -97,7 +97,7 @@ export default function AssetFormFields({
       />
 
       <HuemulField
-        type="select"
+        type="async-select"
         label={t('form.template')}
         name="template"
         value={templateId}
@@ -105,24 +105,27 @@ export default function AssetFormFields({
           onTemplateIdChange(String(v))
           if (v) onCreateInitialVersionChange(false)
         }}
-        options={templates.map((t: any) => ({ label: t.name, value: t.id }))}
+        fetchOptions={fetchTemplateOptions}
+        pageSize={100}
         placeholder={t('form.templatePlaceholder')}
         description={t('form.templateDescription')}
         disabled={disabled || createInitialVersion}
       />
 
       <HuemulField
-        type="select"
+        type="async-select"
         label={t('form.assetType')}
         name="documentType"
         id="documentType"
         required
         value={documentTypeId}
+        selectedLabel={selectedDocTypeLabel}
+        selectedColor={selectedDocTypeColor}
         onChange={(v) => onDocumentTypeIdChange(String(v))}
-        options={documentTypes.map((dt: any) => ({ label: dt.name, value: dt.id, color: dt.color }))}
-        placeholder={isLoadingDocTypes ? t('form.assetTypeLoading') : t('form.assetTypePlaceholder')}
-        disabled={disabled || isLoadingDocTypes}
-        error={docTypesError ? t('form.assetTypeError') : undefined}
+        fetchOptions={fetchDocumentTypeOptions}
+        pageSize={100}
+        placeholder={t('form.assetTypePlaceholder')}
+        disabled={disabled}
         labelAction={
           isRootAdmin() && onCreateDocType
             ? { icon: PlusCircle, onClick: onCreateDocType, tooltip: t('form.newType') }

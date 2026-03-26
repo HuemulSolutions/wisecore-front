@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TableOfContentsProps } from "@/types/table-of-contents";
+import { useTranslation } from "react-i18next";
 
 export function TableOfContents({ items }: TableOfContentsProps) {
+    const { t } = useTranslation('assets');
     const [activeId, setActiveId] = useState<string | null>(null);
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const observer = useRef<IntersectionObserver | null>(null);
@@ -156,7 +158,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
                                 <button
                                     onClick={() => toggleCollapse(item.id)}
                                     className="shrink-0 hover:cursor-pointer p-0.5 hover:bg-gray-100 rounded"
-                                    aria-label={isCollapsed ? "Expandir" : "Colapsar"}
+                                    aria-label={isCollapsed ? t('tableOfContents.expand') : t('tableOfContents.collapse')}
                                 >
                                     {isCollapsed ? (
                                         <ChevronRight className="h-3 w-3 text-gray-500" />

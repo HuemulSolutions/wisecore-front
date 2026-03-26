@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileCode } from 'lucide-react';
 import { ReusableDialog } from '@/components/ui/reusable-dialog';
 import NameDescriptionFields from '@/components/assets/content/name-description-fields';
+import { useTranslation } from 'react-i18next';
 
 interface CreateTemplateDialogProps {
   open: boolean;
@@ -17,6 +18,7 @@ export function CreateTemplateDialog({
   isPending
 }: CreateTemplateDialogProps) {
   const [formData, setFormData] = useState({ name: '', description: '' });
+  const { t } = useTranslation('assets');
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -41,15 +43,15 @@ export function CreateTemplateDialog({
     <ReusableDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Create New Template"
-      description="Create a reusable template that can be used to generate documents with predefined sections."
+      title={t('createTemplate.title')}
+      description={t('createTemplate.description')}
       icon={FileCode}
       maxWidth="md"
       maxHeight="90vh"
       formId="create-template-form"
       isValid={isValid}
       isSubmitting={isPending}
-      submitLabel="Create Template"
+      submitLabel={t('createTemplate.submitLabel')}
     >
       <form id="create-template-form" onSubmit={handleSubmit} className="space-y-4">
         <NameDescriptionFields
@@ -57,10 +59,10 @@ export function CreateTemplateDialog({
           description={formData.description}
           onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
           onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
-          nameLabel="Template Name *"
-          descriptionLabel="Description (Optional)"
-          namePlaceholder="Enter template name..."
-          descriptionPlaceholder="Describe what this template is for..."
+          nameLabel={t('createTemplate.nameLabel')}
+          descriptionLabel={t('createTemplate.descriptionLabel')}
+          namePlaceholder={t('createTemplate.namePlaceholder')}
+          descriptionPlaceholder={t('createTemplate.descriptionPlaceholder')}
           disabled={isPending}
           nameRequired={true}
           descriptionRequired={false}

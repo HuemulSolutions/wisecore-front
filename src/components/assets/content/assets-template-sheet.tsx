@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useOrganization } from "@/contexts/organization-context";
+import { useTranslation } from "react-i18next";
 
 interface TemplateConfigSheetProps {
   template: {
@@ -37,6 +38,7 @@ export function TemplateConfigSheet({
 }: TemplateConfigSheetProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
+  const { t } = useTranslation('assets');
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
@@ -67,7 +69,7 @@ export function TemplateConfigSheet({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
       setIsAddingSection(false);
-      toast.success("Template section created successfully");
+      toast.success(t('templateSheet.sectionCreated'));
     },
   });
 
@@ -75,7 +77,7 @@ export function TemplateConfigSheet({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
       updateTemplateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Template section updated successfully");
+      toast.success(t('templateSheet.sectionUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
     },
   });
@@ -93,9 +95,9 @@ export function TemplateConfigSheet({
         : deleteTemplateSection(sectionId, selectedOrganizationId!),
     onSuccess: (data: any) => {
       if (data?.propagated && data?.deleted_document_sections_count) {
-        toast.success(`Template section deleted and propagated to ${data.deleted_document_sections_count} asset sections`);
+        toast.success(t('templateSheet.sectionDeletedPropagated', { count: data.deleted_document_sections_count }));
       } else {
-        toast.success("Template section deleted successfully");
+        toast.success(t('templateSheet.sectionDeleted'));
       }
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
     },
@@ -104,7 +106,7 @@ export function TemplateConfigSheet({
   const reorderSectionsMutation = useMutation({
     mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Template sections order updated");
+      toast.success(t('templateSheet.orderUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
     },
   });
@@ -134,7 +136,7 @@ export function TemplateConfigSheet({
   const generateSectionsMutation = useMutation({
     mutationFn: (templateId: string) => generateTemplateSections(templateId, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Template sections generated successfully with AI");
+      toast.success(t('templateSheet.generatedWithAi'));
       queryClient.invalidateQueries({ queryKey: ['template', template?.id] });
     },
   });
@@ -156,15 +158,14 @@ export function TemplateConfigSheet({
               <div className="flex flex-col gap-1">
                 <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                   <FileCode className="h-4 w-4" />
-                  Configure Template
+                  {t('templateSheet.configureTemplate')}
                 </SheetTitle>
                 <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Add sections to your template "{template?.name}" to define its structure.
+                  {t('templateSheet.addSectionsDescription', { name: template?.name })}
                 </SheetDescription>
               </div>
               <div className="flex items-center h-full gap-2">
                 <DocumentActionButton
-                  accessLevels={[]}  // Templates don't have document-level access
                   requiredAccess="create"
                   checkGlobalPermissions={true}
                   resource="template"
@@ -175,11 +176,10 @@ export function TemplateConfigSheet({
                   style={{ alignSelf: 'center' }}
                 >
                   <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Section
+                  {t('templateSheet.addSection')}
                 </DocumentActionButton>
                 {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
                   <DocumentActionButton
-                    accessLevels={[]}  // Templates don't have document-level access
                     requiredAccess="create"
                     checkGlobalPermissions={true}
                     resource="template"
@@ -191,7 +191,7 @@ export function TemplateConfigSheet({
                     style={{ alignSelf: 'center' }}
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
-                    {generateSectionsMutation.isPending ? "Generating..." : "Generate with AI"}
+                    {generateSectionsMutation.isPending ? t('templateSheet.generating') : t('templateSheet.generateWithAi')}
                   </DocumentActionButton>
                 )}
               </div>
@@ -202,11 +202,11 @@ export function TemplateConfigSheet({
             <div className="space-y-6">
               {/* Template Info */}
               <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                <h3 className="text-sm font-medium text-blue-900 mb-1">Template: {template?.name}</h3>
+                <h3 className="text-sm font-medium text-blue-900 mb-1">{t('templateSheet.template', { name: template?.name })}</h3>
                 {template?.description && (
                   <p className="text-xs text-blue-700 mb-2">{template.description}</p>
                 )}
-                <p className="text-xs text-blue-600">Define reusable sections that will be available when creating documents from this template.</p>
+                <p className="text-xs text-blue-600">{t('templateSheet.defineReusable')}</p>
               </div>
 
               {/* Add Section Area */}
@@ -214,8 +214,8 @@ export function TemplateConfigSheet({
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-t-lg">
                     <div>
-                      <h3 className="text-sm font-medium text-gray-900">Add New Template Section</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">Create a reusable section for this template</p>
+                      <h3 className="text-sm font-medium text-gray-900">{t('templateSheet.addNewSection')}</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">{t('templateSheet.createReusableSection')}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -225,7 +225,7 @@ export function TemplateConfigSheet({
                         size="sm"
                         disabled={addSectionMutation.isPending}
                       >
-                        Cancel
+                        {t('templateSheet.cancel')}
                       </Button>
                       <Button
                         form="add-template-section-form"
@@ -234,7 +234,7 @@ export function TemplateConfigSheet({
                         size="sm"
                         disabled={addSectionMutation.isPending}
                       >
-                        {addSectionMutation.isPending ? "Adding..." : "Save Section"}
+                        {addSectionMutation.isPending ? t('templateSheet.adding') : t('templateSheet.saveSection')}
                       </Button>
                     </div>
                   </div>
@@ -253,7 +253,7 @@ export function TemplateConfigSheet({
               {/* Existing Sections */}
               {orderedSections && orderedSections.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-900">Template Sections ({orderedSections.length})</h3>
+                  <h3 className="text-sm font-medium text-gray-900">{t('templateSheet.sectionCount', { count: orderedSections.length })}</h3>
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-3">
@@ -281,9 +281,9 @@ export function TemplateConfigSheet({
               {(!orderedSections || orderedSections.length === 0) && !isAddingSection && (
                 <div className="p-4 sm:p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
                   <List className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">No Template Sections Yet</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-1">{t('templateSheet.noSectionsYet')}</h3>
                   <p className="text-xs text-gray-500 mb-4">
-                    Start by adding sections to define the structure of documents created from this template.
+                    {t('templateSheet.startByAdding')}
                   </p>
                 </div>
               )}

@@ -13,6 +13,7 @@ import { uploadDocxTemplate } from "@/services/docx_template";
 import { exportExecutionCustomWord } from "@/services/executions";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import { useTranslation } from "react-i18next";
 
 interface CustomWordExportSheetProps {
   selectedFile: {
@@ -35,6 +36,7 @@ export function CustomWordExportDialog({
   const [selectedFile_, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { selectedOrganizationId } = useOrganization();
+  const { t } = useTranslation('assets');
 
   // Mutation for uploading template
   const uploadTemplateMutation = useMutation({
@@ -46,7 +48,7 @@ export function CustomWordExportDialog({
       return uploadDocxTemplate(selectedFile.id, file, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success('Word template uploaded successfully');
+      toast.success(t('exportCustomWord.templateUploaded'));
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -66,7 +68,7 @@ export function CustomWordExportDialog({
       return exportExecutionCustomWord(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success('Document exported successfully');
+      toast.success(t('exportCustomWord.documentExported'));
       onOpenChange(false);
     },
   });
@@ -83,7 +85,7 @@ export function CustomWordExportDialog({
 
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.docx')) {
-      toast.error('Please select a DOCX file');
+      toast.error(t('exportCustomWord.selectDocxFile'));
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -95,7 +97,7 @@ export function CustomWordExportDialog({
 
   const handleUploadAndExport = async () => {
     if (!selectedFile_) {
-      toast.error('Please select a Word template file');
+      toast.error(t('exportCustomWord.selectTemplateFile'));
       return;
     }
 
@@ -136,10 +138,10 @@ export function CustomWordExportDialog({
               <div className="flex flex-col gap-1">
                 <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
                   <FileUp className="h-4 w-4" />
-                  Export to Custom Word
+                  {t('exportCustomWord.title')}
                 </DialogTitle>
                 <DialogDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Upload a Word template and export your document using custom formatting.
+                  {t('exportCustomWord.description')}
                 </DialogDescription>
               </div>
             </div>
@@ -151,10 +153,10 @@ export function CustomWordExportDialog({
               <div className="space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-base font-semibold text-gray-900">
-                    Upload New Template
+                    {t('exportCustomWord.uploadNewTemplate')}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Select a DOCX template file to customize your document export.
+                    {t('exportCustomWord.selectDocxDescription')}
                   </p>
                 </div>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-[#4464f7] transition-colors">
@@ -170,16 +172,16 @@ export function CustomWordExportDialog({
                         className="hover:cursor-pointer hover:border-[#4464f7] hover:text-[#4464f7]"
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        Select DOCX Template
+                        {t('exportCustomWord.selectDocxTemplate')}
                       </Button>
                       <p className="text-xs text-gray-500">
-                        Only DOCX files are supported
+                        {t('exportCustomWord.onlyDocxSupported')}
                       </p>
                     </div>
                     {selectedFile_ && (
                       <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm font-medium text-green-800">
-                          Selected: {selectedFile_.name}
+                          {t('exportCustomWord.selected', { name: selectedFile_.name })}
                         </p>
                       </div>
                     )}
@@ -195,12 +197,12 @@ export function CustomWordExportDialog({
                     {isProcessing ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {uploadTemplateMutation.isPending ? 'Uploading Template...' : 'Exporting...'}
+                        {uploadTemplateMutation.isPending ? t('exportCustomWord.uploadingTemplate') : t('exportCustomWord.exporting')}
                       </>
                     ) : (
                       <>
                         <FileUp className="h-4 w-4 mr-2" />
-                        Upload Template & Export
+                        {t('exportCustomWord.uploadAndExport')}
                       </>
                     )}
                   </Button>
@@ -213,7 +215,7 @@ export function CustomWordExportDialog({
                   <span className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-3 bg-white text-gray-500 font-medium">OR</span>
+                  <span className="px-3 bg-white text-gray-500 font-medium">{t('exportCustomWord.or')}</span>
                 </div>
               </div>
 
@@ -221,10 +223,10 @@ export function CustomWordExportDialog({
               <div className="space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-base font-semibold text-gray-900">
-                    Use Existing Template
+                    {t('exportCustomWord.useExistingTemplate')}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Export using the previously uploaded template for this document.
+                    {t('exportCustomWord.existingDescription')}
                   </p>
                 </div>
                 <Button
@@ -236,12 +238,12 @@ export function CustomWordExportDialog({
                   {exportMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Exporting...
+                      {t('exportCustomWord.exporting')}
                     </>
                   ) : (
                     <>
                       <Download className="h-4 w-4 mr-2" />
-                      Export with Existing Template
+                      {t('exportCustomWord.exportWithExisting')}
                     </>
                   )}
                 </Button>

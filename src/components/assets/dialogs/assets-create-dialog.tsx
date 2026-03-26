@@ -2,15 +2,16 @@
 
 import * as React from "react"
 import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { createDocument } from "@/services/assets"
 import { getAllTemplates } from "@/services/templates"
+import { getDocumentTypesWithInfo } from "@/services/role-document-type"
 import { useOrganization } from "@/contexts/organization-context"
-import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
+import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { toast } from "sonner"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import type { CreateAssetRequest, CreateAssetDialogProps } from "@/types/assets"
@@ -18,13 +19,14 @@ import AssetFormFields from "@/components/assets/content/assets-form-fields"
 
 function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
   const { selectedOrganizationId } = useOrganization()
-  const queryClient = useQueryClient()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [internalCode, setInternalCode] = useState("")
   const [documentTypeId, setDocumentTypeId] = useState("")
+  const [docTypeLabel, setDocTypeLabel] = useState("")
+  const [docTypeColor, setDocTypeColor] = useState<string | undefined>(undefined)
   const [templateId, setTemplateId] = useState("")
   const [createInitialVersion, setCreateInitialVersion] = useState(false)
   const [showCreateDocTypeDialog, setShowCreateDocTypeDialog] = useState(false)
@@ -36,35 +38,45 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
       setDescription("")
       setInternalCode("")
       setDocumentTypeId("")
+      setDocTypeLabel("")
+      setDocTypeColor(undefined)
       setTemplateId("")
       setCreateInitialVersion(false)
-      
-      // Refresh document types when dialog opens to ensure latest data
-      if (selectedOrganizationId) {
-        queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
-        queryClient.invalidateQueries({ queryKey: ['document-types'] })
-      }
     }
-  }, [open, selectedOrganizationId, queryClient])
+  }, [open, selectedOrganizationId])
 
-  // Fetch document types based on current user's role - solo cuando el diálogo esté abierto
-  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes(open && !!selectedOrganizationId)
+  // Async fetch for templates
+  const fetchTemplateOptions = React.useCallback(
+    async ({ search, page, pageSize }: FetchOptionsParams) => {
+      if (!selectedOrganizationId) return { options: [], hasMore: false }
+      const res = await getAllTemplates(selectedOrganizationId, search, page, pageSize)
+      return {
+        options: res.data.map((t) => ({ value: t.id, label: t.name })),
+        hasMore: res.has_next,
+        totalCount: res.total,
+      }
+    },
+    [selectedOrganizationId],
+  )
 
-  // Fetch templates
-  const { data: templates = [] } = useQuery({
-    queryKey: ['templates', selectedOrganizationId],
-    queryFn: () => getAllTemplates(selectedOrganizationId!),
-    enabled: !!selectedOrganizationId && open,
-  })
+  // Async fetch for document types (pagination only — endpoint has no search support)
+  const fetchDocumentTypeOptions = React.useCallback(
+    async ({ page, pageSize }: FetchOptionsParams) => {
+      const res = await getDocumentTypesWithInfo(page, pageSize)
+      return {
+        options: res.data.map(dt => ({ value: dt.id, label: dt.name, color: dt.color })),
+        hasMore: res.has_next,
+      }
+    },
+    [],
+  )
 
   // Handle new document type creation
   const handleNewDocumentTypeCreated = (newDocType: { id: string; name: string; color: string }) => {
     // Auto-select the newly created document type
     setDocumentTypeId(newDocType.id)
-    
-    // Invalidate and refetch document types to include the new one
-    queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
-    queryClient.invalidateQueries({ queryKey: ['document-types'] })
+    setDocTypeLabel(newDocType.name)
+    setDocTypeColor(newDocType.color)
     
     toast.success(t('create.assetTypeCreatedAndSelected', { name: newDocType.name }))
   }
@@ -196,10 +208,10 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
             onDocumentTypeIdChange={setDocumentTypeId}
             onCreateInitialVersionChange={setCreateInitialVersion}
             onCreateDocType={() => setShowCreateDocTypeDialog(true)}
-            templates={templates}
-            documentTypes={documentTypes}
-            isLoadingDocTypes={isLoadingDocTypes}
-            docTypesError={docTypesError}
+            fetchTemplateOptions={fetchTemplateOptions}
+            fetchDocumentTypeOptions={fetchDocumentTypeOptions}
+            selectedDocTypeLabel={docTypeLabel}
+            selectedDocTypeColor={docTypeColor}
             disabled={createAssetMutation.isPending}
           />
         </form>
