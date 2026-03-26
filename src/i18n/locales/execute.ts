@@ -87,11 +87,11 @@ const translations = {
       en: "Please select an existing execution to modify",
       es: "Por favor selecciona una ejecución existente para modificar",
     },
-    importSuccess: { en: "Document imported successfully!", es: "¡Documento importado exitosamente!" },
-    generationFailed: { en: "Document generation failed. Please try again.", es: "La generación del documento falló. Por favor inténtalo de nuevo." },
+    importSuccess: { en: "Asset imported successfully!", es: "¡Activo importado exitosamente!" },
+    generationFailed: { en: "Asset generation failed. Please try again.", es: "La generación del activo falló. Por favor inténtalo de nuevo." },
     importFailed: {
-      en: "Document import failed. Please try again.",
-      es: "La importación del documento falló. Por favor inténtalo de nuevo.",
+      en: "Asset import failed. Please try again.",
+      es: "La importación del activo falló. Por favor inténtalo de nuevo.",
     },
     pollingError: {
       en: "Error checking execution status. Please refresh the page.",
@@ -113,12 +113,12 @@ const translations = {
     },
     description: {
       importing: {
-        en: "Your document is being imported and processed. This may take a moment.",
-        es: "Tu documento está siendo importado y procesado. Esto puede tardar un momento.",
+        en: "Your asset is being imported and processed. This may take a moment.",
+        es: "Tu activo está siendo importado y procesado. Esto puede tardar un momento.",
       },
       importFailed: {
-        en: "There was an error importing your document. Please try again.",
-        es: "Hubo un error al importar tu documento. Por favor inténtalo de nuevo.",
+        en: "There was an error importing your asset. Please try again.",
+        es: "Hubo un error al importar tu activo. Por favor inténtalo de nuevo.",
       },
       running: {
         en: "Content is being generated. This may take a few minutes.",
@@ -141,8 +141,8 @@ const translations = {
         es: "¡Generación completada exitosamente!",
       },
       failed: {
-        en: "There was an error generating your document. Please try again.",
-        es: "Hubo un error al generar tu documento. Por favor inténtalo de nuevo.",
+        en: "There was an error generating your asset. Please try again.",
+        es: "Hubo un error al generar tu activo. Por favor inténtalo de nuevo.",
       },
       cancelled: {
         en: "Generation was cancelled.",
@@ -157,8 +157,8 @@ const translations = {
         es: "Procesando tu solicitud...",
       },
     },
-    documentPrefix: { en: "Document is {{status}}", es: "El documento está {{status}}" },
-    documentError: { en: "Document {{status}}", es: "Documento {{status}}" },
+    documentPrefix: { en: "Asset is {{status}}", es: "El activo está {{status}}" },
+    documentError: { en: "Asset {{status}}", es: "Activo {{status}}" },
   },
   sectionFeedback: {
     status: {
