@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { X, GripVertical, Trash2, Plus, Pencil, Check, Ban } from "lucide-react"
+import { X, GripVertical, Trash2, Plus, Pencil, Save, Ban } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -160,23 +160,32 @@ function EditStepCard({
           )}
           className="flex-1"
         />
-        <HuemulButton
-          icon={isEditing ? Check : Pencil}
-          label={isEditing ? t("lifecycle.done") : t("lifecycle.edit")}
-          variant="ghost"
-          onClick={handleCheckClick}
-          loading={isSaving}
-          disabled={isSaving}
-          className={isEditing ? "text-primary" : "text-muted-foreground"}
-        />
-        {isEditing && (
+        {isEditing ? (
+          <>
+            <HuemulButton
+              icon={Ban}
+              label={t("lifecycle.cancel")}
+              variant="ghost"
+              onClick={handleCancel}
+              disabled={isSaving}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            />
+            <HuemulButton
+              icon={Save}
+              label={t("lifecycle.save")}
+              variant="default"
+              onClick={handleCheckClick}
+              loading={isSaving}
+              disabled={isSaving}
+            />
+          </>
+        ) : (
           <HuemulButton
-            icon={Ban}
-            label={t("lifecycle.cancel")}
+            icon={Pencil}
+            label={t("lifecycle.edit")}
             variant="ghost"
-            onClick={handleCancel}
-            disabled={isSaving}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={handleCheckClick}
+            className="text-muted-foreground"
           />
         )}
         <HuemulButton
