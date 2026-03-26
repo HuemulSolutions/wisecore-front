@@ -253,3 +253,47 @@ export async function cloneExecution(executionId: string, organizationId: string
     console.log('Execution cloned:', data.data);
     return data.data;
 }
+
+export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function advanceExecutionLifecycle(executionId: string, organizationId: string) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function rejectExecutionLifecycle(executionId: string, organizationId: string) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/reject`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function assignExecutionVersion(
+    executionId: string,
+    version: { major: number; minor: number; patch: number },
+    organizationId: string
+) {
+    const response = await httpClient.patch(`${backendUrl}/execution/${executionId}/version`, version, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}

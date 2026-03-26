@@ -79,6 +79,10 @@ export interface UserAllRolesResponse {
   data: RoleWithAssignment[];
   transaction_id: string;
   timestamp: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
 }
 
 export interface UserWithAssignment {
@@ -180,12 +184,17 @@ export const getUserRoles = async (userId: string): Promise<UserRolesResponse> =
 };
 
 // Get all roles with user assignment status
-export const getUserAllRoles = async (userId: string): Promise<UserAllRolesResponse> => {
+export const getUserAllRoles = async (userId: string, page: number = 1, pageSize: number = 10): Promise<UserAllRolesResponse> => {
   if (!userId || userId.trim() === '') {
     throw new Error('User ID is required');
   }
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
   
-  const response = await httpClient.get(`${backendUrl}/user_roles/user_all_roles/${userId}`, {
+  const response = await httpClient.get(`${backendUrl}/user_roles/user_all_roles/${userId}?${params.toString()}`, {
     headers: getHeaders(),
   });
   

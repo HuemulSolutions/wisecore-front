@@ -261,3 +261,25 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
   console.log('Document imported from file:', data.data);
   return data.data;
 }
+
+export async function checkDocumentLifecycle(documentId: string, organizationId: string) {
+  const response = await httpClient.post(`${backendUrl}/documents/${documentId}/lifecycle/check`, {}, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+  const data = await response.json();
+  console.log('Document lifecycle checked:', data.data);
+  return data.data;
+}
+
+export async function rejectDocumentLifecycle(documentId: string, organizationId: string) {
+  const response = await httpClient.post(`${backendUrl}/documents/${documentId}/lifecycle/reject`, {}, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+  const data = await response.json();
+  console.log('Document lifecycle rejected:', data.data);
+  return data.data;
+}

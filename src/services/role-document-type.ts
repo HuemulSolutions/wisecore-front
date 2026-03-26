@@ -66,7 +66,6 @@ export interface DocumentTypeWithInfo {
   created_by: string | null;
   updated_by: string | null;
   role_count: number;
-  access_level: string[];  // List of permissions: ['read', 'edit', 'create', 'delete', 'approve']
 }
 
 export interface DocumentTypesWithInfoResponse {
