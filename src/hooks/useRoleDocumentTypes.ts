@@ -5,7 +5,6 @@ import { getDocumentTypesWithInfo } from "@/services/role-document-type"
 interface DocumentTypeForRole {
   id: string
   name: string
-  access_level: string[]
   color?: string
 }
 
@@ -22,15 +21,12 @@ export function useRoleDocumentTypes(enableFetch: boolean = true) {
     queryFn: async (): Promise<DocumentTypeForRole[]> => {
       const response = await getDocumentTypesWithInfo()
       
-      // Filter only types where user has 'create' permission
-      return response.data
-        .filter(item => item.access_level.includes('create'))
-        .map(item => ({
-          id: item.id,
-          name: item.name,
-          access_level: item.access_level,
-          color: item.color
-        }))
+      // Endpoint already returns only doctypes creatable by the current user
+      return response.data.map(item => ({
+        id: item.id,
+        name: item.name,
+        color: item.color
+      }))
     },
     enabled: enableFetch && !!selectedOrganizationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
