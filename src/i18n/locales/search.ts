@@ -6,7 +6,7 @@ const translations = {
     modeDeep: { en: "Deep", es: "Profunda" },
     searchButton: { en: "Search", es: "Buscar" },
     clearSearch: { en: "Clear search", es: "Limpiar búsqueda" },
-    supportingDocuments: { en: "Supporting Documents", es: "Documentos de Soporte" },
+    supportingDocuments: { en: "Supporting Assets", es: "Activos de Soporte" },
   },
   errors: {
     performSearch: { en: "Error performing search", es: "Error al realizar la búsqueda" },
@@ -21,10 +21,10 @@ const translations = {
     },
   },
   skeleton: {
-    searching: { en: "Searching through your documents...", es: "Buscando en tus documentos..." },
+    searching: { en: "Searching through your assets...", es: "Buscando en tus activos..." },
   },
   document: {
-    badge: { en: "Documentation", es: "Documentación" },
+    badge: { en: "Asset", es: "Activo" },
     segmentFound: { en: "segment found", es: "segmento encontrado" },
     segmentsFound: { en: "segments found", es: "segmentos encontrados" },
     openAsset: { en: "Open Asset", es: "Abrir Activo" },

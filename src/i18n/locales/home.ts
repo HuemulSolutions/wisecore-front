@@ -18,8 +18,8 @@ const translations = {
     intelligentSearch: {
       title: { en: "Intelligent Search", es: "Búsqueda Inteligente" },
       description: {
-        en: "Quickly search within your organization's knowledge and documents.",
-        es: "Busca rápidamente en el conocimiento y documentos de tu organización.",
+        en: "Quickly search within your organization's knowledge and assets.",
+        es: "Busca rápidamente en el conocimiento y activos de tu organización.",
       },
     },
     teamCollaboration: {
@@ -152,7 +152,7 @@ const translations = {
     headerActions: {
       button: { en: "Header Actions", es: "Acciones en Cabecera" },
       buttonDesc: { en: "Buttons in the header", es: "Botones en la cabecera" },
-      title: { en: "Document Settings", es: "Configuración del Documento" },
+      title: { en: "Asset Settings", es: "Configuración del Activo" },
       description: {
         en: "Actions can be placed in the header for quick access.",
         es: "Las acciones pueden colocarse en la cabecera para acceso rápido.",
@@ -170,7 +170,7 @@ const translations = {
     extraFooter: {
       button: { en: "Extra Footer Actions", es: "Acciones Extra en Pie" },
       buttonDesc: { en: "Multiple footer buttons", es: "Múltiples botones en el pie" },
-      title: { en: "Review Document", es: "Revisar Documento" },
+      title: { en: "Review Asset", es: "Revisar Activo" },
       description: {
         en: "Multiple footer actions with different intents.",
         es: "Múltiples acciones en el pie con diferentes intenciones.",

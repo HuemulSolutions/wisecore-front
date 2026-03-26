@@ -51,7 +51,7 @@ const translations = {
   },
   create: {
     title: { en: "Create New Organization", es: "Crear Nueva Organización" },
-    description: { en: "Create a new organization to manage documents and users.", es: "Crea una nueva organización para gestionar documentos y usuarios." },
+    description: { en: "Create a new organization to manage assets and users.", es: "Crea una nueva organización para gestionar activos y usuarios." },
     button: { en: "Create Organization", es: "Crear Organización" },
   },
   edit: {
