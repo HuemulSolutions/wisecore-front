@@ -7,6 +7,7 @@ import { HuemulField } from "@/huemul/components/huemul-field";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
 import { Plus, Loader2 } from "lucide-react";
 import { type AssetTypeWithRoles } from "@/services/asset-types";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface CreateDocumentTypeProps {
   trigger?: React.ReactNode;
@@ -80,8 +81,8 @@ export default function CreateDocumentType({
       resetForm();
       setIsDialogOpen(false);
     },
-    onError: (error: Error) => {
-      setError(error.message || t(isEditing ? 'form.errorUpdating' : 'form.errorCreating', { type }));
+    onError: (error) => {
+      setError(getErrorMessage(error, t(isEditing ? 'form.errorUpdating' : 'form.errorCreating', { type })));
     },
   });
 

@@ -13,6 +13,7 @@ import { getDocumentTypesWithInfo } from "@/services/role-document-type"
 import { useOrganization } from "@/contexts/organization-context"
 import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import type { CreateAssetRequest, CreateAssetDialogProps } from "@/types/assets"
 import AssetFormFields from "@/components/assets/content/assets-form-fields"
@@ -120,15 +121,8 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
         type: "document"
       })
     },
-    onError: (error: any) => {
-      console.error("Create asset error:", error)
-      
-      // Extract error message from response
-      const errorMessage = error?.response?.data?.error || 
-                          error?.message || 
-                          t('create.errorFailed')
-      
-      toast.error(errorMessage)
+    onError: (error) => {
+      handleApiError(error, { fallbackMessage: t('create.errorFailed') })
     },
   })
 

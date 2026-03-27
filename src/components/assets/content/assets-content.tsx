@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState, useRef } from "react";
-import { ApiError } from "@/types/api-error";
+import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
@@ -271,8 +271,9 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
-    onError: () => {
+    onError: (error) => {
       setApprovingExecutionId(null);
+      handleApiError(error);
     },
   });
 
@@ -410,8 +411,7 @@ export function AssetContent({
     },
     onError: (error) => {
       setIsCheckLifecycleDialogOpen(false);
-      const message = ApiError.isApiError(error) ? error.message : t('lifecycle.errorComplete');
-      toast.error(message);
+      handleApiError(error, { fallbackMessage: t('lifecycle.errorComplete') });
     },
   });
 
@@ -430,8 +430,7 @@ export function AssetContent({
     },
     onError: (error) => {
       setIsAssignVersionDialogOpen(false);
-      const message = error instanceof Error ? error.message : t('mutations.failedAssignVersion');
-      toast.error(message);
+      handleApiError(error, { fallbackMessage: t('mutations.failedAssignVersion') });
     },
   });
 
@@ -450,8 +449,7 @@ export function AssetContent({
     },
     onError: (error) => {
       setIsRejectLifecycleDialogOpen(false);
-      const message = ApiError.isApiError(error) ? error.message : t('lifecycle.errorReturn');
-      toast.error(message);
+      handleApiError(error, { fallbackMessage: t('lifecycle.errorReturn') });
     },
   });
 
@@ -474,8 +472,7 @@ export function AssetContent({
     onError: (error) => {
       setIsPublishDialogOpen(false);
       setIsArchiveDialogOpen(false);
-      const message = ApiError.isApiError(error) ? error.message : t('lifecycle.errorAdvance');
-      toast.error(message);
+      handleApiError(error, { fallbackMessage: t('lifecycle.errorAdvance') });
     },
   });
 

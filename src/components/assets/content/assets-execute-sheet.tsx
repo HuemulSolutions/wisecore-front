@@ -19,6 +19,7 @@ import { getLLMs, getDefaultLLM } from "@/services/llms";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import { handleApiError } from "@/lib/error-utils";
 
 interface ExecuteSheetProps {
   selectedFile: {
@@ -159,8 +160,9 @@ export function ExecuteSheet({
       onExecutionComplete?.();
       onOpenChange(false); // Cerrar el sheet inmediatamente
     },
-    onError: () => {
+    onError: (error) => {
       setHasAttemptedCreation(true);
+      handleApiError(error);
     },
   });
 

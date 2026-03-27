@@ -7,6 +7,7 @@ import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface CreateTemplateDialogProps {
   open: boolean;
@@ -59,9 +60,9 @@ export function CreateTemplateDialog({
       // Wait for dialog to fully close before executing callback
       setTimeout(executeCallback, 300);
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       console.error("Create template error:", error);
-      setError(error.message || t('create.errorFailed'));
+      setError(getErrorMessage(error, t('create.errorFailed')));
     },
   });
 
