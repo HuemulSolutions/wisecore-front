@@ -80,8 +80,10 @@ export function Comment(props: {
   const editor = useEditorRef();
   const userInfo = usePluginOption(discussionPlugin, 'user', comment.userId);
   const currentUserId = usePluginOption(discussionPlugin, 'currentUserId');
+  const callbacks = usePluginOption(discussionPlugin, 'callbacks');
 
   const resolveDiscussion = async (id: string) => {
+    // Optimistic local update
     const updatedDiscussions = editor
       .getOption(discussionPlugin, 'discussions')
       .map((discussion) => {
@@ -91,13 +93,18 @@ export function Comment(props: {
         return discussion;
       });
     editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
+    // Persist via API
+    await callbacks?.onResolveDiscussion?.(id);
   };
 
   const removeDiscussion = async (id: string) => {
+    // Optimistic local update
     const updatedDiscussions = editor
       .getOption(discussionPlugin, 'discussions')
       .filter((discussion) => discussion.id !== id);
     editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
+    // Persist via API
+    await callbacks?.onDeleteDiscussion?.(id);
   };
 
   const updateComment = async (input: {
@@ -106,6 +113,7 @@ export function Comment(props: {
     discussionId: string;
     isEdited: boolean;
   }) => {
+    // Optimistic local update
     const updatedDiscussions = editor
       .getOption(discussionPlugin, 'discussions')
       .map((discussion) => {
@@ -126,6 +134,8 @@ export function Comment(props: {
         return discussion;
       });
     editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
+    // Persist via API
+    await callbacks?.onUpdateComment?.(input.id, input.contentRich, input.discussionId);
   };
 
   const { tf } = useEditorPlugin(CommentPlugin);
@@ -309,11 +319,13 @@ function CommentMoreDropdown(props: {
 
   const selectedEditCommentRef = React.useRef<boolean>(false);
 
+  const callbacks = usePluginOption(discussionPlugin, 'callbacks');
+
   const onDeleteComment = React.useCallback(() => {
     if (!comment.id)
       return alert('You are operating too quickly, please try again later.');
 
-    // Find and update the discussion
+    // Optimistic local update
     const updatedDiscussions = editor
       .getOption(discussionPlugin, 'discussions')
       .map((discussion) => {
@@ -337,10 +349,11 @@ function CommentMoreDropdown(props: {
         };
       });
 
-    // Save back to session storage
     editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
+    // Persist via API
+    callbacks?.onDeleteComment?.(comment.id, comment.discussionId);
     onRemoveComment?.();
-  }, [comment.discussionId, comment.id, editor, onRemoveComment]);
+  }, [comment.discussionId, comment.id, editor, callbacks, onRemoveComment]);
 
   const onEditComment = React.useCallback(() => {
     selectedEditCommentRef.current = true;
@@ -417,6 +430,7 @@ export function CommentCreateForm({
   focusOnMount?: boolean;
 }) {
   const discussions = usePluginOption(discussionPlugin, 'discussions');
+  const callbacks = usePluginOption(discussionPlugin, 'callbacks');
 
   const editor = useEditorRef();
   const commentId = useCommentId();
@@ -448,32 +462,37 @@ export function CommentCreateForm({
       // Get existing discussion
       const discussion = discussions.find((d) => d.id === discussionId);
       if (!discussion) {
-        // Mock creating suggestion
+        // Create a new discussion (from a draft comment mark)
+        const localId = nanoid();
+        const currentUserId = editor.getOption(discussionPlugin, 'currentUserId');
         const newDiscussion: TDiscussion = {
-          id: discussionId,
+          id: localId,
           comments: [
             {
               id: nanoid(),
               contentRich: commentValue,
               createdAt: new Date(),
-              discussionId,
+              discussionId: localId,
               isEdited: false,
-              userId: editor.getOption(discussionPlugin, 'currentUserId'),
+              userId: currentUserId,
             },
           ],
           createdAt: new Date(),
           isResolved: false,
-          userId: editor.getOption(discussionPlugin, 'currentUserId'),
+          userId: currentUserId,
         };
 
         editor.setOption(discussionPlugin, 'discussions', [
           ...discussions,
           newDiscussion,
         ]);
+
+        // Persist via API (fire-and-forget, data refreshes via query invalidation)
+        callbacks?.onAddComment?.(discussionId, commentValue);
         return;
       }
 
-      // Create reply comment
+      // Create reply comment (optimistic)
       const comment: TComment = {
         id: nanoid(),
         contentRich: commentValue,
@@ -483,22 +502,23 @@ export function CommentCreateForm({
         userId: editor.getOption(discussionPlugin, 'currentUserId'),
       };
 
-      // Add reply to discussion comments
       const updatedDiscussion = {
         ...discussion,
         comments: [...discussion.comments, comment],
       };
 
-      // Filter out old discussion and add updated one
       const updatedDiscussions = discussions
         .filter((d) => d.id !== discussionId)
         .concat(updatedDiscussion);
 
       editor.setOption(discussionPlugin, 'discussions', updatedDiscussions);
 
+      // Persist via API
+      callbacks?.onAddComment?.(discussionId, commentValue);
       return;
     }
 
+    // New discussion from a draft comment (inline text selection)
     const commentsNodeEntry = editor
       .getApi(CommentPlugin)
       .comment.nodes({ at: [], isDraft: true });
@@ -510,7 +530,9 @@ export function CommentCreateForm({
       .join('');
 
     const _discussionId = nanoid();
-    // Mock creating new discussion
+    const currentUserId = editor.getOption(discussionPlugin, 'currentUserId');
+
+    // Optimistic local state
     const newDiscussion: TDiscussion = {
       id: _discussionId,
       comments: [
@@ -520,13 +542,13 @@ export function CommentCreateForm({
           createdAt: new Date(),
           discussionId: _discussionId,
           isEdited: false,
-          userId: editor.getOption(discussionPlugin, 'currentUserId'),
+          userId: currentUserId,
         },
       ],
       createdAt: new Date(),
       documentContent,
       isResolved: false,
-      userId: editor.getOption(discussionPlugin, 'currentUserId'),
+      userId: currentUserId,
     };
 
     editor.setOption(discussionPlugin, 'discussions', [
@@ -545,7 +567,14 @@ export function CommentCreateForm({
       );
       editor.tf.unsetNodes([getDraftCommentKey()], { at: path });
     });
-  }, [commentValue, commentEditor.tf, discussionId, editor, discussions]);
+
+    // Persist via API
+    callbacks?.onCreateDiscussion?.({
+      documentContent,
+      firstCommentRich: commentValue,
+      discussionId: _discussionId,
+    });
+  }, [commentValue, commentEditor.tf, discussionId, editor, discussions, callbacks]);
 
   return (
     <div className={cn('flex w-full', className)}>

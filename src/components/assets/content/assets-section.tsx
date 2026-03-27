@@ -578,6 +578,7 @@ export default function SectionExecution({
                         onSave={handleSave}
                         onCancel={handleCancelEdit}
                         isSaving={isSaving}
+                        documentId={documentId}
                     />
                 </div>
             )}

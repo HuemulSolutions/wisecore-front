@@ -41,6 +41,7 @@ import { TocKit } from '@/components/plate-editor/components/toc-kit';
 import { MarkdownKit } from '@/components/plate-editor/components/markdown-kit';
 
 import { Editor, EditorContainer } from '@/components/ui/editor';
+import { FloatingToolbarButtons } from '@/components/ui/floating-toolbar-buttons';
 import { FixedToolbar } from '@/components/ui/fixed-toolbar';
 import { MarkToolbarButton } from '@/components/ui/mark-toolbar-button';
 import { AlignToolbarButton } from '@/components/ui/align-toolbar-button';
@@ -69,6 +70,7 @@ import { MarkdownPlugin } from '@platejs/markdown';
 
 import { FontSizePlugin, FontColorPlugin, FontBackgroundColorPlugin } from '@platejs/basic-styles/react';
 import { cn } from '@/lib/utils';
+import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 
 
 function EditorToolbar() {
@@ -390,6 +392,8 @@ interface PlateRichEditorProps {
   variant?: 'default' | 'section';
   /** Extra action buttons rendered at the end of the section toolbar */
   toolbarActions?: React.ReactNode;
+  /** Document ID – enables discussion/comment sync with backend when provided */
+  documentId?: string;
 }
 
 export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEditorProps>(
@@ -402,6 +406,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     showToolbar = true,
     variant = 'default',
     toolbarActions,
+    documentId,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -477,6 +482,9 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
             onChange?.(value);
           }}
         >
+          {/* Sync discussions from backend when a documentId is provided */}
+          {documentId && <DiscussionSync documentId={documentId} />}
+
           {/* Toolbar – use compact version for section variant */}
           {showToolbar && (
             variant === 'section' ? <SectionEditorToolbar actions={toolbarActions} /> : <EditorToolbar />
@@ -489,6 +497,9 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
               variant={variant === 'section' ? 'section' : undefined}
             />
           </EditorContainer>
+
+          {/* Floating toolbar – appears on text selection */}
+          <FloatingToolbarButtons />
         </Plate>
       </div>
     </TooltipProvider>

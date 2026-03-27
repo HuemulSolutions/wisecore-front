@@ -20,6 +20,8 @@ interface SectionPlateEditorProps {
   isSaving?: boolean;
   /** Optional className for the outer wrapper */
   className?: string;
+  /** Document ID – enables discussion/comment sync when provided */
+  documentId?: string;
 }
 
 /**
@@ -41,6 +43,7 @@ export default function SectionPlateEditor({
   onCancel,
   isSaving = false,
   className,
+  documentId,
 }: SectionPlateEditorProps) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
@@ -114,6 +117,7 @@ export default function SectionPlateEditor({
         variant="section"
         className={isEditing ? 'min-h-[240px]' : undefined}
         toolbarActions={actionButtons}
+        documentId={documentId}
       />
     </div>
   );
