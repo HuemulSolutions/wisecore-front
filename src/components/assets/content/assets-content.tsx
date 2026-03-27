@@ -60,6 +60,7 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
 import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import { CustomFieldsList } from './assets-custom-fields-list';
+import { SectionIndexContext } from '@/contexts/section-index-context';
 
 // Utilities and hooks
 import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
@@ -2971,7 +2972,7 @@ export function AssetContent({
                           }
                           
                           return (
-                            <div key={section.id}>
+                            <SectionIndexContext.Provider key={section.id} value={index}>
                               <div id={`section-${index}`} className="relative">
                                 <SectionExecution 
                                   sectionExecution={{
@@ -3024,7 +3025,7 @@ export function AssetContent({
                                   isMobile={isMobile}
                                 />
                               )}
-                            </div>
+                            </SectionIndexContext.Provider>
                           );
                               })}
                             </>

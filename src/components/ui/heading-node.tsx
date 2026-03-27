@@ -1,11 +1,13 @@
 'use client';
 
-// import * as React from 'react';
+import { useContext } from 'react';
 
 import type { PlateElementProps } from 'platejs/react';
 
 import { type VariantProps, cva } from 'class-variance-authority';
+import { NodeApi } from 'platejs';
 import { PlateElement } from 'platejs/react';
+import { SectionIndexContext } from '@/contexts/section-index-context';
 
 const headingVariants = cva('relative', {
   variants: {
@@ -20,16 +22,27 @@ const headingVariants = cva('relative', {
   },
 });
 
+function generateHeadingId(text: string, sectionIndex?: number): string | undefined {
+  if (!text) return undefined;
+  const baseId = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return sectionIndex !== undefined ? `section-${sectionIndex}-${baseId}` : baseId;
+}
+
 export function HeadingElement({
   variant = 'h1',
   ...props
 }: PlateElementProps & VariantProps<typeof headingVariants>) {
+  const sectionIndex = useContext(SectionIndexContext);
+  const text = NodeApi.string(props.element);
+  const headingId = generateHeadingId(text, sectionIndex);
+
   return (
     <PlateElement
       as={variant!}
       className={headingVariants({ variant })}
       {...props}
     >
+      {headingId && <span id={headingId} className="absolute" style={{ top: '-1px' }} />}
       {props.children}
     </PlateElement>
   );
