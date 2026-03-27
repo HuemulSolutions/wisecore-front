@@ -1,18 +1,30 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function getAllTemplates(organizationId: string, search?: string) {
-    const url = search
-        ? `${backendUrl}/templates/?search=${encodeURIComponent(search)}`
-        : `${backendUrl}/templates/`;
-    const response = await httpClient.get(url, {
+export interface TemplatesResponse {
+  data: { id: string; name: string; description?: string }[];
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
+  transaction_id: string;
+  timestamp: string;
+}
+
+export async function getAllTemplates(organizationId: string, search?: string, page: number = 1, pageSize: number = 100): Promise<TemplatesResponse> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+    });
+    if (search) {
+        params.set('search', search);
+    }
+    const response = await httpClient.get(`${backendUrl}/templates/?${params.toString()}`, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
-    const data = await response.json();
-    console.log('Templates fetched:', data.data);
-    return data.data;
+    return response.json();
 }
 
 export async function addTemplate( { name, description, organization_id }: { name: string, description?: string, organization_id: string}) {

@@ -9,8 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
-import { DocumentActionButton, DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import type { CustomFieldDocument } from "@/types/custom-fields-documents";
+import { useTranslation } from "react-i18next";
 
 interface CustomFieldsListProps {
   customFields: CustomFieldDocument[];
@@ -22,7 +22,7 @@ interface CustomFieldsListProps {
   onRefresh: () => void;
   uploadingImageFieldId?: string | null;
   isRefreshing?: boolean;
-  accessLevels?: string[];
+  canEdit?: boolean;
 }
 
 export function CustomFieldsList({ 
@@ -35,10 +35,11 @@ export function CustomFieldsList({
   onRefresh, 
   uploadingImageFieldId, 
   isRefreshing,
-  accessLevels 
+  canEdit = false,
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
+  const { t } = useTranslation('assets');
 
   const formatCalendarDate = (dateValue: string) => {
     const normalizedDate = dateValue.split('T')[0];
@@ -74,7 +75,7 @@ export function CustomFieldsList({
           <div className="h-4 w-24 bg-muted rounded animate-pulse" />
           <Button size="sm" variant="outline" disabled>
             <Plus className="h-4 w-4 mr-2" />
-            Add Field
+            {t('customFieldsList.addField')}
           </Button>
         </div>
         <div className="space-y-2">
@@ -90,17 +91,13 @@ export function CustomFieldsList({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">No custom fields available</p>
-          <DocumentAccessControl
-            accessLevels={accessLevels}
-            requiredAccess={["edit", "create"]}
-            requireAll={false}
-          >
+          <p className="text-sm text-muted-foreground">{t('customFieldsList.noCustomFields')}</p>
+          {canEdit && (
             <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
               <Plus className="h-4 w-4 mr-2" />
-              Add Field
+              {t('customFieldsList.addField')}
             </Button>
-          </DocumentAccessControl>
+          )}
         </div>
       </div>
     );
@@ -109,7 +106,7 @@ export function CustomFieldsList({
   const formatValue = (field: CustomFieldDocument) => {
     // If no value is set, show "Vacío"
     if (!field.value || (typeof field.value === 'string' && field.value.trim() === '')) {
-      return 'Vacío';
+      return 'customFieldsList.empty';
     }
 
     // Based on data type, format the value appropriately
@@ -174,15 +171,15 @@ export function CustomFieldsList({
     // Special handling for image fields
     if (field.data_type === 'image') {
       const imageUrl = String(value);
-      if (imageUrl && imageUrl !== 'Vacío') {
+      if (imageUrl && imageUrl !== 'customFieldsList.empty') {
         return (
           <div className="flex items-center gap-1.5">
             <img 
               src={imageUrl} 
-              alt={field.name || 'Image'}
+              alt={field.name || t('customFieldsList.image')}
               className="w-8 h-8 object-cover rounded border border-gray-200 hover:cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => {
-                setSelectedImage({ url: imageUrl, name: field.name || 'Image' });
+                setSelectedImage({ url: imageUrl, name: field.name || t('customFieldsList.image') });
                 setImageDialogOpen(true);
               }}
               onError={(e) => {
@@ -191,20 +188,20 @@ export function CustomFieldsList({
               }}
             />
             <span className="text-xs text-gray-600 hidden">
-              Error loading image
+              {t('customFieldsList.errorLoadingImage')}
             </span>
           </div>
         );
       }
       return (
         <span className="text-xs text-gray-600">
-          No image
+          {t('customFieldsList.noImage')}
         </span>
       );
     }
     
     // For non-boolean and non-image fields, return text with proper overflow handling
-    const textValue = String(value);
+    const textValue = typeof value === 'string' && value === 'customFieldsList.empty' ? t('customFieldsList.empty') : String(value);
     return (
       <span 
         className="text-xs text-gray-600 break-words line-clamp-2" 
@@ -219,37 +216,31 @@ export function CustomFieldsList({
     <div className="space-y-2 pt-2">
       {/* Header with Refresh and Add buttons */}
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Custom Fields</h4>
+        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
         <div className="flex gap-1">
-          <DocumentAccessControl
-            accessLevels={accessLevels}
-            requiredAccess="read"
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={onRefresh} 
+            disabled={isRefreshing}
+            className={`hover:cursor-pointer h-7 w-7 p-0 ${
+              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            title={t('customFieldsList.refreshCustomFields')}
           >
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={onRefresh} 
-              disabled={isRefreshing}
-              className={`hover:cursor-pointer h-7 w-7 p-0 ${
-                isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              title="Refresh custom fields"
+            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onAdd}
+              className="h-7 w-7 p-0 hover:cursor-pointer"
+              title={t('customFieldsList.addCustomField')}
             >
-              <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <Plus className="h-3 w-3" />
             </Button>
-          </DocumentAccessControl>
-          <DocumentActionButton
-            accessLevels={accessLevels}
-            requiredAccess={["edit", "create"]}
-            requireAll={false}
-            size="sm"
-            variant="outline"
-            onClick={onAdd}
-            className="h-7 w-7 p-0"
-            title="Add custom field"
-          >
-            <Plus className="h-3 w-3" />
-          </DocumentActionButton>
+          )}
         </div>
       </div>
       
@@ -262,8 +253,8 @@ export function CustomFieldsList({
               <div className="flex-1 min-w-0 mr-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-1.5 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-foreground break-words line-clamp-2" title={field.name || 'Unknown Field'}>
-                      {field.name || 'Unknown Field'}
+                    <span className="text-xs font-medium text-foreground break-words line-clamp-2" title={field.name || t('customFieldsList.unknownField')}>
+                      {field.name || t('customFieldsList.unknownField')}
                     </span>
                     {field.required && (
                       <span className="text-xs text-destructive shrink-0">*</span>
@@ -279,67 +270,54 @@ export function CustomFieldsList({
                   {isUploadingThisField && field.data_type === 'image' ? (
                     <div className="flex items-center gap-1.5">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Uploading image...</span>
+                      <span>{t('customFieldsList.uploadingImage')}</span>
                     </div>
                   ) : (
                     renderValue(field)
                   )}
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="hover:cursor-pointer h-5 w-5 p-0 text-muted-foreground hover:text-foreground shrink-0"
-                  >
-                    <MoreVertical className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DocumentAccessControl
-                    accessLevels={accessLevels}
-                    requiredAccess="edit"
-                  >
+              {canEdit && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="hover:cursor-pointer h-5 w-5 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                      <MoreVertical className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={() => {
                       setTimeout(() => {
                         onEditContent(field)
                       }, 0)
                     }} className="hover:cursor-pointer">
                       <Edit2 className="mr-2 h-3 w-3" />
-                      Edit Content
+                      {t('customFieldsList.editContent')}
                     </DropdownMenuItem>
-                  </DocumentAccessControl>
-                  {field.source === "inferred" && (
-                    <DocumentAccessControl
-                      accessLevels={accessLevels}
-                      requiredAccess="edit"
-                    >
+                    {field.source === "inferred" && (
                       <DropdownMenuItem onSelect={() => {
                         setTimeout(() => {
                           onEdit(field)
                         }, 0)
                       }} className="hover:cursor-pointer">
                         <Edit2 className="mr-2 h-3 w-3" />
-                        Edit Configuration
+                        {t('customFieldsList.editConfiguration')}
                       </DropdownMenuItem>
-                    </DocumentAccessControl>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DocumentAccessControl
-                    accessLevels={accessLevels}
-                    requiredAccess="delete"
-                  >
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => {
                       setTimeout(() => {
                         onDelete(field)
                       }, 0)
                     }} className="hover:cursor-pointer text-destructive focus:text-destructive">
                       <Trash2 className="mr-2 h-3 w-3" />
-                      Delete
+                      {t('customFieldsList.delete')}
                     </DropdownMenuItem>
-                  </DocumentAccessControl>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           );
         })}
@@ -349,7 +327,7 @@ export function CustomFieldsList({
       <ReusableDialog
         open={imageDialogOpen}
         onOpenChange={setImageDialogOpen}
-        title={selectedImage?.name || "Image Preview"}
+        title={selectedImage?.name || t('customFieldsList.imagePreview')}
         maxWidth="2xl"
         maxHeight="90vh"
       >

@@ -1,5 +1,6 @@
 import { Folder as FolderIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 interface EmptyStateProps {
   type: 'no-organization' | 'permission-error';
@@ -10,6 +11,8 @@ interface EmptyStateProps {
  * Empty state components for different scenarios in the assets page
  */
 export function EmptyState({ type, onChangeOrganization }: EmptyStateProps) {
+  const { t } = useTranslation('assets');
+
   if (type === 'no-organization') {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -18,10 +21,10 @@ export function EmptyState({ type, onChangeOrganization }: EmptyStateProps) {
             <FolderIcon className="h-8 w-8 text-blue-600" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Organización Requerida
+            {t('emptyState.noOrganization.title')}
           </h2>
           <p className="text-sm text-gray-600">
-            Por favor selecciona una organización para ver los assets.
+            {t('emptyState.noOrganization.description')}
           </p>
         </div>
       </div>
@@ -36,13 +39,13 @@ export function EmptyState({ type, onChangeOrganization }: EmptyStateProps) {
             <FileText className="h-8 w-8 text-amber-600" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Acceso Restringido
+            {t('emptyState.permissionError.title')}
           </h2>
           <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-            No tienes los permisos necesarios para acceder a los assets de esta organización.
+            {t('emptyState.permissionError.description')}
           </p>
           <p className="text-xs text-gray-500 mb-6">
-            Por favor contacta a tu administrador para que te asigne el rol apropiado.
+            {t('emptyState.permissionError.contactAdmin')}
           </p>
           <div className="space-y-3">
             <Button
@@ -51,7 +54,7 @@ export function EmptyState({ type, onChangeOrganization }: EmptyStateProps) {
               onClick={onChangeOrganization}
               className="hover:cursor-pointer w-full"
             >
-              Cambiar Organización
+              {t('emptyState.permissionError.changeOrganization')}
             </Button>
           </div>
         </div>

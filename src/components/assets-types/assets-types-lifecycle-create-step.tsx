@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { X, Pencil, Ban } from "lucide-react"
+import { X, Pencil, Ban, Save } from "lucide-react"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "@/hooks/useLifecycle"
@@ -15,7 +15,6 @@ export interface CreateStepContentProps {
   documentTypeId: string
   stepType: string
   hasSla?: boolean
-  onRegisterSave?: (fn: (() => Promise<void>) | null, isPending: boolean) => void
   onEditingChange?: (isEditing: boolean) => void
 }
 
@@ -25,7 +24,6 @@ export function CreateStepContent({
   documentTypeId,
   stepType,
   hasSla = false,
-  onRegisterSave,
   onEditingChange,
 }: CreateStepContentProps) {
   const { t } = useTranslation("asset-types")
@@ -104,11 +102,6 @@ export function CreateStepContent({
       }
     : null
 
-  // Stable wrapper so the parent receives the same function reference
-  const stableSave = useCallback(async () => {
-    await saveFnRef.current?.()
-  }, [])
-
   useEffect(() => {
     if (step) {
       setAccessType(step.access_type === "custom" ? "custom" : "all")
@@ -122,17 +115,6 @@ export function CreateStepContent({
       }
     }
   }, [step, hasSla])
-
-  // Register save fn with parent whenever step loads or isPending changes
-  useEffect(() => {
-    if (!step) return
-    onRegisterSave?.(stableSave, updateStep.isPending)
-  }, [updateStep.isPending, step, stableSave, onRegisterSave])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => onRegisterSave?.(null, false)
-  }, [onRegisterSave])
 
   if (isLoading) {
     return (
@@ -171,13 +153,22 @@ export function CreateStepContent({
         </div>
         <div className="flex items-center gap-1">
           {isEditing ? (
-            <HuemulButton
-              icon={Ban}
-              label={t("lifecycle.cancel")}
-              variant="ghost"
-              onClick={handleCancel}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            />
+            <>
+              <HuemulButton
+                icon={Ban}
+                label={t("lifecycle.cancel")}
+                variant="ghost"
+                onClick={handleCancel}
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              />
+              <HuemulButton
+                icon={Save}
+                label={t("lifecycle.save")}
+                variant="default"
+                onClick={async () => await saveFnRef.current?.()}
+                loading={updateStep.isPending}
+              />
+            </>
           ) : (
             <HuemulButton
               icon={Pencil}

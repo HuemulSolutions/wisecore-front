@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { PlusCircle } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet"
+import { useTranslation } from "react-i18next"
 
 interface Section {
   id: string
@@ -33,6 +34,7 @@ export function AddSectionDialog({
   isPending,
 }: AddSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
+  const { t } = useTranslation('assets')
 
   useEffect(() => {
     if (!open) {
@@ -42,12 +44,12 @@ export function AddSectionDialog({
 
   const getDescription = () => {
     if (sectionInsertPosition === -1) {
-      return "Create a new section at the beginning of the document."
+      return t('addSectionDialog.createBeginning')
     }
     if (sectionInsertPosition !== undefined && sectionInsertPosition >= 0) {
-      return `Create a new section after section ${sectionInsertPosition + 1}.`
+      return t('addSectionDialog.createAfterSection', { index: sectionInsertPosition + 1 })
     }
-    return "Create a new section for your document."
+    return t('addSectionDialog.createNew')
   }
 
   return (
@@ -57,14 +59,14 @@ export function AddSectionDialog({
         if (!o) setIsFormValid(false)
         onOpenChange(o)
       }}
-      title="Add New Section"
+      title={t('addSectionDialog.title')}
       description={getDescription()}
       icon={PlusCircle}
       maxWidth="sm:max-w-2xl"
       maxHeight="max-h-[90vh]"
-      cancelLabel="Cancel"
+      cancelLabel={t('addSectionDialog.cancel')}
       saveAction={{
-        label: isPending ? "Creating..." : "Create Section",
+        label: isPending ? t('addSectionDialog.creating') : t('addSectionDialog.createSection'),
         disabled: !isFormValid || isPending,
         loading: isPending,
         closeOnSuccess: false,

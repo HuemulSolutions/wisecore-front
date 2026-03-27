@@ -1,9 +1,10 @@
 import { useMemo, useEffect, useState, useRef } from "react";
+import { ApiError } from "@/types/api-error";
+import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, Edit3, FolderTree, FileIcon, Zap, Check, X, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
-import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -12,12 +13,6 @@ import {
 import { createSectionExecution, type AddSectionExecutionRequest } from "@/services/section_execution";
 import { OtherVersionExecutionBanner } from "@/components/execution/other-version-execution-banner";
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -28,13 +23,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -46,6 +42,7 @@ import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section
 import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
+import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -60,7 +57,8 @@ import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
-import type { ContentSection, LibraryContentProps } from '@/types/assets';
+import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
+import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import { CustomFieldsList } from './assets-custom-fields-list';
 
 // Utilities and hooks
@@ -73,6 +71,18 @@ import { ContentErrorState } from './content-error-state';
 // import { useExecutionState } from './hooks/useExecutionState';
 
 
+
+
+
+const STAGE_COLORS: Record<string, string> = {
+  create: 'bg-purple-100 text-purple-700',
+  edit: 'bg-blue-100 text-blue-700',
+  review: 'bg-amber-100 text-amber-700',
+  approve: 'bg-orange-100 text-orange-700',
+  publish: 'bg-green-100 text-green-700',
+  archive: 'bg-gray-100 text-gray-600',
+  view: 'bg-slate-100 text-slate-600',
+};
 
 /**
  * AssetContent Component
@@ -93,6 +103,7 @@ export function AssetContent({
   // ============================================================================
   // HOOKS AND CONTEXT
   // ============================================================================
+  const { t } = useTranslation('assets');
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
@@ -181,7 +192,7 @@ export function AssetContent({
       
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
-      toast.success("Section created successfully");
+      toast.success(t('mutations.sectionCreated'));
     },
   });
 
@@ -202,7 +213,7 @@ export function AssetContent({
       
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
-      toast.success("Section added successfully");
+      toast.success(t('mutations.sectionAdded'));
     },
   });
 
@@ -223,7 +234,7 @@ export function AssetContent({
       });
     },
     onSuccess: (executionData) => {
-      toast.success("Document execution started successfully");
+      toast.success(t('mutations.executionStarted'));
       setCurrentExecutionId(executionData.id);
       
       // Update selected execution to show the new one
@@ -276,7 +287,7 @@ export function AssetContent({
       return disapproveExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success('Execution disapproved successfully!');
+      toast.success(t('mutations.executionDisapproved'));
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
@@ -296,7 +307,7 @@ export function AssetContent({
       return deleteExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success('Execution deleted successfully!');
+      toast.success(t('mutations.executionDeleted'));
       
       // Clear selected execution and switch to most recent remaining execution
       const executions = documentContent?.executions || documentExecutions;
@@ -326,7 +337,7 @@ export function AssetContent({
       return cloneExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: (clonedExecution) => {
-      toast.success('Execution cloned successfully!');
+      toast.success(t('mutations.executionCloned'));
       // Switch to the new cloned execution
       setSelectedExecutionId(clonedExecution.id);
       
@@ -348,7 +359,7 @@ export function AssetContent({
       if (createdField.data_type !== 'image') {
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
         setIsAddCustomFieldDocumentDialogOpen(false);
-        toast.success('Custom field document created successfully!');
+        toast.success(t('mutations.customFieldCreated'));
       }
     },
   });
@@ -363,7 +374,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
       setIsEditCustomFieldDocumentDialogOpen(false);
       setSelectedCustomFieldDocument(null);
-      toast.success('Custom field document updated successfully!');
+      toast.success(t('mutations.customFieldUpdated'));
     },
   });
 
@@ -377,7 +388,93 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
       setIsDeleteCustomFieldDocumentDialogOpen(false);
       setCustomFieldDocumentToDelete(null);
-      toast.success('Custom field document deleted successfully!');
+      toast.success(t('mutations.customFieldDeleted'));
+    },
+  });
+
+  // Mutation for checking (advancing) execution lifecycle
+  const checkLifecycleMutation = useMutation({
+    mutationFn: async () => {
+      const executionId = selectedExecutionId || documentContent?.execution_id;
+      const stepId = documentContent?.lifecycle_status?.current_step_id;
+      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+      if (!stepId) throw new Error('Missing step ID');
+      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      setIsCheckLifecycleDialogOpen(false);
+      toast.success(t('lifecycle.successComplete'));
+    },
+    onError: (error) => {
+      setIsCheckLifecycleDialogOpen(false);
+      const message = ApiError.isApiError(error) ? error.message : t('lifecycle.errorComplete');
+      toast.error(message);
+    },
+  });
+
+  // Mutation for assigning a semantic version to the execution
+  const assignVersionMutation = useMutation({
+    mutationFn: async (version: { major: number; minor: number; patch: number }) => {
+      const executionId = selectedExecutionId || documentContent?.execution_id;
+      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+      return assignExecutionVersion(executionId, version, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      setIsAssignVersionDialogOpen(false);
+      toast.success(t('mutations.versionAssigned'));
+    },
+    onError: (error) => {
+      setIsAssignVersionDialogOpen(false);
+      const message = error instanceof Error ? error.message : t('mutations.failedAssignVersion');
+      toast.error(message);
+    },
+  });
+
+  // Mutation for rejecting (going back) execution lifecycle
+  const rejectLifecycleMutation = useMutation({
+    mutationFn: async () => {
+      const executionId = selectedExecutionId || documentContent?.execution_id;
+      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+      return rejectExecutionLifecycle(executionId, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      setIsRejectLifecycleDialogOpen(false);
+      toast.success(t('lifecycle.successReturn'));
+    },
+    onError: (error) => {
+      setIsRejectLifecycleDialogOpen(false);
+      const message = ApiError.isApiError(error) ? error.message : t('lifecycle.errorReturn');
+      toast.error(message);
+    },
+  });
+
+  // Mutation for advancing lifecycle (publish / archive)
+  const advanceLifecycleMutation = useMutation({
+    mutationFn: async () => {
+      preserveScrollPosition();
+      const executionId = selectedExecutionId || documentContent?.execution_id;
+      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+      return advanceExecutionLifecycle(executionId, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      setIsPublishDialogOpen(false);
+      setIsArchiveDialogOpen(false);
+      toast.success(t('lifecycle.successAdvance'));
+    },
+    onError: (error) => {
+      setIsPublishDialogOpen(false);
+      setIsArchiveDialogOpen(false);
+      const message = ApiError.isApiError(error) ? error.message : t('lifecycle.errorAdvance');
+      toast.error(message);
     },
   });
 
@@ -396,6 +493,11 @@ export function AssetContent({
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
+  const [isCheckLifecycleDialogOpen, setIsCheckLifecycleDialogOpen] = useState(false);
+  const [isRejectLifecycleDialogOpen, setIsRejectLifecycleDialogOpen] = useState(false);
+  const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -457,8 +559,10 @@ export function AssetContent({
   // ============================================================================
   // STATE - VIEW / EDITOR MODE
   // ============================================================================
-  // Always start in reader mode; switches to editor mode when user has extra lifecycle permissions
+  // Starts in reader mode; auto-adjusted based on lifecycle permissions when document loads
   const [isViewMode, setIsViewMode] = useState(true);
+  // Tracks which document has had its initial mode set, so re-fetches don't override the user's choice
+  const hasSetInitialModeRef = useRef<string | null>(null);
 
   // ============================================================================
   // STATE - EXPORT
@@ -478,11 +582,6 @@ export function AssetContent({
   const [uploadingImageFieldId, setUploadingImageFieldId] = useState<string | null>(null);
   const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
   
-  // Reset to reader mode whenever a different asset is opened
-  useEffect(() => {
-    setIsViewMode(true);
-  }, [selectedFile?.id]);
-
   // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or disappear)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -800,7 +899,7 @@ export function AssetContent({
         preserveScrollPosition();
         
         // Show success message
-        toast.success('Execution approved successfully!');
+        toast.success(t('mutations.executionApproved'));
         
         // Clear approving state
         setApprovingExecutionId(null);
@@ -877,26 +976,95 @@ export function AssetContent({
 
   // Get the active execution ID (running, pending, or failed) from document executions
 
-  // Get the correct access levels - use documentContent first (authoritative), fallback to selectedFile
-  const accessLevels = useMemo(() => {
-    return documentContent?.access_levels || selectedFile?.access_levels || [];
-  }, [documentContent?.access_levels, selectedFile?.access_levels]);
-
   // Lifecycle permissions from the document content response
-  const lifecyclePermissions = documentContent?.lifecycle_permissions as {
-    view?: boolean; create?: boolean; edit?: boolean; review?: boolean;
-    approve?: boolean; publish?: boolean; archive?: boolean;
-  } | undefined;
+  const lifecyclePermissions = documentContent?.lifecycle_permissions as LifecyclePermissions | undefined;
 
-  // Whether the reader/editor toggle is available (view=true + at least one other permission)
-  const canSwitchToEditorMode = useMemo(() => {
-    if (!lifecyclePermissions?.view) return false;
-    return !!(lifecyclePermissions.create || lifecyclePermissions.edit || lifecyclePermissions.review ||
-              lifecyclePermissions.approve || lifecyclePermissions.publish || lifecyclePermissions.archive);
+  // Whether the user can see the asset content: at least one permission must be true.
+  // If permissions haven't loaded yet (undefined), default to allowing access.
+  const canViewContent = useMemo(() => {
+    if (!lifecyclePermissions) return true;
+    return (
+      lifecyclePermissions.view ||
+      lifecyclePermissions.create ||
+      lifecyclePermissions.edit ||
+      lifecyclePermissions.review ||
+      lifecyclePermissions.approve ||
+      lifecyclePermissions.publish ||
+      lifecyclePermissions.archive
+    );
   }, [lifecyclePermissions]);
 
-  // Show editor action buttons only when: no lifecycle view mode OR user switched to editor mode
-  const showEditorActions = !lifecyclePermissions?.view || !isViewMode;
+  // Computed frontend permissions: combines lifecycle_permissions + lifecycle_status.stage
+  // to express high-level UI capabilities (e.g. canEditSections, canExecuteAI)
+  const frontendPermissions = useMemo<FrontendPermissions>(
+    () => computeFrontendPermissions(lifecyclePermissions, documentContent?.lifecycle_status),
+    [lifecyclePermissions, documentContent?.lifecycle_status]
+  );
+
+  // Whether the reader/editor toggle is available: only in "edit" stage with create/edit permissions.
+  // In all other stages (review, approve, publish, archive) the user stays in reader mode.
+  const canSwitchToEditorMode = useMemo(() => {
+    const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
+    return isEditStage && !!(
+      lifecyclePermissions?.create ||
+      lifecyclePermissions?.edit
+    );
+  }, [lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
+
+  // Whether the user has no content-editing permissions (view-only).
+  // View-only users can only see the title, version info, and version selector.
+  const isViewOnly = useMemo(() => {
+    if (!lifecyclePermissions) return false;
+    return (
+      !lifecyclePermissions.create &&
+      !lifecyclePermissions.edit &&
+      !lifecyclePermissions.review &&
+      !lifecyclePermissions.approve &&
+      !lifecyclePermissions.publish &&
+      !lifecyclePermissions.archive
+    );
+  }, [lifecyclePermissions]);
+
+  // Set initial view mode based on lifecycle permissions (once per document):
+  // - view only  → reader mode, no toggle
+  // - edit only in edit stage → editor mode directly, no toggle
+  // - both       → reader mode with toggle available
+  useEffect(() => {
+    if (!selectedFile?.id) return;
+
+    // New document opened: reset the initialization flag and go back to reader as safe default
+    if (hasSetInitialModeRef.current !== selectedFile.id) {
+      setIsViewMode(true);
+
+      // As soon as permissions are available, set the definitive initial mode
+      if (lifecyclePermissions) {
+        const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
+        const hasView = !!lifecyclePermissions.view;
+        const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
+
+        // edit-only (no view permission) in edit stage: open directly in editor mode
+        if (hasEdit && !hasView && isEditStage) {
+          setIsViewMode(false);
+        }
+
+        // Mark this document as initialized so subsequent re-fetches don't override the user's choice
+        hasSetInitialModeRef.current = selectedFile.id;
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFile?.id, lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
+
+  // Force reader mode when stage moves away from "edit" (e.g. lifecycle advances)
+  useEffect(() => {
+    if (!canSwitchToEditorMode && !isViewMode) {
+      setIsViewMode(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSwitchToEditorMode]);
+
+  // Show editor action buttons: only in edit stage when user is in editor mode.
+  // Non-edit stages always stay in reader mode, so editor actions are never shown.
+  const showEditorActions = canSwitchToEditorMode && !isViewMode;
 
   // Get active executions on other versions (not currently viewed)
   const otherVersionActiveExecutions = useMemo(() => {
@@ -1086,7 +1254,7 @@ export function AssetContent({
     if (fullDocument?.sections?.length) {
       fullDocument.sections.forEach((section: { id?: string; name?: string }) => {
         if (!section.id) return;
-        optionsById.set(section.id, section.name || "Untitled section");
+        optionsById.set(section.id, section.name || t('section.untitled'));
       });
     }
 
@@ -1095,7 +1263,7 @@ export function AssetContent({
         if (!section.section_id) return;
 
         const existingName = optionsById.get(section.section_id);
-        if (existingName && existingName !== "Untitled section") {
+        if (existingName && existingName !== t('section.untitled')) {
           return;
         }
 
@@ -1146,7 +1314,7 @@ export function AssetContent({
     setIsRefreshingCustomFields(true);
     try {
       await queryClient.refetchQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
-      toast.success('Custom fields refreshed');
+      toast.success(t('mutations.customFieldsRefreshed'));
     } finally {
       setIsRefreshingCustomFields(false);
     }
@@ -1189,7 +1357,7 @@ export function AssetContent({
     queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
     // Close the dialog and show success message
     setIsAddCustomFieldDocumentDialogOpen(false);
-    toast.success('Custom field document created successfully!');
+    toast.success(t('mutations.customFieldCreated'));
   };
 
   // Handle delete custom field document
@@ -1311,7 +1479,7 @@ export function AssetContent({
       try {
         await deleteDocument(selectedFile.id, selectedOrganizationId!);
         console.log('Document deleted successfully:', selectedFile.id);
-        toast.success(`Document "${selectedFile.name}" deleted successfully`);
+        toast.success(t('mutations.documentDeletedNamed', { name: selectedFile.name }));
         
         // Clear selected file
         setSelectedFile(null);
@@ -1328,7 +1496,7 @@ export function AssetContent({
         }, 300);
       } catch (error) {
         console.error('Error deleting document:', error);
-        toast.error('Failed to delete document. Please try again.');
+        toast.error(t('mutations.documentDeleteFailed'));
       }
     }
   };
@@ -1369,38 +1537,37 @@ export function AssetContent({
               <EmptyIcon>
                 <FileIcon className="h-12 w-12" />
               </EmptyIcon>
-              <EmptyTitle>Welcome to Assets</EmptyTitle>
+              <EmptyTitle>{t('content.welcomeTitle')}</EmptyTitle>
               <EmptyDescription>
                 {(canAccessTemplates && canCreate('template')) || (canAccessAssets && canCreate('asset'))
-                  ? "Create your first document or select an existing one to get started with your document workflow."
-                  : "Select an existing asset to get started or contact your administrator for permissions to create new assets."
+                  ? t('content.welcomeDescriptionWithPermissions')
+                  : t('content.welcomeDescriptionNoPermissions')
                 }
               </EmptyDescription>
               <EmptyActions>
                 {canAccessTemplates && canCreate('template') && (
-                  <Button
+                  <HuemulButton
                     onClick={() => {
                       onPreserveScroll?.();
                       setIsCreateTemplateSheetOpen(true);
                     }}
                     variant="outline"
-                    className="hover:cursor-pointer"
-                  >
-                    <FileCode className="h-4 w-4 mr-2" />
-                    Create Template
-                  </Button>
+                    icon={FileCode}
+                    iconClassName="h-4 w-4"
+                    label={t('content.createTemplate')}
+                  />
                 )}
                 {canAccessAssets && canCreate('asset') && (
-                  <Button 
+                  <HuemulButton
                     onClick={() => {
                       onPreserveScroll?.();
                       openCreateAssetDialog(currentFolderId);
                     }}
-                    className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Create Asset
-                  </Button>
+                    className="bg-[#4464f7] hover:bg-[#3451e6]"
+                    icon={FileText}
+                    iconClassName="h-4 w-4"
+                    label={t('content.createAsset')}
+                  />
                 )}
               </EmptyActions>
             </div>
@@ -1453,23 +1620,15 @@ export function AssetContent({
           <div className="bg-white border-b border-gray-200 shadow-sm py-2 px-4 z-20 shrink-0 min-h-20" data-mobile-header>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={onToggleSidebar}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                      >
-                        <FolderTree className="h-5 w-5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Show file tree</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <HuemulButton
+                  onClick={onToggleSidebar}
+                  variant="ghost"
+                  size="sm"
+                  icon={FolderTree}
+                  iconClassName="h-5 w-5"
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  tooltip={t('content.showFileTree')}
+                />
                 {isLoadingContent && !documentContent ? (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -1485,25 +1644,24 @@ export function AssetContent({
                 ) : (
                   <div className="flex flex-col gap-1 animate-in fade-in duration-300">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        {documentContent?.document_name || selectedFile.name}
-                      </span>
-                      {/* Document Type and Template badges for mobile */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {documentContent?.document_type && (
-                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                            <div 
-                              className="w-1.5 h-1.5 rounded-full" 
-                              style={{ backgroundColor: documentContent.document_type.color }}
-                            />
-                            {documentContent.document_type.name}
-                          </div>
-                        )}
-                        {documentContent?.template_name && (
-                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 border border-blue-200">
-                            <FileCode className="w-1.5 h-1.5" />
-                            {documentContent.template_name}
-                          </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium text-gray-900">
+                          {documentContent?.document_name || selectedFile.name}
+                        </span>
+                        {showEditorActions && (
+                          <HuemulButton
+                            requiredAccess="edit"
+                            checkGlobalPermissions={true}
+                            resource="asset"
+                            lifecyclePermissions={lifecyclePermissions}
+                            onClick={openEditDialog}
+                            size="sm"
+                            variant="ghost"
+                            icon={Pencil}
+                            iconClassName="h-3 w-3"
+                            tooltip={t('content.editDocument')}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                          />
                         )}
                       </div>
                     </div>
@@ -1511,58 +1669,117 @@ export function AssetContent({
                     <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                       {selectedExecutionInfo && (
                         <>
-                          <span className="font-medium text-xs text-gray-900">{selectedExecutionInfo.name}</span>
+                          <span className="text-xs">{selectedExecutionInfo.name}</span>
                           <span>•</span>
                           <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
                           {selectedExecutionInfo.isLatest && (
-                            <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
-                              Latest
+                            <span className="inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                              {t('content.latest')}
                             </span>
                           )}
                         </>
                       )}
                     </div>
-                    {/* Document metadata for mobile */}
-                    {(documentContent?.internal_code || documentContent?.created_by_user || documentContent?.updated_by_user) && (
-                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        {documentContent?.internal_code && (
-                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-xs text-gray-700">
-                            <FileText className="w-2.5 h-2.5" />
-                            <span className="font-medium">Code:</span>
-                            <span>{documentContent.internal_code}</span>
-                          </div>
+                    {documentContent?.lifecycle_status && (
+                      <div className="flex items-center gap-1.5 flex-wrap bg-gray-50 px-2 py-1 rounded-lg">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
+                        </span>
+                        {documentContent.lifecycle_status.current_group && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {documentContent.lifecycle_status.current_group}
+                          </span>
                         )}
-                        {documentContent?.created_by_user && (
-                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-xs text-purple-700">
-                            <span className="font-medium">By:</span>
-                            <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('content.assignVersion')}
+                              icon={Tag}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-[#4464f7] border-[#4464f7] hover:bg-blue-50 hover:cursor-pointer"
+                              loading={assignVersionMutation.isPending}
+                              tooltip={t('content.assignVersionTooltip')}
+                              onClick={() => setIsAssignVersionDialogOpen(true)}
+                            />
+                          )}
+                          {documentContent.lifecycle_status.can_check && (
+                            <>
+                              <HuemulButton
+                                variant="outline"
+                                size="sm"
+                                label={t('lifecycle.return')}
+                                icon={Undo2}
+                                iconPosition="left"
+                                iconClassName="h-3 w-3"
+                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                                loading={rejectLifecycleMutation.isPending}
+                                tooltip={t('lifecycle.tooltipReturn')}
+                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                              />
+                              <HuemulButton
+                                variant="default"
+                                size="sm"
+                                label={t('lifecycle.complete')}
+                                icon={Check}
+                                iconPosition="left"
+                                iconClassName="h-3 w-3"
+                                className="h-6 text-xs px-2 hover:cursor-pointer"
+                                loading={checkLifecycleMutation.isPending}
+                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                              />
+                            </>
+                          )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
+                            <HuemulButton
+                              variant="default"
+                              size="sm"
+                              label={t('lifecycle.publish')}
+                              icon={Globe}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 hover:cursor-pointer"
+                              loading={advanceLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipPublish')}
+                              onClick={() => setIsPublishDialogOpen(true)}
+                            />
+                          )}
+                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'published' && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.archive')}
+                              icon={Archive}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={advanceLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipArchive')}
+                              onClick={() => setIsArchiveDialogOpen(true)}
+                            />
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
               </div>
-              
+
               {/* Table of Contents Toggle - Mobile */}
               {selectedFile?.type === 'document' && documentContent?.content && tocItems.length > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 hover:bg-gray-100 hover:cursor-pointer"
-                      >
-                        <List className="h-5 w-5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{isTocSidebarOpen ? "Hide sidebar" : "Show sidebar"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <HuemulButton
+                  onClick={() => setIsTocSidebarOpen(!isTocSidebarOpen)}
+                  variant="ghost"
+                  size="sm"
+                  icon={List}
+                  iconClassName="h-5 w-5"
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                />
               )}
             </div>
             
@@ -1579,44 +1796,43 @@ export function AssetContent({
               {/* Mode Toggle - Mobile */}
               {canSwitchToEditorMode && (
                 <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
-                  <Button
+                  <HuemulButton
                     size="sm"
                     variant="ghost"
                     onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                    className={`h-7 w-7 p-0 hover:cursor-pointer rounded-md transition-all ${
+                    icon={Eye}
+                    iconClassName="h-3.5 w-3.5"
+                    className={`h-7 w-7 p-0 rounded-md transition-all ${
                       isViewMode
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
-                    title="Reader mode"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
+                    tooltip={t('content.readerMode')}
+                  />
+                  <HuemulButton
                     size="sm"
                     variant="ghost"
                     onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                    className={`h-7 w-7 p-0 hover:cursor-pointer rounded-md transition-all ${
+                    icon={Pencil}
+                    iconClassName="h-3.5 w-3.5"
+                    className={`h-7 w-7 p-0 rounded-md transition-all ${
                       !isViewMode
                         ? 'bg-white text-[#4464f7] shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
-                    title="Editor mode"
-                  >
-                    <Edit3 className="h-3.5 w-3.5" />
-                  </Button>
+                    tooltip={t('content.editorMode')}
+                  />
                 </div>
               )}
 
-              {/* Editor-only mobile actions */}
-              {showEditorActions && (
-                <>
+              {/* Mobile action: create new version (always visible if user has create permission) */}
+              {(!lifecyclePermissions || lifecyclePermissions.create) && (
               <HuemulButton
-                accessLevels={accessLevels}
                 requiredAccess={["create"]}
                 requireAll={false}
                 checkGlobalPermissions={true}
                 resource="asset"
+                lifecyclePermissions={lifecyclePermissions}
                 size="sm"
                 onClick={handleCreateExecutionFromHeader}
                 disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
@@ -1625,8 +1841,8 @@ export function AssetContent({
                   : "h-8 w-8 p-0 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer shadow-sm rounded-full"
                 }
                 title={executeDocumentMutation.isPending || hasExecutionInProcess 
-                  ? "Cannot execute while another execution is in process" 
-                  : "Execute New Version"
+                  ? t('content.cannotExecuteInProgress')
+                  : t('content.executeNewVersion')
                 }
               >
                 {executeDocumentMutation.isPending ? (
@@ -1635,14 +1851,9 @@ export function AssetContent({
                   <Play className="h-4 w-4" />
                 )}
               </HuemulButton>
+              )}
               
-              <DocumentAccessControl
-                accessLevels={accessLevels}
-                requiredAccess={["edit", "create"]}
-                requireAll={false}
-                checkGlobalPermissions={true}
-                resource="asset"
-              >
+              {frontendPermissions.canAccessSectionSheet && (
                 <SectionSheet
                   selectedFile={selectedFile}
                   fullDocument={fullDocument}
@@ -1653,39 +1864,29 @@ export function AssetContent({
                     setIsSectionSheetOpen(open);
                   }}
                   isMobile={isMobile}
-                  accessLevels={accessLevels}
                   executionId={selectedExecutionId}
                   executionInfo={selectedExecutionInfo}
+                  lifecyclePermissions={lifecyclePermissions}
+                  stage={documentContent?.lifecycle_status?.stage}
                 />
-              </DocumentAccessControl>
+              )}
               
-              <DocumentAccessControl
-                accessLevels={accessLevels}
-                requiredAccess={["edit", "create"]}
-                requireAll={false}
-                checkGlobalPermissions={true}
-                resource="asset"
-              >
-                  <DependenciesSheet
-                    selectedFile={selectedFile}
-                    isOpen={isDependenciesSheetOpen}
-                    onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
+              {frontendPermissions.canAccessSectionSheet && (
+                <DependenciesSheet
+                  selectedFile={selectedFile}
+                  isOpen={isDependenciesSheetOpen}
+                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
                     if (!open) preserveScrollPosition();
                     setIsDependenciesSheetOpen(open);
                   }}
-                    isMobile={isMobile}
-                    accessLevels={accessLevels}
-                    documentName={documentContent?.document_name}
-                  />
-              </DocumentAccessControl>
+                  isMobile={isMobile}
+                  documentName={documentContent?.document_name}
+                  lifecyclePermissions={lifecyclePermissions}
+                  stage={documentContent?.lifecycle_status?.stage}
+                />
+              )}
               
-              <DocumentAccessControl
-                accessLevels={accessLevels}
-                requiredAccess={["edit", "create"]}
-                requireAll={false}
-                checkGlobalPermissions={true}
-                resource="asset"
-              >
+              {frontendPermissions.canAccessSectionSheet && (
                 <ContextSheet
                   selectedFile={selectedFile}
                   isOpen={isContextSheetOpen}
@@ -1694,29 +1895,26 @@ export function AssetContent({
                     setIsContextSheetOpen(open);
                   }}
                   isMobile={isMobile}
-                  accessLevels={accessLevels}
                   documentName={documentContent?.document_name}
+                  lifecyclePermissions={lifecyclePermissions}
+                  stage={documentContent?.lifecycle_status?.stage}
                 />
-              </DocumentAccessControl>
-                </>
               )}
               
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
               {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
                 <DocumentAccessControl
-                  accessLevels={accessLevels}
                   requiredAccess="read"
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <HuemulButton
-                        accessLevels={accessLevels}
                         requiredAccess="read"
                         size="sm"
                         variant="ghost"
                         className="h-8 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                        title="Switch Version"
+                        title={t('content.switchVersion')}
                       >
                         <span className="font-medium">
                           {(() => {
@@ -1738,11 +1936,12 @@ export function AssetContent({
                         </span>
                       </HuemulButton>
                     </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuContent align="start" className="w-80">
                     <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-xs font-medium text-gray-900">Document Versions</p>
-                      <p className="text-xs text-gray-500">Select a version to view</p>
+                      <p className="text-xs font-medium text-gray-900">{t('content.documentVersions')}</p>
+                      <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
                     </div>
+                    <div className="overflow-y-auto max-h-64">
                     {documentExecutions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
                         parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
@@ -1781,13 +1980,13 @@ export function AssetContent({
                                 {isLatest && (
                                   <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                     <Clock className="w-3 h-3" />
-                                    <span>Latest</span>
+                                    {t('content.latest')}
                                   </div>
                                 )}
                                 {isApproved && (
                                   <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                     <CheckCircle className="w-3 h-3" />
-                                    <span>Approved</span>
+                                    {t('content.approved')}
                                   </div>
                                 )}
                                 {isSelected && (
@@ -1800,114 +1999,79 @@ export function AssetContent({
                           </DropdownMenuItem>
                         );
                       })}
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </DocumentAccessControl>
               )}
               
-              {/* Edit Button - editor only */}
-              {showEditorActions && (
-              <HuemulButton
-                accessLevels={accessLevels}
-                requiredAccess="edit"
-                checkGlobalPermissions={true}
-                resource="asset"
-                onClick={openEditDialog}
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
-                title="Edit Document"
-              >
-                <Edit3 className="h-4 w-4" />
-              </HuemulButton>
-              )}
-
-              {/* Create Template from Document - editor only */}
-              {showEditorActions && !documentContent?.template_name && canCreate('template') && (
+              {/* Clone Button - create permission only */}
+              {lifecyclePermissions?.create && selectedExecutionId && (
                 <HuemulButton
-                  accessLevels={accessLevels}
-                  requiredAccess="edit"
-                  checkGlobalPermissions={true}
-                  resource="asset"
-                  onClick={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
-                  title="Create Template from Asset"
-                >
-                  <FileCode className="h-4 w-4" />
-                </HuemulButton>
-              )}
-
-              {/* Clone Button - editor only */}
-              {showEditorActions && selectedExecutionId && (
-                <HuemulButton
-                  accessLevels={accessLevels}
-                  requiredAccess={["edit", "create"]}
-                  requireAll={false}
-                  checkGlobalPermissions={true}
-                  resource="asset"
                   onClick={() => void setTimeout(() => openCloneDialog(), 0)}
                   size="sm"
                   variant="ghost"
                   className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
-                  title="Clone Execution"
+                  title={t('content.cloneExecution')}
                 >
                   <Copy className="h-4 w-4" />
                 </HuemulButton>
               )}
               
-              {/* Export Dropdown */}
-              <DocumentAccessControl
-                accessLevels={accessLevels}
-                requiredAccess="read"
-              >
+              {/* Export Dropdown - available to any user with lifecycle permissions */}
+              {!isViewOnly && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
+                    <HuemulButton
                       size="sm"
                       variant="ghost"
+                      icon={Download}
+                      iconClassName="h-4 w-4"
                       className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
-                      title="Export Options"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+                      tooltip={t('content.exportOptions')}
+                    />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {!documentContent?.template_name && canCreate('template') && (
+                      <>
+                        <DropdownMenuItem
+                          onSelect={() => setTimeout(() => setIsCreateTemplateFromDocumentDialogOpen(true), 0)}
+                          className="hover:cursor-pointer"
+                        >
+                          <FileCode className="mr-2 h-4 w-4" />
+                          {t('content.createTemplateFromAsset')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportMarkdown(), 0)}>
                       <FileText className="mr-2 h-4 w-4" />
-                      Export as Markdown
+                      {t('content.exportAsMarkdown')}
                     </DropdownMenuItem>
                     <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportWord(), 0)}>
                       <FileCode className="mr-2 h-4 w-4" />
-                      Export as Word
+                      {t('content.exportAsWord')}
                     </DropdownMenuItem>
                     <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
                       <FileCode className="mr-2 h-4 w-4" />
-                      Export as Custom Word
+                      {t('content.exportAsCustomWord')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </DocumentAccessControl>
+              )}
               
-              {/* Delete Options - editor only */}
-              {showEditorActions && (
-              <DocumentAccessControl
-                accessLevels={accessLevels}
-                requiredAccess="delete"
-                checkGlobalPermissions={true}
-                resource="asset"
-              >
+              {/* Delete Options - edit or create permission + edit stage only */}
+              {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
+                    <HuemulButton
                       size="sm"
                       variant="ghost"
+                      icon={Trash2}
+                      iconClassName="h-4 w-4"
                       className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors rounded-full"
-                      title="Delete Options"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      tooltip={t('content.deleteOptions')}
+                    />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     {selectedExecutionId && (
@@ -1916,7 +2080,7 @@ export function AssetContent({
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Version
+                        {t('content.deleteVersion')}
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -1924,130 +2088,13 @@ export function AssetContent({
                       className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                     >
                       <FileX className="mr-2 h-4 w-4" />
-                      Delete Document
+                      {t('content.deleteDocumentLabel')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </DocumentAccessControl>
               )}
 
-              {/* Approve/Disapprove Buttons - show conditionally based on execution status - editor only */}
-              {showEditorActions && (() => {
-                // Determine the current execution to show buttons for
-                let currentExecution = null;
-                let actualStatus = null;
-                
-                if (selectedExecutionId) {
-                  // User has manually selected a specific execution
-                  currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                  const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                  const statusFromDocumentExecutions = currentExecution?.status;
-                  actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
-                } else if (documentExecutions?.length > 0) {
-                  // No specific execution selected, determine which execution to show buttons for
-                  // Priority: execution_id from documentContent -> approved execution -> first execution
-                  if (documentContent?.execution_id) {
-                    currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
-                  }
-                  if (!currentExecution) {
-                    currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
-                  }
-                  actualStatus = currentExecution?.status;
-                }
-                
-                if (!currentExecution || !actualStatus) {
-                  return null;
-                }
-                
-                // Show Approve button when status is 'completed'
-                if (actualStatus === 'completed') {
-                  return (
-                    <HuemulButton
-                      accessLevels={accessLevels}
-                      requiredAccess="approve"
-                      checkGlobalPermissions={true}
-                      resource="asset"
-                      onClick={() => {
-                        // Ensure selectedExecutionId is set to the current execution before opening dialog
-                        if (!selectedExecutionId && currentExecution) {
-                          setSelectedExecutionId(currentExecution.id);
-                        }
-                        setTimeout(() => openApproveDialog(), 0);
-                      }}
-                      size="sm"
-                      variant="ghost"
-                      disabled={approveMutation.isPending || approvingExecutionId === currentExecution.id}
-                      className={`h-8 w-8 p-0 transition-colors rounded-full ${
-                        approveMutation.isPending || approvingExecutionId === currentExecution.id
-                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                          : 'text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer'
-                      }`}
-                      title={approveMutation.isPending || approvingExecutionId === currentExecution.id ? "Approving..." : "Approve Execution"}
-                    >
-                      {approveMutation.isPending || approvingExecutionId === currentExecution.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
-                    </HuemulButton>
-                  );
-                }
-                
-                // Show spinner when status is 'approving'
-                if (actualStatus === 'approving') {
-                  return (
-                    <HuemulButton
-                      accessLevels={accessLevels}
-                      requiredAccess="approve"
-                      checkGlobalPermissions={true}
-                      resource="asset"
-                      size="sm"
-                      variant="ghost"
-                      disabled={true}
-                      className="h-8 w-8 p-0 transition-colors rounded-full text-green-600 bg-green-50 cursor-not-allowed"
-                      title="Approving..."
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </HuemulButton>
-                  );
-                }
-                
-                // Show Disapprove button when status is 'approved'
-                if (actualStatus === 'approved') {
-                  return (
-                    <HuemulButton
-                      accessLevels={accessLevels}
-                      requiredAccess="approve"
-                      checkGlobalPermissions={true}
-                      resource="asset"
-                      onClick={() => {
-                        // Ensure selectedExecutionId is set to the current execution before opening dialog
-                        if (!selectedExecutionId && currentExecution) {
-                          setSelectedExecutionId(currentExecution.id);
-                        }
-                        setTimeout(() => openDisapproveDialog(), 0);
-                      }}
-                      size="sm"
-                      variant="ghost"
-                      disabled={disapproveMutation.isPending}
-                      className={`h-8 w-8 p-0 transition-colors rounded-full ${
-                        disapproveMutation.isPending 
-                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                          : 'text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer'
-                      }`}
-                      title={disapproveMutation.isPending ? "Converting to Draft..." : "Convert to Draft"}
-                    >
-                      {disapproveMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <X className="h-4 w-4" />
-                      )}
-                    </HuemulButton>
-                  );
-                }
-                
-                return null;
-              })()}            </div>
+            </div>
             )}
           </div>
         )}
@@ -2078,22 +2125,23 @@ export function AssetContent({
                 ) : (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
                     <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                      <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {documentContent?.document_type && (
-                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                            <div 
-                              className="w-1.5 h-1.5 rounded-full" 
-                              style={{ backgroundColor: documentContent.document_type.color }}
-                            />
-                            {documentContent.document_type.name}
-                          </div>
-                        )}
-                        {documentContent?.template_name && (
-                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700">
-                            <FileCode className="w-3 h-3" />
-                            {documentContent.template_name}
-                          </div>
+                      <div className="flex items-center gap-1.5">
+                        <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
+                        {showEditorActions && (
+                          <HuemulButton
+                            requiredAccess="edit"
+                            checkGlobalPermissions={true}
+                            resource="asset"
+                            lifecyclePermissions={lifecyclePermissions}
+                            onClick={openEditDialog}
+                            size="sm"
+                            variant="ghost"
+                            icon={Pencil}
+                            iconClassName="h-3.5 w-3.5"
+                            tooltip={t('content.editDocument')}
+                            tooltipSide="right"
+                            className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                          />
                         )}
                       </div>
                     </div>
@@ -2102,42 +2150,104 @@ export function AssetContent({
                     <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
                       {selectedExecutionInfo && (
                         <>
-                          <span className="font-medium text-gray-900">
+                          <span>
                             {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
                           </span>
                           <span className="text-gray-400">•</span>
                           <span>{selectedExecutionInfo.formattedDate}</span>
                           {selectedExecutionInfo.isLatest && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-600">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
                               Latest
                             </span>
                           )}
-                          {(documentContent?.internal_code || documentContent?.created_by_user) && (
-                            <span className="text-gray-400">•</span>
-                          )}
-                        </>
-                      )}
-                      {documentContent?.internal_code && (
-                        <>
-                          <span className="font-medium">Code:</span>
-                          <span>{documentContent.internal_code}</span>
-                        </>
-                      )}
-                      {documentContent?.created_by_user && (
-                        <>
-                          {documentContent?.internal_code && <span className="text-gray-400">•</span>}
-                          <span className="font-medium">By:</span>
-                          <span>{documentContent.created_by_user.name} {documentContent.created_by_user.last_name}</span>
-                        </>
-                      )}
-                      {documentContent?.updated_by_user && documentContent?.updated_by_user.id !== documentContent?.created_by_user?.id && (
-                        <>
-                          <span className="text-gray-400">•</span>
-                          <span className="font-medium">Updated:</span>
-                          <span>{documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}</span>
                         </>
                       )}
                     </div>
+                    {documentContent?.lifecycle_status && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
+                        </span>
+                        {documentContent.lifecycle_status.current_group && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {documentContent.lifecycle_status.current_group}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('content.assignVersion')}
+                              icon={Tag}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-[#4464f7] border-[#4464f7] hover:bg-blue-50 hover:cursor-pointer"
+                              loading={assignVersionMutation.isPending}
+                              tooltip={t('content.assignVersionTooltip')}
+                              onClick={() => setIsAssignVersionDialogOpen(true)}
+                            />
+                          )}
+                          {documentContent.lifecycle_status.can_check && (
+                            <>
+                              <HuemulButton
+                                variant="outline"
+                                size="sm"
+                                label={t('lifecycle.return')}
+                                icon={Undo2}
+                                iconPosition="left"
+                                iconClassName="h-3 w-3"
+                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                                loading={rejectLifecycleMutation.isPending}
+                                tooltip={t('lifecycle.tooltipReturn')}
+                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                              />
+                              <HuemulButton
+                                variant="default"
+                                size="sm"
+                                label={t('lifecycle.complete')}
+                                icon={Check}
+                                iconPosition="left"
+                                iconClassName="h-3 w-3"
+                                className="h-6 text-xs px-2 hover:cursor-pointer"
+                                loading={checkLifecycleMutation.isPending}
+                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                              />
+                            </>
+                          )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
+                            <HuemulButton
+                              variant="default"
+                              size="sm"
+                              label={t('lifecycle.publish')}
+                              icon={Globe}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 hover:cursor-pointer"
+                              loading={advanceLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipPublish')}
+                              onClick={() => setIsPublishDialogOpen(true)}
+                            />
+                          )}
+                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'published' && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.archive')}
+                              icon={Archive}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={advanceLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipArchive')}
+                              onClick={() => setIsArchiveDialogOpen(true)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2145,15 +2255,15 @@ export function AssetContent({
             
             {/* Action Buttons Section */}
             {isLoadingContent && !documentContent ? (
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
-                  <Skeleton className="h-7 w-[106px] rounded-md" />
+                  <Skeleton className="h-7 w-10 rounded-md" />
                   <Skeleton className="h-7 w-20 rounded-md" />
                   <Skeleton className="h-7 w-24 rounded-md" />
                   <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
                 <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
-                  <Skeleton className="h-7 w-10 rounded-md" />
+                  <Skeleton className="h-7 w-[106px] rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
@@ -2161,128 +2271,18 @@ export function AssetContent({
                 </div>
               </div>
             ) : (
-            <div className="flex items-center gap-2 flex-wrap animate-in fade-in duration-300">
-              {/* Primary Actions Group - hidden in reader mode */}
-              {showEditorActions && (
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
-              <HuemulButton
-                accessLevels={accessLevels}
-                requiredAccess={["create", "edit"]}
-                requireAll={false}
-                size="sm"
-                onClick={handleCreateExecutionFromHeader}
-                disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                className={executeDocumentMutation.isPending || hasExecutionInProcess
-                  ? "h-7 px-3 bg-gray-300 text-gray-500 border-none cursor-not-allowed text-xs"
-                  : "h-7 px-3 bg-[#4464f7] hover:bg-[#3451e6] text-white border-none hover:cursor-pointer text-xs"
-                }
-                title={executeDocumentMutation.isPending || hasExecutionInProcess 
-                  ? "Cannot execute a new version while another execution is in process" 
-                  : "Execute New Version"
-                }
-              >
-                {executeDocumentMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3 w-3 mr-1.5" />
-                    New Version
-                  </>
-                )}
-              </HuemulButton>
-                
-                <DocumentAccessControl
-                  accessLevels={accessLevels}
-                  requiredAccess={["edit", "create"]}
-                  requireAll={false}
-                >
-                  <SectionSheet
-                    selectedFile={selectedFile}
-                    fullDocument={fullDocument}
-                    isOpen={isSectionSheetOpen}
-                    onOpenChange={setIsSectionSheetOpen}
-                    accessLevels={accessLevels}
-                    executionId={selectedExecutionId}
-                    executionInfo={selectedExecutionInfo}
-                  />
-                </DocumentAccessControl>
-                
-                <DocumentAccessControl
-                  accessLevels={accessLevels}
-                  requiredAccess={["edit", "create"]}
-                  requireAll={false}
-                >
-                  <DependenciesSheet
-                    selectedFile={selectedFile}
-                    isOpen={isDependenciesSheetOpen}
-                    onOpenChange={setIsDependenciesSheetOpen}
-                    accessLevels={accessLevels}
-                    documentName={documentContent?.document_name}
-                  />
-                </DocumentAccessControl>
-                
-                <DocumentAccessControl
-                  accessLevels={accessLevels}
-                  requiredAccess={["edit", "create"]}
-                  requireAll={false}
-                >
-                  <ContextSheet
-                    selectedFile={selectedFile}
-                    isOpen={isContextSheetOpen}
-                    onOpenChange={setIsContextSheetOpen}
-                    accessLevels={accessLevels}
-                    documentName={documentContent?.document_name}
-                  />
-                </DocumentAccessControl>
-              </div>
-              )}
-
-              {/* Mode Toggle - Reader / Editor */}
-              {canSwitchToEditorMode && (
-                <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                    className={`h-7 px-3 gap-1.5 hover:cursor-pointer text-xs font-medium rounded-md transition-all ${
-                      isViewMode
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Eye className="h-3 w-3" />
-                    Reader
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                    className={`h-7 px-3 gap-1.5 hover:cursor-pointer text-xs font-medium rounded-md transition-all ${
-                      !isViewMode
-                        ? 'bg-white text-[#4464f7] shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Edit3 className="h-3 w-3" />
-                    Editor
-                  </Button>
-                </div>
-              )}
-              
-              {/* Secondary Actions Group */}
-              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg flex-wrap min-w-0">
-                {/* Execution Dropdown - only show for documents with executions */}
+            <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
+              {/* LEFT GROUP - Version, Sections, Dependencies, Context */}
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+                {/* Execution / Version Dropdown */}
                 {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
+                      <HuemulButton
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                        title="Switch Version"
+                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xs"
+                        tooltip={t('content.switchVersion')}
                       >
                         <span className="font-medium">
                           {(() => {
@@ -2290,6 +2290,11 @@ export function AssetContent({
                             // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
                             const targetId = selectedExecutionId || documentContent?.execution_id;
                             const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
+                            // Show semantic version if available
+                            if (selectedExecution?.version_major != null && selectedExecution?.version_minor != null && selectedExecution?.version_patch != null) {
+                              const versionLabel = `v${selectedExecution.version_major}.${selectedExecution.version_minor}.${selectedExecution.version_patch}`;
+                              return versionLabel.length > 20 ? `${versionLabel.substring(0, 20)}...` : versionLabel;
+                            }
                             if (selectedExecution?.name) {
                               return selectedExecution.name.length > 20 ? `${selectedExecution.name.substring(0, 20)}...` : selectedExecution.name;
                             }
@@ -2301,21 +2306,43 @@ export function AssetContent({
                             return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
                           })()} 
                         </span>
-                      </Button>
+                      </HuemulButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuContent align="start" className="w-80">
                       <div className="px-3 py-2 border-b border-gray-100">
-                        <p className="text-xs font-medium text-gray-900">Document Versions</p>
-                        <p className="text-xs text-gray-500">Select a version to view</p>
+                        <p className="text-xs font-medium text-gray-900">{t('content.documentVersions')}</p>
+                        <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
                       </div>
+                      {(!lifecyclePermissions || lifecyclePermissions.create) && (
+                        <>
+                          <DropdownMenuItem
+                            className="hover:cursor-pointer p-2 gap-2 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6]"
+                            onSelect={() => setTimeout(() => handleCreateExecutionFromHeader(), 0)}
+                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                          >
+                            <div className="flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-[#4464f7]">
+                              <Plus className="h-3.5 w-3.5" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-medium">{t('content.newVersion')}</span>
+                              <span className="text-xs text-gray-400">{t('content.createNewVersion')}</span>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <div className="overflow-y-auto max-h-64">
                       {documentExecutions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
                           parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                         )
-                        .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
+                        .map((execution: { id: string; created_at: string; name: string; status: string; version_major?: number | null; version_minor?: number | null; version_patch?: number | null }, index: number) => {
                           const isSelected = selectedExecutionId === execution.id;
                           const isApproved = execution.status === 'approved';
                           const isLatest = index === 0;
+                          const displayName = (execution.version_major != null && execution.version_minor != null && execution.version_patch != null)
+                            ? `v${execution.version_major}.${execution.version_minor}.${execution.version_patch}`
+                            : execution.name;
                           
                           return (
                             <DropdownMenuItem 
@@ -2337,20 +2364,20 @@ export function AssetContent({
                                   <span className={`text-sm font-medium ${
                                     isSelected ? 'text-[#4464f7]' : 'text-gray-900'
                                   }`}>
-                                    {execution.name}
+                                    {displayName}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   {isLatest && (
                                     <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                       <Clock className="w-3 h-3" />
-                                      <span>Latest</span>
+                                      {t('content.latest')}
                                     </div>
                                   )}
                                   {isApproved && (
                                     <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                       <CheckCircle className="w-3 h-3" />
-                                      <span>Approved</span>
+                                      {t('content.approved')}
                                     </div>
                                   )}
                                   {isSelected && (
@@ -2363,246 +2390,182 @@ export function AssetContent({
                             </DropdownMenuItem>
                           );
                         })}
+                      </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
-                
-                {/* Approve/Disapprove Buttons - Desktop Version - show conditionally based on execution status */}
-                {showEditorActions && (() => {
-                  // Determine the current execution to show buttons for
-                  let currentExecution = null;
-                  let actualStatus = null;
-                  
-                  if (selectedExecutionId) {
-                    // User has manually selected a specific execution
-                    currentExecution = documentExecutions?.find((e: { id: string; }) => e.id === selectedExecutionId);
-                    const statusFromExecutionInfo = selectedExecutionInfo?.status;
-                    const statusFromDocumentExecutions = currentExecution?.status;
-                    actualStatus = statusFromExecutionInfo || statusFromDocumentExecutions;
-                  } else if (documentExecutions?.length > 0) {
-                    // No specific execution selected, determine which execution to show buttons for
-                    // Priority: execution_id from documentContent -> approved execution -> first execution
-                    if (documentContent?.execution_id) {
-                      currentExecution = documentExecutions.find((e: any) => e.id === documentContent.execution_id);
-                    }
-                    if (!currentExecution) {
-                      currentExecution = documentExecutions.find((e: any) => e.status === 'approved') || documentExecutions[0];
-                    }
-                    actualStatus = currentExecution?.status;
-                  }
-                  
-                  if (!currentExecution || !actualStatus) {
-                    return null;
-                  }
-                  
-                  // Show Approve button when status is 'completed'
-                  if (actualStatus === 'completed') {
-                    return (
-                      <HuemulButton
-                        accessLevels={accessLevels}
-                        requiredAccess="approve"
-                        checkGlobalPermissions={true}
-                        resource="asset"
-                        onClick={() => {
-                          // Ensure selectedExecutionId is set to the current execution before opening dialog
-                          if (!selectedExecutionId && currentExecution) {
-                            setSelectedExecutionId(currentExecution.id);
-                          }
-                          setTimeout(() => openApproveDialog(), 0);
-                        }}
-                        size="sm"
-                        variant="ghost"
-                        disabled={approveMutation.isPending || approvingExecutionId === currentExecution.id}
-                        className={`h-8 px-2.5 transition-colors ${
-                          approveMutation.isPending || approvingExecutionId === currentExecution.id
-                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                            : 'text-green-600 hover:bg-green-50 hover:text-green-700 hover:cursor-pointer'
-                        }`}
-                        title={approveMutation.isPending || approvingExecutionId === currentExecution.id ? "Approving..." : "Approve Execution"}
-                      >
-                        {approveMutation.isPending || approvingExecutionId === currentExecution.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5" />
-                        )}
-                      </HuemulButton>
-                    );
-                  }
-                  
-                  // Show spinner when status is 'approving'
-                  if (actualStatus === 'approving') {
-                    return (
-                      <HuemulButton
-                        accessLevels={accessLevels}
-                        requiredAccess="approve"
-                        checkGlobalPermissions={true}
-                        resource="asset"
-                        size="sm"
-                        variant="ghost"
-                        disabled={true}
-                        className="h-8 px-2.5 transition-colors text-green-600 bg-green-50 cursor-not-allowed"
-                        title="Approving..."
-                      >
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      </HuemulButton>
-                    );
-                  }
-                  
-                  // Show Disapprove button when status is 'approved'
-                  if (actualStatus === 'approved') {
-                    return (
-                      <HuemulButton
-                        accessLevels={accessLevels}
-                        requiredAccess="approve"
-                        checkGlobalPermissions={true}
-                        resource="asset"
-                        onClick={() => {
-                          // Ensure selectedExecutionId is set to the current execution before opening dialog
-                          if (!selectedExecutionId && currentExecution) {
-                            setSelectedExecutionId(currentExecution.id);
-                          }
-                          setTimeout(() => openDisapproveDialog(), 0);
-                        }}
-                        size="sm"
-                        variant="ghost"
-                        disabled={disapproveMutation.isPending}
-                        className={`h-8 px-2.5 transition-colors ${
-                          disapproveMutation.isPending 
-                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
-                            : 'text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer'
-                        }`}
-                        title={disapproveMutation.isPending ? "Converting to Draft..." : "Convert to Draft"}
-                      >
-                        {disapproveMutation.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <X className="h-3.5 w-3.5" />
-                        )}
-                      </HuemulButton>
-                    );
-                  }
-                  
-                  return null;
-                })()}
 
-                {/* Clone Button - Desktop - editor only */}
-                {showEditorActions && selectedExecutionId && (
-                  <HuemulButton
-                    accessLevels={accessLevels}
-                    requiredAccess={["edit", "create"]}
-                    requireAll={false}
-                    checkGlobalPermissions={true}
-                    resource="asset"
-                    onClick={() => void setTimeout(() => openCloneDialog(), 0)}
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-2.5 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                    title="Clone Execution"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </HuemulButton>
+                {/* Sections sheet */}
+                {frontendPermissions.canAccessSectionSheet && (
+                  <SectionSheet
+                    selectedFile={selectedFile}
+                    fullDocument={fullDocument}
+                    isOpen={isSectionSheetOpen}
+                    onOpenChange={setIsSectionSheetOpen}
+                    executionId={selectedExecutionId}
+                    executionInfo={selectedExecutionInfo}
+                    lifecyclePermissions={lifecyclePermissions}
+                    stage={documentContent?.lifecycle_status?.stage}
+                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                  />
                 )}
 
-                {/* Separator between execution and document actions - editor only */}
-                {showEditorActions && selectedExecutionId && (
-                  <div className="h-5 w-px bg-gray-200 mx-1.5"></div>
+                {/* Dependencies, Context */}
+                {frontendPermissions.canAccessSectionSheet && (
+                  <DependenciesSheet
+                    selectedFile={selectedFile}
+                    isOpen={isDependenciesSheetOpen}
+                    onOpenChange={setIsDependenciesSheetOpen}
+                    documentName={documentContent?.document_name}
+                    lifecyclePermissions={lifecyclePermissions}
+                    stage={documentContent?.lifecycle_status?.stage}
+                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                  />
                 )}
 
-                {/* Document Actions Group - editor only */}
-                {showEditorActions && (
-                  <>
+                {frontendPermissions.canAccessSectionSheet && (
+                  <ContextSheet
+                    selectedFile={selectedFile}
+                    isOpen={isContextSheetOpen}
+                    onOpenChange={setIsContextSheetOpen}
+                    documentName={documentContent?.document_name}
+                    lifecyclePermissions={lifecyclePermissions}
+                    stage={documentContent?.lifecycle_status?.stage}
+                    showTrigger={frontendPermissions.canEditSections && !isViewMode}
+                  />
+                )}
+              </div>
+
+              {/* RIGHT GROUP - Mode Toggle, Approve/Disapprove, Create Template, More Options */}
+              <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
+                {/* Mode Toggle - Reader / Editor */}
+                {canSwitchToEditorMode && (
+                  <div className="flex items-center bg-gray-100 p-0.5 rounded-md gap-0.5">
                     <HuemulButton
-                      accessLevels={accessLevels}
-                      requiredAccess="edit"
-                      checkGlobalPermissions={true}
-                      resource="asset"
-                      onClick={openEditDialog}
                       size="sm"
                       variant="ghost"
-                      className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                      title="Edit Document"
-                    >
-                      <Edit3 className="h-3 w-3" />
-                    </HuemulButton>
-
-                    {/* Create Template from Document - only show if document has no template */}
-                    {!documentContent?.template_name && canCreate('template') && (
-                      <HuemulButton
-                        accessLevels={accessLevels}
-                        requiredAccess="edit"
-                        checkGlobalPermissions={true}
-                        resource="asset"
-                        onClick={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                        title="Create Template from Asset"
-                      >
-                        <FileCode className="h-3 w-3" />
-                      </HuemulButton>
-                    )}
-                  </>
+                      onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                      icon={Eye}
+                      iconClassName="h-3 w-3"
+                      label={t('content.reader')}
+                      className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
+                        isViewMode
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    />
+                    <HuemulButton
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                      icon={Pencil}
+                      iconClassName="h-3 w-3"
+                      label={t('content.editor')}
+                      className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
+                        !isViewMode
+                          ? 'bg-white text-[#4464f7] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    />
+                  </div>
                 )}
-                
-                {/* <DocumentAccessControl
-                  accessLevels={accessLevels}
-                  requiredAccess=""
-                > */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
-                        title="Export Options"
-                      >
-                        <Download className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Export as Markdown
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
-                        <FileCode className="mr-2 h-4 w-4" />
-                        Export as Word
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportCustomWord(), 0)}>
-                        <FileCode className="mr-2 h-4 w-4" />
-                        Export as Custom Word
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                {/* </DocumentAccessControl> */}
-                
-                {/* Delete Options - editor only */}
-                {showEditorActions && (
-                  <DocumentAccessControl
-                    accessLevels={accessLevels}
-                    requiredAccess="delete"
-                    checkGlobalPermissions={true}
-                    resource="asset"
-                  >
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2 text-red-500 hover:bg-red-50 hover:text-red-700 hover:cursor-pointer transition-colors"
-                          title="Delete Options"
+
+                {/* More Options Dropdown - only render when at least one item is available and user is not view-only */}
+                {!isViewOnly &&
+                 (!isViewMode || !canSwitchToEditorMode || frontendPermissions.canAccessSectionSheet) &&
+                 ((lifecyclePermissions?.create && !!selectedExecutionId) ||
+                  (!documentContent?.template_name && canCreate('template')) ||
+                  lifecyclePermissions?.view ||
+                  lifecyclePermissions?.create ||
+                  lifecyclePermissions?.edit ||
+                  lifecyclePermissions?.review ||
+                  lifecyclePermissions?.approve ||
+                  lifecyclePermissions?.publish ||
+                  lifecyclePermissions?.archive ||
+                  (frontendPermissions.canAccessSectionSheet && (!frontendPermissions.canEditSections || isViewMode))) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <HuemulButton
+                      size="sm"
+                      variant="ghost"
+                      icon={MoreVertical}
+                      iconClassName="h-3.5 w-3.5"
+                      className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                      tooltip={t('content.moreOptions')}
+                    />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    {frontendPermissions.canAccessSectionSheet && (!frontendPermissions.canEditSections || isViewMode) && (
+                      <>
+                        <DropdownMenuItem
+                          onSelect={() => setTimeout(() => setIsSectionSheetOpen(true), 0)}
+                          className="hover:cursor-pointer"
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
+                          <BetweenHorizontalStart className="mr-2 h-4 w-4" />
+                          {t('content.sectionsLabel')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => setTimeout(() => setIsDependenciesSheetOpen(true), 0)}
+                          className="hover:cursor-pointer"
+                        >
+                          <Link2 className="mr-2 h-4 w-4" />
+                          {t('content.dependenciesLabel')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => setTimeout(() => setIsContextSheetOpen(true), 0)}
+                          className="hover:cursor-pointer"
+                        >
+                          <Users className="mr-2 h-4 w-4" />
+                          {t('content.contextLabel')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    {lifecyclePermissions?.create && selectedExecutionId && (
+                      <DropdownMenuItem
+                        onSelect={() => setTimeout(() => openCloneDialog(), 0)}
+                        className="hover:cursor-pointer"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        {t('content.cloneVersion')}
+                      </DropdownMenuItem>
+                    )}
+                    {!documentContent?.template_name && canCreate('template') && (
+                      <DropdownMenuItem
+                        onSelect={() => setTimeout(() => setIsCreateTemplateFromDocumentDialogOpen(true), 0)}
+                        className="hover:cursor-pointer"
+                      >
+                        <FileCode className="mr-2 h-4 w-4" />
+                        {t('content.createTemplateFromAsset')}
+                      </DropdownMenuItem>
+                    )}
+                    {((lifecyclePermissions?.create && !!selectedExecutionId) || (!documentContent?.template_name && canCreate('template'))) && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && <DropdownMenuSeparator />}
+                    {(lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
+                      <>
+                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          {t('content.exportAsMarkdown')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
+                          <Download className="mr-2 h-4 w-4" />
+                          {t('content.exportAsWord')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => setTimeout(() => handleExportCustomWord(), 0)}>
+                          <FileCode className="mr-2 h-4 w-4" />
+                          {t('content.exportAsCustomWord')}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
+                      <>
+                        <DropdownMenuSeparator />
                         {selectedExecutionId && (
                           <DropdownMenuItem
                             onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Version
+                            {t('content.deleteVersion')}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem
@@ -2610,11 +2573,12 @@ export function AssetContent({
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
                         >
                           <FileX className="mr-2 h-4 w-4" />
-                          Delete Document
+                          {t('content.deleteDocumentLabel')}
                         </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </DocumentAccessControl>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 )}
               </div>
             </div>
@@ -2719,7 +2683,7 @@ export function AssetContent({
                     {/* Loading indicator at the bottom */}
                     <div className="flex items-center justify-center pt-8">
                       <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-500">Loading document content...</span>
+                      <span className="ml-2 text-sm text-gray-500">{t('content.loadingDocument')}</span>
                     </div>
                   </div>
                 ) : isContentError ? (
@@ -2728,6 +2692,19 @@ export function AssetContent({
                     error={contentError}
                     onRetry={() => refetchContent()}
                   />
+                ) : !canViewContent ? (
+                  // Show access-denied state when user has no lifecycle permissions on this document
+                  <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
+                    <div className="text-center max-w-sm">
+                      <div className="mb-4 inline-flex items-center justify-center w-14 h-14 rounded-full bg-gray-100">
+                        <Lock className="h-7 w-7 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('content.accessRestricted')}</h3>
+                      <p className="text-sm text-gray-500">
+                        {t('content.accessRestrictedDescription')}
+                      </p>
+                    </div>
+                  </div>
                 ) : isSelectedVersionExecuting && isSelectedVersionExecuting.status !== 'import_failed' && !dismissedExecutionBanners.has(isSelectedVersionExecuting.id) && !(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) ? (
                   // Show skeleton when viewing a version that is currently executing (full/full-single mode ONLY) — not for import_failed
                   <div className="space-y-6 min-h-150">
@@ -2781,7 +2758,7 @@ export function AssetContent({
                       {/* Loading indicator at the bottom */}
                       <div className="flex items-center justify-center pt-8">
                         <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                        <span className="ml-2 text-sm text-blue-600 font-medium">Generating document content...</span>
+                        <span className="ml-2 text-sm text-blue-600 font-medium">{t('content.generatingContent')}</span>
                       </div>
                     </div>
                   </div>
@@ -2805,13 +2782,13 @@ export function AssetContent({
                                       <AlertCircle className="h-8 w-8 text-red-600" />
                                     </div>
                                     <h3 className="text-2xl font-bold text-red-900 mb-3">
-                                      Import Failed
+                                      {t('content.importFailed')}
                                     </h3>
                                     <p className="text-base text-red-800/90 mb-2 leading-relaxed max-w-full mx-auto">
-                                      {selectedExecutionInfo?.status_message || "The file could not be imported. Please try again with a supported file."}
+                                      {selectedExecutionInfo?.status_message || t('content.importFailedDescription')}
                                     </p>
                                     <p className="text-xs text-red-600/70 mt-6">
-                                      Supported formats: PDF, DOCX
+                                      {t('content.supportedFormats')}
                                     </p>
                                   </div>
                                 </div>
@@ -2826,20 +2803,22 @@ export function AssetContent({
                                       
                                       {/* Title */}
                                       <h3 className="text-2xl font-bold text-red-900 mb-3">
-                                        Execution Failed
+                                        {t('content.executionFailed')}
                                       </h3>
                                       
                                       {/* Description */}
                                       <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
-                                        The AI couldn't generate content for this document. Please try again or check your sections configuration.
+                                        {t('content.executionFailedDescription')}
                                       </p>
                                       
                                       {/* Action Buttons */}
                                       <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                         <HuemulButton
-                                          accessLevels={accessLevels}
                                           requiredAccess={["create"]}
                                           requireAll={false}
+                                          checkGlobalPermissions={true}
+                                          resource="version"
+                                          lifecyclePermissions={lifecyclePermissions}
                                           onClick={handleCreateExecutionFromHeader}
                                           disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                           size="lg"
@@ -2851,19 +2830,21 @@ export function AssetContent({
                                           {executeDocumentMutation.isPending ? (
                                             <>
                                               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                              Retrying...
+                                              {t('content.retrying')}
                                             </>
                                           ) : (
                                             <>
                                               <RefreshCw className="h-5 w-5 mr-2" />
-                                              Retry Execution
+                                              {t('content.retryExecution')}
                                             </>
                                           )}
                                         </HuemulButton>
                                         <HuemulButton
-                                          accessLevels={accessLevels}
                                           requiredAccess={["edit", "create"]}
                                           requireAll={false}
+                                          checkGlobalPermissions={true}
+                                          resource="section"
+                                          lifecyclePermissions={lifecyclePermissions}
                                           onClick={() => {
                                             preserveScrollPosition();
                                             setIsSectionSheetOpen(true);
@@ -2872,14 +2853,14 @@ export function AssetContent({
                                           size="lg"
                                           className="border-2 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all"
                                         >
-                                          <Edit3 className="h-5 w-5 mr-2" />
-                                          Edit Sections
+                                          <Pencil className="h-5 w-5 mr-2" />
+                                          {t('content.editSections')}
                                         </HuemulButton>
                                       </div>
                                       
                                       {/* Additional Help Text */}
                                       <p className="text-xs text-red-600/70 mt-6">
-                                        Common issues: API errors, invalid prompts, or missing dependencies
+                                        {t('content.commonIssues')}
                                       </p>
                                     </div>
                                   </div>
@@ -2889,32 +2870,36 @@ export function AssetContent({
                                   <EmptyIcon>
                                     <Zap className="h-12 w-12" />
                                   </EmptyIcon>
-                                  <EmptyTitle>Setup {documentContent?.document_name || selectedFile.name}</EmptyTitle>
+                                  <EmptyTitle>{t('content.setupDocument', { name: documentContent?.document_name || selectedFile.name })}</EmptyTitle>
                                   <EmptyDescription>
                                     {fullDocument?.sections?.length > 0 
-                                      ? "Your document is ready! You can now generate content with AI, add more sections, or configure dependencies."
-                                      : "Start building your document by adding sections. Sections help structure your content and guide the AI generation process."
+                                      ? t('content.readyWithAi')
+                                      : t('content.readyWithSections')
                                     }
                                   </EmptyDescription>
                                   {!hasFailedExecution && !hasImportFailed && (
                                     <EmptyActions>
                                       {fullDocument?.sections?.length === 0 ? (
                                         <HuemulButton
-                                          accessLevels={accessLevels}
                                           requiredAccess={["edit", "create"]}
                                           requireAll={false}
+                                          checkGlobalPermissions={true}
+                                          resource="section"
+                                          lifecyclePermissions={lifecyclePermissions}
                                           onClick={() => setIsSectionSheetOpen(true)}
                                           className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
                                         >
                                           <BetweenHorizontalStart className="h-4 w-4 mr-2" />
-                                          Add Sections
+                                          {t('content.addSections')}
                                         </HuemulButton>
                                       ) : (
                                         <>
                                           <HuemulButton
-                                            accessLevels={accessLevels}
                                             requiredAccess={["create"]}
                                             requireAll={false}
+                                            checkGlobalPermissions={true}
+                                            resource="version"
+                                            lifecyclePermissions={lifecyclePermissions}
                                             onClick={handleCreateExecutionFromHeader}
                                             disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
                                             className={executeDocumentMutation.isPending || hasExecutionInProcess
@@ -2925,19 +2910,21 @@ export function AssetContent({
                                             {executeDocumentMutation.isPending ? (
                                               <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Executing...
+                                                {t('content.executing')}
                                               </>
                                             ) : (
                                               <>
                                                 <Zap className="h-4 w-4 mr-2" />
-                                                {hasNewPendingExecution ? "Start Execution" : hasPendingExecution ? "Continue Execution" : "Generate Content"}
+                                                {hasNewPendingExecution ? t('content.startExecution') : hasPendingExecution ? t('content.continueExecution') : t('content.generateContent')}
                                               </>
                                             )}
                                           </HuemulButton>
                                           <HuemulButton
-                                            accessLevels={accessLevels}
                                             requiredAccess={["edit", "create"]}
                                             requireAll={false}
+                                            checkGlobalPermissions={true}
+                                            resource="section"
+                                            lifecyclePermissions={lifecyclePermissions}
                                             onClick={() => {
                                               onPreserveScroll?.();
                                               setIsSectionSheetOpen(true);
@@ -2945,7 +2932,7 @@ export function AssetContent({
                                             variant="outline"
                                           >
                                             <Plus className="h-4 w-4 mr-2" />
-                                            Add More Sections
+                                            {t('content.addMoreSections')}
                                           </HuemulButton>
                                         </>
                                       )}
@@ -2967,19 +2954,21 @@ export function AssetContent({
                             // New format: array of sections with separators
                             <>
                               {/* Add section button at the beginning */}
-                              {showEditorActions && (
+                              {showEditorActions && frontendPermissions.canEditSections && (
                                 <SectionSeparator 
                                   onAddSection={() => handleAddSectionAtPosition(-1)} 
                                   index={-1}
                                   isMobile={isMobile}
-                                  accessLevels={accessLevels}
                                 />
                               )}
                               
                               {documentContent.content.map((section: ContentSection, index: number) => {
                           const realSectionId = section.section_id;
                           
-                          // Removed debug logging for performance
+                          // In reader mode, hide sections with empty content
+                          if (isViewMode && (!section.content || section.content.trim() === '')) {
+                            return null;
+                          }
                           
                           return (
                             <div key={section.id}>
@@ -3014,7 +3003,6 @@ export function AssetContent({
                                         : currentSectionIndex !== undefined && index >= currentSectionIndex
                                     ))
                                   }
-                                  accessLevels={accessLevels}
                                   onExecutionStart={(executionIdForSection) => {
                                     if (executionIdForSection) {
                                       setSectionExecutionId(executionIdForSection);
@@ -3023,17 +3011,17 @@ export function AssetContent({
                                   onOpenExecuteSheet={handleCreateExecutionFromSection(index, realSectionId)}
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
+                                  canEditSections={frontendPermissions.canEditSections}
                                 />
                               </div>
                               
                               {/* Add separator after each section - editor mode only */}
-                              {showEditorActions && (
+                              {showEditorActions && frontendPermissions.canEditSections && (
                                 <SectionSeparator
                                   onAddSection={handleAddSectionAtPosition}
                                   index={index}
                                   isLastSection={index === documentContent.content.length - 1}
                                   isMobile={isMobile}
-                                  accessLevels={accessLevels}
                                 />
                               )}
                             </div>
@@ -3053,27 +3041,30 @@ export function AssetContent({
                       <div className="flex items-center justify-center h-full min-h-100">
                         <div className="text-center">
                           <File className="h-16 w-16 mx-auto mb-4 opacity-40" style={{ color: '#4464f7' }} />
-                          <p className="text-lg font-medium text-gray-500">No content available</p>
-                          <p className="text-sm text-gray-400 mt-1 mb-6">This document doesn't have any content yet</p>
+                          <p className="text-lg font-medium text-gray-500">{t('content.noContentTitle')}</p>
+                          <p className="text-sm text-gray-400 mt-1 mb-6">{t('content.noContentDescription')}</p>
                           
                           <div className="flex gap-3 justify-center">
                             <HuemulButton
-                              accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
+                              checkGlobalPermissions={true}
+                              resource="section"
+                              lifecyclePermissions={lifecyclePermissions}
                               variant="outline" 
                               onClick={handleAddSection}
                               className="hover:cursor-pointer border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors duration-200"
                             >
                               <BetweenHorizontalStart className="h-4 w-4 mr-2" />
-                              Add Section
+                              {t('content.addSection')}
                             </HuemulButton>
                             
                             <HuemulButton
-                              accessLevels={accessLevels}
                               requiredAccess={["edit", "create"]}
                               requireAll={false}
                               checkGlobalPermissions={true}
+                              resource="version"
+                              lifecyclePermissions={lifecyclePermissions}
                               variant="outline" 
                               onClick={handleCreateExecutionFromHeader}
                               disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
@@ -3082,12 +3073,12 @@ export function AssetContent({
                               {executeDocumentMutation.isPending ? (
                                 <>
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  Executing...
+                                  {t('content.executing')}
                                 </>
                               ) : (
                                 <>
                                   <Play className="h-4 w-4 mr-2" />
-                                  Execute New Version
+                                  {t('content.executeNewVersion')}
                                 </>
                               )}
                             </HuemulButton>
@@ -3101,13 +3092,13 @@ export function AssetContent({
             ) : (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">
-                  <strong>Item ID:</strong> {selectedFile.id}
+                  <strong>{t('content.itemId')}</strong> {selectedFile.id}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>Item Name:</strong> {selectedFile.name}
+                  <strong>{t('content.itemName')}</strong> {selectedFile.name}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>Type:</strong> {selectedFile.type}
+                  <strong>{t('content.itemType')}</strong> {selectedFile.type}
                 </p>
               </div>
             )}
@@ -3135,7 +3126,7 @@ export function AssetContent({
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      Content
+                      {t('content.contentTab')}
                     </button>
                     <button 
                       onClick={() => setActiveTab('custom-fields')}
@@ -3145,7 +3136,7 @@ export function AssetContent({
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      Custom Fields
+                      {t('content.customFieldsTab')}
                     </button>
                   </div>
                 </div>
@@ -3164,7 +3155,7 @@ export function AssetContent({
                     onRefresh={handleRefreshCustomFields}
                     uploadingImageFieldId={uploadingImageFieldId}
                     isRefreshing={isRefreshingCustomFields}
-                    accessLevels={accessLevels}
+                    canEdit={frontendPermissions.canEditSections}
                   />
                 )}
               </div>
@@ -3219,24 +3210,22 @@ export function AssetContent({
       <ReusableAlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => !deleteExecutionMutation.isPending && handleDeleteDialogChange(open)}
-        title={deleteType === 'execution' ? 'Delete Version' : 'Delete Document'}
+        title={deleteType === 'execution' ? t('content.deleteVersionTitle') : t('content.deleteDocumentTitle')}
         description={
           deleteType === 'execution' ? (
             selectedExecutionInfo ? (
               <>
-                Are you sure you want to delete the execution from {selectedExecutionInfo.formattedDate}?
-                <br />
-                This action cannot be undone.
+                {t('content.deleteExecutionDescription', { date: selectedExecutionInfo.formattedDate })}
               </>
             ) : (
-              "Are you sure you want to delete this execution? This action cannot be undone."
+              t('content.deleteExecutionFallback')
             )
           ) : (
-            `Are you sure you want to delete "${selectedFile?.name}"? This will delete the document and all its executions. This action cannot be undone.`
+            t('content.deleteDocumentDescription', { name: selectedFile?.name })
           )
         }
         onConfirm={handleDeleteConfirm}
-        confirmLabel="Delete"
+        confirmLabel={t('content.deleteConfirm')}
         isProcessing={deleteExecutionMutation.isPending}
         variant="destructive"
       />
@@ -3245,20 +3234,16 @@ export function AssetContent({
       <ReusableAlertDialog
         open={isCloneDialogOpen}
         onOpenChange={(open) => !cloneMutation.isPending && handleCloneDialogChange(open)}
-        title="Clone Execution"
+        title={t('content.cloneExecutionTitle')}
         description={
           selectedExecutionInfo ? (
-            <>
-              Are you sure you want to clone the execution <strong>{selectedExecutionInfo.name}</strong>?
-              <br />
-              This will create a new version that you can modify independently.
-            </>
+            t('content.cloneExecutionDescription', { name: selectedExecutionInfo.name })
           ) : (
-            "Are you sure you want to clone this execution? This will create a new version that you can modify independently."
+            t('content.cloneExecutionFallback')
           )
         }
         onConfirm={handleCloneConfirm}
-        confirmLabel="Clone"
+        confirmLabel={t('content.cloneConfirm')}
         isProcessing={cloneMutation.isPending}
         variant="default"
       />
@@ -3267,20 +3252,16 @@ export function AssetContent({
       <ReusableAlertDialog
         open={isApproveDialogOpen}
         onOpenChange={(open) => !approveMutation.isPending && !approvingExecutionId && handleApproveDialogChange(open)}
-        title="Approve Execution"
+        title={t('content.approveExecutionTitle')}
         description={
           selectedExecutionInfo ? (
-            <>
-              Are you sure you want to approve the execution <strong>{selectedExecutionInfo.name}</strong>?
-              <br />
-              This will mark the execution as approved and ready for production use.
-            </>
+            t('content.approveExecutionDescription', { name: selectedExecutionInfo.name })
           ) : (
-            "Are you sure you want to approve this execution? This will mark it as approved and ready for production use."
+            t('content.approveExecutionFallback')
           )
         }
         onConfirm={handleApproveConfirm}
-        confirmLabel="Approve"
+        confirmLabel={t('content.approveConfirm')}
         isProcessing={approveMutation.isPending || !!approvingExecutionId}
         variant="default"
       />
@@ -3289,21 +3270,69 @@ export function AssetContent({
       <ReusableAlertDialog
         open={isDisapproveDialogOpen}
         onOpenChange={(open) => !disapproveMutation.isPending && handleDisapproveDialogChange(open)}
-        title="Draft execution"
+        title={t('content.disapproveTitle')}
         description={
           selectedExecutionInfo ? (
-            <>
-              Are you sure you want to convert the execution to draft <strong>{selectedExecutionInfo.name}</strong>?
-              <br />
-              This will mark the execution as draft and remove it from production use.
-            </>
+            t('content.disapproveDescription', { name: selectedExecutionInfo.name })
           ) : (
-            "Are you sure you want to convert the execution to draft this execution? This will mark it as draft and remove it from production use."
+            t('content.disapproveFallback')
           )
         }
         onConfirm={handleDisapproveConfirm}
-        confirmLabel="Convert to Draft"
+        confirmLabel={t('content.convertToDraft')}
         isProcessing={disapproveMutation.isPending}
+        variant="destructive"
+      />
+
+      {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
+      <ReusableAlertDialog
+        open={isCheckLifecycleDialogOpen}
+        onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
+        title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
+        description={
+          documentContent?.lifecycle_status?.will_advance_phase
+            ? t('lifecycle.advanceStateDescription')
+            : t('lifecycle.advanceStepDescription')
+        }
+        onConfirm={() => checkLifecycleMutation.mutate()}
+        confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
+        isProcessing={checkLifecycleMutation.isPending}
+        variant="default"
+      />
+
+      {/* Lifecycle Reject (Go Back) Confirmation AlertDialog */}
+      <ReusableAlertDialog
+        open={isRejectLifecycleDialogOpen}
+        onOpenChange={(open) => !rejectLifecycleMutation.isPending && setIsRejectLifecycleDialogOpen(open)}
+        title={t('lifecycle.returnTitle')}
+        description={t('lifecycle.returnDescription')}
+        onConfirm={() => rejectLifecycleMutation.mutate()}
+        confirmLabel={t('lifecycle.returnConfirm')}
+        isProcessing={rejectLifecycleMutation.isPending}
+        variant="destructive"
+      />
+
+      {/* Publish Confirmation AlertDialog */}
+      <ReusableAlertDialog
+        open={isPublishDialogOpen}
+        onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
+        title={t('lifecycle.publishTitle')}
+        description={t('lifecycle.publishDescription')}
+        onConfirm={() => advanceLifecycleMutation.mutate()}
+        confirmLabel={t('lifecycle.publishConfirm')}
+        isProcessing={advanceLifecycleMutation.isPending}
+        variant="default"
+      />
+
+      {/* Archive Confirmation AlertDialog */}
+      <ReusableAlertDialog
+        open={isArchiveDialogOpen}
+        onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsArchiveDialogOpen(open)}
+        title={t('lifecycle.archiveTitle')}
+        description={t('lifecycle.archiveDescription')}
+        onConfirm={() => advanceLifecycleMutation.mutate()}
+        confirmLabel={t('lifecycle.archiveConfirm')}
+        isProcessing={advanceLifecycleMutation.isPending}
         variant="destructive"
       />
 
@@ -3345,15 +3374,14 @@ export function AssetContent({
         isMobile={isMobile}
         selectedExecutionId={selectedExecutionId}
         executionContext={executionContext}
-        accessLevels={accessLevels}
         disabled={hasExecutionInProcess || !fullDocument?.sections || fullDocument.sections.length === 0 || !defaultLLM?.id}
         disabledReason={
           hasExecutionInProcess 
-            ? "There's already an execution running" 
+            ? t('content.executionRunning') 
             : !fullDocument?.sections || fullDocument.sections.length === 0 
-              ? "This document needs sections before it can be executed" 
+              ? t('content.needsSections') 
               : !defaultLLM?.id 
-                ? "No default LLM available" 
+                ? t('content.noDefaultLlm') 
                 : undefined
         }
       />
@@ -3400,10 +3428,10 @@ export function AssetContent({
             handleCancelDeleteCustomFieldDocument();
           }
         }}
-        title="Delete Custom Field Document"
-        description={`Are you sure you want to delete the custom field "${customFieldDocumentToDelete?.name}"? This action cannot be undone and will remove this field data from the document.`}
+        title={t('content.deleteCustomFieldTitle')}
+        description={t('content.deleteCustomFieldDescription', { name: customFieldDocumentToDelete?.name })}
         onConfirm={handleConfirmDeleteCustomFieldDocument}
-        confirmLabel="Delete"
+        confirmLabel={t('content.deleteCustomFieldConfirm')}
         isProcessing={isDeletingCustomFieldDocument}
         variant="destructive"
       />
@@ -3417,6 +3445,14 @@ export function AssetContent({
         onTemplateCreated={(template) => {
           navigate(`/templates/${template.id}`);
         }}
+      />
+
+      {/* Assign Version Dialog */}
+      <AssignVersionDialog
+        open={isAssignVersionDialogOpen}
+        onOpenChange={(open) => { if (!assignVersionMutation.isPending) setIsAssignVersionDialogOpen(open); }}
+        onConfirm={(version) => assignVersionMutation.mutate(version)}
+        isProcessing={assignVersionMutation.isPending}
       />
     </>
   );

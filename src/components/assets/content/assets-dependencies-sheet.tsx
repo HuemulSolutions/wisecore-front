@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import AddDependencySheet from "@/components/dependency/dependency-add";
+import type { LifecyclePermissions } from "@/types/assets";
 
 interface DependenciesSheetProps {
   selectedFile: {
@@ -14,8 +15,10 @@ interface DependenciesSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
-  accessLevels?: string[];
   documentName?: string;
+  lifecyclePermissions?: LifecyclePermissions;
+  stage?: string;
+  showTrigger?: boolean;
 }
 
 export function DependenciesSheet({
@@ -23,31 +26,48 @@ export function DependenciesSheet({
   isOpen,
   onOpenChange,
   isMobile = false,
-  accessLevels,
-  documentName
+  documentName,
+  lifecyclePermissions,
+  stage,
+  showTrigger = true,
 }: DependenciesSheetProps) {
   const { t } = useTranslation('dependencies')
 
+  // Can access sheet: review, approve, publish, create or edit
+  const canAccess = !!(
+    lifecyclePermissions?.review ||
+    lifecyclePermissions?.approve ||
+    lifecyclePermissions?.publish ||
+    lifecyclePermissions?.create ||
+    lifecyclePermissions?.edit
+  );
+
+  // Can add/remove dependencies: only create or edit, and only in edit stage
+  const canEdit = !!(lifecyclePermissions?.create || lifecyclePermissions?.edit) && stage === 'edit';
+
+  if (!canAccess) return null;
+
   return (
     <>
-      <HuemulButton
-        accessLevels={accessLevels || selectedFile?.access_levels}
-        requiredAccess={["edit", "create"]}
-        requireAll={false}
-        checkGlobalPermissions={true}
-        resource="asset"
-        size="sm"
-        variant="ghost"
-        onClick={() => onOpenChange(true)}
-        className={isMobile
-          ? "h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors rounded-full"
-          : "h-8 px-3 text-[#4464f7] hover:bg-[#4464f7] hover:text-white transition-colors text-xs"
-        }
-        tooltip={t('sheet.buttonTooltip')}
-      >
-        <Link2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
-        {!isMobile && t('sheet.buttonLabel')}
-      </HuemulButton>
+      {showTrigger && (
+        <HuemulButton
+          requiredAccess={["edit", "create"]}
+          requireAll={false}
+          checkGlobalPermissions={true}
+          resource="asset"
+          lifecyclePermissions={lifecyclePermissions}
+          size="sm"
+          variant="ghost"
+          onClick={() => onOpenChange(true)}
+          className={isMobile
+            ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
+            : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+          }
+        >
+          <Link2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
+          {!isMobile && t('sheet.buttonLabel')}
+        </HuemulButton>
+      )}
 
       <HuemulSheet
         open={isOpen}
@@ -68,7 +88,7 @@ export function DependenciesSheet({
 
           {/* Dependencies Component */}
           {selectedFile && (
-            <AddDependencySheet id={selectedFile.id} isSheetOpen={isOpen} />
+            <AddDependencySheet id={selectedFile.id} isSheetOpen={isOpen} canEdit={canEdit} />
           )}
         </div>
       </HuemulSheet>

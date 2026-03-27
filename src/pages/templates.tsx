@@ -41,17 +41,19 @@ export default function Templates() {
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const hasRestoredRef = useRef(false);
 
   // Query para listar templates - solo si tiene permisos
   const { data: templatesData, error: queryError, isFetching } = useQuery({
-    queryKey: ["templates", selectedOrganizationId, searchTerm],
-    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined),
+    queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize],
+    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined, page, pageSize),
     enabled: !!selectedOrganizationId && canListTemplates,
     retry: false,
   });
 
-  const templates = templatesData || [];
+  const templates = templatesData?.data || [];
 
   // Manejar selección de template
   const handleTemplateSelect = (template: TemplateItem) => {
@@ -77,6 +79,7 @@ export default function Templates() {
   useEffect(() => {
     setSelectedTemplate(null);
     hasRestoredRef.current = false;
+    setPage(1);
   }, [selectedOrganizationId]);
 
   return (
@@ -95,12 +98,20 @@ export default function Templates() {
               navigate('/templates', { replace: true });
             }}
             organizationId={selectedOrganizationId}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm] })}
-            onSearch={setSearchTerm}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize] })}
+            onSearch={(term) => { setSearchTerm(term); setPage(1); }}
             searchValue={searchTerm}
             canCreate={canCreateTemplate}
             canUpdate={canUpdateTemplate}
             canDelete={canDeleteTemplate}
+            pagination={{
+              page: templatesData?.page ?? page,
+              pageSize: templatesData?.page_size ?? pageSize,
+              hasNext: templatesData?.has_next ?? false,
+              hasPrevious: (templatesData?.page ?? page) > 1,
+              onPageChange: setPage,
+              onPageSizeChange: (size) => { setPageSize(size); setPage(1); },
+            }}
           />
         </ResizablePanel>
 

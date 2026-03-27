@@ -1,4 +1,5 @@
 import { Folder as FolderIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface LoadingOverlayProps {
   message?: string;
@@ -10,9 +11,12 @@ interface LoadingOverlayProps {
  * Covers the entire parent container with a semi-transparent backdrop
  */
 export function LoadingOverlay({ 
-  message = "Loading document...", 
-  subtitle = "Please wait a moment" 
+  message, 
+  subtitle 
 }: LoadingOverlayProps) {
+  const { t } = useTranslation('assets');
+  const displayMessage = message ?? t('loadingOverlay.message');
+  const displaySubtitle = subtitle ?? t('loadingOverlay.subtitle');
   return (
     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="text-center">
@@ -24,8 +28,8 @@ export function LoadingOverlay({
             <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce"></div>
           </div>
         </div>
-        <p className="text-sm font-medium text-gray-700">{message}</p>
-        <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+        <p className="text-sm font-medium text-gray-700">{displayMessage}</p>
+        <p className="text-xs text-gray-500 mt-1">{displaySubtitle}</p>
       </div>
     </div>
   );

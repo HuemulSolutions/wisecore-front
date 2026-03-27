@@ -32,6 +32,11 @@ const translations = {
   noPermission: { en: "You don't have permission to access this page.", es: "No tienes permiso para acceder a esta página." },
   selectPlaceholder: { en: "Select...", es: "Seleccionar..." },
   searchPlaceholder: { en: "Search...", es: "Buscar..." },
+  noResults: { en: "No results found.", es: "Sin resultados." },
+  loadMore: { en: "Load more", es: "Cargar más" },
+  loading: { en: "Loading...", es: "Cargando..." },
+  loadingMore: { en: "Loading more...", es: "Cargando más..." },
+  noMoreResults: { en: "No more results", es: "No hay más resultados" },
   pagination: {
     itemsPerPage: { en: "Items per page:", es: "Elementos por página:" },
     page: { en: "Page", es: "Página" },

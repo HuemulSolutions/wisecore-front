@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export function SectionRegenerationFeedback({
 }: SectionRegenerationFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('execute');
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
 
   // Poll execution status
@@ -75,12 +77,12 @@ export function SectionRegenerationFeedback({
         <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-3" />
         <p className="text-sm font-medium text-gray-900">
           {executionMode === 'single' 
-            ? `Regenerating section ${sectionIndex + 1}${totalSections ? ` of ${totalSections}` : ''}...`
-            : `Regenerating from section ${sectionIndex + 1}${totalSections ? ` of ${totalSections}` : ''}...`
+            ? t('sectionRegeneration.regeneratingSingle', { current: sectionIndex + 1, ofTotal: totalSections ? t('sectionRegeneration.ofTotal', { total: totalSections }) : '' })
+            : t('sectionRegeneration.regeneratingFrom', { current: sectionIndex + 1, ofTotal: totalSections ? t('sectionRegeneration.ofTotal', { total: totalSections }) : '' })
           }
         </p>
         <p className="text-xs text-gray-600 mt-1 mb-3">
-          {execution.status === 'pending' ? 'Starting...' : 'Processing...'}
+          {execution.status === 'pending' ? t('sectionRegeneration.starting') : t('sectionRegeneration.processing')}
         </p>
         <Button
           variant="ghost"
@@ -89,7 +91,7 @@ export function SectionRegenerationFeedback({
           className="hover:cursor-pointer text-xs"
         >
           <RefreshCw className="h-3 w-3 mr-1" />
-          Refresh
+          {t('sectionRegeneration.refresh')}
         </Button>
       </div>
     </div>

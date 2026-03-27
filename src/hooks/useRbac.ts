@@ -9,7 +9,7 @@ export const rbacQueryKeys = {
   permissions: () => [...rbacQueryKeys.all, 'permissions'] as const,
   rolePermissions: (roleId: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId] as const,
   userRoles: (userId: string) => [...rbacQueryKeys.all, 'userRoles', userId] as const,
-  userAllRoles: (userId: string) => [...rbacQueryKeys.all, 'userAllRoles', userId] as const,
+  userAllRoles: (userId: string, page?: number, pageSize?: number) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10] as const,
   roleWithAllUsers: (roleId: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId] as const,
 }
 
@@ -61,10 +61,10 @@ export function useUserRoles(userId: string, enabled: boolean = true) {
 }
 
 // Hook for fetching all roles with user assignment status
-export function useUserAllRoles(userId: string, enabled: boolean = true) {
+export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10) {
   return useQuery({
-    queryKey: rbacQueryKeys.userAllRoles(userId),
-    queryFn: () => getUserAllRoles(userId),
+    queryKey: rbacQueryKeys.userAllRoles(userId, page, pageSize),
+    queryFn: () => getUserAllRoles(userId, page, pageSize),
     enabled: !!userId && userId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
     retry: 1,

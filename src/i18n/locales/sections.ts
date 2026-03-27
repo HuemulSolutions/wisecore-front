@@ -9,10 +9,10 @@ const translations = {
   },
   update: {
     label: { en: "Update", es: "Actualizar" },
-    documentToTemplate: { en: "Document -> Template", es: "Documento -> Plantilla" },
+    documentToTemplate: { en: "Asset -> Template", es: "Activo -> Plantilla" },
     documentToTemplateDesc: { en: "Update the template", es: "Actualizar la plantilla" },
-    templateToDocument: { en: "Template -> Document", es: "Plantilla -> Documento" },
-    templateToDocumentDesc: { en: "Update the document", es: "Actualizar el documento" },
+    templateToDocument: { en: "Template -> Asset", es: "Plantilla -> Activo" },
+    templateToDocumentDesc: { en: "Update the asset", es: "Actualizar el activo" },
     syncing: { en: "Syncing...", es: "Sincronizando..." },
   },
   header: {
@@ -32,11 +32,11 @@ const translations = {
   },
   emptyState: {
     title: { en: "No Sections Yet", es: "Sin secciones aún" },
-    description: { en: "Start by adding sections to structure your document content.", es: "Comienza agregando secciones para estructurar el contenido de tu documento." },
+    description: { en: "Start by adding sections to structure your asset content.", es: "Comienza agregando secciones para estructurar el contenido de tu activo." },
   },
   addDialog: {
     title: { en: "Add New Section", es: "Agregar Nueva Sección" },
-    description: { en: "Create a structured section for your document with AI assistance", es: "Crea una sección estructurada para tu documento con asistencia de IA" },
+    description: { en: "Create a structured section for your asset with AI assistance", es: "Crea una sección estructurada para tu activo con asistencia de IA" },
     save: { en: "Save Section", es: "Guardar Sección" },
     adding: { en: "Adding...", es: "Agregando..." },
     generating: { en: "Generating...", es: "Generando..." },
@@ -51,8 +51,8 @@ const translations = {
     addedToVersion: { en: "Section added to current version", es: "Sección agregada a la versión actual" },
     noCurrentVersion: { en: "No current version available", es: "No hay versión actual disponible" },
     noVersionForAsset: { en: "No current version available for this asset", es: "No hay versión actual disponible para este activo" },
-    documentSynced: { en: "Document synced from template", es: "Documento sincronizado desde la plantilla" },
-    templateSynced: { en: "Template synced from document", es: "Plantilla sincronizada desde el documento" },
+    documentSynced: { en: "Asset synced from template", es: "Activo sincronizado desde la plantilla" },
+    templateSynced: { en: "Template synced from asset", es: "Plantilla sincronizada desde el activo" },
     linkError: { en: "Could not add section to current version", es: "No se pudo agregar la sección a la versión actual" },
   },
   form: {
@@ -86,7 +86,7 @@ const translations = {
     },
     manualInput: {
       label: { en: "Manual Input (Optional)", es: "Entrada Manual (Opcional)" },
-      description: { en: "This content can be edited later when working with the document", es: "Este contenido puede editarse más tarde al trabajar con el documento" },
+      description: { en: "This content can be edited later when working with the asset", es: "Este contenido puede editarse más tarde al trabajar con el activo" },
     },
     reference: {
       selectAssetLabel: { en: "Select Asset", es: "Seleccionar Activo" },

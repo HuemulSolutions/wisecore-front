@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon } from "lucide-react";
+import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { Value } from "platejs";
 
@@ -55,7 +55,8 @@ export type HuemulFieldType =
   | "color"
   | "date"
   | "radio"
-  | "richtext";
+  | "richtext"
+  | "async-select";
 
 export interface HuemulFieldOption {
   /** Display label */
@@ -68,6 +69,26 @@ export interface HuemulFieldOption {
   icon?: LucideIcon;
   /** Optional hex color — renders a filled circle before the label */
   color?: string;
+}
+
+// ── Async Select types ────────────────────────────────────────────────────
+
+export interface AsyncSelectOption {
+  value: string;
+  label: string;
+  color?: string;
+}
+
+export interface FetchOptionsParams {
+  search: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface FetchOptionsResult {
+  options: AsyncSelectOption[];
+  hasMore: boolean;
+  totalCount?: number;
 }
 
 export interface HuemulFieldLabelAction {
@@ -169,6 +190,18 @@ export interface HuemulFieldProps {
   autoFocus?: boolean;
   /** Autocomplete hint */
   autoComplete?: string;
+  // ── Async Select ──────────────────────────────────────────────────────────
+  /** Async fetch function for async-select type */
+  fetchOptions?: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
+  /** Page size for async-select pagination (default: 10) */
+  pageSize?: number;
+  /** Debounce delay in ms for async-select search (default: 300) */
+  debounceMs?: number;
+  /** Pre-selected label for async-select — shown when value is set but options haven't loaded yet */
+  selectedLabel?: string;
+  /** Pre-selected color for async-select — shown alongside selectedLabel before options load */
+  selectedColor?: string;
+
   // ── Slot ─────────────────────────────────────────────────────────────────
   /** Optional content rendered below the control (e.g. tag list) */
   children?: React.ReactNode;}
@@ -632,6 +665,261 @@ function DateInputField({
   );
 }
 
+// ── Async Select Field ────────────────────────────────────────────────────
+
+function AsyncSelectField({
+  fieldId,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  error,
+  inputClassName,
+  fetchOptions,
+  pageSize = 10,
+  externalSelectedLabel,
+  externalSelectedColor,
+}: {
+  fieldId: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+  fetchOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
+  pageSize?: number;
+  externalSelectedLabel?: string;
+  externalSelectedColor?: string;
+}) {
+  const { t } = useTranslation('common');
+  const [open, setOpen] = React.useState(false);
+  const [options, setOptions] = React.useState<AsyncSelectOption[]>([]);
+  const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [selectedLabel, setSelectedLabel] = React.useState("");
+  const [selectedColor, setSelectedColor] = React.useState<string | undefined>(undefined);
+
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const isInitialMount = React.useRef(true);
+
+  const loadOptions = React.useCallback(
+    async (searchTerm: string, pageNum: number, append = false) => {
+      const isPaginating = pageNum > 1;
+      if (isPaginating) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
+      try {
+        const [result] = await Promise.all([
+          fetchOptions({ search: searchTerm, page: pageNum, pageSize }),
+          isPaginating ? new Promise((r) => setTimeout(r, 400)) : Promise.resolve(),
+        ]);
+        setOptions((prev) => append ? [...prev, ...(result as FetchOptionsResult).options] : (result as FetchOptionsResult).options);
+        setHasMore((result as FetchOptionsResult).hasMore);
+        setPage(pageNum);
+      } catch (err) {
+        console.error("Error fetching options:", err);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [fetchOptions, pageSize],
+  );
+
+  // Load initial options when popover opens
+  React.useEffect(() => {
+    if (open && isInitialMount.current) {
+      isInitialMount.current = false;
+      loadOptions("", 1);
+    }
+  }, [open, loadOptions]);
+
+  // Reset state when popover closes
+  React.useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setPage(1);
+      setOptions([]);
+      setHasMore(true);
+      isInitialMount.current = true;
+    }
+  }, [open]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setPage(1);
+      setHasMore(true);
+      loadOptions(search, 1, false);
+    }
+  };
+
+  const handleScroll = React.useCallback(() => {
+    const list = listRef.current;
+    if (!list || isLoadingMore || !hasMore) return;
+    const { scrollTop, scrollHeight, clientHeight } = list;
+    if (scrollHeight - scrollTop - clientHeight < 50) {
+      loadOptions(search, page + 1, true);
+    }
+  }, [hasMore, isLoadingMore, loadOptions, page, search]);
+
+  // Keep selectedLabel / selectedColor in sync when options list changes
+  React.useEffect(() => {
+    if (value) {
+      const option = options.find((opt) => opt.value === String(value));
+      if (option) {
+        setSelectedLabel(option.label);
+        setSelectedColor(option.color);
+      } else if (externalSelectedLabel) {
+        setSelectedLabel(externalSelectedLabel);
+        setSelectedColor(externalSelectedColor);
+      }
+    } else {
+      setSelectedLabel("");
+      setSelectedColor(undefined);
+    }
+  }, [value, options, externalSelectedLabel, externalSelectedColor]);
+
+  const strValue = String(value ?? "");
+
+  const handleSelect = (selectedValue: string) => {
+    const newValue = selectedValue === strValue ? "" : selectedValue;
+    onChange?.(newValue);
+    if (newValue) {
+      const option = options.find((opt) => opt.value === newValue);
+      if (option) {
+        setSelectedLabel(option.label);
+        setSelectedColor(option.color);
+      }
+    } else {
+      setSelectedLabel("");
+      setSelectedColor(undefined);
+    }
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id={fieldId}
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-invalid={!!error || undefined}
+          disabled={disabled}
+          className={cn(
+            "w-full justify-between font-normal hover:cursor-pointer",
+            !strValue && "text-muted-foreground",
+            error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+            inputClassName,
+          )}
+        >
+          <span className="flex items-center gap-2 truncate">
+            {strValue && selectedColor && (
+              <span
+                className="shrink-0 size-3 rounded-full"
+                style={{ backgroundColor: selectedColor }}
+              />
+            )}
+            <span className="truncate">
+              {strValue && selectedLabel ? selectedLabel : (placeholder || t('selectPlaceholder'))}
+            </span>
+          </span>
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <div className="flex items-center border-b px-3">
+          <Input
+            placeholder={t('searchPlaceholder')}
+            value={search}
+            onChange={handleSearchChange}
+            onKeyDown={handleSearchKeyDown}
+            className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 h-9"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                loadOptions("", 1, false);
+              }}
+              className="text-muted-foreground hover:text-foreground hover:cursor-pointer"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+        <div
+          ref={listRef}
+          className="max-h-60 overflow-y-auto p-1"
+          onScroll={handleScroll}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {isLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">{t('loading')}</span>
+            </div>
+          ) : options.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('noResults')}</p>
+          ) : (
+            <>
+              {options.map((option) => {
+                const isSelected = strValue === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={cn(
+                      "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
+                      "hover:bg-accent hover:text-accent-foreground",
+                      isSelected && "bg-accent text-accent-foreground",
+                    )}
+                    onClick={() => handleSelect(option.value)}
+                  >
+                    <span className="flex size-4 items-center justify-center">
+                      {isSelected && <Check className="size-4" />}
+                    </span>
+                    {option.color && (
+                      <span
+                        className="shrink-0 size-3 rounded-full"
+                        style={{ backgroundColor: option.color }}
+                      />
+                    )}
+                    <span className="truncate">{option.label}</span>
+                  </button>
+                );
+              })}
+              {isLoadingMore && (
+                <div className="flex items-center justify-center py-2">
+                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-xs text-muted-foreground">{t('loadingMore')}</span>
+                </div>
+              )}
+              {!hasMore && options.length > 0 && (
+                <p className="py-2 text-center text-xs text-muted-foreground">{t('noMoreResults')}</p>
+              )}
+            </>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export function HuemulField({
@@ -667,6 +955,10 @@ export function HuemulField({
   autoComplete,
   inline,
   labelFirst,
+  fetchOptions,
+  pageSize = 10,
+  selectedLabel,
+  selectedColor,
   children,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
@@ -896,6 +1188,23 @@ export function HuemulField({
             )}
           </div>
         );
+
+      case "async-select":
+        return fetchOptions ? (
+          <AsyncSelectField
+            fieldId={fieldId}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            error={error}
+            inputClassName={inputClassName}
+            fetchOptions={fetchOptions}
+            pageSize={pageSize}
+            externalSelectedLabel={selectedLabel}
+            externalSelectedColor={selectedColor}
+          />
+        ) : null;
 
       case "richtext":
         return (

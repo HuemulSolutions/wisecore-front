@@ -155,6 +155,23 @@ export function HuemulDialog({
     }
   }, [open]);
 
+  // Submit on Enter key (skip textareas)
+  React.useEffect(() => {
+    if (!open || !saveAction) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "TEXTAREA") return;
+      if (saveAction.disabled || saveAction.loading || saveLoading) return;
+      e.preventDefault();
+      handleActionClick(saveAction, setSaveLoading, true);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, saveAction, saveLoading, handleActionClick]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent

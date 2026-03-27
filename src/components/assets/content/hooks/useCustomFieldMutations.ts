@@ -9,6 +9,7 @@ import {
   updateCustomFieldDocument,
   deleteCustomFieldDocument,
 } from '@/services/custom-fieldds-documents';
+import { useTranslation } from 'react-i18next';
 
 interface UseCustomFieldMutationsProps {
   selectedFileId?: string;
@@ -16,6 +17,7 @@ interface UseCustomFieldMutationsProps {
 
 export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutationsProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('assets');
 
   // Mutation for creating custom field document
   const createCustomFieldDocumentMutation = useMutation({
@@ -25,7 +27,7 @@ export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutati
     onSuccess: (createdField) => {
       if (createdField.data_type !== 'image') {
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFileId] });
-        toast.success('Custom field document created successfully!');
+        toast.success(t('mutations.customFieldCreated'));
       }
       return createdField;
     },
@@ -38,7 +40,7 @@ export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutati
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFileId] });
-      toast.success('Custom field document updated successfully!');
+      toast.success(t('mutations.customFieldUpdated'));
     },
   });
 
@@ -49,7 +51,7 @@ export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutati
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFileId] });
-      toast.success('Custom field document deleted successfully!');
+      toast.success(t('mutations.customFieldDeleted'));
     },
   });
 

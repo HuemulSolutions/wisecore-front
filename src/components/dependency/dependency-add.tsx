@@ -39,9 +39,10 @@ interface DocumentType {
 interface AddDependencySheetProps {
     id: string;
     isSheetOpen?: boolean;
+    canEdit?: boolean;
 }
 
-export default function AddDependencySheet({ id, isSheetOpen = true }: AddDependencySheetProps) {
+export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = true }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [dependencyToDelete, setDependencyToDelete] = useState<string | null>(null);
@@ -152,7 +153,8 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
         <>
             <div className="space-y-6">
                 {/* Add New Dependency Section */}
-                <div className="border rounded-lg bg-white shadow-sm">
+                {canEdit && (
+                  <div className="border rounded-lg bg-white shadow-sm">
                     {/* Header */}
                     <div className="flex items-center gap-2 p-4 border-b border-gray-100 bg-gray-50">
                         <Plus className="h-4 w-4 text-[#4464f7]" />
@@ -178,7 +180,8 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                             </div>
                         )}
                     </div>
-                </div>
+                  </div>
+                )}
 
                 {/* Existing Dependencies Section */}
                 <div className="border rounded-lg bg-white shadow-sm">
@@ -232,16 +235,18 @@ export default function AddDependencySheet({ id, isSheetOpen = true }: AddDepend
                                                 className="h-7 w-7 p-0"
                                                 tooltip={t('viewDocument')}
                                             />
-                                            <HuemulButton
-                                                size="sm"
-                                                variant="outline"
-                                                icon={Trash2}
-                                                iconClassName="h-3 w-3"
-                                                onClick={() => handleRemoveDependency(dependency.document_id)}
-                                                disabled={removeDependencyMutation.isPending}
-                                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                tooltip={t('removeDependency')}
-                                            />
+                                            {canEdit && (
+                                              <HuemulButton
+                                                  size="sm"
+                                                  variant="outline"
+                                                  icon={Trash2}
+                                                  iconClassName="h-3 w-3"
+                                                  onClick={() => handleRemoveDependency(dependency.document_id)}
+                                                  disabled={removeDependencyMutation.isPending}
+                                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                  tooltip={t('removeDependency')}
+                                              />
+                                            )}
                                         </div>
                                     </div>
                                 ))}

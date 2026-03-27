@@ -16,9 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
 import { EditStepContent } from "./assets-types-lifecycle-edit-step"
 
-// Steps that show a Save button in the footer when in edit mode
-const STEPS_WITH_FOOTER = new Set(["create", "publish", "archive", "view"])
-
 // Handles all step types that are not "create" or "edit" (review, approve, etc.)
 
 interface DefaultStepContentProps {
@@ -173,7 +170,6 @@ interface StepContentProps {
   documentTypeId: string
   stepType: string
   stepLabel: string
-  onRegisterSave?: (fn: (() => Promise<void>) | null, isPending: boolean) => void
   onEditingChange?: (isEditing: boolean) => void
 }
 
@@ -181,7 +177,6 @@ function StepContent({
   documentTypeId,
   stepType,
   stepLabel,
-  onRegisterSave,
   onEditingChange,
 }: StepContentProps) {
   if (stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive") {
@@ -190,7 +185,6 @@ function StepContent({
         documentTypeId={documentTypeId}
         stepType={stepType}
         hasSla={stepType === "publish" || stepType === "archive"}
-        onRegisterSave={onRegisterSave}
         onEditingChange={onEditingChange}
       />
     )
@@ -252,17 +246,6 @@ export default function AssetTypeLifecycleDialog({
     [guardedAction, onOpenChange]
   )
 
-  // Save fn + pending state lifted to dialog footer (shared across all editable steps) â€” lifted to dialog footer
-  const activeStepSaveFnRef = useRef<(() => Promise<void>) | null>(null)
-  const [activeStepSavePending, setActiveStepSavePending] = useState(false)
-
-  const handleRegisterSave = useCallback(
-    (fn: (() => Promise<void>) | null, isPending: boolean) => {
-      activeStepSaveFnRef.current = fn
-      setActiveStepSavePending(isPending)
-    },
-    []
-  )
 
   // Select first step type once loaded or when dialog opens
   useEffect(() => {
@@ -311,20 +294,7 @@ export default function AssetTypeLifecycleDialog({
         name: assetType?.document_type_name ?? "",
       })}
       icon={Activity}
-      showFooter={STEPS_WITH_FOOTER.has(activeStep ?? "") && activeStepIsEditing}
-      showCancelButton={false}
-      saveAction={
-        STEPS_WITH_FOOTER.has(activeStep ?? "") && activeStepIsEditing
-          ? {
-              label: t("lifecycle.save"),
-              onClick: async () => {
-                await activeStepSaveFnRef.current?.()
-              },
-              loading: activeStepSavePending,
-              closeOnSuccess: false,
-            }
-          : undefined
-      }
+      showFooter={false}
       maxWidth="sm:max-w-5xl"
     >
       <div className="flex flex-col gap-4 py-2">
@@ -361,7 +331,6 @@ export default function AssetTypeLifecycleDialog({
             documentTypeId={assetType.document_type_id}
             stepType={activeStep}
             stepLabel={activeStepLabel}
-            onRegisterSave={handleRegisterSave}
             onEditingChange={setActiveStepIsEditing}
           />
         )}

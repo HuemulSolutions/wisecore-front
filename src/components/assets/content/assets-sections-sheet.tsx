@@ -5,6 +5,7 @@ import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown }
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { useOrganization } from "@/contexts/organization-context";
+import type { LifecyclePermissions } from "@/types/assets";
 import {
   Select,
   SelectContent,
@@ -43,7 +44,6 @@ interface SectionSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
-  accessLevels?: string[];
   executionId?: string | null;
   executionInfo?: {
     id: string;
@@ -53,6 +53,9 @@ interface SectionSheetProps {
     formattedDate?: string;
     isLatest?: boolean;
   } | null;
+  lifecyclePermissions?: LifecyclePermissions;
+  stage?: string;
+  showTrigger?: boolean;
 }
 
 interface SectionsConfigExecution {
@@ -98,9 +101,11 @@ export function SectionSheet({
   isOpen,
   onOpenChange,
   isMobile = false,
-  accessLevels,
   executionId,
-  executionInfo
+  executionInfo,
+  lifecyclePermissions,
+  stage,
+  showTrigger = true,
 }: SectionSheetProps) {
   const { t } = useTranslation('sections');
   const queryClient = useQueryClient();
@@ -111,6 +116,10 @@ export function SectionSheet({
   const [isGenerating, setIsGenerating] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
+
+  // Whether the current user can edit (add / update / delete / reorder) sections
+  // Requires edit/create permission AND the document must be in the 'edit' stage
+  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit';
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
@@ -341,24 +350,21 @@ export function SectionSheet({
 
   return (
     <>
-      <HuemulButton
-        size="sm"
-        variant="ghost"
-        icon={BetweenHorizontalStart}
-        iconClassName={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}
-        label={isMobile ? undefined : t('button.label')}
-        title={t('button.title')}
-        className={isMobile
-          ? "h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
-          : "h-8 px-3 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
-        }
-        accessLevels={accessLevels || selectedFile?.access_levels}
-        requiredAccess={["edit", "create"]}
-        requireAll={false}
-        checkGlobalPermissions={true}
-        resource="asset"
-        onClick={() => onOpenChange(true)}
-      />
+      {showTrigger && (
+        <HuemulButton
+          size="sm"
+          variant="ghost"
+          icon={BetweenHorizontalStart}
+          iconClassName={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}
+          label={isMobile ? undefined : t('button.label')}
+          title={t('button.title')}
+          className={isMobile
+            ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
+            : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+          }
+          onClick={() => onOpenChange(true)}
+        />
+      )}
 
       <HuemulSheet
         open={isOpen}
@@ -370,16 +376,17 @@ export function SectionSheet({
         maxWidth="sm:max-w-[90vw] lg:max-w-[800px]"
         showFooter={false}
         headerExtra={
+          canEditSections ? (
           <div className="flex items-center gap-2">
             {hasTemplateId && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <HuemulButton
-                    accessLevels={accessLevels || selectedFile?.access_levels}
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
-                    resource="asset"
+                    resource="section"
+                    lifecyclePermissions={lifecyclePermissions}
                     type="button"
                     size="sm"
                     variant="outline"
@@ -426,11 +433,11 @@ export function SectionSheet({
               </DropdownMenu>
             )}
             <HuemulButton
-              accessLevels={accessLevels || selectedFile?.access_levels}
               requiredAccess={["edit", "create"]}
               requireAll={false}
               checkGlobalPermissions={true}
-              resource="asset"
+              resource="section"
+              lifecyclePermissions={lifecyclePermissions}
               type="button"
               size="sm"
               className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
@@ -445,11 +452,11 @@ export function SectionSheet({
             </HuemulButton>
             {(!orderedSections || orderedSections.length === 0) && (
               <HuemulButton
-                accessLevels={accessLevels || selectedFile?.access_levels}
                 requiredAccess={["edit", "create"]}
                 requireAll={false}
                 checkGlobalPermissions={true}
-                resource="asset"
+                resource="section"
+                lifecyclePermissions={lifecyclePermissions}
                 type="button"
                 size="sm"
                 variant="outline"
@@ -462,6 +469,7 @@ export function SectionSheet({
               </HuemulButton>
             )}
           </div>
+          ) : undefined
         }
       >
         <div className="space-y-6">
@@ -502,7 +510,7 @@ export function SectionSheet({
           {orderedSections && orderedSections.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-gray-900">{t('sections.title', { count: orderedSections.length })}</h3>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <DndContext sensors={canEditSections ? sensors : []} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-3">
                     {orderedSections.map((section: any) => (
@@ -523,6 +531,8 @@ export function SectionSheet({
                           useExecutionDeleteDialog={true}
                           hasTemplate={!!fullDocument?.template_id}
                           isDisabledSection={section.not_in_execution === true}
+                          canUpdate={canEditSections}
+                          canDelete={canEditSections}
                           isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
                           onAddToCurrentVersion={(sectionId: string) => {
                             if (!executionInfo?.id && !executionId) {

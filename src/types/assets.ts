@@ -132,6 +132,9 @@ export interface ExecutionInfo {
   status: string;
   status_message: string;
   created_at: string;
+  version_major: number | null;
+  version_minor: number | null;
+  version_patch: number | null;
 }
 
 /**
@@ -148,18 +151,61 @@ export interface LifecyclePermissions {
 }
 
 /**
+ * Lifecycle status of a document
+ */
+export interface LifecycleStatus {
+  state: string;
+  stage: string;
+  current_group: string | null;
+  current_group_order: number;
+  current_step_id: string | null;
+  can_check: boolean;
+  will_advance_phase: boolean;
+  version: string | null;
+  version_required: boolean;
+}
+
+/**
+ * Computed frontend permissions derived from lifecycle_permissions.
+ * These are NOT returned by the backend — they are calculated on the frontend via
+ * computeFrontendPermissions() to express high-level UI capabilities.
+ * Permissions are based purely on what the user has access to, NOT on the current stage.
+ */
+export interface FrontendPermissions {
+  /** User can add/edit/delete sections (has create|edit permission) */
+  canEditSections: boolean;
+  /** User can open the section sheet in read-only mode (has create|edit|review|approve|publish permission) */
+  canAccessSectionSheet: boolean;
+  /** User can trigger AI execution on the document (has create|edit permission) */
+  canExecuteAI: boolean;
+  /** User can perform review actions (has review permission) */
+  canReviewContent: boolean;
+  /** User can approve/disapprove executions (has approve permission) */
+  canApproveContent: boolean;
+  /** User can publish the document (has publish permission) */
+  canPublishContent: boolean;
+  /** User can archive the document (has archive permission) */
+  canArchiveContent: boolean;
+}
+
+/**
  * Response from asset content API
  */
 export interface AssetContentResponse {
   data: {
     document_id: string;
+    document_name: string;
     execution_id: string;
     execution_name: string;
+    template_id: string | null;
+    template_name: string | null;
     document_type: DocumentType;
     executions: ExecutionInfo[];
     internal_code: string | null;
+    access_level: string;
     access_levels: string[];
     lifecycle_permissions?: LifecyclePermissions;
+    lifecycle_status?: LifecycleStatus;
     content: ContentSection[];
     created_by_user: UserInfo | null;
     updated_by_user: UserInfo | null;

@@ -3,15 +3,15 @@ const translations = {
   sheet: {
     buttonTooltip: { en: "Manage Dependencies", es: "Gestionar Dependencias" },
     buttonLabel: { en: "Dependencies", es: "Dependencias" },
-    title: { en: "Document Dependencies", es: "Dependencias del Documento" },
+    title: { en: "Asset Dependencies", es: "Dependencias del Activo" },
     description: {
-      en: "Configure document dependencies and relationships with other assets.",
-      es: "Configura las dependencias y relaciones del documento con otros recursos.",
+      en: "Configure asset dependencies and relationships with other assets.",
+      es: "Configura las dependencias y relaciones del activo con otros recursos.",
     },
-    documentLabel: { en: "Document: {{name}}", es: "Documento: {{name}}" },
+    documentLabel: { en: "Asset: {{name}}", es: "Activo: {{name}}" },
     documentDescription: {
-      en: "Link this document with other documents, templates, or external resources to create relationships and shared context.",
-      es: "Vincula este documento con otros documentos, plantillas o recursos externos para crear relaciones y contexto compartido.",
+      en: "Link this asset with other assets, templates, or external resources to create relationships and shared context.",
+      es: "Vincula este activo con otros activos, plantillas o recursos externos para crear relaciones y contexto compartido.",
     },
   },
   // dependency-add.tsx
@@ -28,12 +28,12 @@ const translations = {
   empty: {
     title: { en: "No dependencies configured", es: "Sin dependencias configuradas" },
     description: {
-      en: "Add document dependencies to create relationships and shared context.",
-      es: "Agrega dependencias de documentos para crear relaciones y contexto compartido.",
+      en: "Add asset dependencies to create relationships and shared context.",
+      es: "Agrega dependencias de activos para crear relaciones y contexto compartido.",
     },
   },
   sectionLabel: { en: "Section: {{name}}", es: "Sección: {{name}}" },
-  viewDocument: { en: "View Document", es: "Ver Documento" },
+  viewDocument: { en: "View Asset", es: "Ver Activo" },
   removeDependency: { en: "Remove Dependency", es: "Eliminar Dependencia" },
   toast: {
     added: { en: "Dependency added successfully", es: "Dependencia agregada exitosamente" },
@@ -44,8 +44,8 @@ const translations = {
   deleteDialog: {
     title: { en: "Remove Dependency", es: "Eliminar Dependencia" },
     description: {
-      en: "Are you sure you want to remove this dependency? This action cannot be undone and may affect document relationships.",
-      es: "¿Estás seguro de que deseas eliminar esta dependencia? Esta acción no se puede deshacer y puede afectar las relaciones del documento.",
+      en: "Are you sure you want to remove this dependency? This action cannot be undone and may affect asset relationships.",
+      es: "¿Estás seguro de que deseas eliminar esta dependencia? Esta acción no se puede deshacer y puede afectar las relaciones del activo.",
     },
     removeButton: { en: "Remove", es: "Eliminar" },
   },

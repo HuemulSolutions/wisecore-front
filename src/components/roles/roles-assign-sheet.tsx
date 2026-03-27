@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card } from "@/components/ui/card"
-import { UserCheck, Shield, RefreshCw } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { UserCheck, Shield, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
 import { useUserAllRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { type User } from "@/types/users"
@@ -23,10 +24,12 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   const { t } = useTranslation(['roles', 'common'])
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [, setHasInitialized] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const queryClient = useQueryClient()
   
   // Fetch all roles with user assignment status when sheet is open
-  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user)
+  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user, page, pageSize)
   const { assignRoles } = useRoleMutations()
 
   const roles = userAllRolesResponse?.data || []
@@ -36,6 +39,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
     if (!open || !user) {
       setSelectedRoles([])
       setHasInitialized(false)
+      setPage(1)
     }
   }, [open, user?.id])
 
@@ -51,7 +55,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   // Invalidate queries when sheet opens
   useEffect(() => {
     if (open && user) {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(user.id) })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(user.id, page, pageSize) })
     }
   }, [open, user?.id, queryClient])
 
@@ -90,6 +94,8 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   // const isLoading = assignRoles.isPending
   const hasErrors = !!rolesError
   const isDataLoading = rolesLoading
+  const hasNext = userAllRolesResponse?.has_next ?? false
+  const hasPrevious = page > 1
 
   if (!user) return null
 
@@ -164,8 +170,8 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                 </p>
               </Card>
             ) : (
-              <div className="border rounded-md p-3">
-                <div className="space-y-2">
+              <div className="border rounded-md flex flex-col">
+                <div className="overflow-y-auto max-h-[75vh] p-3 space-y-2">
                   {roles.map((role) => (
                     <div key={role.id} className="flex items-center space-x-3 p-2 rounded-md border border-transparent hover:border-border hover:bg-muted/30 transition-colors">
                       <Checkbox
@@ -206,6 +212,58 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Pagination footer */}
+                <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-border bg-muted/20">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {t('common:pagination.itemsPerPage')}
+                    </span>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(v) => {
+                        setPageSize(Number(v))
+                        setPage(1)
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-[64px] text-xs hover:cursor-pointer">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 25, 50].map((s) => (
+                          <SelectItem key={s} value={s.toString()} className="text-xs">
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <span className="text-xs text-muted-foreground">
+                    {t('common:pagination.page')} {page}
+                  </span>
+
+                  <div className="flex items-center gap-1">
+                    <HuemulButton
+                      variant="outline"
+                      size="sm"
+                      icon={ChevronLeft}
+                      aria-label="Previous page"
+                      onClick={() => setPage((p) => p - 1)}
+                      disabled={!hasPrevious}
+                      className="h-7 w-7 p-0"
+                    />
+                    <HuemulButton
+                      variant="outline"
+                      size="sm"
+                      icon={ChevronRight}
+                      aria-label="Next page"
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={!hasNext}
+                      className="h-7 w-7 p-0"
+                    />
+                  </div>
                 </div>
               </div>
             )}

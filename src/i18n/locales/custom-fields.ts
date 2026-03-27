@@ -38,7 +38,7 @@ const translations = {
   },
   createDialog: {
     title: { en: "Create Custom Field", es: "Crear Campo Personalizado" },
-    description: { en: "Create a new custom field to extend your documents with additional data.", es: "Crea un nuevo campo personalizado para extender tus documentos con datos adicionales." },
+    description: { en: "Create a new custom field to extend your assets with additional data.", es: "Crea un nuevo campo personalizado para extender tus activos con datos adicionales." },
     saveLabel: { en: "Create Custom Field", es: "Crear Campo Personalizado" },
   },
   editDialog: {
@@ -54,7 +54,7 @@ const translations = {
     dataTypeLabel: { en: "Data Type", es: "Tipo de Dato" },
     maskLabel: { en: "Mask", es: "Máscara" },
     warningTitle: { en: "Warning", es: "Advertencia" },
-    warningMessage: { en: "Deleting this custom field will remove it from all documents that currently use it. Any data stored in this field will be lost permanently.", es: "Eliminar este campo personalizado lo quitará de todos los documentos que actualmente lo usan. Cualquier dato almacenado en este campo se perderá permanentemente." },
+    warningMessage: { en: "Deleting this custom field will remove it from all assets that currently use it. Any data stored in this field will be lost permanently.", es: "Eliminar este campo personalizado lo quitará de todos los activos que actualmente lo usan. Cualquier dato almacenado en este campo se perderá permanentemente." },
   },
   form: {
     namePlaceholder: { en: "Enter custom field name", es: "Ingresa el nombre del campo personalizado" },
@@ -69,7 +69,7 @@ const translations = {
   },
   addDialog: {
     title: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
-    descriptionDocument: { en: "Add an existing custom field to this document or create a new one.", es: "Agrega un campo personalizado existente a este documento o crea uno nuevo." },
+    descriptionDocument: { en: "Add an existing custom field to this asset or create a new one.", es: "Agrega un campo personalizado existente a este activo o crea uno nuevo." },
     descriptionTemplate: { en: "Add an existing custom field to this template or create a new one.", es: "Agrega un campo personalizado existente a esta plantilla o crea uno nuevo." },
     chooseOption: { en: "Choose an option", es: "Elige una opción" },
     useExisting: { en: "Use existing custom field", es: "Usar campo personalizado existente" },
@@ -78,7 +78,7 @@ const translations = {
     selectCustomFieldPlaceholder: { en: "Select a custom field", es: "Selecciona un campo personalizado" },
     valueSource: { en: "Value Source", es: "Fuente de Valor" },
     requiredField: { en: "Required Field", es: "Campo Requerido" },
-    requiredFieldDescDocument: { en: "Make this field mandatory for this document", es: "Hace este campo obligatorio para este documento" },
+    requiredFieldDescDocument: { en: "Make this field mandatory for this asset", es: "Hace este campo obligatorio para este activo" },
     requiredFieldDescTemplate: { en: "Make this field mandatory for this template", es: "Hace este campo obligatorio para esta plantilla" },
     promptLabel: { en: "Prompt (Required for Inferred)", es: "Prompt (Requerido para Inferido)" },
     promptPlaceholder: { en: "Enter prompt for this custom field", es: "Ingresa el prompt para este campo personalizado" },
@@ -91,7 +91,7 @@ const translations = {
     valuePlaceholderGeneric: { en: "Enter value", es: "Ingresa el valor" },
     selectFirstPlaceholder: { en: "Select a custom field or data type first", es: "Selecciona un campo personalizado o tipo de dato primero" },
     imageLabel: { en: "Image", es: "Imagen" },
-    imageUploadDescDocument: { en: "Image will be uploaded after creating the custom field document", es: "La imagen se subirá después de crear el campo personalizado del documento" },
+    imageUploadDescDocument: { en: "Image will be uploaded after creating the custom field asset", es: "La imagen se subirá después de crear el campo personalizado del activo" },
     imageUploadDescTemplate: { en: "Image will be uploaded after creating the custom field template", es: "La imagen se subirá después de crear el campo personalizado de la plantilla" },
     uploadingImage: { en: "Uploading image...", es: "Subiendo imagen..." },
     uploadFailed: { en: "Failed to upload image", es: "Error al subir la imagen" },
@@ -112,7 +112,7 @@ const translations = {
     noResultsTitle: { en: "No Custom Fields Found", es: "No Se Encontraron Campos Personalizados" },
     noResultsDescription: { en: "No custom fields match your current search criteria.", es: "Ningún campo personalizado coincide con tus criterios de búsqueda actuales." },
     emptyTitle: { en: "No Custom Fields", es: "Sin Campos Personalizados" },
-    emptyDescription: { en: "Get started by creating your first custom field to extend your documents with additional data.", es: "Comienza creando tu primer campo personalizado para extender tus documentos con datos adicionales." },
+    emptyDescription: { en: "Get started by creating your first custom field to extend your assets with additional data.", es: "Comienza creando tu primer campo personalizado para extender tus activos con datos adicionales." },
     tableEmptyTitle: { en: "No custom fields found", es: "No se encontraron campos personalizados" },
     tableEmptyDescription: { en: "No custom fields have been created yet or match your search criteria.", es: "Aún no se han creado campos personalizados o no coinciden con tus criterios de búsqueda." },
   },
