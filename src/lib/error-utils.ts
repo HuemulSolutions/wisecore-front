@@ -9,7 +9,7 @@ export interface HandleApiErrorOptions {
   fallbackMessage?: string;
   /** Whether to show a toast notification (default: true) */
   showToast?: boolean;
-  /** Whether to show the error detail as toast description (default: false) */
+  /** Whether to show the error detail as toast description (default: true) */
   showDescription?: boolean;
   /** Custom handler for specific error codes */
   onErrorCode?: (code: string) => boolean; // Return true to prevent default handling
@@ -54,7 +54,7 @@ export function handleApiError(
   const { 
     fallbackMessage = 'An unexpected error occurred', 
     showToast = true,
-    showDescription = false,
+    showDescription = true,
     onErrorCode 
   } = options;
 

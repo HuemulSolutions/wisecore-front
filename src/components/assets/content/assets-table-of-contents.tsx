@@ -88,10 +88,16 @@ export function TableOfContents({ items }: TableOfContentsProps) {
             setActiveId(id);
             isUserScrolling.current = true;
             
-            element.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
+            // Scroll within the ScrollArea viewport with an offset so the heading
+            // doesn't stick to the very top edge.
+            const SCROLL_OFFSET = 40;
+            const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+            if (viewport) {
+                const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+                viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+            } else {
+                element.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
             
             // Reset scrolling flag after animation completes
             if (scrollTimeout.current) {

@@ -17,6 +17,7 @@ import {
 import { fixSection, executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
+import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +60,7 @@ export default function SectionExecution({
     canEditSections = false,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
+    const { setIsSectionEditing } = useOptionalEditingGuard();
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -94,6 +96,12 @@ export default function SectionExecution({
         const viewport = containerRef.current?.closest('[data-radix-scroll-area-viewport]') as HTMLDivElement;
         return viewport;
     };
+
+    // Sync editing state with the guard context
+    useEffect(() => {
+        setIsSectionEditing(isEditing);
+        return () => setIsSectionEditing(false);
+    }, [isEditing, setIsSectionEditing]);
 
     // Handle entering edit mode with scroll position preservation - Updated for ScrollArea
     const handleStartEditing = () => {
@@ -578,6 +586,7 @@ export default function SectionExecution({
                         onSave={handleSave}
                         onCancel={handleCancelEdit}
                         isSaving={isSaving}
+                        documentId={documentId}
                     />
                 </div>
             )}

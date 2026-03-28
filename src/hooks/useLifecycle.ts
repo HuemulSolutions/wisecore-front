@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { handleApiError } from '@/lib/error-utils'
 import {
   getLifecycleStepTypes,
   getLifecycleSteps,
@@ -74,34 +74,34 @@ export function useLifecycleMutations(documentTypeId: string, stepType: string |
     mutationFn: ({ stepId, data }: { stepId: string; data: UpdateLifecycleStepData }) =>
       updateLifecycleStep(stepId, data),
     onSuccess: invalidateSteps,
-    onError: () => toast.error('Failed to update step'),
+    onError: (error) => handleApiError(error),
   })
 
   const addRole = useMutation({
     mutationFn: ({ stepId, roleId }: { stepId: string; roleId: string }) =>
       addRoleToStep(stepId, roleId),
     onSuccess: invalidateSteps,
-    onError: () => toast.error('Failed to add role'),
+    onError: (error) => handleApiError(error),
   })
 
   const removeRole = useMutation({
     mutationFn: ({ stepId, roleId }: { stepId: string; roleId: string }) =>
       removeRoleFromStep(stepId, roleId),
     onSuccess: invalidateSteps,
-    onError: () => toast.error('Failed to remove role'),
+    onError: (error) => handleApiError(error),
   })
 
   const createStep = useMutation({
     mutationFn: (data: CreateLifecycleStepData) =>
       createLifecycleStep(documentTypeId, data),
     onSuccess: invalidateSteps,
-    onError: () => toast.error('Failed to create step'),
+    onError: (error) => handleApiError(error),
   })
 
   const deleteStep = useMutation({
     mutationFn: (stepId: string) => deleteLifecycleStep(stepId),
     onSuccess: invalidateSteps,
-    onError: () => toast.error('Failed to delete step'),
+    onError: (error) => handleApiError(error),
   })
 
   return { updateStep, addRole, removeRole, createStep, deleteStep }

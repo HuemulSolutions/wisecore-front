@@ -9,6 +9,7 @@ import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionCustom
 import { useState } from 'react';
 import { DeleteExecutionDialog } from './execution-delete-dialog';
 import { useOrganization } from '@/contexts/organization-context';
+import { handleApiError } from '@/lib/error-utils';
 
 
 export interface ExecutionInfoProps {
@@ -85,7 +86,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             navigate(`/execution/${execution.id}`);
           })
           .catch((error) => {
-            console.error("Error creating execution:", error);
+            handleApiError(error);
           });
       };
     const getStatusBadge = (status: string) => {
