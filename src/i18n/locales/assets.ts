@@ -422,6 +422,12 @@ const translations = {
     needsSections: { en: "This asset needs sections before it can be executed", es: "Este activo necesita secciones antes de poder ejecutarse" },
     noDefaultLlm: { en: "No default LLM available", es: "No hay LLM predeterminado disponible" },
   },
+  unsavedChanges: {
+    title: { en: "Unsaved changes", es: "Cambios sin guardar" },
+    description: { en: "You are editing a section. If you continue, your changes will be lost.", es: "Estás editando una sección. Si continúas, se perderán los cambios." },
+    discard: { en: "Discard changes", es: "Descartar cambios" },
+    keepEditing: { en: "Keep editing", es: "Seguir editando" },
+  },
 }
 
 export default translations

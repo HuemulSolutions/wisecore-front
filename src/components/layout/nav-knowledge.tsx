@@ -35,6 +35,7 @@ import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
 import { toast } from "sonner"
+import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
 
 // Context para compartir el fileTreeRef entre header y content
@@ -446,6 +447,7 @@ export function NavKnowledgeContent() {
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const { guardedAction } = useOptionalEditingGuard()
 
   const [searchResults, setSearchResults] = React.useState<FileNode[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
@@ -551,21 +553,23 @@ export function NavKnowledgeContent() {
   const handleFileClick = useCallback(
     async (node: FileNode) => {
       if (node.type === "document") {
-        // Navigate with full context to avoid redundant API calls
-        // Pass all available information so assets.tsx doesn't need to reload
-        navigate(`/asset/${node.id}`, {
-          state: {
-            selectedDocumentId: node.id,
-            selectedDocumentName: node.name,
-            selectedDocumentType: node.type,
-            fromFileTree: true, // Flag to indicate navigation from FileTree
-            documentType: node.document_type,
-            accessLevels: node.access_levels,
-          }
+        guardedAction(() => {
+          // Navigate with full context to avoid redundant API calls
+          // Pass all available information so assets.tsx doesn't need to reload
+          navigate(`/asset/${node.id}`, {
+            state: {
+              selectedDocumentId: node.id,
+              selectedDocumentName: node.name,
+              selectedDocumentType: node.type,
+              fromFileTree: true, // Flag to indicate navigation from FileTree
+              documentType: node.document_type,
+              accessLevels: node.access_levels,
+            }
+          })
         })
       }
     },
-    [navigate]
+    [navigate, guardedAction]
   )
 
   const handleMoveFolder = useCallback(

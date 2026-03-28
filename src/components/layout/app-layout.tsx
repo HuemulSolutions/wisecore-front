@@ -35,8 +35,30 @@ import { useAuth } from "@/contexts/auth-context"
 import Chatbot from "@/components/chatbot/chatbot"
 import { ChatbotProvider } from "@/contexts/chatbot-context"
 import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
+import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserDialog from "@/components/users/users-edit-dialog"
 import { cn } from "@/lib/utils"
+
+/** Nav link that checks for unsaved section edits before navigating. */
+function GuardedNavLink({ to, onClick, children, ...props }: React.ComponentProps<typeof Link>) {
+  const navigate = useNavigate()
+  const { guardedAction } = useOptionalEditingGuard()
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onClick) {
+      onClick(e)
+      if (e.defaultPrevented) return
+    }
+    e.preventDefault()
+    guardedAction(() => navigate(to as string))
+  }
+
+  return (
+    <Link to={to} onClick={handleClick} {...props}>
+      {children}
+    </Link>
+  )
+}
 
 // Navigation items
 const navigationItems = [
@@ -338,6 +360,7 @@ export default function AppLayout() {
   return (
     <ChatbotProvider key={chatbotProviderKey}>
       <TooltipProvider>
+        <EditingGuardProvider>
         <NavKnowledgeProvider>
         <div className="flex flex-col h-screen overflow-hidden">
           <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4">
@@ -356,7 +379,7 @@ export default function AppLayout() {
                 const linkTo = item.orgScoped ? buildPath(item.url) : item.url
                 
                 return (
-                  <Link
+                  <GuardedNavLink
                     key={item.title}
                     to={item.loading ? '#' : linkTo}
                     onClick={item.loading ? (e: React.MouseEvent) => e.preventDefault() : undefined}
@@ -375,7 +398,7 @@ export default function AppLayout() {
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span>{t(`nav.${item.title.toLowerCase()}`)}</span>
-                  </Link>
+                  </GuardedNavLink>
                 )
               })}
             </nav>
@@ -399,7 +422,7 @@ export default function AppLayout() {
                       const linkTo = item.orgScoped ? buildPath(item.url) : item.url
                       
                       return (
-                        <Link
+                        <GuardedNavLink
                           key={item.title}
                           to={item.loading ? '#' : linkTo}
                           onClick={item.loading ? (e: React.MouseEvent) => e.preventDefault() : () => setMobileMenuOpen(false)}
@@ -418,7 +441,7 @@ export default function AppLayout() {
                         >
                           <Icon className="h-4 w-4 shrink-0" />
                           <span>{t(`nav.${item.title.toLowerCase()}`)}</span>
-                        </Link>
+                        </GuardedNavLink>
                       )
                     })}
                   </nav>
@@ -581,6 +604,7 @@ export default function AppLayout() {
           />
         )}
         </NavKnowledgeProvider>
+        </EditingGuardProvider>
       </TooltipProvider>
     </ChatbotProvider>
   )

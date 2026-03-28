@@ -61,6 +61,7 @@ import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
 import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
+import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 
 // Utilities and hooks
 import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
@@ -111,6 +112,7 @@ export function AssetContent({
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
+  const { guardedAction } = useOptionalEditingGuard();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -1957,14 +1959,14 @@ export function AssetContent({
                             className={`hover:cursor-pointer p-2 transition-colors ${
                               isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                             }`}
-                            onClick={() => {
+                            onClick={() => guardedAction(() => {
                               // Preserve scroll position before changing execution
                               preserveScrollPosition();
                               setSelectedExecutionId(execution.id);
                               // Invalidate all document-content queries and refetch with new execution ID
                               queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
                               queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
-                            }}
+                            })}
                           >
                             <div className="flex items-center justify-between w-full">
                               <div className="flex items-center gap-2">
@@ -2348,14 +2350,14 @@ export function AssetContent({
                               className={`hover:cursor-pointer p-2 transition-colors ${
                                 isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
                               }`}
-                              onClick={() => {
+                              onClick={() => guardedAction(() => {
                                 // Preserve scroll position before changing execution
                                 onPreserveScroll?.();
                                 setSelectedExecutionId(execution.id);
                                 // Invalidate all document-content queries and refetch with new execution ID
                                 queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
                                 queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
-                              }}
+                              })}
                             >
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex items-center gap-2">
@@ -2608,9 +2610,11 @@ export function AssetContent({
                         }}
                         onViewVersion={() => {
                           // Preserve scroll position before changing execution
-                          preserveScrollPosition();
-                          setSelectedExecutionId(execution.id);
-                          queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
+                          guardedAction(() => {
+                            preserveScrollPosition();
+                            setSelectedExecutionId(execution.id);
+                            queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
+                          });
                         }}
                       />
                     ))}
