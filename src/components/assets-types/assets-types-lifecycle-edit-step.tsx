@@ -79,6 +79,7 @@ interface EditStepCardProps {
   onSave: () => Promise<void>
   t: (key: string) => string
   isDeleting: boolean
+  canDelete: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
   onEditingChange?: (isEditing: boolean) => void
 }
@@ -93,6 +94,7 @@ function EditStepCard({
   onSave,
   t,
   isDeleting,
+  canDelete,
   dragHandleProps,
   onEditingChange,
 }: EditStepCardProps) {
@@ -196,7 +198,7 @@ function EditStepCard({
           variant="ghost"
           size="icon"
           onClick={onDelete}
-          disabled={isDeleting}
+          disabled={isDeleting || !canDelete}
           tooltip={t("lifecycle.deleteGroup")}
           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         />
@@ -492,6 +494,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
                 allRoles={allRoles}
                 onChange={(updated) => handleCardChange(card.id, updated)}
                 onDelete={() => setDeleteConfirmId(card.id)}
+                canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
                 onEditingChange={(editing) => onEditingChange?.(editing)}
                 onSave={async () => {
                   const currentCard = localSteps.find((c) => c.id === card.id)!
