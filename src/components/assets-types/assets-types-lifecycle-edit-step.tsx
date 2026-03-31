@@ -71,6 +71,7 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
 
 interface EditStepCardProps {
   card: EditStepCardData
+  stepType: string
   slaUnitOptions: { value: string; label: string }[]
   allRoles: { id: string; name: string }[]
   onChange: (updated: Partial<EditStepCardData>) => void
@@ -84,6 +85,7 @@ interface EditStepCardProps {
 
 function EditStepCard({
   card,
+  stepType,
   slaUnitOptions,
   allRoles,
   onChange,
@@ -94,6 +96,7 @@ function EditStepCard({
   dragHandleProps,
   onEditingChange,
 }: EditStepCardProps) {
+  const hideAllOption = stepType === "review" || stepType === "approve"
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [snapshot, setSnapshot] = useState<EditStepCardData | null>(null)
@@ -253,7 +256,7 @@ function EditStepCard({
         name={`access-type-${card.id}`}
         value={card.accessType}
         options={[
-          { value: "all", label: t("lifecycle.accessAll") },
+          ...(!hideAllOption ? [{ value: "all", label: t("lifecycle.accessAll") }] : []),
           { value: "owner", label: t("lifecycle.accessOwner") },
           { value: "custom", label: t("lifecycle.accessCustom") },
         ]}
@@ -484,6 +487,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
                 key={card.id}
                 id={card.id}
                 card={card}
+                stepType={stepType}
                 slaUnitOptions={slaUnitOptions}
                 allRoles={allRoles}
                 onChange={(updated) => handleCardChange(card.id, updated)}
@@ -599,7 +603,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
             name="new-group-access-type"
             value={newGroupAccessType}
             options={[
-              { value: "all", label: t("lifecycle.accessAll") },
+              ...(stepType !== "review" && stepType !== "approve" ? [{ value: "all", label: t("lifecycle.accessAll") }] : []),
               { value: "owner", label: t("lifecycle.accessOwner") },
               { value: "custom", label: t("lifecycle.accessCustom") },
             ]}
