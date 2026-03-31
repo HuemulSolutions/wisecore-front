@@ -41,6 +41,7 @@ interface SectionExecutionProps {
     sectionType?: 'ai' | 'manual' | 'reference' | null;
     sectionName?: string;
     canEditSections?: boolean;
+    onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
 }
 
 export default function SectionExecution({ 
@@ -58,6 +59,7 @@ export default function SectionExecution({
     sectionType = 'ai',
     sectionName,
     canEditSections = false,
+    onCreateSectionFromSelection,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
@@ -587,6 +589,7 @@ export default function SectionExecution({
                         onCancel={handleCancelEdit}
                         isSaving={isSaving}
                         documentId={documentId}
+                        onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />
                 </div>
             )}

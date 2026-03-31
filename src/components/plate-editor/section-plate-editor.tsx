@@ -22,6 +22,8 @@ interface SectionPlateEditorProps {
   className?: string;
   /** Document ID – enables discussion/comment sync when provided */
   documentId?: string;
+  /** Callback to create a new section from selected text */
+  onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
 }
 
 /**
@@ -44,6 +46,7 @@ export default function SectionPlateEditor({
   isSaving = false,
   className,
   documentId,
+  onCreateSectionFromSelection,
 }: SectionPlateEditorProps) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
@@ -118,6 +121,7 @@ export default function SectionPlateEditor({
         className={isEditing ? 'min-h-[240px]' : undefined}
         toolbarActions={actionButtons}
         documentId={documentId}
+        onCreateSectionFromSelection={onCreateSectionFromSelection}
       />
     </div>
   );

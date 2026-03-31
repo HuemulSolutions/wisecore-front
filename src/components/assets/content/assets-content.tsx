@@ -561,6 +561,7 @@ export function AssetContent({
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
   const [isSectionExecutionDialogOpen, setIsSectionExecutionDialogOpen] = useState(false);
   const [afterFromSectionId, setAfterFromSectionId] = useState<string | null>(null);
+  const [sectionFromSelectionContent, setSectionFromSelectionContent] = useState<string | null>(null);
   
   // ============================================================================
   // STATE - TEMPLATE MANAGEMENT
@@ -761,6 +762,16 @@ export function AssetContent({
   // Handle section execution creation submission
   const handleSectionExecutionSubmit = (values: AddSectionExecutionRequest) => {
     createSectionExecutionMutation.mutate(values);
+  };
+
+  // Handle create section from selected text in floating toolbar
+  const handleCreateSectionFromSelection = (sectionIndex: number) => (selectedMarkdown: string) => {
+    if (!selectedExecutionId || !documentContent?.content) return;
+    // Determine after_from based on current section index
+    const afterFromId = documentContent.content[sectionIndex]?.id || null;
+    setAfterFromSectionId(afterFromId);
+    setSectionFromSelectionContent(selectedMarkdown);
+    setIsSectionExecutionDialogOpen(true);
   };
 
   // Handle create new execution - abrir Execute Sheet
@@ -3054,6 +3065,7 @@ export function AssetContent({
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
                                   canEditSections={frontendPermissions.canEditSections}
+                                  onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                 />
                               </div>
                               
@@ -3236,6 +3248,7 @@ export function AssetContent({
         onOpenChange={(open) => {
           if (!open) {
             setIsSectionExecutionDialogOpen(false)
+            setSectionFromSelectionContent(null)
           }
         }}
         afterFromSectionId={afterFromSectionId}
@@ -3245,7 +3258,10 @@ export function AssetContent({
         onClose={() => {
           setIsSectionExecutionDialogOpen(false)
           setAfterFromSectionId(null)
+          setSectionFromSelectionContent(null)
         }}
+        defaultType={sectionFromSelectionContent ? 'manual' : undefined}
+        defaultManualInput={sectionFromSelectionContent || undefined}
       />
 
       {/* Delete Confirmation AlertDialog */}

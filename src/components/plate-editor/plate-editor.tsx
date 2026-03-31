@@ -394,6 +394,8 @@ interface PlateRichEditorProps {
   toolbarActions?: React.ReactNode;
   /** Document ID – enables discussion/comment sync with backend when provided */
   documentId?: string;
+  /** Callback to create a new section from selected text (floating toolbar) */
+  onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
 }
 
 export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEditorProps>(
@@ -407,6 +409,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     variant = 'default',
     toolbarActions,
     documentId,
+    onCreateSectionFromSelection,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -499,7 +502,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
           </EditorContainer>
 
           {/* Floating toolbar – appears on text selection */}
-          <FloatingToolbarButtons />
+          <FloatingToolbarButtons onCreateSectionFromSelection={onCreateSectionFromSelection} />
         </Plate>
       </div>
     </TooltipProvider>

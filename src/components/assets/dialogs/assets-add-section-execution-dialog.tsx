@@ -18,6 +18,8 @@ interface AddSectionExecutionDialogProps {
   onSubmit: (values: AddSectionExecutionRequest) => void
   isPending: boolean
   onClose: () => void
+  defaultType?: 'ai' | 'manual' | 'reference'
+  defaultManualInput?: string
 }
 
 export function AddSectionExecutionDialog({
@@ -28,6 +30,8 @@ export function AddSectionExecutionDialog({
   onSubmit,
   isPending,
   onClose,
+  defaultType,
+  defaultManualInput,
 }: AddSectionExecutionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const { t } = useTranslation('assets')
@@ -70,6 +74,8 @@ export function AddSectionExecutionDialog({
         onSubmit={onSubmit}
         isPending={isPending}
         onValidationChange={setIsFormValid}
+        defaultType={defaultType}
+        defaultManualInput={defaultManualInput}
       />
     </ReusableDialog>
   )
