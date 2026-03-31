@@ -92,9 +92,12 @@ const translations = {
     tooltipArchive: { en: "Archive this asset", es: "Archivar este activo" },
     archiveTitle: { en: "Archive Asset", es: "Archivar Activo" },
     archiveDescription: { en: "Are you sure you want to archive this asset? Archived assets can still be viewed but are no longer active.", es: "¿Estás seguro de que quieres archivar este activo? Los activos archivados aún pueden ser vistos pero ya no estarán activos." },
+    archiveFromApprovedDescription: { en: "Are you sure you want to archive this asset directly? This will skip the publication step. Archived assets can still be viewed but are no longer active.", es: "¿Estás seguro de que quieres archivar este activo directamente? Esto omitirá el paso de publicación. Los activos archivados aún pueden ser vistos pero ya no estarán activos." },
     archiveConfirm: { en: "Archive", es: "Archivar" },
     successAdvance: { en: "Asset advanced successfully!", es: "Activo avanzado correctamente" },
     errorAdvance: { en: "Failed to advance asset. Please try again.", es: "Error al avanzar el activo. Intenta de nuevo." },
+    commentLabel: { en: "Comment", es: "Comentario" },
+    commentPlaceholder: { en: "Add a comment about this action...", es: "Agrega un comentario sobre esta acción..." },
     stageLabels: {
       create: { en: "Creator", es: "Creador" },
       edit: { en: "Elaboration", es: "Elaboración" },

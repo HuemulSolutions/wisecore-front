@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
@@ -399,12 +400,12 @@ export function AssetContent({
 
   // Mutation for checking (advancing) execution lifecycle
   const checkLifecycleMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (comment?: string) => {
       const executionId = selectedExecutionId || documentContent?.execution_id;
       const stepId = documentContent?.lifecycle_status?.current_step_id;
       if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
       if (!stepId) throw new Error('Missing step ID');
-      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId);
+      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -458,11 +459,11 @@ export function AssetContent({
 
   // Mutation for advancing lifecycle (publish / archive)
   const advanceLifecycleMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { comment?: string; skip_published?: boolean }) => {
       preserveScrollPosition();
       const executionId = selectedExecutionId || documentContent?.execution_id;
       if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return advanceExecutionLifecycle(executionId, selectedOrganizationId);
+      return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -1786,7 +1787,7 @@ export function AssetContent({
                               onClick={() => setIsPublishDialogOpen(true)}
                             />
                           )}
-                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'published' && (
+                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
                             <HuemulButton
                               variant="outline"
                               size="sm"
@@ -2269,7 +2270,7 @@ export function AssetContent({
                               onClick={() => setIsPublishDialogOpen(true)}
                             />
                           )}
-                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'published' && (
+                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
                             <HuemulButton
                               variant="outline"
                               size="sm"
@@ -3343,7 +3344,7 @@ export function AssetContent({
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <LifecycleCommentDialog
         open={isCheckLifecycleDialogOpen}
         onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
         title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
@@ -3352,8 +3353,10 @@ export function AssetContent({
             ? t('lifecycle.advanceStateDescription')
             : t('lifecycle.advanceStepDescription')
         }
-        onConfirm={() => checkLifecycleMutation.mutate()}
+        onConfirm={(comment) => checkLifecycleMutation.mutate(comment)}
         confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={checkLifecycleMutation.isPending}
         variant="default"
       />
@@ -3371,25 +3374,36 @@ export function AssetContent({
       />
 
       {/* Publish Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <LifecycleCommentDialog
         open={isPublishDialogOpen}
         onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
         title={t('lifecycle.publishTitle')}
         description={t('lifecycle.publishDescription')}
-        onConfirm={() => advanceLifecycleMutation.mutate()}
+        onConfirm={(comment) => advanceLifecycleMutation.mutate({ comment })}
         confirmLabel={t('lifecycle.publishConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={advanceLifecycleMutation.isPending}
         variant="default"
       />
 
       {/* Archive Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <LifecycleCommentDialog
         open={isArchiveDialogOpen}
         onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsArchiveDialogOpen(open)}
         title={t('lifecycle.archiveTitle')}
-        description={t('lifecycle.archiveDescription')}
-        onConfirm={() => advanceLifecycleMutation.mutate()}
+        description={
+          documentContent?.lifecycle_status?.state === 'approved'
+            ? t('lifecycle.archiveFromApprovedDescription')
+            : t('lifecycle.archiveDescription')
+        }
+        onConfirm={(comment) => advanceLifecycleMutation.mutate({
+          comment,
+          skip_published: documentContent?.lifecycle_status?.state === 'approved',
+        })}
         confirmLabel={t('lifecycle.archiveConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={advanceLifecycleMutation.isPending}
         variant="destructive"
       />

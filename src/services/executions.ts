@@ -254,8 +254,8 @@ export async function cloneExecution(executionId: string, organizationId: string
     return data.data;
 }
 
-export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, {}, {
+export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string, comment?: string) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, { comment: comment || '' }, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -264,8 +264,11 @@ export async function completeExecutionLifecycleStep(executionId: string, stepId
     return data.data;
 }
 
-export async function advanceExecutionLifecycle(executionId: string, organizationId: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {}, {
+export async function advanceExecutionLifecycle(executionId: string, organizationId: string, options?: { comment?: string; skip_published?: boolean }) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {
+        comment: options?.comment || '',
+        ...(options?.skip_published && { skip_published: true }),
+    }, {
         headers: {
             'X-Org-Id': organizationId,
         },
