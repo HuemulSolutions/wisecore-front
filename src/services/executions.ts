@@ -297,3 +297,17 @@ export async function assignExecutionVersion(
     const data = await response.json();
     return data.data;
 }
+
+export async function updateExecutionName(
+    executionId: string,
+    name: string,
+    organizationId: string
+) {
+    const response = await httpClient.patch(`${backendUrl}/execution/${executionId}/update_name`, { name }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}

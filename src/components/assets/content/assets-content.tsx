@@ -30,7 +30,7 @@ import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -43,6 +43,7 @@ import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-ad
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
+import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -483,6 +484,27 @@ export function AssetContent({
     scrollRestoration.saveScrollPosition();
   };
 
+  // Mutation for renaming an execution version
+  const renameVersionMutation = useMutation({
+    mutationFn: async ({ executionId, name }: { executionId: string; name: string }) => {
+      if (!selectedOrganizationId) throw new Error('Missing organization');
+      return updateExecutionName(executionId, name, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      // Use refetchQueries to force immediate refetch regardless of staleTime
+      queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.refetchQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['library'] });
+      setIsRenameVersionDialogOpen(false);
+      setExecutionToRename(null);
+      toast.success(t('mutations.versionRenamed'));
+    },
+    onError: (error) => {
+      handleApiError(error, { fallbackMessage: t('mutations.failedRenameVersion') });
+    },
+  });
+
   // ============================================================================
   // STATE - DIALOG AND SHEET VISIBILITY
   // ============================================================================
@@ -498,6 +520,8 @@ export function AssetContent({
   const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
+  const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -940,6 +964,9 @@ export function AssetContent({
     selectedOrganizationId || '',
     shouldFetchExecutions && !!selectedOrganizationId
   );
+
+  // Unified executions source: prefer documentContent (always fresh after refetch) over separate query
+  const allExecutions = documentContent?.executions || documentExecutions;
 
   // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
@@ -1903,7 +1930,7 @@ export function AssetContent({
               
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
-              {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
+              {selectedFile.type === 'document' && allExecutions?.length > 0 && (
                 <DocumentAccessControl
                   requiredAccess="read"
                 >
@@ -1918,15 +1945,15 @@ export function AssetContent({
                       >
                         <span className="font-medium">
                           {(() => {
-                            if (!documentExecutions) return 'v1';
+                            if (!allExecutions) return 'v1';
                             // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
                             const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
+                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
                             if (selectedExecution?.name) {
                               return selectedExecution.name.length > 15 ? `${selectedExecution.name.substring(0, 15)}...` : selectedExecution.name;
                             }
                             // Fallback to version number if no name
-                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
                               parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                             );
                             const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
@@ -1942,7 +1969,7 @@ export function AssetContent({
                       <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
                     </div>
                     <div className="overflow-y-auto max-h-64">
-                    {documentExecutions
+                    {allExecutions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
                         parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                       )
@@ -2275,7 +2302,7 @@ export function AssetContent({
               {/* LEFT GROUP - Version, Sections, Dependencies, Context */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
                 {/* Execution / Version Dropdown */}
-                {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
+                {selectedFile.type === 'document' && allExecutions?.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <HuemulButton
@@ -2286,10 +2313,10 @@ export function AssetContent({
                       >
                         <span className="font-medium">
                           {(() => {
-                            if (!documentExecutions) return 'v1';
+                            if (!allExecutions) return 'v1';
                             // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
                             const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
+                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
                             // Show semantic version if available
                             if (selectedExecution?.version_major != null && selectedExecution?.version_minor != null && selectedExecution?.version_patch != null) {
                               const versionLabel = `v${selectedExecution.version_major}.${selectedExecution.version_minor}.${selectedExecution.version_patch}`;
@@ -2299,7 +2326,7 @@ export function AssetContent({
                               return selectedExecution.name.length > 20 ? `${selectedExecution.name.substring(0, 20)}...` : selectedExecution.name;
                             }
                             // Fallback to version number if no name
-                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
                               parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                             );
                             const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
@@ -2332,7 +2359,7 @@ export function AssetContent({
                         </>
                       )}
                       <div className="overflow-y-auto max-h-64">
-                      {documentExecutions
+                      {allExecutions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
                           parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                         )
@@ -2368,6 +2395,19 @@ export function AssetContent({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
+                                  {lifecyclePermissions?.create && lifecyclePermissions?.edit && execution.version_major == null && (
+                                    <button
+                                      className="p-0.5 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
+                                      title={t('content.renameVersion')}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExecutionToRename({ id: execution.id, name: execution.name || '' });
+                                        setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                                      }}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  )}
                                   {isLatest && (
                                     <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                       <Clock className="w-3 h-3" />
@@ -3455,6 +3495,24 @@ export function AssetContent({
         onOpenChange={(open) => { if (!assignVersionMutation.isPending) setIsAssignVersionDialogOpen(open); }}
         onConfirm={(version) => assignVersionMutation.mutate(version)}
         isProcessing={assignVersionMutation.isPending}
+      />
+
+      {/* Rename Version Dialog */}
+      <RenameVersionDialog
+        open={isRenameVersionDialogOpen}
+        onOpenChange={(open) => {
+          if (!renameVersionMutation.isPending) {
+            setIsRenameVersionDialogOpen(open);
+            if (!open) setExecutionToRename(null);
+          }
+        }}
+        currentName={executionToRename?.name || ''}
+        onConfirm={(name) => {
+          if (executionToRename) {
+            renameVersionMutation.mutate({ executionId: executionToRename.id, name });
+          }
+        }}
+        isProcessing={renameVersionMutation.isPending}
       />
     </>
   );
