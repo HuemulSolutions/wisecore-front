@@ -9,8 +9,8 @@ export const rbacQueryKeys = {
   permissions: () => [...rbacQueryKeys.all, 'permissions'] as const,
   rolePermissions: (roleId: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId] as const,
   userRoles: (userId: string) => [...rbacQueryKeys.all, 'userRoles', userId] as const,
-  userAllRoles: (userId: string, page?: number, pageSize?: number) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10] as const,
-  roleWithAllUsers: (roleId: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId] as const,
+  userAllRoles: (userId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
+  roleWithAllUsers: (roleId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
 }
 
 // Hook for fetching roles
@@ -61,10 +61,10 @@ export function useUserRoles(userId: string, enabled: boolean = true) {
 }
 
 // Hook for fetching all roles with user assignment status
-export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10) {
+export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
   return useQuery({
-    queryKey: rbacQueryKeys.userAllRoles(userId, page, pageSize),
-    queryFn: () => getUserAllRoles(userId, page, pageSize),
+    queryKey: rbacQueryKeys.userAllRoles(userId, page, pageSize, search),
+    queryFn: () => getUserAllRoles(userId, page, pageSize, search),
     enabled: !!userId && userId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -73,10 +73,10 @@ export function useUserAllRoles(userId: string, enabled: boolean = true, page: n
 }
 
 // Hook for fetching role with all users and their assignment status
-export function useRoleWithAllUsers(roleId: string, enabled: boolean = true) {
+export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
   return useQuery({
-    queryKey: rbacQueryKeys.roleWithAllUsers(roleId),
-    queryFn: () => getRoleWithAllUsers(roleId),
+    queryKey: rbacQueryKeys.roleWithAllUsers(roleId, page, pageSize, search),
+    queryFn: () => getRoleWithAllUsers(roleId, page, pageSize, search),
     enabled: !!roleId && roleId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
     retry: 1,

@@ -3,12 +3,13 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UserCheck, Shield, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
+import { UserCheck, Shield, RefreshCw, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { useUserAllRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { type User } from "@/types/users"
@@ -26,10 +27,12 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   const [, setHasInitialized] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const queryClient = useQueryClient()
   
   // Fetch all roles with user assignment status when sheet is open
-  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user, page, pageSize)
+  const { data: userAllRolesResponse, isLoading: rolesLoading, error: rolesError, refetch: refetchRoles } = useUserAllRoles(user?.id || '', open && !!user, page, pageSize, searchQuery)
   const { assignRoles } = useRoleMutations()
 
   const roles = userAllRolesResponse?.data || []
@@ -40,6 +43,8 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
       setSelectedRoles([])
       setHasInitialized(false)
       setPage(1)
+      setSearchInput('')
+      setSearchQuery('')
     }
   }, [open, user?.id])
 
@@ -55,7 +60,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   // Invalidate queries when sheet opens
   useEffect(() => {
     if (open && user) {
-      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(user.id, page, pageSize) })
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userAllRoles(user.id, page, pageSize, searchQuery) })
     }
   }, [open, user?.id, queryClient])
 
@@ -85,8 +90,8 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
     )
   }
 
-  const handleRetry = async () => {
-    if (rolesError && user) {
+  const handleRefresh = async () => {
+    if (user) {
       await refetchRoles()
     }
   }
@@ -130,6 +135,43 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
             </Badge>
           </div>
 
+          <div className="flex items-center gap-2">
+            <div className="flex-1" onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setSearchQuery(searchInput)
+                setPage(1)
+              }
+            }}>
+              <HuemulField
+                label=""
+                placeholder={t('roles:assignRoles.searchPlaceholder')}
+                value={searchInput}
+                onChange={(value) => setSearchInput(String(value))}
+                inputClassName="h-8 text-xs"
+              />
+            </div>
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              icon={Search}
+              onClick={() => {
+                setSearchQuery(searchInput)
+                setPage(1)
+              }}
+              className="h-8 w-8 p-0 hover:cursor-pointer"
+              aria-label={t('common:search')}
+            />
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              icon={RefreshCw}
+              onClick={handleRefresh}
+              disabled={isDataLoading}
+              className="h-8 w-8 p-0 hover:cursor-pointer"
+              aria-label={t('common:refresh')}
+            />
+          </div>
+
             {isDataLoading ? (
               <div className="space-y-2">
                 {[...Array(6)].map((_, i) => (
@@ -157,16 +199,16 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
                 <HuemulButton
                   label={t('common:tryAgain')}
                   icon={RefreshCw}
-                  onClick={handleRetry}
+                  onClick={handleRefresh}
                   variant="outline"
                 />
               </div>
             ) : roles.length === 0 ? (
               <Card className="p-6 text-center">
-                <Shield className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                <h3 className="text-sm font-semibold mb-2">{t('roles:assignRoles.noRoles')}</h3>
+                <Search className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-sm font-semibold mb-2">{searchQuery ? t('roles:assignRoles.noRolesFound') : t('roles:assignRoles.noRoles')}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {t('roles:assignRoles.noRolesCreated')}
+                  {searchQuery ? t('roles:assignRoles.adjustSearch') : t('roles:assignRoles.noRolesCreated')}
                 </p>
               </Card>
             ) : (
