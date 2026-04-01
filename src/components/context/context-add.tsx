@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { 
   FileText, 
-  Plus, 
+  Upload,
   Trash2,
   Pencil,
   Users,
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteContextDialog } from "@/components/context/context-delete-dialog";
 import { EditContextDialog } from "@/components/context/context-edit-dialog";
 import { AddContextDialog } from "@/components/context/context-add-dialog";
-import { getContext, deleteContext, editTextContext } from "@/services/context";
+import { getContext, deleteContext, editTextContext, addDocumentContext } from "@/services/context";
 import { ContextDisplay } from "./context-content";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
@@ -34,6 +34,7 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = true }: A
   const [contextToDelete, setContextToDelete] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [contextToEdit, setContextToEdit] = useState<{ id: string; name: string; content: string; context_type?: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
@@ -66,6 +67,26 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = true }: A
       setContextToEdit(null);
     }
   });
+
+  // Mutation to add file context directly
+  const addDocumentMutation = useMutation({
+    mutationFn: ({ file }: { file: File }) =>
+      addDocumentContext(id, file, selectedOrganizationId!),
+    onSuccess: () => {
+      toast.success(t('toast.fileContextAdded'));
+      queryClient.invalidateQueries({ queryKey: ['contexts', id] });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    },
+  });
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addDocumentMutation.mutate({ file });
+    }
+  };
 
   const handleDeleteContext = (contextId: string) => {
     setContextToDelete(contextId);
@@ -123,18 +144,39 @@ export default function AddContext({ id, isSheetOpen = true, canEdit = true }: A
               </Badge>
             </div>
             {canEdit && (
-              <HuemulButton
-                requiredAccess={["edit", "create"]}
-                requireAll={false}
-                checkGlobalPermissions={true}
-                resource="context"
-                size="sm"
-                onClick={() => setAddDialogOpen(true)}
-                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-xs"
-                icon={Plus}
-                iconClassName="h-3.5 w-3.5 mr-1.5"
-                label={t('addContext')}
-              />
+              <div className="flex items-center gap-2">
+                <HuemulButton
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
+                  checkGlobalPermissions={true}
+                  resource="context"
+                  size="sm"
+                  onClick={() => setAddDialogOpen(true)}
+                  icon={Type}
+                  iconClassName="h-3.5 w-3.5"
+                  label={t('addTextContext')}
+                  disabled={addDocumentMutation.isPending}
+                />
+                <HuemulButton
+                  requiredAccess={["edit", "create"]}
+                  requireAll={false}
+                  checkGlobalPermissions={true}
+                  resource="context"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  icon={Upload}
+                  iconClassName="h-3.5 w-3.5"
+                  label={t('addFileContext')}
+                  loading={addDocumentMutation.isPending}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.md,.pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={handleFileInputChange}
+                />
+              </div>
             )}
           </div>
 

@@ -5,6 +5,8 @@ const translations = {
   currentContexts: { en: "Current Contexts", es: "Contextos Actuales" },
   contextsCount: { en: "{{count}} contexts", es: "{{count}} contextos" },
   addContext: { en: "Add Context", es: "Agregar Contexto" },
+  addTextContext: { en: "Text", es: "Texto" },
+  addFileContext: { en: "File", es: "Archivo" },
   noContexts: { en: "No contexts configured", es: "Sin contextos configurados" },
   noContextsDescription: {
     en: "Add context to provide additional information and variables for asset execution.",
@@ -18,13 +20,14 @@ const translations = {
   toast: {
     contextDeleted: { en: "Context deleted successfully", es: "Contexto eliminado exitosamente" },
     contextUpdated: { en: "Context updated successfully", es: "Contexto actualizado exitosamente" },
+    fileContextAdded: { en: "File context added successfully", es: "Contexto de archivo agregado exitosamente" },
   },
   // context-add-dialog.tsx
   addDialog: {
-    title: { en: "Add New Context", es: "Agregar Nuevo Contexto" },
+    title: { en: "Add Text Context", es: "Agregar Contexto de Texto" },
     description: {
-      en: "Add text or asset context to provide additional information for asset execution.",
-      es: "Agrega contexto de texto o activo para proporcionar información adicional para la ejecución del activo.",
+      en: "Enter a name and content for the text context.",
+      es: "Ingresa un nombre y contenido para el contexto de texto.",
     },
     tabText: { en: "Text Context", es: "Contexto de Texto" },
     tabDocument: { en: "Asset Context", es: "Contexto de Activo" },
