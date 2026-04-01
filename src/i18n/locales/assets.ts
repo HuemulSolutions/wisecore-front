@@ -194,6 +194,9 @@ const translations = {
     undo: { en: "Undo", es: "Deshacer" },
     generatingAiProposal: { en: "Generating AI proposal...", es: "Generando propuesta con IA..." },
     generatingSectionContent: { en: "Generating section content...", es: "Generando contenido de la sección..." },
+    lock: { en: "Lock", es: "Bloquear" },
+    prompt: { en: "Prompt", es: "Prompt" },
+    cancel: { en: "Cancel", es: "Cancelar" },
   },
   customFieldsList: {
     addField: { en: "Add Field", es: "Agregar Campo" },
