@@ -27,6 +27,8 @@ interface SectionExecutionProps {
         id: string;
         output: string;
         section_id?: string;
+        /** Plate JSON nodes (stringified) – used to restore comment marks on load */
+        plate_content?: string[];
     }
     onUpdate?: () => void;
     readyToEdit: boolean;
@@ -137,10 +139,22 @@ export default function SectionExecution({
         }, 100);
     };
 
-    const handleSave = async (sectionId: string, newContent: string) => {
+    /**
+     * Silent auto-save triggered after a comment mark is added to the editor.
+     * Persists plate_content (with the new mark) without affecting edit mode.
+     */
+    const handleAutoSavePlateContent = async (sId: string, markdown: string, pContent: string[]) => {
+        try {
+            await modifyContent(sId, markdown, pContent);
+        } catch {
+            // Silent fail – auto-save is best-effort, not user-initiated
+        }
+    };
+
+    const handleSave = async (sectionId: string, newContent: string, plateContent?: string[]) => {
         try {
             setIsSaving(true);
-            await modifyContent(sectionId, newContent);
+            await modifyContent(sectionId, newContent, plateContent);
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
@@ -584,8 +598,10 @@ export default function SectionExecution({
                     <SectionPlateEditor
                         sectionId={sectionExecution.id}
                         content={displayedContent}
+                        plateContent={sectionExecution.plate_content}
                         isEditing={isEditing}
                         onSave={handleSave}
+                        onAutoSavePlateContent={handleAutoSavePlateContent}
                         onCancel={handleCancelEdit}
                         isSaving={isSaving}
                         documentId={documentId}
