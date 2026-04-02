@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Blocks } from "lucide-react"
+import { Blocks, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
@@ -143,6 +143,13 @@ export function CreateProviderDialog({
             value={apiKey}
             onChange={(v) => setApiKey(String(v))}
             required
+            {...(selectedProvider.credentials_url ? {
+              labelAction: {
+                icon: ExternalLink,
+                onClick: () => window.open(selectedProvider.credentials_url, '_blank', 'noopener,noreferrer'),
+                tooltip: t('createProviderDialog.getCredentials'),
+              }
+            } : {})}
           />
         )}
 
@@ -155,6 +162,13 @@ export function CreateProviderDialog({
             value={endpoint}
             onChange={(v) => setEndpoint(String(v))}
             required
+            {...(selectedProvider.credentials_url ? {
+              labelAction: {
+                icon: ExternalLink,
+                onClick: () => window.open(selectedProvider.credentials_url, '_blank', 'noopener,noreferrer'),
+                tooltip: t('createProviderDialog.getCredentials'),
+              }
+            } : {})}
           />
         )}
 
@@ -167,6 +181,13 @@ export function CreateProviderDialog({
             value={deployment}
             onChange={(v) => setDeployment(String(v))}
             required
+            {...(selectedProvider.credentials_url ? {
+              labelAction: {
+                icon: ExternalLink,
+                onClick: () => window.open(selectedProvider.credentials_url, '_blank', 'noopener,noreferrer'),
+                tooltip: t('createProviderDialog.getCredentials'),
+              }
+            } : {})}
           />
         )}
       </HuemulFieldGroup>
