@@ -487,8 +487,13 @@ export function CommentCreateForm({
           newDiscussion,
         ]);
 
-        // Persist via API (fire-and-forget, data refreshes via query invalidation)
-        callbacks?.onAddComment?.(discussionId, commentValue);
+        // The discussionId prop points to a draft mark that has no matching
+        // discussion yet — create it via the correct callback.
+        await callbacks?.onCreateDiscussion?.({
+          documentContent: '',
+          firstCommentRich: commentValue,
+          discussionId: localId,
+        });
         return;
       }
 
@@ -568,12 +573,44 @@ export function CommentCreateForm({
       editor.tf.unsetNodes([getDraftCommentKey()], { at: path });
     });
 
-    // Persist via API
-    callbacks?.onCreateDiscussion?.({
+    // Persist via API and await so we can sync marks with the backend-assigned ID
+    const backendId = await callbacks?.onCreateDiscussion?.({
       documentContent,
       firstCommentRich: commentValue,
       discussionId: _discussionId,
     });
+
+    // If the backend assigned a different ID (its own UUID), update editor marks
+    // and the local plugin state so they keep matching after query invalidation.
+    if (backendId && backendId !== _discussionId) {
+      const commentApi = editor.getApi(CommentPlugin).comment;
+      const allNodes = [...commentApi.nodes({ at: [] })];
+      allNodes.forEach(([node, path]: [any, any]) => {
+        if (commentApi.nodeId(node) === _discussionId) {
+          editor.tf.setNodes({ [getCommentKey(backendId)]: true }, { at: path });
+          editor.tf.unsetNodes([getCommentKey(_discussionId)], { at: path });
+        }
+      });
+
+      // Update the optimistic discussion entry with the real backend ID
+      const current = editor.getOption(discussionPlugin, 'discussions');
+      editor.setOption(
+        discussionPlugin,
+        'discussions',
+        current.map((d: any) =>
+          d.id === _discussionId
+            ? {
+                ...d,
+                id: backendId,
+                comments: d.comments.map((c: any) => ({
+                  ...c,
+                  discussionId: backendId,
+                })),
+              }
+            : d
+        )
+      );
+    }
   }, [commentValue, commentEditor.tf, discussionId, editor, discussions, callbacks]);
 
   return (
