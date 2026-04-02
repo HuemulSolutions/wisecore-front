@@ -91,6 +91,7 @@ const translations = {
     deploymentLabel: { en: "Deployment", es: "Deployment" },
     deploymentPlaceholder: { en: "Enter deployment name...", es: "Ingresa el nombre del deployment..." },
     createProvider: { en: "Create Provider", es: "Crear Proveedor" },
+    getCredentials: { en: "Get credentials", es: "Obtener credenciales" },
   },
   editProviderDialog: {
     title: { en: "Edit Provider - {{name}}", es: "Editar Proveedor - {{name}}" },
