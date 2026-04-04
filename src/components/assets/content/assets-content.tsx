@@ -2321,16 +2321,43 @@ export function AssetContent({
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
               {/* LEFT GROUP - Version, Sections, Dependencies, Context */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Execution / Version Dropdown */}
+                {/* Execution / Version Dropdown with Create button */}
                 {selectedFile.type === 'document' && allExecutions?.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                  <div className="flex items-center">
+                    {/* Create new version button - integrated left of version dropdown */}
+                    {(!lifecyclePermissions || lifecyclePermissions.create) && (
                       <HuemulButton
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xs"
-                        tooltip={t('content.switchVersion')}
+                        onClick={handleCreateExecutionFromHeader}
+                        disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
+                        className={`h-7 w-7 p-0 rounded-r-none transition-colors ${
+                          executeDocumentMutation.isPending || hasExecutionInProcess
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer'
+                        }`}
+                        tooltip={executeDocumentMutation.isPending || hasExecutionInProcess 
+                          ? t('content.cannotExecuteInProgress')
+                          : t('content.executeNewVersion')
+                        }
                       >
+                        {executeDocumentMutation.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                      </HuemulButton>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <HuemulButton
+                          size="sm"
+                          variant="ghost"
+                          className={`h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xs ${
+                            (!lifecyclePermissions || lifecyclePermissions.create) ? 'rounded-l-none' : ''
+                          }`}
+                          tooltip={t('content.switchVersion')}
+                        >
                         <span className="font-medium">
                           {(() => {
                             if (!allExecutions) return 'v1';
@@ -2448,6 +2475,7 @@ export function AssetContent({
                       </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  </div>
                 )}
 
                 {/* Sections sheet */}
