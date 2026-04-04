@@ -14,7 +14,7 @@ export function CreateSectionToolbarButton({ onCreateSection }: CreateSectionToo
   const editor = useEditorRef();
 
   const handleClick = () => {
-    const fragment = editor.getFragment();
+    const fragment = (editor as any).getFragment();
     if (!fragment || fragment.length === 0) return;
 
     const md = editor.getApi(MarkdownPlugin).markdown.serialize({ value: fragment });
