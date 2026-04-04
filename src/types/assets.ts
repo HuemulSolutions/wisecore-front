@@ -336,6 +336,9 @@ export interface ContentSection {
   section_name?: string;
   section_type?: 'ai' | 'manual' | 'reference';
   content: string;
+  /** Plate JSON nodes (stringified). When present, used to restore the editor
+   *  with comment marks and other rich-text metadata that markdown cannot carry. */
+  plate_content?: string[];
   source_section_id?: string | null;
   source_execution_id?: string | null;
   source_mode?: string | null;

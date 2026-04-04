@@ -47,6 +47,10 @@ interface SectionFormProps {
   onGeneratingChange?: (isGenerating: boolean) => void;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
+  /** Default section type for create mode */
+  defaultType?: 'ai' | 'manual' | 'reference';
+  /** Default manual content for create mode */
+  defaultManualInput?: string;
 }
 
 export function SectionForm({ 
@@ -62,7 +66,9 @@ export function SectionForm({
   onValidationChange, 
   onGeneratingChange,
   hasTemplate = false,
-  isTemplateSection = false 
+  isTemplateSection = false,
+  defaultType,
+  defaultManualInput,
 }: SectionFormProps) {
   const { t } = useTranslation('sections');
   const { selectedOrganizationId } = useOrganization();
@@ -71,11 +77,11 @@ export function SectionForm({
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
-  const [type, setType] = useState<"ai" | "manual" | "reference">(mode === 'edit' && item ? (item as any).type || "ai" : "ai");
+  const [type, setType] = useState<"ai" | "manual" | "reference">(mode === 'edit' && item ? (item as any).type || "ai" : (defaultType || "ai"));
   const [prompt, setPrompt] = useState(mode === 'edit' && item ? item.prompt : "");
   // Key para forzar el render del editor cuando cambia el prompt generado
   const [editorKey, setEditorKey] = useState(0);
-  const [manualInput, setManualInput] = useState(mode === 'edit' && item ? (item as any).manual_input || "" : "");
+  const [manualInput, setManualInput] = useState(mode === 'edit' && item ? (item as any).manual_input || "" : (defaultManualInput || ""));
   const [referenceSectionId, setReferenceSectionId] = useState(mode === 'edit' && item ? (item as any).reference_section_id || "" : "");
   const [referenceMode, setReferenceMode] = useState<"latest" | "specific">(mode === 'edit' && item ? (item as any).reference_mode || "latest" : "latest");
   const [referenceExecutionId, setReferenceExecutionId] = useState(mode === 'edit' && item ? (item as any).reference_execution_id || "" : "");

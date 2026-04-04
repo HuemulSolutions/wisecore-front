@@ -71,6 +71,7 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
 
 interface EditStepCardProps {
   card: EditStepCardData
+  stepType: string
   slaUnitOptions: { value: string; label: string }[]
   allRoles: { id: string; name: string }[]
   onChange: (updated: Partial<EditStepCardData>) => void
@@ -78,12 +79,14 @@ interface EditStepCardProps {
   onSave: () => Promise<void>
   t: (key: string) => string
   isDeleting: boolean
+  canDelete: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
   onEditingChange?: (isEditing: boolean) => void
 }
 
 function EditStepCard({
   card,
+  stepType,
   slaUnitOptions,
   allRoles,
   onChange,
@@ -91,9 +94,11 @@ function EditStepCard({
   onSave,
   t,
   isDeleting,
+  canDelete,
   dragHandleProps,
   onEditingChange,
 }: EditStepCardProps) {
+  const hideAllOption = stepType === "review" || stepType === "approve"
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [snapshot, setSnapshot] = useState<EditStepCardData | null>(null)
@@ -193,7 +198,7 @@ function EditStepCard({
           variant="ghost"
           size="icon"
           onClick={onDelete}
-          disabled={isDeleting}
+          disabled={isDeleting || !canDelete}
           tooltip={t("lifecycle.deleteGroup")}
           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         />
@@ -253,7 +258,7 @@ function EditStepCard({
         name={`access-type-${card.id}`}
         value={card.accessType}
         options={[
-          { value: "all", label: t("lifecycle.accessAll") },
+          ...(!hideAllOption ? [{ value: "all", label: t("lifecycle.accessAll") }] : []),
           { value: "owner", label: t("lifecycle.accessOwner") },
           { value: "custom", label: t("lifecycle.accessCustom") },
         ]}
@@ -484,10 +489,12 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
                 key={card.id}
                 id={card.id}
                 card={card}
+                stepType={stepType}
                 slaUnitOptions={slaUnitOptions}
                 allRoles={allRoles}
                 onChange={(updated) => handleCardChange(card.id, updated)}
                 onDelete={() => setDeleteConfirmId(card.id)}
+                canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
                 onEditingChange={(editing) => onEditingChange?.(editing)}
                 onSave={async () => {
                   const currentCard = localSteps.find((c) => c.id === card.id)!
@@ -599,7 +606,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
             name="new-group-access-type"
             value={newGroupAccessType}
             options={[
-              { value: "all", label: t("lifecycle.accessAll") },
+              ...(stepType !== "review" && stepType !== "approve" ? [{ value: "all", label: t("lifecycle.accessAll") }] : []),
               { value: "owner", label: t("lifecycle.accessOwner") },
               { value: "custom", label: t("lifecycle.accessCustom") },
             ]}

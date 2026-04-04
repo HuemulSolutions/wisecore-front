@@ -254,8 +254,8 @@ export async function cloneExecution(executionId: string, organizationId: string
     return data.data;
 }
 
-export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, {}, {
+export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string, comment?: string) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, { comment: comment || '' }, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -264,8 +264,11 @@ export async function completeExecutionLifecycleStep(executionId: string, stepId
     return data.data;
 }
 
-export async function advanceExecutionLifecycle(executionId: string, organizationId: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {}, {
+export async function advanceExecutionLifecycle(executionId: string, organizationId: string, options?: { comment?: string; skip_published?: boolean }) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {
+        comment: options?.comment || '',
+        ...(options?.skip_published && { skip_published: true }),
+    }, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -274,8 +277,47 @@ export async function advanceExecutionLifecycle(executionId: string, organizatio
     return data.data;
 }
 
-export async function rejectExecutionLifecycle(executionId: string, organizationId: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/reject`, {}, {
+export interface RollbackTarget {
+    id: string;
+    value: string;
+    display_name: string;
+}
+
+export interface RollbackStep {
+    step_id: string;
+    name: string;
+    type: string;
+    order: number;
+    lifecycle_state: string;
+}
+
+export interface RollbackTargetsResponse {
+    execution_id: string;
+    current_state: string;
+    states: RollbackTarget[];
+    steps: RollbackStep[];
+}
+
+export async function getRollbackTargets(executionId: string, organizationId: string): Promise<RollbackTargetsResponse> {
+    const response = await httpClient.get(`${backendUrl}/execution-lifecycle/${executionId}/rollback-targets`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function rejectExecutionLifecycle(
+    executionId: string,
+    organizationId: string,
+    options?: { comment?: string; target_state?: string; target_step_id?: string }
+) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/reject`, {
+        comment: options?.comment || '',
+        ...(options?.target_state && { target_state: options.target_state }),
+        ...(options?.target_step_id && { target_step_id: options.target_step_id }),
+    }, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -290,6 +332,20 @@ export async function assignExecutionVersion(
     organizationId: string
 ) {
     const response = await httpClient.patch(`${backendUrl}/execution/${executionId}/version`, version, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function updateExecutionName(
+    executionId: string,
+    name: string,
+    organizationId: string
+) {
+    const response = await httpClient.patch(`${backendUrl}/execution/${executionId}/update_name`, { name }, {
         headers: {
             'X-Org-Id': organizationId,
         },

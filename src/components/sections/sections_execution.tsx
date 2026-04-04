@@ -17,6 +17,7 @@ import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { useTranslation } from 'react-i18next';
 
 interface SectionExecutionProps {
     sectionExecution: {
@@ -32,6 +33,7 @@ interface SectionExecutionProps {
 
 export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
+    const { t } = useTranslation('assets');
     const [isPromptOpen, setIsPromptOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditing, setIsAiEditing] = useState(false);
@@ -61,10 +63,10 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
         try {
             const sectionId = sectionExecution.section_execution_id || sectionExecution.id;
             await deleteSectionExec(sectionId);
-            toast.success("Section deleted successfully");
+            toast.success(t('section.sectionDeleted'));
             onUpdate?.();
         } catch (error) {
-            handleApiError(error, { fallbackMessage: 'Error deleting section. Please try again.' });
+            handleApiError(error, { fallbackMessage: t('section.deleteFailed') });
             throw error;
         }
     };
@@ -97,7 +99,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 onClick={() => setIsEditing(true)}
                             >
                                 <Edit className="h-4 w-4 mr-2" />
-                                Edit
+                                {t('section.edit')}
                             </DropdownMenuItem>
                         )}
                         {!isEditing && !isAiEditing && (
@@ -106,12 +108,12 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 onClick={() => setIsAiEditing(true)}
                             >
                                 <Bot className="h-4 w-4 mr-2" />
-                                Ask AI to Edit
+                                {t('section.askAiToEditMenu')}
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuItem className="hover:cursor-pointer">
                             <Lock className="h-4 w-4 mr-2" />
-                            Lock
+                            {t('section.lock')}
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                             className="hover:cursor-pointer text-red-600 hover:text-red-700"
@@ -121,7 +123,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                             }}
                         >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            {t('section.delete')}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -140,7 +142,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                     ) : (
                         <ChevronRight className="h-4 w-4" />
                     )}
-                    Prompt
+                    {t('section.prompt')}
                 </button>
                 
                 {isPromptOpen && (
@@ -156,10 +158,10 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <div className="flex items-center gap-2 mb-2">
                         <Bot className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-800">Ask AI to Edit</span>
+                        <span className="text-sm font-medium text-blue-800">{t('section.askAiToEdit')}</span>
                     </div>
                     <Textarea
-                        placeholder="Describe how you want to modify this content..."
+                        placeholder={t('aiEditSection.promptPlaceholder')}
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         className="mb-3"
@@ -193,7 +195,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                             disabled={!aiPrompt.trim() || isAiProcessing}
                         >
                             <Send className="h-4 w-4 mr-2" />
-                            Send
+                            {t('aiEditSection.send')}
                         </HuemulButton>
                         <HuemulButton 
                             size="sm" 
@@ -202,35 +204,35 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                 setIsAiEditing(false);
                                 setAiPrompt('');
                             }}
-                            label="Cancel"
+                            label={t('section.cancel')}
                         />
                     </div>
                 </div>
             )}
 
             {aiPreview !== null && !isAiProcessing && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
-                    <span className="text-sm text-amber-800">Vista previa de edición por IA lista. ¿Guardar cambios?</span>
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-0 z-40 shadow-lg">
+                    <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
                         <HuemulButton
                             size="sm"
                             onClick={() => handleSave(sectionExecution.section_execution_id || sectionExecution.id, aiPreview)}
                             disabled={isSaving}
-                            label="Guardar"
+                            label={t('section.save')}
                         />
                         <HuemulButton
                             size="sm"
                             variant="outline"
                             onClick={() => setAiPreview(null)}
                             disabled={isSaving}
-                            label="Deshacer"
+                            label={t('section.undo')}
                         />
                     </div>
                 </div>
             )}
             {aiPreview !== null && isAiProcessing && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 relative z-30 shadow-lg">
-                    Generando propuesta con IA...
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 sticky top-0 z-40 shadow-lg">
+                    {t('section.generatingAiProposal')}
                 </div>
             )}
             

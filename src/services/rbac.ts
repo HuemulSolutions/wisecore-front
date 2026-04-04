@@ -105,6 +105,10 @@ export interface RoleWithAllUsersResponse {
   };
   transaction_id: string;
   timestamp: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
 }
 
 export interface CreateRoleData {
@@ -184,7 +188,7 @@ export const getUserRoles = async (userId: string): Promise<UserRolesResponse> =
 };
 
 // Get all roles with user assignment status
-export const getUserAllRoles = async (userId: string, page: number = 1, pageSize: number = 10): Promise<UserAllRolesResponse> => {
+export const getUserAllRoles = async (userId: string, page: number = 1, pageSize: number = 10, search?: string): Promise<UserAllRolesResponse> => {
   if (!userId || userId.trim() === '') {
     throw new Error('User ID is required');
   }
@@ -193,6 +197,10 @@ export const getUserAllRoles = async (userId: string, page: number = 1, pageSize
     page: page.toString(),
     page_size: pageSize.toString(),
   });
+
+  if (search && search.trim() !== '') {
+    params.set('search', search.trim());
+  }
   
   const response = await httpClient.get(`${backendUrl}/user_roles/user_all_roles/${userId}?${params.toString()}`, {
     headers: getHeaders(),
@@ -251,12 +259,14 @@ export const deleteRole = async (roleId: string): Promise<void> => {
 export const getRoleWithAllUsers = async (
   roleId: string,
   page?: number,
-  pageSize?: number
+  pageSize?: number,
+  search?: string
 ): Promise<RoleWithAllUsersResponse> => {
   const params = new URLSearchParams();
   params.append('role_id', roleId);
   if (page) params.append('page', page.toString());
   if (pageSize) params.append('page_size', pageSize.toString());
+  if (search) params.append('search', search);
 
   const response = await httpClient.get(`${backendUrl}/user_roles/role_with_all_users?${params.toString()}`, {
     headers: getHeaders(),

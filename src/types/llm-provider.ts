@@ -17,6 +17,8 @@ export interface SupportedProvider {
   requires_api_key: boolean;
   requires_endpoint: boolean;
   requires_deployment: boolean;
+  docs_url?: string;
+  credentials_url?: string;
 }
 
 export interface SupportedProvidersResponse {

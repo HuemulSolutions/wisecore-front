@@ -373,6 +373,8 @@ export interface PlateRichEditorRef {
   getValue: () => Value;
   /** Reset the editor content from a markdown string */
   resetContent: (markdown: string) => void;
+  /** Reset the editor content directly from a Plate Value (preserves comment marks) */
+  resetValue: (value: Value) => void;
 }
 
 interface PlateRichEditorProps {
@@ -394,6 +396,13 @@ interface PlateRichEditorProps {
   toolbarActions?: React.ReactNode;
   /** Document ID – enables discussion/comment sync with backend when provided */
   documentId?: string;
+  /**
+   * Called immediately after a discussion is created or a comment is added.
+   * Use this to auto-save plate_content so comment marks survive a page refresh.
+   */
+  onAfterDiscussionMutation?: () => void;
+  /** Callback to create a new section from selected text (floating toolbar) */
+  onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
 }
 
 export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEditorProps>(
@@ -407,6 +416,8 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     variant = 'default',
     toolbarActions,
     documentId,
+    onAfterDiscussionMutation,
+    onCreateSectionFromSelection,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -435,7 +446,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     value: externalValue ?? normalizeNodeId([{ children: [{ text: '' }], type: 'p' }]),
   });
 
-  // Expose getMarkdown, getValue and resetContent via ref
+  // Expose getMarkdown, getValue, resetContent and resetValue via ref
   React.useImperativeHandle(ref, () => ({
     getMarkdown: () => editor.getApi(MarkdownPlugin).markdown.serialize(),
     getValue: () => editor.children as Value,
@@ -445,6 +456,13 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
         editor.tf.setValue(nodes);
       } catch (e) {
         console.error('Failed to reset editor content:', e);
+      }
+    },
+    resetValue: (value: Value) => {
+      try {
+        editor.tf.setValue(value);
+      } catch (e) {
+        console.error('Failed to reset editor value:', e);
       }
     },
   }), [editor]);
@@ -483,7 +501,12 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
           }}
         >
           {/* Sync discussions from backend when a documentId is provided */}
-          {documentId && <DiscussionSync documentId={documentId} />}
+          {documentId && (
+            <DiscussionSync
+              documentId={documentId}
+              onAfterDiscussionMutation={onAfterDiscussionMutation}
+            />
+          )}
 
           {/* Toolbar – use compact version for section variant */}
           {showToolbar && (
@@ -499,7 +522,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
           </EditorContainer>
 
           {/* Floating toolbar – appears on text selection */}
-          <FloatingToolbarButtons />
+          <FloatingToolbarButtons onCreateSectionFromSelection={onCreateSectionFromSelection} />
         </Plate>
       </div>
     </TooltipProvider>

@@ -27,10 +27,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
+import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -43,6 +45,7 @@ import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-ad
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
+import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -72,7 +75,12 @@ import { ContentErrorState } from './content-error-state';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
 // import { useExecutionState } from './hooks/useExecutionState';
 
-
+/** Return the best display label for an execution: version first, then name. */
+function getExecutionDisplayLabel(execution: { version?: string | null; name?: string } | null | undefined): string {
+  if (!execution) return '';
+  if (execution.version) return `v${execution.version}`;
+  return execution.name || '';
+}
 
 
 
@@ -398,12 +406,12 @@ export function AssetContent({
 
   // Mutation for checking (advancing) execution lifecycle
   const checkLifecycleMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (comment?: string) => {
       const executionId = selectedExecutionId || documentContent?.execution_id;
       const stepId = documentContent?.lifecycle_status?.current_step_id;
       if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
       if (!stepId) throw new Error('Missing step ID');
-      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId);
+      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -438,14 +446,15 @@ export function AssetContent({
 
   // Mutation for rejecting (going back) execution lifecycle
   const rejectLifecycleMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
       const executionId = selectedExecutionId || documentContent?.execution_id;
       if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return rejectExecutionLifecycle(executionId, selectedOrganizationId);
+      return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['rollback-targets'] });
       setIsRejectLifecycleDialogOpen(false);
       toast.success(t('lifecycle.successReturn'));
     },
@@ -457,11 +466,11 @@ export function AssetContent({
 
   // Mutation for advancing lifecycle (publish / archive)
   const advanceLifecycleMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: { comment?: string; skip_published?: boolean }) => {
       preserveScrollPosition();
       const executionId = selectedExecutionId || documentContent?.execution_id;
       if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return advanceExecutionLifecycle(executionId, selectedOrganizationId);
+      return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -483,6 +492,27 @@ export function AssetContent({
     scrollRestoration.saveScrollPosition();
   };
 
+  // Mutation for renaming an execution version
+  const renameVersionMutation = useMutation({
+    mutationFn: async ({ executionId, name }: { executionId: string; name: string }) => {
+      if (!selectedOrganizationId) throw new Error('Missing organization');
+      return updateExecutionName(executionId, name, selectedOrganizationId);
+    },
+    onSuccess: () => {
+      // Use refetchQueries to force immediate refetch regardless of staleTime
+      queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
+      queryClient.refetchQueries({ queryKey: ['executions', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['library'] });
+      setIsRenameVersionDialogOpen(false);
+      setExecutionToRename(null);
+      toast.success(t('mutations.versionRenamed'));
+    },
+    onError: (error) => {
+      handleApiError(error, { fallbackMessage: t('mutations.failedRenameVersion') });
+    },
+  });
+
   // ============================================================================
   // STATE - DIALOG AND SHEET VISIBILITY
   // ============================================================================
@@ -498,6 +528,8 @@ export function AssetContent({
   const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
+  const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -537,6 +569,7 @@ export function AssetContent({
   const [sectionInsertPosition, setSectionInsertPosition] = useState<number | undefined>(undefined);
   const [isSectionExecutionDialogOpen, setIsSectionExecutionDialogOpen] = useState(false);
   const [afterFromSectionId, setAfterFromSectionId] = useState<string | null>(null);
+  const [sectionFromSelectionContent, setSectionFromSelectionContent] = useState<string | null>(null);
   
   // ============================================================================
   // STATE - TEMPLATE MANAGEMENT
@@ -737,6 +770,16 @@ export function AssetContent({
   // Handle section execution creation submission
   const handleSectionExecutionSubmit = (values: AddSectionExecutionRequest) => {
     createSectionExecutionMutation.mutate(values);
+  };
+
+  // Handle create section from selected text in floating toolbar
+  const handleCreateSectionFromSelection = (sectionIndex: number) => (selectedMarkdown: string) => {
+    if (!selectedExecutionId || !documentContent?.content) return;
+    // Determine after_from based on current section index
+    const afterFromId = documentContent.content[sectionIndex]?.id || null;
+    setAfterFromSectionId(afterFromId);
+    setSectionFromSelectionContent(selectedMarkdown);
+    setIsSectionExecutionDialogOpen(true);
   };
 
   // Handle create new execution - abrir Execute Sheet
@@ -940,6 +983,9 @@ export function AssetContent({
     selectedOrganizationId || '',
     shouldFetchExecutions && !!selectedOrganizationId
   );
+
+  // Unified executions source: prefer documentContent (always fresh after refetch) over separate query
+  const allExecutions = documentContent?.executions || documentExecutions;
 
   // Check if there's any execution in process - optimized with memoization
   const hasExecutionInProcess = useMemo(() => {
@@ -1669,7 +1715,7 @@ export function AssetContent({
                     <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                       {selectedExecutionInfo && (
                         <>
-                          <span className="text-xs">{selectedExecutionInfo.name}</span>
+                          <span className="text-xs">{getExecutionDisplayLabel(selectedExecutionInfo)}</span>
                           <span>•</span>
                           <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
                           {selectedExecutionInfo.isLatest && (
@@ -1748,7 +1794,7 @@ export function AssetContent({
                               onClick={() => setIsPublishDialogOpen(true)}
                             />
                           )}
-                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'published' && (
+                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
                             <HuemulButton
                               variant="outline"
                               size="sm"
@@ -1903,7 +1949,7 @@ export function AssetContent({
               
               {/* Secondary Action Buttons */}
               {/* Execution Dropdown - only show for documents with executions */}
-              {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
+              {selectedFile.type === 'document' && allExecutions?.length > 0 && (
                 <DocumentAccessControl
                   requiredAccess="read"
                 >
@@ -1918,15 +1964,16 @@ export function AssetContent({
                       >
                         <span className="font-medium">
                           {(() => {
-                            if (!documentExecutions) return 'v1';
+                            if (!allExecutions) return 'v1';
                             // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
                             const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
-                            if (selectedExecution?.name) {
-                              return selectedExecution.name.length > 15 ? `${selectedExecution.name.substring(0, 15)}...` : selectedExecution.name;
+                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
+                            const label = getExecutionDisplayLabel(selectedExecution);
+                            if (label) {
+                              return label.length > 15 ? `${label.substring(0, 15)}...` : label;
                             }
                             // Fallback to version number if no name
-                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
                               parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                             );
                             const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
@@ -1942,11 +1989,11 @@ export function AssetContent({
                       <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
                     </div>
                     <div className="overflow-y-auto max-h-64">
-                    {documentExecutions
+                    {allExecutions
                       .sort((a: { created_at: string }, b: { created_at: string }) => 
                         parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                       )
-                      .map((execution: { id: string; created_at: string; name: string; status: string }, index: number) => {
+                      .map((execution: { id: string; created_at: string; name: string; status: string; version?: string | null }, index: number) => {
                         // Determine if this execution is the currently selected/displayed one
                         const currentExecutionId = selectedExecutionId || documentContent?.execution_id;
                         const isSelected = execution.id === currentExecutionId;
@@ -1973,7 +2020,7 @@ export function AssetContent({
                                 <span className={`text-sm font-medium ${
                                   isSelected ? 'text-[#4464f7]' : 'text-gray-900'
                                 }`}>
-                                  {execution.name}
+                                  {getExecutionDisplayLabel(execution)}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1">
@@ -2151,7 +2198,7 @@ export function AssetContent({
                       {selectedExecutionInfo && (
                         <>
                           <span>
-                            {selectedExecutionInfo.name || `Version ${selectedExecutionInfo.status}`}
+                            {getExecutionDisplayLabel(selectedExecutionInfo) || `Version ${selectedExecutionInfo.status}`}
                           </span>
                           <span className="text-gray-400">•</span>
                           <span>{selectedExecutionInfo.formattedDate}</span>
@@ -2231,7 +2278,7 @@ export function AssetContent({
                               onClick={() => setIsPublishDialogOpen(true)}
                             />
                           )}
-                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'published' && (
+                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
                             <HuemulButton
                               variant="outline"
                               size="sm"
@@ -2275,7 +2322,7 @@ export function AssetContent({
               {/* LEFT GROUP - Version, Sections, Dependencies, Context */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
                 {/* Execution / Version Dropdown */}
-                {selectedFile.type === 'document' && documentExecutions?.length > 0 && (
+                {selectedFile.type === 'document' && allExecutions?.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <HuemulButton
@@ -2286,20 +2333,17 @@ export function AssetContent({
                       >
                         <span className="font-medium">
                           {(() => {
-                            if (!documentExecutions) return 'v1';
+                            if (!allExecutions) return 'v1';
                             // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
                             const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = documentExecutions.find((exec: any) => exec.id === targetId);
+                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
                             // Show semantic version if available
-                            if (selectedExecution?.version_major != null && selectedExecution?.version_minor != null && selectedExecution?.version_patch != null) {
-                              const versionLabel = `v${selectedExecution.version_major}.${selectedExecution.version_minor}.${selectedExecution.version_patch}`;
-                              return versionLabel.length > 20 ? `${versionLabel.substring(0, 20)}...` : versionLabel;
-                            }
-                            if (selectedExecution?.name) {
-                              return selectedExecution.name.length > 20 ? `${selectedExecution.name.substring(0, 20)}...` : selectedExecution.name;
+                            const label = getExecutionDisplayLabel(selectedExecution);
+                            if (label) {
+                              return label.length > 20 ? `${label.substring(0, 20)}...` : label;
                             }
                             // Fallback to version number if no name
-                            const sortedExecutions = [...documentExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
+                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
                               parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                             );
                             const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
@@ -2332,17 +2376,15 @@ export function AssetContent({
                         </>
                       )}
                       <div className="overflow-y-auto max-h-64">
-                      {documentExecutions
+                      {allExecutions
                         .sort((a: { created_at: string }, b: { created_at: string }) => 
                           parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
                         )
-                        .map((execution: { id: string; created_at: string; name: string; status: string; version_major?: number | null; version_minor?: number | null; version_patch?: number | null }, index: number) => {
+                        .map((execution: { id: string; created_at: string; name: string; status: string; version?: string | null }, index: number) => {
                           const isSelected = selectedExecutionId === execution.id;
                           const isApproved = execution.status === 'approved';
                           const isLatest = index === 0;
-                          const displayName = (execution.version_major != null && execution.version_minor != null && execution.version_patch != null)
-                            ? `v${execution.version_major}.${execution.version_minor}.${execution.version_patch}`
-                            : execution.name;
+                          const displayName = getExecutionDisplayLabel(execution);
                           
                           return (
                             <DropdownMenuItem 
@@ -2368,6 +2410,19 @@ export function AssetContent({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1">
+                                  {lifecyclePermissions?.create && lifecyclePermissions?.edit && !execution.version && (
+                                    <button
+                                      className="p-0.5 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
+                                      title={t('content.renameVersion')}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExecutionToRename({ id: execution.id, name: execution.name || '' });
+                                        setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                                      }}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  )}
                                   {isLatest && (
                                     <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                       <Clock className="w-3 h-3" />
@@ -2979,7 +3034,8 @@ export function AssetContent({
                                   sectionExecution={{
                                     id: section.id,
                                     output: section.content,
-                                    section_id: realSectionId
+                                    section_id: realSectionId,
+                                    plate_content: section.plate_content,
                                   }}
                                   onUpdate={() => {
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -3014,6 +3070,7 @@ export function AssetContent({
                                   sectionType={section.section_type}
                                   sectionName={section.section_name}
                                   canEditSections={frontendPermissions.canEditSections}
+                                  onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
                                 />
                               </div>
                               
@@ -3196,6 +3253,7 @@ export function AssetContent({
         onOpenChange={(open) => {
           if (!open) {
             setIsSectionExecutionDialogOpen(false)
+            setSectionFromSelectionContent(null)
           }
         }}
         afterFromSectionId={afterFromSectionId}
@@ -3205,7 +3263,10 @@ export function AssetContent({
         onClose={() => {
           setIsSectionExecutionDialogOpen(false)
           setAfterFromSectionId(null)
+          setSectionFromSelectionContent(null)
         }}
+        defaultType={sectionFromSelectionContent ? 'manual' : undefined}
+        defaultManualInput={sectionFromSelectionContent || undefined}
       />
 
       {/* Delete Confirmation AlertDialog */}
@@ -3287,7 +3348,7 @@ export function AssetContent({
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <LifecycleCommentDialog
         open={isCheckLifecycleDialogOpen}
         onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
         title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
@@ -3296,44 +3357,55 @@ export function AssetContent({
             ? t('lifecycle.advanceStateDescription')
             : t('lifecycle.advanceStepDescription')
         }
-        onConfirm={() => checkLifecycleMutation.mutate()}
+        onConfirm={(comment) => checkLifecycleMutation.mutate(comment)}
         confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={checkLifecycleMutation.isPending}
         variant="default"
       />
 
-      {/* Lifecycle Reject (Go Back) Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      {/* Lifecycle Reject (Go Back) Dialog */}
+      <LifecycleRollbackDialog
         open={isRejectLifecycleDialogOpen}
         onOpenChange={(open) => !rejectLifecycleMutation.isPending && setIsRejectLifecycleDialogOpen(open)}
-        title={t('lifecycle.returnTitle')}
-        description={t('lifecycle.returnDescription')}
-        onConfirm={() => rejectLifecycleMutation.mutate()}
-        confirmLabel={t('lifecycle.returnConfirm')}
+        executionId={selectedExecutionId || documentContent?.execution_id || null}
+        organizationId={selectedOrganizationId!}
+        onConfirm={(options) => rejectLifecycleMutation.mutate(options)}
         isProcessing={rejectLifecycleMutation.isPending}
-        variant="destructive"
       />
 
       {/* Publish Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <LifecycleCommentDialog
         open={isPublishDialogOpen}
         onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
         title={t('lifecycle.publishTitle')}
         description={t('lifecycle.publishDescription')}
-        onConfirm={() => advanceLifecycleMutation.mutate()}
+        onConfirm={(comment) => advanceLifecycleMutation.mutate({ comment })}
         confirmLabel={t('lifecycle.publishConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={advanceLifecycleMutation.isPending}
         variant="default"
       />
 
       {/* Archive Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <LifecycleCommentDialog
         open={isArchiveDialogOpen}
         onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsArchiveDialogOpen(open)}
         title={t('lifecycle.archiveTitle')}
-        description={t('lifecycle.archiveDescription')}
-        onConfirm={() => advanceLifecycleMutation.mutate()}
+        description={
+          documentContent?.lifecycle_status?.state === 'approved'
+            ? t('lifecycle.archiveFromApprovedDescription')
+            : t('lifecycle.archiveDescription')
+        }
+        onConfirm={(comment) => advanceLifecycleMutation.mutate({
+          comment,
+          skip_published: documentContent?.lifecycle_status?.state === 'approved',
+        })}
         confirmLabel={t('lifecycle.archiveConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={advanceLifecycleMutation.isPending}
         variant="destructive"
       />
@@ -3455,6 +3527,24 @@ export function AssetContent({
         onOpenChange={(open) => { if (!assignVersionMutation.isPending) setIsAssignVersionDialogOpen(open); }}
         onConfirm={(version) => assignVersionMutation.mutate(version)}
         isProcessing={assignVersionMutation.isPending}
+      />
+
+      {/* Rename Version Dialog */}
+      <RenameVersionDialog
+        open={isRenameVersionDialogOpen}
+        onOpenChange={(open) => {
+          if (!renameVersionMutation.isPending) {
+            setIsRenameVersionDialogOpen(open);
+            if (!open) setExecutionToRename(null);
+          }
+        }}
+        currentName={executionToRename?.name || ''}
+        onConfirm={(name) => {
+          if (executionToRename) {
+            renameVersionMutation.mutate({ executionId: executionToRename.id, name });
+          }
+        }}
+        isProcessing={renameVersionMutation.isPending}
       />
     </>
   );

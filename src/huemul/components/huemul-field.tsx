@@ -17,6 +17,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -69,6 +70,18 @@ export interface HuemulFieldOption {
   icon?: LucideIcon;
   /** Optional hex color — renders a filled circle before the label */
   color?: string;
+}
+
+// ── Grouped Select types ─────────────────────────────────────────────────
+
+/** A group of options for the grouped select type */
+export interface HuemulFieldOptionGroup {
+  /** Label shown as the group header (non-selectable) */
+  groupLabel: string;
+  /** If provided, the group header is also a selectable item with this value */
+  groupValue?: string;
+  /** Options nested under this group */
+  options: HuemulFieldOption[];
 }
 
 // ── Async Select types ────────────────────────────────────────────────────
@@ -144,6 +157,8 @@ export interface HuemulFieldProps {
   // ── Select / Combobox ─────────────────────────────────────────────────
   /** Options for select or combobox types */
   options?: HuemulFieldOption[];
+  /** Grouped options for select type — renders SelectGroups with headers */
+  groupedOptions?: HuemulFieldOptionGroup[];
 
   // ── File ──────────────────────────────────────────────────────────────
   /** Accept attribute for file inputs (e.g. "image/*,.pdf") */
@@ -938,6 +953,7 @@ export function HuemulField({
   disabled,
   readOnly,
   options = [],
+  groupedOptions,
   accept,
   multiple,
   onFileChange,
@@ -1020,7 +1036,67 @@ export function HuemulField({
           />
         );
 
-      case "select":
+      case "select": {
+        const selectTrigger = (
+          <SelectTrigger
+            id={fieldId}
+            className={cn("w-full", inputClassName)}
+            aria-invalid={baseInvalid || undefined}
+          >
+            <SelectValue placeholder={placeholder || t('selectPlaceholder')} />
+          </SelectTrigger>
+        );
+
+        if (groupedOptions && groupedOptions.length > 0) {
+          return (
+            <Select
+              value={String(value ?? "")}
+              onValueChange={handleSelectChange}
+              disabled={disabled}
+              required={required}
+            >
+              {selectTrigger}
+              <SelectContent>
+                {groupedOptions.map((group) => (
+                  <SelectGroup key={group.groupLabel}>
+                    {group.groupValue ? (
+                      <SelectItem
+                        value={group.groupValue}
+                        className="font-medium"
+                      >
+                        {group.groupLabel}
+                      </SelectItem>
+                    ) : (
+                      <SelectLabel>{group.groupLabel}</SelectLabel>
+                    )}
+                    {group.options.map((opt) => (
+                      <SelectItem
+                        key={opt.value}
+                        value={opt.value}
+                        className="pl-6"
+                      >
+                        <span className="flex items-center gap-2">
+                          {opt.color && (
+                            <span
+                              className="size-3 rounded-full shrink-0 border border-border/40 inline-block"
+                              style={{ backgroundColor: opt.color }}
+                            />
+                          )}
+                          {opt.icon && !opt.color &&
+                            React.createElement(opt.icon, {
+                              className: "size-4 text-muted-foreground",
+                            })}
+                          {opt.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        }
+
         return (
           <Select
             value={String(value ?? "")}
@@ -1028,13 +1104,7 @@ export function HuemulField({
             disabled={disabled}
             required={required}
           >
-            <SelectTrigger
-              id={fieldId}
-              className={cn("w-full", inputClassName)}
-              aria-invalid={baseInvalid || undefined}
-            >
-              <SelectValue placeholder={placeholder || t('selectPlaceholder')} />
-            </SelectTrigger>
+            {selectTrigger}
             <SelectContent>
               <SelectGroup>
                 {options.map((opt) => (
@@ -1058,6 +1128,7 @@ export function HuemulField({
             </SelectContent>
           </Select>
         );
+      }
 
       case "combobox":
         return (

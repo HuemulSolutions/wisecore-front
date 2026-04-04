@@ -27,6 +27,8 @@ interface SectionExecutionProps {
         id: string;
         output: string;
         section_id?: string;
+        /** Plate JSON nodes (stringified) – used to restore comment marks on load */
+        plate_content?: string[];
     }
     onUpdate?: () => void;
     readyToEdit: boolean;
@@ -41,6 +43,7 @@ interface SectionExecutionProps {
     sectionType?: 'ai' | 'manual' | 'reference' | null;
     sectionName?: string;
     canEditSections?: boolean;
+    onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
 }
 
 export default function SectionExecution({ 
@@ -58,6 +61,7 @@ export default function SectionExecution({
     sectionType = 'ai',
     sectionName,
     canEditSections = false,
+    onCreateSectionFromSelection,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
@@ -135,10 +139,22 @@ export default function SectionExecution({
         }, 100);
     };
 
-    const handleSave = async (sectionId: string, newContent: string) => {
+    /**
+     * Silent auto-save triggered after a comment mark is added to the editor.
+     * Persists plate_content (with the new mark) without affecting edit mode.
+     */
+    const handleAutoSavePlateContent = async (sId: string, markdown: string, pContent: string[]) => {
+        try {
+            await modifyContent(sId, markdown, pContent);
+        } catch {
+            // Silent fail – auto-save is best-effort, not user-initiated
+        }
+    };
+
+    const handleSave = async (sectionId: string, newContent: string, plateContent?: string[]) => {
         try {
             setIsSaving(true);
-            await modifyContent(sectionId, newContent);
+            await modifyContent(sectionId, newContent, plateContent);
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
@@ -505,7 +521,7 @@ export default function SectionExecution({
             )}
             
             {aiPreview !== null && !isAiProcessing && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between relative z-30 shadow-lg">
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-40 shadow-lg">
                     <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
                         <Button
@@ -529,7 +545,7 @@ export default function SectionExecution({
                 </div>
             )}
             {aiPreview !== null && isAiProcessing && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 relative z-30 shadow-lg">
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 sticky top-9 z-40 shadow-lg">
                     {t('section.generatingAiProposal')}
                 </div>
             )}
@@ -582,11 +598,14 @@ export default function SectionExecution({
                     <SectionPlateEditor
                         sectionId={sectionExecution.id}
                         content={displayedContent}
+                        plateContent={sectionExecution.plate_content}
                         isEditing={isEditing}
                         onSave={handleSave}
+                        onAutoSavePlateContent={handleAutoSavePlateContent}
                         onCancel={handleCancelEdit}
                         isSaving={isSaving}
                         documentId={documentId}
+                        onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />
                 </div>
             )}
