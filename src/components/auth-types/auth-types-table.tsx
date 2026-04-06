@@ -1,54 +1,50 @@
-import { Edit2, Trash2 } from "lucide-react"
+import { Edit2, Trash2, Shield } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
-import { DataTable } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 
 interface AuthTypesTableProps {
   authTypes: AuthType[]
-  filteredAuthTypes: AuthType[]
   onEdit: (authType: AuthType) => void
   onDelete: (authType: AuthType) => void
+  isLoading?: boolean
+  isFetching?: boolean
+  pagination?: HuemulTablePagination
 }
 
-const getTypeDisplayName = (type: string) => {
-  switch (type) {
-    case "internal":
-      return "Internal"
-    case "entra":
-      return "Entra ID (SAML2)"
-    default:
-      return type
-  }
-}
 
 export function AuthTypesTable({ 
   authTypes, 
-  filteredAuthTypes, 
   onEdit, 
-  onDelete 
+  onDelete,
+  isLoading = false,
+  isFetching = false,
+  pagination,
 }: AuthTypesTableProps) {
+  const { t } = useTranslation(['auth-types', 'common'])
   const { isRootAdmin } = useUserPermissions()
 
-  // Define columns
-  const columns: TableColumn<AuthType>[] = [
+  const columns: HuemulTableColumn<AuthType>[] = [
     {
       key: "name",
-      label: "Name",
+      label: t('common:name'),
       render: (authType) => (
         <span className="text-xs font-medium text-foreground">{authType.name}</span>
       )
     },
     {
       key: "type",
-      label: "Type",
+      label: t('columns.type'),
       render: (authType) => (
-        <span className="text-xs text-foreground">{getTypeDisplayName(authType.type)}</span>
+        <span className="text-xs text-foreground">
+          {authType.type === 'internal' ? t('types.internal') : authType.type === 'entra' ? t('types.entra') : authType.type}
+        </span>
       )
     },
     {
       key: "created",
-      label: "Created",
+      label: t('columns.created'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.created_at).toLocaleDateString()}
@@ -57,7 +53,7 @@ export function AuthTypesTable({
     },
     {
       key: "updated",
-      label: "Updated",
+      label: t('columns.updated'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.updated_at).toLocaleDateString()}
@@ -66,44 +62,38 @@ export function AuthTypesTable({
     }
   ]
 
-  // Define actions (solo para admins)
-  const actions: TableAction<AuthType>[] = isRootAdmin ? [
+  const actions: HuemulTableAction<AuthType>[] = isRootAdmin ? [
     {
       key: "edit",
-      label: "Edit Auth Type",
+      label: t('actions.editAuthType'),
       icon: Edit2,
       onClick: onEdit,
       separator: true
     },
     {
       key: "delete",
-      label: "Delete Auth Type",
+      label: t('actions.deleteAuthType'),
       icon: Trash2,
       onClick: onDelete,
       destructive: true
     }
   ] : []
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: `Showing ${filteredAuthTypes.length} of ${authTypes.length} authentication types`,
-      value: ''
-    },
-    {
-      label: 'internal types',
-      value: authTypes.filter(a => a.type === 'internal').length
-    }
-  ]
-
   return (
-    <DataTable
-      data={filteredAuthTypes}
+    <HuemulTable
+      data={authTypes}
       columns={columns}
       actions={actions}
       getRowKey={(authType) => authType.id}
-      footerStats={footerStats}
+      emptyState={{
+        icon: Shield,
+        title: t('emptyState.empty'),
+        description: t('emptyState.noResults'),
+      }}
       maxHeight="max-h-[70vh]"
+      isLoading={isLoading}
+      isFetching={isFetching}
+      pagination={pagination}
     />
   )
 }

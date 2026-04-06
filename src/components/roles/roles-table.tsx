@@ -1,39 +1,40 @@
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Shield, RefreshCw, UserPlus, Trash2 } from "lucide-react"
+import { Shield, RefreshCw, UserPlus, Trash2, Copy } from "lucide-react"
 import { type Role } from "@/services/rbac"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
 interface RolesTableProps {
   roles: Role[]
-  filteredRoles: Role[]
-  totalPermissions: number
   isLoadingUsers: boolean
+  isTableLoading?: boolean
+  isTableFetching?: boolean
   onAssignToUsers: (role: Role) => void
   onEditRole: (role: Role) => void
   onDeleteRole: (role: Role) => void
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  onCloneRole: (role: Role) => void
+  pagination?: HuemulTablePagination
   canManage?: boolean
 }
 
 export function RolesTable({ 
   roles, 
-  filteredRoles, 
-  totalPermissions, 
   isLoadingUsers,
+  isTableLoading = false,
+  isTableFetching = false,
   onAssignToUsers,
   onEditRole,
   onDeleteRole,
+  onCloneRole,
   pagination,
-  showFooterStats,
   canManage = false
 }: RolesTableProps) {
+  const { t } = useTranslation('roles')
   // Define columns
-  const columns: TableColumn<Role>[] = [
+  const columns: HuemulTableColumn<Role>[] = [
     {
       key: "name",
-      label: "Role Name",
+      label: t('columns.roleName'),
       render: (role) => (
         <div className="flex flex-col gap-0">
           <div className="flex items-center gap-1">
@@ -50,7 +51,7 @@ export function RolesTable({
     },
     {
       key: "permissions",
-      label: "Permissions",
+      label: t('columns.permissions'),
       render: (role) => {
         const permissionCount = role.permission_num || role.permissions?.length || 0
         const visiblePermissions = role.permissions?.slice(0, 1) || []
@@ -77,7 +78,7 @@ export function RolesTable({
     },
     {
       key: "created",
-      label: "Created",
+      label: t('columns.created'),
       hideOnMobile: true,
       render: (role) => (
         <span className="text-xs text-foreground">
@@ -92,51 +93,50 @@ export function RolesTable({
   ]
 
   // Define actions - solo si tiene permisos de manage
-  const actions: TableAction<Role>[] = canManage ? [
+  const actions: HuemulTableAction<Role>[] = canManage ? [
     {
       key: "assign",
-      label: isLoadingUsers ? 'Loading users...' : 'Assign to Users',
+      label: isLoadingUsers ? t('actions.loadingUsers') : t('actions.assignToUsers'),
       icon: isLoadingUsers ? RefreshCw : UserPlus,
       onClick: onAssignToUsers,
       className: isLoadingUsers ? "animate-spin" : ""
     },
     {
       key: "edit",
-      label: "Manage Permissions",
+      label: t('actions.managePermissions'),
       icon: Shield,
       onClick: onEditRole,
       separator: true
     },
     {
+      key: "clone",
+      label: t('actions.cloneRole'),
+      icon: Copy,
+      onClick: onCloneRole,
+    },
+    {
       key: "delete",
-      label: "Delete Role",
+      label: t('actions.deleteRole'),
       icon: Trash2,
       onClick: onDeleteRole,
       destructive: true
     }
   ] : []
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: `Showing ${filteredRoles.length} of ${roles.length} roles`,
-      value: ''
-    },
-    {
-      label: 'total permissions',
-      value: totalPermissions
-    }
-  ]
-
   return (
-    <DataTable
-      data={filteredRoles}
+    <HuemulTable
+      data={roles}
       columns={columns}
       actions={actions}
       getRowKey={(role) => role.id}
-      footerStats={footerStats}
+      emptyState={{
+        icon: Shield,
+        title: t('emptyState.noRolesFound'),
+        description: t('emptyState.noRolesCreated'),
+      }}
       pagination={pagination}
-      showFooterStats={showFooterStats}
+      isLoading={isTableLoading}
+      isFetching={isTableFetching}
     />
   )
 }

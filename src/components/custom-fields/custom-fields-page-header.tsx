@@ -1,7 +1,8 @@
 "use client"
 
 import { Plus, Settings2 } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
+import { useTranslation } from "react-i18next"
 
 interface CustomFieldPageHeaderProps {
   customFieldCount: number
@@ -22,24 +23,27 @@ export function CustomFieldPageHeader({
   onSearchChange,
   canManage = false
 }: CustomFieldPageHeaderProps) {
+  const { t } = useTranslation('custom-fields')
+
   return (
     <PageHeader
       icon={Settings2}
-      title="Custom Fields"
+      title={t('header.title')}
       badges={[
         { label: "", value: isLoading ? "..." : customFieldCount }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       primaryAction={canManage ? {
-        label: "Create Custom Field",
+        label: t('header.createCustomField'),
         icon: Plus,
         onClick: onCreateCustomField
       } : undefined}
       searchConfig={{
-        placeholder: "Search custom fields...",
+        placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true
       }}
     />
   )

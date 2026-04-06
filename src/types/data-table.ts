@@ -99,4 +99,8 @@ export interface DataTableProps<T> {
   pagination?: PaginationConfig
   /** Show footer stats (default: true) */
   showFooterStats?: boolean
+  /** Show skeleton rows while loading (no data available) */
+  isLoading?: boolean
+  /** Show subtle loading indicator when refetching with existing data */
+  isFetching?: boolean
 }

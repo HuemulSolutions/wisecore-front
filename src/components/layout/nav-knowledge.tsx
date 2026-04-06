@@ -1,9 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X } from "lucide-react"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
+
 import type { MenuAction } from "@/types/menu-action"
 
 import {
@@ -17,39 +19,56 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
+import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
 import { moveDocument, deleteDocument } from "@/services/assets"
 import { CreateAssetDialog } from "@/components/assets/dialogs/assets-create-dialog"
+import { ImportAssetFromFileDialog } from "@/components/assets/dialogs/assets-import-from-file-dialog"
 import { CreateFolderDialog } from "@/components/assets/dialogs/assets-create-folder-dialog"
 import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-folder-dialog"
 import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog"
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
 import { toast } from "sonner"
+import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
+import { handleApiError } from "@/lib/error-utils"
 
 // Context para compartir el fileTreeRef entre header y content
 const NavKnowledgeContext = React.createContext<{
   fileTreeRef: React.RefObject<FileTreeRef | null>
   handleCreateAsset: (folderId?: string) => void
+  handleImportAsset: () => void
   handleCreateFolder: (folderId?: string) => void
   handleDeleteFolder: (folderId: string, folderName: string) => void
   handleEditFolder: (folderId: string, currentName: string) => void
   handleDeleteDocument: (documentId: string, documentName: string) => void
   handleEditDocument: (documentId: string, currentName: string) => void
   refreshFileTree: () => void
+  isSearchOpen: boolean
+  setIsSearchOpen: (open: boolean) => void
+  searchTerm: string
+  setSearchTerm: (term: string) => void
+  committedSearch: string
+  setCommittedSearch: (term: string) => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate()
+  const { t } = useTranslation('layout')
+  const navigate = useOrgNavigate()
   const fileTreeRef = useRef<FileTreeRef>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
+  const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
+  const [importAssetDialogOpen, setImportAssetDialogOpen] = useState(false)
+  const [renderImportAssetDialog, setRenderImportAssetDialog] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false)
   const [deleteDocumentDialogOpen, setDeleteDocumentDialogOpen] = useState(false)
+  const [renderDeleteDocumentDialog, setRenderDeleteDocumentDialog] = useState(false)
   const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
@@ -58,11 +77,30 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [folderToEdit, setFolderToEdit] = useState<{ id: string; name: string } | null>(null)
   const [documentToEdit, setDocumentToEdit] = useState<{ id: string; name: string } | null>(null)
   const [isDeletingDocument, setIsDeletingDocument] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [committedSearch, setCommittedSearch] = useState('')
   const { selectedOrganizationId } = useOrganization()
+
+  // Refs to keep callbacks stable across re-renders while accessing latest state
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
+  const documentToDeleteRef = useRef(documentToDelete)
+  documentToDeleteRef.current = documentToDelete
+  const selectedOrganizationIdRef = useRef(selectedOrganizationId)
+  selectedOrganizationIdRef.current = selectedOrganizationId
+  const isDeletingDocumentRef = useRef(isDeletingDocument)
+  isDeletingDocumentRef.current = isDeletingDocument
 
   const handleCreateAsset = useCallback((folderId?: string) => {
     setCurrentFolderId(folderId)
+    setRenderCreateAssetDialog(true)
     setCreateAssetDialogOpen(true)
+  }, [])
+
+  const handleImportAsset = useCallback(() => {
+    setRenderImportAssetDialog(true)
+    setImportAssetDialogOpen(true)
   }, [])
 
   const handleCreateFolder = useCallback((folderId?: string) => {
@@ -72,22 +110,29 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
     console.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
-    console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
-    fileTreeRef.current?.refresh()
-    // Navigate to the newly created asset
-    if (createdAsset) {
-      console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
-      navigate(`/asset/${createdAsset.id}`, {
-        state: {
-          selectedDocumentId: createdAsset.id,
-          selectedDocumentName: createdAsset.name,
-          selectedDocumentType: createdAsset.type,
-          fromFileTree: true,
-        }
-      })
-      console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
-    }
-  }, [navigate])
+
+    // Wait for the Radix exit animation (200 ms) to finish before
+    // triggering navigation, which causes a large re-render cascade
+    // through PermissionsProvider.  Navigating during the animation
+    // produces a visible "flash" of the dialog portal.
+    setTimeout(() => {
+      console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+      fileTreeRef.current?.refresh()
+      // Navigate to the newly created asset
+      if (createdAsset) {
+        console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
+        navigateRef.current(`/asset/${createdAsset.id}`, {
+          state: {
+            selectedDocumentId: createdAsset.id,
+            selectedDocumentName: createdAsset.name,
+            selectedDocumentType: createdAsset.type,
+            fromFileTree: true,
+          }
+        })
+        console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
+      }
+    }, 300)
+  }, []) // stable — uses ref for navigate
 
   const handleFolderCreated = useCallback(() => {
     fileTreeRef.current?.refresh()
@@ -105,6 +150,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
   const handleDeleteDocument = useCallback((documentId: string, documentName: string) => {
     setDocumentToDelete({ id: documentId, name: documentName })
+    setRenderDeleteDocumentDialog(true)
     setDeleteDocumentDialogOpen(true)
   }, [])
 
@@ -126,52 +172,79 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
 
     try {
       await deleteFolder(folderToDelete.id, selectedOrganizationId)
-      toast.success(`Folder "${folderToDelete.name}" deleted successfully`)
+      toast.success(t('knowledge.folderDeletedSuccess', { name: folderToDelete.name }))
       setDeleteFolderDialogOpen(false)
       setFolderToDelete(null)
       fileTreeRef.current?.refresh()
     } catch (error) {
-      console.error('Error deleting folder:', error)
-      toast.error('Failed to delete folder. Please try again.')
+      handleApiError(error, { fallbackMessage: t('knowledge.folderDeleteError') })
       throw error
     }
-  }, [folderToDelete, selectedOrganizationId])
+  }, [folderToDelete, selectedOrganizationId, t])
 
-  function closeDeleteDocumentDialog() {
-    setDeleteDocumentDialogOpen(false)
-    setDocumentToDelete(null)
-  }
-
-  const handleDeleteDocumentDialogChange = (open: boolean) => {
-    if (!open) {
-      closeDeleteDocumentDialog()
+  // Stable callback for DeleteDocumentDialog onOpenChange.
+  // Uses ref to read isDeletingDocument without closing over it.
+  const deleteDocumentDialogOnOpenChange = useCallback((open: boolean) => {
+    if (!open && !isDeletingDocumentRef.current) {
+      setDeleteDocumentDialogOpen(false)
+      setDocumentToDelete(null)
+      // Unmount dialog after exit animation
+      setTimeout(() => setRenderDeleteDocumentDialog(false), 300)
     }
-  }
+  }, [])
 
   const handleDocumentDeleted = useCallback(async () => {
-    if (!documentToDelete || !selectedOrganizationId) return
+    const doc = documentToDeleteRef.current
+    const orgId = selectedOrganizationIdRef.current
+    if (!doc || !orgId) return
 
     setIsDeletingDocument(true)
     try {
-      await deleteDocument(documentToDelete.id, selectedOrganizationId)
-      toast.success(`Document "${documentToDelete.name}" deleted successfully`)
-      closeDeleteDocumentDialog()
-      
-      // Navigate to root to clear URL and prevent showing deleted document
-      navigate('/asset', { replace: true })
-      
-      fileTreeRef.current?.refresh()
+      await deleteDocument(doc.id, orgId)
+      toast.success(t('knowledge.documentDeletedSuccess', { name: doc.name }))
+
+      // ONLY close the dialog — keep isDeletingDocument=true so:
+      //   1. ReusableAlertDialog's onOpenChange guard blocks any
+      //      Radix-initiated close event during the exit animation.
+      //   2. The dialog content (spinner / button label) doesn't
+      //      change mid-animation, avoiding a visual "flash".
+      setDeleteDocumentDialogOpen(false)
+
+      // Defer ALL remaining state resets, navigation, and tree refresh
+      // until after the Radix exit animation (200 ms) completes.
+      // Navigating during the animation causes a large re-render
+      // cascade (PermissionsProvider, Outlet swap) that interrupts
+      // the portal and produces a visible flash.
+      setTimeout(() => {
+        setIsDeletingDocument(false)
+        setDocumentToDelete(null)
+        setRenderDeleteDocumentDialog(false)
+        navigateRef.current('/asset', { replace: true })
+        fileTreeRef.current?.refresh()
+      }, 300)
     } catch (error) {
-      console.error('Error deleting document:', error)
-      toast.error('Failed to delete document. Please try again.')
-    } finally {
+      handleApiError(error, { fallbackMessage: t('knowledge.documentDeleteError') })
       setIsDeletingDocument(false)
     }
-  }, [documentToDelete, selectedOrganizationId, navigate])
+  }, []) // stable — uses refs for mutable values
 
   const handleCreateAssetDialogChange = useCallback((open: boolean) => {
     console.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
     setCreateAssetDialogOpen(open)
+    if (!open) {
+      // Unmount the dialog component AFTER the Radix exit animation
+      // (200 ms) finishes. This guarantees that context-triggered
+      // re-renders (e.g. PermissionsProvider, useOrganization) that
+      // bypass React.memo cannot touch the portal and produce a flash.
+      setTimeout(() => setRenderCreateAssetDialog(false), 300)
+    }
+  }, [])
+
+  const handleImportAssetDialogChange = useCallback((open: boolean) => {
+    setImportAssetDialogOpen(open)
+    if (!open) {
+      setTimeout(() => setRenderImportAssetDialog(false), 300)
+    }
   }, [])
 
   const refreshFileTree = useCallback(() => {
@@ -180,14 +253,23 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch }}>
       {children}
-      <CreateAssetDialog
-        open={createAssetDialogOpen}
-        onOpenChange={handleCreateAssetDialogChange}
-        folderId={currentFolderId}
-        onAssetCreated={handleAssetCreated}
-      />
+      {renderCreateAssetDialog && (
+        <CreateAssetDialog
+          open={createAssetDialogOpen}
+          onOpenChange={handleCreateAssetDialogChange}
+          folderId={currentFolderId}
+          onAssetCreated={handleAssetCreated}
+        />
+      )}
+      {renderImportAssetDialog && (
+        <ImportAssetFromFileDialog
+          open={importAssetDialogOpen}
+          onOpenChange={handleImportAssetDialogChange}
+          onAssetCreated={handleAssetCreated}
+        />
+      )}
       <CreateFolderDialog
         open={createFolderDialogOpen}
         onOpenChange={setCreateFolderDialogOpen}
@@ -207,13 +289,15 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         currentName={folderToEdit?.name || ""}
         onFolderEdited={handleFolderEdited}
       />
-      <DeleteDocumentDialog
-        open={deleteDocumentDialogOpen}
-        onOpenChange={(open) => !isDeletingDocument && handleDeleteDocumentDialogChange(open)}
-        documentName={documentToDelete?.name || ""}
-        onConfirm={handleDocumentDeleted}
-        isDeleting={isDeletingDocument}
-      />
+      {renderDeleteDocumentDialog && (
+        <DeleteDocumentDialog
+          open={deleteDocumentDialogOpen}
+          onOpenChange={deleteDocumentDialogOnOpenChange}
+          documentName={documentToDelete?.name || ""}
+          onConfirm={handleDocumentDeleted}
+          isDeleting={isDeletingDocument}
+        />
+      )}
       <EditDocumentDialog
         open={editDocumentDialogOpen}
         onOpenChange={setEditDocumentDialogOpen}
@@ -239,9 +323,19 @@ export function useNavKnowledgeRefresh() {
   return context?.refreshFileTree || (() => {})
 }
 
+// Export hook for accessing dialog actions (create asset, create folder, etc.)
+export function useNavKnowledgeActions() {
+  const context = React.useContext(NavKnowledgeContext)
+  return {
+    handleCreateAsset: context?.handleCreateAsset || (() => {}),
+    handleCreateFolder: context?.handleCreateFolder || (() => {}),
+  }
+}
+
 export function NavKnowledgeHeader() {
+  const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleCreateFolder } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
   const { canCreate } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
@@ -252,11 +346,27 @@ export function NavKnowledgeHeader() {
     return null
   }
 
+  const handleToggleSearch = () => {
+    if (isSearchOpen) {
+      setSearchTerm('')
+      setCommittedSearch('')
+    }
+    setIsSearchOpen(!isSearchOpen)
+  }
+
   return (
     <SidebarGroup className="py-0">
       <div className="flex items-center justify-between">
-        <SidebarGroupLabel className="py-0 text-xs">Knowledge</SidebarGroupLabel>
+        <SidebarGroupLabel className="py-0 text-xs">{t('knowledge.sectionTitle')}</SidebarGroupLabel>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 hover:cursor-pointer"
+            onClick={handleToggleSearch}
+          >
+            {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -281,7 +391,18 @@ export function NavKnowledgeHeader() {
                     className="hover:cursor-pointer"
                   >
                     <File className="mr-2 h-4 w-4" />
-                    New Asset
+                    {t('knowledge.newAsset')}
+                  </DropdownMenuItem>
+                )}
+                {canCreateAsset && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setTimeout(() => handleImportAsset(), 0)
+                    }}
+                    className="hover:cursor-pointer"
+                  >
+                    <FileUp className="mr-2 h-4 w-4" />
+                    {t('knowledge.importAsset')}
                   </DropdownMenuItem>
                 )}
                 {canCreateFolder && (
@@ -292,7 +413,7 @@ export function NavKnowledgeHeader() {
                     className="hover:cursor-pointer"
                   >
                     <Folder className="mr-2 h-4 w-4" />
-                    New Folder
+                    {t('knowledge.newFolder')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -300,18 +421,72 @@ export function NavKnowledgeHeader() {
           )}
         </div>
       </div>
+      {isSearchOpen && (
+        <div className="px-2 pt-1 pb-1">
+          <Input
+            placeholder={t('knowledge.searchPlaceholder')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setCommittedSearch(searchTerm) }}
+            className="h-7 text-xs"
+            autoFocus
+          />
+        </div>
+      )}
     </SidebarGroup>
   )
 }
 
 export function NavKnowledgeContent() {
-  const navigate = useNavigate()
+  const { t } = useTranslation('layout')
+  const navigate = useOrgNavigate()
+  const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, committedSearch } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const { guardedAction } = useOptionalEditingGuard()
+
+  const [searchResults, setSearchResults] = React.useState<FileNode[]>([])
+  const [isSearching, setIsSearching] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!committedSearch || !selectedOrganizationId) {
+      setSearchResults([])
+      return
+    }
+    let cancelled = false
+    setIsSearching(true)
+    getLibraryContent(selectedOrganizationId, undefined, 1, 1000, committedSearch)
+      .then((data) => {
+        if (!cancelled) {
+          setSearchResults(
+            data?.content?.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              type: item.type,
+              document_type: item.document_type,
+              access_levels: item.access_levels,
+            })) ?? []
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSearchResults([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsSearching(false)
+      })
+    return () => { cancelled = true }
+  }, [committedSearch, selectedOrganizationId])
+
+  // Extract active asset ID from URL (pattern: /:orgId/asset/:assetId)
+  const activeAssetId = React.useMemo(() => {
+    const match = location.pathname.match(/\/asset\/([^/]+)/)
+    return match ? match[1] : null
+  }, [location.pathname])
 
   // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
@@ -378,21 +553,23 @@ export function NavKnowledgeContent() {
   const handleFileClick = useCallback(
     async (node: FileNode) => {
       if (node.type === "document") {
-        // Navigate with full context to avoid redundant API calls
-        // Pass all available information so assets.tsx doesn't need to reload
-        navigate(`/asset/${node.id}`, {
-          state: {
-            selectedDocumentId: node.id,
-            selectedDocumentName: node.name,
-            selectedDocumentType: node.type,
-            fromFileTree: true, // Flag to indicate navigation from FileTree
-            documentType: node.document_type,
-            accessLevels: node.access_levels,
-          }
+        guardedAction(() => {
+          // Navigate with full context to avoid redundant API calls
+          // Pass all available information so assets.tsx doesn't need to reload
+          navigate(`/asset/${node.id}`, {
+            state: {
+              selectedDocumentId: node.id,
+              selectedDocumentName: node.name,
+              selectedDocumentType: node.type,
+              fromFileTree: true, // Flag to indicate navigation from FileTree
+              documentType: node.document_type,
+              accessLevels: node.access_levels,
+            }
+          })
         })
       }
     },
-    [navigate]
+    [navigate, guardedAction]
   )
 
   const handleMoveFolder = useCallback(
@@ -401,11 +578,10 @@ export function NavKnowledgeContent() {
 
       try {
         await moveFolder(folderId, parentFolderId === null ? undefined : parentFolderId, selectedOrganizationId)
-        toast.success('Folder moved successfully')
+        toast.success(t('knowledge.folderMovedSuccess'))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        console.error("Error moving folder:", error)
-        toast.error('Failed to move folder. Please try again.')
+        handleApiError(error, { fallbackMessage: t('knowledge.folderMoveError') })
       }
     },
     [selectedOrganizationId]
@@ -417,11 +593,10 @@ export function NavKnowledgeContent() {
 
       try {
         await moveDocument(documentId, folderId === null ? undefined : folderId, selectedOrganizationId)
-        toast.success('Document moved successfully')
+        toast.success(t('knowledge.documentMovedSuccess'))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        console.error("Error moving document:", error)
-        toast.error('Failed to move document. Please try again.')
+        handleApiError(error, { fallbackMessage: t('knowledge.documentMoveError') })
       }
     },
     [selectedOrganizationId]
@@ -429,7 +604,7 @@ export function NavKnowledgeContent() {
 
   const menuActions: MenuAction[] = [
     {
-      label: "New Asset",
+      label: t('knowledge.newAsset'),
       icon: <File className="h-4 w-4" />,
       onClick: async (nodeId) => {
         handleCreateAsset(nodeId)
@@ -442,7 +617,19 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "New Folder",
+      label: t('knowledge.importAsset'),
+      icon: <FileUp className="h-4 w-4" />,
+      onClick: async () => {
+        handleImportAsset()
+      },
+      show: (node) => {
+        if (node.type !== "folder") return false
+        return canCreate('asset') || node.access_levels?.includes('create') || false
+      },
+      variant: "default",
+    },
+    {
+      label: t('knowledge.newFolder'),
       icon: <Folder className="h-4 w-4" />,
       onClick: async (nodeId) => {
         handleCreateFolder(nodeId)
@@ -455,7 +642,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "Edit Folder",
+      label: t('knowledge.editFolder'),
       icon: <Edit className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const folderName = folderNames.get(nodeId) || ""
@@ -469,7 +656,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "Delete Folder",
+      label: t('knowledge.deleteFolder'),
       icon: <Trash2 className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const folderName = folderNames.get(nodeId) || ""
@@ -483,7 +670,7 @@ export function NavKnowledgeContent() {
       variant: "destructive",
     },
     {
-      label: "Edit File",
+      label: t('knowledge.editFile'),
       icon: <Edit className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const documentName = documentNames.get(nodeId) || ""
@@ -497,7 +684,7 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
-      label: "Delete File",
+      label: t('knowledge.deleteFile'),
       icon: <Trash2 className="h-4 w-4" />,
       onClick: async (nodeId) => {
         const documentName = documentNames.get(nodeId) || ""
@@ -531,21 +718,51 @@ export function NavKnowledgeContent() {
 
   return (
     <SidebarGroup>
-      <FileTree
-        key={selectedOrganizationId}
-        ref={fileTreeRef}
-        onLoadChildren={handleLoadChildren}
-        onFileClick={handleFileClick}
-        onMoveFolder={handleMoveFolder}
-        onMoveFile={handleMoveFile}
-        onDelete={handleDelete}
-        menuActions={menuActions}
-        showDefaultActions={{ create: false, delete: false, share: false }}
-        showCreateButtons={false}
-        initialFolderId={null}
-        showBorder={false}
-        showRefreshButton={false}
-      />
+      {committedSearch ? (
+        isSearching ? (
+          <div className="px-4 py-3 flex justify-center">
+            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : searchResults.length === 0 ? (
+          <div className="px-4 py-3 text-center text-xs text-muted-foreground">
+            {t('knowledge.searchNoResults')}
+          </div>
+        ) : (
+          <div className="space-y-0.5 px-1">
+            {searchResults.map((node) => (
+              <button
+                key={node.id}
+                className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-sidebar-accent hover:cursor-pointer text-left${node.type === 'document' && activeAssetId === node.id ? ' bg-sidebar-accent' : ''}`}
+                onClick={() => node.type === 'document' && handleFileClick(node)}
+              >
+                {node.type === 'folder' ? (
+                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <File className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="truncate">{node.name}</span>
+              </button>
+            ))}
+          </div>
+        )
+      ) : (
+        <FileTree
+          key={selectedOrganizationId}
+          ref={fileTreeRef}
+          onLoadChildren={handleLoadChildren}
+          onFileClick={handleFileClick}
+          onMoveFolder={handleMoveFolder}
+          onMoveFile={handleMoveFile}
+          onDelete={handleDelete}
+          activeNodeId={activeAssetId}
+          menuActions={menuActions}
+          showDefaultActions={{ create: false, delete: false, share: false }}
+          showCreateButtons={false}
+          initialFolderId={null}
+          showBorder={false}
+          showRefreshButton={false}
+        />
+      )}
     </SidebarGroup>
   )
 }

@@ -2,9 +2,13 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
 
-export async function modifyContent(sectionId: string, content: string) {
+export async function modifyContent(sectionId: string, content: string, plateContent?: string[]) {
     console.log(`Modifying content for section ID: ${sectionId}`);
-    const response = await httpClient.put(`${backendUrl}/section_executions/${sectionId}/modify_content`, { new_content: content });
+    const body: { new_content: string; plate_content?: string[] } = { new_content: content };
+    if (plateContent) {
+        body.plate_content = plateContent;
+    }
+    const response = await httpClient.put(`${backendUrl}/section_executions/${sectionId}/modify_content`, body);
 
     const data = await response.json();
     console.log('Section content modified:', data.data);

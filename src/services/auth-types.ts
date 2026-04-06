@@ -43,8 +43,9 @@ export interface AuthTypeTypesResponse {
 class AuthTypesService {
   private baseUrl = `${backendUrl}/auth_types`;
 
-  async getAuthTypes(): Promise<AuthType[]> {
-    const response = await httpClient.get(`${this.baseUrl}/`);
+  async getAuthTypes(search?: string): Promise<AuthType[]> {
+    const url = search ? `${this.baseUrl}/?search=${encodeURIComponent(search)}` : `${this.baseUrl}/`;
+    const response = await httpClient.get(url);
     const data: AuthTypesResponse = await response.json();
     return data.data;
   }
@@ -81,7 +82,7 @@ class AuthTypesService {
 export const authTypesService = new AuthTypesService();
 
 // Export individual functions for use in hooks
-export const getAuthTypes = () => authTypesService.getAuthTypes();
+export const getAuthTypes = (search?: string) => authTypesService.getAuthTypes(search);
 export const getAuthType = (id: string) => authTypesService.getAuthType(id);
 export const getAuthTypeTypes = () => authTypesService.getAuthTypeTypes();
 export const createAuthType = (data: CreateAuthTypeRequest) => authTypesService.createAuthType(data);

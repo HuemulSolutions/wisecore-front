@@ -1,6 +1,7 @@
 import { Edit2, Trash2, Building2, Shield } from "lucide-react"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat, EmptyState } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { useTranslation } from "react-i18next"
+import i18n from "@/i18n"
 
 export interface Organization {
   id: string
@@ -14,23 +15,22 @@ export interface Organization {
 
 interface OrganizationTableProps {
   organizations: Organization[]
-  selectedOrganizations: Set<string>
-  onOrganizationSelection: (organizationId: string) => void
-  onSelectAll: () => void
   onEditOrganization: (organization: Organization) => void
   onDeleteOrganization: (organization: Organization) => void
   onSetAdmin?: (organization: Organization) => void
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
   canSetAdmin?: boolean
   isRootAdmin?: boolean
+  maxHeight?: string
+  isLoading?: boolean
+  isFetching?: boolean
 }
 
 // Helper function for date formatting
 export const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -39,24 +39,25 @@ export const formatDate = (dateString: string) => {
 
 export function OrganizationTable({
   organizations,
-  selectedOrganizations,
-  onOrganizationSelection,
-  onSelectAll,
   onEditOrganization,
   onDeleteOrganization,
   onSetAdmin,
   pagination,
-  showFooterStats,
   canUpdate = false,
   canDelete = false,
   canSetAdmin = false,
-  isRootAdmin = false
+  isRootAdmin = false,
+  maxHeight,
+  isLoading = false,
+  isFetching = false
 }: OrganizationTableProps) {
+  const { t } = useTranslation('organizations')
+
   // Define columns
-  const columns: TableColumn<Organization>[] = [
+  const columns: HuemulTableColumn<Organization>[] = [
     {
       key: "name",
-      label: "Name",
+      label: t('columns.name'),
       render: (organization) => (
         <div className="flex items-center gap-3">
           <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -73,39 +74,39 @@ export function OrganizationTable({
     },
     {
       key: "description",
-      label: "Description",
+      label: t('columns.description'),
       render: (organization) => (
-        <div 
-          className="max-w-xs truncate text-xs text-foreground" 
+        <div
+          className="max-w-xs truncate text-xs text-foreground"
           title={organization.description || undefined}
         >
-          {organization.description || "No description"}
+          {organization.description || t('columns.noDescription')}
         </div>
       )
     },
     ...(isRootAdmin ? [
       {
         key: "max_users" as const,
-        label: "Max Users",
+        label: t('columns.maxUsers'),
         render: (organization: Organization) => (
           <div className="text-xs text-foreground">
-            {organization.max_users ?? "Unlimited"}
+            {organization.max_users ?? t('columns.unlimited')}
           </div>
         )
       },
       {
         key: "token_limit" as const,
-        label: "Token Limit",
+        label: t('columns.tokenLimit'),
         render: (organization: Organization) => (
           <div className="text-xs text-foreground">
-            {organization.token_limit ? organization.token_limit.toLocaleString() : "Unlimited"}
+            {organization.token_limit ? organization.token_limit.toLocaleString() : t('columns.unlimited')}
           </div>
         )
       }
     ] : []),
     {
       key: "created_at",
-      label: "Created At",
+      label: t('columns.createdAt'),
       render: (organization) => (
         <div className="text-xs text-muted-foreground">
           {organization.created_at ? formatDate(organization.created_at) : "N/A"}
@@ -115,61 +116,43 @@ export function OrganizationTable({
   ]
 
   // Define actions - basado en permisos específicos
-  const actions: TableAction<Organization>[] = [
+  const actions: HuemulTableAction<Organization>[] = [
     ...(canSetAdmin && onSetAdmin ? [{
       key: "setAdmin" as const,
-      label: "Set Admin",
+      label: t('actions.setAdmin'),
       icon: Shield,
       onClick: onSetAdmin
     }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
-      label: "Edit",
+      label: t('actions.edit'),
       icon: Edit2,
       onClick: onEditOrganization
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
-      label: "Delete",
+      label: t('actions.delete'),
       icon: Trash2,
       onClick: onDeleteOrganization,
       destructive: true
     }] : [])
   ]
 
-  // Define empty state
-  const emptyState: EmptyState = {
-    icon: Building2,
-    title: "No Organizations Found",
-    description: "No organizations match your search criteria"
-  }
-
-  // Define footer stats
-  const footerStatsList: FooterStat[] = showFooterStats ? [
-    {
-      label: "Total Organizations",
-      value: organizations.length
-    },
-    {
-      label: "Selected",
-      value: selectedOrganizations.size
-    }
-  ] : []
-
   return (
-    <DataTable<Organization>
+    <HuemulTable
       data={organizations}
       columns={columns}
       actions={actions}
       getRowKey={(org) => org.id}
-      emptyState={emptyState}
-      selectedItems={selectedOrganizations}
-      onItemSelection={onOrganizationSelection}
-      onSelectAll={onSelectAll}
+      emptyState={{
+        icon: Building2,
+        title: t('table.noOrgsFound'),
+        description: t('table.noOrgsFoundDescription')
+      }}
       pagination={pagination}
-      footerStats={footerStatsList}
-      showCheckbox={canUpdate || canDelete}
-      showFooterStats={showFooterStats}
+      maxHeight={maxHeight}
+      isLoading={isLoading}
+      isFetching={isFetching}
     />
   )
 }

@@ -7,20 +7,8 @@ import type { Permission } from '@/lib/jwt-utils';
  * Props para el formulario de login
  */
 export interface LoginFormProps extends React.ComponentProps<"div"> {
-  /** Callback cuando el usuario quiere cambiar a signup */
-  onSwitchToSignup?: () => void;
   /** Callback cuando se solicita un código OTP con el email */
   onCodeRequested?: (email: string) => void;
-}
-
-/**
- * Props para el formulario de registro (signup)
- */
-export interface SignupFormProps extends React.ComponentProps<"div"> {
-  /** Callback cuando el usuario quiere cambiar a login */
-  onSwitchToLogin?: () => void;
-  /** Callback cuando el registro es exitoso */
-  onSuccess?: () => void;
 }
 
 /**
@@ -29,12 +17,8 @@ export interface SignupFormProps extends React.ComponentProps<"div"> {
 export interface OTPFormProps extends React.ComponentProps<"div"> {
   /** Email del usuario */
   email: string;
-  /** Nombre del usuario (requerido para signup) */
-  name?: string;
-  /** Apellido del usuario (requerido para signup) */
-  lastName?: string;
-  /** Propósito de la verificación (login o signup) */
-  purpose: "login" | "signup";
+  /** Propósito de la verificación */
+  purpose: "login";
   /** Callback para volver al formulario anterior */
   onBack?: () => void;
   /** Callback cuando la verificación es exitosa */
@@ -119,14 +103,9 @@ export interface ProtectedRouteWithPermissionsProps {
 // ==================== Auth State ====================
 
 /**
- * Estado del paso en el formulario de signup
- */
-export type SignupStep = 'email' | 'details';
-
-/**
  * Propósito de la autenticación OTP
  */
-export type AuthPurpose = 'login' | 'signup';
+export type AuthPurpose = 'login';
 
 // ==================== Acciones de recursos ====================
 

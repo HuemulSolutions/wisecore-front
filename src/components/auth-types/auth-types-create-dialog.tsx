@@ -1,47 +1,38 @@
 "use client"
 
 import { useState } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DialogTrigger } from "@/components/ui/dialog"
+import { useTranslation } from "react-i18next"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useAuthTypeMutations, useAuthTypeTypes } from "@/hooks/useAuthTypes"
 import type { CreateAuthTypeRequest } from "@/services/auth-types"
 import { Plus } from "lucide-react"
 
 interface CreateAuthTypeDialogProps {
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  children?: React.ReactNode
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function CreateAuthTypeDialog({ open: externalOpen, onOpenChange, children }: CreateAuthTypeDialogProps) {
-  const [internalOpen, setInternalOpen] = useState(false)
+export function CreateAuthTypeDialog({ open, onOpenChange }: CreateAuthTypeDialogProps) {
+  const { t } = useTranslation(['auth-types', 'common'])
   const [formData, setFormData] = useState<CreateAuthTypeRequest>({
     name: "",
     type: "internal",
     params: null,
   })
 
-  // Use external control if provided, otherwise use internal state
-  const open = externalOpen !== undefined ? externalOpen : internalOpen
-  const setOpen = onOpenChange || setInternalOpen
-
   const { data: authTypeTypes } = useAuthTypeTypes(open)
   const { createAuthType } = useAuthTypeMutations()
 
-  const handleSubmit = () => {
-    createAuthType.mutate(formData, {
-      onSuccess: () => {
-        setOpen(false)
-        setFormData({
-          name: "",
-          type: "internal", 
-          params: null,
-        })
-      }
+  const handleSubmit = async () => {
+    await new Promise<void>((resolve, reject) => {
+      createAuthType.mutate(formData, {
+        onSuccess: () => {
+          setFormData({ name: "", type: "internal", params: null })
+          resolve()
+        },
+        onError: (error) => reject(error)
+      })
     })
   }
 
@@ -49,107 +40,43 @@ export function CreateAuthTypeDialog({ open: externalOpen, onOpenChange, childre
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  // If externally controlled, don't render the trigger
-  if (externalOpen !== undefined) {
-    return (
-      <ReusableDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Create Authentication Type"
-        icon={Plus}
-        maxWidth="sm"
-        maxHeight="90vh"
-        onSubmit={handleSubmit}
-        submitLabel="Create"
-        isSubmitting={createAuthType.isPending}
-        showDefaultFooter
-      >
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder="Enter authentication type name"
-            required
-          />
-        </div>
+  const typeOptions = (authTypeTypes ?? []).map((type) => ({
+    value: type,
+    label: type === "internal" ? t('types.internal') : type === "entra" ? t('types.entra') : type,
+  }))
 
-        <div className="space-y-2">
-          <Label htmlFor="type">Type</Label>
-          <Select
-            value={formData.type}
-            onValueChange={(value) => handleInputChange("type", value as "internal" | "entra")}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select authentication type" />
-            </SelectTrigger>
-            <SelectContent>
-              {authTypeTypes?.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type === "internal" ? "Internal" : type === "entra" ? "Entra ID (SAML2)" : type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </ReusableDialog>
-    )
-  }
-
-  // Original mode with trigger (for backward compatibility)
   return (
-    <>
-      <DialogTrigger asChild>
-        {children || (
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white hover:cursor-pointer">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Authentication Type
-          </Button>
-        )}
-      </DialogTrigger>
-      <ReusableDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Create Authentication Type"
-        icon={Plus}
-        maxWidth="sm"
-        maxHeight="90vh"
-        onSubmit={handleSubmit}
-        submitLabel="Create"
-        isSubmitting={createAuthType.isPending}
-        showDefaultFooter
-      >
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => handleInputChange("name", e.target.value)}
-            placeholder="Enter authentication type name"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="type">Type</Label>
-          <Select
-            value={formData.type}
-            onValueChange={(value) => handleInputChange("type", value as "internal" | "entra")}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select authentication type" />
-            </SelectTrigger>
-            <SelectContent>
-              {authTypeTypes?.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type === "internal" ? "Internal" : type === "entra" ? "Entra ID (SAML2)" : type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </ReusableDialog>
-    </>
+    <HuemulDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('createDialog.title')}
+      icon={Plus}
+      maxWidth="sm:max-w-sm"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: t('common:create'),
+        onClick: handleSubmit,
+      }}
+    >
+      <HuemulFieldGroup className="py-2">
+        <HuemulField
+          label={t('common:name')}
+          name="name"
+          value={formData.name}
+          onChange={(value) => handleInputChange("name", value)}
+          placeholder={t('createDialog.namePlaceholder')}
+          required
+        />
+        <HuemulField
+          type="select"
+          label={t('columns.type')}
+          name="type"
+          value={formData.type}
+          options={typeOptions}
+          onChange={(value) => handleInputChange("type", value as "internal" | "entra")}
+          placeholder={t('createDialog.typePlaceholder')}
+        />
+      </HuemulFieldGroup>
+    </HuemulDialog>
   )
 }

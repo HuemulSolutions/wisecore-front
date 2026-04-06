@@ -1,5 +1,6 @@
 import { FileStack, Plus } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { useTranslation } from "react-i18next"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 
 interface AssetTypePageHeaderProps {
   assetTypeCount: number
@@ -22,25 +23,28 @@ export default function AssetTypePageHeader({
   onSearchChange,
   canCreate = true
 }: AssetTypePageHeaderProps) {
+  const { t } = useTranslation('asset-types')
+
   return (
     <PageHeader
       icon={FileStack}
-      title="Asset Types"
+      title={t('header.title')}
       badges={[
-        { label: "", value: `${assetTypeCount} types` }
+        { label: "", value: t('header.assetTypesCount', { count: assetTypeCount }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       hasError={hasError}
       primaryAction={canCreate ? {
-        label: "Create Asset Type",
+        label: t('header.createAssetType'),
         icon: Plus,
         onClick: onCreateAssetType
       } : undefined}
       searchConfig={{
-        placeholder: "Search asset types...",
+        placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true
       }}
     />
   )

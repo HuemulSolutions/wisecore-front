@@ -1,6 +1,6 @@
 import type React from "react"
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -61,7 +61,7 @@ interface NetworkGraphProps {
 }
 
 export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
-  const navigate = useNavigate()
+  const navigate = useOrgNavigate()
   const { selectedOrganizationId } = useOrganization()
   const [nodes, setNodes] = useState<NetworkNode[]>([])
   const [allDependencies, setAllDependencies] = useState<{[documentId: string]: any[]}>({})
@@ -396,7 +396,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
     switch (action) {
       case "view-document-details":
         const documentId = nodeId.replace('doc-', '')
-        navigate(`/document/${documentId}`)
+        navigate(`/asset/${documentId}`)
         break
       case "view-document-dependencies":
         const docId = nodeId.replace('doc-', '')

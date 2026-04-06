@@ -4,17 +4,10 @@ import type { User } from '@/contexts/auth-context';
 
 export interface RequestCodeRequest {
   email: string;
-  purpose: 'signup' | 'login';
+  purpose: 'login';
 }
 
 export interface VerifyCodeRequest {
-  email: string;
-  code: string;
-}
-
-export interface CreateUserRequest {
-  name: string;
-  last_name: string;
   email: string;
   code: string;
 }
@@ -57,37 +50,6 @@ class AuthService {
 
     const responseData = await response.json();
     console.log('Raw verifyCode response:', responseData);
-    
-    // Verificar si la respuesta tiene la estructura esperada
-    if (!responseData.data || !responseData.data.token || !responseData.data.user) {
-      console.error('Invalid response structure:', responseData);
-      throw new Error('Invalid response from server');
-    }
-    
-    return {
-      token: responseData.data.token,
-      user: responseData.data.user
-    };
-  }
-
-  async createUser(request: CreateUserRequest): Promise<AuthResponse> {
-    console.log('AuthService: Creating user to', `${this.baseUrl}/users`, 'with data:', { 
-      name: request.name, 
-      last_name: request.last_name,
-      email: request.email.toLowerCase(), 
-      code: request.code 
-    });
-    
-    // Make request without auth token for public endpoint
-    const response = await httpClient.post(`${this.baseUrl}/users`, {
-      name: request.name,
-      last_name: request.last_name,
-      email: request.email.toLowerCase(),
-      code: request.code,
-    });
-
-    const responseData = await response.json();
-    console.log('Raw createUser response:', responseData);
     
     // Verificar si la respuesta tiene la estructura esperada
     if (!responseData.data || !responseData.data.token || !responseData.data.user) {

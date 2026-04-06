@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { LoginForm } from "@/components/auth/auth-login-form"
-// import { SignupForm } from "@/components/auth/auth-signup-form" // Commented out - signup disabled
 import { OTPForm } from "@/components/auth/auth-otp-form"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -10,41 +9,29 @@ type AuthStep = 'login' | 'otp'
 export function AuthPage() {
   const [step, setStep] = useState<AuthStep>('login')
   const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [purpose] = useState<'login'>('login')
   
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated.
+  // If the user was redirected here due to a permission/session failure,
+  // sessionStorage may hold the page they were on — send them back there.
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard')
+      const returnUrl = sessionStorage.getItem('returnUrl');
+      if (returnUrl) {
+        sessionStorage.removeItem('returnUrl');
+        navigate(returnUrl, { replace: true });
+      } else {
+        navigate('/');
+      }
     }
   }, [isAuthenticated, navigate])
 
-  const handleCodeRequested = (userEmail: string, userName?: string, userLastName?: string) => {
+  const handleCodeRequested = (userEmail: string) => {
     setEmail(userEmail)
-    if (userName) {
-      setName(userName)
-    }
-    if (userLastName) {
-      setLastName(userLastName)
-    }
     setStep('otp')
   }
-
-  // Signup functionality disabled - functions commented out for easy reactivation
-  // const handleSwitchToSignup = () => {
-  //   setPurpose('signup')
-  //   setStep('signup')
-  // }
-
-  // const handleSwitchToLogin = () => {
-  //   setPurpose('login')
-  //   setStep('login')
-  // }
 
   const handleBackToForm = () => {
     setStep('login')
@@ -65,19 +52,10 @@ export function AuthPage() {
             }}
           />
         )}
-        {/* Signup form disabled - component kept for easy reactivation */}
-        {/* {step === 'signup' && (
-          <SignupForm
-            onSwitchToLogin={handleSwitchToLogin}
-            onSuccess={handleAuthSuccess}
-          />
-        )} */}
         {step === 'otp' && (
           <OTPForm
             email={email}
-            name={name}
-            lastName={lastName}
-            purpose={purpose}
+            purpose="login"
             onBack={handleBackToForm}
             onSuccess={handleAuthSuccess}
           />

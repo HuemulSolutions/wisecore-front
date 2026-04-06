@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
 import { Bot } from "lucide-react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Textarea } from "@/components/ui/textarea"
+import { useTranslation } from "react-i18next"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField } from "@/huemul/components/huemul-field"
 
 interface AiEditSectionDialogProps {
   open: boolean
@@ -16,6 +17,8 @@ export function AiEditSectionDialog({
   onSend,
   isProcessing = false,
 }: AiEditSectionDialogProps) {
+  const { t } = useTranslation('assets')
+  const { t: tCommon } = useTranslation('common')
   const [aiPrompt, setAiPrompt] = useState("")
 
   useEffect(() => {
@@ -32,28 +35,31 @@ export function AiEditSectionDialog({
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Ask AI to Edit"
+      title={t('aiEditSection.title')}
       icon={Bot}
-      maxWidth="md"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => onOpenChange(false)}
-      onSubmit={handleSubmit}
-      submitLabel="Send"
-      cancelLabel="Cancel"
-      isSubmitting={isProcessing}
-      isValid={!!aiPrompt.trim()}
+      maxWidth="sm:max-w-md"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={tCommon('cancel')}
+      saveAction={{
+        label: t('aiEditSection.send'),
+        onClick: handleSubmit,
+        disabled: !aiPrompt.trim(),
+        loading: isProcessing,
+        closeOnSuccess: false,
+      }}
     >
-      <Textarea
-        placeholder="Describe how you want to modify this content..."
+      <HuemulField
+        type="textarea"
+        label=""
+        placeholder={t('aiEditSection.promptPlaceholder')}
         value={aiPrompt}
-        onChange={(e) => setAiPrompt(e.target.value)}
-        className="min-h-[120px]"
+        onChange={(v) => setAiPrompt(String(v))}
         rows={5}
+        inputClassName="min-h-[120px]"
       />
-    </ReusableDialog>
+    </HuemulDialog>
   )
 }

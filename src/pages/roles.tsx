@@ -5,20 +5,20 @@ import { useAuth } from "@/contexts/auth-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles, useRoleMutations } from "@/hooks/useRbac"
 import { useUsers } from "@/hooks/useUsers"
-import { useRoleFiltering } from "@/hooks/useRoleManagement"
+import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { type Role } from "@/services/rbac"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import EditRoleSheet from "@/components/roles/roles-edit-sheet"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import AssignRoleToUsersDialog from "@/components/roles/roles-assign-to-users-sheet"
-import RolesEmptyState from "@/components/roles/roles-empty-state"
 import { 
   RolesLoadingState, 
   RolesContentEmptyState, 
   RolesAccessDenied, 
   RolesSearch, 
   RolesTable,
-  DeleteRoleDialog
+  DeleteRoleDialog,
+  CloneRoleDialog
 } from "@/components/roles"
 
 /**
@@ -35,9 +35,9 @@ export default function Roles() {
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
   const [assigningRoleToUsers, setAssigningRoleToUsers] = useState<Role | null>(null)
   const [deletingRole, setDeletingRole] = useState<Role | null>(null)
+  const [cloningRole, setCloningRole] = useState<Role | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingUsers] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
@@ -49,15 +49,20 @@ export default function Roles() {
   const canManageRbac = isRootAdmin || hasAnyPermission(['rbac:c', 'rbac:u', 'rbac:d'])
 
   // Data fetching - solo si tiene permisos de lectura
-  const { data: rolesResponse, isLoading, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize)
-  const { deleteRole } = useRoleMutations()
+  const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize, searchTerm)
+  const { deleteRole, cloneRole } = useRoleMutations()
   // Users data - we'll use refetch to load on demand, so disable automatic fetching
   const { data: usersResponse } = useUsers(false)
 
   // Derived data
   const roles = rolesResponse?.data || []
   const users = usersResponse?.data || []
-  const filteredRoles = useRoleFiltering(roles, searchTerm)
+
+  const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
+    isLoading,
+    isFetching,
+    hasData: !!rolesResponse,
+  })
 
   // Event handlers
 
@@ -86,6 +91,11 @@ export default function Roles() {
       setTimeout(() => {
         setDeletingRole(role)
       }, 0)
+    },
+    clone: (role: Role) => {
+      setTimeout(() => {
+        setCloningRole(role)
+      }, 0)
     }
   }
 
@@ -94,48 +104,52 @@ export default function Roles() {
     assignToUsers: () => setAssigningRoleToUsers(null),
     edit: () => setEditingRole(null),
     delete: () => setDeletingRole(null),
-    assignUser: () => setAssigningUserId(null)
+    assignUser: () => setAssigningUserId(null),
+    clone: () => setCloningRole(null)
   }
 
   const confirmDeleteRole = async () => {
     if (!deletingRole) return
 
-    setIsDeleting(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+    await new Promise<void>((resolve, reject) => {
+      deleteRole.mutate(deletingRole.id, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
+  }
 
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteRole.mutate(deletingRole.id, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          })
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeleting(false)
-      closeDialog.delete()
-    }
+  const confirmCloneRole = async (copyUsers: boolean) => {
+    if (!cloningRole) return
+
+    await new Promise<void>((resolve, reject) => {
+      cloneRole.mutate({ roleId: cloningRole.id, copyUsers }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
   }
 
   // Early returns for different states
   if (isLoadingPermissions) return <RolesLoadingState />
   if (!canAccessRoles) return <RolesAccessDenied />
-  if (isLoading) return <RolesLoadingState />
+  if (showPageLoader) return <RolesLoadingState />
 
-  const totalPermissions = error ? 0 : roles.reduce(
-    (acc, role) => acc + (role.permission_num || role.permissions?.length || 0), 
-    0
-  )
+  // const totalPermissions = error ? 0 : roles.reduce(
+  //   (acc, role) => acc + (role.permission_num || role.permissions?.length || 0), 
+  //   0
+  // )
 
   return (
     <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
       <div className="mx-auto">
         <RolesSearch
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          rolesCount={filteredRoles.length}
+          onSearchChange={(value) => {
+            setSearchTerm(value)
+            setPage(1)
+          }}
+          rolesCount={rolesResponse?.total ?? roles.length}
           isRefreshing={isRefreshing}
           onRefresh={handleRefresh}
           onCreateRole={openDialog.create}
@@ -146,18 +160,16 @@ export default function Roles() {
         {/* Show error state or content */}
         {error ? (
           <RolesContentEmptyState error={error} onRetry={handleRefresh} />
-        ) : filteredRoles.length === 0 ? (
-          <RolesEmptyState hasSearchTerm={searchTerm.length > 0} onCreateRole={openDialog.create} />
         ) : (
           <RolesTable
             roles={roles}
-            filteredRoles={filteredRoles}
-            totalPermissions={totalPermissions}
+            isTableLoading={isTableLoading}
+            isTableFetching={isTableFetching}
             isLoadingUsers={isLoadingUsers}
             onAssignToUsers={openDialog.assignToUsers}
             onEditRole={openDialog.edit}
             onDeleteRole={openDialog.delete}
-            showFooterStats={false}
+            onCloneRole={openDialog.clone}
             canManage={canManageRbac}
             pagination={{
               page: rolesResponse?.page || page,
@@ -201,13 +213,23 @@ export default function Roles() {
         <DeleteRoleDialog
           open={!!deletingRole}
           onOpenChange={(open) => {
-            if (!open && !isDeleting) {
+            if (!open) {
               closeDialog.delete()
             }
           }}
           role={deletingRole}
           onConfirm={confirmDeleteRole}
-          isDeleting={isDeleting}
+        />
+
+        <CloneRoleDialog
+          open={!!cloningRole}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeDialog.clone()
+            }
+          }}
+          role={cloningRole}
+          onConfirm={confirmCloneRole}
         />
       </div>
     </div>

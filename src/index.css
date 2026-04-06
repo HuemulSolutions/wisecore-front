@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap');
 
+@plugin 'tailwind-scrollbar-hide';
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -41,6 +43,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand: var(--brand);
+  --color-highlight: var(--highlight);
 }
 
 :root {
@@ -53,8 +57,8 @@
   --popover-foreground: oklch(0.129 0.042 264.695);
   --primary: oklch(0.569 0.2218 268.76);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.5141 0.2261 268.24);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: #EFF6FF;
+  --secondary-foreground: #3451e6;
   --muted: oklch(0.968 0.007 247.896);
   --muted-foreground: oklch(0.554 0.046 257.417);
   --accent: oklch(93.2% 0.032 255.585);
@@ -77,6 +81,8 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --brand: oklch(0.623 0.214 259.815);
+  --highlight: oklch(0.852 0.199 91.936);
 }
 
 .dark {
@@ -111,6 +117,8 @@
   --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.551 0.027 264.364);
+  --brand: oklch(0.707 0.165 254.624);
+  --highlight: oklch(0.852 0.199 91.936);
 }
 
 @layer base {
@@ -318,5 +326,33 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Nav item entrance animation */
+@keyframes nav-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-item-enter {
+  animation: nav-slide-in 0.3s ease-out both;
+}
+
+/* Chatbot typing indicator */
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-2px);
+    opacity: 1;
   }
 }

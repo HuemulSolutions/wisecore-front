@@ -30,3 +30,4 @@ AGENTS.md
 openapi.json
 /.opencode
 .playwright-cli
+/tasks

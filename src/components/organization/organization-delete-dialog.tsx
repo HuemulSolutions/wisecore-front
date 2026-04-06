@@ -1,4 +1,6 @@
-import { ReusableAlertDialog } from '@/components/ui/reusable-alert-dialog';
+import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
+import { Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Organization {
   id: string;
@@ -13,8 +15,7 @@ interface DeleteOrganizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organization: Organization | null;
-  onConfirm: () => void;
-  isDeleting: boolean;
+  onConfirm: () => Promise<void>;
 }
 
 export function DeleteOrganizationDialog({
@@ -22,39 +23,20 @@ export function DeleteOrganizationDialog({
   onOpenChange,
   organization,
   onConfirm,
-  isDeleting
 }: DeleteOrganizationDialogProps) {
   if (!organization) return null;
 
-  const description = (
-    <div className="space-y-4">
-      <p>Are you sure you want to delete "{organization.name}"? This action cannot be undone.</p>
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#4464f7] text-white font-semibold">
-            {organization.name.substring(0, 2).toUpperCase()}
-          </div>
-          <div className="flex-1">
-            <p className="font-medium text-gray-900">{organization.name}</p>
-            {organization.description && (
-              <p className="text-sm text-gray-600">{organization.description}</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const { t } = useTranslation('organizations');
 
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Organization"
-      description={description}
-      onConfirm={onConfirm}
-      confirmLabel="Delete"
-      isProcessing={isDeleting}
-      variant="destructive"
+      title={t('delete.title')}
+      description={t('delete.description', { name: organization.name })}
+      actionLabel={t('actions.delete')}
+      actionIcon={Trash2}
+      onAction={onConfirm}
     />
   );
 }

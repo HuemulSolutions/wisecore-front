@@ -6,7 +6,7 @@ import type { FileNode } from "@/types/assets"
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react"
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, RefreshCw, MoreVertical, Trash2, Share } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 interface FileTreeProps {
   onLoadChildren?: (folderId: string | null) => Promise<FileNode[]>
@@ -26,6 +27,7 @@ interface FileTreeProps {
   onMoveFolder?: (folderId: string, parentFolderId: string | null) => Promise<void>
   onMoveFile?: (documentId: string, folderId: string | null) => Promise<void>
   onFileClick?: (node: FileNode) => void | Promise<void>
+  activeNodeId?: string | null
   menuActions?: MenuAction[]
   showDefaultActions?: {
     create?: boolean
@@ -60,6 +62,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       onMoveFolder,
       onMoveFile,
       onFileClick,
+      activeNodeId,
       menuActions = [],
       showDefaultActions = { create: true, delete: true, share: true },
       customDialogs,
@@ -87,6 +90,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       nodeId: string | null
       nodeType?: "document" | "folder"
     } | null>(null)
+    const { t } = useTranslation('assets')
 
     useEffect(() => {
       const getExpandedIds = (nodeList: FileNode[]): string[] => {
@@ -464,6 +468,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       const isCreating = creatingNode?.parentId === node.id
       const isDragging = draggedNode === node.id
       const isDragOver = dragOverNode === node.id
+      const isActive = activeNodeId === node.id
 
       const hasVisibleMenuActions =
         (isFolder && showDefaultActions.create) ||
@@ -494,6 +499,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
+              isActive && "bg-accent font-medium",
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}
@@ -505,7 +511,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
             onDrop={(e) => (isFolder && !node.disabled ? handleDrop(e, node.id) : e.preventDefault())}
           >
             {isFolder && (
-              <Button
+              <HuemulButton
                 variant="ghost"
                 size="icon"
                 className="h-3 w-3 p-0 hover:bg-transparent"
@@ -519,7 +525,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                 ) : (
                   <ChevronRight className="h-2.5 w-2.5" />
                 )}
-              </Button>
+              </HuemulButton>
             )}
 
             <div
@@ -557,14 +563,14 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
             {hasVisibleMenuActions && !node.disabled && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
+                  <HuemulButton
                     variant="ghost"
                     size="icon"
+                    icon={MoreVertical}
+                    iconClassName="h-4 w-4"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
+                  />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   {isFolder && showDefaultActions.create && (
@@ -576,7 +582,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                         className="hover:cursor-pointer"
                       >
                         <Plus className="mr-2 h-4 w-4" />
-                        New File
+                        {t('fileTree.newFile')}
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onSelect={() => {
@@ -585,7 +591,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                         className="hover:cursor-pointer"
                       >
                         <Plus className="mr-2 h-4 w-4" />
-                        New Folder
+                        {t('fileTree.newFolder')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
@@ -616,7 +622,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                       className="hover:cursor-pointer"
                     >
                       <Share className="mr-2 h-4 w-4" />
-                      Share Link
+                      {t('fileTree.shareLink')}
                     </DropdownMenuItem>
                   )}
 
@@ -628,7 +634,7 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
                       className="text-destructive focus:text-destructive hover:cursor-pointer"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      {isFolder ? "Delete Folder" : "Delete File"}
+                      {isFolder ? t('fileTree.deleteFolder') : t('fileTree.deleteFile')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -680,10 +686,15 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       <div className="space-y-2">
         {showRefreshButton && (
           <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={refresh} disabled={isLoading}>
-              <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
-              Actualizar
-            </Button>
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              onClick={refresh}
+              disabled={isLoading}
+              icon={RefreshCw}
+              iconClassName={cn("h-4 w-4", isLoading && "animate-spin")}
+              label="Actualizar"
+            />
           </div>
         )}
 
@@ -710,14 +721,22 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
 
           {showCreateButtons && (
             <div className="flex gap-2 mb-4">
-              <Button variant="outline" size="sm" onClick={() => handleCreate(null, "document")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Crear archivo
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleCreate(null, "folder")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Crear carpeta
-              </Button>
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                onClick={() => handleCreate(null, "document")}
+                icon={Plus}
+                iconClassName="h-4 w-4"
+                label="Crear archivo"
+              />
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                onClick={() => handleCreate(null, "folder")}
+                icon={Plus}
+                iconClassName="h-4 w-4"
+                label="Crear carpeta"
+              />
             </div>
           )}
 

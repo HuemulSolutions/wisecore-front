@@ -1,11 +1,12 @@
 import React, { useState } from "react"
+import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { updateUser, getUserById } from "@/services/users"
 import { type User, type UpdateUserData } from "@/types/users"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { toast } from "sonner"
-import { Loader2, UserPen } from "lucide-react"
+import { UserPen } from "lucide-react"
 import UserFormFields from "@/components/users/users-form-fields"
 
 interface EditUserDialogProps {
@@ -25,8 +26,8 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
     photo_file: ''
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [selectedFileName, setSelectedFileName] = useState<string>('')
   const queryClient = useQueryClient()
+  const { t } = useTranslation(['users'])
 
   // Fetch user data when dialog opens
   const { data: fetchedUser, isLoading: isLoadingUser } = useQuery({
@@ -52,13 +53,6 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
         photo_file: ''
       })
       setErrors({})
-      // Show current photo filename if exists
-      if (fetchedUser.photo_url) {
-        const fileName = fetchedUser.photo_url.split('/').pop() || 'Current photo'
-        setSelectedFileName(fileName)
-      } else {
-        setSelectedFileName('')
-      }
     }
   }, [fetchedUser, open])
 
@@ -66,39 +60,35 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = 'First name is required'
+      newErrors.name = t('users:validation.nameRequired')
     }
 
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required'
+      newErrors.last_name = t('users:validation.lastNameRequired')
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
+      newErrors.email = t('users:validation.emailRequired')
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = t('users:validation.emailInvalid')
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileChange = (files: FileList | null) => {
+    const file = files?.[0]
     if (file) {
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, photo_file: 'Please select an image file' }))
+        setErrors(prev => ({ ...prev, photo_file: t('users:validation.invalidImageFile') }))
         return
       }
-
       setErrors(prev => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { photo_file: _, ...rest } = prev
         return rest
       })
-
-      setSelectedFileName(file.name)
-
       const reader = new FileReader()
       reader.onloadend = () => {
         const base64String = reader.result as string
@@ -118,78 +108,69 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(variables.userId) })
       // Also invalidate the query used by this dialog
       queryClient.invalidateQueries({ queryKey: ['user', variables.userId] })
-      toast.success('User updated successfully')
-      onOpenChange(false)
-      onSuccess?.()
+      toast.success(t('users:toast.userUpdated'))
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) {
-      return
+  const handleSave = async () => {
+    if (!validateForm()) throw new Error('Validation failed')
+    if (!user) return
+
+    const updateData: UpdateUserData = {
+      name: formData.name.trim(),
+      last_name: formData.last_name.trim(),
+      email: formData.email.trim(),
+      ...(formData.birth_day && { birth_day: parseInt(formData.birth_day) }),
+      ...(formData.birth_month && { birth_month: parseInt(formData.birth_month) }),
+      ...(formData.photo_file && { photo_file: formData.photo_file })
     }
-    
-    if (user) {
-      const updateData: UpdateUserData = {
-        name: formData.name.trim(),
-        last_name: formData.last_name.trim(),
-        email: formData.email.trim(),
-        ...(formData.birth_day && { birth_day: parseInt(formData.birth_day) }),
-        ...(formData.birth_month && { birth_month: parseInt(formData.birth_month) }),
-        ...(formData.photo_file && { photo_file: formData.photo_file })
-      }
-      
-      updateUserMutation.mutate({ userId: user.id, data: updateData })
-    }
+
+    await new Promise<void>((resolve, reject) => {
+      updateUserMutation.mutate({ userId: user.id, data: updateData }, {
+        onSuccess: () => { onSuccess?.(); resolve() },
+        onError: (e) => reject(e)
+      })
+    })
   }
 
   if (!user) return null
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit User"
-      description="Update user information. Changes will be saved when you click save."
+      title={t('users:edit.title')}
+      description={t('users:edit.description')}
       icon={UserPen}
-      maxWidth="lg"
-      maxHeight="90vh"
-      formId="edit-user-form"
-      submitLabel="Save Changes"
-      isSubmitting={updateUserMutation.isPending}
-      isValid={!!formData.name.trim() && !!formData.last_name.trim() && !!formData.email.trim()}
-      showDefaultFooter
+      maxWidth="sm:max-w-lg"
+      maxHeight="max-h-[90vh]"
+      bodyLoading={isLoadingUser}
+      saveAction={{
+        label: t('users:edit.button'),
+        onClick: handleSave,
+        disabled: !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
+      }}
     >
-      {isLoadingUser ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Loading user data...</span>
-        </div>
-      ) : (
-        <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-4">
-          <UserFormFields
-            name={formData.name}
-            lastName={formData.last_name}
-            email={formData.email}
-            birthDay={formData.birth_day}
-            birthMonth={formData.birth_month}
-            onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
-            onLastNameChange={(last_name) => setFormData(prev => ({ ...prev, last_name }))}
-            onEmailChange={(email) => setFormData(prev => ({ ...prev, email }))}
-            onBirthDayChange={(birth_day) => setFormData(prev => ({ ...prev, birth_day }))}
-            onBirthMonthChange={(birth_month) => setFormData(prev => ({ ...prev, birth_month }))}
-            onFileChange={handleFileChange}
-            includeBirthday={true}
-            includePhoto={true}
-            disabled={updateUserMutation.isPending}
-            errors={errors}
-            selectedFileName={selectedFileName}
-            emailReadOnly={true}
-          />
-        </form>
-      )}
-    </ReusableDialog>
+      <div className="space-y-4">
+        <UserFormFields
+          name={formData.name}
+          lastName={formData.last_name}
+          email={formData.email}
+          birthDay={formData.birth_day}
+          birthMonth={formData.birth_month}
+          onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
+          onLastNameChange={(last_name) => setFormData(prev => ({ ...prev, last_name }))}
+          onEmailChange={(email) => setFormData(prev => ({ ...prev, email }))}
+          onBirthDayChange={(birth_day) => setFormData(prev => ({ ...prev, birth_day }))}
+          onBirthMonthChange={(birth_month) => setFormData(prev => ({ ...prev, birth_month }))}
+          onFileChange={handleFileChange}
+          includeBirthday={true}
+          includePhoto={true}
+          disabled={updateUserMutation.isPending}
+          errors={errors}
+          emailReadOnly={true}
+        />
+      </div>
+    </HuemulDialog>
   )
 }

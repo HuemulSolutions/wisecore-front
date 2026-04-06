@@ -1,136 +1,166 @@
-// src/components/Chatbot.tsx
-import React, { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Plus, Maximize2, Minimize2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { MessageBubble } from "./chatbot-bubble";
-import type { Message } from "./chatbot-bubble";
-import { chatbot } from "@/services/generate";
-import { useOrganization } from "@/contexts/organization-context";
+import React, { useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Bot,
+  MessageCircle,
+  X,
+  Send,
+  Plus,
+  Maximize2,
+  Minimize2,
+  Clock,
+  Loader2,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import { MessageBubble } from './chatbot-bubble';
+import { ConversationList } from './conversation-list';
+import { ChatbotProvider, useChatbotContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
+import { getDefaultLLM, getLLMs } from '@/services/llms';
+
+// ========================================
+// Types
+// ========================================
 
 interface ChatbotProps {
-  executionId: string;
+  /** Execution/version ID — if provided, sent as reference with every message */
+  executionId?: string;
+  /** Document ID — used as fallback reference when no executionId is available */
+  documentId?: string;
 }
 
-export default function Chatbot({ executionId }: ChatbotProps) {  const { selectedOrganizationId } = useOrganization();  const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Hi! How can I assist you today?",
-      sender: "bot",
-      timestamp: new Date(),
-    },
-  ]);
-  const [inputValue, setInputValue] = useState("");
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+// ========================================
+// Welcome empty state
+// ========================================
+
+function WelcomeMessage() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+      <div className="w-12 h-12 bg-[#4464f7]/10 rounded-full flex items-center justify-center mb-4">
+        <MessageCircle className="w-6 h-6 text-[#4464f7]" />
+      </div>
+      <p className="text-sm text-gray-500">
+        Hi! How can I assist you today?
+      </p>
+    </div>
+  );
+}
+
+// ========================================
+// Chatbot component
+// ========================================
+
+function ChatbotContent() {
   const endRef = useRef<HTMLDivElement>(null);
+  const {
+    isOpen,
+    setIsOpen,
+    isExpanded,
+    setIsExpanded,
+    inputValue,
+    setInputValue,
+    view,
+    setView,
+    selectedLlmId,
+    setSelectedLlmId,
+    conversationId,
+    messages,
+    isTyping,
+    sendMessage,
+    startNewConversation,
+    loadConversation,
+    isSending,
+    isLoadingConversation,
+  } = useChatbotContext();
 
-  // Auto-scroll al enviar o recibir mensajes
+  const { data: llms = [], isLoading: isLoadingLlms } = useQuery({
+    queryKey: ['llms'],
+    queryFn: getLLMs,
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
+    queryKey: ['default-llm'],
+    queryFn: getDefaultLLM,
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000,
+    retry: 0,
+  });
+
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!isOpen) return;
 
+    const hasSelectedModel =
+      selectedLlmId !== undefined && llms.some((llm) => llm.id === selectedLlmId);
+
+    if (hasSelectedModel) return;
+
+    const nextLlmId = defaultLLM?.id ?? llms[0]?.id;
+
+    if (nextLlmId) {
+      setSelectedLlmId(nextLlmId);
+    }
+  }, [defaultLLM?.id, isOpen, llms, selectedLlmId, setSelectedLlmId]);
+
+  // ── Auto-scroll on new messages ─────────────────────────────
   useEffect(() => {
-    setMessages([
-      {
-        id: "1",
-        text: "Hi! How can I assist you today?",
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ]);
-    setThreadId(null);
-    setInputValue("");
-    setIsLoading(false);
-  }, [executionId]);
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
 
+  // ── Handlers ────────────────────────────────────────────────
   const handleSendMessage = () => {
-    if (!inputValue.trim() || isLoading) return;
-    const content = inputValue.trim();
-
-    // 1) Añadir mensaje del usuario
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      text: content,
-      sender: "user",
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInputValue("");
-    setIsLoading(true);
-
-    // 2) Añadir placeholder para el bot
-    const botMessageId = (Date.now() + 1).toString();
-    const botMsg: Message = {
-      id: botMessageId,
-      text: "",
-      sender: "bot",
-      timestamp: new Date(),
-      isStreaming: true,
-    };
-    setMessages((prev) => [...prev, botMsg]);
-
-    // 3) Usar el servicio chatbot
-    chatbot({
-      executionId,
-      user_message: content,
-      threadId: threadId || undefined,
-      organizationId: selectedOrganizationId!,
-      onData: (text: string) => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === botMessageId
-              ? { ...msg, text: (msg.text || "") + text, isStreaming: true }
-              : msg
-          )
-        );
-      },
-      onThreadId: (newThreadId: string) => {
-        setThreadId(newThreadId);
-      },
-      onError: (error: Event) => {
-        console.error("Error en chatbot:", error);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === botMessageId ? { ...msg, isStreaming: false } : msg
-          )
-        );
-        setIsLoading(false);
-      },
-      onClose: () => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === botMessageId ? { ...msg, isStreaming: false } : msg
-          )
-        );
-        setIsLoading(false);
-      },
-    });
+    if (!inputValue.trim() || isSending || isTyping) return;
+    sendMessage(inputValue.trim());
+    setInputValue('');
   };
 
-  const handleClearConversation = () => {
-    setMessages([
-      {
-        id: "1",
-        text: "Hi! How can I assist you today?",
-        sender: "bot",
-        timestamp: new Date(),
-      },
-    ]);
-    setThreadId(null);
+  const handleNewConversation = () => {
+    startNewConversation();
+    setView('chat');
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleToggleHistory = () => {
+    setView(view === 'chat' ? 'history' : 'chat');
+  };
+
+  const handleSelectConversation = (selectedConversationId: string) => {
+    loadConversation(selectedConversationId);
+    setView('chat');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
+  const isInputDisabled = isSending || isTyping || isLoadingConversation;
+  const isModelSelectorDisabled =
+    isInputDisabled || isLoadingLlms || isLoadingDefaultLLM || llms.length === 0;
+  const modelSelectorHint = isTyping || isSending
+    ? 'Locked while generating'
+    : isLoadingConversation
+      ? 'Locked while loading conversation'
+      : llms.length === 0
+        ? 'No models available'
+        : 'Applies to the next message';
+
   return (
     <>
-      {/* Botón burbuja */}
+      {/* Floating trigger button */}
       <div className="fixed bottom-6 right-6 z-50">
         <Button
           onClick={() => setIsOpen(!isOpen)}
@@ -145,7 +175,7 @@ export default function Chatbot({ executionId }: ChatbotProps) {  const { select
         </Button>
       </div>
 
-      {/* Ventana de chat */}
+      {/* Chat window */}
       {isOpen && (
         <div
           className={`fixed bottom-24 right-6 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden transition-all duration-500 ease-in-out ${
@@ -161,69 +191,192 @@ export default function Chatbot({ executionId }: ChatbotProps) {  const { select
               <h3 className="font-semibold text-base">Wisecore AI</h3>
             </div>
             <div className="flex items-center space-x-1">
-              <Button
-                onClick={() => setIsExpanded(!isExpanded)}
-                size="sm"
-                variant="ghost"
-                className="text-white hover:text-white hover:bg-white/20 hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors"
-              >
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </Button>
-              <Button
-                onClick={handleClearConversation}
-                size="sm"
-                variant="ghost"
-                className="text-white hover:text-white hover:bg-white/20 hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
+              {/* Expand / Collapse */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    size="sm"
+                    variant="ghost"
+                    className="text-white hover:text-white hover:bg-white/20 hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors"
+                  >
+                    {isExpanded ? (
+                      <Minimize2 className="w-4 h-4" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>{isExpanded ? 'Collapse' : 'Expand'}</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* History toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleToggleHistory}
+                    size="sm"
+                    variant="ghost"
+                    className={`text-white hover:text-white hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors ${
+                      view === 'history'
+                        ? 'bg-white/20'
+                        : 'hover:bg-white/20'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Conversation history</p>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* New conversation */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleNewConversation}
+                    size="sm"
+                    variant="ghost"
+                    className="text-white hover:text-white hover:bg-white/20 hover:cursor-pointer h-8 w-8 p-0 rounded-lg transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>New conversation</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
 
-          {/* Mensajes */}
-          <div
-            className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50/50"
-            aria-live="polite"
-          >
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))}
-            <div ref={endRef} />
-          </div>
-
-            {/* Input */}
-          <div className="border-t border-gray-100 bg-white px-5 py-4">
-            <div className="flex items-end space-x-3">
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Write your message..."
-                disabled={isLoading}
-                rows={1}
-                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent text-sm resize-none overflow-hidden min-h-[44px] max-h-32 bg-gray-50 hover:bg-white transition-colors"
-                style={{
-                  height: "auto",
-                  minHeight: "38px",
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "auto";
-                  target.style.height = Math.min(target.scrollHeight, 128) + "px";
-                }}
+          {/* Content area */}
+          {view === 'history' ? (
+            // ── History view ──────────────────────────────────────
+            <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50 animate-in fade-in duration-300">
+              <ConversationList
+                onSelectConversation={handleSelectConversation}
+                activeConversationId={conversationId}
               />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading}
-                size="sm"
-                className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-white px-4 py-3 disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 rounded-xl h-[44px] min-w-[44px] transition-all"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
             </div>
-          </div>
+          ) : (
+            // ── Chat view ─────────────────────────────────────────
+            <>
+              {/* Messages area */}
+              <div
+                className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50/50"
+                aria-live="polite"
+              >
+                {isLoadingConversation ? (
+                  <div className="flex-1 flex items-center justify-center h-full">
+                    <Loader2 className="w-6 h-6 text-[#4464f7] animate-spin" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <WelcomeMessage />
+                ) : (
+                  messages.map((msg) => (
+                    <MessageBubble key={msg.id} message={msg} />
+                  ))
+                )}
+                <div ref={endRef} />
+              </div>
+
+              {/* Input area */}
+              <div className="border-t border-gray-100 bg-white px-5 py-4">
+                <div className="flex items-end space-x-3">
+                  <textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Write your message..."
+                    disabled={isInputDisabled}
+                    rows={1}
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent text-sm resize-none overflow-hidden min-h-[44px] max-h-32 bg-gray-50 hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      height: 'auto',
+                      minHeight: '38px',
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                    }}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim() || isInputDisabled}
+                    size="sm"
+                    className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-white px-4 py-3 disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 rounded-xl h-[44px] min-w-[44px] transition-all"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                <div className="mt-2 flex items-center gap-2 px-1">
+                  <Bot className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+
+                  <Select
+                    value={selectedLlmId}
+                    onValueChange={setSelectedLlmId}
+                    disabled={isModelSelectorDisabled}
+                  >
+                    <SelectTrigger
+                      aria-label={modelSelectorHint}
+                      className="h-8 min-w-[132px] max-w-[180px] rounded-lg border-transparent bg-transparent px-2 text-xs text-slate-500 shadow-none transition-colors hover:cursor-pointer hover:border-slate-200 hover:bg-slate-50/70 focus:ring-[#4464f7]/15 disabled:hover:cursor-not-allowed"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <SelectValue placeholder={isLoadingLlms ? 'Loading...' : 'Select model'} />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-200 bg-white shadow-xl">
+                      {llms.map((llm) => (
+                        <SelectItem
+                          key={llm.id}
+                          value={llm.id}
+                          className="rounded-lg text-sm text-slate-700 hover:cursor-pointer"
+                        >
+                          <div className="flex w-full items-center justify-between gap-3 pr-4">
+                            <span className="truncate">{llm.name}</span>
+                            {defaultLLM?.id === llm.id && (
+                              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>
+  );
+}
+
+export default function Chatbot({ executionId, documentId }: ChatbotProps) {
+  const existingContext = useOptionalChatbotContext();
+
+  if (existingContext) {
+    return <ChatbotContent />;
+  }
+
+  if (executionId || documentId) {
+    return (
+      <ChatbotProvider executionId={executionId} documentId={documentId}>
+        <ChatbotContent />
+      </ChatbotProvider>
+    );
+  }
+
+  return (
+    <ChatbotProvider>
+      <ChatbotContent />
+    </ChatbotProvider>
   );
 }

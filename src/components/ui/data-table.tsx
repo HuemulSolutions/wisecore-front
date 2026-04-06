@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MoreVertical, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { DataTableProps } from "@/types/data-table"
+import { useTranslation } from "react-i18next"
 
 export type { TableColumn, TableAction, EmptyState, FooterStat, DataTableProps, PaginationConfig } from "@/types/data-table"
 
@@ -21,14 +23,17 @@ export function DataTable<T>({
   rowClassName,
   maxHeight = "max-h-[75vh]",
   pagination,
-  showFooterStats = true
+  showFooterStats = true,
+  isLoading = false,
+  isFetching = false
 }: DataTableProps<T>) {
+  const { t } = useTranslation('common')
   const EmptyIcon = emptyState?.icon
   const isAllSelected = showCheckbox && data.length > 0 && selectedItems?.size === data.length
   const isIndeterminate = showCheckbox && selectedItems && selectedItems.size > 0 && selectedItems.size < data.length
 
   // Empty state
-  if (data.length === 0 && emptyState) {
+  if (data.length === 0 && emptyState && !isLoading) {
     return (
       <Card className="border border-border bg-card">
         <div className="text-center py-12">
@@ -41,7 +46,11 @@ export function DataTable<T>({
   }
 
   return (
-    <Card className={`border border-border bg-card overflow-auto ${maxHeight}`}>
+    <Card className={`border border-border bg-card overflow-auto ${maxHeight} relative`}>
+      {/* Fetching indicator bar */}
+      <div className={`sticky top-0 z-20 h-[2px] overflow-hidden transition-opacity duration-300 ${isFetching ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="h-full w-full bg-primary animate-pulse" />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="sticky top-0 bg-white z-10">
@@ -73,12 +82,27 @@ export function DataTable<T>({
                 </th>
               ))}
               {actions && actions.length > 0 && (
-                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground w-20">Actions</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground w-20">{t('actions')}</th>
               )}
             </tr>
           </thead>
-          <tbody className="bg-background divide-y divide-border">
-            {data.map((item) => {
+          <tbody className={`bg-background divide-y divide-border transition-opacity duration-200 ${isFetching && !isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="border-b border-border">
+                  {showCheckbox && <td className="px-6 py-4"><Skeleton className="h-4 w-4" /></td>}
+                  {columns.map((column) => (
+                    <td key={column.key} className={`px-6 py-4 ${column.hideOnMobile ? "hidden sm:table-cell" : ""}`}>
+                      <Skeleton className="h-4 w-full max-w-[160px]" />
+                    </td>
+                  ))}
+                  {actions && actions.length > 0 && (
+                    <td className="px-6 py-4 text-right"><Skeleton className="h-6 w-6 ml-auto" /></td>
+                  )}
+                </tr>
+              ))
+            ) : (
+              data.map((item) => {
               const rowKey = getRowKey(item)
               const isSelected = selectedItems?.has(rowKey)
 
@@ -147,7 +171,8 @@ export function DataTable<T>({
                   )}
                 </tr>
               )
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>
@@ -169,7 +194,7 @@ export function DataTable<T>({
           {/* Items per page selector */}
           {pagination.onPageSizeChange && pagination.pageSizeOptions && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Items per page:</span>
+              <span className="text-xs text-muted-foreground">{t('pagination.itemsPerPage')}</span>
               <Select
                 value={pagination.pageSize.toString()}
                 onValueChange={(value) => pagination.onPageSizeChange?.(Number(value))}
@@ -193,12 +218,12 @@ export function DataTable<T>({
             <span className="text-xs text-muted-foreground">
               {pagination.totalItems !== undefined ? (
                 <>
-                  Page {pagination.page} of {Math.ceil(pagination.totalItems / pagination.pageSize) || 1}
-                  {" "}({pagination.totalItems} items)
+                  {t('pagination.page')} {pagination.page} {t('pagination.of')} {Math.ceil(pagination.totalItems / pagination.pageSize) || 1}
+                  {" "}({pagination.totalItems} {t('pagination.items')})
                 </>
               ) : (
                 <>
-                  Page {pagination.page} ({data.length} items)
+                  {t('pagination.page')} {pagination.page} ({data.length} {t('pagination.items')})
                 </>
               )}
             </span>

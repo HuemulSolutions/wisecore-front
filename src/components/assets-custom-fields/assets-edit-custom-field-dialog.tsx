@@ -1,13 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Button } from "@/components/ui/button"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Switch } from "@/components/ui/switch"
 import { Loader2, Edit2, FileEdit } from "lucide-react"
 import { getCustomFieldDocumentSources, uploadCustomFieldDocumentValueBlob } from "@/services/custom-fieldds-documents"
 import { useOrganization } from "@/contexts/organization-context"
@@ -143,7 +139,8 @@ export function EditCustomFieldAssetDialog({
       // Build document data based on mode
       const documentData = mode === "content" 
         ? {
-            // Only update the value in content mode
+            // Only update the value and required in content mode
+            required: isRequired,
             ...getValuePayload(),
           }
         : {
@@ -190,116 +187,122 @@ export function EditCustomFieldAssetDialog({
     }
   }
 
-  const renderValueField = () => {
+  const renderValueField = (label: string) => {
     if (!customFieldDocument) return null
-    
+
     const dataType = customFieldDocument.data_type
-    
+
     switch (dataType) {
       case "bool":
         return (
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={value === "true" || value === "1"}
-              onCheckedChange={(checked) => setValue(checked.toString())}
-            />
-            <Label className="text-sm">
-              {(value === "true" || value === "1") ? "True" : "False"}
-            </Label>
-          </div>
+          <HuemulField
+            type="switch"
+            label={label}
+            value={value === "true" || value === "1"}
+            onChange={(v) => setValue(Boolean(v).toString())}
+            error={formErrors.value}
+            labelFirst
+          />
         )
       case "int":
         return (
-          <Input
+          <HuemulField
             type="number"
-            step="1"
+            label={label}
             placeholder="Enter integer value"
             value={value}
-            onChange={(e) => {
-              // Solo permitir números enteros (sin decimales)
-              const inputValue = e.target.value
-              if (inputValue === '' || /^-?\d+$/.test(inputValue)) {
-                setValue(inputValue)
-              }
-            }}
-            onKeyPress={(e) => {
-              // Prevenir entrada de puntos decimales y otros caracteres no enteros
-              if (e.key === '.' || e.key === 'e' || e.key === 'E' || e.key === '+') {
-                e.preventDefault()
-              }
-            }}
+            step={1}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "decimal":
         return (
-          <Input
+          <HuemulField
             type="number"
-            step="any"
+            label={label}
             placeholder="Enter decimal value"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "date":
         return (
-          <Input
+          <HuemulField
             type="date"
-            placeholder="YYYY-MM-DD"
+            label={label}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "time":
         return (
-          <Input
+          <HuemulField
             type="time"
+            label={label}
             placeholder="HH:MM:SS"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "datetime":
         return (
-          <Input
-            type="datetime-local"
-            placeholder="YYYY-MM-DDTHH:MM:SS"
+          <HuemulField
+            type="datetime"
+            label={label}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
+          />
+        )
+      case "url":
+        return (
+          <HuemulField
+            type="url"
+            label={label}
+            placeholder="Enter URL"
+            value={value}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
       case "image":
         return (
-          <div className="space-y-2">
-            <Input
-              type="file"
-              accept="image/*"
-              disabled={isUploadingImage}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  setSelectedFile(file)
-                  handleImageUpload(file)
-                }
-              }}
-            />
-            <p className="text-xs text-muted-foreground">
-              Image will be uploaded immediately after selection
-            </p>
+          <HuemulField
+            type="file"
+            label={label}
+            accept="image/*"
+            disabled={isUploadingImage}
+            description="Image will be uploaded immediately after selection"
+            onFileChange={(files) => {
+              const file = files?.[0]
+              if (file) {
+                setSelectedFile(file)
+                handleImageUpload(file)
+              }
+            }}
+            error={formErrors.value}
+          >
             {isUploadingImage && (
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Uploading image...</span>
               </div>
             )}
-          </div>
+          </HuemulField>
         )
-      default: // string, url
+      default:
         return (
-          <Input
-            type={dataType === "url" ? "url" : "text"}
+          <HuemulField
+            type="text"
+            label={label}
             placeholder={`Enter ${dataType} value`}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(v) => setValue(String(v))}
+            error={formErrors.value}
           />
         )
     }
@@ -327,141 +330,111 @@ export function EditCustomFieldAssetDialog({
       }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={isOpen}
       onOpenChange={closeDialog}
       title={dialogConfig.title}
       description={dialogConfig.description}
       icon={dialogConfig.icon}
-      maxWidth="lg"
-      maxHeight="90vh"
-      footer={
-        <>
-          <Button 
-            variant="outline"
-            onClick={closeDialog}
-            className="hover:cursor-pointer"
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={!isValid}
-            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-          >
-            {dialogConfig.submitLabel}
-          </Button>
-        </>
-      }
+      maxWidth="sm:max-w-lg"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: dialogConfig.submitLabel,
+        onClick: handleSubmit,
+        disabled: !isValid,
+        closeOnSuccess: false,
+      }}
     >
       <div className="space-y-6">
         {/* Custom Field Info (Read-only) */}
-          <div className="space-y-3 p-4 bg-muted rounded-lg">
-            <h3 className="font-medium text-foreground">Custom Field Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <Label className="text-xs text-muted-foreground">Name</Label>
-                <p className="font-medium">{customFieldDocument.name}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Type</Label>
-                <p className="font-medium capitalize">{customFieldDocument.data_type}</p>
-              </div>
-              {customFieldDocument.description && (
-                <div className="col-span-2">
-                  <Label className="text-xs text-muted-foreground">Description</Label>
-                  <p className="font-medium">{customFieldDocument.description}</p>
-                </div>
-              )}
+        <div className="space-y-3 p-4 bg-muted rounded-lg">
+          <h3 className="font-medium text-foreground">Custom Field Information</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <Label className="text-xs text-muted-foreground">Name</Label>
+              <p className="font-medium">{customFieldDocument.name}</p>
             </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Type</Label>
+              <p className="font-medium capitalize">{customFieldDocument.data_type}</p>
+            </div>
+            {customFieldDocument.description && (
+              <div className="col-span-2">
+                <Label className="text-xs text-muted-foreground">Description</Label>
+                <p className="font-medium">{customFieldDocument.description}</p>
+              </div>
+            )}
           </div>
-
-          {/* Custom Field Configuration - Only show in configuration mode */}
-          {mode === "configuration" && (
-            <div className="space-y-4">
-              <h3 className="font-medium text-foreground">Custom Field Configuration</h3>
-
-              {/* Source Radio Group */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Value Source</Label>
-                {isLoadingSources ? (
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading sources...</span>
-                  </div>
-                ) : (
-                  <RadioGroup 
-                    value={selectedSource} 
-                    onValueChange={setSelectedSource}
-                    className="space-y-2"
-                  >
-                    {sources.map((source) => (
-                      <div key={source} className="flex items-center space-x-2">
-                        <RadioGroupItem value={source} id={`edit-${source}`} />
-                        <Label htmlFor={`edit-${source}`} className="hover:cursor-pointer capitalize font-normal">
-                          {source}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-                {formErrors.source && (
-                  <p className="text-sm text-destructive">{formErrors.source}</p>
-                )}
-              </div>
-
-              {/* Required Switch */}
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-sm font-medium">Required Field</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Make this field mandatory for this document
-                  </p>
-                </div>
-                <Switch
-                  checked={isRequired}
-                  onCheckedChange={setIsRequired}
-                />
-              </div>
-
-              {/* Prompt - only show when source is inferred */}
-              {selectedSource === "inferred" && (
-                <div className="space-y-2">
-                  <Label htmlFor="prompt">Prompt (Required for Inferred)</Label>
-                  <Textarea
-                    id="prompt"
-                    placeholder="Enter prompt for this custom field"
-                    rows={3}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {/* Value - only show when source is not inferred */}
-              {selectedSource !== "inferred" && (
-                <div className="space-y-2">
-                  <Label htmlFor="value">Value (Optional)</Label>
-                  {renderValueField()}
-                  {formErrors.value && (
-                    <p className="text-sm text-destructive">{formErrors.value}</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Value Field - Only show in content mode */}
-          {mode === "content" && (
-            <div className="space-y-2">
-              <Label htmlFor="value">Value</Label>
-              {renderValueField()}
-              {formErrors.value && (
-                <p className="text-sm text-destructive">{formErrors.value}</p>
-              )}
-            </div>
-          )}
         </div>
-    </ReusableDialog>
+
+        {/* Custom Field Configuration - Only show in configuration mode */}
+        {mode === "configuration" && (
+          <div className="space-y-4">
+            <h3 className="font-medium text-foreground">Custom Field Configuration</h3>
+
+            {/* Source */}
+            {isLoadingSources ? (
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading sources...</span>
+              </div>
+            ) : (
+              <HuemulField
+                type="radio"
+                label="Value Source"
+                required
+                value={selectedSource}
+                onChange={(v) => setSelectedSource(String(v))}
+                options={sources.map((source) => ({
+                  label: source.charAt(0).toUpperCase() + source.slice(1),
+                  value: source,
+                }))}
+                error={formErrors.source}
+              />
+            )}
+
+            {/* Required */}
+            <HuemulField
+              type="switch"
+              label="Required Field"
+              description="Make this field mandatory for this document"
+              value={isRequired}
+              onChange={(v) => setIsRequired(Boolean(v))}
+              labelFirst
+            />
+
+            {/* Prompt - only show when source is inferred */}
+            {selectedSource === "inferred" && (
+              <HuemulField
+                type="textarea"
+                label="Prompt (Required for Inferred)"
+                placeholder="Enter prompt for this custom field"
+                rows={3}
+                value={prompt}
+                onChange={(v) => setPrompt(String(v))}
+              />
+            )}
+
+            {/* Value - only show when source is not inferred */}
+            {selectedSource !== "inferred" && renderValueField("Value (Optional)")}
+          </div>
+        )}
+
+        {/* Content mode */}
+        {mode === "content" && (
+          <>
+            <HuemulField
+              type="switch"
+              label="Required Field"
+              description="Make this field mandatory for this document"
+              value={isRequired}
+              onChange={(v) => setIsRequired(Boolean(v))}
+              labelFirst
+            />
+            {renderValueField("Value")}
+          </>
+        )}
+      </div>
+    </HuemulDialog>
   )
 }

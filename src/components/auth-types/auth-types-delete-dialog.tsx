@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { useTranslation } from "react-i18next"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useAuthTypeMutations } from "@/hooks/useAuthTypes"
 import type { AuthType } from "@/services/auth-types"
 
@@ -12,40 +12,28 @@ interface DeleteAuthTypeDialogProps {
 }
 
 export function DeleteAuthTypeDialog({ open, onOpenChange, authType }: DeleteAuthTypeDialogProps) {
+  const { t } = useTranslation(['auth-types', 'common'])
   const { deleteAuthType } = useAuthTypeMutations()
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
     if (!authType) return
 
-    setIsDeleting(true)
-    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          deleteAuthType.mutate(authType.id, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          })
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeleting(false)
-      onOpenChange(false)
-    }
+    await new Promise<void>((resolve, reject) => {
+      deleteAuthType.mutate(authType.id, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      })
+    })
   }
 
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Are you sure?"
-      description={`This action cannot be undone. This will permanently delete the authentication type "${authType?.name}".`}
-      onConfirm={handleDelete}
-      confirmLabel="Deleting"
-      isProcessing={isDeleting}
+      title={t('deleteDialog.title')}
+      description={t('deleteDialog.description', { name: authType?.name })}
+      onAction={handleDelete}
+      actionLabel={t('common:delete')}
     />
   )
 }

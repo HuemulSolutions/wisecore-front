@@ -1,12 +1,12 @@
 import { BetweenHorizontalStart } from 'lucide-react';
 import { DocumentActionButton } from '@/components/assets/content/assets-access-control';
+import { useTranslation } from 'react-i18next';
 
 interface SectionSeparatorProps {
   onAddSection: (afterIndex?: number) => void;
   index?: number;
   isLastSection?: boolean;
   isMobile?: boolean;
-  accessLevels?: string[];
 }
 
 /**
@@ -16,9 +16,9 @@ export function SectionSeparator({
   onAddSection, 
   index, 
   isLastSection = false,
-  isMobile = false,
-  accessLevels
+  isMobile = false
 }: SectionSeparatorProps) {
+  const { t } = useTranslation('assets');
   return (
     <div className="group relative flex items-center justify-center my-4 px-4 max-w-full">
       {/* Divider line */}
@@ -29,7 +29,6 @@ export function SectionSeparator({
       {/* Add section button - appears on hover on desktop, always visible on mobile */}
       <div className="relative bg-white px-6">
         <DocumentActionButton
-          accessLevels={accessLevels}
           requiredAccess={["edit", "create"]}
           requireAll={false}
           checkGlobalPermissions={true}
@@ -50,7 +49,7 @@ export function SectionSeparator({
             shadow-sm hover:shadow-lg
             transform hover:scale-110 active:scale-95
           `}
-          title={`Add section ${isLastSection ? 'at the end' : index !== undefined && index >= 0 ? `after section ${index + 1}` : 'at the beginning'}`}
+          title={isLastSection ? t('sectionSeparator.addSectionEnd') : index !== undefined && index >= 0 ? t('sectionSeparator.addSectionAfter', { index: index + 1 }) : t('sectionSeparator.addSectionBeginning')}
         >
           <BetweenHorizontalStart className="h-4 w-4" />
         </DocumentActionButton>

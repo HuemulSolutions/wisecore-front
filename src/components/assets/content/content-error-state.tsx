@@ -1,6 +1,7 @@
 import { AlertCircle, RefreshCw, Lock, FileX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/types/api-error";
+import { useTranslation } from "react-i18next";
 
 interface ContentErrorStateProps {
   error: unknown;
@@ -8,6 +9,8 @@ interface ContentErrorStateProps {
 }
 
 export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
+  const { t } = useTranslation('assets');
+
   // Determinar tipo de error para mostrar icono/mensaje apropiado
   const isAccessError = ApiError.isApiError(error) && 
     (error.statusCode === 403 || error.statusCode === 401);
@@ -15,13 +18,13 @@ export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
   
   const Icon = isAccessError ? Lock : isNotFoundError ? FileX : AlertCircle;
   const title = isAccessError 
-    ? "Access Denied" 
+    ? t('contentError.accessDenied')
     : isNotFoundError 
-      ? "Document Not Found"
-      : "Error Loading Content";
+      ? t('contentError.documentNotFound')
+      : t('contentError.errorLoading');
   const description = ApiError.isApiError(error) 
     ? error.message 
-    : "There was an error loading the document content.";
+    : t('contentError.defaultDescription');
   
   return (
     <div className="h-full flex items-center justify-center min-h-[calc(100vh-300px)] p-4">
@@ -34,7 +37,7 @@ export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
         {onRetry && !isAccessError && (
           <Button onClick={onRetry} variant="outline" className="hover:cursor-pointer">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
+            {t('contentError.tryAgain')}
           </Button>
         )}
       </div>

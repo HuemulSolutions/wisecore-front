@@ -1,4 +1,5 @@
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { useTranslation } from "react-i18next";
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 
 interface DeleteSectionExecutionDialogProps {
   open: boolean;
@@ -6,36 +7,37 @@ interface DeleteSectionExecutionDialogProps {
   sectionExecution: {
     name?: string;
   };
-  onConfirm: () => void;
-  isProcessing: boolean;
+  onAction: () => Promise<void>;
 }
 
 export function DeleteSectionExecutionDialog({
   open,
   onOpenChange,
   sectionExecution,
-  onConfirm,
-  isProcessing,
+  onAction,
 }: DeleteSectionExecutionDialogProps) {
+  const { t } = useTranslation('sections')
+  const { t: tCommon } = useTranslation('common')
+
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Section"
+      title={t('deleteDialog.title')}
       description={
         <>
-          Are you sure you want to delete this section? This action cannot be undone.
+          {t('deleteDialog.description')}
           {sectionExecution.name && (
             <span className="block mt-2 font-medium">
-              Section: {sectionExecution.name}
+              {t('deleteDialog.sectionLabel', { name: sectionExecution.name })}
             </span>
           )}
         </>
       }
-      onConfirm={onConfirm}
-      confirmLabel="Delete"
-      isProcessing={isProcessing}
-      variant="destructive"
+      onAction={onAction}
+      actionLabel={tCommon('delete')}
+      cancelLabel={tCommon('cancel')}
+      actionVariant="destructive"
     />
   );
 }

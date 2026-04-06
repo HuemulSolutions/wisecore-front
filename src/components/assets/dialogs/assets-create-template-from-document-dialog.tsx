@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FileCode } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ReusableDialog } from '@/components/ui/reusable-dialog';
-import NameDescriptionFields from '@/components/assets/content/name-description-fields';
+import { useTranslation } from 'react-i18next';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { HuemulField } from '@/huemul/components/huemul-field';
 import { createTemplateFromDocument } from '@/services/assets';
 import { toast } from 'sonner';
 
@@ -21,6 +22,7 @@ export function CreateTemplateFromDocumentDialog({
   organizationId,
   onTemplateCreated
 }: CreateTemplateFromDocumentDialogProps) {
+  const { t } = useTranslation('assets');
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({ name: '', description: '' });
 
@@ -32,27 +34,24 @@ export function CreateTemplateFromDocumentDialog({
   }, [open]);
 
   const createTemplateMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) => 
+    mutationFn: (data: { name: string; description?: string }) =>
       createTemplateFromDocument(documentId, data, organizationId!),
     onSuccess: (template) => {
-      toast.success('Template created successfully');
+      toast.success(t('createTemplateFromDocument.success'));
       queryClient.invalidateQueries({ queryKey: ['document', documentId] });
       queryClient.invalidateQueries({ queryKey: ['templates', organizationId] });
-      onOpenChange(false);
-      
-      // Wait for dialog to close before navigating
+      // HuemulDialog closes the dialog after closeDelay (500 ms); navigate after that
       setTimeout(() => {
         onTemplateCreated(template);
-      }, 300);
+      }, 600);
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (formData.name.trim() && organizationId) {
-      createTemplateMutation.mutate({
+      await createTemplateMutation.mutateAsync({
         name: formData.name.trim(),
-        description: formData.description.trim() || undefined
+        description: formData.description.trim() || undefined,
       });
     }
   };
@@ -60,36 +59,39 @@ export function CreateTemplateFromDocumentDialog({
   const isValid = formData.name.trim().length > 0 && !!organizationId;
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Create Template from Asset"
-      description="Create a reusable template based on this document's structure. The document's sections, dependencies, and custom fields will be copied to the new template."
+      title={t('createTemplateFromDocument.title')}
+      description={t('createTemplateFromDocument.description')}
       icon={FileCode}
-      maxWidth="md"
-      maxHeight="90vh"
-      showDefaultFooter
-      formId="create-template-from-document-form"
-      isValid={isValid}
-      isSubmitting={createTemplateMutation.isPending}
-      submitLabel="Create Template"
+      maxWidth="sm:max-w-lg"
+      saveAction={{
+        label: t('createTemplateFromDocument.submitLabel'),
+        onClick: handleSubmit,
+        disabled: !isValid,
+        loading: createTemplateMutation.isPending,
+      }}
     >
-      <form id="create-template-from-document-form" onSubmit={handleSubmit} className="space-y-4">
-        <NameDescriptionFields
-          name={formData.name}
-          description={formData.description}
-          onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
-          onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
-          nameLabel="Template Name *"
-          descriptionLabel="Description (Optional)"
-          namePlaceholder="Enter template name..."
-          descriptionPlaceholder="Describe what this template is for..."
+      <div className="space-y-4 py-2">
+        <HuemulField
+          label={t('createTemplateFromDocument.nameLabel')}
+          required
+          value={formData.name}
+          onChange={(value) => setFormData((prev) => ({ ...prev, name: String(value) }))}
+          placeholder={t('createTemplateFromDocument.namePlaceholder')}
           disabled={createTemplateMutation.isPending}
-          nameRequired={true}
-          descriptionRequired={false}
-          useTextarea={true}
+          autoFocus
         />
-      </form>
-    </ReusableDialog>
+        <HuemulField
+          type="textarea"
+          label={t('createTemplateFromDocument.descriptionLabel')}
+          value={formData.description}
+          onChange={(value) => setFormData((prev) => ({ ...prev, description: String(value) }))}
+          placeholder={t('createTemplateFromDocument.descriptionPlaceholder')}
+          disabled={createTemplateMutation.isPending}
+        />
+      </div>
+    </HuemulDialog>
   );
 }

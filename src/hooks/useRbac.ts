@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole } from "@/services/rbac"
+import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
 import { toast } from "sonner"
 
 // Query keys
@@ -9,15 +9,16 @@ export const rbacQueryKeys = {
   permissions: () => [...rbacQueryKeys.all, 'permissions'] as const,
   rolePermissions: (roleId: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId] as const,
   userRoles: (userId: string) => [...rbacQueryKeys.all, 'userRoles', userId] as const,
-  userAllRoles: (userId: string) => [...rbacQueryKeys.all, 'userAllRoles', userId] as const,
-  roleWithAllUsers: (roleId: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId] as const,
+  userAllRoles: (userId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
+  roleWithAllUsers: (roleId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
 }
 
 // Hook for fetching roles
-export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 10) {
+export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
   return useQuery({
-    queryKey: [...rbacQueryKeys.roles(), page, pageSize],
-    queryFn: () => getRoles(page, pageSize),
+    queryKey: [...rbacQueryKeys.roles(), page, pageSize, search ?? ''],
+    queryFn: () => getRoles(page, pageSize, search),
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: true, // Ensure fresh data on mount
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
@@ -60,10 +61,10 @@ export function useUserRoles(userId: string, enabled: boolean = true) {
 }
 
 // Hook for fetching all roles with user assignment status
-export function useUserAllRoles(userId: string, enabled: boolean = true) {
+export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
   return useQuery({
-    queryKey: rbacQueryKeys.userAllRoles(userId),
-    queryFn: () => getUserAllRoles(userId),
+    queryKey: rbacQueryKeys.userAllRoles(userId, page, pageSize, search),
+    queryFn: () => getUserAllRoles(userId, page, pageSize, search),
     enabled: !!userId && userId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -72,10 +73,10 @@ export function useUserAllRoles(userId: string, enabled: boolean = true) {
 }
 
 // Hook for fetching role with all users and their assignment status
-export function useRoleWithAllUsers(roleId: string, enabled: boolean = true) {
+export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
   return useQuery({
-    queryKey: rbacQueryKeys.roleWithAllUsers(roleId),
-    queryFn: () => getRoleWithAllUsers(roleId),
+    queryKey: rbacQueryKeys.roleWithAllUsers(roleId, page, pageSize, search),
+    queryFn: () => getRoleWithAllUsers(roleId, page, pageSize, search),
     enabled: !!roleId && roleId.trim() !== '' && enabled,
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -132,11 +133,21 @@ export function useRoleMutations() {
     },
   })
 
+  const cloneRoleMutation = useMutation({
+    mutationFn: ({ roleId, copyUsers }: { roleId: string; copyUsers: boolean }) =>
+      cloneRole(roleId, { copy_users: copyUsers }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
+      toast.success('Role cloned successfully')
+    },
+  })
+
   return {
     createRole: createRoleMutation,
     updateRole: updateRoleMutation,
     deleteRole: deleteRoleMutation,
     assignRoles: assignRolesMutation,
     assignUsersToRole: assignUsersToRoleMutation,
+    cloneRole: cloneRoleMutation,
   }
 }

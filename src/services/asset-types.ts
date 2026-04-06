@@ -79,11 +79,15 @@ export const getAssetTypes = async (): Promise<AssetTypesResponse> => {
 };
 
 // Get all asset types with roles
-export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number = 10): Promise<AssetTypesWithRolesResponse> => {
+export const getAssetTypesWithRoles = async (page: number = 1, pageSize: number = 10, search?: string): Promise<AssetTypesWithRolesResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString()
   });
+
+  if (search) {
+    params.append('search', search);
+  }
 
   const response = await httpClient.get(`${backendUrl}/role-doctype/document-types/list_with_all_roles?${params.toString()}`, {
     headers: getHeaders(),

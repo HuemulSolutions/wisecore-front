@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
 import type { DeleteFolderDialogProps } from "@/types/assets"
+import { useTranslation } from "react-i18next"
 
 export function DeleteFolderDialog({
   open,
@@ -9,6 +10,7 @@ export function DeleteFolderDialog({
   onConfirm,
 }: DeleteFolderDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const { t } = useTranslation('assets')
 
   const handleConfirm = async () => {
     setIsDeleting(true)
@@ -23,10 +25,10 @@ export function DeleteFolderDialog({
     <ReusableAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Folder"
-      description={`Are you sure you want to delete "${folderName}"? All files and subfolders will be permanently deleted and this action cannot be undone.`}
+      title={t('deleteFolder.title')}
+      description={t('deleteFolder.description', { name: folderName })}
       onConfirm={handleConfirm}
-      confirmLabel="Deleting"
+      confirmLabel={t('deleteFolder.confirmLabel')}
       isProcessing={isDeleting}
     />
   )

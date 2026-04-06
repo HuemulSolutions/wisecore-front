@@ -4,17 +4,20 @@ import * as React from "react"
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { createFolder } from "@/services/folders"
 import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
 import type { CreateFolderRequest, CreateFolderDialogProps } from "@/types/assets"
-import NameDescriptionFields from "@/components/assets/content/name-description-fields"
+import { HuemulField } from "@/huemul/components/huemul-field"
 
 export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderCreated }: CreateFolderDialogProps) {
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
+  const { t } = useTranslation('assets')
+  const { t: tCommon } = useTranslation('common')
   const [name, setName] = useState("")
 
   React.useEffect(() => {
@@ -31,16 +34,14 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library", selectedOrganizationId] })
       onFolderCreated?.()
-      toast.success("Folder created successfully")
+      toast.success(t('createFolder.success'))
       onOpenChange(false)
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleCreate = () => {
     if (!selectedOrganizationId) {
-      toast.error("Organization is required")
+      toast.error(t('createFolder.errorOrganizationRequired'))
       return
     }
 
@@ -48,7 +49,7 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
       name: name.trim(),
       organization_id: selectedOrganizationId,
     }
-    
+
     if (parentFolder) {
       folderData.parent_folder_id = parentFolder
     }
@@ -57,33 +58,32 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Create Folder"
-      description="Enter the folder name to create a new folder."
+      title={t('createFolder.title')}
+      description={t('createFolder.description')}
       icon={Plus}
-      maxWidth="lg"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => onOpenChange(false)}
-      submitLabel="Create Folder"
-      cancelLabel="Cancel"
-      isSubmitting={createFolderMutation.isPending}
-      isValid={!!name.trim() && !!selectedOrganizationId}
-      formId="create-folder-form"
+      maxWidth="sm:max-w-lg"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={tCommon('cancel')}
+      saveAction={{
+        label: t('createFolder.submitLabel'),
+        onClick: handleCreate,
+        disabled: !name.trim() || !selectedOrganizationId,
+        loading: createFolderMutation.isPending,
+        closeOnSuccess: false,
+      }}
     >
-      <form id="create-folder-form" onSubmit={handleSubmit}>
-        <NameDescriptionFields
-          name={name}
-          onNameChange={setName}
-          nameLabel="Folder Name *"
-          namePlaceholder="Enter folder name"
-          disabled={createFolderMutation.isPending}
-          includeDescription={false}
-        />
-      </form>
-    </ReusableDialog>
+      <HuemulField
+        label={t('createFolder.folderName')}
+        required
+        value={name}
+        onChange={(val) => setName(val as string)}
+        placeholder={t('createFolder.folderNamePlaceholder')}
+        disabled={createFolderMutation.isPending}
+      />
+    </HuemulDialog>
   )
 }
 

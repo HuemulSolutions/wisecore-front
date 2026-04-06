@@ -2,27 +2,34 @@
 
 import * as React from "react"
 import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { createDocument } from "@/services/assets"
 import { getAllTemplates } from "@/services/templates"
+import { getDocumentTypesWithInfo } from "@/services/role-document-type"
 import { useOrganization } from "@/contexts/organization-context"
-import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
+import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import type { CreateAssetRequest, CreateAssetDialogProps } from "@/types/assets"
 import AssetFormFields from "@/components/assets/content/assets-form-fields"
 
-export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
+function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
   const { selectedOrganizationId } = useOrganization()
-  const queryClient = useQueryClient()
+  const { t } = useTranslation('assets')
+  const { t: tCommon } = useTranslation('common')
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [internalCode, setInternalCode] = useState("")
   const [documentTypeId, setDocumentTypeId] = useState("")
+  const [docTypeLabel, setDocTypeLabel] = useState("")
+  const [docTypeColor, setDocTypeColor] = useState<string | undefined>(undefined)
   const [templateId, setTemplateId] = useState("")
+  const [createInitialVersion, setCreateInitialVersion] = useState(false)
   const [showCreateDocTypeDialog, setShowCreateDocTypeDialog] = useState(false)
 
   React.useEffect(() => {
@@ -32,36 +39,47 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
       setDescription("")
       setInternalCode("")
       setDocumentTypeId("")
+      setDocTypeLabel("")
+      setDocTypeColor(undefined)
       setTemplateId("")
-      
-      // Refresh document types when dialog opens to ensure latest data
-      if (selectedOrganizationId) {
-        queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
-        queryClient.invalidateQueries({ queryKey: ['document-types'] })
-      }
+      setCreateInitialVersion(false)
     }
-  }, [open, selectedOrganizationId, queryClient])
+  }, [open, selectedOrganizationId])
 
-  // Fetch document types based on current user's role - solo cuando el diálogo esté abierto
-  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } = useRoleDocumentTypes(open && !!selectedOrganizationId)
+  // Async fetch for templates
+  const fetchTemplateOptions = React.useCallback(
+    async ({ search, page, pageSize }: FetchOptionsParams) => {
+      if (!selectedOrganizationId) return { options: [], hasMore: false }
+      const res = await getAllTemplates(selectedOrganizationId, search, page, pageSize)
+      return {
+        options: res.data.map((t) => ({ value: t.id, label: t.name })),
+        hasMore: res.has_next,
+        totalCount: res.total,
+      }
+    },
+    [selectedOrganizationId],
+  )
 
-  // Fetch templates
-  const { data: templates = [] } = useQuery({
-    queryKey: ['templates', selectedOrganizationId],
-    queryFn: () => getAllTemplates(selectedOrganizationId!),
-    enabled: !!selectedOrganizationId && open,
-  })
+  // Async fetch for document types (pagination only — endpoint has no search support)
+  const fetchDocumentTypeOptions = React.useCallback(
+    async ({ page, pageSize }: FetchOptionsParams) => {
+      const res = await getDocumentTypesWithInfo(page, pageSize)
+      return {
+        options: res.data.map(dt => ({ value: dt.id, label: dt.name, color: dt.color })),
+        hasMore: res.has_next,
+      }
+    },
+    [],
+  )
 
   // Handle new document type creation
   const handleNewDocumentTypeCreated = (newDocType: { id: string; name: string; color: string }) => {
     // Auto-select the newly created document type
     setDocumentTypeId(newDocType.id)
+    setDocTypeLabel(newDocType.name)
+    setDocTypeColor(newDocType.color)
     
-    // Invalidate and refetch document types to include the new one
-    queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
-    queryClient.invalidateQueries({ queryKey: ['document-types'] })
-    
-    toast.success(`Asset type "${newDocType.name}" created and selected`)
+    toast.success(t('create.assetTypeCreatedAndSelected', { name: newDocType.name }))
   }
 
   // Handle document type dialog close
@@ -87,13 +105,15 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     },
     onSuccess: (createdAsset) => {
       console.log('✅ [CREATE-DIALOG] Asset created successfully:', createdAsset)
-      toast.success("Asset created successfully")
+      toast.success(t('create.success'))
       
-      // Close dialog and execute callback immediately
-      // Radix will handle the unmounting and animation properly
+      // Close dialog first
       console.log('🚪 [CREATE-DIALOG] Closing dialog')
       onOpenChange(false)
       
+      // Execute callback immediately — the dialog is protected against
+      // re-render flashes via React.memo, so navigation won't cause
+      // the portal to flicker.
       console.log('📞 [CREATE-DIALOG] Calling onAssetCreated callback')
       onAssetCreated?.({
         id: createdAsset.id,
@@ -101,28 +121,19 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
         type: "document"
       })
     },
-    onError: (error: any) => {
-      console.error("Create asset error:", error)
-      
-      // Extract error message from response
-      const errorMessage = error?.response?.data?.error || 
-                          error?.message || 
-                          "Failed to create asset"
-      
-      toast.error(errorMessage)
+    onError: (error) => {
+      handleApiError(error, { fallbackMessage: t('create.errorFailed') })
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleCreate = () => {
     if (!selectedOrganizationId) {
-      toast.error("Organization is required")
+      toast.error(t('create.errorOrganizationRequired'))
       return
     }
 
     if (!documentTypeId) {
-      toast.error("Asset type is required")
+      toast.error(t('create.errorAssetTypeRequired'))
       return
     }
 
@@ -144,26 +155,37 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
       assetData.folder_id = folderId
     }
 
+    // Only send create_initial_version when true and no template is selected
+    if (createInitialVersion && !templateId) {
+      assetData.create_initial_version = true
+    }
+
     createAssetMutation.mutate(assetData)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    handleCreate()
   }
 
   return (
     <>
-      <ReusableDialog
+      <HuemulDialog
         open={open}
         onOpenChange={onOpenChange}
-        title="Create Asset"
-        description="Enter the asset information to create a new document."
+        title={t('create.title')}
+        description={t('create.description')}
         icon={Plus}
-        maxWidth="lg"
-        maxHeight="90vh"
-        showDefaultFooter
-        onCancel={() => onOpenChange(false)}
-        submitLabel="Create Asset"
-        cancelLabel="Cancel"
-        isSubmitting={createAssetMutation.isPending}
-        isValid={!!name.trim() && !!documentTypeId && !!selectedOrganizationId}
-        formId="create-asset-form"
+        maxWidth="sm:max-w-2xl"
+        maxHeight="max-h-[90vh]"
+        cancelLabel={tCommon('cancel')}
+        saveAction={{
+          label: t('create.submitLabel'),
+          onClick: handleCreate,
+          loading: createAssetMutation.isPending,
+          disabled: !name.trim() || !documentTypeId || !selectedOrganizationId,
+          closeOnSuccess: false,
+        }}
       >
         <form id="create-asset-form" onSubmit={handleSubmit}>
           <AssetFormFields
@@ -172,20 +194,22 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
             internalCode={internalCode}
             templateId={templateId}
             documentTypeId={documentTypeId}
+            createInitialVersion={createInitialVersion}
             onNameChange={setName}
             onDescriptionChange={setDescription}
             onInternalCodeChange={setInternalCode}
             onTemplateIdChange={setTemplateId}
             onDocumentTypeIdChange={setDocumentTypeId}
+            onCreateInitialVersionChange={setCreateInitialVersion}
             onCreateDocType={() => setShowCreateDocTypeDialog(true)}
-            templates={templates}
-            documentTypes={documentTypes}
-            isLoadingDocTypes={isLoadingDocTypes}
-            docTypesError={docTypesError}
+            fetchTemplateOptions={fetchTemplateOptions}
+            fetchDocumentTypeOptions={fetchDocumentTypeOptions}
+            selectedDocTypeLabel={docTypeLabel}
+            selectedDocTypeColor={docTypeColor}
             disabled={createAssetMutation.isPending}
           />
         </form>
-      </ReusableDialog>
+      </HuemulDialog>
       
       {/* Create Document Type Dialog */}
       {showCreateDocTypeDialog && (
@@ -199,3 +223,5 @@ export function CreateAssetDialog({ open, onOpenChange, folderId, onAssetCreated
     </>
   )
 }
+
+export const CreateAssetDialog = React.memo(CreateAssetDialogInner)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import Markdown from "../ui/markdown";
 import {
   DropdownMenu,
@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import {
   ChevronDown,
   ChevronUp,
@@ -50,9 +50,7 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
       : `${item.prompt.substring(0, maxPreviewLength)}...`;
 
   const handleDelete = () => {
-    // Aquí puedes agregar la lógica para eliminar el item
     onDelete(item.id);
-    setShowDeleteDialog(false);
   };
 
   const handleEdit = () => {
@@ -101,13 +99,13 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
+              <HuemulButton
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 hover:cursor-pointer"
+                className="h-8 w-8 p-0"
               >
                 <MoreVertical className="h-4 w-4" />
-              </Button>
+              </HuemulButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
@@ -134,16 +132,18 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
       <CardContent className="pt-0">
         <div className="space-y-3">
           {item.dependencies && item.dependencies.length > 0 && (
-            <div className="flex flex-wrap gap-1 items-center">
-              <span className="text-sm text-muted-foreground">Depends on:</span>
-              {item.dependencies.map((dependency, index) => (
-                <span
-                  key={index}
-                  className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full"
-                >
-                  {dependency.name}
-                </span>
-              ))}
+            <div className="flex gap-1 items-center min-w-0">
+              <span className="text-sm text-muted-foreground shrink-0">Depends on:</span>
+              <div className="flex flex-wrap gap-1 min-w-0 overflow-hidden">
+                {item.dependencies.map((dependency, index) => (
+                  <span
+                    key={index}
+                    className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full truncate max-w-full"
+                  >
+                    {dependency.name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
           <div className="text-sm text-gray-700 leading-relaxed">
@@ -152,11 +152,11 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
           </div>
           
           {shouldShowExpandButton && (
-            <Button
+            <HuemulButton
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-0 h-auto text-blue-600 hover:text-blue-800 hover:cursor-pointer"
+              className="p-0 h-auto text-blue-600 hover:text-blue-800"
             >
               <span className="flex items-center gap-1">
                 {isExpanded ? (
@@ -171,19 +171,19 @@ export default function Section({ item, existingSections, onSave, onDelete }: Pr
                   </>
                 )}
               </span>
-            </Button>
+            </HuemulButton>
           )}
         </div>
       </CardContent>
 
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         title="Are you sure?"
         description={`This action cannot be undone. This will permanently delete the element "${item.name}".`}
-        onConfirm={handleDelete}
-        confirmLabel="Delete"
-        variant="destructive"
+        onAction={async () => handleDelete()}
+        actionLabel="Delete"
+        actionVariant="destructive"
       />
     </Card>
   );
