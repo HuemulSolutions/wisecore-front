@@ -11,14 +11,20 @@ import type {
 
 interface GlobalUsersResponse {
   data: User[]
+  page: number
+  page_size: number
+  has_next: boolean
+  total?: number
 }
 
 // Get all users with roles
-export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100): Promise<UsersResponse> => {
+export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100, search?: string): Promise<UsersResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString()
   });
+
+  if (search?.trim()) params.set('search', search.trim());
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json'
@@ -37,8 +43,13 @@ export const getUsers = async (organizationId?: string, page: number = 1, pageSi
 };
 
 // Get global users list (root admin)
-export const getGlobalUsers = async (): Promise<GlobalUsersResponse> => {
-  const response = await httpClient.get(`${backendUrl}/users`);
+export const getGlobalUsers = async (page: number = 1, pageSize: number = 10, search?: string): Promise<GlobalUsersResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString()
+  });
+  if (search?.trim()) params.set('search', search.trim());
+  const response = await httpClient.get(`${backendUrl}/users?${params}`);
   return response.json();
 };
 

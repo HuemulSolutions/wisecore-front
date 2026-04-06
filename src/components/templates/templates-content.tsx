@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, RefreshCw, Edit3, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles } from "lucide-react";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { getTemplateById, generateTemplateSections } from "@/services/templates";
@@ -55,6 +56,7 @@ export function TemplateContent({
 }: TemplateContentProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { t } = useTranslation(['templates', 'common']);
   const { selectedOrganizationId } = useOrganization();
 
   // Estados principales
@@ -95,7 +97,7 @@ export function TemplateContent({
   const generateSectionsMutation = useMutation({
     mutationFn: (templateId: string) => generateTemplateSections(templateId, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Sections generated successfully with AI");
+      toast.success(t('templates:content.sectionsGenerated'));
       queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
     },
   });
@@ -112,18 +114,18 @@ export function TemplateContent({
               <EmptyIcon>
                 <FileText className="h-12 w-12" />
               </EmptyIcon>
-              <EmptyTitle>No Template Selected</EmptyTitle>
+              <EmptyTitle>{t('templates:content.noTemplateSelectedTitle')}</EmptyTitle>
               <EmptyDescription>
-                Select a template from the sidebar to view and edit its sections, or create a new template to get started.
+                {t('templates:content.noTemplateSelectedDescription')}
               </EmptyDescription>
               <EmptyActions>
-                <Button
+                <HuemulButton
+                  icon={FileText}
+                  iconClassName="h-4 w-4 mr-2"
+                  label={t('templates:content.createTemplate')}
+                  className="bg-[#4464f7] hover:bg-[#3451e6]"
                   onClick={() => setIsCreateTemplateDialogOpen(true)}
-                  className="hover:cursor-pointer bg-[#4464f7] hover:bg-[#3451e6]"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Create Template
-                </Button>
+                />
               </EmptyActions>
             </div>
           </Empty>
@@ -173,23 +175,22 @@ export function TemplateContent({
         <div className="flex-1 bg-white min-w-0 flex flex-col overflow-hidden">
           {templateError ? (
             <div className="flex flex-col items-center justify-center h-full text-center rounded-lg border border-dashed bg-muted/50 p-8 mx-4">
-              <p className="text-red-600 mb-4 font-medium">{(templateError as Error).message || 'Failed to load template'}</p>
+              <p className="text-red-600 mb-4 font-medium">{(templateError as Error).message || t('templates:content.loadError')}</p>
               <p className="text-sm text-muted-foreground mb-6">
-                There was an error loading the template details. Please try again.
+                {t('templates:content.loadErrorDescription')}
               </p>
-              <Button 
-                onClick={() => queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] })} 
-                variant="outline" 
-                className="hover:cursor-pointer"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
+              <HuemulButton
+                icon={RefreshCw}
+                iconClassName="h-4 w-4 mr-2"
+                label={t('common:tryAgain')}
+                variant="outline"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] })}
+              />
             </div>
           ) : isLoadingTemplate ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-              <span className="ml-2 text-xs text-gray-500">Loading template...</span>
+              <span className="ml-2 text-xs text-gray-500">{t('templates:content.loadingTemplate')}</span>
             </div>
           ) : (
             <Tabs defaultValue={canListSections ? "sections" : "custom-fields"} value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 overflow-hidden">
@@ -201,54 +202,53 @@ export function TemplateContent({
                         value="sections" 
                         className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
                       >
-                        Sections
+                        {t('templates:content.sectionsTab')}
                       </TabsTrigger>
                     )}
                     <TabsTrigger 
                       value="custom-fields" 
                       className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
                     >
-                      Custom Fields
+                      {t('templates:content.customFieldsTab')}
                     </TabsTrigger>
                   </TabsList>
                   
                   {/* Action Icons */}
                   <div className="flex items-center gap-1 mr-2">
-                    <Button
-                      onClick={() => {
-                        refetch();
-                      }}
+                    <HuemulButton
+                      icon={RefreshCw}
+                      iconClassName="h-4 w-4 text-gray-600"
                       variant="ghost"
                       size="sm"
-                      disabled={isGenerating || isFetching}
-                      className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-gray-100"
-                      title={`Refresh ${activeTab === 'custom-fields' ? 'custom fields' : 'sections'}`}
-                    >
-                      <RefreshCw className={`h-4 w-4 text-gray-600 ${isFetching ? 'animate-spin' : ''}`} />
-                    </Button>
+                      loading={isFetching}
+                      disabled={isGenerating}
+                      tooltip={`${t('common:refresh')} ${activeTab === 'custom-fields' ? t('templates:content.customFieldsTab').toLowerCase() : t('templates:content.sectionsTab').toLowerCase()}`}
+                      className="h-8 w-8 p-0 hover:bg-gray-100"
+                      onClick={() => { refetch(); }}
+                    />
                     {canUpdate && (
-                      <Button
-                        onClick={() => setIsEditDialogOpen(true)}
+                      <HuemulButton
+                        icon={Edit3}
+                        iconClassName="h-4 w-4 text-gray-600"
                         variant="ghost"
                         size="sm"
                         disabled={isGenerating}
-                        className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-gray-100"
-                        title="Edit template"
-                      >
-                        <Edit3 className="h-4 w-4 text-gray-600" />
-                      </Button>
+                        tooltip={t('templates:content.editTemplate')}
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
+                        onClick={() => setIsEditDialogOpen(true)}
+                      />
                     )}
                     {canDelete && (
-                      <Button
-                        onClick={() => setIsDeleteDialogOpen(true)}
+                      <HuemulButton
+                        icon={Trash2}
+                        iconClassName="h-4 w-4 text-red-500"
                         variant="ghost"
                         size="sm"
                         disabled={isGenerating}
-                        className="h-8 w-8 p-0 hover:cursor-pointer hover:bg-red-50 hover:text-red-600"
-                        title="Delete template"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                        tooltip={t('templates:content.deleteTemplate')}
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                      />
                     )}
                   </div>
                 </div>
@@ -260,52 +260,48 @@ export function TemplateContent({
                 <div className="px-4 pt-6 pb-4 shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <h2 className="text-base font-semibold text-foreground">Sections</h2>
+                      <h2 className="text-base font-semibold text-foreground">{t('templates:content.sectionsTitle')}</h2>
                       <p className="text-xs text-muted-foreground">
-                        Manage sections for this template
+                        {t('templates:content.manageSections')}
                       </p>
                     </div>
                     
                     {orderedSections && orderedSections.length > 0 ? (
                       canCreateSection && (
-                        <Button
-                          onClick={() => setIsAddingSectionOpen(true)}
+                        <HuemulButton
+                          icon={FileText}
+                          iconClassName="mr-1.5 h-3.5 w-3.5"
+                          label={t('templates:content.addSection')}
                           size="sm"
-                          className="hover:cursor-pointer h-8 text-xs px-3"
+                          className="h-8 text-xs px-3"
                           disabled={isGenerating}
-                        >
-                          <FileText className="mr-1.5 h-3.5 w-3.5" />
-                          Add Section
-                        </Button>
+                          onClick={() => setIsAddingSectionOpen(true)}
+                        />
                       )
                     ) : (
                       <div className="flex items-center gap-2">
                         {canCreateSection && (
-                          <Button
-                            onClick={() => setIsAddingSectionOpen(true)}
+                          <HuemulButton
+                            icon={FileText}
+                            iconClassName="mr-1.5 h-3.5 w-3.5"
+                            label={t('templates:content.addSection')}
                             size="sm"
                             variant="outline"
-                            className="hover:cursor-pointer h-8 text-xs px-3"
+                            className="h-8 text-xs px-3"
                             disabled={isGenerating}
-                          >
-                            <FileText className="mr-1.5 h-3.5 w-3.5" />
-                            Add Section
-                          </Button>
+                            onClick={() => setIsAddingSectionOpen(true)}
+                          />
                         )}
                         {canCreateSection && (
-                          <Button
-                            onClick={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
+                          <HuemulButton
+                            icon={Sparkles}
+                            iconClassName="mr-1.5 h-3.5 w-3.5"
+                            label={t('templates:content.generateWithAI')}
                             size="sm"
-                            className="hover:cursor-pointer h-8 text-xs px-3"
-                            disabled={isGenerating}
-                          >
-                            {isGenerating ? (
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <span className="mr-1.5">✨</span>
-                            )}
-                            Generate with AI
-                          </Button>
+                            loading={isGenerating}
+                            className="h-8 text-xs px-3"
+                            onClick={() => { if (selectedTemplate?.id) generateSectionsMutation.mutate(selectedTemplate.id); }}
+                          />
                         )}
                       </div>
                     )}

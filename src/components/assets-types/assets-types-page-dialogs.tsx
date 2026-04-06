@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { type AssetTypePageState } from "@/types/assets-types"
 
@@ -18,28 +19,22 @@ export default function AssetTypePageDialogs({
   onUpdateState, 
   assetTypeMutations 
 }: AssetTypePageDialogsProps) {
-  const [isDeleting, setIsDeleting] = useState(false)
+  const { t } = useTranslation(['asset-types', 'common'])
 
   const handleDelete = async () => {
     if (!state.deletingAssetType) return
 
-    setIsDeleting(true)
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
-    try {
-      await Promise.all([
-        new Promise<void>((resolve, reject) => {
-          assetTypeMutations.deleteAssetType.mutate(state.deletingAssetType!.document_type_id, {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          })
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeleting(false)
-      onCloseDialog('deletingAssetType')
-    }
+    await Promise.all([
+      new Promise<void>((resolve, reject) => {
+        assetTypeMutations.deleteAssetType.mutate(state.deletingAssetType!.document_type_id, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error)
+        })
+      }),
+      minDelay
+    ])
   }
 
   return (
@@ -62,20 +57,19 @@ export default function AssetTypePageDialogs({
       />
 
       {/* Delete Asset Type Dialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={!!state.deletingAssetType}
         onOpenChange={(open) => {
-          if (!open && !isDeleting) {
+          if (!open) {
             onCloseDialog('deletingAssetType')
           }
         }}
-        title="Delete Asset Type"
-        description={`Are you sure you want to delete the asset type "${state.deletingAssetType?.document_type_name}"? This action cannot be undone and may affect existing assets of this type.`}
-        onConfirm={handleDelete}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        isProcessing={isDeleting}
-        variant="destructive"
+        title={t('delete.title')}
+        description={t('delete.description', { name: state.deletingAssetType?.document_type_name })}
+        onAction={handleDelete}
+        actionLabel={t('common:delete')}
+        cancelLabel={t('common:cancel')}
+        actionVariant="destructive"
       />
 
       {/* Role Permissions Dialog */}
@@ -88,6 +82,17 @@ export default function AssetTypePageDialogs({
         onOpenChange={(open) => {
           if (!open) {
             onCloseDialog('rolePermissionsAssetType')
+          }
+        }}
+      />
+
+      {/* Lifecycle Dialog */}
+      <AssetTypeLifecycleDialog
+        assetType={state.lifecycleAssetType}
+        open={!!state.lifecycleAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('lifecycleAssetType')
           }
         }}
       />

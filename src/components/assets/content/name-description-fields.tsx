@@ -1,6 +1,7 @@
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { useTranslation } from "react-i18next"
 
 interface NameDescriptionFieldsProps {
   name: string
@@ -25,10 +26,10 @@ export default function NameDescriptionFields({
   description = '',
   onNameChange,
   onDescriptionChange,
-  nameLabel = "Name *",
-  descriptionLabel = "Description",
-  namePlaceholder = "Enter name",
-  descriptionPlaceholder = "Enter description",
+  nameLabel,
+  descriptionLabel,
+  namePlaceholder,
+  descriptionPlaceholder,
   includeDescription = true,
   useTextarea = false,
   nameRequired = true,
@@ -37,16 +38,21 @@ export default function NameDescriptionFields({
   nameError,
   descriptionError
 }: NameDescriptionFieldsProps) {
+  const { t } = useTranslation('assets');
+  const resolvedNameLabel = nameLabel ?? t('nameDescriptionDefaults.nameLabel');
+  const resolvedDescriptionLabel = descriptionLabel ?? t('nameDescriptionDefaults.descriptionLabel');
+  const resolvedNamePlaceholder = namePlaceholder ?? t('nameDescriptionDefaults.namePlaceholder');
+  const resolvedDescriptionPlaceholder = descriptionPlaceholder ?? t('nameDescriptionDefaults.descriptionPlaceholder');
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="name">{nameLabel}</Label>
+        <Label htmlFor="name">{resolvedNameLabel}</Label>
         <Input
           id="name"
           name="name"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
-          placeholder={namePlaceholder}
+          placeholder={resolvedNamePlaceholder}
           required={nameRequired}
           disabled={disabled}
         />
@@ -57,14 +63,14 @@ export default function NameDescriptionFields({
 
       {includeDescription && onDescriptionChange && (
         <div className="grid gap-2">
-          <Label htmlFor="description">{descriptionLabel}</Label>
+          <Label htmlFor="description">{resolvedDescriptionLabel}</Label>
           {useTextarea ? (
             <Textarea
               id="description"
               name="description"
               value={description}
               onChange={(e) => onDescriptionChange(e.target.value)}
-              placeholder={descriptionPlaceholder}
+              placeholder={resolvedDescriptionPlaceholder}
               required={descriptionRequired}
               disabled={disabled}
               rows={3}
@@ -75,7 +81,7 @@ export default function NameDescriptionFields({
               name="description"
               value={description}
               onChange={(e) => onDescriptionChange(e.target.value)}
-              placeholder={descriptionPlaceholder}
+              placeholder={resolvedDescriptionPlaceholder}
               required={descriptionRequired}
               disabled={disabled}
             />

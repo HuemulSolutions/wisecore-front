@@ -13,6 +13,8 @@ interface AddSectionExecutionFormProps {
   afterFromId: string | null;
   existingSections: SectionOption[];
   onValidationChange?: (isValid: boolean) => void;
+  defaultType?: 'ai' | 'manual' | 'reference';
+  defaultManualInput?: string;
 }
 
 export function AddSectionExecutionForm({ 
@@ -20,7 +22,9 @@ export function AddSectionExecutionForm({
   isPending, 
   afterFromId,
   existingSections,
-  onValidationChange 
+  onValidationChange,
+  defaultType,
+  defaultManualInput,
 }: AddSectionExecutionFormProps) {
   useEffect(() => {
     onValidationChange?.(false);
@@ -50,6 +54,8 @@ export function AddSectionExecutionForm({
       isPending={isPending}
       existingSections={existingSections}
       onValidationChange={onValidationChange}
+      defaultType={defaultType}
+      defaultManualInput={defaultManualInput}
     />
   );
 }

@@ -1,4 +1,3 @@
-import { useState } from "react"
 import EditUserDialog from "@/components/users/users-edit-dialog"
 import UserOrganizationsDialog from "@/components/users/users-organizations-dialog"
 import CreateUserDialog from "@/components/users/users-create-dialog"
@@ -25,7 +24,6 @@ export default function UserPageDialogs({
   onUsersUpdated,
   createUserAddToOrganization
 }: UserPageDialogsProps) {
-  const [isDeleting, setIsDeleting] = useState(false)
   return (
     <>
       <EditUserDialog
@@ -60,34 +58,16 @@ export default function UserPageDialogs({
       <UserDeleteDialog
         user={state.deletingUser}
         open={!!state.deletingUser}
-        onOpenChange={(open) => {
-          if (!open && !isDeleting) {
-            onCloseDialog('deletingUser')
-          }
+        onOpenChange={(open) => !open && onCloseDialog('deletingUser')}
+        onAction={async () => {
+          if (!state.deletingUser) return
+          await new Promise<void>((resolve, reject) => {
+            userMutations.deleteUser.mutate(state.deletingUser!.id, {
+              onSuccess: () => resolve(),
+              onError: (error) => reject(error)
+            })
+          })
         }}
-        onConfirm={async (user) => {
-          setIsDeleting(true)
-          
-          // Crear una promesa con delay mínimo de 800ms
-          const minDelay = new Promise(resolve => setTimeout(resolve, 800))
-          
-          try {
-            // Ejecutar la mutación y esperar ambas promesas
-            await Promise.all([
-              new Promise<void>((resolve, reject) => {
-                userMutations.deleteUser.mutate(user.id, {
-                  onSuccess: () => resolve(),
-                  onError: (error) => reject(error)
-                })
-              }),
-              minDelay
-            ])
-          } finally {
-            setIsDeleting(false)
-            onCloseDialog('deletingUser')
-          }
-        }}
-        isDeleting={isDeleting}
       />
 
       <RootAdminDialog

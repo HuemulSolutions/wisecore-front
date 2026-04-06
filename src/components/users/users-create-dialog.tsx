@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { useTranslation } from 'react-i18next'
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { UserPlus } from "lucide-react"
 import { useUserMutations } from "@/hooks/useUsers"
 import UserFormFields from "@/components/users/users-form-fields"
@@ -27,9 +28,9 @@ export default function CreateUserDialog({
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [selectedFileName, setSelectedFileName] = useState<string>('')
 
   const { createUser } = useUserMutations()
+  const { t } = useTranslation(['users'])
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -43,7 +44,6 @@ export default function CreateUserDialog({
         photo_file: ''
       })
       setErrors({})
-      setSelectedFileName('')
     }
   }, [open])
 
@@ -51,42 +51,35 @@ export default function CreateUserDialog({
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = 'First name is required'
+      newErrors.name = t('users:validation.nameRequired')
     }
 
     if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Last name is required'
+      newErrors.last_name = t('users:validation.lastNameRequired')
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
+      newErrors.email = t('users:validation.emailRequired')
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address'
+      newErrors.email = t('users:validation.emailInvalid')
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileChange = (files: FileList | null) => {
+    const file = files?.[0]
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, photo_file: 'Please select an image file' }))
+        setErrors(prev => ({ ...prev, photo_file: t('users:validation.invalidImageFile') }))
         return
       }
-
-      // Clear previous error
       setErrors(prev => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { photo_file: _, ...rest } = prev
         return rest
       })
-
-      setSelectedFileName(file.name)
-
-      // Convert to base64
       const reader = new FileReader()
       reader.onloadend = () => {
         const base64String = reader.result as string
@@ -96,12 +89,8 @@ export default function CreateUserDialog({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!validateForm()) {
-      return
-    }
+  const handleSave = async () => {
+    if (!validateForm()) throw new Error('Validation failed')
 
     const submissionData = {
       name: formData.name.trim(),
@@ -113,32 +102,30 @@ export default function CreateUserDialog({
       ...(addToOrganization === false && { add_to_organization: false })
     }
 
-    createUser.mutate(submissionData, {
-      onSuccess: () => {
-        onOpenChange(false)
-        onSuccess?.()
-      }
+    await new Promise<void>((resolve, reject) => {
+      createUser.mutate(submissionData, {
+        onSuccess: () => { onSuccess?.(); resolve() },
+        onError: (e) => reject(e)
+      })
     })
   }
 
-  const isLoading = createUser.isPending
-
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Create New User"
-      description="Add a new user to the system. They will receive an invitation email."
+      title={t('users:create.title')}
+      description={t('users:create.description')}
       icon={UserPlus}
-      maxWidth="lg"
-      maxHeight="90vh"
-      formId="create-user-form"
-      submitLabel="Create User"
-      isSubmitting={isLoading}
-      isValid={!!formData.name.trim() && !!formData.last_name.trim() && !!formData.email.trim()}
-      showDefaultFooter
+      maxWidth="sm:max-w-lg"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: t('users:create.button'),
+        onClick: handleSave,
+        disabled: !formData.name.trim() || !formData.last_name.trim() || !formData.email.trim()
+      }}
     >
-      <form id="create-user-form" onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
         <UserFormFields
           name={formData.name}
           lastName={formData.last_name}
@@ -153,11 +140,10 @@ export default function CreateUserDialog({
           onFileChange={handleFileChange}
           includeBirthday={true}
           includePhoto={true}
-          disabled={isLoading}
+          disabled={createUser.isPending}
           errors={errors}
-          selectedFileName={selectedFileName}
         />
-        </form>
-    </ReusableDialog>
+      </div>
+    </HuemulDialog>
   )
 }

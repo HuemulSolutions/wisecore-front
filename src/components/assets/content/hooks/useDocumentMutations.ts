@@ -14,6 +14,7 @@ import {
   cloneExecution
 } from '@/services/executions';
 import { createSectionExecution } from '@/services/section_execution';
+import { useTranslation } from 'react-i18next';
 
 interface UseDocumentMutationsProps {
   selectedFileId?: string;
@@ -29,6 +30,7 @@ export function useDocumentMutations({
   fullDocument
 }: UseDocumentMutationsProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation('assets');
 
   const preserveScrollPosition = () => {
     onPreserveScroll?.();
@@ -74,7 +76,7 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['library'] });
-      toast.success("Section created successfully");
+      toast.success(t('mutations.sectionCreated'));
     },
   });
 
@@ -88,7 +90,7 @@ export function useDocumentMutations({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFileId] });
-      toast.success("Section added successfully");
+      toast.success(t('mutations.sectionAdded'));
     },
   });
 
@@ -104,7 +106,7 @@ export function useDocumentMutations({
       });
     },
     onSuccess: (executionData) => {
-      toast.success("Document execution started successfully");
+      toast.success(t('mutations.executionStarted'));
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
@@ -119,7 +121,7 @@ export function useDocumentMutations({
       return approveExecution(executionId, selectedOrganizationId!);
     },
     onSuccess: () => {
-      toast.success('Execution approved successfully!');
+      toast.success(t('mutations.executionApproved'));
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
@@ -133,7 +135,7 @@ export function useDocumentMutations({
       return disapproveExecution(executionId, selectedOrganizationId!);
     },
     onSuccess: () => {
-      toast.success('Execution disapproved successfully!');
+      toast.success(t('mutations.executionDisapproved'));
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
@@ -147,7 +149,7 @@ export function useDocumentMutations({
       return deleteExecution(executionId, selectedOrganizationId!);
     },
     onSuccess: () => {
-      toast.success('Execution deleted successfully!');
+      toast.success(t('mutations.executionDeleted'));
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
@@ -161,7 +163,7 @@ export function useDocumentMutations({
       return cloneExecution(executionId, selectedOrganizationId!);
     },
     onSuccess: (clonedExecution) => {
-      toast.success('Execution cloned successfully!');
+      toast.success(t('mutations.executionCloned'));
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFileId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFileId] });
@@ -175,7 +177,7 @@ export function useDocumentMutations({
       return deleteDocument(documentId, selectedOrganizationId!);
     },
     onSuccess: () => {
-      toast.success('Document deleted successfully');
+      toast.success(t('mutations.documentDeleted'));
       queryClient.invalidateQueries({ queryKey: ['library'] });
       queryClient.invalidateQueries({ queryKey: ['document-content'] });
     },

@@ -1,8 +1,9 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ShieldAlert, Plus } from "lucide-react"
+import { HuemulButton } from "@/huemul/components/huemul-button"
+import { useTranslation } from "react-i18next"
 
 interface CustomFieldPageEmptyStateProps {
   type: "access-denied" | "error" | "empty"
@@ -15,6 +16,8 @@ export function CustomFieldPageEmptyState({
   message,
   onCreateFirst,
 }: CustomFieldPageEmptyStateProps) {
+  const { t } = useTranslation('custom-fields')
+
   if (type === "access-denied") {
     return (
       <div className="bg-background p-6 md:p-8">
@@ -24,9 +27,9 @@ export function CustomFieldPageEmptyState({
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <ShieldAlert className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="mt-4 text-lg font-medium">Access Denied</h3>
+              <h3 className="mt-4 text-lg font-medium">{t('emptyState.accessDeniedTitle')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                You don't have permission to manage custom fields.
+                {t('emptyState.accessDeniedDescription')}
               </p>
             </CardContent>
           </Card>
@@ -44,9 +47,9 @@ export function CustomFieldPageEmptyState({
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <ShieldAlert className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="mt-4 text-lg font-medium">Error Loading Custom Fields</h3>
+              <h3 className="mt-4 text-lg font-medium">{t('emptyState.errorLoadingTitle')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {message || "There was an error loading the custom fields."}
+                {message || t('emptyState.errorLoadingDescription')}
               </p>
             </CardContent>
           </Card>
@@ -63,18 +66,17 @@ export function CustomFieldPageEmptyState({
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
               <Plus className="h-6 w-6 text-blue-600" />
             </div>
-            <h3 className="mt-4 text-lg font-medium">No Custom Fields</h3>
+            <h3 className="mt-4 text-lg font-medium">{t('emptyState.emptyTitle')}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Get started by creating your first custom field.
+              {t('emptyState.emptyDescription')}
             </p>
             {onCreateFirst && (
-              <Button
+              <HuemulButton
                 onClick={onCreateFirst}
-                className="mt-4 hover:cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                Create First Custom Field
-              </Button>
+                icon={Plus}
+                label={t('actions.createFirstCustomField')}
+                className="mt-4"
+              />
             )}
           </CardContent>
         </Card>

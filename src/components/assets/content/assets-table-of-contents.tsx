@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TableOfContentsProps } from "@/types/table-of-contents";
+import { useTranslation } from "react-i18next";
 
 export function TableOfContents({ items }: TableOfContentsProps) {
+    const { t } = useTranslation('assets');
     const [activeId, setActiveId] = useState<string | null>(null);
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
     const observer = useRef<IntersectionObserver | null>(null);
@@ -86,10 +88,16 @@ export function TableOfContents({ items }: TableOfContentsProps) {
             setActiveId(id);
             isUserScrolling.current = true;
             
-            element.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
+            // Scroll within the ScrollArea viewport with an offset so the heading
+            // doesn't stick to the very top edge.
+            const SCROLL_OFFSET = 40;
+            const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+            if (viewport) {
+                const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+                viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+            } else {
+                element.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
             
             // Reset scrolling flag after animation completes
             if (scrollTimeout.current) {
@@ -156,7 +164,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
                                 <button
                                     onClick={() => toggleCollapse(item.id)}
                                     className="shrink-0 hover:cursor-pointer p-0.5 hover:bg-gray-100 rounded"
-                                    aria-label={isCollapsed ? "Expandir" : "Colapsar"}
+                                    aria-label={isCollapsed ? t('tableOfContents.expand') : t('tableOfContents.collapse')}
                                 >
                                     {isCollapsed ? (
                                         <ChevronRight className="h-3 w-3 text-gray-500" />

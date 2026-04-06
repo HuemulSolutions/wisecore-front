@@ -79,6 +79,10 @@ export interface UserAllRolesResponse {
   data: RoleWithAssignment[];
   transaction_id: string;
   timestamp: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
 }
 
 export interface UserWithAssignment {
@@ -101,6 +105,10 @@ export interface RoleWithAllUsersResponse {
   };
   transaction_id: string;
   timestamp: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
 }
 
 export interface CreateRoleData {
@@ -131,11 +139,15 @@ const getHeaders = (): Record<string, string> => {
 };
 
 // Get all roles
-export const getRoles = async (page: number = 1, pageSize: number = 10): Promise<RolesResponse> => {
+export const getRoles = async (page: number = 1, pageSize: number = 10, search?: string): Promise<RolesResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString()
   });
+
+  if (search && search.trim()) {
+    params.set('search', search.trim());
+  }
 
   const response = await httpClient.get(`${backendUrl}/rbac/roles/with_perm_count?${params.toString()}`, {
     headers: getHeaders(),
@@ -176,12 +188,21 @@ export const getUserRoles = async (userId: string): Promise<UserRolesResponse> =
 };
 
 // Get all roles with user assignment status
-export const getUserAllRoles = async (userId: string): Promise<UserAllRolesResponse> => {
+export const getUserAllRoles = async (userId: string, page: number = 1, pageSize: number = 10, search?: string): Promise<UserAllRolesResponse> => {
   if (!userId || userId.trim() === '') {
     throw new Error('User ID is required');
   }
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+
+  if (search && search.trim() !== '') {
+    params.set('search', search.trim());
+  }
   
-  const response = await httpClient.get(`${backendUrl}/user_roles/user_all_roles/${userId}`, {
+  const response = await httpClient.get(`${backendUrl}/user_roles/user_all_roles/${userId}?${params.toString()}`, {
     headers: getHeaders(),
   });
   
@@ -238,12 +259,14 @@ export const deleteRole = async (roleId: string): Promise<void> => {
 export const getRoleWithAllUsers = async (
   roleId: string,
   page?: number,
-  pageSize?: number
+  pageSize?: number,
+  search?: string
 ): Promise<RoleWithAllUsersResponse> => {
   const params = new URLSearchParams();
   params.append('role_id', roleId);
   if (page) params.append('page', page.toString());
   if (pageSize) params.append('page_size', pageSize.toString());
+  if (search) params.append('search', search);
 
   const response = await httpClient.get(`${backendUrl}/user_roles/role_with_all_users?${params.toString()}`, {
     headers: getHeaders(),
@@ -259,4 +282,17 @@ export const assignUsersToRole = async (roleId: string, userIds: string[]): Prom
   }, {
     headers: getHeaders(),
   });
+};
+
+export interface CloneRoleData {
+  copy_users: boolean;
+}
+
+// Clone an existing role
+export const cloneRole = async (roleId: string, data: CloneRoleData): Promise<Role> => {
+  const response = await httpClient.post(`${backendUrl}/rbac/roles/${roleId}/clone`, data, {
+    headers: getHeaders(),
+  });
+
+  return response.json();
 };

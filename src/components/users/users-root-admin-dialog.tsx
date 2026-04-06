@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { useTranslation } from 'react-i18next'
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { Shield } from "lucide-react"
 import { type User } from "@/types/users"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -22,6 +22,7 @@ export default function RootAdminDialog({
   onConfirm,
   isLoading = false
 }: RootAdminDialogProps) {
+  const { t } = useTranslation(['users'])
   const [isRootAdmin, setIsRootAdmin] = useState(false)
 
   // Reset when dialog opens/closes or user changes
@@ -31,64 +32,57 @@ export default function RootAdminDialog({
     }
   }, [user, open])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (user) {
-      onConfirm(user.id, isRootAdmin)
-    }
+  const handleSave = () => {
+    if (user) onConfirm(user.id, isRootAdmin)
   }
 
   if (!user) return null
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Manage Root Admin Status"
-      description={`Configure root admin permissions for ${user.name} ${user.last_name}`}
+      title={t('users:rootAdmin.title')}
+      description={t('users:rootAdmin.description', { name: `${user.name} ${user.last_name}` })}
       icon={Shield}
-      maxWidth="md"
-      maxHeight="90vh"
-      formId="root-admin-form"
-      submitLabel="Update Status"
-      isSubmitting={isLoading}
-      showDefaultFooter
+      maxWidth="sm:max-w-md"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: t('users:rootAdmin.updateButton'),
+        onClick: handleSave,
+        loading: isLoading,
+        closeOnSuccess: false
+      }}
     >
-      <form id="root-admin-form" onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-sm">
-            Root administrators have full access to all system features and can manage all organizations and users.
+          {t('users:rootAdmin.warningMessage')}
           </AlertDescription>
         </Alert>
 
-        <div className="flex items-center justify-between space-x-4 p-4 border rounded-lg">
-          <div className="flex-1 space-y-1">
-            <Label htmlFor="root-admin-switch" className="text-sm font-medium">
-              Root Administrator
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Grant or revoke root admin privileges
-            </p>
-          </div>
-          <Switch
-            id="root-admin-switch"
-            checked={isRootAdmin}
-            onCheckedChange={setIsRootAdmin}
-            disabled={isLoading}
-          />
-        </div>
+        <HuemulField
+          type="switch"
+          label={t('users:rootAdmin.switchLabel')}
+          description={t('users:rootAdmin.switchDescription')}
+          value={isRootAdmin}
+          onChange={(v) => setIsRootAdmin(Boolean(v))}
+          disabled={isLoading}
+          labelFirst
+          className="p-4 border rounded-lg"
+        />
 
         <div className="space-y-2 text-xs text-muted-foreground">
-          <p className="font-medium">Current Status:</p>
+          <p className="font-medium">{t('users:rootAdmin.currentStatus')}</p>
           <div className="flex items-center gap-2">
             <Shield className="h-3 w-3" />
             <span>
-              {user.is_root_admin ? "Currently a Root Administrator" : "Currently a Regular User"}
+              {user.is_root_admin ? t('users:rootAdmin.isRootAdmin') : t('users:rootAdmin.isRegularUser')}
             </span>
           </div>
         </div>
-      </form>
-    </ReusableDialog>
+      </div>
+    </HuemulDialog>
   )
 }

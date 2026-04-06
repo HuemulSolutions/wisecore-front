@@ -4,6 +4,7 @@ import * as React from "react"
 import { Home, Search, LayoutTemplate, BookText } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
+import { useOrgPath } from "@/hooks/useOrgRouter"
 
 import {
   Sidebar,
@@ -58,6 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { setOpenMobile } = useSidebar()
   const location = useLocation()
   const isMobile = useIsMobile()
+  const buildPath = useOrgPath()
   const {
     isOrgAdmin,
     canAccessAssets,
@@ -141,13 +143,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           shouldShowItem = true;
       }
 
-      return shouldShowItem ? item : null;
+      return shouldShowItem ? { ...item, url: buildPath(item.url) } : null;
     }).filter(Boolean) as typeof navigationItems;
   }, [
     menuReady,
     canAccessAssets,
     canAccessTemplates,
-    isOrgAdmin
+    isOrgAdmin,
+    buildPath
   ])
 
   return (

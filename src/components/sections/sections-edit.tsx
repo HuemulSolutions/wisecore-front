@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -229,19 +229,16 @@ export default function EditSection({ item, onCancel, onSave, existingSections =
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-2 pt-4">
-          <Button
+          <HuemulButton
             variant="outline"
             onClick={onCancel}
-            className="hover:cursor-pointer"
-          >
-            Cancel
-          </Button>
-          <Button
+            label="Cancel"
+          />
+          <HuemulButton
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer"
-          >
-            Save
-          </Button>
+            className="bg-blue-600 hover:bg-blue-700"
+            label="Save"
+          />
         </div>
       </CardContent>
     </Card>

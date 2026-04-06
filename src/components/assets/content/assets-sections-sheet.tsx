@@ -1,17 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { DocumentActionButton } from "@/components/assets/content/assets-access-control";
+import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { useOrganization } from "@/contexts/organization-context";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import type { LifecyclePermissions } from "@/types/assets";
 import {
   Select,
   SelectContent,
@@ -27,13 +21,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { linkSectionToExecution } from "@/services/section_execution";
 import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/error-utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -45,10 +40,10 @@ interface SectionSheetProps {
     access_levels?: string[];
   } | null;
   fullDocument?: any;
+  documentName?: string;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   isMobile?: boolean;
-  accessLevels?: string[];
   executionId?: string | null;
   executionInfo?: {
     id: string;
@@ -58,6 +53,9 @@ interface SectionSheetProps {
     formattedDate?: string;
     isLatest?: boolean;
   } | null;
+  lifecyclePermissions?: LifecyclePermissions;
+  stage?: string;
+  showTrigger?: boolean;
 }
 
 interface SectionsConfigExecution {
@@ -99,13 +97,17 @@ interface SectionsConfigResponse {
 export function SectionSheet({
   selectedFile,
   fullDocument,
+  documentName,
   isOpen,
   onOpenChange,
   isMobile = false,
-  accessLevels,
   executionId,
-  executionInfo
+  executionInfo,
+  lifecyclePermissions,
+  stage,
+  showTrigger = true,
 }: SectionSheetProps) {
+  const { t } = useTranslation('sections');
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
   const [isAddingSectionDialogOpen, setIsAddingSectionDialogOpen] = useState(false);
@@ -114,6 +116,10 @@ export function SectionSheet({
   const [isGenerating, setIsGenerating] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
+
+  // Whether the current user can edit (add / update / delete / reorder) sections
+  // Requires edit/create permission AND the document must be in the 'edit' stage
+  const canEditSections = !!(lifecyclePermissions?.edit || lifecyclePermissions?.create) && stage === 'edit';
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
@@ -194,7 +200,7 @@ export function SectionSheet({
       setIsAddingSectionDialogOpen(false);
       setIsFormValid(false);
       setIsGenerating(false);
-      toast.success("Section created successfully");
+      toast.success(t('toast.sectionCreated'));
     },
   });
 
@@ -202,7 +208,7 @@ export function SectionSheet({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
       updateSection(sectionId, sectionData, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Section updated successfully");
+      toast.success(t('toast.sectionUpdated'));
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
@@ -213,7 +219,7 @@ export function SectionSheet({
     mutationFn: ({ sectionId, executionId }: { sectionId: string; executionId?: string }) =>
       deleteSection(sectionId, selectedOrganizationId!, { executionId }),
     onSuccess: () => {
-      toast.success("Section deleted successfully");
+      toast.success(t('toast.sectionDeleted'));
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
@@ -221,9 +227,9 @@ export function SectionSheet({
   });
 
   const reorderSectionsMutation = useMutation({
-    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
+    mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!, selectedConfigExecutionId || undefined),
     onSuccess: () => {
-      toast.success("Sections order updated");
+      toast.success(t('toast.orderUpdated'));
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
@@ -255,7 +261,7 @@ export function SectionSheet({
   const generateSectionsMutation = useMutation({
     mutationFn: (documentId: string) => generateDocumentStructure(documentId, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Sections generated successfully with AI");
+      toast.success(t('toast.generatedWithAI'));
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
@@ -267,20 +273,20 @@ export function SectionSheet({
       const currentVersionId = executionInfo?.id || executionId;
 
       if (!currentVersionId) {
-        throw new Error("No current version available");
+        throw new Error(t('toast.noCurrentVersion'));
       }
 
       setLinkingSectionId(sectionId);
       return linkSectionToExecution(currentVersionId, sectionId, selectedOrganizationId || undefined);
     },
     onSuccess: () => {
-      toast.success("Section added to current version");
+      toast.success(t('toast.addedToVersion'));
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
     },
-    onError: () => {
-      toast.error("Could not add section to current version");
+    onError: (error) => {
+      handleApiError(error, { fallbackMessage: t('toast.linkError') });
     },
     onSettled: () => {
       setLinkingSectionId(null);
@@ -291,7 +297,7 @@ export function SectionSheet({
     mutationFn: ({ templateId, documentId }: { templateId: string; documentId: string }) =>
       syncDocumentsFromTemplate(templateId, [documentId], selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Document synced from template");
+      toast.success(t('toast.documentSynced'));
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
@@ -302,7 +308,7 @@ export function SectionSheet({
     mutationFn: ({ templateId, documentId }: { templateId: string; documentId: string }) =>
       syncTemplateFromDocument(templateId, documentId, selectedOrganizationId!),
     onSuccess: () => {
-      toast.success("Template synced from document");
+      toast.success(t('toast.templateSynced'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -343,267 +349,244 @@ export function SectionSheet({
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>
-        <DocumentActionButton
-          accessLevels={accessLevels || selectedFile?.access_levels}
-          requiredAccess={["edit", "create"]}
-          requireAll={false}
-          checkGlobalPermissions={true}
-          resource="asset"
+    <>
+      {showTrigger && (
+        <HuemulButton
           size="sm"
           variant="ghost"
-          className={isMobile 
-            ? "h-8 w-8 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full" 
-            : "h-8 px-3 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+          icon={BetweenHorizontalStart}
+          iconClassName={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}
+          label={isMobile ? undefined : t('button.label')}
+          title={t('button.title')}
+          className={isMobile
+            ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
+            : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
           }
-          title="Add Section"
-        >
-          <BetweenHorizontalStart className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5 mr-1.5"} />
-          {!isMobile && "Sections"}
-        </DocumentActionButton>
-      </SheetTrigger>
-      
-      <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0">
-        <div className="flex flex-col h-full">
-          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
-                  <Plus className="h-4 w-4" />
-                  Manage Document Sections
-                </SheetTitle>
-                <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Add, edit, and organize sections to structure your document content.
-                </SheetDescription>
-              </div>
-              <div className="flex items-center h-full gap-2 ml-4">
-                {hasTemplateId && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <DocumentActionButton
-                        accessLevels={accessLevels || selectedFile?.access_levels}
-                        requiredAccess={["edit", "create"]}
-                        requireAll={false}
-                        checkGlobalPermissions={true}
-                        resource="asset"
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-8 hover:cursor-pointer text-gray-700"
-                        style={{ alignSelf: "center" }}
-                      >
-                        Update
-                        <ChevronDown className="h-4 w-4 ml-1.5" />
-                      </DocumentActionButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64 p-0">
-                      <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
-                        Update
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer px-4 py-3"
-                        onSelect={() => {
-                          setTimeout(() => handleTemplateUpdateAction("document_to_template"), 0);
-                        }}
-                        disabled={syncDocumentToTemplateMutation.isPending}
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-gray-900">{"Document -> Template"}</span>
-                          <span className="text-xs text-gray-500">
-                            {syncDocumentToTemplateMutation.isPending ? "Syncing..." : "Update the template"}
-                          </span>
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer px-4 py-3"
-                        onSelect={() => {
-                          setTimeout(() => handleTemplateUpdateAction("template_to_document"), 0);
-                        }}
-                        disabled={syncTemplateToDocumentMutation.isPending}
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-gray-900">{"Template -> Document"}</span>
-                          <span className="text-xs text-gray-500">
-                            {syncTemplateToDocumentMutation.isPending ? "Syncing..." : "Update the document"}
-                          </span>
-                        </div>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                <DocumentActionButton
-                  accessLevels={accessLevels || selectedFile?.access_levels}
-                  requiredAccess={["edit", "create"]}
-                  requireAll={false}
-                  checkGlobalPermissions={true}
-                  resource="asset"
-                  type="button"
-                  size="sm"
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
-                  onClick={() => {
-                    setIsAddingSectionDialogOpen(true);
-                    setIsFormValid(false);
-                    setIsGenerating(false);
-                  }}
-                  style={{ alignSelf: 'center' }}
-                >
-                  <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
-                  Add Section
-                </DocumentActionButton>
-                {(!orderedSections || orderedSections.length === 0) && (
-                  <DocumentActionButton
-                    accessLevels={accessLevels || selectedFile?.access_levels}
+          onClick={() => onOpenChange(true)}
+        />
+      )}
+
+      <HuemulSheet
+        open={isOpen}
+        onOpenChange={onOpenChange}
+        title={t('sheet.title')}
+        description={t('sheet.description')}
+        icon={Plus}
+        side="right"
+        maxWidth="sm:max-w-[90vw] lg:max-w-[800px]"
+        showFooter={false}
+        headerExtra={
+          canEditSections ? (
+          <div className="flex items-center gap-2">
+            {hasTemplateId && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <HuemulButton
                     requiredAccess={["edit", "create"]}
                     requireAll={false}
                     checkGlobalPermissions={true}
-                    resource="asset"
+                    resource="section"
+                    lifecyclePermissions={lifecyclePermissions}
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="hover:cursor-pointer h-8"
-                    onClick={handleGenerateWithAI}
-                    disabled={generateSectionsMutation.isPending}
-                    style={{ alignSelf: 'center' }}
+                    className="h-8 hover:cursor-pointer text-gray-700"
                   >
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                    {generateSectionsMutation.isPending ? "Generating..." : "Generate with AI"}
-                  </DocumentActionButton>
-                )}
-              </div>
-            </div>
-          </SheetHeader>
-          
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <div className="space-y-6">
-              {/* Asset Info */}
-              <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-900 mb-1">Asset: {selectedFile?.name}</h3>
-                  <p className="text-xs text-gray-600">
-                    <span className="font-medium">Description:</span>{" "}
-                    {sectionsConfig?.document?.description || "-"}
-                  </p>
-                </div>
-                {availableExecutions.length > 0 && (
-                  <div className="text-xs text-gray-600 pt-2 border-t border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium whitespace-nowrap">Version:</span>
-                      <Select
-                        value={selectedConfigExecutionId || undefined}
-                        onValueChange={(value) => setSelectedConfigExecutionId(value)}
-                      >
-                        <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
-                          <SelectValue placeholder="Select version" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableExecutions.map((execution, index) => (
-                            <SelectItem key={execution.id} value={execution.id} className="cursor-pointer">
-                              {execution.name || `Version ${availableExecutions.length - index}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {t('update.label')}
+                    <ChevronDown className="h-4 w-4 ml-1.5" />
+                  </HuemulButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 p-0">
+                  <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
+                    {t('update.label')}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="hover:cursor-pointer px-4 py-3"
+                    onSelect={() => {
+                      setTimeout(() => handleTemplateUpdateAction("document_to_template"), 0);
+                    }}
+                    disabled={syncDocumentToTemplateMutation.isPending}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-gray-900">{t('update.documentToTemplate')}</span>
+                      <span className="text-xs text-gray-500">
+                        {syncDocumentToTemplateMutation.isPending ? t('update.syncing') : t('update.documentToTemplateDesc')}
+                      </span>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Existing Sections */}
-              {orderedSections && orderedSections.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-gray-900">Existing Sections ({orderedSections.length})</h3>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-3">
-                        {orderedSections.map((section: any) => (
-                          <div key={section.id} className="border rounded-lg bg-white">
-                            <SortableSectionSheet
-                              item={section}
-                              existingSections={orderedSections}
-                              onSave={(sectionId: string, sectionData: object) =>
-                                updateSectionMutation.mutate({ sectionId, sectionData })
-                              }
-                              onDelete={async (sectionId: string, options?: { executionId?: string }) => {
-                                await deleteSectionMutation.mutateAsync({
-                                  sectionId,
-                                  executionId: options?.executionId,
-                                });
-                              }}
-                              currentExecutionId={selectedConfigExecutionId}
-                              useExecutionDeleteDialog={true}
-                              hasTemplate={!!fullDocument?.template_id}
-                              isDisabledSection={section.not_in_execution === true}
-                              isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
-                              onAddToCurrentVersion={(sectionId: string) => {
-                                if (!executionInfo?.id && !executionId) {
-                                  toast.error("No current version available for this asset");
-                                  return;
-                                }
-
-                                linkSectionToCurrentVersionMutation.mutate(sectionId);
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              )}
-
-              {(!orderedSections || orderedSections.length === 0) && (
-                <div className="p-4 sm:p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
-                  <List className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">No Sections Yet</h3>
-                  <p className="text-xs text-gray-500">
-                    Start by adding sections to structure your document content.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </SheetContent>
-
-      {/* Add Section Dialog */}
-      <ReusableDialog
-        open={isAddingSectionDialogOpen}
-        onOpenChange={setIsAddingSectionDialogOpen}
-        title="Add New Section"
-        description="Create a structured section for your document with AI assistance"
-        icon={PlusCircle}
-        maxWidth="xl"
-        maxHeight="90vh"
-        formId="add-section-form"
-        isValid={isFormValid && !isGenerating}
-        isSubmitting={addSectionMutation.isPending || isGenerating}
-        submitLabel="Save Section"
-        footer={
-          <>
-            <Button
-              variant="outline"
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="hover:cursor-pointer px-4 py-3"
+                    onSelect={() => {
+                      setTimeout(() => handleTemplateUpdateAction("template_to_document"), 0);
+                    }}
+                    disabled={syncTemplateToDocumentMutation.isPending}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-gray-900">{t('update.templateToDocument')}</span>
+                      <span className="text-xs text-gray-500">
+                        {syncTemplateToDocumentMutation.isPending ? t('update.syncing') : t('update.templateToDocumentDesc')}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <HuemulButton
+              requiredAccess={["edit", "create"]}
+              requireAll={false}
+              checkGlobalPermissions={true}
+              resource="section"
+              lifecyclePermissions={lifecyclePermissions}
+              type="button"
+              size="sm"
+              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
               onClick={() => {
-                setIsAddingSectionDialogOpen(false);
+                setIsAddingSectionDialogOpen(true);
                 setIsFormValid(false);
                 setIsGenerating(false);
               }}
-              className="hover:cursor-pointer"
-              disabled={addSectionMutation.isPending || isGenerating}
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="add-section-form"
-              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-              disabled={!isFormValid || addSectionMutation.isPending || isGenerating}
-            >
-              {addSectionMutation.isPending ? "Adding..." : isGenerating ? "Generating..." : "Save Section"}
-            </Button>
-          </>
+              <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+              {t('header.addSection')}
+            </HuemulButton>
+            {(!orderedSections || orderedSections.length === 0) && (
+              <HuemulButton
+                requiredAccess={["edit", "create"]}
+                requireAll={false}
+                checkGlobalPermissions={true}
+                resource="section"
+                lifecyclePermissions={lifecyclePermissions}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="hover:cursor-pointer h-8"
+                onClick={handleGenerateWithAI}
+                disabled={generateSectionsMutation.isPending}
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                {generateSectionsMutation.isPending ? t('header.generating') : t('header.generateWithAI')}
+              </HuemulButton>
+            )}
+          </div>
+          ) : undefined
         }
+      >
+        <div className="space-y-6">
+          {/* Asset Info */}
+          <div className="p-4 bg-gray-50 rounded-lg border space-y-2">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-1">{t('assetInfo.asset')} {documentName || sectionsConfig?.document?.name || selectedFile?.name}</h3>
+              <p className="text-xs text-gray-600">
+                <span className="font-medium">{t('assetInfo.description')}</span>{" "}
+                {sectionsConfig?.document?.description || "-"}
+              </p>
+            </div>
+            {availableExecutions.length > 0 && (
+              <div className="text-xs text-gray-600 pt-2 border-t border-gray-200">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium whitespace-nowrap">{t('assetInfo.version')}</span>
+                  <Select
+                    value={selectedConfigExecutionId || undefined}
+                    onValueChange={(value) => setSelectedConfigExecutionId(value)}
+                  >
+                    <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
+                      <SelectValue placeholder={t('assetInfo.selectVersion')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableExecutions.map((execution, index) => (
+                        <SelectItem key={execution.id} value={execution.id} className="cursor-pointer">
+                          {execution.name || t('assetInfo.versionNumber', { number: availableExecutions.length - index })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Existing Sections */}
+          {orderedSections && orderedSections.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-gray-900">{t('sections.title', { count: orderedSections.length })}</h3>
+              <DndContext sensors={canEditSections ? sensors : []} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={orderedSections.map((s: any) => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {orderedSections.map((section: any) => (
+                      <div key={section.id} className="border rounded-lg bg-white">
+                        <SortableSectionSheet
+                          item={section}
+                          existingSections={orderedSections}
+                          onSave={(sectionId: string, sectionData: object) =>
+                            updateSectionMutation.mutate({ sectionId, sectionData })
+                          }
+                          onDelete={async (sectionId: string, options?: { executionId?: string }) => {
+                            await deleteSectionMutation.mutateAsync({
+                              sectionId,
+                              executionId: options?.executionId,
+                            });
+                          }}
+                          currentExecutionId={selectedConfigExecutionId}
+                          useExecutionDeleteDialog={true}
+                          hasTemplate={!!fullDocument?.template_id}
+                          isDisabledSection={section.not_in_execution === true}
+                          canUpdate={canEditSections}
+                          canDelete={canEditSections}
+                          isAddToCurrentVersionPending={linkingSectionId === section.id && linkSectionToCurrentVersionMutation.isPending}
+                          onAddToCurrentVersion={(sectionId: string) => {
+                            if (!executionInfo?.id && !executionId) {
+                              toast.error(t('toast.noVersionForAsset'));
+                              return;
+                            }
+
+                            linkSectionToCurrentVersionMutation.mutate(sectionId);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
+
+          {(!orderedSections || orderedSections.length === 0) && (
+            <div className="p-4 sm:p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
+              <List className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <h3 className="text-sm font-medium text-gray-700 mb-1">{t('emptyState.title')}</h3>
+              <p className="text-xs text-gray-500">
+                {t('emptyState.description')}
+              </p>
+            </div>
+          )}
+        </div>
+      </HuemulSheet>
+
+      {/* Add Section Dialog */}
+      <HuemulDialog
+        open={isAddingSectionDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddingSectionDialogOpen(open);
+          if (!open) {
+            setIsFormValid(false);
+            setIsGenerating(false);
+          }
+        }}
+          title={t('addDialog.title')}
+        description={t('addDialog.description')}
+        icon={PlusCircle}
+        maxWidth="sm:max-w-3xl"
+        maxHeight="max-h-[90vh]"
+        saveAction={{
+          label: addSectionMutation.isPending ? t('addDialog.adding') : isGenerating ? t('addDialog.generating') : t('addDialog.save'),
+          disabled: !isFormValid || addSectionMutation.isPending || isGenerating,
+          loading: addSectionMutation.isPending,
+          closeOnSuccess: false,
+          onClick: () => {
+            (document.getElementById("add-section-form") as HTMLFormElement)?.requestSubmit();
+          },
+        }}
       >
         <AddSectionFormSheet
           documentId={selectedFile!.id}
@@ -615,7 +598,7 @@ export function SectionSheet({
           onValidationChange={setIsFormValid}
           onGeneratingChange={setIsGenerating}
         />
-      </ReusableDialog>
-    </Sheet>
+      </HuemulDialog>
+    </>
   );
 }

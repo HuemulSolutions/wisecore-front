@@ -13,16 +13,18 @@ import { toast } from "sonner"
 // Query keys
 export const authTypeQueryKeys = {
   all: ['auth-types'] as const,
-  list: () => [...authTypeQueryKeys.all, 'list'] as const,
+  list: (search?: string) => [...authTypeQueryKeys.all, 'list', search ?? ''] as const,
   types: () => [...authTypeQueryKeys.all, 'types'] as const,
   detail: (id: string) => [...authTypeQueryKeys.all, 'detail', id] as const,
 }
 
 // Hook for fetching auth types
-export function useAuthTypes(options?: { enabled?: boolean }) {
+export function useAuthTypes(options?: { enabled?: boolean; search?: string }) {
+  const search = options?.search || undefined
   return useQuery({
-    queryKey: authTypeQueryKeys.list(),
-    queryFn: getAuthTypes,
+    queryKey: authTypeQueryKeys.list(search),
+    queryFn: () => getAuthTypes(search),
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0, // No retries to avoid multiple error requests
     enabled: options?.enabled ?? true,

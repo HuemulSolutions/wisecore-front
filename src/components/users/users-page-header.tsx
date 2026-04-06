@@ -1,7 +1,8 @@
 import { Users, Plus } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 import ProtectedComponent from "@/components/protected-component"
-import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface UserPageHeaderProps {
@@ -29,38 +30,40 @@ export default function UserPageHeader({
   onStatusFilterChange,
   canCreate = false
 }: UserPageHeaderProps) {
+  const { t } = useTranslation(['users'])
+
   return (
     <PageHeader
       icon={Users}
-      title="Users Management"
+      title={t('users:header.title')}
       badges={[
-        { label: "", value: `${userCount} users` }
+        { label: "", value: t('users:header.usersCount', { count: userCount }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}
       hasError={hasError}
       primaryAction={canCreate ? {
-        label: "Add User",
+        label: t('users:header.addUser'),
         icon: Plus,
         onClick: onCreateUser,
         protectedContent: (
           <ProtectedComponent permission="user:c">
-            <Button 
+            <HuemulButton
+              label={t('users:header.addUser')}
+              icon={Plus}
               size="sm"
               onClick={onCreateUser}
               disabled={hasError}
-              className="hover:cursor-pointer h-8 text-xs px-2"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add User
-            </Button>
+              className="h-8 text-xs px-2"
+            />
           </ProtectedComponent>
         )
       } : undefined}
       searchConfig={{
-        placeholder: "Search users...",
+        placeholder: t('users:header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true,
       }}
     >
       <Select value={filterStatus} onValueChange={onStatusFilterChange}>
@@ -68,10 +71,10 @@ export default function UserPageHeader({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Status</SelectItem>
-          <SelectItem value="active">Active</SelectItem>
-          <SelectItem value="inactive">Inactive</SelectItem>
-          <SelectItem value="pending">Pending</SelectItem>
+          <SelectItem value="all">{t('users:header.filterAllStatus')}</SelectItem>
+          <SelectItem value="active">{t('users:header.filterActive')}</SelectItem>
+          <SelectItem value="inactive">{t('users:header.filterInactive')}</SelectItem>
+          <SelectItem value="pending">{t('users:header.filterPending')}</SelectItem>
         </SelectContent>
       </Select>
     </PageHeader>

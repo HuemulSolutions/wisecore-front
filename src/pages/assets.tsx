@@ -59,7 +59,7 @@ function AssetsContent() {
       {isLoadingDocument && <LoadingOverlay />}
       
       <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-        <ResizablePanel defaultSize={15}>
+        <ResizablePanel defaultSize={20}>
           <div className="flex flex-col h-full bg-white border-r">
             <div className="py-2">
               <NavKnowledgeHeader />
@@ -72,7 +72,7 @@ function AssetsContent() {
         
         <ResizableHandle />
         
-        <ResizablePanel defaultSize={80}>
+        <ResizablePanel defaultSize={80} minSize={50}>
           <div ref={scrollContainerRef} className="h-full bg-white">
             <AssetContent
               selectedFile={selectedFile}

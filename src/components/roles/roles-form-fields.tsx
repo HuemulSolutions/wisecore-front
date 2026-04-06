@@ -1,6 +1,5 @@
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useTranslation } from "react-i18next"
+import { HuemulField } from "@/huemul/components/huemul-field"
 
 interface RoleFormFieldsProps {
   name: string
@@ -17,43 +16,29 @@ export default function RoleFormFields({
   description,
   onNameChange,
   onDescriptionChange,
-  nameLabel = "Role Name *",
-  descriptionLabel = "Description *",
+  nameLabel,
+  descriptionLabel,
   includeTextarea = true
 }: RoleFormFieldsProps) {
+  const { t } = useTranslation('roles')
   return (
     <div className="grid grid-cols-1 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">{nameLabel}</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="Enter role name"
-          required
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="description">{descriptionLabel}</Label>
-        {includeTextarea ? (
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder="Enter role description"
-            rows={3}
-            required
-          />
-        ) : (
-          <Input
-            id="description"
-            value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder="Enter role description"
-          />
-        )}
-      </div>
+      <HuemulField
+        label={nameLabel ?? t('form.roleName')}
+        value={name}
+        onChange={(v) => onNameChange(String(v))}
+        placeholder={t('form.roleNamePlaceholder')}
+        required
+      />
+      <HuemulField
+        type={includeTextarea ? "textarea" : "text"}
+        label={descriptionLabel ?? t('form.description')}
+        value={description}
+        onChange={(v) => onDescriptionChange(String(v))}
+        placeholder={t('form.descriptionPlaceholder')}
+        rows={3}
+        required
+      />
     </div>
   )
 }

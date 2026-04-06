@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
 import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Edit2, Trash2 } from "lucide-react"
+import { Edit2, Trash2, FileEdit } from "lucide-react"
 import type { CustomFieldTemplate } from "@/types/custom-fields-templates"
 
 interface PaginationConfig {
@@ -22,6 +22,7 @@ interface PaginationConfig {
 interface CustomFieldTemplateTableProps {
   customFieldTemplates: CustomFieldTemplate[]
   onEditCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
+  onEditContentCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
   onDeleteCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
   pagination?: PaginationConfig
 }
@@ -78,6 +79,7 @@ const getValueForDisplay = (template: CustomFieldTemplate) => {
 export function CustomFieldTemplateTable({
   customFieldTemplates,
   onEditCustomFieldTemplate,
+  onEditContentCustomFieldTemplate,
   onDeleteCustomFieldTemplate,
   pagination,
 }: CustomFieldTemplateTableProps) {
@@ -237,8 +239,14 @@ export function CustomFieldTemplateTable({
   // Define actions
   const actions: TableAction<CustomFieldTemplate>[] = [
     {
-      key: "edit",
-      label: "Edit",
+      key: "edit-content",
+      label: "Edit Content",
+      icon: FileEdit,
+      onClick: onEditContentCustomFieldTemplate,
+    },
+    {
+      key: "edit-configuration",
+      label: "Edit Configuration",
       icon: Edit2,
       onClick: onEditCustomFieldTemplate,
     },

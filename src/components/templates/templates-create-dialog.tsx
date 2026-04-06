@@ -1,11 +1,13 @@
 import * as React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
-import { Input } from "@/components/ui/input";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-utils";
 
 interface CreateTemplateDialogProps {
   open: boolean;
@@ -20,6 +22,7 @@ export function CreateTemplateDialog({
   organizationId,
   onTemplateCreated,
 }: CreateTemplateDialogProps) {
+  const { t } = useTranslation('templates');
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -41,7 +44,7 @@ export function CreateTemplateDialog({
     },
     onSuccess: (created) => {
       console.log('✅ [CREATE-TEMPLATE-DIALOG] Template created successfully:', created);
-      toast.success("Template created successfully");
+      toast.success(t('create.success'));
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
       
       // Store the callback to execute after dialog closes
@@ -57,21 +60,19 @@ export function CreateTemplateDialog({
       // Wait for dialog to fully close before executing callback
       setTimeout(executeCallback, 300);
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       console.error("Create template error:", error);
-      setError(error.message || "An error occurred while creating the template");
+      setError(getErrorMessage(error, t('create.errorFailed')));
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleCreate = () => {
     if (!newName.trim()) {
-      setError("Name is required");
+      setError(t('create.errorNameRequired'));
       return;
     }
     if (!organizationId) {
-      setError("Organization is required");
+      setError(t('create.errorOrganizationRequired'));
       return;
     }
     setError(null);
@@ -83,63 +84,47 @@ export function CreateTemplateDialog({
   };
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="New Template"
-      description="Complete the fields below to create a new template."
+      title={t('create.title')}
+      description={t('create.description')}
       icon={FileCode}
-      maxWidth="lg"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => onOpenChange(false)}
-      submitLabel="Create Template"
-      cancelLabel="Cancel"
-      isSubmitting={createTemplateMutation.isPending}
-      isValid={!!newName.trim() && !!organizationId}
-      formId="create-template-form"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('create.cancelLabel', { defaultValue: 'Cancel' })}
+      saveAction={{
+        label: t('create.submitLabel'),
+        onClick: handleCreate,
+        disabled: !newName.trim() || !organizationId,
+        loading: createTemplateMutation.isPending,
+        closeOnSuccess: false,
+      }}
     >
-      <form id="create-template-form" onSubmit={handleSubmit}>
-        <div>
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-4">
-        <div>
-          <label htmlFor="template-name" className="text-sm font-medium text-gray-900 block mb-2">
-            Template Name *
-          </label>
-          <Input
-            id="template-name"
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Enter template name..."
-            className="w-full"
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="template-description" className="text-sm font-medium text-gray-900 block mb-2">
-            Description
-          </label>
-          <Input
-            id="template-description"
-            type="text"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            placeholder="Enter template description (optional)..."
-            className="w-full"
-            disabled={createTemplateMutation.isPending}
-          />
-        </div>
+      <div className="space-y-4 py-2">
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+        <HuemulField
+          label={t('form.templateName')}
+          type="text"
+          value={newName}
+          onChange={(v) => setNewName(String(v))}
+          placeholder={t('form.templateNamePlaceholder')}
+          required
+          disabled={createTemplateMutation.isPending}
+        />
+        <HuemulField
+          label={t('form.description')}
+          type="text"
+          value={newDescription}
+          onChange={(v) => setNewDescription(String(v))}
+          placeholder={t('form.descriptionPlaceholder')}
+          disabled={createTemplateMutation.isPending}
+        />
       </div>
-      </form>
-    </ReusableDialog>
+    </HuemulDialog>
   );
 }

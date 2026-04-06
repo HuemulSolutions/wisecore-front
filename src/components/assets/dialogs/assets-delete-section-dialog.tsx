@@ -1,29 +1,30 @@
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { useTranslation } from "react-i18next"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 
 interface DeleteSectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: () => void
-  isDeleting: boolean
+  onAction: () => Promise<void>
 }
 
 export function DeleteSectionDialog({
   open,
   onOpenChange,
-  onConfirm,
-  isDeleting,
+  onAction,
 }: DeleteSectionDialogProps) {
+  const { t } = useTranslation('sections')
+  const { t: tCommon } = useTranslation('common')
+
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Section"
-      description="Are you sure you want to delete this section? This action cannot be undone."
-      onConfirm={onConfirm}
-      confirmLabel="Delete"
-      cancelLabel="Cancel"
-      isProcessing={isDeleting}
-      variant="destructive"
+      title={t('deleteDialog.title')}
+      description={t('deleteDialog.description')}
+      onAction={onAction}
+      actionLabel={tCommon('delete')}
+      cancelLabel={tCommon('cancel')}
+      actionVariant="destructive"
     />
   )
 }

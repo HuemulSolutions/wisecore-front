@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { useTranslation } from "react-i18next"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { Plus } from "lucide-react"
 import { usePermissions, useRoleMutations } from "@/hooks/useRbac"
 import PermissionSelector from "./roles-permission-selector"
@@ -12,6 +12,7 @@ interface CreateRoleSheetProps {
 }
 
 export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetProps) {
+  const { t } = useTranslation(['roles', 'common'])
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -35,77 +36,58 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
     }
   }, [open])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    createRole.mutate({
-      name: formData.name,
-      description: formData.description,
-      permissions: permissions,
-    }, {
-      onSuccess: () => onOpenChange(false)
+  const handleSubmit = async (): Promise<void> => {
+    await new Promise<void>((resolve, reject) => {
+      createRole.mutate({
+        name: formData.name,
+        description: formData.description,
+        permissions,
+      }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error),
+      })
     })
   }
 
-  const isLoading = createRole.isPending
+  // const isLoading = createRole.isPending
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[90vw] lg:max-w-[800px] p-0">
-        <div className="flex flex-col h-full">
-          <SheetHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <SheetTitle className="flex items-center gap-2 text-base sm:text-lg font-semibold">
-                  <Plus className="w-5 h-5 text-primary" />
-                  Create New Role
-                </SheetTitle>
-                <SheetDescription className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
-                  Create a new role with specific permissions to control user access.
-                </SheetDescription>
-              </div>
-              <div className="flex items-center h-full gap-2 ml-4">
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="hover:cursor-pointer text-sm h-8"
-                  size="sm"
-                  disabled={isLoading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  form="create-role-form"
-                  type="submit"
-                  className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer text-sm h-8"
-                  size="sm"
-                  disabled={isLoading || !formData.name.trim() || !formData.description.trim()}
-                >
-                  {isLoading ? "Creating..." : "Create Role"}
-                </Button>
-              </div>
-            </div>
-          </SheetHeader>
-          
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4">
-            <form id="create-role-form" onSubmit={handleSubmit} className="space-y-6">
-              <RoleFormFields
-                name={formData.name}
-                description={formData.description}
-                onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
-                onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
-              />
+    <HuemulSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('roles:create.title')}
+      description={t('roles:create.description')}
+      icon={Plus}
+      maxWidth="w-full sm:max-w-[90vw] lg:max-w-[800px]"
+      showCancelButton={false}
+      extraActions={[{
+        label: t('common:cancel'),
+        variant: "outline",
+        position: "header",
+        onClick: () => onOpenChange(false),
+      }]}
+      saveAction={{
+        label: t('roles:create.button'),
+        onClick: handleSubmit,
+        disabled: !formData.name.trim() || !formData.description.trim(),
+        position: "header",
+      }}
+    >
+      <div className="space-y-6 py-2">
+        <RoleFormFields
+          name={formData.name}
+          description={formData.description}
+          onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
+          onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
+        />
 
-              <PermissionSelector
-                permissions={availablePermissions}
-                selectedPermissions={permissions}
-                onPermissionsChange={setPermissions}
-                isLoading={permissionsLoading}
-              />
-            </form>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        <PermissionSelector
+          permissions={availablePermissions}
+          selectedPermissions={permissions}
+          onPermissionsChange={setPermissions}
+          isLoading={permissionsLoading}
+        />
+      </div>
+    </HuemulSheet>
   )
 }

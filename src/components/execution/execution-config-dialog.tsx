@@ -12,9 +12,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Play, FastForward, Bot, Loader2 } from 'lucide-react';
-import { getLLMs, getDefaultLLM, type LLM } from '@/services/llms';
+import { getLLMs, getDefaultLLM } from '@/services/llms';
+import type { LLM } from '@/types/llm';
 import { useOrganization } from '@/contexts/organization-context';
-import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-utils';
 
 interface ExecutionConfigDialogProps {
     open: boolean;
@@ -66,8 +67,7 @@ export default function ExecutionConfigDialog({
                 }
             }
         } catch (error) {
-            console.error('Error loading LLMs:', error);
-            toast.error('Failed to load available LLMs');
+            handleApiError(error, { fallbackMessage: 'Failed to load available LLMs' });
         } finally {
             setIsLoadingLLMs(false);
         }

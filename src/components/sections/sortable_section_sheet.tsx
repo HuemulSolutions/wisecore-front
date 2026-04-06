@@ -1,20 +1,14 @@
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import Markdown from "../ui/markdown";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   DropdownMenu,
@@ -22,14 +16,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
 import {
   ChevronDown,
   ChevronUp,
   MoreVertical,
   Edit,
   Trash2,
-  Plus
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
 import type { SortableSectionSheetItem } from "@/types/sections";
@@ -199,12 +191,15 @@ export default function SortableSectionSheet({
 
                 {/* Dependencies */}
                 {!isExpanded && item.dependencies && item.dependencies.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide">Depends on:</span>
-                    <Badge variant="outline" className="text-xs">
-                      {item.dependencies.map(d => d.name).join(', ')}
-                    </Badge>
-                    {/* <span className="text-xs text-gray-700">{item.dependencies.map(d => d.name).join(', ')}</span> */}
+                  <div className="mt-2 flex items-center gap-2 min-w-0 overflow-hidden">
+                    <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide shrink-0">Depends on:</span>
+                    <div className="flex flex-wrap gap-1 min-w-0 overflow-hidden">
+                      {item.dependencies.map((d) => (
+                        <Badge key={d.id} variant="outline" className="text-xs shrink-0">
+                          {d.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -213,11 +208,11 @@ export default function SortableSectionSheet({
               <div className="flex items-center gap-1 shrink-0">
                 {!isOverlay && (
                   <>
-                    <Button
+                    <HuemulButton
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsExpanded(!isExpanded)}
-                      className="hover:cursor-pointer h-8 w-8 p-0"
+                      className="h-8 w-8 p-0"
                       title={isExpanded ? "Collapse" : "Expand"}
                     >
                       {isExpanded ? (
@@ -225,32 +220,30 @@ export default function SortableSectionSheet({
                       ) : (
                         <ChevronDown className="h-4 w-4 text-gray-500" />
                       )}
-                    </Button>
+                    </HuemulButton>
 
                     {isDisabledSection && (
-                      <Button
+                      <HuemulButton
                         variant="outline"
                         size="sm"
-                        className="h-8 px-2 text-xs hover:cursor-pointer"
+                        className="h-8 px-2 text-xs"
                         onClick={() => onAddToCurrentVersion?.(item.id)}
                         disabled={isAddToCurrentVersionPending}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        {isAddToCurrentVersionPending ? "Adding..." : "+ Add section to current version"}
-                      </Button>
+                        label={isAddToCurrentVersionPending ? "Adding..." : "+ Add section to current version"}
+                      />
                     )}
 
                     {!isDisabledSection && (canUpdate || canDelete) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
+                          <HuemulButton
                             variant="ghost"
                             size="sm"
-                            className="hover:cursor-pointer h-8 w-8 p-0"
+                            className="h-8 w-8 p-0"
                             title="More options"
                           >
                             <MoreVertical className="h-4 w-4 text-gray-500" />
-                          </Button>
+                          </HuemulButton>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {canUpdate && (
@@ -395,7 +388,7 @@ export default function SortableSectionSheet({
       </div>
 
       {useExecutionDeleteDialog ? (
-        <Dialog
+        <HuemulDialog
           open={showDeleteDialog}
           onOpenChange={(open) => {
             if (!isDeleting) {
@@ -405,89 +398,68 @@ export default function SortableSectionSheet({
               }
             }
           }}
+          title="Delete section"
+          description="What do you want to delete?"
+          maxWidth="sm:max-w-[640px]"
+          saveAction={{
+            label: isDeleting ? "Delete..." : "Delete",
+            variant: "destructive",
+            disabled: isDeleting || !canConfirmDelete,
+            loading: isDeleting,
+            closeOnSuccess: false,
+            onClick: handleDelete,
+          }}
         >
-          <DialogContent className="sm:max-w-[640px] p-0 gap-0">
-            <DialogHeader className="p-6 border-b border-gray-200">
-              <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900">
-                Delete section
-              </DialogTitle>
-            </DialogHeader>
+          <RadioGroup
+            value={deleteMode}
+            onValueChange={(value) => setDeleteMode(value as DeleteMode)}
+            className="space-y-4"
+          >
+            <Label
+              htmlFor={`delete-structure-${item.id}`}
+              className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
+                deleteMode === "structure" ? "border-[#4464f7] bg-blue-50" : "border-gray-200"
+              } ${isDeleting ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
+            >
+              <RadioGroupItem
+                id={`delete-structure-${item.id}`}
+                value="structure"
+                className="mt-1"
+                disabled={isDeleting}
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-900">Remove from structure</p>
+                <p className="text-xs text-slate-600">
+                  The section is removed from the structure but does not affect content.
+                </p>
+              </div>
+            </Label>
 
-            <div className="px-6 py-6">
-              <p className="text-sm text-slate-700 mb-4">What do you want to delete?</p>
-              <RadioGroup
-                value={deleteMode}
-                onValueChange={(value) => setDeleteMode(value as DeleteMode)}
-                className="space-y-4"
-              >
-                <Label
-                  htmlFor={`delete-structure-${item.id}`}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
-                    deleteMode === "structure" ? "border-[#4464f7] bg-blue-50" : "border-gray-200"
-                  } ${isDeleting ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
-                >
-                  <RadioGroupItem
-                    id={`delete-structure-${item.id}`}
-                    value="structure"
-                    className="mt-1"
-                    disabled={isDeleting}
-                  />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-slate-900">Remove from structure</p>
-                    <p className="text-xs text-slate-600">
-                      The section is removed from the structure but does not affect content.
-                    </p>
-                  </div>
-                </Label>
-
-                <Label
-                  htmlFor={`delete-structure-version-${item.id}`}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
-                    deleteMode === "structure_and_current_version" ? "border-[#4464f7] bg-blue-50" : "border-gray-200"
-                  } ${isDeleting ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${
-                    !currentExecutionId ? "opacity-60" : ""
-                  }`}
-                >
-                  <RadioGroupItem
-                    id={`delete-structure-version-${item.id}`}
-                    value="structure_and_current_version"
-                    className="mt-1"
-                    disabled={isDeleting || !currentExecutionId}
-                  />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-slate-900">Remove from structure and current version</p>
-                    <p className="text-xs text-slate-600">
-                      The section is removed from the structure and from the current version content, while previous versions remain unchanged.
-                    </p>
-                  </div>
-                </Label>
-              </RadioGroup>
-            </div>
-
-            <DialogFooter className="px-6 py-4 border-t border-gray-200 flex-row justify-end gap-2">
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isDeleting}
-                  className="hover:cursor-pointer"
-                >
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting || !canConfirmDelete}
-                className="bg-destructive hover:bg-destructive/90 hover:cursor-pointer"
-              >
-                {isDeleting ? "Delete..." : "Delete"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <Label
+              htmlFor={`delete-structure-version-${item.id}`}
+              className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
+                deleteMode === "structure_and_current_version" ? "border-[#4464f7] bg-blue-50" : "border-gray-200"
+              } ${isDeleting ? "cursor-not-allowed opacity-80" : "cursor-pointer"} ${
+                !currentExecutionId ? "opacity-60" : ""
+              }`}
+            >
+              <RadioGroupItem
+                id={`delete-structure-version-${item.id}`}
+                value="structure_and_current_version"
+                className="mt-1"
+                disabled={isDeleting || !currentExecutionId}
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-900">Remove from structure and current version</p>
+                <p className="text-xs text-slate-600">
+                  The section is removed from the structure and from the current version content, while previous versions remain unchanged.
+                </p>
+              </div>
+            </Label>
+          </RadioGroup>
+        </HuemulDialog>
       ) : (
-        <ReusableAlertDialog
+        <HuemulAlertDialog
           open={showDeleteDialog}
           onOpenChange={(open) => !isDeleting && setShowDeleteDialog(open)}
           title="Delete Section"
@@ -514,10 +486,9 @@ export default function SortableSectionSheet({
               )}
             </div>
           }
-          onConfirm={handleDelete}
-          confirmLabel="Delete"
-          isProcessing={isDeleting}
-          variant="destructive"
+          onAction={handleDelete}
+          actionLabel="Delete"
+          actionVariant="destructive"
         />
       )}
 

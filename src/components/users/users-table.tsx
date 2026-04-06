@@ -1,13 +1,14 @@
 import { Badge } from "@/components/ui/badge"
+import { useTranslation } from 'react-i18next'
+import i18n from "@/i18n"
 import { Trash2, Check, X, Edit, Shield, Users, Building, UserPlus, ShieldCheck } from "lucide-react"
 import { type User } from "@/types/users"
 import { type UseMutationResult } from "@tanstack/react-query"
-import { DataTable, type PaginationConfig } from "@/components/ui/data-table"
-import type { TableColumn, TableAction, FooterStat } from "@/types/data-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
 // Helper functions
 export const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('es-ES', {
+  return new Date(dateString).toLocaleDateString(i18n.language, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -64,10 +65,11 @@ interface UserTableProps {
     rejectUser: UseMutationResult<any, any, string, unknown>
     deleteUser: UseMutationResult<any, any, string, unknown>
   }
-  pagination?: PaginationConfig
-  showFooterStats?: boolean
+  pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  isLoading?: boolean
+  isFetching?: boolean
 }
 
 export default function UserTable({
@@ -87,15 +89,18 @@ export default function UserTable({
   isCurrentUserRootAdmin = false,
   userMutations,
   pagination,
-  showFooterStats,
   canUpdate = false,
-  canDelete = false
+  canDelete = false,
+  isLoading = false,
+  isFetching = false
 }: UserTableProps) {
+  const { t } = useTranslation(['users'])
+
   // Define columns
-  const columns: TableColumn<User>[] = [
+  const columns: HuemulTableColumn<User>[] = [
     {
       key: "name",
-      label: "Name",
+      label: t('users:columns.name'),
       render: (user) => (
         <div className="flex flex-col gap-0">
           <span className="text-xs font-medium text-foreground leading-tight">
@@ -111,23 +116,24 @@ export default function UserTable({
     },
     {
       key: "email",
-      label: "Email",
+      label: t('common:email'),
       render: (user) => (
         <span className="text-xs text-blue-600 font-medium">{user.email}</span>
       )
     },
     {
       key: "birthday",
-      label: "Birthday",
-      render: (user) => (
-        <span className="text-xs text-foreground">
-          {formatBirthday(user.birth_day || null, user.birth_month || null)}
-        </span>
-      )
+      label: t('users:columns.birthday'),
+      render: (user) => {
+        if (!user.birth_day || !user.birth_month) return <span className="text-xs text-foreground">N/A</span>
+        const monthKeys = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+        const monthName = t(`users:form.months.${monthKeys[user.birth_month - 1]}`)
+        return <span className="text-xs text-foreground">{monthName} {user.birth_day}</span>
+      }
     },
     {
       key: "roles",
-      label: "Roles",
+      label: t('users:columns.roles'),
       render: (user) => {
         if (user.roles && user.roles.length > 0) {
           return (
@@ -161,21 +167,21 @@ export default function UserTable({
             </div>
           )
         }
-        return <span className="text-[10px] text-muted-foreground">No roles</span>
+        return <span className="text-[10px] text-muted-foreground">{t('users:columns.noRoles')}</span>
       }
     },
     {
       key: "status",
-      label: "Status",
+      label: t('common:status'),
       render: (user) => (
         <Badge className={`text-[10px] px-1.5 py-0 h-5 ${getStatusColor(user.status)}`}>
-          {translateStatus(user.status)}
+          {t(`users:status.${user.status}`, { defaultValue: user.status })}
         </Badge>
       )
     },
     {
       key: "created",
-      label: "Created",
+      label: t('users:columns.created'),
       render: (user) => (
         <span className="text-xs text-foreground">{formatDate(user.created_at)}</span>
       )
@@ -183,10 +189,10 @@ export default function UserTable({
   ]
 
   // Define actions - note: conditional actions using show property
-  const actions: TableAction<User>[] = [
+  const actions: HuemulTableAction<User>[] = [
     {
       key: "approve",
-      label: "Approve User",
+      label: t('users:actions.approveUser'),
       icon: Check,
       onClick: (user) => userMutations.approveUser.mutate(user.id),
       show: (user) => user.status === 'pending' && canUpdate,
@@ -194,7 +200,7 @@ export default function UserTable({
     },
     {
       key: "reject",
-      label: "Reject User",
+      label: t('users:actions.rejectUser'),
       icon: X,
       onClick: (user) => userMutations.rejectUser.mutate(user.id),
       show: (user) => user.status === 'pending' && canUpdate,
@@ -203,21 +209,21 @@ export default function UserTable({
     },
     {
       key: "assign-roles",
-      label: "Assign Roles",
+      label: t('users:actions.assignRoles'),
       icon: UserPlus,
       onClick: onAssignRoles,
       show: () => canUpdate
     },
     {
       key: "manage-root-admin",
-      label: "Manage Root Admin",
+      label: t('users:actions.manageRootAdmin'),
       icon: ShieldCheck,
       onClick: onManageRootAdmin,
       show: () => isCurrentUserRootAdmin
     },
     {
       key: "make-org-admin",
-      label: "Make Organization Admin",
+      label: t('users:actions.makeOrgAdmin'),
       icon: Building,
       onClick: (user) => onMakeOrganizationAdmin?.(user),
       show: () => isCurrentUserRootAdmin && !!onMakeOrganizationAdmin,
@@ -225,7 +231,7 @@ export default function UserTable({
     },
     {
       key: "view-orgs",
-      label: "View Organizations",
+      label: t('users:actions.viewOrganizations'),
       icon: Building,
       onClick: onViewOrganizations
       ,
@@ -233,7 +239,7 @@ export default function UserTable({
     },
     {
       key: "edit",
-      label: "Edit User",
+      label: t('users:actions.editUser'),
       icon: Edit,
       onClick: onEditUser,
       show: () => canUpdate,
@@ -241,7 +247,7 @@ export default function UserTable({
     },
     {
       key: "delete",
-      label: "Delete User",
+      label: t('users:actions.deleteUser'),
       icon: Trash2,
       onClick: onDeleteUser,
       show: () => canDelete,
@@ -249,32 +255,20 @@ export default function UserTable({
     }
   ]
 
-  // Define footer stats
-  const footerStats: FooterStat[] = [
-    {
-      label: `Showing ${users.length} users`,
-      value: ''
-    },
-    {
-      label: 'active users',
-      value: users.filter(u => u.status === 'active').length
-    }
-  ]
-
   return (
-    <DataTable
+    <HuemulTable
       data={users}
       columns={columns}
       actions={actions}
       getRowKey={(user) => user.id}
       emptyState={{
         icon: Users,
-        title: "No users found",
-        description: "No users have been created yet or match your search criteria."
+        title: t('users:emptyState.title'),
+        description: t('users:emptyState.description')
       }}
-      footerStats={footerStats}
       pagination={pagination}
-      showFooterStats={showFooterStats}
+      isLoading={isLoading}
+      isFetching={isFetching}
     />
   )
 }

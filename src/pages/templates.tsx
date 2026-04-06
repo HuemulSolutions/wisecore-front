@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import {
@@ -20,7 +21,7 @@ interface TemplateItem {
 
 export default function Templates() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+    const navigate = useOrgNavigate();
   const { id: templateId } = useParams<{ id?: string }>();
   const { selectedOrganizationId } = useOrganization();
   
@@ -39,17 +40,20 @@ export default function Templates() {
   
   // Estados principales
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const hasRestoredRef = useRef(false);
 
   // Query para listar templates - solo si tiene permisos
   const { data: templatesData, error: queryError, isFetching } = useQuery({
-    queryKey: ["templates", selectedOrganizationId],
-    queryFn: () => getAllTemplates(selectedOrganizationId!),
+    queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize],
+    queryFn: () => getAllTemplates(selectedOrganizationId!, searchTerm || undefined, page, pageSize),
     enabled: !!selectedOrganizationId && canListTemplates,
     retry: false,
   });
 
-  const templates = templatesData || [];
+  const templates = templatesData?.data || [];
 
   // Manejar selección de template
   const handleTemplateSelect = (template: TemplateItem) => {
@@ -75,6 +79,7 @@ export default function Templates() {
   useEffect(() => {
     setSelectedTemplate(null);
     hasRestoredRef.current = false;
+    setPage(1);
   }, [selectedOrganizationId]);
 
   return (
@@ -88,10 +93,25 @@ export default function Templates() {
             error={queryError}
             selectedTemplateId={selectedTemplate?.id || null}
             onTemplateSelect={handleTemplateSelect}
+            onTemplateDeleted={() => {
+              setSelectedTemplate(null);
+              navigate('/templates', { replace: true });
+            }}
             organizationId={selectedOrganizationId}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize] })}
+            onSearch={(term) => { setSearchTerm(term); setPage(1); }}
+            searchValue={searchTerm}
             canCreate={canCreateTemplate}
+            canUpdate={canUpdateTemplate}
             canDelete={canDeleteTemplate}
+            pagination={{
+              page: templatesData?.page ?? page,
+              pageSize: templatesData?.page_size ?? pageSize,
+              hasNext: templatesData?.has_next ?? false,
+              hasPrevious: (templatesData?.page ?? page) > 1,
+              onPageChange: setPage,
+              onPageSizeChange: (size) => { setPageSize(size); setPage(1); },
+            }}
           />
         </ResizablePanel>
 

@@ -18,6 +18,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedCustomFieldTemplate, setSelectedCustomFieldTemplate] = useState<CustomFieldTemplate | null>(null)
+  const [customFieldEditMode, setCustomFieldEditMode] = useState<"content" | "configuration">("configuration")
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -67,6 +68,13 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
 
   const handleEditCustomFieldTemplate = (customFieldTemplate: CustomFieldTemplate) => {
     setSelectedCustomFieldTemplate(customFieldTemplate)
+    setCustomFieldEditMode("configuration")
+    setIsEditDialogOpen(true)
+  }
+
+  const handleEditCustomFieldTemplateContent = (customFieldTemplate: CustomFieldTemplate) => {
+    setSelectedCustomFieldTemplate(customFieldTemplate)
+    setCustomFieldEditMode("content")
     setIsEditDialogOpen(true)
   }
 
@@ -184,6 +192,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
         <CustomFieldTemplateTable
           customFieldTemplates={customFieldTemplates}
           onEditCustomFieldTemplate={handleEditCustomFieldTemplate}
+          onEditContentCustomFieldTemplate={handleEditCustomFieldTemplateContent}
           onDeleteCustomFieldTemplate={handleDeleteCustomFieldTemplate}
           pagination={{
             page: customFieldTemplatesResponse?.page || page,
@@ -221,6 +230,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
         }}
         customFieldTemplate={selectedCustomFieldTemplate}
         onUpdate={handleEditCustomFieldTemplateSubmit}
+        mode={customFieldEditMode}
       />
     </div>
   )

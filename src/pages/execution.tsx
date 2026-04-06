@@ -1,9 +1,10 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import ExecutionInfo from "@/components/execution/execution_info";
 import SectionExecution from "@/components/sections/sections_execution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Chatbot from "@/components/chatbot/chatbot";
+import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { 
     Tooltip,
     TooltipContent,
@@ -13,11 +14,13 @@ import {
 import { ArrowLeft, WandSparkles, Loader2, CircleCheck, CircleX } from "lucide-react";
 import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { getExecutionById, approveExecution, disapproveExecution } from "@/services/executions";
-import { getLLMs, updateExecutionLLM } from "@/services/llms";
+import { getLLMs } from "@/services/llms";
+import { updateExecutionLLM } from "@/services/llms";
 import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { handleApiError } from "@/lib/error-utils";
 import {
     Select,
     SelectContent,
@@ -29,7 +32,7 @@ import { useOrganization } from "@/contexts/organization-context";
 
 export default function ExecutionPage() {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
+    const navigate = useOrgNavigate();
     const { selectedOrganizationId } = useOrganization();
     const [instructions, setInstructions] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
@@ -53,8 +56,8 @@ export default function ExecutionPage() {
             toast.success("Model updated");
             refetch();
         },
-        onError: () => {
-            toast.error("Failed to update model");
+        onError: (error) => {
+            handleApiError(error, { fallbackMessage: "Failed to update model" });
         }
     });
 
@@ -158,7 +161,7 @@ export default function ExecutionPage() {
             updateTimer.current = null;
         }
         
-        toast.error("Error generating content. Please try again.");
+        handleApiError(error, { fallbackMessage: "Error generating content. Please try again." });
     };
 
     const handleStreamClose = () => {
@@ -257,7 +260,7 @@ export default function ExecutionPage() {
             console.error('Error starting generation:', error);
             setIsGenerating(false);
             hasAutoStarted.current = false;
-            toast.error("Error starting generation. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error starting generation. Please try again." });
             return;
         }
     };
@@ -271,8 +274,7 @@ export default function ExecutionPage() {
             refetch();
             toast.success("Execution approved successfully");
         } catch (error) {
-            console.error('Error approving execution:', error);
-            toast.error("Error approving execution. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error approving execution. Please try again." });
         } finally {
             setIsApproving(false);
         }
@@ -287,8 +289,7 @@ export default function ExecutionPage() {
             refetch();
             toast.success("Execution disapproved successfully");
         } catch (error) {
-            console.error('Error disapproving execution:', error);
-            toast.error("Error disapproving execution. Please try again.");
+            handleApiError(error, { fallbackMessage: "Error disapproving execution. Please try again." });
         } finally {
             setIsApproving(false);
         }
@@ -311,6 +312,13 @@ export default function ExecutionPage() {
 
     return (
         <div className="flex gap-8">
+            <ChatbotContextSync
+                sourceKey={`execution-page-${id ?? 'unknown'}`}
+                executionId={id}
+                documentId={execution?.document_id}
+                enabled={Boolean(id)}
+                priority={30}
+            />
             <div className="flex-1 space-y-4">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-4">
@@ -319,7 +327,7 @@ export default function ExecutionPage() {
                             variant="outline"
                             size="sm"
                             className="hover:cursor-pointer"
-                            onClick={() => navigate(`/document/${execution.document_id}`)}
+                            onClick={() => navigate(`/asset/${execution.document_id}`)}
                         >
                             <ArrowLeft className="h-4 w-4 mr-2" />
                             Back
@@ -461,7 +469,6 @@ export default function ExecutionPage() {
             <div className="w-64 hidden lg:block">
                 <TableOfContents items={tocItems} />
             </div>
-            <Chatbot executionId={id!} />
         </div>
     );
 }

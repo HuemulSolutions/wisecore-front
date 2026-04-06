@@ -2,7 +2,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import Section from "./sections";
 import { GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import type { SortableSectionItem } from "@/types/sections";
 
 export type { SortableSectionItem } from "@/types/sections";
@@ -28,7 +28,7 @@ export default function SortableSection({ item, existingSections, onSave, onDele
     <div ref={setNodeRef} style={style} className="relative pr-12">
       {/* Drag handle at the left side */}
       <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
-        <Button
+        <HuemulButton
           variant="ghost"
           size="icon"
           className="hover:cursor-grab cursor-grabbing active:cursor-grabbing"
@@ -37,7 +37,7 @@ export default function SortableSection({ item, existingSections, onSave, onDele
           {...listeners}
         >
           <GripVertical className="h-4 w-4" />
-        </Button>
+        </HuemulButton>
       </div>
 
       {/* Actual content */}

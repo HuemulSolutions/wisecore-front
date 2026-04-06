@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay, type DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -25,6 +26,7 @@ export function TemplateSectionsList({
   canDelete = true,
 }: TemplateSectionsListProps) {
   const queryClient = useQueryClient();
+  const { t } = useTranslation(['sections', 'templates']);
   const [activeSection, setActiveSection] = useState<any>(null);
   const [isReordering, setIsReordering] = useState(false);
 
@@ -42,7 +44,7 @@ export function TemplateSectionsList({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
       updateTemplateSection(sectionId, sectionData, organizationId),
     onSuccess: () => {
-      toast.success("Section updated successfully");
+      toast.success(t('sections:toast.sectionUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
   });
@@ -60,9 +62,9 @@ export function TemplateSectionsList({
         : deleteTemplateSection(sectionId, organizationId),
     onSuccess: (data: any) => {
       if (data?.propagated && data?.deleted_document_sections_count) {
-        toast.success(`Section deleted and propagated to ${data.deleted_document_sections_count} asset sections`);
+        toast.success(t('sections:toast.sectionDeletedPropagated', { count: data.deleted_document_sections_count }));
       } else {
-        toast.success("Section deleted successfully");
+        toast.success(t('sections:toast.sectionDeleted'));
       }
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
@@ -72,7 +74,7 @@ export function TemplateSectionsList({
     mutationFn: (sectionsOrder: { section_id: string; order: number }[]) => 
       updateTemplateSectionsOrder(sectionsOrder, organizationId),
     onSuccess: () => {
-      toast.success("Sections order updated");
+      toast.success(t('sections:toast.orderUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
   });
@@ -136,7 +138,7 @@ export function TemplateSectionsList({
           <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-9999 flex items-center justify-center rounded-lg">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-[#4464f7]" />
-              <span className="text-sm text-gray-600 font-medium">Reordering sections...</span>
+              <span className="text-sm text-gray-600 font-medium">{t('templates:sectionsList.reordering')}</span>
             </div>
           </div>
         )}

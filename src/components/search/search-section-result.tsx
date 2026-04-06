@@ -1,7 +1,9 @@
-import { Button } from "@/components/ui/button";
 import { FileText, Eye } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SectionContentDialog } from "./search-section-content-dialog";
+import Markdown from "@/components/ui/markdown";
+import { HuemulButton } from "@/huemul/components/huemul-button";
+import { useTranslation } from "react-i18next";
 
 interface SearchResultSection {
   section_execution_id: string;
@@ -15,13 +17,15 @@ interface SectionResultProps {
 }
 
 export function SectionResult({ section, index }: SectionResultProps) {
+  const { t } = useTranslation('search');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Function to get preview text (first 120 characters)
-  const getPreviewText = (content: string) => {
-    const plainText = content.replace(/[#*\[\]()]/g, '').replace(/\n+/g, ' ').trim();
-    return plainText.length > 120 ? `${plainText.substring(0, 120)}...` : plainText;
-  };
+  // Get a short markdown snippet for preview (first ~200 chars preserving markup)
+  const previewMarkdown = useMemo(() => {
+    const raw = (section.content ?? "").replace(/\\n/g, "\n");
+    const trimmed = raw.length > 200 ? `${raw.substring(0, 200)}…` : raw;
+    return trimmed;
+  }, [section.content]);
 
   return (
     <>
@@ -39,22 +43,22 @@ export function SectionResult({ section, index }: SectionResultProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <h5 className="text-sm font-semibold text-foreground truncate">
-                  {section.section_execution_name || `Sección ${index + 1}`}
+                  {section.section_execution_name || t('section.fallbackName', { number: index + 1 })}
                 </h5>
-                <Button 
+                <HuemulButton 
                   variant="ghost" 
                   size="sm" 
-                  className="hover:cursor-pointer h-6 text-xs px-2"
+                  icon={Eye}
+                  iconClassName="w-3 h-3 mr-1"
+                  label={t('section.view')}
                   onClick={() => setIsDialogOpen(true)}
-                >
-                  <Eye className="w-3 h-3 mr-1" />
-                  View
-                </Button>
+                  className="hover:cursor-pointer h-6 text-xs px-2"
+                />
               </div>
               
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {getPreviewText(section.content)}
-              </p>
+              <div className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2 overflow-hidden [&_*]:text-xs [&_*]:leading-relaxed [&_*]:m-0 [&_*]:p-0">
+                <Markdown>{previewMarkdown}</Markdown>
+              </div>
             </div>
           </div>
         </div>

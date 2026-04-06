@@ -34,7 +34,7 @@ export function useExecutionPolling({
       try {
         // Stop polling if execution is completed or failed
         const executionData = query.state.data as ExecutionStatus;
-        if (executionData?.status === 'completed' || executionData?.status === 'failed' || executionData?.status === 'approved') {
+        if (executionData?.status === 'completed' || executionData?.status === 'failed' || executionData?.status === 'approved' || executionData?.status === 'import_failed') {
           return false;
         }
         return pollingInterval;

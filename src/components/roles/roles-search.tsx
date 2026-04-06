@@ -1,5 +1,6 @@
+import { useTranslation } from "react-i18next"
 import { Shield, Plus } from "lucide-react"
-import { PageHeader } from "@/components/ui/page-header"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 
 interface RolesSearchProps {
   searchTerm: string
@@ -12,35 +13,37 @@ interface RolesSearchProps {
   canManage?: boolean
 }
 
-export function RolesSearch({ 
-  searchTerm, 
-  onSearchChange, 
-  rolesCount, 
+export function RolesSearch({
+  searchTerm,
+  onSearchChange,
+  rolesCount,
   isRefreshing,
   onRefresh,
   onCreateRole,
   hasError,
   canManage = false
 }: RolesSearchProps) {
+  const { t } = useTranslation('roles')
   return (
     <PageHeader
       icon={Shield}
-      title="Roles & Permissions"
+      title={t('header.title')}
       badges={[
-        { label: "", value: `${rolesCount} roles` }
+        { label: "", value: t('header.rolesCount', { count: rolesCount }) }
       ]}
       onRefresh={onRefresh}
       isLoading={isRefreshing}
       hasError={hasError}
       primaryAction={canManage ? {
-        label: "Create Role",
+        label: t('header.createRole'),
         icon: Plus,
         onClick: onCreateRole
       } : undefined}
       searchConfig={{
-        placeholder: "Search roles...",
+        placeholder: t('header.searchPlaceholder'),
         value: searchTerm,
-        onChange: onSearchChange
+        onChange: onSearchChange,
+        triggerOnEnter: true
       }}
     />
   )

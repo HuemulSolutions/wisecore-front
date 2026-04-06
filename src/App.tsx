@@ -7,7 +7,6 @@ import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/au
 import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
-import DocumentPage from "./pages/document";
 import SearchPage from "./pages/search";
 import ConfigDocumentPage from "./pages/config_document";
 import ExecutionPage from "./pages/execution"; 
@@ -22,6 +21,7 @@ import Roles from "./pages/roles";
 import AssetTypesPage from "./pages/assets-types";
 import CustomFieldsPage from "./pages/custom-fields";
 import GlobalAdminPage from "./pages/global-admin";
+import { RootRedirect } from "./components/organization/root-redirect";
 
 export default function App() {
   return (
@@ -30,9 +30,23 @@ export default function App() {
         <PermissionsProvider>
           <ProtectedRoute>
             <Routes>
-          <Route path="/" element={<AppLayout />}>
+          {/* Root redirect — sends user to /:orgId/home */}
+          <Route path="/" element={<RootRedirect />} />
+
+          {/* Non-org-scoped routes (no orgId needed) */}
+          <Route element={<AppLayout />}>
+            <Route path="/home" element={<Home />} />
+            <Route path="/global-admin" element={
+              <PermissionProtectedRoute requireRootAdmin>
+                <GlobalAdminPage />
+              </PermissionProtectedRoute>
+            } />
+          </Route>
+
+          {/* All org-scoped routes */}
+          <Route path="/:orgId" element={<AppLayout />}>
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<Home />} />
+            <Route path="home" element={<Navigate to="/home" replace />} />
             <Route path="organizations" element={
               <PermissionProtectedRoute permissions={["organization:r", "organization:l"]}>
                 <Organizations />
@@ -70,11 +84,7 @@ export default function App() {
                 <AuthTypes />
               </PermissionProtectedRoute>
             } />
-            <Route path="global-admin" element={
-              <PermissionProtectedRoute requireRootAdmin>
-                <GlobalAdminPage />
-              </PermissionProtectedRoute>
-            } />
+            <Route path="global-admin" element={<Navigate to="/global-admin" replace />} />
             <Route path="users" element={
               <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
                 <UsersPage />
@@ -95,11 +105,6 @@ export default function App() {
                 <CustomFieldsPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="document/:id" element={
-              <PermissionProtectedRoute permissions={["section:r", "asset:r"]}>
-                <DocumentPage />
-              </PermissionProtectedRoute>
-            } />
             <Route path="configDocument/:id" element={
               <PermissionProtectedRoute permissions={["section:u", "section:c"]}>
                 <ConfigDocumentPage />
@@ -111,6 +116,9 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
           </Route>
+
+          {/* Catch-all: redirect unknown paths to root */}
+          <Route path="*" element={<RootRedirect />} />
             </Routes>
         </ProtectedRoute>
         </PermissionsProvider>

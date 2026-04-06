@@ -27,8 +27,13 @@ export type {
   UpdateCustomFieldTemplateRequest
 } from './custom-fields-templates'
 export * from './data-table'
+export * from './embedding-provider'
+export * from './llm'
+export * from './llm-provider'
 export * from './menu-action'
 export * from './page-header'
 export * from './sections'
 export * from './table-of-contents'
 export * from './users'
+export * from './chatbot'
+export * from './discussions'

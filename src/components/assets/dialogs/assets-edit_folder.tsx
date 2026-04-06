@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { useOrganizationId } from "@/hooks/use-organization"
 import NameDescriptionFields from "@/components/assets/content/name-description-fields"
 import type { EditFolderDialogProps } from "@/types/assets"
+import { useTranslation } from "react-i18next"
 
 export default function EditFolder({ 
   folderId, 
@@ -19,6 +20,7 @@ export default function EditFolder({
   onOpenChange
 }: EditFolderDialogProps) {
   const [name, setName] = useState(currentName)
+  const { t } = useTranslation('assets')
 
   // Reset name when currentName changes or dialog opens
   React.useEffect(() => {
@@ -37,7 +39,7 @@ export default function EditFolder({
       return await editFolder(folderId, newName.trim(), selectedOrganizationId)
     },
     onSuccess: () => {
-      toast.success(`Folder renamed to "${name.trim()}"`)
+      toast.success(t('editFolder.renameSuccess', { name: name.trim() }))
       onFolderEdited?.()
       onOpenChange(false)
     },
@@ -47,12 +49,12 @@ export default function EditFolder({
     e.preventDefault()
     
     if (!name.trim()) {
-      toast.error("Folder name cannot be empty")
+      toast.error(t('editFolder.emptyNameError'))
       return
     }
 
     if (name.trim() === currentName) {
-      toast.info("No changes made")
+      toast.info(t('editFolder.noChanges'))
       onOpenChange(false)
       return
     }
@@ -64,15 +66,15 @@ export default function EditFolder({
     <ReusableDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit Folder"
-      description={`Change the name of the folder "${currentName}".`}
+      title={t('editFolder.title')}
+      description={t('editFolder.description', { name: currentName })}
       icon={Edit3}
       maxWidth="md"
       maxHeight="90vh"
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
-      submitLabel="Save Changes"
-      cancelLabel="Cancel"
+      submitLabel={t('editFolder.submitLabel')}
+      cancelLabel={t('editFolder.cancelLabel')}
       isSubmitting={editFolderMutation.isPending}
       isValid={!!name.trim()}
       formId="edit-folder-form"
@@ -81,8 +83,8 @@ export default function EditFolder({
         <NameDescriptionFields
           name={name}
           onNameChange={setName}
-          nameLabel="Folder Name *"
-          namePlaceholder="Enter folder name"
+          nameLabel={t('editFolder.nameLabel')}
+          namePlaceholder={t('editFolder.namePlaceholder')}
           disabled={editFolderMutation.isPending}
           includeDescription={false}
         />

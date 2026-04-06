@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useTranslation } from "react-i18next";
+import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulField } from "@/huemul/components/huemul-field";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Loader2, X } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
@@ -15,9 +14,9 @@ import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
-import type { MDXEditorMethods } from '@mdxeditor/editor';
 import Markdown from "@/components/ui/markdown";
-import MdxEditor from "../layout/mdx-editor";
+import { PlateRichEditor } from "@/components/plate-editor/plate-editor";
+import type { PlateRichEditorRef } from "@/components/plate-editor/plate-editor";
 
 interface Section {
   id: string;
@@ -36,7 +35,7 @@ interface SectionItem {
 
 interface SectionFormProps {
   mode: 'create' | 'edit';
-  editorType?: 'simple' | 'rich'; // simple = Textarea, rich = MDXEditor
+  editorType?: 'simple' | 'rich'; // simple = Textarea, rich = PlateEditor
   formId?: string;
   documentId?: string;
   templateId?: string;
@@ -48,6 +47,10 @@ interface SectionFormProps {
   onGeneratingChange?: (isGenerating: boolean) => void;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
+  /** Default section type for create mode */
+  defaultType?: 'ai' | 'manual' | 'reference';
+  /** Default manual content for create mode */
+  defaultManualInput?: string;
 }
 
 export function SectionForm({ 
@@ -63,19 +66,22 @@ export function SectionForm({
   onValidationChange, 
   onGeneratingChange,
   hasTemplate = false,
-  isTemplateSection = false 
+  isTemplateSection = false,
+  defaultType,
+  defaultManualInput,
 }: SectionFormProps) {
+  const { t } = useTranslation('sections');
   const { selectedOrganizationId } = useOrganization();
-  const editorRef = useRef<MDXEditorMethods>(null);
-  const manualEditorRef = useRef<MDXEditorMethods>(null);
+  const promptEditorRef = useRef<PlateRichEditorRef>(null);
+  const manualEditorRef = useRef<PlateRichEditorRef>(null);
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
-  const [type, setType] = useState<"ai" | "manual" | "reference">(mode === 'edit' && item ? (item as any).type || "ai" : "ai");
+  const [type, setType] = useState<"ai" | "manual" | "reference">(mode === 'edit' && item ? (item as any).type || "ai" : (defaultType || "ai"));
   const [prompt, setPrompt] = useState(mode === 'edit' && item ? item.prompt : "");
   // Key para forzar el render del editor cuando cambia el prompt generado
   const [editorKey, setEditorKey] = useState(0);
-  const [manualInput, setManualInput] = useState(mode === 'edit' && item ? (item as any).manual_input || "" : "");
+  const [manualInput, setManualInput] = useState(mode === 'edit' && item ? (item as any).manual_input || "" : (defaultManualInput || ""));
   const [referenceSectionId, setReferenceSectionId] = useState(mode === 'edit' && item ? (item as any).reference_section_id || "" : "");
   const [referenceMode, setReferenceMode] = useState<"latest" | "specific">(mode === 'edit' && item ? (item as any).reference_mode || "latest" : "latest");
   const [referenceExecutionId, setReferenceExecutionId] = useState(mode === 'edit' && item ? (item as any).reference_execution_id || "" : "");
@@ -239,13 +245,9 @@ export function SectionForm({
         setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
       }
       
-      if (editorType === 'rich' && editorRef.current) {
-        editorRef.current.setMarkdown(item.prompt);
-      }
-      
-      // Sincronizar el editor manual cuando el tipo sea manual
-      if ((item as any).type === 'manual' && manualEditorRef.current) {
-        manualEditorRef.current.setMarkdown(manualInputValue);
+      // PlateRichEditor se re-inicializa con key={editorKey} + initialMarkdown
+      if (editorType === 'rich') {
+        setEditorKey(prev => prev + 1);
       }
     }
   }, [item, mode, editorType]);
@@ -319,11 +321,12 @@ export function SectionForm({
         submitData.prompt = prompt.trim();
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
-        if (manualInput.trim()) {
+        const md = manualEditorRef.current?.getMarkdown?.() || "";
+        if (md.trim()) {
           if (templateId) {
-            submitData.manual_input = manualInput.trim();
+            submitData.manual_input = md.trim();
           } else {
-            submitData.output = manualInput.trim();
+            submitData.output = md.trim();
           }
         }
       } else if (type === "reference") {
@@ -358,11 +361,12 @@ export function SectionForm({
         submitData.prompt = prompt.trim();
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
-        if (manualInput.trim()) {
+        const md = manualEditorRef.current?.getMarkdown?.() || "";
+        if (md.trim()) {
           if (isTemplateSection) {
-            submitData.manual_input = manualInput.trim();
+            submitData.manual_input = md.trim();
           } else {
-            submitData.output = manualInput.trim();
+            submitData.output = md.trim();
           }
         }
       } else if (type === "reference") {
@@ -431,54 +435,40 @@ export function SectionForm({
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       {/* Section Name */}
-      <div className="space-y-2">
-        <Label htmlFor="section-name" className="text-xs font-medium text-gray-700">
-          Section Name
-        </Label>
-        <Input
-          id="section-name"
-          placeholder="Enter section name (e.g., Purpose, Scope, Procedure)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isPending || isFromTemplate}
-          autoFocus={mode === 'create'}
-          autoComplete="off"
-          className="text-sm"
-        />
-        {isFromTemplate && (
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            This section name comes from the template and cannot be modified
-          </p>
-        )}
-      </div>
+      <HuemulField
+        type="text"
+        label={t('form.sectionName.label')}
+        name="section-name"
+        placeholder={t('form.sectionName.placeholder')}
+        value={name}
+        onChange={(val) => setName(val as string)}
+        disabled={isPending || isFromTemplate}
+        autoFocus={mode === 'create'}
+        autoComplete="off"
+        required
+        description={isFromTemplate ? t('form.sectionName.descriptionFromTemplate') : undefined}
+      />
 
       {/* Section Type */}
-      <div className="space-y-2">
-        <Label htmlFor="section-type" className="text-xs font-medium text-gray-700">
-          Section Type
-        </Label>
-        <Select value={type} onValueChange={(value: "ai" | "manual" | "reference") => setType(value)} disabled={isPending}>
-          <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-            <SelectValue placeholder="Select section type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ai" className="hover:cursor-pointer text-sm">
-              AI Generated
-            </SelectItem>
-            <SelectItem value="manual" className="hover:cursor-pointer text-sm">
-              Manual Input
-            </SelectItem>
-            <SelectItem value="reference" className="hover:cursor-pointer text-sm">
-              Reference to Another Section
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-gray-500">
-          {type === "ai" && "Content will be generated by AI using the prompt below"}
-          {type === "manual" && "Content will be entered manually"}
-          {type === "reference" && "Content will reference another section's output"}
-        </p>
-      </div>
+      <HuemulField
+        type="select"
+        label={t('form.sectionType.label')}
+        name="section-type"
+        options={[
+          { value: "ai", label: t('form.sectionType.optionAi') },
+          { value: "manual", label: t('form.sectionType.optionManual') },
+          { value: "reference", label: t('form.sectionType.optionReference') },
+        ]}
+        value={type}
+        onChange={(val) => setType(val as "ai" | "manual" | "reference")}
+        disabled={isPending}
+        placeholder={t('form.sectionType.placeholder')}
+        description={
+          type === "ai" ? t('form.sectionType.descriptionAi') :
+          type === "manual" ? t('form.sectionType.descriptionManual') :
+          t('form.sectionType.descriptionReference')
+        }
+      />
 
       {/* Campos específicos para tipo AI */}
       {type === "ai" && (
@@ -487,33 +477,33 @@ export function SectionForm({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-medium text-gray-700">
-                Prompt Content <span className="text-red-500">*</span>
+                {t('form.prompt.label')} <span className="text-red-500">*</span>
               </Label>
-              <Button
+              <HuemulButton
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={handleGeneratePrompt}
                 disabled={!name.trim() || isGenerating || !!prompt.trim() || isPending}
-                className="hover:cursor-pointer h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    Generating...
+                    {t('form.prompt.generating')}
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-1 h-3 w-3" />
-                    Generate with AI
+                    {t('form.prompt.generate')}
                   </>
                 )}
-              </Button>
+              </HuemulButton>
             </div>
 
             {editorType === 'simple' ? (
               <Textarea
-                placeholder="Enter the prompt content for this section or use AI generation"
+                placeholder={t('form.prompt.placeholder')}
                 value={prompt}
                 onChange={(e) => handlePromptChange(e.target.value)}
                 disabled={isPending || isGenerating}
@@ -521,12 +511,14 @@ export function SectionForm({
                 className="text-sm resize-none min-h-[250px] max-h-[250px]"
               />
             ) : (
-              <MdxEditor
+              <PlateRichEditor
                 key={editorKey}
-                stickyToolbar={false}
-                value={prompt}
-                onChange={handlePromptChange}
-                diffMarkdown={mode === 'edit' && item ? item.prompt : ''}
+                ref={promptEditorRef}
+                initialMarkdown={prompt}
+                onChange={() => {
+                  const md = promptEditorRef.current?.getMarkdown?.() || "";
+                  handlePromptChange(md);
+                }}
               />
             )}
 
@@ -534,38 +526,25 @@ export function SectionForm({
               {isGenerating && (
                 <div className="text-xs text-blue-600 flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  AI is generating content based on the section name...
+                  {t('form.prompt.generatingHint')}
                 </div>
               )}
             </div>
           </div>
 
           {/* Dependencies - Solo para tipo AI */}
-          <div className="space-y-2 w-full">
-            <Label className="text-xs font-medium text-gray-700">
-              Internal Dependencies
-            </Label>
-            {availableSections.length > 0 ? (
-              <Select value={selectValue} onValueChange={addDependency} disabled={isPending}>
-                <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-                  <SelectValue placeholder="Select sections this depends on" />
-                </SelectTrigger>
-                <SelectContent className="w-full">
-                  {availableSections.map(section => (
-                    <SelectItem key={section.id} value={section.id} className="hover:cursor-pointer text-sm">
-                      {section.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <p className="text-xs text-gray-500 italic">
-                No sections available to add as dependencies
-              </p>
-            )}
-            
+          <HuemulField
+            type="select"
+            label={t('form.dependencies.label')}
+            options={availableSections.map(s => ({ value: s.id, label: s.name }))}
+            value={selectValue}
+            onChange={(val) => addDependency(val as string)}
+            disabled={isPending || availableSections.length === 0}
+            placeholder={availableSections.length === 0 ? t('form.dependencies.placeholderEmpty') : t('form.dependencies.placeholder')}
+            description={availableSections.length === 0 ? t('form.dependencies.descriptionEmpty') : undefined}
+          >
             {selectedDependencies.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1 w-full">
+              <div className="flex flex-wrap gap-1 w-full">
                 {selectedDependencies.map(dep => {
                   const section = existingSections.find(s => s.id === dep.id);
                   return (
@@ -587,7 +566,7 @@ export function SectionForm({
                 })}
               </div>
             )}
-          </div>
+          </HuemulField>
         </>
       )}
 
@@ -595,16 +574,14 @@ export function SectionForm({
       {type === "manual" && (
         <div className="space-y-2">
           <Label className="text-xs font-medium text-gray-700">
-            Manual Input (Optional)
+            {t('form.manualInput.label')}
           </Label>
-          <MdxEditor
-            value={manualInput}
-            stickyToolbar={false}
-            onChange={setManualInput}
-            diffMarkdown={mode === 'edit' && item ? (item as any).manual_input || '' : ''}
+          <PlateRichEditor
+            ref={manualEditorRef}
+            initialMarkdown={manualInput}
           />
           <p className="text-xs text-gray-500">
-            This content can be edited later when working with the document
+            {t('form.manualInput.description')}
           </p>
         </div>
       )}
@@ -614,16 +591,16 @@ export function SectionForm({
         <>
           <div className="space-y-2">
             <Label className="text-xs font-medium text-gray-700">
-              Select Asset <span className="text-red-500">*</span>
+              {t('form.reference.selectAssetLabel')} <span className="text-red-500">*</span>
             </Label>
             
             {selectedAsset ? (
               <div className="flex items-center gap-2 p-3 border rounded-md bg-gray-50">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{selectedAsset.name}</p>
-                  <p className="text-xs text-gray-500">Selected asset</p>
+                  <p className="text-xs text-gray-500">{t('form.reference.selectedAsset')}</p>
                 </div>
-                <Button
+                <HuemulButton
                   type="button"
                   variant="ghost"
                   size="sm"
@@ -633,11 +610,9 @@ export function SectionForm({
                     setReferenceSectionId("");
                     setReferenceExecutionId("");
                   }}
-                  className="hover:cursor-pointer"
                   disabled={isPending}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                  icon={X}
+                />
               </div>
             ) : (
               <div className="border rounded-lg p-4 bg-white">
@@ -653,7 +628,7 @@ export function SectionForm({
             )}
             
             <p className="text-xs text-gray-500">
-              Select an asset to reference
+              {t('form.reference.selectAssetHint')}
             </p>
           </div>
 
@@ -661,89 +636,45 @@ export function SectionForm({
           {selectedAsset && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Selector de Sección */}
-              <div className="space-y-2">
-                <Label htmlFor="section-reference" className="text-xs font-medium text-gray-700">
-                  Select Section to Reference <span className="text-red-500">*</span>
-                </Label>
-                
-                {isLoadingSections ? (
-                  <div className="flex items-center justify-center p-4 border rounded-md">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span className="text-sm text-gray-500">Loading sections...</span>
-                  </div>
-                ) : assetSections && assetSections.length > 0 ? (
-                  <Select 
-                    value={referenceSectionId} 
-                    onValueChange={(value) => {
-                      setReferenceSectionId(value);
-                      const section = assetSections.find((s: any) => s.id === value);
-                      if (section) {
-                        setSelectedSection({ id: section.id, name: section.name });
-                      }
-                    }} 
-                    disabled={isPending}
-                  >
-                    <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-                      <SelectValue placeholder="Select a section" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {assetSections.map((section: any) => (
-                        <SelectItem 
-                          key={section.id} 
-                          value={section.id} 
-                          className="hover:cursor-pointer"
-                        >
-                          {section.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="p-4 border border-amber-200 bg-amber-50 rounded-md">
-                    <p className="text-sm text-amber-800">
-                      No sections found for this asset. Please select a different asset.
-                    </p>
-                  </div>
-                )}
-                
-                <p className="text-xs text-gray-500">
-                  Select a section from the asset to reference
-                </p>
-              </div>
-
+              <HuemulField
+                type="select"
+                label={t('form.reference.sectionLabel')}
+                required
+                options={(assetSections || []).map((s: any) => ({ value: s.id, label: s.name }))}
+                value={referenceSectionId}
+                onChange={(val) => {
+                  const sectionId = val as string;
+                  setReferenceSectionId(sectionId);
+                  const section = assetSections?.find((s: any) => s.id === sectionId);
+                  if (section) setSelectedSection({ id: section.id, name: section.name });
+                }}
+                disabled={isPending || isLoadingSections}
+                placeholder={isLoadingSections ? t('form.reference.sectionPlaceholderLoading') : t('form.reference.sectionPlaceholder')}
+                description={t('form.reference.sectionDescription')}
+                error={!isLoadingSections && assetSections && assetSections.length === 0 ? t('form.reference.sectionErrorEmpty') : undefined}
+              />
               {/* Reference Mode */}
-              <div className="space-y-2">
-                <Label htmlFor="reference-mode" className="text-xs font-medium text-gray-700">
-                  Reference Mode <span className="text-red-500">*</span>
-                </Label>
-                <Select 
-                  value={referenceMode} 
-                  onValueChange={(value: "latest" | "specific") => {
-                    setReferenceMode(value);
-                    // Resetear execution ID cuando cambie el modo
-                    if (value === "latest") {
-                      setReferenceExecutionId("");
-                    }
-                  }} 
-                  disabled={isPending || !selectedAsset || !referenceSectionId}
-                >
-                  <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-                    <SelectValue placeholder="Select reference mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="latest" className="hover:cursor-pointer text-sm">
-                      Latest Version
-                    </SelectItem>
-                    <SelectItem value="specific" className="hover:cursor-pointer text-sm">
-                      Specific Version
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500">
-                  {referenceMode === "latest" && "Always use the most recent execution of the referenced asset"}
-                  {referenceMode === "specific" && "Use a specific execution of the referenced asset"}
-                </p>
-              </div>
+              <HuemulField
+                type="select"
+                label={t('form.reference.modeLabel')}
+                required
+                options={[
+                  { value: "latest", label: t('form.reference.modeLatest') },
+                  { value: "specific", label: t('form.reference.modeSpecific') },
+                ]}
+                value={referenceMode}
+                onChange={(val) => {
+                  const mode = val as "latest" | "specific";
+                  setReferenceMode(mode);
+                  if (mode === "latest") setReferenceExecutionId("");
+                }}
+                disabled={isPending || !selectedAsset || !referenceSectionId}
+                placeholder={t('form.reference.modePlaceholder')}
+                description={
+                  referenceMode === "latest" ? t('form.reference.modeDescriptionLatest') :
+                  t('form.reference.modeDescriptionSpecific')
+                }
+              />
             </div>
           )}
 
@@ -751,13 +682,13 @@ export function SectionForm({
           {referenceSectionId && (referenceMode === 'latest' || (referenceMode === 'specific' && referenceExecutionId)) && (
             <div className="space-y-2">
               <Label className="text-xs font-medium text-gray-700">
-                Section Content Preview
+                {t('form.reference.previewLabel')}
               </Label>
               
               {isLoadingPreview ? (
                 <div className="flex items-center justify-center p-4 border rounded-md bg-gray-50">
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-gray-500">Loading preview...</span>
+                  <span className="text-sm text-gray-500">{t('form.reference.previewLoading')}</span>
                 </div>
               ) : sectionPreview?.content ? (
                 <div className="border rounded-md p-4 bg-white max-h-[400px] overflow-y-auto">
@@ -766,139 +697,87 @@ export function SectionForm({
               ) : (
                 <div className="p-4 border border-blue-200 bg-blue-50 rounded-md">
                   <p className="text-sm text-blue-800">
-                    No content available for preview. This section may not have been executed yet.
+                    {t('form.reference.previewEmpty')}
                   </p>
                 </div>
               )}
               
               <p className="text-xs text-gray-500">
-                Preview of the content that will be referenced
+                {t('form.reference.previewHint')}
               </p>
             </div>
           )}
 
           {referenceMode === "specific" && selectedAsset && (
-            <div className="space-y-2">
-              <Label htmlFor="reference-execution" className="text-xs font-medium text-gray-700">
-                Execution <span className="text-red-500">*</span>
-              </Label>
-              
-              {isLoadingExecutions ? (
-                <div className="flex items-center justify-center p-4 border rounded-md">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-gray-500">Loading executions...</span>
-                </div>
-              ) : availableExecutions.length > 0 ? (
-                <Select 
-                  value={referenceExecutionId} 
-                  onValueChange={setReferenceExecutionId} 
-                  disabled={isPending}
-                >
-                  <SelectTrigger className="hover:cursor-pointer text-sm w-full">
-                    <SelectValue placeholder="Select an execution" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableExecutions.map((execution: any) => (
-                      <SelectItem 
-                        key={execution.id} 
-                        value={execution.id} 
-                        className="hover:cursor-pointer"
-                      >
-                        {execution.name || 'Unnamed Execution'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="p-4 border border-amber-200 bg-amber-50 rounded-md">
-                  <p className="text-sm text-amber-800">
-                    No completed executions found for this asset. Please select a different asset or use "Latest Execution" mode.
-                  </p>
-                </div>
-              )}
-              
-              <p className="text-xs text-gray-500">
-                Select a specific execution to reference from the selected asset
-              </p>
-            </div>
+            <HuemulField
+              type="select"
+              label={t('form.reference.executionLabel')}
+              required
+              options={availableExecutions.map((exec: any) => ({ value: exec.id, label: exec.name || "Unnamed Execution" }))}
+              value={referenceExecutionId}
+              onChange={(val) => setReferenceExecutionId(val as string)}
+              disabled={isPending || isLoadingExecutions}
+              placeholder={isLoadingExecutions ? t('form.reference.executionPlaceholderLoading') : t('form.reference.executionPlaceholder')}
+              description={t('form.reference.executionDescription')}
+              error={!isLoadingExecutions && availableExecutions.length === 0 ? t('form.reference.executionErrorEmpty') : undefined}
+            />
           )}
         </>
       )}
 
       {/* Propagate to Template - Solo mostrar en modo edit cuando hasTemplate es true */}
       {mode === 'edit' && hasTemplate && (
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="propagate-to-template"
-            checked={propagateToTemplate}
-            onCheckedChange={(checked) => setPropagateToTemplate(checked as boolean)}
-            disabled={isPending}
-          />
-          <Label
-            htmlFor="propagate-to-template"
-            className="text-xs font-medium text-gray-700 hover:cursor-pointer"
-          >
-            Propagate changes to template
-          </Label>
-        </div>
+        <HuemulField
+          type="checkbox"
+          label={t('form.propagate.toTemplate')}
+          value={propagateToTemplate}
+          onChange={(val) => setPropagateToTemplate(val as boolean)}
+          disabled={isPending}
+        />
       )}
 
       {/* Propagate to Assets - Solo mostrar en modo create cuando es template */}
       {mode === 'create' && templateId && (
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="propagate-to-assets"
-            checked={propagateToAssets}
-            onCheckedChange={(checked) => setPropagateToAssets(checked as boolean)}
-            disabled={isPending}
-          />
-          <Label
-            htmlFor="propagate-to-assets"
-            className="text-xs font-medium text-gray-700 hover:cursor-pointer"
-          >
-            Propagate section to all related assets
-          </Label>
-        </div>
+        <HuemulField
+          type="checkbox"
+          label={t('form.propagate.toAssets')}
+          value={propagateToAssets}
+          onChange={(val) => setPropagateToAssets(val as boolean)}
+          disabled={isPending}
+        />
       )}
 
       {/* Propagate Prompt - Solo mostrar en modo edit cuando isTemplateSection es true */}
       {mode === 'edit' && isTemplateSection && (
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="propagate-prompt"
-            checked={propagatePrompt}
-            onCheckedChange={(checked) => setPropagatePrompt(checked as boolean)}
-            disabled={isPending}
-          />
-          <Label
-            htmlFor="propagate-prompt"
-            className="text-xs font-medium text-gray-700 hover:cursor-pointer"
-          >
-            Apply changes to all assets using this template
-          </Label>
-        </div>
+        <HuemulField
+          type="checkbox"
+          label={t('form.propagate.toAssetsSections')}
+          value={propagatePrompt}
+          onChange={(val) => setPropagatePrompt(val as boolean)}
+          disabled={isPending}
+        />
       )}
 
       {/* Validation Messages */}
       <div className="min-h-[32px]">
         {type === "ai" && name && !prompt && !isGenerating && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            💡 Consider using AI generation or add prompt content manually
+            💡 {t('form.validation.aiHint')}
           </div>
         )}
         {type === "reference" && !selectedAsset && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            ⚠️ Please select an asset to reference
+            ⚠️ {t('form.validation.selectAsset')}
           </div>
         )}
         {type === "reference" && selectedAsset && !referenceSectionId && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            ⚠️ Please select a section to reference
+            ⚠️ {t('form.validation.selectSection')}
           </div>
         )}
         {type === "reference" && referenceMode === "specific" && selectedAsset && !referenceExecutionId && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            ⚠️ Please select an execution for specific reference mode
+            ⚠️ {t('form.validation.selectExecution')}
           </div>
         )}
       </div>

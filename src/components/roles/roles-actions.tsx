@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreVertical, Shield, Trash2, UserPlus, Loader2 } from "lucide-react"
@@ -12,6 +13,7 @@ interface RoleActionsProps {
 }
 
 export default function RoleActions({ role, isLoadingUsers = false, onAssignToUsers, onEdit, onDelete }: RoleActionsProps) {
+  const { t } = useTranslation('roles')
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -24,12 +26,12 @@ export default function RoleActions({ role, isLoadingUsers = false, onAssignToUs
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onSelect={() => {
             if (!isLoadingUsers) {
               setTimeout(() => onAssignToUsers(role), 0)
             }
-          }} 
+          }}
           className="hover:cursor-pointer text-xs"
           disabled={isLoadingUsers}
         >
@@ -38,26 +40,26 @@ export default function RoleActions({ role, isLoadingUsers = false, onAssignToUs
           ) : (
             <UserPlus className="mr-2 h-3.5 w-3.5" />
           )}
-          {isLoadingUsers ? 'Loading users...' : 'Assign to Users'}
+          {isLoadingUsers ? t('actions.loadingUsers') : t('actions.assignToUsers')}
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onSelect={() => {
             setTimeout(() => onEdit(role), 0)
-          }} 
+          }}
           className="hover:cursor-pointer text-xs"
         >
           <Shield className="mr-2 h-3.5 w-3.5" />
-          Manage Permissions
+          {t('actions.managePermissions')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onSelect={() => {
             setTimeout(() => onDelete(role), 0)
-          }} 
+          }}
           className="hover:cursor-pointer text-destructive focus:text-destructive text-xs"
         >
           <Trash2 className="mr-2 h-3.5 w-3.5" />
-          Delete Role
+          {t('actions.deleteRole')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

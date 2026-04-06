@@ -1,11 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Edit3, Loader2 } from "lucide-react"
+import { Edit3 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { Dialog } from "@/components/ui/dialog"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { EditSectionForm } from "@/components/sections/sections-edit-form"
 
 interface Item {
@@ -74,63 +72,36 @@ export function EditSectionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <ReusableDialog
-        open={open}
-        onOpenChange={onOpenChange}
-        title="Edit Section"
-        description="Make changes to the section information and content."
-        icon={Edit3}
-        maxWidth="xl"
-        maxHeight="90vh"
-        formId="edit-section-form"
-        isValid={isFormValid}
-        isSubmitting={isGenerating}
-        submitLabel="Save Changes"
-        footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="hover:cursor-pointer"
-              disabled={isGenerating}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="edit-section-form"
-              className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-              disabled={!isFormValid}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Edit3 className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </>
-        }
-      >
-        <EditSectionForm
-          item={item}
-          onSubmit={handleSubmit}
-          existingSections={existingSections}
-          onValidationChange={setIsFormValid}
-          onGeneratingChange={(generating) => {
-            setIsGenerating(generating)
-            onGeneratingChange?.(generating)
-          }}
-          hasTemplate={hasTemplate}
-          isTemplateSection={isTemplateSection}
-        />
-      </ReusableDialog>
-    </Dialog>
+    <HuemulDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Edit Section"
+      description="Make changes to the section information and content."
+      icon={Edit3}
+      maxWidth="sm:max-w-3xl"
+      maxHeight="max-h-[90vh]"
+      saveAction={{
+        label: isGenerating ? "Generating..." : "Save Changes",
+        icon: Edit3,
+        disabled: !isFormValid || isGenerating,
+        closeOnSuccess: false,
+        onClick: () => {
+          (document.getElementById("edit-section-form") as HTMLFormElement)?.requestSubmit();
+        },
+      }}
+    >
+      <EditSectionForm
+        item={item}
+        onSubmit={handleSubmit}
+        existingSections={existingSections}
+        onValidationChange={setIsFormValid}
+        onGeneratingChange={(generating) => {
+          setIsGenerating(generating)
+          onGeneratingChange?.(generating)
+        }}
+        hasTemplate={hasTemplate}
+        isTemplateSection={isTemplateSection}
+      />
+    </HuemulDialog>
   )
 }

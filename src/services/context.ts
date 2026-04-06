@@ -47,6 +47,44 @@ export async function addDocumentContext(documentId: string, file: File, organiz
   return data.data;
 }
 
+export async function editTextContext(contextId: string, name: string, content: string, organizationId: string) {
+  const response = await httpClient.patch(`${backendUrl}/context/${contextId}/text`, 
+    {
+      name,
+      content,
+    },
+    {
+      headers: {
+        'X-Org-Id': organizationId
+      }
+    }
+  );
+  
+  const data = await response.json();
+  console.log('Text context updated:', data.data);
+  return data.data;
+}
+
+export async function editFileContext(contextId: string, file: File, organizationId: string, name?: string) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (name) {
+    formData.append('name', name);
+  }
+
+  const response = await httpClient.fetch(`${backendUrl}/context/${contextId}/file`, {
+    method: 'PATCH',
+    body: formData,
+    headers: {
+      'X-Org-Id': organizationId
+    }
+  });
+  
+  const data = await response.json();
+  console.log('File context updated:', data.data);
+  return data.data;
+}
+
 export async function deleteContext(contextId: string, organizationId: string) {
   const response = await httpClient.delete(`${backendUrl}/context/${contextId}`, {
     headers: {
