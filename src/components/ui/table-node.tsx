@@ -19,7 +19,7 @@ import {
   useTableElement,
   useTableMergeState,
 } from '@platejs/table/react';
-import { PopoverAnchor } from '@radix-ui/react-popover';
+import { PopoverAnchor, Content as RadixPopoverContent } from '@radix-ui/react-popover';
 import { cva } from 'class-variance-authority';
 import {
   ArrowDown,
@@ -122,15 +122,15 @@ export const TableElement = withHOC(
         )}
         style={{ paddingLeft: marginLeft }}
       >
-        <div className="group/table relative w-fit">
+        <div className="group/table relative w-full">
           <table
             className={cn(
-              'mr-0 ml-px table h-px table-fixed border-collapse border border-gray-300 text-sm my-4 w-full',
+              'mr-0 ml-px table h-px table-auto border-collapse border border-gray-300 text-sm my-4 min-w-full',
               isSelectingCell && 'selection:bg-transparent'
             )}
             {...tableProps}
           >
-            <tbody className="min-w-full">{children}</tbody>
+            <tbody>{children}</tbody>
           </table>
 
           {isSelectingTable && (
@@ -170,10 +170,12 @@ function TableFloatingToolbar({
       modal={false}
     >
       <PopoverAnchor asChild>{children}</PopoverAnchor>
-      <PopoverContent
+      <RadixPopoverContent
         asChild
         onOpenAutoFocus={(e) => e.preventDefault()}
         contentEditable={false}
+        className="z-[30]"
+        sideOffset={4}
         {...props}
       >
         <Toolbar
@@ -288,7 +290,7 @@ function TableFloatingToolbar({
             </ToolbarGroup>
           )}
         </Toolbar>
-      </PopoverContent>
+      </RadixPopoverContent>
     </Popover>
   );
 }
