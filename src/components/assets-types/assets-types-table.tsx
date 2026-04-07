@@ -16,6 +16,7 @@ export const formatDate = (dateString: string) => {
 interface AssetTypeTableProps {
   assetTypes: AssetTypeWithRoles[]
   onEditAssetType: (assetType: AssetTypeWithRoles) => void
+  onManagePermissions: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onLifecycle: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
@@ -28,6 +29,7 @@ interface AssetTypeTableProps {
 export default function AssetTypeTable({
   assetTypes,
   onEditAssetType,
+  onManagePermissions,
   onDeleteAssetType,
   onLifecycle,
   pagination,
@@ -103,6 +105,12 @@ export default function AssetTypeTable({
 
   // Define actions - construir condicionalmente
   const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
+    {
+      key: "permissions",
+      label: t('actions.managePermissions'),
+      icon: Shield,
+      onClick: onManagePermissions
+    },
     {
       key: "lifecycle",
       label: t('actions.lifecycle'),
