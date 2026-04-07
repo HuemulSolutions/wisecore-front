@@ -46,6 +46,8 @@ interface PermissionSelectorProps {
   onPermissionsChange: (permissions: string[]) => void
   isLoading?: boolean
   compact?: boolean
+  /** If provided, client-side filtering is skipped and this is called when the user presses Enter */
+  onSearchChange?: (search: string) => void
 }
 
 export default function PermissionSelector({
@@ -53,11 +55,18 @@ export default function PermissionSelector({
   selectedPermissions,
   onPermissionsChange,
   isLoading = false,
-  compact = false
+  compact = false,
+  onSearchChange,
 }: PermissionSelectorProps) {
   const { t } = useTranslation('roles')
   const [searchTerm, setSearchTerm] = useState('')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && onSearchChange) {
+      onSearchChange(searchTerm)
+    }
+  }
 
   const handlePermissionToggle = (permissionId: string) => {
     const newPermissions = selectedPermissions.includes(permissionId)
@@ -98,11 +107,13 @@ export default function PermissionSelector({
     }
   }
 
-  // Filter and group permissions
-  const filteredPermissions = permissions.filter(permission =>
-    permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    permission.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter and group permissions (client-side only when no server-side search callback)
+  const filteredPermissions = onSearchChange
+    ? permissions
+    : permissions.filter(permission =>
+        permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        permission.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
 
   const groupedPermissions = filteredPermissions.reduce((groups, permission) => {
     const category = getPermissionCategory(permission.name)
@@ -126,9 +137,10 @@ export default function PermissionSelector({
       <div className="relative">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder={t('permissions.searchPlaceholder')}
+          placeholder={onSearchChange ? t('permissions.searchPlaceholder') + ' (Enter)' : t('permissions.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
           className="pl-8"
         />
       </div>
