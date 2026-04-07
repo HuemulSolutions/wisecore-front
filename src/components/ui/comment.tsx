@@ -239,13 +239,13 @@ export function Comment(props: {
         )}
       </div>
 
-      {isFirst && showDocumentContent && (
+      {isFirst && showDocumentContent && documentContent && (
         <div className="relative mt-1 flex pl-[32px] text-sm text-subtle-foreground">
           {discussionLength > 1 && (
             <div className="absolute top-[5px] left-3 h-full w-0.5 shrink-0 bg-muted" />
           )}
           <div className="my-px w-0.5 shrink-0 bg-highlight" />
-          {documentContent && <div className="ml-2">{documentContent}</div>}
+          <div className="ml-2 line-clamp-3 italic">{documentContent}</div>
         </div>
       )}
 

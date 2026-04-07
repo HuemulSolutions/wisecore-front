@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -32,7 +32,7 @@ import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dial
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -80,6 +80,32 @@ function getExecutionDisplayLabel(execution: { version?: string | null; name?: s
   if (!execution) return '';
   if (execution.version) return `v${execution.version}`;
   return execution.name || '';
+}
+
+/** Recursively extract all text from a Plate JSON node. */
+function extractPlateText(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  if ('text' in node) return (node as { text: string }).text || '';
+  const el = node as { children?: unknown[] };
+  if (Array.isArray(el.children)) return el.children.map(extractPlateText).join('');
+  return '';
+}
+
+/**
+ * Check whether a section has no visible content.
+ * Checks plate_content (primary render source) when available, then falls back to markdown.
+ */
+function isSectionContentEmpty(section: ContentSection): boolean {
+  // If plate_content exists, it's used as the primary render source
+  if (section.plate_content && section.plate_content.length > 0) {
+    const allText = section.plate_content
+      .map((s) => { try { return extractPlateText(JSON.parse(s)); } catch { return ''; } })
+      .join('');
+    if (allText.trim() === '') return true;
+    return false;
+  }
+  // Fallback: check markdown content
+  return !section.content || section.content.trim() === '';
 }
 
 
@@ -1073,8 +1099,8 @@ export function AssetContent({
 
   // Set initial view mode based on lifecycle permissions (once per document):
   // - view only  → reader mode, no toggle
-  // - edit only in edit stage → editor mode directly, no toggle
-  // - both       → reader mode with toggle available
+  // - has edit permission in edit stage → editor mode directly
+  // - other stages → reader mode
   useEffect(() => {
     if (!selectedFile?.id) return;
 
@@ -1085,11 +1111,10 @@ export function AssetContent({
       // As soon as permissions are available, set the definitive initial mode
       if (lifecyclePermissions) {
         const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
-        const hasView = !!lifecyclePermissions.view;
         const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
 
-        // edit-only (no view permission) in edit stage: open directly in editor mode
-        if (hasEdit && !hasView && isEditStage) {
+        // Any user with edit permission in edit stage opens directly in editor mode
+        if (hasEdit && isEditStage) {
           setIsViewMode(false);
         }
 
@@ -1348,6 +1373,17 @@ export function AssetContent({
   // Handle export to custom word
   const handleExportCustomWord = () => {
     setIsCustomWordExportDialogOpen(true);
+  };
+
+  // Handle export to excel
+  const handleExportExcel = async () => {
+    if (documentContent?.execution_id) {
+      try {
+        await exportExecutionToExcel(documentContent.execution_id, selectedOrganizationId!);
+      } catch (error) {
+        console.error('Error exporting to excel:', error);
+      }
+    }
   };
 
   // Handle add custom field document
@@ -2103,6 +2139,10 @@ export function AssetContent({
                       <FileCode className="mr-2 h-4 w-4" />
                       {t('content.exportAsCustomWord')}
                     </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:cursor-pointer" onClick={() => setTimeout(() => handleExportExcel(), 0)}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      {t('content.exportAsExcel')}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -2174,22 +2214,20 @@ export function AssetContent({
                     <div className="flex items-center justify-between gap-2.5 flex-wrap">
                       <div className="flex items-center gap-1.5">
                         <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
-                        {showEditorActions && (
-                          <HuemulButton
-                            requiredAccess="edit"
-                            checkGlobalPermissions={true}
-                            resource="asset"
-                            lifecyclePermissions={lifecyclePermissions}
-                            onClick={openEditDialog}
-                            size="sm"
-                            variant="ghost"
-                            icon={Pencil}
-                            iconClassName="h-3.5 w-3.5"
-                            tooltip={t('content.editDocument')}
-                            tooltipSide="right"
-                            className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                          />
-                        )}
+                        <HuemulButton
+                          requiredAccess="edit"
+                          checkGlobalPermissions={true}
+                          resource="asset"
+                          lifecyclePermissions={lifecyclePermissions}
+                          onClick={openEditDialog}
+                          size="sm"
+                          variant="ghost"
+                          icon={Pencil}
+                          iconClassName="h-3.5 w-3.5"
+                          tooltip={t('content.editDocument')}
+                          tooltipSide="right"
+                          className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                        />
                       </div>
                     </div>
                     
@@ -2637,6 +2675,10 @@ export function AssetContent({
                           <FileCode className="mr-2 h-4 w-4" />
                           {t('content.exportAsCustomWord')}
                         </DropdownMenuItem>
+                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportExcel}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          {t('content.exportAsExcel')}
+                        </DropdownMenuItem>
                       </>
                     )}
                     {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
@@ -3051,7 +3093,7 @@ export function AssetContent({
                           const realSectionId = section.section_id;
                           
                           // In reader mode, hide sections with empty content
-                          if (isViewMode && (!section.content || section.content.trim() === '')) {
+                          if (isViewMode && isSectionContentEmpty(section)) {
                             return null;
                           }
                           

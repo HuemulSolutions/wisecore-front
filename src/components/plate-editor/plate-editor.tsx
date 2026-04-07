@@ -71,6 +71,7 @@ import { MarkdownPlugin } from '@platejs/markdown';
 import { FontSizePlugin, FontColorPlugin, FontBackgroundColorPlugin } from '@platejs/basic-styles/react';
 import { cn } from '@/lib/utils';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
+import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
 
 
 function EditorToolbar() {
@@ -298,7 +299,7 @@ function SectionEditorToolbar({ actions }: { actions?: React.ReactNode }) {
   const canRedo = useEditorSelector((editor) => (editor.history?.redos?.length ?? 0) > 0, []);
 
   return (
-    <FixedToolbar className="flex flex-wrap items-center gap-0.5 px-1 py-1">
+    <FixedToolbar className="flex flex-wrap items-center gap-0.5 px-1 py-1" style={{ top: '36px' }}>
       {/* Undo / Redo */}
       <ToolbarButton tooltip="Undo (Ctrl+Z)" onClick={() => editor.undo()} disabled={!canUndo}>
         <Undo2 />
@@ -396,6 +397,8 @@ interface PlateRichEditorProps {
   toolbarActions?: React.ReactNode;
   /** Document ID – enables discussion/comment sync with backend when provided */
   documentId?: string;
+  /** Section execution ID – required for creating discussions via with-comment endpoint */
+  sectionExecutionId?: string;
   /**
    * Called immediately after a discussion is created or a comment is added.
    * Use this to auto-save plate_content so comment marks survive a page refresh.
@@ -416,6 +419,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     variant = 'default',
     toolbarActions,
     documentId,
+    sectionExecutionId,
     onAfterDiscussionMutation,
     onCreateSectionFromSelection,
   }, ref) {
@@ -485,7 +489,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       <div
         ref={containerRef}
         className={cn(
-          'relative w-full min-w-0',
+          'relative isolate w-full min-w-0',
           variant === 'section'
             ? cn('rounded-md bg-background', !readOnly && 'border border-border')
             : cn('rounded-lg bg-background', !readOnly && 'border border-border shadow-sm'),
@@ -493,37 +497,40 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
         )}
       >
 
-        <Plate
-          editor={editor}
-          readOnly={readOnly}
-          onChange={({ value }) => {
-            onChange?.(value);
-          }}
-        >
-          {/* Sync discussions from backend when a documentId is provided */}
-          {documentId && (
-            <DiscussionSync
-              documentId={documentId}
-              onAfterDiscussionMutation={onAfterDiscussionMutation}
-            />
-          )}
+        <EditorErrorBoundary>
+          <Plate
+            editor={editor}
+            readOnly={readOnly}
+            onChange={({ value }) => {
+              onChange?.(value);
+            }}
+          >
+            {/* Sync discussions from backend when a documentId is provided */}
+            {documentId && (
+              <DiscussionSync
+                documentId={documentId}
+                sectionExecutionId={sectionExecutionId}
+                onAfterDiscussionMutation={onAfterDiscussionMutation}
+              />
+            )}
 
-          {/* Toolbar – use compact version for section variant */}
-          {showToolbar && (
-            variant === 'section' ? <SectionEditorToolbar actions={toolbarActions} /> : <EditorToolbar />
-          )}
+            {/* Toolbar – use compact version for section variant */}
+            {showToolbar && (
+              variant === 'section' ? <SectionEditorToolbar actions={toolbarActions} /> : <EditorToolbar />
+            )}
 
-          {/* Editor Area */}
-          <EditorContainer className="overflow-y-auto">
-            <Editor
-              placeholder="Type your content here..."
-              variant={variant === 'section' ? 'section' : undefined}
-            />
-          </EditorContainer>
+            {/* Editor Area */}
+            <EditorContainer className="overflow-y-auto">
+              <Editor
+                placeholder="Type your content here..."
+                variant={variant === 'section' ? 'section' : undefined}
+              />
+            </EditorContainer>
 
-          {/* Floating toolbar – appears on text selection */}
-          <FloatingToolbarButtons onCreateSectionFromSelection={onCreateSectionFromSelection} />
-        </Plate>
+            {/* Floating toolbar – appears on text selection */}
+            <FloatingToolbarButtons onCreateSectionFromSelection={onCreateSectionFromSelection} />
+          </Plate>
+        </EditorErrorBoundary>
       </div>
     </TooltipProvider>
   );

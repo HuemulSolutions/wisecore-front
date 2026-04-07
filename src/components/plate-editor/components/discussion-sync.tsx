@@ -9,6 +9,8 @@ import type { DiscussionCallbacks } from '@/components/plate-editor/components/d
 
 interface DiscussionSyncProps {
   documentId: string;
+  /** Section execution ID – required to create discussions via with-comment endpoint */
+  sectionExecutionId?: string;
   /**
    * Called after any discussion mutation (create discussion, add comment).
    * Use this to auto-save plate_content so comment marks are persisted.
@@ -22,14 +24,14 @@ interface DiscussionSyncProps {
  *
  * Injects: discussions, users, currentUserId, and API callbacks.
  */
-export function DiscussionSync({ documentId, onAfterDiscussionMutation }: DiscussionSyncProps) {
+export function DiscussionSync({ documentId, sectionExecutionId, onAfterDiscussionMutation }: DiscussionSyncProps) {
   const editor = useEditorRef();
   const {
     discussions,
     usersMap,
     currentUserId,
     callbacks,
-  } = useDiscussions(documentId);
+  } = useDiscussions(documentId, sectionExecutionId);
 
   // Sync discussions list
   useEffect(() => {

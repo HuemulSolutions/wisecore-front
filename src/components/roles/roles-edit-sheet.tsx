@@ -18,9 +18,10 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [permissions, setPermissions] = useState<string[]>([])
+  const [search, setSearch] = useState('')
   
   // Only fetch permissions with status when the sheet is actually open
-  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open)
+  const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open, search)
   const { updateRole } = useRoleMutations()
 
   const allPermissions = Array.isArray(rolePermissionsResponse?.data?.permissions) ? rolePermissionsResponse.data.permissions : []
@@ -44,6 +45,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
       setName('')
       setDescription('')
       setPermissions([])
+      setSearch('')
     }
   }, [role, open])
   
@@ -116,6 +118,7 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
           onPermissionsChange={setPermissions}
           isLoading={rolePermissionsLoading}
           compact={true}
+          onSearchChange={setSearch}
         />
       </div>
     </HuemulSheet>

@@ -130,6 +130,10 @@ export function useUserPermissions() {
     return hasAnyPermission(['version:r', 'version:l', 'version:c', 'version:u', 'version:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessDiscussions = useMemo(() => {
+    return hasAnyPermission(['discussion:r', 'discussion:l', 'discussion:c', 'discussion:u', 'discussion:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
@@ -218,6 +222,7 @@ export function useUserPermissions() {
     canAccessModels,
     canAccessOrganizations,
     canAccessVersions,
+    canAccessDiscussions,
 
     // Funciones de utilidad
     hasResourceAccess,

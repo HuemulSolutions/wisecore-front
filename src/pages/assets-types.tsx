@@ -94,10 +94,6 @@ export default function AssetTypesPage() {
     updateState({ editingAssetType: assetType })
   }
 
-  const handleManagePermissions = (assetType: AssetTypeWithRoles) => {
-    updateState({ rolePermissionsAssetType: assetType })
-  }
-
   const handleDeleteAssetType = (assetType: AssetTypeWithRoles) => {
     updateState({ deletingAssetType: assetType })
   }
@@ -140,7 +136,6 @@ export default function AssetTypesPage() {
           <AssetTypeTable
             assetTypes={assetTypes}
             onEditAssetType={handleEditAssetType}
-            onManagePermissions={handleManagePermissions}
             onDeleteAssetType={handleDeleteAssetType}
             onLifecycle={handleLifecycle}
             canUpdate={canUpdateDocumentType}
