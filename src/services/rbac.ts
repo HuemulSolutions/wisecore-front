@@ -229,8 +229,15 @@ export const assignRoleToUser = async (userId: string, roleIds: string[]): Promi
 };
 
 // Get permissions for a specific role with assignment status
-export const getRolePermissions = async (roleId: string): Promise<PermissionsWithStatusResponse> => {
-  const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions_with_status`, {
+export const getRolePermissions = async (roleId: string, search?: string, pageSize: number = 1000): Promise<PermissionsWithStatusResponse> => {
+  const params = new URLSearchParams({
+    page: '1',
+    page_size: pageSize.toString(),
+  });
+  if (search && search.trim()) {
+    params.set('search', search.trim());
+  }
+  const response = await httpClient.get(`${backendUrl}/rbac/roles/${roleId}/permissions_with_status?${params.toString()}`, {
     headers: getHeaders(),
   });
   
