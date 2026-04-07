@@ -7,17 +7,16 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useUsers } from '@/hooks/useUsers';
 import {
   listDiscussions,
-  createDiscussion,
+  createDiscussionWithComment,
   deleteDiscussion,
   resolveDiscussion,
 } from '@/services/discussions';
 import {
-  listDiscussionComments,
   createDiscussionComment,
   updateDiscussionComment,
   deleteDiscussionComment,
 } from '@/services/discussion-comments';
-import type { Discussion, DiscussionComment } from '@/types/discussions';
+import type { DiscussionComment, DiscussionWithComments } from '@/types/discussions';
 import type { TComment } from '@/components/ui/comment';
 import type {
   TDiscussion,
@@ -36,9 +35,32 @@ export const discussionQueryKeys = {
 
 // ── Helpers: map API → Plate types ──────────────────────────────────────
 
+/** Ensure every element node has an iterable `children` array so Slate never crashes. */
+function sanitizeNodes(nodes: unknown): Value {
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return [{ type: 'p', children: [{ text: '' }] }];
+  }
+  return nodes.map((node) => {
+    if (typeof node !== 'object' || node === null) {
+      return { text: String(node ?? '') };
+    }
+    // Text-leaf nodes have no children – leave them as-is
+    if ('text' in node) return node;
+    // Element nodes must have an iterable children array
+    const el = node as Record<string, unknown>;
+    return {
+      ...el,
+      children: Array.isArray(el.children)
+        ? sanitizeNodes(el.children as unknown[])
+        : [{ text: '' }],
+    };
+  }) as Value;
+}
+
 function parseRichContent(raw: string): Value {
   try {
-    return JSON.parse(raw) as Value;
+    const parsed = JSON.parse(raw);
+    return sanitizeNodes(parsed);
   } catch {
     // Fallback: wrap plain text in a paragraph node
     return [{ type: 'p', children: [{ text: raw }] }];
@@ -55,20 +77,19 @@ function mapApiCommentToPlate(c: DiscussionComment): TComment {
     discussionId: c.discussion_id,
     contentRich: parseRichContent(c.content_rich),
     createdAt: new Date(c.created_at),
-    userId: c.created_by ?? '',
-    isEdited: c.created_at !== c.updated_at,
+    userId: c.user_id ?? c.created_by ?? '',
+    isEdited: c.is_edited ?? c.created_at !== c.updated_at,
   };
 }
 
 function mapApiDiscussionToPlate(
-  d: Discussion,
-  comments: TComment[],
+  d: DiscussionWithComments,
 ): TDiscussion {
   return {
     id: d.id,
-    comments,
+    comments: (d.comments ?? []).map(mapApiCommentToPlate),
     createdAt: new Date(d.created_at),
-    isResolved: d.resolved,
+    isResolved: d.is_resolved,
     userId: d.created_by ?? '',
     documentContent: d.document_content,
   };
@@ -76,7 +97,7 @@ function mapApiDiscussionToPlate(
 
 // ── Main Hook ───────────────────────────────────────────────────────────
 
-export function useDiscussions(documentId: string | undefined) {
+export function useDiscussions(documentId: string | undefined, sectionExecutionId?: string) {
   const { user } = useAuth();
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
@@ -110,7 +131,7 @@ export function useDiscussions(documentId: string | undefined) {
     return map;
   }, [usersResponse?.data, user]);
 
-  // ── Fetch discussions for the document ──────────────────────────────
+  // ── Fetch discussions with embedded comments ─────────────────────────
   const {
     data: discussionsResponse,
     isLoading: isLoadingDiscussions,
@@ -118,45 +139,26 @@ export function useDiscussions(documentId: string | undefined) {
     queryKey: discussionQueryKeys.byDocument(documentId!),
     queryFn: () =>
       listDiscussions(
-        { document_id: documentId!, page_size: 500 },
+        { document_id: documentId!, include_comments: true, page_size: 500 },
         selectedOrganizationId ?? undefined,
       ),
     enabled: !!documentId && !!selectedOrganizationId,
     staleTime: 30_000,
-  });
-
-  // ── Fetch comments for every discussion ─────────────────────────────
-  const discussionIds = useMemo(
-    () => (discussionsResponse?.data ?? []).map((d) => d.id),
-    [discussionsResponse?.data],
-  );
-
-  const { data: allComments, isLoading: isLoadingComments } = useQuery({
-    queryKey: [...discussionQueryKeys.byDocument(documentId!), 'all-comments', discussionIds],
-    queryFn: async () => {
-      const results: Record<string, TComment[]> = {};
-      await Promise.all(
-        discussionIds.map(async (dId) => {
-          const res = await listDiscussionComments(
-            { discussion_id: dId, page_size: 500 },
-            selectedOrganizationId ?? undefined,
-          );
-          results[dId] = res.data.map(mapApiCommentToPlate);
-        }),
-      );
-      return results;
+    // Swallow permission errors (e.g. 403) silently – the editor should
+    // still render without discussions rather than crash.
+    retry: (failureCount, error) => {
+      if (error && typeof error === 'object' && 'statusCode' in error && (error as { statusCode: number }).statusCode === 403) {
+        return false;
+      }
+      return failureCount < 3;
     },
-    enabled: discussionIds.length > 0 && !!selectedOrganizationId,
-    staleTime: 30_000,
   });
 
   // ── Assemble TDiscussion[] for Plate ────────────────────────────────
   const discussions: TDiscussion[] = useMemo(() => {
     if (!discussionsResponse?.data) return [];
-    return discussionsResponse.data.map((d) =>
-      mapApiDiscussionToPlate(d, allComments?.[d.id] ?? []),
-    );
-  }, [discussionsResponse?.data, allComments]);
+    return discussionsResponse.data.map(mapApiDiscussionToPlate);
+  }, [discussionsResponse?.data]);
 
   // ── Invalidation helper ─────────────────────────────────────────────
   const invalidate = useCallback(() => {
@@ -175,21 +177,14 @@ export function useDiscussions(documentId: string | undefined) {
       firstCommentRich: Value;
       discussionId: string;
     }) => {
-      // 1. Create the discussion
-      const discussion = await createDiscussion(
+      const discussion = await createDiscussionWithComment(
         {
           document_id: documentId!,
+          section_execution_id: sectionExecutionId!,
           document_content: params.documentContent,
-        },
-        selectedOrganizationId!,
-      );
-      // 2. Create the first comment
-      await createDiscussionComment(
-        {
-          discussion_id: discussion.id,
           content_rich: serializeRichContent(params.firstCommentRich),
         },
-        selectedOrganizationId ?? undefined,
+        selectedOrganizationId!,
       );
       return discussion.id;
     },
@@ -274,7 +269,7 @@ export function useDiscussions(documentId: string | undefined) {
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedOrganizationId, documentId],
+    [selectedOrganizationId, documentId, sectionExecutionId],
   );
 
   return {
@@ -282,7 +277,7 @@ export function useDiscussions(documentId: string | undefined) {
     usersMap,
     currentUserId: user?.id ?? '',
     callbacks,
-    isLoading: isLoadingDiscussions || isLoadingComments,
+    isLoading: isLoadingDiscussions,
     invalidate,
   };
 }
