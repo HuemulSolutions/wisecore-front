@@ -122,7 +122,6 @@ export interface AssetTypeTableProps {
   onAssetTypeSelection: (assetTypeId: string) => void;
   onSelectAll: () => void;
   onEditAssetType: (assetType: AssetTypeWithRoles) => void;
-  onManagePermissions: (assetType: AssetTypeWithRoles) => void;
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void;
   assetTypeMutations: {
     createAssetType: any; // UseMutationResult from @tanstack/react-query
