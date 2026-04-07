@@ -145,17 +145,19 @@ export async function updateLLM(executionId: string, llmId: string, organization
     return data.data;
 }
 
-async function exportExecutionFile(executionId: string, exportType: 'markdown' | 'word' | 'custom_word', organizationId: string) {
+async function exportExecutionFile(executionId: string, exportType: 'markdown' | 'word' | 'custom_word' | 'excel', organizationId: string) {
     const endpoints = {
         markdown: `execution/${executionId}/export_markdown`,
         word: `execution/${executionId}/export_word`,
-        custom_word: `execution/${executionId}/export_custom_word`
+        custom_word: `execution/${executionId}/export_custom_word`,
+        excel: `execution/${executionId}/export_excel`
     };
     
     const extensions = {
         markdown: 'md',
         word: 'docx',
-        custom_word: 'docx'
+        custom_word: 'docx',
+        excel: 'xlsx'
     };
         
     console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
@@ -216,6 +218,10 @@ export async function exportExecutionToWord(executionId: string, organizationId:
 
 export async function exportExecutionCustomWord(executionId: string, organizationId: string) {
     return exportExecutionFile(executionId, 'custom_word', organizationId);
+}
+
+export async function exportExecutionToExcel(executionId: string, organizationId: string) {
+    return exportExecutionFile(executionId, 'excel', organizationId);
 }
 
 export async function approveExecution(executionId: string, organizationId: string) {

@@ -39,6 +39,8 @@ import {
 } from '@/components/plate-editor/components/discussion-kit';
 import { suggestionPlugin } from '@/components/plate-editor/components/suggestion-kit';
 
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+
 import {
   BlockSuggestionCard,
   isResolvedSuggestion,
@@ -284,6 +286,8 @@ function BlockComment({
   isLast: boolean;
 }) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const { canCreate } = useUserPermissions();
+  const canCreateDiscussion = canCreate('discussion');
 
   return (
     <React.Fragment key={discussion.id}>
@@ -300,7 +304,7 @@ function BlockComment({
             showDocumentContent
           />
         ))}
-        <CommentCreateForm discussionId={discussion.id} />
+        {canCreateDiscussion && <CommentCreateForm discussionId={discussion.id} />}
       </div>
 
       {!isLast && <div className="h-px w-full bg-muted" />}

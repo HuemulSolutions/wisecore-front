@@ -30,6 +30,8 @@ interface SectionPlateEditorProps {
   className?: string;
   /** Document ID – enables discussion/comment sync when provided */
   documentId?: string;
+  /** Section execution ID – required for creating discussions */
+  sectionExecutionId?: string;
   /** Callback to create a new section from selected text */
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
   /**
@@ -41,11 +43,28 @@ interface SectionPlateEditorProps {
   onAutoSavePlateContent?: (sectionId: string, markdown: string, plateContent: string[]) => void;
 }
 
+/** Ensure every element node has an iterable `children` array so Slate never crashes. */
+function sanitizeNodes(nodes: unknown[]): Value {
+  return nodes.map((node) => {
+    if (typeof node !== 'object' || node === null) {
+      return { text: String(node ?? '') };
+    }
+    if ('text' in node) return node;
+    const el = node as Record<string, unknown>;
+    return {
+      ...el,
+      children: Array.isArray(el.children)
+        ? sanitizeNodes(el.children as unknown[])
+        : [{ text: '' }],
+    };
+  }) as Value;
+}
+
 /** Parse a plate_content string[] into a Plate Value, returning null on failure. */
 function parsePlateContent(raw: string[]): Value | null {
   try {
     const nodes = raw.map((s) => JSON.parse(s));
-    if (nodes.length > 0) return nodes as Value;
+    if (nodes.length > 0) return sanitizeNodes(nodes);
   } catch {
     // malformed JSON – fall back to markdown
   }
@@ -74,6 +93,7 @@ export default function SectionPlateEditor({
   isSaving = false,
   className,
   documentId,
+  sectionExecutionId,
   onCreateSectionFromSelection,
   onAutoSavePlateContent,
 }: SectionPlateEditorProps) {
@@ -179,6 +199,7 @@ export default function SectionPlateEditor({
         className={isEditing ? 'min-h-[240px]' : undefined}
         toolbarActions={actionButtons}
         documentId={documentId}
+        sectionExecutionId={sectionExecutionId}
         onAfterDiscussionMutation={onAutoSavePlateContent ? () => {
           // Read current editor state and persist plate_content silently
           // so comment marks survive a page refresh.

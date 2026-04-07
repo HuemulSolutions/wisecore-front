@@ -605,6 +605,7 @@ export default function SectionExecution({
                         onCancel={handleCancelEdit}
                         isSaving={isSaving}
                         documentId={documentId}
+                        sectionExecutionId={sectionExecution.id}
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />
                 </div>

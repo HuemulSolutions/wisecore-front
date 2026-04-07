@@ -380,6 +380,7 @@ const translations = {
     exportAsMarkdown: { en: "Export as Markdown", es: "Exportar como Markdown" },
     exportAsWord: { en: "Export as Word", es: "Exportar como Word" },
     exportAsCustomWord: { en: "Export as Custom Word", es: "Exportar como Word Personalizado" },
+    exportAsExcel: { en: "Export as Excel", es: "Exportar como Excel" },
     deleteVersion: { en: "Delete Version", es: "Eliminar Versión" },
     deleteDocumentLabel: { en: "Delete Asset", es: "Eliminar Activo" },
     cloneVersion: { en: "Clone Version", es: "Clonar Versión" },

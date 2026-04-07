@@ -132,6 +132,7 @@ export interface ExecutionInfo {
   status: string;
   status_message: string;
   created_at: string;
+  version: string | null;
   version_major: number | null;
   version_minor: number | null;
   version_patch: number | null;
@@ -189,12 +190,47 @@ export interface FrontendPermissions {
 }
 
 /**
+ * A comment embedded in the latest_discussion payload of the content response
+ */
+export interface LatestDiscussionComment {
+  id: string;
+  discussion_id: string;
+  content_rich: string;
+  user_id: string;
+  is_edited: boolean;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+/**
+ * Discussion object returned inline in the document content response
+ */
+export interface LatestDiscussion {
+  id: string;
+  document_id: string;
+  section_execution_id: string | null;
+  organization_id: string;
+  document_content: string;
+  is_resolved: boolean;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+  comments: LatestDiscussionComment[];
+}
+
+/**
  * Response from asset content API
  */
 export interface AssetContentResponse {
   data: {
     document_id: string;
     document_name: string;
+    description?: string;
     execution_id: string;
     execution_name: string;
     template_id: string | null;
@@ -207,6 +243,7 @@ export interface AssetContentResponse {
     lifecycle_permissions?: LifecyclePermissions;
     lifecycle_status?: LifecycleStatus;
     content: ContentSection[];
+    latest_discussion?: LatestDiscussion | null;
     created_by_user: UserInfo | null;
     updated_by_user: UserInfo | null;
   };

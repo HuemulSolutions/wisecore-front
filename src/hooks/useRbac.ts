@@ -7,7 +7,7 @@ export const rbacQueryKeys = {
   all: ['rbac'] as const,
   roles: () => [...rbacQueryKeys.all, 'roles'] as const,
   permissions: () => [...rbacQueryKeys.all, 'permissions'] as const,
-  rolePermissions: (roleId: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId] as const,
+  rolePermissions: (roleId: string, search?: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId, search ?? ''] as const,
   userRoles: (userId: string) => [...rbacQueryKeys.all, 'userRoles', userId] as const,
   userAllRoles: (userId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
   roleWithAllUsers: (roleId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
@@ -38,10 +38,10 @@ export function usePermissions(enabled: boolean = true) {
 }
 
 // Hook for fetching permissions of a specific role
-export function useRolePermissions(roleId: string, enabled: boolean = true) {
+export function useRolePermissions(roleId: string, enabled: boolean = true, search?: string) {
   return useQuery({
-    queryKey: rbacQueryKeys.rolePermissions(roleId),
-    queryFn: () => getRolePermissions(roleId),
+    queryKey: rbacQueryKeys.rolePermissions(roleId, search),
+    queryFn: () => getRolePermissions(roleId, search),
     enabled: !!roleId && enabled,
     staleTime: 0, // Always refetch to ensure fresh data
     refetchOnMount: true, // Refetch when component mounts
