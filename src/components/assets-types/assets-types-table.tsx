@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, Shield, FileStack, Activity } from "lucide-react"
+import { Edit2, Trash2, FileStack, Activity } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
@@ -16,7 +16,6 @@ export const formatDate = (dateString: string) => {
 interface AssetTypeTableProps {
   assetTypes: AssetTypeWithRoles[]
   onEditAssetType: (assetType: AssetTypeWithRoles) => void
-  onManagePermissions: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onLifecycle: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
@@ -29,7 +28,6 @@ interface AssetTypeTableProps {
 export default function AssetTypeTable({
   assetTypes,
   onEditAssetType,
-  onManagePermissions,
   onDeleteAssetType,
   onLifecycle,
   pagination,
@@ -71,30 +69,6 @@ export default function AssetTypeTable({
       )
     },
     {
-      key: "roles",
-      label: t('columns.rolePermissions'),
-      render: (assetType) => {
-        if (assetType.roles && assetType.roles.length > 0) {
-          return (
-            <div className="flex flex-wrap gap-0.5">
-              {assetType.roles.slice(0, 2).map((role) => (
-                <Badge key={role.role_id} variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                  <Shield className="w-2 h-2 mr-0.5" />
-                  {role.role_name}
-                </Badge>
-              ))}
-              {assetType.roles.length > 2 && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                  +{assetType.roles.length - 2}
-                </Badge>
-              )}
-            </div>
-          )
-        }
-        return <span className="text-[10px] text-muted-foreground">{t('columns.noRoles')}</span>
-      }
-    },
-    {
       key: "created",
       label: t('columns.created'),
       render: (assetType) => (
@@ -105,12 +79,6 @@ export default function AssetTypeTable({
 
   // Define actions - construir condicionalmente
   const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
-    {
-      key: "permissions",
-      label: t('actions.managePermissions'),
-      icon: Shield,
-      onClick: onManagePermissions
-    },
     {
       key: "lifecycle",
       label: t('actions.lifecycle'),
