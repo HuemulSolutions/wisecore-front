@@ -382,6 +382,10 @@ export interface ContentSection {
   status?: string;
   referenced_content?: string;
   referenced_document_id?: string | null;
+  ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null;
+  ai_suggestion_content?: string | null;
+  ai_suggestion_instruction?: string | null;
+  ai_suggestion_error?: string | null;
 }
 
 /**
