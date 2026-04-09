@@ -5,7 +5,6 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { updateUser, getUserById } from "@/services/users"
 import { type User, type UpdateUserData } from "@/types/users"
 import { userQueryKeys } from "@/hooks/useUsers"
-import { toast } from "sonner"
 import { UserPen } from "lucide-react"
 import UserFormFields from "@/components/users/users-form-fields"
 
@@ -101,6 +100,7 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
   const updateUserMutation = useMutation({
     mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) =>
       updateUser(userId, data),
+    meta: { successMessage: t('users:toast.userUpdated') },
     onSuccess: (_, variables) => {
       // Invalidate the users list query
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
@@ -108,7 +108,6 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(variables.userId) })
       // Also invalidate the query used by this dialog
       queryClient.invalidateQueries({ queryKey: ['user', variables.userId] })
-      toast.success(t('users:toast.userUpdated'))
     },
   })
 
