@@ -5,7 +5,6 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { updateTemplate } from "@/services/templates";
 import { Edit3 } from "lucide-react";
-import { toast } from "sonner";
 
 interface EditTemplateDialogProps {
   open: boolean;
@@ -40,8 +39,8 @@ export function EditTemplateDialog({
 
   const updateTemplateMutation = useMutation({
     mutationFn: (data: any) => updateTemplate(templateId, data, organizationId),
+    meta: { successMessage: t('edit.success') },
     onSuccess: () => {
-      toast.success(t('edit.success'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
       onSuccess();
       onOpenChange(false);

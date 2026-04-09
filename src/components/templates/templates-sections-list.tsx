@@ -43,8 +43,8 @@ export function TemplateSectionsList({
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
       updateTemplateSection(sectionId, sectionData, organizationId),
+    meta: { successMessage: t('sections:toast.sectionUpdated') },
     onSuccess: () => {
-      toast.success(t('sections:toast.sectionUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
   });
@@ -60,6 +60,7 @@ export function TemplateSectionsList({
       options?.propagate_to_documents
         ? deleteTemplateSectionWithPropagation(sectionId, options, organizationId)
         : deleteTemplateSection(sectionId, organizationId),
+    meta: { showSuccessToast: false },
     onSuccess: (data: any) => {
       if (data?.propagated && data?.deleted_document_sections_count) {
         toast.success(t('sections:toast.sectionDeletedPropagated', { count: data.deleted_document_sections_count }));
@@ -73,8 +74,8 @@ export function TemplateSectionsList({
   const reorderSectionsMutation = useMutation({
     mutationFn: (sectionsOrder: { section_id: string; order: number }[]) => 
       updateTemplateSectionsOrder(sectionsOrder, organizationId),
+    meta: { successMessage: t('sections:toast.orderUpdated') },
     onSuccess: () => {
-      toast.success(t('sections:toast.orderUpdated'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
     },
   });
