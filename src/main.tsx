@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import '@/i18n'
 import { Toaster } from "@/components/ui/sonner"
@@ -12,7 +13,17 @@ import '@mdxeditor/editor/style.css'       // CSS del MDXEditor
 import './mdx-editor.css'   
 import App from './App.tsx'
 
+const mutationCache = new MutationCache({
+  onSuccess: (_data, _variables, _context, mutation) => {
+    const meta = mutation.meta;
+    if (meta?.successMessage && meta?.showSuccessToast !== false) {
+      toast.success(meta.successMessage);
+    }
+  },
+});
+
 const queryClient = new QueryClient({
+  mutationCache,
   defaultOptions: {
     queries: {
       // Optimizaciones para reducir re-fetches innecesarios
@@ -37,7 +48,7 @@ const queryClient = new QueryClient({
     },
     mutations: {
       retry: false, // No reintentar mutaciones por defecto
-      onError: (error) => handleApiError(error), // Manejo global de errores
+      onError: (error) => handleApiError(error), // Manejo global de errores (overrideable per-mutation)
     },
   },
 });
