@@ -1,8 +1,11 @@
 {
   "name": "wisecore-front",
   "private": true,
-  "version": "1.0.53",
+  "version": "1.0.54",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
