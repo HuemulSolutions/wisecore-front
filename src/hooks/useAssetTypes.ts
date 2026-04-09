@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType } from "@/services/asset-types"
-import { toast } from "sonner"
 
 // Query keys
 export const assetTypeQueryKeys = {
@@ -54,29 +53,29 @@ export function useAssetTypeMutations() {
 
   const createAssetTypeMutation = useMutation({
     mutationFn: createAssetType,
+    meta: { successMessage: 'Asset type created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
-      toast.success('Asset type created successfully')
     },
   })
 
   const updateAssetTypeMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
       updateAssetType(id, data),
+    meta: { successMessage: 'Asset type updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
-      toast.success('Asset type updated successfully')
     },
   })
 
   const deleteAssetTypeMutation = useMutation({
     mutationFn: deleteAssetType,
+    meta: { successMessage: 'Asset type deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
-      toast.success('Asset type deleted successfully')
     },
   })
 

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
 import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
-import { toast } from "sonner"
 import type { UpdateUserData } from "@/types/users"
 
 // Query keys
@@ -53,57 +52,57 @@ export function useUserMutations(additionalInvalidateKeys: QueryKey[] = []) {
 
   const approveUserMutation = useMutation({
     mutationFn: approveUser,
+    meta: { successMessage: 'User approved successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User approved successfully')
     },
   })
 
   const rejectUserMutation = useMutation({
     mutationFn: rejectUser,
+    meta: { successMessage: 'User rejected successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User rejected successfully')
     },
   })
 
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
+    meta: { successMessage: 'User deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User deleted successfully')
     },
   })
 
   const updateUserMutation = useMutation({
     mutationFn: ({ userId, data }: { userId: string; data: UpdateUserData }) => 
       updateUser(userId, data),
+    meta: { successMessage: 'User updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User updated successfully')
     },
   })
 
   const createUserMutation = useMutation({
     mutationFn: createUser,
+    meta: { successMessage: 'User created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('User created successfully')
     },
   })
 
   const updateRootAdminMutation = useMutation({
     mutationFn: ({ userId, isRootAdmin }: { userId: string; isRootAdmin: boolean }) =>
       updateUserRootAdmin(userId, isRootAdmin),
+    meta: { successMessage: 'Root admin status updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.listBase() })
       invalidateAdditional()
-      toast.success('Root admin status updated successfully')
     },
   })
 
