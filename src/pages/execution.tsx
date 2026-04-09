@@ -20,7 +20,6 @@ import { generateDocument } from "@/services/generate";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/error-utils";
 import {
     Select,
     SelectContent,
@@ -52,13 +51,10 @@ export default function ExecutionPage() {
 
     const updateLLMMutation = useMutation({
         mutationFn: (llmId: string) => updateExecutionLLM(id!, llmId),
+        meta: { successMessage: "Model updated" },
         onSuccess: () => {
-            toast.success("Model updated");
             refetch();
         },
-        onError: (error) => {
-            handleApiError(error, { fallbackMessage: "Failed to update model" });
-        }
     });
 
     const { data: execution, isLoading, error, refetch } = useQuery({
