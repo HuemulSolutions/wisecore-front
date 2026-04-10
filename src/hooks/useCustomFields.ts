@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 import {
   getCustomFields,
   getCustomField,
@@ -61,26 +60,26 @@ export function useCustomFieldMutations() {
 
   const createMutation = useMutation({
     mutationFn: createCustomField,
+    meta: { successMessage: 'Custom field created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
-      toast.success('Custom field created successfully')
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomFieldRequest }) =>
       updateCustomField(id, data),
+    meta: { successMessage: 'Custom field updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.all })
-      toast.success('Custom field updated successfully')
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteCustomField,
+    meta: { successMessage: 'Custom field deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldsQueryKeys.lists() })
-      toast.success('Custom field deleted successfully')
     },
   })
 

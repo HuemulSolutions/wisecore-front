@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getDocumentTypes, createDocumentType, deleteDocumentType } from "@/services/document-types"
-import { toast } from "sonner"
 
 // Query keys
 export const documentTypeQueryKeys = {
@@ -24,17 +23,17 @@ export function useDocumentTypeMutations() {
 
   const createDocumentTypeMutation = useMutation({
     mutationFn: createDocumentType,
+    meta: { successMessage: 'Asset type created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
-      toast.success('Asset type created successfully')
     },
   })
 
   const deleteDocumentTypeMutation = useMutation({
     mutationFn: deleteDocumentType,
+    meta: { successMessage: 'Asset type deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
-      toast.success('Asset type deleted successfully')
     },
   })
 
@@ -42,9 +41,9 @@ export function useDocumentTypeMutations() {
     mutationFn: async (ids: string[]) => {
       await Promise.all(ids.map(id => deleteDocumentType(id)))
     },
+    meta: { successMessage: 'Asset types deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: documentTypeQueryKeys.list() })
-      toast.success('Asset types deleted successfully')
     },
   })
 

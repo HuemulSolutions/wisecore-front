@@ -210,6 +210,15 @@ const translations = {
     lock: { en: "Lock", es: "Bloquear" },
     prompt: { en: "Prompt", es: "Prompt" },
     cancel: { en: "Cancel", es: "Cancelar" },
+    viewAiSuggestion: { en: "View AI suggestion", es: "Ver sugerencia de IA" },
+    viewAiSuggestionMenu: { en: "View AI Suggestion", es: "Ver Sugerencia de IA" },
+    diffDialogTitle: { en: "AI Suggestion", es: "Sugerencia de IA" },
+    diffInstruction: { en: "Instruction:", es: "Instrucción:" },
+    diffCurrentLabel: { en: "Current version", es: "Versión actual" },
+    diffSuggestionLabel: { en: "AI suggestion", es: "Sugerencia de IA" },
+    diffAccept: { en: "Accept suggestion", es: "Aceptar sugerencia" },
+    diffReject: { en: "Reject suggestion", es: "Rechazar sugerencia" },
+    diffDismiss: { en: "Cancel", es: "Cancelar" },
   },
   customFieldsList: {
     addField: { en: "Add Field", es: "Agregar Campo" },
@@ -281,6 +290,7 @@ const translations = {
     customFieldsRefreshed: { en: "Custom fields refreshed", es: "Campos personalizados actualizados" },
     documentDeletedNamed: { en: "Asset \"{{name}}\" deleted successfully", es: "Activo \"{{name}}\" eliminado correctamente" },
     documentDeleteFailed: { en: "Failed to delete asset. Please try again.", es: "Error al eliminar el activo. Intenta de nuevo." },
+    exportFailed: { en: "Failed to export. Please try again.", es: "Error al exportar. Intenta de nuevo." },
   },
   addSectionDialog: {
     createBeginning: { en: "Create a new section at the beginning of the asset.", es: "Crear una nueva sección al inicio del activo." },

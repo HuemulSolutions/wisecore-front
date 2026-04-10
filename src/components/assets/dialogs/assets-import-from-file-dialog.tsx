@@ -12,7 +12,6 @@ import { importDocumentFromFile } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
 import { toast } from "sonner"
-import { handleApiError } from "@/lib/error-utils"
 
 interface ImportAssetFromFileDialogProps {
   open: boolean
@@ -67,6 +66,7 @@ export function ImportAssetFromFileDialog({
         organizationId: selectedOrganizationId,
       })
     },
+    meta: { showSuccessToast: false },
     onSuccess: (createdAsset) => {
       const assetId = createdAsset.id ?? createdAsset.document_id
       const assetName = createdAsset.name ?? createdAsset.document_name ?? name
@@ -77,9 +77,6 @@ export function ImportAssetFromFileDialog({
         name: assetName,
         type: "document",
       })
-    },
-    onError: (error) => {
-      handleApiError(error, { fallbackMessage: t('importFromFile.errorFailed') })
     },
   })
 

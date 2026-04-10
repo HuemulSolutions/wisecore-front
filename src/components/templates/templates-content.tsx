@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { getTemplateById, generateTemplateSections } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { TemplateHeader } from "./templates-header";
 import { EditTemplateDialog } from "./templates-edit-dialog";
@@ -96,8 +95,8 @@ export function TemplateContent({
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
     mutationFn: (templateId: string) => generateTemplateSections(templateId, selectedOrganizationId!),
+    meta: { successMessage: t('templates:content.sectionsGenerated') },
     onSuccess: () => {
-      toast.success(t('templates:content.sectionsGenerated'));
       queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
     },
   });

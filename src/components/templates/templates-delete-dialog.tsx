@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { deleteTemplate } from "@/services/templates";
-import { toast } from "sonner";
 
 interface DeleteTemplateDialogProps {
   open: boolean;
@@ -26,8 +25,8 @@ export function DeleteTemplateDialog({
 
   const deleteTemplateMutation = useMutation({
     mutationFn: () => deleteTemplate(templateId, organizationId),
+    meta: { successMessage: t('delete.success') },
     onSuccess: () => {
-      toast.success(t('delete.success'));
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
     },
   });

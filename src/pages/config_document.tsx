@@ -7,7 +7,6 @@ import { PlusCircle, ArrowLeft, Sparkles } from "lucide-react";
 import { getDocumentById, generateDocumentStructure } from "@/services/assets";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { formatDate } from "@/services/utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
@@ -52,24 +51,24 @@ export default function ConfigDocumentPage() {
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, sectionData }: { sectionId: string; sectionData: any }) =>
       updateSection(sectionId, sectionData, selectedOrganizationId!),
+    meta: { successMessage: "Section updated successfully" },
     onSuccess: () => {
-      toast.success("Section updated successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
   });
 
   const deleteSectionMutation = useMutation({
     mutationFn: (sectionId: string) => deleteSection(sectionId, selectedOrganizationId!),
+    meta: { successMessage: "Section deleted successfully" },
     onSuccess: () => {
-      toast.success("Section deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
   });
 
   const reorderSectionsMutation = useMutation({
     mutationFn: (sections: { section_id: string; order: number }[]) => updateSectionsOrder(sections, selectedOrganizationId!),
+    meta: { successMessage: "Sections order updated" },
     onSuccess: () => {
-      toast.success("Sections order updated");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
   });
@@ -77,8 +76,8 @@ export default function ConfigDocumentPage() {
   // Mutation para generar secciones con AI
   const generateSectionsMutation = useMutation({
     mutationFn: (documentId: string) => generateDocumentStructure(documentId, selectedOrganizationId!),
+    meta: { successMessage: "Sections generated successfully with AI" },
     onSuccess: () => {
-      toast.success("Sections generated successfully with AI");
       queryClient.invalidateQueries({ queryKey: ["document", id] });
     },
   });

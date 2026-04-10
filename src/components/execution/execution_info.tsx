@@ -38,7 +38,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             setIsExporting(true);
             await exportExecutionToMarkdown(execution.id, selectedOrganizationId!);
         } catch (error) {
-            console.error('Error exporting execution to markdown:', error);
+            handleApiError(error, { fallbackMessage: 'Failed to export. Please try again.' });
         } finally {
             setIsExporting(false);
         }
@@ -49,7 +49,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             setIsExportingWord(true);
             await exportExecutionToWord(execution.id, selectedOrganizationId!);
         } catch (error) {
-            console.error('Error exporting execution to Word:', error);
+            handleApiError(error, { fallbackMessage: 'Failed to export. Please try again.' });
         } finally {
             setIsExportingWord(false);
         }
@@ -60,7 +60,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             setIsExportingCustomWord(true);
             await exportExecutionCustomWord(execution.id, selectedOrganizationId!);
         } catch (error) {
-            console.error('Error exporting execution to custom Word:', error);
+            handleApiError(error, { fallbackMessage: 'Failed to export. Please try again.' });
         } finally {
             setIsExportingCustomWord(false);
         }

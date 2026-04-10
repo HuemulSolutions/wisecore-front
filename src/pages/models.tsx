@@ -133,75 +133,73 @@ export default function Models() {
   // Mutations
   const createProviderMutation = useMutation({
     mutationFn: createProvider,
+    meta: { successMessage: t('toast.providerConfigured') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
       setIsCreateProviderOpen(false)
-      toast.success(t('toast.providerConfigured'))
     },
   })
 
   const updateProviderMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: CreateLLMProviderRequest }) => updateProvider(id, data),
+    meta: { successMessage: t('toast.providerUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setEditingProvider(null)
-      toast.success(t('toast.providerUpdated'))
     },
   })
 
   const deleteProviderMutation = useMutation({
     mutationFn: deleteProvider,
+    meta: { successMessage: t('toast.providerDeleted') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['allProviders'] })
       setDeletingProvider(null)
-      toast.success(t('toast.providerDeleted'))
     },
   })
 
   const createLLMMutation = useMutation({
     mutationFn: createLLM,
+    meta: { successMessage: t('toast.modelCreated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setIsCreateModelOpen(false)
-      toast.success(t('toast.modelCreated'))
     },
   })
 
   const updateLLMMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateLLMRequest> }) => updateLLMModel(id, data),
+    meta: { successMessage: t('toast.modelUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setEditingModel(null)
-      toast.success(t('toast.modelUpdated'))
     },
   })
 
   const deleteLLMMutation = useMutation({
     mutationFn: deleteLLM,
+    meta: { successMessage: t('toast.modelDeleted') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
       setDeletingModel(null)
-      toast.success(t('toast.modelDeleted'))
     },
   })
 
   const setDefaultMutation = useMutation({
     mutationFn: (llmId: string) => setDefaultLLM(llmId),
+    meta: { successMessage: t('toast.defaultModelUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
-      toast.success(t('toast.defaultModelUpdated'))
     },
   })
 
   const testLLMConnectionMutation = useMutation({
     mutationFn: testLLMConnection,
-    onSuccess: () => {
-      toast.success(t('toast.connectionSuccessful'))
-    },
+    meta: { successMessage: t('toast.connectionSuccessful') },
     onSettled: () => {
       setTestingModelId(null)
     },
@@ -209,31 +207,31 @@ export default function Models() {
 
   const createEmbeddingProviderMutation = useMutation({
     mutationFn: createEmbeddingProvider,
+    meta: { successMessage: t('toast.embeddingProviderConfigured') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setEditingEmbeddingProvider(null)
-      toast.success(t('toast.embeddingProviderConfigured'))
     },
   })
 
   const updateEmbeddingProviderMutation = useMutation({
     mutationFn: updateEmbeddingProvider,
+    meta: { successMessage: t('toast.embeddingProviderUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setEditingEmbeddingProvider(null)
-      toast.success(t('toast.embeddingProviderUpdated'))
     },
   })
 
   const deleteEmbeddingProviderMutation = useMutation({
     mutationFn: deleteEmbeddingProvider,
+    meta: { successMessage: t('toast.embeddingProviderDeleted') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setDeletingEmbeddingProvider(null)
-      toast.success(t('toast.embeddingProviderDeleted'))
     },
   })
 

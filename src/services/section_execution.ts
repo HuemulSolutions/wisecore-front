@@ -88,3 +88,72 @@ export async function getSectionExecutionContent(sectionExecutionId: string, org
     console.warn('Unexpected data structure, returning fallback:', data.data);
     return data.data || '';
 }
+
+export interface AiSuggestionStatus {
+    status: 'pending' | 'completed' | 'failed' | null;
+    content: string | null;
+    instruction: string | null;
+    error: string | null;
+}
+
+export async function createAiSuggestion(
+    sectionExecutionId: string,
+    instruction: string,
+    organizationId?: string
+): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    await httpClient.post(
+        `${backendUrl}/section_executions/${sectionExecutionId}/ai_suggestion`,
+        { instruction },
+        { headers }
+    );
+}
+
+export async function getAiSuggestion(
+    sectionExecutionId: string,
+    organizationId?: string
+): Promise<AiSuggestionStatus> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    const response = await httpClient.get(
+        `${backendUrl}/section_executions/${sectionExecutionId}/ai_suggestion`,
+        { headers }
+    );
+    const data = await response.json();
+    return data.data as AiSuggestionStatus;
+}
+
+export async function acceptAiSuggestion(
+    sectionExecutionId: string,
+    organizationId?: string
+): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    await httpClient.post(
+        `${backendUrl}/section_executions/${sectionExecutionId}/ai_suggestion/accept`,
+        {},
+        { headers }
+    );
+}
+
+export async function rejectAiSuggestion(
+    sectionExecutionId: string,
+    organizationId?: string
+): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    await httpClient.post(
+        `${backendUrl}/section_executions/${sectionExecutionId}/ai_suggestion/reject`,
+        {},
+        { headers }
+    );
+}

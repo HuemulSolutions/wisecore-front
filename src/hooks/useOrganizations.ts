@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getOrganizationUsers, setOrganizationAdmin } from "@/services/organizations"
-import { toast } from "sonner"
 
 // Query keys for organizations
 export const organizationQueryKeys = {
@@ -39,12 +38,12 @@ export function useSetOrganizationAdmin() {
   return useMutation({
     mutationFn: ({ organizationId, userId }: { organizationId: string; userId: string }) =>
       setOrganizationAdmin(organizationId, userId),
+    meta: { successMessage: 'Organization admin set successfully' },
     onSuccess: (_, variables) => {
       // Invalidate the users query for this organization to refresh is_org_admin status
       queryClient.invalidateQueries({
         queryKey: organizationQueryKeys.users(variables.organizationId)
       })
-      toast.success('Organization admin set successfully')
     },
   })
 }

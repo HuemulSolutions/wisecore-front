@@ -64,8 +64,8 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       if (!selectedOrganizationId) throw new Error('Organization not selected');
       return updateDocument(documentId, payload, selectedOrganizationId);
     },
+    meta: { successMessage: t('assets:edit.success') },
     onSuccess: (data) => {
-      toast.success(t('assets:edit.success'));
       // Refresh file tree/library to show updated asset info
       queryClient.invalidateQueries({ queryKey: ['library', selectedOrganizationId] });
       queryClient.invalidateQueries({ queryKey: ['library'] });

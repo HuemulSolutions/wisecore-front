@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
-import { toast } from "sonner"
 
 // Query keys
 export const rbacQueryKeys = {
@@ -90,55 +89,55 @@ export function useRoleMutations() {
 
   const createRoleMutation = useMutation({
     mutationFn: createRole,
+    meta: { successMessage: 'Role created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Role created successfully')
     },
   })
 
   const updateRoleMutation = useMutation({
     mutationFn: ({ roleId, data }: { roleId: string; data: any }) => 
       updateRole(roleId, data),
+    meta: { successMessage: 'Role updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
       // Don't invalidate rolePermissions here - it should only refetch when sheet opens
-      toast.success('Role updated successfully')
     },
   })
 
   const deleteRoleMutation = useMutation({
     mutationFn: deleteRole,
+    meta: { successMessage: 'Role deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Role deleted successfully')
     },
   })
 
   const assignRolesMutation = useMutation({
     mutationFn: ({ userId, roleIds }: { userId: string; roleIds: string[] }) =>
       assignRolesToUser(userId, { role_ids: roleIds }),
+    meta: { successMessage: 'Roles assigned successfully' },
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.userRoles(userId) })
-      toast.success('Roles assigned successfully')
     },
   })
 
   const assignUsersToRoleMutation = useMutation({
     mutationFn: ({ roleId, userIds }: { roleId: string; userIds: string[] }) =>
       assignUsersToRole(roleId, userIds),
+    meta: { successMessage: 'Users assigned successfully' },
     onSuccess: (_, { roleId }) => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roleWithAllUsers(roleId) })
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Users assigned successfully')
     },
   })
 
   const cloneRoleMutation = useMutation({
     mutationFn: ({ roleId, copyUsers }: { roleId: string; copyUsers: boolean }) =>
       cloneRole(roleId, { copy_users: copyUsers }),
+    meta: { successMessage: 'Role cloned successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rbacQueryKeys.roles() })
-      toast.success('Role cloned successfully')
     },
   })
 

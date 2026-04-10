@@ -10,7 +10,6 @@ import {
   updateAccess,
   bulkGrantAccess
 } from "@/services/role-document-type"
-import { toast } from "sonner"
 
 // Query keys
 export const roleDocumentTypeQueryKeys = {
@@ -79,42 +78,42 @@ export function useRoleDocumentTypeMutations() {
 
   const grantAccessMutation = useMutation({
     mutationFn: grantAccess,
+    meta: { successMessage: 'Access granted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: roleDocumentTypeQueryKeys.documentTypePermissions('') })
       queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
-      toast.success('Access granted successfully')
     },
   })
 
   const revokeAccessMutation = useMutation({
     mutationFn: ({ roleId, documentTypeId }: { roleId: string; documentTypeId: string }) => 
       revokeAccess(roleId, documentTypeId),
+    meta: { successMessage: 'Access revoked successfully' },
     onSuccess: () => {
       // Don't invalidate documentTypeRolesAccessLevels - it should only refetch when dialog opens
       queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
-      toast.success('Access revoked successfully')
     },
   })
 
   const updateAccessMutation = useMutation({
     mutationFn: ({ roleDocTypeId, accessLevel }: { roleDocTypeId: string; accessLevel: string }) => 
       updateAccess(roleDocTypeId, accessLevel),
+    meta: { successMessage: 'Access updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
-      toast.success('Access updated successfully')
     },
   })
 
   const bulkGrantAccessMutation = useMutation({
     mutationFn: bulkGrantAccess,
+    meta: { successMessage: 'All permissions granted successfully' },
     onSuccess: () => {
       // Don't invalidate documentTypeRolesAccessLevels - it should only refetch when dialog opens
       queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
-      toast.success('All permissions granted successfully')
     },
   })
 

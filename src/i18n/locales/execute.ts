@@ -194,6 +194,26 @@ const translations = {
     processing: { en: "Processing...", es: "Procesando..." },
     refresh: { en: "Refresh", es: "Actualizar" },
   },
+  aiSuggestion: {
+    status: {
+      pending: { en: "AI suggestion pending...", es: "Sugerencia de IA pendiente..." },
+      processing: { en: "AI is processing your request...", es: "La IA está procesando tu solicitud..." },
+      completed: { en: "AI suggestion ready", es: "Sugerencia de IA lista" },
+      failed: { en: "AI suggestion failed", es: "La sugerencia de IA falló" },
+    },
+    description: {
+      pending: { en: "Your request is queued and will be processed shortly.", es: "Tu solicitud está en cola y será procesada en breve." },
+      processing: { en: "The AI is working on your edit. This may take a few seconds.", es: "La IA está trabajando en tu edición. Esto puede tardar unos segundos." },
+      completed: { en: "The suggestion has been applied as a preview. Review and save to keep it.", es: "La sugerencia se aplicó como vista previa. Revisa y guarda para conservarla." },
+      failed: { en: "Something went wrong generating the suggestion. Please try again.", es: "Algo salió mal al generar la sugerencia. Intenta de nuevo." },
+    },
+    refresh: { en: "Refresh status", es: "Actualizar estado" },
+    dismiss: { en: "Dismiss", es: "Descartar" },
+    toast: {
+      success: { en: "AI suggestion ready!", es: "¡Sugerencia de IA lista!" },
+      failed: { en: "AI suggestion failed", es: "La sugerencia de IA falló" },
+    },
+  },
 }
 
 export default translations

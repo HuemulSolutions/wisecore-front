@@ -229,8 +229,8 @@ export function AssetContent({
       
       setIsDirectSectionDialogOpen(false);
       setSectionInsertPosition(undefined);
-      toast.success(t('mutations.sectionCreated'));
     },
+    meta: { successMessage: t('mutations.sectionCreated') },
   });
 
   // Mutation for section execution creation
@@ -250,8 +250,8 @@ export function AssetContent({
       
       setIsSectionExecutionDialogOpen(false);
       setAfterFromSectionId(null);
-      toast.success(t('mutations.sectionAdded'));
     },
+    meta: { successMessage: t('mutations.sectionAdded') },
   });
 
   // Mutation para ejecutar documento directamente
@@ -271,7 +271,6 @@ export function AssetContent({
       });
     },
     onSuccess: (executionData) => {
-      toast.success(t('mutations.executionStarted'));
       setCurrentExecutionId(executionData.id);
       
       // Update selected execution to show the new one
@@ -282,6 +281,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionStarted') },
   });
 
   // Mutation for approve execution
@@ -325,12 +325,12 @@ export function AssetContent({
       return disapproveExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success(t('mutations.executionDisapproved'));
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionDisapproved') },
   });
 
   // Mutation for deleting execution
@@ -345,8 +345,6 @@ export function AssetContent({
       return deleteExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: () => {
-      toast.success(t('mutations.executionDeleted'));
-      
       // Clear selected execution and switch to most recent remaining execution
       const executions = documentContent?.executions || documentExecutions;
       const remainingExecutions = executions?.filter((exec: any) => exec.id !== selectedExecutionId);
@@ -361,6 +359,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionDeleted') },
   });
 
   // Mutation for clone execution
@@ -375,7 +374,6 @@ export function AssetContent({
       return cloneExecution(selectedExecutionId, selectedOrganizationId);
     },
     onSuccess: (clonedExecution) => {
-      toast.success(t('mutations.executionCloned'));
       // Switch to the new cloned execution
       setSelectedExecutionId(clonedExecution.id);
       
@@ -384,6 +382,7 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
     },
+    meta: { successMessage: t('mutations.executionCloned') },
   });
 
   // Mutation for creating custom field document
@@ -397,9 +396,9 @@ export function AssetContent({
       if (createdField.data_type !== 'image') {
         queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
         setIsAddCustomFieldDocumentDialogOpen(false);
-        toast.success(t('mutations.customFieldCreated'));
       }
     },
+    meta: { successMessage: t('mutations.customFieldCreated') },
   });
 
   // Mutation for updating custom field document
@@ -412,8 +411,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
       setIsEditCustomFieldDocumentDialogOpen(false);
       setSelectedCustomFieldDocument(null);
-      toast.success(t('mutations.customFieldUpdated'));
     },
+    meta: { successMessage: t('mutations.customFieldUpdated') },
   });
 
   // Mutation for deleting custom field document
@@ -426,8 +425,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
       setIsDeleteCustomFieldDocumentDialogOpen(false);
       setCustomFieldDocumentToDelete(null);
-      toast.success(t('mutations.customFieldDeleted'));
     },
+    meta: { successMessage: t('mutations.customFieldDeleted') },
   });
 
   // Mutation for checking (advancing) execution lifecycle
@@ -443,8 +442,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       setIsCheckLifecycleDialogOpen(false);
-      toast.success(t('lifecycle.successComplete'));
     },
+    meta: { successMessage: t('lifecycle.successComplete') },
     onError: (error) => {
       setIsCheckLifecycleDialogOpen(false);
       handleApiError(error, { fallbackMessage: t('lifecycle.errorComplete') });
@@ -462,8 +461,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       setIsAssignVersionDialogOpen(false);
-      toast.success(t('mutations.versionAssigned'));
     },
+    meta: { successMessage: t('mutations.versionAssigned') },
     onError: (error) => {
       setIsAssignVersionDialogOpen(false);
       handleApiError(error, { fallbackMessage: t('mutations.failedAssignVersion') });
@@ -482,8 +481,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       queryClient.invalidateQueries({ queryKey: ['rollback-targets'] });
       setIsRejectLifecycleDialogOpen(false);
-      toast.success(t('lifecycle.successReturn'));
     },
+    meta: { successMessage: t('lifecycle.successReturn') },
     onError: (error) => {
       setIsRejectLifecycleDialogOpen(false);
       handleApiError(error, { fallbackMessage: t('lifecycle.errorReturn') });
@@ -504,8 +503,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       setIsPublishDialogOpen(false);
       setIsArchiveDialogOpen(false);
-      toast.success(t('lifecycle.successAdvance'));
     },
+    meta: { successMessage: t('lifecycle.successAdvance') },
     onError: (error) => {
       setIsPublishDialogOpen(false);
       setIsArchiveDialogOpen(false);
@@ -532,8 +531,8 @@ export function AssetContent({
       queryClient.invalidateQueries({ queryKey: ['library'] });
       setIsRenameVersionDialogOpen(false);
       setExecutionToRename(null);
-      toast.success(t('mutations.versionRenamed'));
     },
+    meta: { successMessage: t('mutations.versionRenamed') },
     onError: (error) => {
       handleApiError(error, { fallbackMessage: t('mutations.failedRenameVersion') });
     },
@@ -1354,7 +1353,7 @@ export function AssetContent({
       try {
         await exportExecutionToMarkdown(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
-        console.error('Error exporting to markdown:', error);
+        handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
       }
     }
   };
@@ -1365,7 +1364,7 @@ export function AssetContent({
       try {
         await exportExecutionToWord(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
-        console.error('Error exporting to word:', error);
+        handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
       }
     }
   };
@@ -1381,7 +1380,7 @@ export function AssetContent({
       try {
         await exportExecutionToExcel(documentContent.execution_id, selectedOrganizationId!);
       } catch (error) {
-        console.error('Error exporting to excel:', error);
+        handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
       }
     }
   };
@@ -3106,6 +3105,9 @@ export function AssetContent({
                                     output: section.content,
                                     section_id: realSectionId,
                                     plate_content: section.plate_content,
+                                    ai_suggestion_status: section.ai_suggestion_status,
+                                    ai_suggestion_content: section.ai_suggestion_content,
+                                    ai_suggestion_instruction: section.ai_suggestion_instruction,
                                   }}
                                   onUpdate={() => {
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
