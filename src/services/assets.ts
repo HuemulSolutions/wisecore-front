@@ -233,6 +233,7 @@ export interface ImportDocumentFromFileParams {
   document_type_id: string;
   section_separator?: 'h1' | 'h2' | 'h3';
   force_import?: boolean;
+  folder_id?: string | null;
   file: File;
   organizationId: string;
 }
@@ -245,6 +246,7 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
   if (params.internal_code) url.searchParams.append('internal_code', params.internal_code);
   if (params.section_separator) url.searchParams.append('section_separator', params.section_separator);
   if (params.force_import !== undefined) url.searchParams.append('force_import', String(params.force_import));
+  if (params.folder_id != null) url.searchParams.append('folder_id', params.folder_id);
 
   const formData = new FormData();
   formData.append('file', params.file);

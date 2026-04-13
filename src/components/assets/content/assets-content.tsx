@@ -851,8 +851,13 @@ export function AssetContent({
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Remove automatic polling - let the ExecutionStatusBanner handle status updates
-    // and trigger refresh through query invalidation
+    // Poll every 3 s while there is an importing execution; otherwise let the
+    // ExecutionStatusBanner drive refreshes through query invalidation.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasImporting = data?.executions?.some((e: any) => e.status === 'importing');
+      return hasImporting ? 3000 : false;
+    },
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });
@@ -1241,28 +1246,35 @@ export function AssetContent({
   // Sync selectedExecutionId with the execution that was loaded by the backend
   // This only happens ONCE per document to set the initial state, preventing duplicate API calls
   useEffect(() => {
+    // Also handle the case where execution_id is null but there is an importing execution
+    // (import-from-file sets execution_id = null until the import finishes)
+    const importingExecution = documentContent?.executions?.find(
+      (e: any) => e.status === 'importing'
+    );
+    const resolvedExecutionId = documentContent?.execution_id || importingExecution?.id;
+
     // Only sync if:
-    // 1. We have document content with an execution_id
+    // 1. We have document content with an execution_id OR an importing execution
     // 2. selectedExecutionId is currently null (no manual selection yet)
     // 3. We haven't already initialized for this document
     if (
       selectedFile?.type === 'document' &&
-      documentContent?.execution_id &&
+      resolvedExecutionId &&
       !selectedExecutionId &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
-      console.log('🔄 Syncing selectedExecutionId with loaded execution:', documentContent.execution_id);
-      
+      console.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
+
       // Copy the already-loaded data to the new queryKey to prevent duplicate API call
       queryClient.setQueryData(
-        ['document-content', selectedFile.id, documentContent.execution_id],
+        ['document-content', selectedFile.id, resolvedExecutionId],
         documentContent
       );
-      
-      setSelectedExecutionId(documentContent.execution_id);
+
+      setSelectedExecutionId(resolvedExecutionId);
       hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, selectedExecutionId, queryClient]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -2762,8 +2774,18 @@ export function AssetContent({
                         queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
                         queryClient.invalidateQueries({ queryKey: ['execution-status', isSelectedVersionExecuting.id] });
                         
-                        // Refetch immediately
-                        queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                        // When an import finishes the backend now has a real execution_id.
+                        // Reset the initialization ref so the sync effect can pick the real
+                        // execution_id on the next refetch, then refetch without an execution_id
+                        // so the response carries the updated execution_id.
+                        if (isSelectedVersionExecuting.status === 'importing' || !selectedExecutionId) {
+                          hasInitializedExecutionRef.current = null;
+                          setSelectedExecutionId(null);
+                          queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
+                        } else {
+                          // Refetch immediately
+                          queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                        }
                       }}
                     />
                   </div>
