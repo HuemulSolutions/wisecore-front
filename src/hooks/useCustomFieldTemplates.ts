@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 import {
   getCustomFieldTemplateSources,
   getCustomFieldTemplatesByTemplate,
@@ -70,26 +69,26 @@ export function useCustomFieldTemplateMutations() {
 
   const createMutation = useMutation({
     mutationFn: createCustomFieldTemplate,
+    meta: { successMessage: 'Custom field template created successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
-      toast.success('Custom field template created successfully')
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateCustomFieldTemplateRequest }) =>
       updateCustomFieldTemplate(id, data),
+    meta: { successMessage: 'Custom field template updated successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
-      toast.success('Custom field template updated successfully')
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteCustomFieldTemplate,
+    meta: { successMessage: 'Custom field template deleted successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
-      toast.success('Custom field template deleted successfully')
     },
   })
 
@@ -98,9 +97,9 @@ export function useCustomFieldTemplateMutations() {
   const uploadValueBlobMutation = useMutation({
     mutationFn: ({ id, file }: { id: string; file: File }) =>
       uploadCustomFieldTemplateValueBlob(id, file, selectedOrganizationId!),
+    meta: { successMessage: 'Image uploaded successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customFieldTemplatesQueryKeys.all })
-      toast.success('Image uploaded successfully')
     },
   })
 

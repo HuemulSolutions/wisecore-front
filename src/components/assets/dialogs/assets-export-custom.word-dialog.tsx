@@ -47,8 +47,8 @@ export function CustomWordExportDialog({
       setIsUploading(true);
       return uploadDocxTemplate(selectedFile.id, file, selectedOrganizationId);
     },
+    meta: { successMessage: t('exportCustomWord.templateUploaded') },
     onSuccess: () => {
-      toast.success(t('exportCustomWord.templateUploaded'));
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -67,8 +67,8 @@ export function CustomWordExportDialog({
       }
       return exportExecutionCustomWord(selectedExecutionId, selectedOrganizationId);
     },
+    meta: { successMessage: t('exportCustomWord.documentExported') },
     onSuccess: () => {
-      toast.success(t('exportCustomWord.documentExported'));
       onOpenChange(false);
     },
   });

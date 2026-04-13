@@ -1,5 +1,6 @@
-import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2 } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
@@ -14,8 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { fixSection, executeSingleSection, executeFromSection } from '@/services/generate';
-import { deleteSectionExec, modifyContent } from '@/services/section_execution';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
+import { executeSingleSection, executeFromSection } from '@/services/generate';
+import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion } from '@/services/section_execution';
+import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
+import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { useOrganization } from '@/contexts/organization-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
@@ -29,6 +33,9 @@ interface SectionExecutionProps {
         section_id?: string;
         /** Plate JSON nodes (stringified) – used to restore comment marks on load */
         plate_content?: string[];
+        ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null;
+        ai_suggestion_content?: string | null;
+        ai_suggestion_instruction?: string | null;
     }
     onUpdate?: () => void;
     readyToEdit: boolean;
@@ -65,12 +72,23 @@ export default function SectionExecution({
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
+    const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
-    const [isAiProcessing, setIsAiProcessing] = useState(false);
+    const [isAiSuggestionActive, setIsAiSuggestionActive] = useState(
+        sectionExecution.ai_suggestion_status === 'pending'
+    );
+    const [isDiffOpen, setIsDiffOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+    // Derived: whether there's a completed suggestion ready to review
+    const hasPendingSuggestion =
+        !!sectionExecution.ai_suggestion_content &&
+        sectionExecution.ai_suggestion_status === 'completed' &&
+        aiPreview === null &&
+        !isAiSuggestionActive;
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
@@ -87,8 +105,8 @@ export default function SectionExecution({
     // Check if there's an execution in progress
     const isExecutionInProgress = !!(executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus));
     
-    // Solucion temporal: usar el ID de la sección como fallback si section_id no existe
-    const sectionIdForExecution = sectionExecution.section_id || sectionExecution.id;
+    // If section_id is null, the section was removed from the structure and cannot be executed
+    const sectionIdForExecution = sectionExecution.section_id ?? null;
     
     // Refs and state for maintaining scroll position - Updated for ScrollArea
     const containerRef = useRef<HTMLDivElement>(null);
@@ -277,25 +295,13 @@ export default function SectionExecution({
     const normalizedSectionType = sectionType ?? 'manual';
     const sectionTypeLabel = normalizedSectionType.charAt(0).toUpperCase() + normalizedSectionType.slice(1);
 
-    const handleSendAiEdit = (prompt: string) => {
-        setIsAiProcessing(true);
-        setAiPreview('');
-        fixSection({
-            instructions: prompt,
-            content: sectionExecution.output.replace(/\\n/g, "\n"),
-            organizationId: selectedOrganizationId!,
-            onData: (chunk: string) => {
-                const normalized = chunk.replace(/\\n/g, "\n");
-                setAiPreview(prev => (prev ?? '') + normalized);
-            },
-            onError: (e: Event) => {
-                console.error('AI edit error', e);
-                setIsAiProcessing(false);
-            },
-            onClose: () => {
-                setIsAiProcessing(false);
-            }
-        });
+    const handleSendAiEdit = async (prompt: string) => {
+        try {
+            await createAiSuggestion(sectionExecution.id, prompt, selectedOrganizationId ?? undefined);
+            setIsAiSuggestionActive(true);
+        } catch (error) {
+            handleApiError(error, { fallbackMessage: t('section.executionFailed') });
+        }
         setIsAiEditDialogOpen(false);
     };
 
@@ -310,7 +316,25 @@ export default function SectionExecution({
         }
     };
 
-    const displayedContent = (aiPreview ?? sectionExecution.output.replace(/\\n/g, "\n"));
+    const displayedContent = (aiPreview !== null && !isDiffOpen)
+        ? aiPreview
+        : sectionExecution.output.replace(/\\n/g, "\n");
+
+    const handleViewSuggestion = () => {
+        setAiPreview(sectionExecution.ai_suggestion_content ?? null);
+        setIsDiffOpen(true);
+    };
+
+    const handleAiSuggestionCompleted = (_content: string) => {
+        setIsAiSuggestionActive(false);
+        // Invalidate so props refresh with ai_suggestion_status: 'completed'
+        // hasPendingSuggestion will become true and the button will update
+        queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
+    };
+
+    const handleAiSuggestionFailed = () => {
+        setIsAiSuggestionActive(false);
+    };
 
     // Debug logging for execution tracking
     console.log('🔍 SectionExecution render:', {
@@ -343,7 +367,7 @@ export default function SectionExecution({
                         {/* Desktop: Direct Action Buttons */}
                         {!isMobile && (
                             <div className="flex items-center gap-1">
-                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && (
+                                {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
                                     <HuemulButton
                                         variant="ghost"
                                         size="sm"
@@ -357,15 +381,20 @@ export default function SectionExecution({
                                 )}
 
                                 {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
-                                    <HuemulButton
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={Bot}
-                                        iconClassName="h-3.5 w-3.5 text-blue-600"
-                                        className="h-7 w-7 hover:bg-blue-50"
-                                        tooltip={t('section.askAiToEdit')}
-                                        onClick={() => setIsAiEditDialogOpen(true)}
-                                    />
+                                    <div className="relative">
+                                        <HuemulButton
+                                            variant="ghost"
+                                            size="sm"
+                                            icon={hasPendingSuggestion ? GitCompare : Bot}
+                                            iconClassName={`h-3.5 w-3.5 ${hasPendingSuggestion ? 'text-amber-600' : 'text-blue-600'}`}
+                                            className={`h-7 w-7 ${hasPendingSuggestion ? 'hover:bg-amber-50' : 'hover:bg-blue-50'}`}
+                                            tooltip={hasPendingSuggestion ? t('section.viewAiSuggestion') : t('section.askAiToEdit')}
+                                            onClick={() => hasPendingSuggestion ? handleViewSuggestion() : setIsAiEditDialogOpen(true)}
+                                        />
+                                        {hasPendingSuggestion && (
+                                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500" />
+                                        )}
+                                    </div>
                                 )}
 
                                 {!isEditing && !isExecutionApproved && canEdit && canEditSections && (
@@ -460,15 +489,27 @@ export default function SectionExecution({
                                         </DropdownMenuItem>
                                     )}
                                     {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
-                                        <DropdownMenuItem 
-                                            className="hover:cursor-pointer"
-                                            onSelect={() => {
-                                                setTimeout(() => setIsAiEditDialogOpen(true), 0);
-                                            }}
-                                        >
-                                            <Bot className="h-4 w-4 mr-2" />
-                                            {t('section.askAiToEditMenu')}
-                                        </DropdownMenuItem>
+                                        hasPendingSuggestion ? (
+                                            <DropdownMenuItem
+                                                className="hover:cursor-pointer"
+                                                onSelect={() => {
+                                                    setTimeout(() => handleViewSuggestion(), 0);
+                                                }}
+                                            >
+                                                <GitCompare className="h-4 w-4 mr-2 text-amber-600" />
+                                                {t('section.viewAiSuggestionMenu')}
+                                            </DropdownMenuItem>
+                                        ) : (
+                                            <DropdownMenuItem 
+                                                className="hover:cursor-pointer"
+                                                onSelect={() => {
+                                                    setTimeout(() => setIsAiEditDialogOpen(true), 0);
+                                                }}
+                                            >
+                                                <Bot className="h-4 w-4 mr-2" />
+                                                {t('section.askAiToEditMenu')}
+                                            </DropdownMenuItem>
+                                        )
                                     )}
                                     {!isEditing && !isExecutionApproved && canDelete && canEditSections && (
                                         <DropdownMenuItem 
@@ -481,7 +522,7 @@ export default function SectionExecution({
                                             {t('section.delete')}
                                         </DropdownMenuItem>
                                     )}
-                                    {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && (
+                                    {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
                                         <DropdownMenuItem
                                             className='hover:cursor-pointer'
                                             onSelect={() => {
@@ -520,7 +561,17 @@ export default function SectionExecution({
                 </div>
             )}
             
-            {aiPreview !== null && !isAiProcessing && (
+            {isAiSuggestionActive && (
+                <div className="mb-3 sticky top-9 z-40 shadow-lg">
+                    <AiSuggestionFeedback
+                        sectionExecutionId={sectionExecution.id}
+                        onCompleted={handleAiSuggestionCompleted}
+                        onFailed={handleAiSuggestionFailed}
+                        onDismiss={() => setIsAiSuggestionActive(false)}
+                    />
+                </div>
+            )}
+            {aiPreview !== null && !isAiSuggestionActive && !isDiffOpen && (
                 <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between sticky top-9 z-40 shadow-lg">
                     <span className="text-sm text-amber-800">{t('section.aiPreviewReady')}</span>
                     <div className="flex gap-2">
@@ -542,11 +593,6 @@ export default function SectionExecution({
                             {t('section.undo')}
                         </Button>
                     </div>
-                </div>
-            )}
-            {aiPreview !== null && isAiProcessing && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 sticky top-9 z-40 shadow-lg">
-                    {t('section.generatingAiProposal')}
                 </div>
             )}
             
@@ -632,8 +678,64 @@ export default function SectionExecution({
             open={isAiEditDialogOpen}
             onOpenChange={handleAiEditDialogChange}
             onSend={handleSendAiEdit}
-            isProcessing={isAiProcessing}
+            isProcessing={false}
         />
+
+        {/* AI Suggestion Diff Dialog */}
+        <HuemulDialog
+            open={isDiffOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                    // Refresh so hasPendingSuggestion reflects server state
+                    queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
+                }
+            }}
+            title={t('section.diffDialogTitle')}
+            description={
+                sectionExecution.ai_suggestion_instruction
+                    ? `${t('section.diffInstruction')} "${sectionExecution.ai_suggestion_instruction}"`
+                    : undefined
+            }
+            icon={GitCompare}
+            iconClassName="text-amber-600"
+            maxWidth="w-[95vw]"
+            maxHeight="max-h-[90vh]"
+            className="!max-w-[95vw]"
+            cancelLabel={t('section.diffDismiss')}
+            extraActions={[{
+                label: t('section.diffReject'),
+                variant: 'destructive',
+                closeOnSuccess: false,
+                onClick: async () => {
+                    await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                },
+            }]}
+            saveAction={{
+                label: t('section.diffAccept'),
+                onClick: async () => {
+                    await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    setAiPreview(null);
+                    setIsDiffOpen(false);
+                    queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
+                    onUpdate?.();
+                },
+                closeOnSuccess: false,
+            }}
+        >
+            <MarkdownDiffViewer
+                oldContent={sectionExecution.output.replace(/\\n/g, "\n")}
+                newContent={aiPreview ?? sectionExecution.ai_suggestion_content ?? ''}
+                oldLabel={t('section.diffCurrentLabel')}
+                newLabel={t('section.diffSuggestionLabel')}
+                defaultMode='rendered'
+                showModeToggle={false}
+                showRenderedDiffPanel={false}
+            />
+        </HuemulDialog>
         </div>
     );
 

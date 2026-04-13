@@ -31,10 +31,10 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
       if (!selectedOrganizationId) throw new Error("Organization ID not found")
       return createFolder(data.name, data.organization_id, data.parent_folder_id)
     },
+    meta: { successMessage: t('createFolder.success') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library", selectedOrganizationId] })
       onFolderCreated?.()
-      toast.success(t('createFolder.success'))
       onOpenChange(false)
     },
   })

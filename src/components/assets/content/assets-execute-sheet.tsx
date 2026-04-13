@@ -397,6 +397,16 @@ export function ExecuteSheet({
     value: section.id,
   })) ?? [];
 
+  // When coming from a section context, find the section in fullDocument by ID (not by sectionIndex),
+  // because documentContent.content may include sections with null section_id that are absent from
+  // fullDocument.sections, causing the indices to diverge.
+  const contextSection = executionContext?.type === 'section' && executionContext.sectionId
+    ? fullDocument?.sections?.find((s: any) => s.id === executionContext.sectionId)
+    : undefined;
+  const contextSectionStructureIndex = contextSection
+    ? fullDocument?.sections?.indexOf(contextSection)
+    : -1;
+
   const llmOptions = llms?.map((llm: any) => ({
     label: defaultLLM?.id === llm.id ? `${llm.name} (${t('languageModel.defaultBadge')})` : llm.name,
     value: llm.id,
@@ -538,11 +548,11 @@ export function ExecuteSheet({
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                                   <span className="text-sm font-medium text-blue-900">
-                                    {t('selectedSection.sectionNumber', { number: (executionContext.sectionIndex || 0) + 1 })}
+                                    {t('selectedSection.sectionNumber', { number: contextSectionStructureIndex >= 0 ? contextSectionStructureIndex + 1 : (executionContext.sectionIndex || 0) + 1 })}
                                   </span>
                                 </div>
                                 <div className="text-sm text-blue-700">
-                                  {fullDocument?.sections?.[executionContext.sectionIndex || 0]?.name || t('selectedSection.label')}
+                                  {contextSection?.name || fullDocument?.sections?.[executionContext.sectionIndex || 0]?.name || t('selectedSection.label')}
                                 </div>
                               </div>
                               <p className="text-xs text-gray-500">

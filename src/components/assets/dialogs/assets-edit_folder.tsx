@@ -38,6 +38,7 @@ export default function EditFolder({
       }
       return await editFolder(folderId, newName.trim(), selectedOrganizationId)
     },
+    meta: { showSuccessToast: false },
     onSuccess: () => {
       toast.success(t('editFolder.renameSuccess', { name: name.trim() }))
       onFolderEdited?.()

@@ -5,7 +5,6 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { createTemplateSection } from "@/services/template_section";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 
 interface AddSectionDialogProps {
   open: boolean;
@@ -36,8 +35,8 @@ export function AddSectionDialog({
 
   const addSectionMutation = useMutation({
     mutationFn: (sectionData: any) => createTemplateSection(sectionData, organizationId),
+    meta: { successMessage: t('sections:toast.sectionCreated') },
     onSuccess: () => {
-      toast.success(t('sections:toast.sectionCreated'));
       queryClient.invalidateQueries({ queryKey: ['template', templateId] });
       onOpenChange(false);
       setIsFormValid(false);

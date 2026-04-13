@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { handleApiError } from '@/lib/error-utils'
 import {
   getLifecycleStepTypes,
   getLifecycleSteps,
@@ -74,34 +73,29 @@ export function useLifecycleMutations(documentTypeId: string, stepType: string |
     mutationFn: ({ stepId, data }: { stepId: string; data: UpdateLifecycleStepData }) =>
       updateLifecycleStep(stepId, data),
     onSuccess: invalidateSteps,
-    onError: (error) => handleApiError(error),
   })
 
   const addRole = useMutation({
     mutationFn: ({ stepId, roleId }: { stepId: string; roleId: string }) =>
       addRoleToStep(stepId, roleId),
     onSuccess: invalidateSteps,
-    onError: (error) => handleApiError(error),
   })
 
   const removeRole = useMutation({
     mutationFn: ({ stepId, roleId }: { stepId: string; roleId: string }) =>
       removeRoleFromStep(stepId, roleId),
     onSuccess: invalidateSteps,
-    onError: (error) => handleApiError(error),
   })
 
   const createStep = useMutation({
     mutationFn: (data: CreateLifecycleStepData) =>
       createLifecycleStep(documentTypeId, data),
     onSuccess: invalidateSteps,
-    onError: (error) => handleApiError(error),
   })
 
   const deleteStep = useMutation({
     mutationFn: (stepId: string) => deleteLifecycleStep(stepId),
     onSuccess: invalidateSteps,
-    onError: (error) => handleApiError(error),
   })
 
   return { updateStep, addRole, removeRole, createStep, deleteStep }

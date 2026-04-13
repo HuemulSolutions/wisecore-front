@@ -6,7 +6,6 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
-import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-utils";
 
 interface CreateTemplateDialogProps {
@@ -42,9 +41,9 @@ export function CreateTemplateDialog({
       console.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
       return addTemplate(newData);
     },
+    meta: { successMessage: t('create.success') },
     onSuccess: (created) => {
       console.log('✅ [CREATE-TEMPLATE-DIALOG] Template created successfully:', created);
-      toast.success(t('create.success'));
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
       
       // Store the callback to execute after dialog closes

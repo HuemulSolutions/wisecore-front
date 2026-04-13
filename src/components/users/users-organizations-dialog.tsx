@@ -14,7 +14,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
 import { getAllOrganizations } from "@/services/organizations"
 import { type Organization } from "@/components/organization"
-import { toast } from "sonner"
 
 interface UserOrganizationsDialogProps {
   user: User | null
@@ -42,9 +41,9 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   const assignMutation = useMutation({
     mutationFn: (organizationId: string) => 
       assignUserToOrganization(organizationId, { user_id: user!.id }),
+    meta: { successMessage: t('users:organizations.assignedSuccess') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
-      toast.success(t('users:organizations.assignedSuccess'))
       setSelectedOrganizationId("")
     },
   })
@@ -52,9 +51,9 @@ export default function UserOrganizationsDialog({ user, open, onOpenChange }: Us
   const removeMutation = useMutation({
     mutationFn: (organizationId: string) => 
       removeUserFromOrganization(organizationId, user!.id),
+    meta: { successMessage: t('users:organizations.removedSuccess') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'organizations', user?.id] })
-      toast.success(t('users:organizations.removedSuccess'))
     },
   })
 
