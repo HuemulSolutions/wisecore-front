@@ -13,6 +13,7 @@ import {
   AlignRightIcon,
 } from 'lucide-react';
 import { useEditorPlugin, useSelectionFragmentProp } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 
 import {
   DropdownMenu,
@@ -52,13 +53,14 @@ export function AlignToolbarButton(props: DropdownMenuProps) {
     }) ?? 'left';
 
   const [open, setOpen] = React.useState(false);
+  const { t } = useTranslation('editor');
   const IconValue =
     items.find((item) => item.value === value)?.icon ?? AlignLeftIcon;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
       <DropdownMenuTrigger asChild>
-        <ToolbarButton pressed={open} tooltip="Align" isDropdown>
+        <ToolbarButton pressed={open} tooltip={t('toolbar.align')} isDropdown>
           <IconValue />
         </ToolbarButton>
       </DropdownMenuTrigger>

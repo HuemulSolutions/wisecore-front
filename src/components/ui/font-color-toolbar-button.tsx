@@ -12,6 +12,7 @@ import { useComposedRef } from '@udecode/cn';
 import debounce from 'lodash/debounce';
 import { BaselineIcon, EraserIcon, PaintBucketIcon, PlusIcon } from 'lucide-react';
 import { useEditorRef, useEditorSelector } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 
 import { buttonVariants } from '@/components/ui/button';
 import {
@@ -157,9 +158,11 @@ function PureColorPicker({
   updateCustomColor: (color: string) => void;
   color?: string;
 }) {
+  const { t } = useTranslation('editor');
+
   return (
     <div className={cn('flex flex-col', className)} {...props}>
-      <ToolbarMenuGroup label="Custom Colors">
+      <ToolbarMenuGroup label={t('colors.customColors')}>
         <ColorCustom
           color={color}
           className="px-2"
@@ -169,7 +172,7 @@ function PureColorPicker({
           updateCustomColor={updateCustomColor}
         />
       </ToolbarMenuGroup>
-      <ToolbarMenuGroup label="Default Colors">
+      <ToolbarMenuGroup label={t('colors.defaultColors')}>
         <ColorDropdownMenuItems
           color={color}
           className="px-2"
@@ -181,7 +184,7 @@ function PureColorPicker({
         <ToolbarMenuGroup>
           <DropdownMenuItem className="p-2" onClick={clearColor}>
             <EraserIcon />
-            <span>Clear</span>
+            <span>{t('colors.clear')}</span>
           </DropdownMenuItem>
         </ToolbarMenuGroup>
       )}

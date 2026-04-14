@@ -36,6 +36,15 @@ const extractTextFromChildren = (children: React.ReactNode): string => {
 const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
   const processedChildren = preprocessHighlight(children);
 
+  // Track heading slug occurrences for deduplication
+  const headingCount = new Map<string, number>();
+  const getUniqueHeadingId = (text: string): string => {
+    const baseId = generateHeadingId(text, sectionIndex);
+    const count = headingCount.get(baseId) || 0;
+    headingCount.set(baseId, count + 1);
+    return count === 0 ? baseId : `${baseId}-${count + 1}`;
+  };
+
   return (
     <div className="w-full max-w-full overflow-x-auto">
       <ReactMarkdown
@@ -60,32 +69,32 @@ const Markdown: React.FC<MarkdownProps> = ({ children, sectionIndex }) => {
           ),
           h1: ({ children }) => {
             const text = extractTextFromChildren(children);
-            const id = generateHeadingId(text, sectionIndex);
+            const id = getUniqueHeadingId(text);
             return <h1 id={id} className="text-2xl font-bold my-4">{children}</h1>;
           },
           h2: ({ children }) => {
             const text = extractTextFromChildren(children);
-            const id = generateHeadingId(text, sectionIndex);
+            const id = getUniqueHeadingId(text);
             return <h2 id={id} className="text-xl font-bold my-3">{children}</h2>;
           },
           h3: ({ children }) => {
             const text = extractTextFromChildren(children);
-            const id = generateHeadingId(text, sectionIndex);
+            const id = getUniqueHeadingId(text);
             return <h3 id={id} className="text-lg font-bold my-2">{children}</h3>;
           },
           h4: ({ children }) => {
             const text = extractTextFromChildren(children);
-            const id = generateHeadingId(text, sectionIndex);
+            const id = getUniqueHeadingId(text);
             return <h4 id={id} className="text-base font-bold my-2">{children}</h4>;
           },
           h5: ({ children }) => {
             const text = extractTextFromChildren(children);
-            const id = generateHeadingId(text, sectionIndex);
+            const id = getUniqueHeadingId(text);
             return <h5 id={id} className="text-sm font-bold my-2">{children}</h5>;
           },
           h6: ({ children }) => {
             const text = extractTextFromChildren(children);
-            const id = generateHeadingId(text, sectionIndex);
+            const id = getUniqueHeadingId(text);
             return <h6 id={id} className="text-xs font-bold my-2">{children}</h6>;
           },
           p: ({ children }) => (
