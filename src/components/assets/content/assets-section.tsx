@@ -652,6 +652,7 @@ export default function SectionExecution({
                         isSaving={isSaving}
                         documentId={documentId}
                         sectionExecutionId={sectionExecution.id}
+                        toolbarTopOffset="36px"
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />
                 </div>

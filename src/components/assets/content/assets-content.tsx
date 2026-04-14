@@ -1222,24 +1222,12 @@ export function AssetContent({
     };
   }, [documentContent?.executions, documentContent?.execution_id, documentExecutions, selectedExecutionId]);
 
-  // Initialize selected execution ID when a document is selected (optimized to prevent unnecessary calls)
+  // Reset initialization tracking when the selected document changes.
+  // selectedExecutionId is managed by useAssetNavigation (it resets to null on file-tree
+  // navigation and preserves the URL-provided execution on direct URL access) so we must
+  // NOT call setSelectedExecutionId(null) here, otherwise the URL-supplied execution would
+  // be wiped out before the document query has a chance to use it.
   useEffect(() => {
-    // Only reset selectedExecutionId when switching to a different document or to non-document
-    if (selectedFile?.type !== 'document') {
-      if (selectedExecutionId) {
-        setSelectedExecutionId(null);
-      }
-      hasInitializedExecutionRef.current = null; // Reset ref when leaving document
-      return;
-    }
-
-    // Reset selectedExecutionId when switching to a different document
-    // This allows the default call (without execution_id) to return the approved/latest execution
-    if (selectedExecutionId) {
-      setSelectedExecutionId(null);
-    }
-    
-    // Reset the initialization ref when document changes
     hasInitializedExecutionRef.current = null;
   }, [selectedFile?.id]);
 
@@ -3119,7 +3107,7 @@ export function AssetContent({
                           }
                           
                           return (
-                            <SectionIndexContext.Provider key={section.id} value={index}>
+                            <SectionIndexContext.Provider key={`${section.id}-${index}`} value={index}>
                               <div id={`section-${index}`} className="relative">
                                 <SectionExecution 
                                   sectionExecution={{
