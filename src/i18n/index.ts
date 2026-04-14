@@ -21,6 +21,7 @@ import layout from './locales/layout'
 import templates from './locales/templates'
 import search from './locales/search'
 import auth from './locales/auth'
+import editor from './locales/editor'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -61,6 +62,7 @@ const modules = {
   templates,
   search,
   auth,
+  editor,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const
