@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import type { Value } from 'platejs';
 import { Button } from '@/components/ui/button';
 import { Check, X, Loader2 } from 'lucide-react';
 import { PlateRichEditor, type PlateRichEditorRef } from './plate-editor';
+import { useTranslation } from 'react-i18next';
+
+/** Public ref API – mirrors PlateRichEditorRef for use in forms */
+export interface SectionPlateEditorRef {
+  getMarkdown: () => string;
+  getValue: () => Value;
+  resetContent: (markdown: string) => void;
+  resetValue: (value: Value) => void;
+}
 
 interface SectionPlateEditorProps {
-  /** Section ID for save callbacks */
-  sectionId: string;
-  /** Markdown content to display / edit */
-  content: string;
+  /** Section ID for save callbacks. Optional when used as a plain form field. */
+  sectionId?: string;
+  /** Markdown content to display / edit. Defaults to empty string. */
+  content?: string;
   /**
    * Plate JSON nodes (stringified array) previously saved alongside the markdown.
    * When provided, the editor is initialized from this rich JSON instead of the
@@ -18,12 +27,17 @@ interface SectionPlateEditorProps {
    * serialisation cannot carry.
    */
   plateContent?: string[];
-  /** Whether the editor is in edit mode */
-  isEditing: boolean;
+  /**
+   * Direct Plate Value for initialization. Takes priority over plateContent and
+   * content. Useful when used as a form field that already holds a Plate Value.
+   */
+  initialValue?: Value;
+  /** Whether the editor is in edit mode. Defaults to false. */
+  isEditing?: boolean;
   /** Called when the user saves – receives (sectionId, markdownString, plateContent) */
-  onSave: (sectionId: string, newContent: string, plateContent?: string[]) => void | Promise<void>;
+  onSave?: (sectionId: string, newContent: string, plateContent?: string[]) => void | Promise<void>;
   /** Called when the user cancels editing */
-  onCancel: () => void;
+  onCancel?: () => void;
   /** Whether a save operation is in progress */
   isSaving?: boolean;
   /** Optional className for the outer wrapper */
@@ -41,6 +55,25 @@ interface SectionPlateEditorProps {
    * without requiring the user to explicitly save the section.
    */
   onAutoSavePlateContent?: (sectionId: string, markdown: string, plateContent: string[]) => void;
+  /** Whether the floating toolbar comment button is enabled (default: true) */
+  enableComments?: boolean;
+  /** Whether the floating toolbar create-section button is enabled (default: true) */
+  enableCreateSection?: boolean;
+  /**
+   * When true the Save/Cancel action buttons are hidden from the toolbar.
+   * Useful when the editor is embedded inside a form that handles submission.
+   */
+  hideActions?: boolean;
+  /**
+   * CSS top offset for the sticky toolbar (e.g. '36px' when there is a fixed header
+   * above the editor in an asset section panel). Defaults to 0.
+   */
+  toolbarTopOffset?: string;
+  /**
+   * Fired on every editor change with the current raw Plate Value.
+   * Useful for form fields that store the Plate Value directly.
+   */
+  onValueChange?: (value: Value) => void;
 }
 
 /** Ensure every element node has an iterable `children` array so Slate never crashes. */
@@ -77,17 +110,19 @@ function parsePlateContent(raw: string[]): Value | null {
  * - When `isEditing` is false the editor renders in read-only mode with no
  *   toolbar and no border, looking like styled content.
  * - When `isEditing` is true the toolbar appears together with Save / Cancel
- *   action buttons.
+ *   action buttons (unless `hideActions` is true).
  *
  * Initialization priority:
  *   1. `plateContent` (rich JSON with comment marks) when available
  *   2. `content` (markdown string) as fallback
  */
-export default function SectionPlateEditor({
-  sectionId,
-  content,
+const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorProps>(
+  function SectionPlateEditor({
+  sectionId = '',
+  content = '',
   plateContent,
-  isEditing,
+  initialValue,
+  isEditing = false,
   onSave,
   onCancel,
   isSaving = false,
@@ -96,15 +131,32 @@ export default function SectionPlateEditor({
   sectionExecutionId,
   onCreateSectionFromSelection,
   onAutoSavePlateContent,
-}: SectionPlateEditorProps) {
+  enableComments = true,
+  enableCreateSection = true,
+  hideActions = false,
+  toolbarTopOffset,
+  onValueChange,
+}, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
   const prevContentRef = useRef<string>(content);
+  const { t } = useTranslation('common');
+
+  // Expose editor methods via ref for use in parent forms
+  useImperativeHandle(ref, () => ({
+    getMarkdown: () => editorRef.current?.getMarkdown() ?? content,
+    getValue: () => editorRef.current?.getValue() ?? [],
+    resetContent: (markdown: string) => editorRef.current?.resetContent(markdown),
+    resetValue: (value: Value) => editorRef.current?.resetValue(value),
+  }), [content]);
 
   // Parse plate_content once per section load.
-  // If valid JSON is available it takes priority over markdown for initialization.
+  // Priority: initialValue > plateContent (JSON) > content (markdown)
   const initialPlateValue = useMemo(
-    () => (plateContent ? parsePlateContent(plateContent) : null),
+    () => {
+      if (initialValue) return initialValue;
+      return plateContent ? parsePlateContent(plateContent) : null;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sectionId], // re-parse only when the section changes, not on every render
   );
@@ -131,16 +183,17 @@ export default function SectionPlateEditor({
     }
   }, [content, plateContent, isEditing]);
 
-  const handleChange = useCallback(() => {
+  const handleChange = useCallback((value: Value) => {
     if (!dirty) setDirty(true);
-  }, [dirty]);
+    onValueChange?.(value);
+  }, [dirty, onValueChange]);
 
   const handleSave = useCallback(() => {
     if (!dirty || isSaving) return;
     const md = editorRef.current?.getMarkdown() ?? content;
     const plateValue = editorRef.current?.getValue();
     const newPlateContent = plateValue?.map((node) => JSON.stringify(node));
-    onSave(sectionId, md, newPlateContent);
+    onSave?.(sectionId, md, newPlateContent);
   }, [dirty, isSaving, sectionId, content, onSave]);
 
   const handleCancel = useCallback(() => {
@@ -150,38 +203,40 @@ export default function SectionPlateEditor({
       const parsed = parsePlateContent(plateContent);
       if (parsed) {
         editorRef.current?.resetValue(parsed);
-        onCancel();
+        onCancel?.();
         return;
       }
     }
     editorRef.current?.resetContent(content);
-    onCancel();
+    onCancel?.();
   }, [isSaving, content, plateContent, onCancel]);
 
-  const actionButtons = isEditing ? (
-    <>
+  const actionButtons = isEditing && !hideActions ? (
+    <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-1.5">
       <Button
-        variant="ghost"
+        variant="outline"
         onClick={handleCancel}
-        className="hover:cursor-pointer hover:bg-gray-100 h-7 w-7 p-0"
+        className="hover:cursor-pointer"
         size="sm"
         disabled={isSaving}
       >
-        <X className="h-4 w-4 text-gray-600" />
+        <X className="h-4 w-4 mr-1" />
+        {t('cancel')}
       </Button>
       <Button
         onClick={handleSave}
-        className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-7 w-7 p-0"
+        className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
         size="sm"
         disabled={!dirty || isSaving}
       >
         {isSaving ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
-          <Check className="h-4 w-4" />
+          <Check className="h-4 w-4 mr-1" />
         )}
+        {isSaving ? t('saving') : t('save')}
       </Button>
-    </>
+    </div>
   ) : undefined;
 
   return (
@@ -196,10 +251,13 @@ export default function SectionPlateEditor({
         showToolbar={isEditing}
         onChange={handleChange}
         variant="section"
-        className={isEditing ? 'min-h-[240px]' : undefined}
+        className={isEditing && !hideActions ? 'min-h-[240px]' : undefined}
         toolbarActions={actionButtons}
         documentId={documentId}
         sectionExecutionId={sectionExecutionId}
+        enableComments={enableComments}
+        enableCreateSection={enableCreateSection}
+        toolbarTopOffset={toolbarTopOffset}
         onAfterDiscussionMutation={onAutoSavePlateContent ? () => {
           // Read current editor state and persist plate_content silently
           // so comment marks survive a page refresh.
@@ -209,9 +267,10 @@ export default function SectionPlateEditor({
             onAutoSavePlateContent(sectionId, md, plateValue.map((n) => JSON.stringify(n)));
           }
         } : undefined}
-        onCreateSectionFromSelection={onCreateSectionFromSelection}
+        onCreateSectionFromSelection={enableCreateSection ? onCreateSectionFromSelection : undefined}
       />
     </div>
   );
-}
+});
 
+export default SectionPlateEditor;
