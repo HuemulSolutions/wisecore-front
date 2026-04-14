@@ -15,8 +15,7 @@ import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
 import Markdown from "@/components/ui/markdown";
-import { PlateRichEditor } from "@/components/plate-editor/plate-editor";
-import type { PlateRichEditorRef } from "@/components/plate-editor/plate-editor";
+import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
 
 interface Section {
   id: string;
@@ -72,8 +71,8 @@ export function SectionForm({
 }: SectionFormProps) {
   const { t } = useTranslation('sections');
   const { selectedOrganizationId } = useOrganization();
-  const promptEditorRef = useRef<PlateRichEditorRef>(null);
-  const manualEditorRef = useRef<PlateRichEditorRef>(null);
+  const promptEditorRef = useRef<SectionPlateEditorRef>(null);
+  const manualEditorRef = useRef<SectionPlateEditorRef>(null);
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
@@ -511,11 +510,15 @@ export function SectionForm({
                 className="text-sm resize-none min-h-[250px] max-h-[250px]"
               />
             ) : (
-              <PlateRichEditor
+              <SectionPlateEditor
                 key={editorKey}
                 ref={promptEditorRef}
-                initialMarkdown={prompt}
-                onChange={() => {
+                content={prompt}
+                isEditing={true}
+                hideActions={true}
+                enableComments={false}
+                enableCreateSection={false}
+                onValueChange={() => {
                   const md = promptEditorRef.current?.getMarkdown?.() || "";
                   handlePromptChange(md);
                 }}
@@ -576,9 +579,15 @@ export function SectionForm({
           <Label className="text-xs font-medium text-gray-700">
             {t('form.manualInput.label')}
           </Label>
-          <PlateRichEditor
+          <SectionPlateEditor
+            key={`manual-${editorKey}`}
             ref={manualEditorRef}
-            initialMarkdown={manualInput}
+            sectionId={item?.id ?? 'new'}
+            content={manualInput}
+            isEditing={true}
+            hideActions={true}
+            enableComments={false}
+            enableCreateSection={false}
           />
           <p className="text-xs text-gray-500">
             {t('form.manualInput.description')}
