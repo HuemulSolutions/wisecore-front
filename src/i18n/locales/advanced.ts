@@ -84,6 +84,8 @@ const translations = {
     uncategorized: { en: "Uncategorized", es: "Sin carpeta" },
     execute: { en: "Execute", es: "Ejecutar" },
     executing: { en: "Executing...", es: "Ejecutando..." },
+    openAsset: { en: "Open asset", es: "Abrir activo" },
+    openVersion: { en: "Open version", es: "Abrir versión" },
   },
 }
 
