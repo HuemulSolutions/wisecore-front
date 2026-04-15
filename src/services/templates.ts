@@ -110,3 +110,59 @@ export async function generateTemplateSections(templateId: string, organizationI
     console.log('Template sections generated:', data.data);
     return data.data;
 }
+
+export interface ChildDocumentExecution {
+    id: string;
+    name: string;
+    version: string | null;
+}
+
+export interface ChildDocument {
+    id: string;
+    name: string;
+    description: string;
+    internal_code: string | null;
+    asset_kind: string | null;
+    access_level: string;
+    folder_id: string;
+    document_type_id: string;
+    created_at: string;
+    updated_at: string;
+    executions: ChildDocumentExecution[];
+}
+
+export interface ChildDocumentFolder {
+    folder_id: string;
+    folder_name: string;
+    documents: ChildDocument[];
+}
+
+export interface ChildDocumentsResponse {
+    data: ChildDocumentFolder[];
+    transaction_id: string;
+    page: number;
+    page_size: number;
+    has_next: boolean;
+    timestamp: string;
+}
+
+export async function getTemplateChildDocuments(
+    templateId: string,
+    organizationId: string,
+    page: number = 1,
+    pageSize: number = 100
+): Promise<ChildDocumentsResponse> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+    });
+    const response = await httpClient.get(
+        `${backendUrl}/templates/${templateId}/child-documents?${params.toString()}`,
+        {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        }
+    );
+    return response.json();
+}

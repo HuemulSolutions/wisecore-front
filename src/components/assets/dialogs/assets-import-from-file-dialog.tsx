@@ -12,6 +12,9 @@ import { importDocumentFromFile } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
 import { toast } from "sonner"
+import { ApiError } from "@/types/api-error"
+import { handleApiError } from "@/lib/error-utils"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 
 interface ImportAssetFromFileDialogProps {
   open: boolean
@@ -23,18 +26,21 @@ interface ImportAssetFromFileDialogProps {
 export function ImportAssetFromFileDialog({
   open,
   onOpenChange,
+  folderId,
   onAssetCreated,
 }: ImportAssetFromFileDialogProps) {
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
+  const navigate = useOrgNavigate()
 
   const [name, setName] = useState("")
   const [internalCode, setInternalCode] = useState("")
   const [description, setDescription] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [documentTypeId, setDocumentTypeId] = useState("")
+  const [forceImport, setForceImport] = useState(false)
 
   React.useEffect(() => {
     if (open) {
@@ -43,6 +49,7 @@ export function ImportAssetFromFileDialog({
       setDescription("")
       setFile(null)
       setDocumentTypeId("")
+      setForceImport(false)
 
       if (selectedOrganizationId) {
         queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
@@ -62,11 +69,34 @@ export function ImportAssetFromFileDialog({
         description: description.trim() || undefined,
         internal_code: internalCode.trim() || undefined,
         document_type_id: documentTypeId,
+        folder_id: folderId ?? null,
+        force_import: forceImport,
         file,
         organizationId: selectedOrganizationId,
       })
     },
     meta: { showSuccessToast: false },
+    onError: (error) => {
+      if (ApiError.isApiError(error) && error.code === 'DUPLICATE_DOCUMENT_CONTENT') {
+        const detail = error.detail as unknown as { document_id?: string; document_name?: string }
+        const docName = detail?.document_name ?? ''
+        const docId = detail?.document_id
+        toast.warning(t('importFromFile.errorDuplicateContent', { name: docName }), {
+          action: docId
+            ? {
+                label: t('importFromFile.openExisting'),
+                onClick: () => {
+                  onOpenChange(false)
+                  navigate(`/asset/${docId}`)
+                },
+              }
+            : undefined,
+          duration: 8000,
+        })
+        return
+      }
+      handleApiError(error)
+    },
     onSuccess: (createdAsset) => {
       const assetId = createdAsset.id ?? createdAsset.document_id
       const assetName = createdAsset.name ?? createdAsset.document_name ?? name
@@ -172,6 +202,15 @@ export function ImportAssetFromFileDialog({
           placeholder={isLoadingDocTypes ? t('form.assetTypeLoading') : t('form.assetTypePlaceholder')}
           disabled={isLoadingDocTypes}
           error={docTypesError ? t('form.assetTypeError') : undefined}
+        />
+
+        <HuemulField
+          type="switch"
+          label={t('importFromFile.forceImportLabel')}
+          name="forceImport"
+          value={forceImport}
+          onChange={(v) => setForceImport(Boolean(v))}
+          description={t('importFromFile.forceImportDescription')}
         />
       </div>
     </HuemulDialog>

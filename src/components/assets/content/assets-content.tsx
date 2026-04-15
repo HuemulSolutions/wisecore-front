@@ -851,8 +851,13 @@ export function AssetContent({
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Remove automatic polling - let the ExecutionStatusBanner handle status updates
-    // and trigger refresh through query invalidation
+    // Poll every 3 s while there is an importing execution; otherwise let the
+    // ExecutionStatusBanner drive refreshes through query invalidation.
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasImporting = data?.executions?.some((e: any) => e.status === 'importing');
+      return hasImporting ? 3000 : false;
+    },
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });
@@ -1096,33 +1101,40 @@ export function AssetContent({
     );
   }, [lifecyclePermissions]);
 
-  // Set initial view mode based on lifecycle permissions (once per document):
+  // Set initial view mode based on lifecycle permissions (once per document+execution):
   // - view only  → reader mode, no toggle
   // - has edit permission in edit stage → editor mode directly
   // - other stages → reader mode
+  // Uses a composite key so switching executions within the same document also re-evaluates.
   useEffect(() => {
     if (!selectedFile?.id) return;
 
-    // New document opened: reset the initialization flag and go back to reader as safe default
-    if (hasSetInitialModeRef.current !== selectedFile.id) {
+    const modeKey = `${selectedFile.id}::${selectedExecutionId ?? ''}`;
+
+    // Already initialized for this document+execution combo
+    if (hasSetInitialModeRef.current === modeKey) return;
+
+    // Ensure the loaded data corresponds to the currently selected execution
+    // to avoid setting the mode based on stale permissions from the previous version.
+    const dataMatchesSelection =
+      !selectedExecutionId || documentContent?.execution_id === selectedExecutionId;
+
+    if (!lifecyclePermissions || !dataMatchesSelection) {
+      // Data not ready yet – default to reader mode as a safe fallback
       setIsViewMode(true);
-
-      // As soon as permissions are available, set the definitive initial mode
-      if (lifecyclePermissions) {
-        const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
-        const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
-
-        // Any user with edit permission in edit stage opens directly in editor mode
-        if (hasEdit && isEditStage) {
-          setIsViewMode(false);
-        }
-
-        // Mark this document as initialized so subsequent re-fetches don't override the user's choice
-        hasSetInitialModeRef.current = selectedFile.id;
-      }
+      return;
     }
+
+    const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
+    const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
+
+    // Set editor mode directly when user has edit permission in edit stage
+    setIsViewMode(!(hasEdit && isEditStage));
+
+    // Mark this document+execution as initialized so re-fetches don't override the user's choice
+    hasSetInitialModeRef.current = modeKey;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFile?.id, lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
+  }, [selectedFile?.id, selectedExecutionId, lifecyclePermissions, documentContent?.lifecycle_status?.stage, documentContent?.execution_id]);
 
   // Force reader mode when stage moves away from "edit" (e.g. lifecycle advances)
   useEffect(() => {
@@ -1217,52 +1229,47 @@ export function AssetContent({
     };
   }, [documentContent?.executions, documentContent?.execution_id, documentExecutions, selectedExecutionId]);
 
-  // Initialize selected execution ID when a document is selected (optimized to prevent unnecessary calls)
+  // Reset initialization tracking when the selected document changes.
+  // selectedExecutionId is managed by useAssetNavigation (it resets to null on file-tree
+  // navigation and preserves the URL-provided execution on direct URL access) so we must
+  // NOT call setSelectedExecutionId(null) here, otherwise the URL-supplied execution would
+  // be wiped out before the document query has a chance to use it.
   useEffect(() => {
-    // Only reset selectedExecutionId when switching to a different document or to non-document
-    if (selectedFile?.type !== 'document') {
-      if (selectedExecutionId) {
-        setSelectedExecutionId(null);
-      }
-      hasInitializedExecutionRef.current = null; // Reset ref when leaving document
-      return;
-    }
-
-    // Reset selectedExecutionId when switching to a different document
-    // This allows the default call (without execution_id) to return the approved/latest execution
-    if (selectedExecutionId) {
-      setSelectedExecutionId(null);
-    }
-    
-    // Reset the initialization ref when document changes
     hasInitializedExecutionRef.current = null;
   }, [selectedFile?.id]);
 
   // Sync selectedExecutionId with the execution that was loaded by the backend
   // This only happens ONCE per document to set the initial state, preventing duplicate API calls
   useEffect(() => {
+    // Also handle the case where execution_id is null but there is an importing execution
+    // (import-from-file sets execution_id = null until the import finishes)
+    const importingExecution = documentContent?.executions?.find(
+      (e: any) => e.status === 'importing'
+    );
+    const resolvedExecutionId = documentContent?.execution_id || importingExecution?.id;
+
     // Only sync if:
-    // 1. We have document content with an execution_id
+    // 1. We have document content with an execution_id OR an importing execution
     // 2. selectedExecutionId is currently null (no manual selection yet)
     // 3. We haven't already initialized for this document
     if (
       selectedFile?.type === 'document' &&
-      documentContent?.execution_id &&
+      resolvedExecutionId &&
       !selectedExecutionId &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
-      console.log('🔄 Syncing selectedExecutionId with loaded execution:', documentContent.execution_id);
-      
+      console.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
+
       // Copy the already-loaded data to the new queryKey to prevent duplicate API call
       queryClient.setQueryData(
-        ['document-content', selectedFile.id, documentContent.execution_id],
+        ['document-content', selectedFile.id, resolvedExecutionId],
         documentContent
       );
-      
-      setSelectedExecutionId(documentContent.execution_id);
+
+      setSelectedExecutionId(resolvedExecutionId);
       hasInitializedExecutionRef.current = selectedFile.id;
     }
-  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, selectedExecutionId, queryClient]);
+  }, [selectedFile?.id, selectedFile?.type, documentContent?.execution_id, documentContent?.executions, selectedExecutionId, queryClient]);
   
   // Removed invalidation useEffect - React Query automatically handles query key changes
 
@@ -2762,8 +2769,18 @@ export function AssetContent({
                         queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
                         queryClient.invalidateQueries({ queryKey: ['execution-status', isSelectedVersionExecuting.id] });
                         
-                        // Refetch immediately
-                        queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                        // When an import finishes the backend now has a real execution_id.
+                        // Reset the initialization ref so the sync effect can pick the real
+                        // execution_id on the next refetch, then refetch without an execution_id
+                        // so the response carries the updated execution_id.
+                        if (isSelectedVersionExecuting.status === 'importing' || !selectedExecutionId) {
+                          hasInitializedExecutionRef.current = null;
+                          setSelectedExecutionId(null);
+                          queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
+                        } else {
+                          // Refetch immediately
+                          queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id, selectedExecutionId] });
+                        }
                       }}
                     />
                   </div>
@@ -3097,7 +3114,7 @@ export function AssetContent({
                           }
                           
                           return (
-                            <SectionIndexContext.Provider key={section.id} value={index}>
+                            <SectionIndexContext.Provider key={`${section.id}-${index}`} value={index}>
                               <div id={`section-${index}`} className="relative">
                                 <SectionExecution 
                                   sectionExecution={{
@@ -3108,6 +3125,7 @@ export function AssetContent({
                                     ai_suggestion_status: section.ai_suggestion_status,
                                     ai_suggestion_content: section.ai_suggestion_content,
                                     ai_suggestion_instruction: section.ai_suggestion_instruction,
+                                    review_status: section.review_status,
                                   }}
                                   onUpdate={() => {
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });

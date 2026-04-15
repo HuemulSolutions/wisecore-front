@@ -17,6 +17,7 @@ export interface HeadingItem {
  */
 export function extractHeadingsFromSections(sections: ContentSection[]): HeadingItem[] {
   const headings: HeadingItem[] = [];
+  const idCount = new Map<string, number>();
   
   sections.forEach((section, sectionIndex) => {
     const headingRegex = /^(#{1,6})\s+(.*)$/gm;
@@ -25,8 +26,10 @@ export function extractHeadingsFromSections(sections: ContentSection[]): Heading
     while ((match = headingRegex.exec(section.content)) !== null) {
       const level = match[1].length;
       const title = match[2].trim();
-      // Generate the same ID as the Markdown component
-      const id = `section-${sectionIndex}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+      const baseId = `section-${sectionIndex}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+      const count = idCount.get(baseId) || 0;
+      idCount.set(baseId, count + 1);
+      const id = count === 0 ? baseId : `${baseId}-${count + 1}`;
       
       headings.push({
         id,
@@ -47,12 +50,16 @@ export function extractHeadingsFromSections(sections: ContentSection[]): Heading
 export function extractHeadings(markdown: string): HeadingItem[] {
   const headingRegex = /^(#{1,6})\s+(.*)$/gm;
   const headings: HeadingItem[] = [];
+  const idCount = new Map<string, number>();
   let match;
 
   while ((match = headingRegex.exec(markdown)) !== null) {
     const level = match[1].length;
     const title = match[2].trim();
-    const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const baseId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const count = idCount.get(baseId) || 0;
+    idCount.set(baseId, count + 1);
+    const id = count === 0 ? baseId : `${baseId}-${count + 1}`;
     
     headings.push({
       id,

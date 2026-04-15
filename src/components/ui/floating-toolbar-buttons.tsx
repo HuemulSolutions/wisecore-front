@@ -8,19 +8,23 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 interface FloatingToolbarButtonsProps {
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
+  enableComments?: boolean;
+  enableCreateSection?: boolean;
 }
 
-export function FloatingToolbarButtons({ onCreateSectionFromSelection }: FloatingToolbarButtonsProps) {
+export function FloatingToolbarButtons({ onCreateSectionFromSelection, enableComments = true, enableCreateSection = true }: FloatingToolbarButtonsProps) {
   const { canCreate } = useUserPermissions();
   const canCreateDiscussion = canCreate('discussion');
+  const showComments = enableComments && canCreateDiscussion;
+  const showCreateSection = enableCreateSection && !!onCreateSectionFromSelection;
 
   return (
     <FloatingToolbar>
-      {canCreateDiscussion && <CommentToolbarButton />}
-      {onCreateSectionFromSelection && (
+      {showComments && <CommentToolbarButton />}
+      {showCreateSection && (
         <>
-          {canCreateDiscussion && <ToolbarSeparator />}
-          <CreateSectionToolbarButton onCreateSection={onCreateSectionFromSelection} />
+          {showComments && <ToolbarSeparator />}
+          <CreateSectionToolbarButton onCreateSection={onCreateSectionFromSelection!} />
         </>
       )}
     </FloatingToolbar>

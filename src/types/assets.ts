@@ -386,6 +386,7 @@ export interface ContentSection {
   ai_suggestion_content?: string | null;
   ai_suggestion_instruction?: string | null;
   ai_suggestion_error?: string | null;
+  review_status?: 'editing' | 'reviewing' | 'finished' | null;
 }
 
 /**

@@ -81,8 +81,10 @@ export function handleApiError(
     if (showToast) {
       // Use the user-friendly message from the backend
       // Optionally include detail as description when it adds useful context
-      const description = showDescription && error.detail && error.detail !== error.message
-        ? error.detail
+      // Guard against detail being a non-string object (some endpoints return structured objects)
+      const rawDetail = error.detail as unknown;
+      const description = showDescription && rawDetail && typeof rawDetail === 'string' && rawDetail !== error.message
+        ? rawDetail
         : undefined;
       toast.error(error.message, { description });
     }

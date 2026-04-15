@@ -42,7 +42,7 @@ import { handleApiError } from "@/lib/error-utils"
 const NavKnowledgeContext = React.createContext<{
   fileTreeRef: React.RefObject<FileTreeRef | null>
   handleCreateAsset: (folderId?: string) => void
-  handleImportAsset: () => void
+  handleImportAsset: (folderId?: string) => void
   handleCreateFolder: (folderId?: string) => void
   handleDeleteFolder: (folderId: string, folderName: string) => void
   handleEditFolder: (folderId: string, currentName: string) => void
@@ -98,7 +98,8 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     setCreateAssetDialogOpen(true)
   }, [])
 
-  const handleImportAsset = useCallback(() => {
+  const handleImportAsset = useCallback((folderId?: string) => {
+    setCurrentFolderId(folderId)
     setRenderImportAssetDialog(true)
     setImportAssetDialogOpen(true)
   }, [])
@@ -267,6 +268,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         <ImportAssetFromFileDialog
           open={importAssetDialogOpen}
           onOpenChange={handleImportAssetDialogChange}
+          folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
         />
       )}
@@ -619,8 +621,8 @@ export function NavKnowledgeContent() {
     {
       label: t('knowledge.importAsset'),
       icon: <FileUp className="h-4 w-4" />,
-      onClick: async () => {
-        handleImportAsset()
+      onClick: async (nodeId) => {
+        handleImportAsset(nodeId)
       },
       show: (node) => {
         if (node.type !== "folder") return false
