@@ -48,6 +48,12 @@ export interface HuemulPageLayoutColumn {
    * `ref.current.collapse()` / `ref.current.expand()` programmatically.
    */
   panelRef?: React.RefObject<ImperativePanelHandle | null>
+  /**
+   * Whether this column can be resized by dragging the adjacent handle.
+   * When `false`, the resize handle next to this column is disabled.
+   * Defaults to `true`.
+   */
+  resizable?: boolean
   /** Optional className forwarded to the ResizablePanel. */
   className?: string
 }
@@ -173,7 +179,15 @@ export function HuemulPageLayout({
           <ResizablePanelGroup direction="horizontal" className="h-full">
             {normalizedColumns.map((col, index) => (
               <React.Fragment key={index}>
-                {index > 0 && <ResizableHandle withHandle={withHandle} />}
+                {index > 0 && (
+                  <ResizableHandle
+                    withHandle={withHandle}
+                    disabled={
+                      normalizedColumns[index - 1].resizable === false ||
+                      col.resizable === false
+                    }
+                  />
+                )}
                 <ResizablePanel
                   ref={col.panelRef}
                   defaultSize={col.defaultSize}
