@@ -76,7 +76,12 @@ interface SectionPlateEditorProps {
   onValueChange?: (value: Value) => void;
 }
 
-/** Ensure every element node has an iterable `children` array so Slate never crashes. */
+/**
+ * Ensure every element node has an iterable `children` array so Slate never crashes.
+ * Also validates table hierarchy: table children must be tr rows, and tr children
+ * must be td/th cells. Invalid children are filtered out to prevent
+ * computeCellIndices from crashing on non-iterable row.children.
+ */
 function sanitizeNodes(nodes: unknown[]): Value {
   return nodes.map((node) => {
     if (typeof node !== 'object' || node === null) {
@@ -84,11 +89,34 @@ function sanitizeNodes(nodes: unknown[]): Value {
     }
     if ('text' in node) return node;
     const el = node as Record<string, unknown>;
+    let children = Array.isArray(el.children)
+      ? sanitizeNodes(el.children as unknown[])
+      : [{ text: '' }];
+
+    const type = el.type as string | undefined;
+
+    // Table children must be row elements (tr)
+    if (type === 'table') {
+      children = (children as any[]).filter(
+        (child) => child && typeof child === 'object' && !('text' in child) && child.type === 'tr'
+      ) as Value;
+      if (children.length === 0) {
+        children = [{ type: 'tr', children: [{ type: 'td', children: [{ type: 'p', children: [{ text: '' }] }] }] }] as Value;
+      }
+    }
+    // Row children must be cell elements (td / th)
+    else if (type === 'tr') {
+      children = (children as any[]).filter(
+        (child) => child && typeof child === 'object' && !('text' in child) && (child.type === 'td' || child.type === 'th')
+      ) as Value;
+      if (children.length === 0) {
+        children = [{ type: 'td', children: [{ type: 'p', children: [{ text: '' }] }] }] as Value;
+      }
+    }
+
     return {
       ...el,
-      children: Array.isArray(el.children)
-        ? sanitizeNodes(el.children as unknown[])
-        : [{ text: '' }],
+      children,
     };
   }) as Value;
 }
