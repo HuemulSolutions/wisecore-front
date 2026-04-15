@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { Bot, Pencil, PenLine, Play, FastForward, Eye, Save, Loader2 } from "lucide-react"
+import { Bot, PenLine, Play, FastForward, Eye, Save, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOrganization } from "@/contexts/organization-context"
 import { getAllTemplates } from "@/services/templates"
