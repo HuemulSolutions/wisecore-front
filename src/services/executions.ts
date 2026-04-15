@@ -359,3 +359,60 @@ export async function updateExecutionName(
     const data = await response.json();
     return data.data;
 }
+
+export async function bulkGenerateByTemplateSection({
+    executionIds,
+    templateSectionId,
+    llmId,
+    instructions,
+    singleSectionMode,
+    organizationId,
+}: {
+    executionIds: string[];
+    templateSectionId: string;
+    llmId: string;
+    instructions?: string;
+    singleSectionMode: boolean;
+    organizationId: string;
+}) {
+    const response = await httpClient.post(`${backendUrl}/execution/bulk_generate_by_template_section`, {
+        execution_ids: executionIds,
+        template_section_id: templateSectionId,
+        llm_id: llmId,
+        instructions: instructions || "",
+        single_section_mode: singleSectionMode,
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function bulkAiFixByTemplateSection({
+    executionIds,
+    templateSectionId,
+    instruction,
+    autoApply,
+    organizationId,
+}: {
+    executionIds: string[];
+    templateSectionId: string;
+    instruction?: string;
+    autoApply: boolean;
+    organizationId: string;
+}) {
+    const response = await httpClient.post(`${backendUrl}/section_executions/bulk_ai_fix_by_template_section`, {
+        execution_ids: executionIds,
+        template_section_id: templateSectionId,
+        instruction: instruction || "",
+        auto_apply: autoApply,
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
