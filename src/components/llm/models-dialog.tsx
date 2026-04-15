@@ -46,7 +46,7 @@ export function ModelDialog({
   const isSubmitting = isCreating || isUpdating
 
   const handleSave = () => {
-    onSubmit({ name: displayName, internal_name: technicalName, capabilities: ['text_generation'] })
+    onSubmit({ name: displayName, internal_name: technicalName, capabilities: ['text_input'] })
   }
 
   const isFormValid = displayName.trim() !== '' && technicalName.trim() !== ''

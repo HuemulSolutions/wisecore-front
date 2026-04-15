@@ -35,7 +35,7 @@ export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {
     return data.data || data;
 }
 
-export async function updateLLMModel(llmId: string, llm: Partial<CreateLLMRequest>): Promise<LLM> {
+export async function updateLLMModel(llmId: string, llm: CreateLLMRequest): Promise<LLM> {
     const response = await httpClient.put(`${backendUrl}/llms/${llmId}`, llm);
     const data = await response.json();
     return data.data || data;
