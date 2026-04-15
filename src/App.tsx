@@ -116,7 +116,11 @@ export default function App() {
                 <ExecutionPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="advanced" element={<AdvancedPage />} />
+            <Route path="advanced" element={
+              <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:l"]}>
+                <AdvancedPage />
+              </PermissionProtectedRoute>
+            } />
           </Route>
 
           {/* Catch-all: redirect unknown paths to root */}

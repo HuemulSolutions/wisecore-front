@@ -125,6 +125,7 @@ export default function AppLayout() {
     canAccessDocumentTypes,
     canAccessAssets,
     canAccessTemplates,
+    canAccessSectionExecutions,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -326,6 +327,9 @@ export default function AppLayout() {
         case "Templates":
           shouldShowItem = canAccessTemplates || isOrgAdmin
           break
+        case "Advanced":
+          shouldShowItem = canAccessSectionExecutions || isOrgAdmin
+          break
         default:
           shouldShowItem = true
       }
@@ -343,6 +347,7 @@ export default function AppLayout() {
     permissionsLoading,
     canAccessAssets,
     canAccessTemplates,
+    canAccessSectionExecutions,
     isOrgAdmin,
     isRootAdmin,
     isSwitchingOrg
