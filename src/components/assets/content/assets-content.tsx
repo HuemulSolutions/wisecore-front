@@ -1101,33 +1101,40 @@ export function AssetContent({
     );
   }, [lifecyclePermissions]);
 
-  // Set initial view mode based on lifecycle permissions (once per document):
+  // Set initial view mode based on lifecycle permissions (once per document+execution):
   // - view only  → reader mode, no toggle
   // - has edit permission in edit stage → editor mode directly
   // - other stages → reader mode
+  // Uses a composite key so switching executions within the same document also re-evaluates.
   useEffect(() => {
     if (!selectedFile?.id) return;
 
-    // New document opened: reset the initialization flag and go back to reader as safe default
-    if (hasSetInitialModeRef.current !== selectedFile.id) {
+    const modeKey = `${selectedFile.id}::${selectedExecutionId ?? ''}`;
+
+    // Already initialized for this document+execution combo
+    if (hasSetInitialModeRef.current === modeKey) return;
+
+    // Ensure the loaded data corresponds to the currently selected execution
+    // to avoid setting the mode based on stale permissions from the previous version.
+    const dataMatchesSelection =
+      !selectedExecutionId || documentContent?.execution_id === selectedExecutionId;
+
+    if (!lifecyclePermissions || !dataMatchesSelection) {
+      // Data not ready yet – default to reader mode as a safe fallback
       setIsViewMode(true);
-
-      // As soon as permissions are available, set the definitive initial mode
-      if (lifecyclePermissions) {
-        const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
-        const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
-
-        // Any user with edit permission in edit stage opens directly in editor mode
-        if (hasEdit && isEditStage) {
-          setIsViewMode(false);
-        }
-
-        // Mark this document as initialized so subsequent re-fetches don't override the user's choice
-        hasSetInitialModeRef.current = selectedFile.id;
-      }
+      return;
     }
+
+    const isEditStage = documentContent?.lifecycle_status?.stage === 'edit';
+    const hasEdit = !!(lifecyclePermissions.edit || lifecyclePermissions.create);
+
+    // Set editor mode directly when user has edit permission in edit stage
+    setIsViewMode(!(hasEdit && isEditStage));
+
+    // Mark this document+execution as initialized so re-fetches don't override the user's choice
+    hasSetInitialModeRef.current = modeKey;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFile?.id, lifecyclePermissions, documentContent?.lifecycle_status?.stage]);
+  }, [selectedFile?.id, selectedExecutionId, lifecyclePermissions, documentContent?.lifecycle_status?.stage, documentContent?.execution_id]);
 
   // Force reader mode when stage moves away from "edit" (e.g. lifecycle advances)
   useEffect(() => {
@@ -3118,6 +3125,7 @@ export function AssetContent({
                                     ai_suggestion_status: section.ai_suggestion_status,
                                     ai_suggestion_content: section.ai_suggestion_content,
                                     ai_suggestion_instruction: section.ai_suggestion_instruction,
+                                    review_status: section.review_status,
                                   }}
                                   onUpdate={() => {
                                     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });

@@ -17,7 +17,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { executeSingleSection, executeFromSection } from '@/services/generate';
-import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion } from '@/services/section_execution';
+import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
 import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { useOrganization } from '@/contexts/organization-context';
@@ -36,6 +43,7 @@ interface SectionExecutionProps {
         ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null;
         ai_suggestion_content?: string | null;
         ai_suggestion_instruction?: string | null;
+        review_status?: 'editing' | 'reviewing' | 'finished' | null;
     }
     onUpdate?: () => void;
     readyToEdit: boolean;
@@ -82,6 +90,10 @@ export default function SectionExecution({
     );
     const [isDiffOpen, setIsDiffOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
+        (sectionExecution.review_status as ReviewStatus) ?? null
+    );
+    const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
 
     // Derived: whether there's a completed suggestion ready to review
     const hasPendingSuggestion =
@@ -226,6 +238,19 @@ export default function SectionExecution({
         }
     };
 
+    const handleReviewStatusChange = async (newStatus: ReviewStatus) => {
+        try {
+            setIsUpdatingReviewStatus(true);
+            await updateReviewStatus(sectionExecution.id, newStatus, selectedOrganizationId ?? undefined);
+            setReviewStatus(newStatus);
+            onUpdate?.();
+        } catch (error) {
+            handleApiError(error, { fallbackMessage: t('section.reviewStatusUpdateFailed') });
+        } finally {
+            setIsUpdatingReviewStatus(false);
+        }
+    };
+
     const handleOpenExecutionConfig = (mode: 'single' | 'from') => {
         setLocalExecutionMode(mode);
         setExecutionConfigOpen(true);
@@ -360,6 +385,39 @@ export default function SectionExecution({
                                 {sectionTypeLabel}
                             </span>
                         </div>
+                    )}
+
+                    {/* Review Status Selector */}
+                    {!isEditing && (
+                        <Select
+                            value={reviewStatus ?? ''}
+                            onValueChange={(value) => handleReviewStatusChange(value as ReviewStatus)}
+                            disabled={isUpdatingReviewStatus || !canEditSections}
+                        >
+                            <SelectTrigger className="h-7 w-[130px] text-xs mr-1 hover:cursor-pointer">
+                                <SelectValue placeholder={t('section.reviewStatusPlaceholder')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="editing" className="text-xs hover:cursor-pointer">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                                        {t('section.reviewStatusEditing')}
+                                    </span>
+                                </SelectItem>
+                                <SelectItem value="reviewing" className="text-xs hover:cursor-pointer">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                        {t('section.reviewStatusReviewing')}
+                                    </span>
+                                </SelectItem>
+                                <SelectItem value="finished" className="text-xs hover:cursor-pointer">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                                        {t('section.reviewStatusFinished')}
+                                    </span>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     )}
                     
                     {!isEditing && (
