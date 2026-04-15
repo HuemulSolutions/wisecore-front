@@ -1,12 +1,12 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 
 import type { PlateElementProps } from 'platejs/react';
 
 import { type VariantProps, cva } from 'class-variance-authority';
-import { NodeApi } from 'platejs';
-import { PlateElement } from 'platejs/react';
+import { type TElement, NodeApi } from 'platejs';
+import { PlateElement, useEditorRef } from 'platejs/react';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 
 const headingVariants = cva('relative', {
@@ -22,10 +22,10 @@ const headingVariants = cva('relative', {
   },
 });
 
-function generateHeadingId(text: string, sectionIndex?: number): string | undefined {
-  if (!text) return undefined;
-  const baseId = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return sectionIndex !== undefined ? `section-${sectionIndex}-${baseId}` : baseId;
+const HEADING_TYPES = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+
+function slugify(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 export function HeadingElement({
@@ -33,8 +33,31 @@ export function HeadingElement({
   ...props
 }: PlateElementProps & VariantProps<typeof headingVariants>) {
   const sectionIndex = useContext(SectionIndexContext);
+  const editor = useEditorRef();
   const text = NodeApi.string(props.element);
-  const headingId = generateHeadingId(text, sectionIndex);
+
+  const headingId = useMemo(() => {
+    if (!text) return undefined;
+    const baseSlug = slugify(text);
+    const fullBaseId = sectionIndex !== undefined ? `section-${sectionIndex}-${baseSlug}` : baseSlug;
+
+    // Count how many headings with the same slug appear before this one
+    const allHeadings = Array.from(
+      editor.api.nodes<TElement>({
+        at: [],
+        match: (n) => HEADING_TYPES.has((n as TElement).type),
+      })
+    );
+
+    let count = 0;
+    for (const [node] of allHeadings) {
+      if (node === props.element) break;
+      const nodeText = NodeApi.string(node);
+      if (slugify(nodeText) === baseSlug) count++;
+    }
+
+    return count === 0 ? fullBaseId : `${fullBaseId}-${count + 1}`;
+  }, [text, sectionIndex, editor, props.element]);
 
   return (
     <PlateElement

@@ -4,6 +4,7 @@ const translations = {
     assets: { en: "Assets", es: "Activos" },
     search: { en: "Search", es: "Búsqueda" },
     templates: { en: "Templates", es: "Plantillas" },
+    advanced: { en: "Advanced", es: "Avanzado" },
     navigationMenuTitle: { en: "Navigation", es: "Navegación" },
   },
   header: {
@@ -23,6 +24,7 @@ const translations = {
     roles: { en: "Roles", es: "Roles" },
     models: { en: "Models", es: "Modelos" },
     authTypes: { en: "Auth Types", es: "Tipos de Autenticación" },
+    advanced: { en: "Advanced", es: "Avanzado" },
   },
   knowledge: {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },

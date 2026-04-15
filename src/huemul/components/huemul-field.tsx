@@ -4,7 +4,7 @@ import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, Calend
 import { format, parseISO } from "date-fns";
 import type { Value } from "platejs";
 
-import { PlateRichEditor } from "@/components/plate-editor";
+import SectionPlateEditor from "@/components/plate-editor/section-plate-editor";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -1287,12 +1287,13 @@ export function HuemulField({
             )}
             style={{ minHeight: richTextMinHeight }}
           >
-            <PlateRichEditor
-              value={richTextValue}
-              onChange={onRichTextChange}
-              readOnly={disabled || readOnly}
-              variant="section"
-              showToolbar={!readOnly}
+            <SectionPlateEditor
+              initialValue={richTextValue}
+              isEditing={!disabled && !readOnly}
+              hideActions={true}
+              enableComments={false}
+              enableCreateSection={false}
+              onValueChange={onRichTextChange}
             />
           </div>
         );

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Search, LayoutTemplate, BookText } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Zap } from "lucide-react"
 import { useLocation } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
 import { useOrgPath } from "@/hooks/useOrgRouter"
@@ -45,6 +45,11 @@ const navigationItems = [
     title: "Templates",
     url: "/templates",
     icon: LayoutTemplate,
+  },
+  {
+    title: "Advanced",
+    url: "/advanced",
+    icon: Zap,
   },
 ]
 

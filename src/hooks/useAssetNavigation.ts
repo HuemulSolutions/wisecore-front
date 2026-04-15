@@ -109,9 +109,10 @@ export function useAssetNavigation({
   }, [location.pathname, selectedOrganizationId]);
 
   /**
-   * Build URL path from breadcrumb and selected file
+   * Build URL path from breadcrumb and selected file.
+   * Appends ?execution=<id> when both a file and an execution are provided.
    */
-  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string) => {
+  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string, executionId?: string) => {
     let path = '/asset';
     
     if (breadcrumb.length > 0) {
@@ -121,6 +122,10 @@ export function useAssetNavigation({
     
     if (selectedFileId) {
       path += '/' + encodeURIComponent(selectedFileId);
+    }
+
+    if (executionId && selectedFileId) {
+      path += '?execution=' + encodeURIComponent(executionId);
     }
     
     return path;
@@ -179,8 +184,8 @@ export function useAssetNavigation({
       return;
     }
     
-    // Skip if this URL has already been processed (compare without org prefix)
-    if (lastProcessedUrlRef.current === stripOrgPrefix(location.pathname)) {
+    // Skip if this URL has already been processed (compare without org prefix, include search)
+    if (lastProcessedUrlRef.current === stripOrgPrefix(location.pathname) + location.search) {
       return;
     }
     
@@ -188,8 +193,12 @@ export function useAssetNavigation({
       try {
         setIsLoadingDocument(true);
         
-        // Mark this URL as processed (store without org prefix)
-        lastProcessedUrlRef.current = stripOrgPrefix(location.pathname);
+        // Mark this URL as processed (store without org prefix, include search)
+        lastProcessedUrlRef.current = stripOrgPrefix(location.pathname) + location.search;
+
+        // Parse execution ID from query params (e.g. ?execution=<id>)
+        const urlSearchParams = new URLSearchParams(location.search);
+        const urlExecutionId = urlSearchParams.get('execution');
         
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
@@ -239,13 +248,15 @@ export function useAssetNavigation({
         }
         
         if (selectedFileId) {
-          setSelectedExecutionId(null);
+          // Restore execution from URL query param if present
+          setSelectedExecutionId(urlExecutionId);
           setSelectedFile({
             id: selectedFileId,
             name: `Document ${selectedFileId.substring(0, 8)}...`,
             type: 'document'
           });
         } else {
+          setSelectedExecutionId(null);
           setSelectedFile(null);
         }
       } catch (error) {
@@ -283,7 +294,7 @@ export function useAssetNavigation({
       isInitializingRef.current = true;
       initializeFromUrl().finally(() => { isInitializingRef.current = false; });
     }
-  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate]);
+  }, [selectedOrganizationId, organizationToken, urlOrgId, location.pathname, location.search, location.state, parseUrlPath, loadFolderHierarchy, buildUrlPath, navigate]);
 
   /**
    * Sync sessionStorage when breadcrumb or selectedFile changes
@@ -301,7 +312,7 @@ export function useAssetNavigation({
   }, [breadcrumb, selectedFile]);
 
   /**
-   * Update URL when selected file or breadcrumb changes
+   * Update URL when selected file, breadcrumb, or execution changes
    */
   useEffect(() => {
     if (!hasRestoredRef.current || !selectedOrganizationId || !organizationToken) return;
@@ -310,7 +321,7 @@ export function useAssetNavigation({
     // state (breadcrumb/selectedFile) hasn't settled yet.
     if (isInitializingRef.current) return;
     
-    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id);
+    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id, selectedExecutionId || undefined);
     
     // Don't update URL if navigation came from FileTree
     const navigationState = location.state as any;
@@ -318,7 +329,8 @@ export function useAssetNavigation({
       return;
     }
     
-    if (stripOrgPrefix(location.pathname) !== newUrl && !isUpdatingUrl) {
+    const currentFullUrl = stripOrgPrefix(location.pathname) + location.search;
+    if (currentFullUrl !== newUrl && !isUpdatingUrl) {
       setIsUpdatingUrl(true);
       
       lastProcessedUrlRef.current = newUrl;
@@ -330,7 +342,7 @@ export function useAssetNavigation({
         }, 100);
       }, 0);
     }
-  }, [breadcrumb, selectedFile, buildUrlPath, navigate, location.pathname, selectedOrganizationId, organizationToken, isUpdatingUrl, location.state]);
+  }, [breadcrumb, selectedFile, selectedExecutionId, buildUrlPath, navigate, location.pathname, location.search, selectedOrganizationId, organizationToken, isUpdatingUrl, location.state]);
 
   /**
    * Reset state when organization changes

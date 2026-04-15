@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { isUrl, KEYS } from 'platejs';
 import { useEditorRef } from 'platejs/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useFilePicker } from 'use-file-picker';
 import type { SelectedFilesOrErrors } from 'use-file-picker/types';
@@ -48,33 +49,33 @@ const MEDIA_CONFIG: Record<
   {
     accept: string[];
     icon: React.ReactNode;
-    title: string;
-    tooltip: string;
+    titleKey: string;
+    tooltipKey: string;
   }
 > = {
   [KEYS.audio]: {
     accept: ['audio/*'],
     icon: <AudioLinesIcon className="size-4" />,
-    title: 'Insert Audio',
-    tooltip: 'Audio',
+    titleKey: 'media.insertAudio',
+    tooltipKey: 'media.audio',
   },
   [KEYS.file]: {
     accept: ['*'],
     icon: <FileUpIcon className="size-4" />,
-    title: 'Insert File',
-    tooltip: 'File',
+    titleKey: 'media.insertFile',
+    tooltipKey: 'media.file',
   },
   [KEYS.img]: {
     accept: ['image/*'],
     icon: <ImageIcon className="size-4" />,
-    title: 'Insert Image',
-    tooltip: 'Image',
+    titleKey: 'media.insertImage',
+    tooltipKey: 'media.image',
   },
   [KEYS.video]: {
     accept: ['video/*'],
     icon: <FilmIcon className="size-4" />,
-    title: 'Insert Video',
-    tooltip: 'Video',
+    titleKey: 'media.insertVideo',
+    tooltipKey: 'media.video',
   },
 };
 
@@ -87,6 +88,7 @@ export function MediaToolbarButton({
   const editor = useEditorRef();
   const [open, setOpen] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const { t } = useTranslation('editor');
 
   const { openFilePicker } = useFilePicker({
     accept: currentConfig.accept,
@@ -139,11 +141,11 @@ export function MediaToolbarButton({
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={() => openFilePicker()}>
                 {currentConfig.icon}
-                Upload from computer
+                {t('media.uploadFromComputer')}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
                 <LinkIcon />
-                Insert via URL
+                {t('media.insertViaUrl')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -179,6 +181,8 @@ function MediaUrlDialogContent({
 }) {
   const editor = useEditorRef();
   const [url, setUrl] = React.useState('');
+  const { t } = useTranslation('editor');
+  const { t: tCommon } = useTranslation('common');
 
   const embedMedia = React.useCallback(() => {
     if (!isUrl(url)) return toast.error('Invalid URL');
@@ -195,7 +199,7 @@ function MediaUrlDialogContent({
   return (
     <>
       <AlertDialogHeader>
-        <AlertDialogTitle>{currentConfig.title}</AlertDialogTitle>
+        <AlertDialogTitle>{t(currentConfig.titleKey)}</AlertDialogTitle>
       </AlertDialogHeader>
 
       <AlertDialogDescription className="group relative w-full">
@@ -220,14 +224,14 @@ function MediaUrlDialogContent({
       </AlertDialogDescription>
 
       <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
         <AlertDialogAction
           onClick={(e) => {
             e.preventDefault();
             embedMedia();
           }}
         >
-          Accept
+          {t('media.accept')}
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

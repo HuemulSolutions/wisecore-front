@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap } from "lucide-react"
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -86,6 +86,12 @@ const navigationItems = [
     icon: LayoutTemplate,
     orgScoped: true,
   },
+  {
+    title: "Advanced",
+    url: "/advanced",
+    icon: Zap,
+    orgScoped: true,
+  },
 ]
 
 export default function AppLayout() {
@@ -119,6 +125,7 @@ export default function AppLayout() {
     canAccessDocumentTypes,
     canAccessAssets,
     canAccessTemplates,
+    canAccessSectionExecutions,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -320,6 +327,9 @@ export default function AppLayout() {
         case "Templates":
           shouldShowItem = canAccessTemplates || isOrgAdmin
           break
+        case "Advanced":
+          shouldShowItem = canAccessSectionExecutions || isOrgAdmin
+          break
         default:
           shouldShowItem = true
       }
@@ -337,6 +347,7 @@ export default function AppLayout() {
     permissionsLoading,
     canAccessAssets,
     canAccessTemplates,
+    canAccessSectionExecutions,
     isOrgAdmin,
     isRootAdmin,
     isSwitchingOrg

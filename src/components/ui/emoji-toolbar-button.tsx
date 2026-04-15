@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { ToolbarButton } from '@/components/ui/toolbar';
+import { useTranslation } from 'react-i18next';
 
 export function EmojiToolbarButton({
   options,
@@ -49,11 +50,12 @@ export function EmojiToolbarButton({
 } & React.ComponentPropsWithoutRef<typeof ToolbarButton>) {
   const { emojiPickerState, isOpen, setIsOpen } =
     useEmojiDropdownMenuState(options);
+  const { t } = useTranslation('editor');
 
   return (
     <EmojiPopover
       control={
-        <ToolbarButton pressed={isOpen} tooltip="Emoji" isDropdown {...props}>
+        <ToolbarButton pressed={isOpen} tooltip={t('toolbar.emoji')} isDropdown {...props}>
           <SmileIcon />
         </ToolbarButton>
       }

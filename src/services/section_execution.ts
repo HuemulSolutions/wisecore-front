@@ -157,3 +157,21 @@ export async function rejectAiSuggestion(
         { headers }
     );
 }
+
+export type ReviewStatus = 'editing' | 'reviewing' | 'finished';
+
+export async function updateReviewStatus(
+    sectionExecutionId: string,
+    reviewStatus: ReviewStatus,
+    organizationId?: string
+): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    await httpClient.patch(
+        `${backendUrl}/section_executions/${sectionExecutionId}/review_status`,
+        { review_status: reviewStatus },
+        { headers }
+    );
+}

@@ -155,7 +155,7 @@ export function HuemulDialog({
     }
   }, [open]);
 
-  // Submit on Enter key (skip textareas)
+  // Submit on Enter key (skip textareas and contenteditable elements like the Plate rich text editor)
   React.useEffect(() => {
     if (!open || !saveAction) return;
 
@@ -163,6 +163,7 @@ export function HuemulDialog({
       if (e.key !== "Enter" || e.shiftKey) return;
       const target = e.target as HTMLElement;
       if (target.tagName === "TEXTAREA") return;
+      if (target.isContentEditable) return;
       if (saveAction.disabled || saveAction.loading || saveLoading) return;
       e.preventDefault();
       handleActionClick(saveAction, setSaveLoading, true);
