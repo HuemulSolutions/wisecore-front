@@ -172,7 +172,7 @@ export default function Models() {
   })
 
   const updateLLMMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateLLMRequest> }) => updateLLMModel(id, data),
+    mutationFn: ({ id, data }: { id: string; data: CreateLLMRequest }) => updateLLMModel(id, data),
     meta: { successMessage: t('toast.modelUpdated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llms'] })
@@ -295,7 +295,7 @@ export default function Models() {
 
   const handleUpdateModel = (data: { name: string; internal_name: string; capabilities: string[] }) => {
     if (!editingModel) return
-    updateLLMMutation.mutate({ id: editingModel.id, data })
+    updateLLMMutation.mutate({ id: editingModel.id, data: { ...data, provider_id: editingModel.provider_id } })
   }
 
   const handleEditModel = (model: LLM) => {

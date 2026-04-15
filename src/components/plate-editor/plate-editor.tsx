@@ -4,6 +4,23 @@ import * as React from 'react';
 import type { Value } from 'platejs';
 
 import { normalizeNodeId } from 'platejs';
+
+/** Ensure every element node has an iterable `children` array so Slate never crashes. */
+function sanitizeNodes(nodes: unknown[]): Value {
+  return nodes.map((node) => {
+    if (typeof node !== 'object' || node === null) {
+      return { text: String(node ?? '') };
+    }
+    if ('text' in node) return node;
+    const el = node as Record<string, unknown>;
+    return {
+      ...el,
+      children: Array.isArray(el.children)
+        ? sanitizeNodes(el.children as unknown[])
+        : [{ text: '' }],
+    };
+  }) as Value;
+}
 import { Plate, usePlateEditor, usePlateState, usePluginOption, useEditorRef, useEditorSelector } from 'platejs/react';
 import { SuggestionPlugin } from '@platejs/suggestion/react';
 import {
@@ -467,7 +484,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     resetContent: (markdown: string) => {
       try {
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
-        editor.tf.setValue(nodes);
+        editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
       } catch (e) {
         console.error('Failed to reset editor content:', e);
       }
@@ -486,7 +503,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     if (initialMarkdown) {
       try {
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(initialMarkdown);
-        editor.tf.setValue(nodes);
+        editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
       } catch (e) {
         console.error('Failed to deserialize initial markdown:', e);
       }
