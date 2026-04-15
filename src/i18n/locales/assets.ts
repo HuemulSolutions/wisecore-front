@@ -223,6 +223,11 @@ const translations = {
     diffAccept: { en: "Accept suggestion", es: "Aceptar sugerencia" },
     diffReject: { en: "Reject suggestion", es: "Rechazar sugerencia" },
     diffDismiss: { en: "Cancel", es: "Cancelar" },
+    reviewStatusEditing: { en: "Editing", es: "Editando" },
+    reviewStatusReviewing: { en: "Reviewing", es: "Revisando" },
+    reviewStatusFinished: { en: "Finished", es: "Finalizado" },
+    reviewStatusPlaceholder: { en: "Review status", es: "Estado de revisión" },
+    reviewStatusUpdateFailed: { en: "Failed to update review status", es: "Error al actualizar el estado de revisión" },
   },
   customFieldsList: {
     addField: { en: "Add Field", es: "Agregar Campo" },
