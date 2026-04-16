@@ -13,9 +13,10 @@ interface AssetSelectionPanelProps {
   onExecute?: (executionIds: string[]) => void
   isExecuting?: boolean
   executeDisabled?: boolean
+  selectionKey?: number
 }
 
-export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled }: AssetSelectionPanelProps) {
+export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey }: AssetSelectionPanelProps) {
   const { t } = useTranslation("advanced")
   const { selectedOrganizationId } = useOrganization()
   const orgId = useEffectiveOrgId()
@@ -25,6 +26,10 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set())
   const [selectedExecutions, setSelectedExecutions] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    setSelectedExecutions(new Set())
+  }, [selectionKey])
 
   useEffect(() => {
     if (!templateId || !selectedOrganizationId) {

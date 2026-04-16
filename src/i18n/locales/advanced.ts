@@ -1,8 +1,31 @@
 const translations = {
   title: { en: "Advanced", es: "Avanzado" },
   menu: {
+    home: { en: "Home", es: "Inicio" },
     massExecution: { en: "Mass Execution", es: "Ejecución masiva" },
-    changeHistory: { en: "Change History", es: "Historial de cambios" },
+    changeHistory: { en: "Pending Changes", es: "Cambios pendientes" },
+  },
+  home: {
+    title: { en: "Advanced Tools", es: "Herramientas avanzadas" },
+    description: {
+      en: "This section gives you access to powerful tools for managing and processing your organization's assets at scale.",
+      es: "Esta sección te da acceso a herramientas potentes para gestionar y procesar los activos de tu organización a gran escala.",
+    },
+    availableOptions: { en: "Available options", es: "Opciones disponibles" },
+    massExecution: {
+      title: { en: "Mass Execution", es: "Ejecución masiva" },
+      description: {
+        en: "Run AI-powered executions or edits across multiple assets at once. Select a template, configure the section and edit type, and apply changes in bulk.",
+        es: "Ejecuta acciones de IA o ediciones sobre múltiples activos a la vez. Selecciona un template, configura la sección y el tipo de edición, y aplica los cambios en masa.",
+      },
+    },
+    changeHistory: {
+      title: { en: "Pending Changes", es: "Cambios pendientes" },
+      description: {
+        en: "Review pending changes across your assets, including AI-generated content and manual edits awaiting approval.",
+        es: "Revisa los cambios pendientes en tus activos, incluyendo contenido generado por IA y ediciones manuales que esperan aprobación.",
+      },
+    },
   },
   massExecution: {
     steps: {
@@ -40,6 +63,17 @@ const translations = {
     },
     executeSuccess: { en: "Mass execution started successfully", es: "Ejecución masiva iniciada exitosamente" },
     executeError: { en: "Failed to start mass execution", es: "Error al iniciar la ejecución masiva" },
+    result: {
+      title: { en: "Execution result", es: "Resultado de la ejecución" },
+      total: { en: "{{count}} executions were processed", es: "Se procesaron {{count}} ejecuciones" },
+      enqueued: { en: "Enqueued", es: "Encolados" },
+      enqueuedDescription: { en: "Job was queued successfully and will be processed shortly", es: "El job fue encolado correctamente y se procesará en breve" },
+      skipped: { en: "Skipped", es: "Omitidos" },
+      skippedDescription: { en: "Not processed due to an expected condition (e.g. no content to process)", es: "No se procesaron por una condición esperada (ej. sin contenido que procesar)" },
+      failed: { en: "Failed", es: "Fallidos" },
+      failedDescription: { en: "A real error occurred while processing these executions", es: "Ocurrió un error real al procesar estas ejecuciones" },
+      close: { en: "Close", es: "Cerrar" },
+    },
     executionModes: {
       single: {
         title: { en: "Execute this section only", es: "Ejecutar solo esta sección" },

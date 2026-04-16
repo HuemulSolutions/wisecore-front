@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { Play, History } from "lucide-react"
+import { Play, History, Home, CheckCircle2, SkipForward, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { MassExecutionForm } from "@/components/execution/mass-execution-form"
 import type { MassExecutionConfig } from "@/components/execution/mass-execution-form"
 import { AssetSelectionPanel } from "@/components/execution/asset-selection-panel"
@@ -11,8 +12,18 @@ import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection } from "@/ser
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
-type AdvancedSection = "mass-execution" | "change-history"
+type AdvancedSection = "home" | "mass-execution" | "change-history"
 
 export default function AdvancedPage() {
   const { t } = useTranslation("advanced")
@@ -28,26 +39,36 @@ export default function AdvancedPage() {
 
   const canAccessMassExecution = canListTemplates && canListTemplateSections && canListExecutions
 
-  const [activeSection, setActiveSection] = useState<AdvancedSection>("mass-execution")
+  const [activeSection, setActiveSection] = useState<AdvancedSection>("home")
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [massExecutionConfig, setMassExecutionConfig] = useState<MassExecutionConfig | null>(null)
   const [isExecuting, setIsExecuting] = useState(false)
+  const [executionResult, setExecutionResult] = useState<{ total: number; enqueued: number; skipped: number; failed: number } | null>(null)
+  const [showResultDialog, setShowResultDialog] = useState(false)
+  const [selectionKey, setSelectionKey] = useState(0)
 
   const handleSectionChange = useCallback((section: AdvancedSection) => {
     setActiveSection(section)
     if (section !== "mass-execution") {
       setSelectedTemplateId("")
       setMassExecutionConfig(null)
+      setExecutionResult(null)
     }
   }, [])
+
+  const handleNavigateToSection = useCallback((section: AdvancedSection) => {
+    handleSectionChange(section)
+  }, [handleSectionChange])
 
   const handleExecute = useCallback(async (executionIds: string[]) => {
     if (!massExecutionConfig || !selectedOrganizationId || !canCreateExecution) return
 
     setIsExecuting(true)
+    setExecutionResult(null)
     try {
+      let result
       if (massExecutionConfig.editType === "execute-ai") {
-        await bulkGenerateByTemplateSection({
+        result = await bulkGenerateByTemplateSection({
           executionIds,
           templateSectionId: massExecutionConfig.sectionId,
           llmId: massExecutionConfig.llmId,
@@ -56,13 +77,23 @@ export default function AdvancedPage() {
           organizationId: selectedOrganizationId,
         })
       } else if (massExecutionConfig.editType === "edit-ai") {
-        await bulkAiFixByTemplateSection({
+        result = await bulkAiFixByTemplateSection({
           executionIds,
           templateSectionId: massExecutionConfig.sectionId,
           instruction: massExecutionConfig.instructions,
           autoApply: massExecutionConfig.executionMode === "save",
           organizationId: selectedOrganizationId,
         })
+      }
+      if (result?.summary) {
+        setExecutionResult({
+          total: result.summary.total ?? 0,
+          enqueued: result.summary.enqueued ?? 0,
+          skipped: result.summary.skipped ?? 0,
+          failed: result.summary.failed ?? 0,
+        })
+        setShowResultDialog(true)
+        setSelectionKey((k) => k + 1)
       }
       toast.success(t("massExecution.executeSuccess"))
     } catch (error) {
@@ -73,6 +104,7 @@ export default function AdvancedPage() {
   }, [massExecutionConfig, selectedOrganizationId, canCreateExecution, t])
 
   const menuItems: { key: AdvancedSection; label: string; icon: React.ElementType; visible: boolean }[] = [
+    { key: "home", label: t("menu.home"), icon: Home, visible: true },
     { key: "mass-execution", label: t("menu.massExecution"), icon: Play, visible: canAccessMassExecution },
     { key: "change-history", label: t("menu.changeHistory"), icon: History, visible: canListExecutions },
   ]
@@ -105,6 +137,44 @@ export default function AdvancedPage() {
     </nav>
   )
 
+  const homeContent = (
+    <div className="p-8 h-full overflow-y-auto scrollbar-hide">
+      <h1 className="text-2xl font-semibold">{t("home.title")}</h1>
+      <p className="text-muted-foreground mt-2">{t("home.description")}</p>
+
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mt-8 mb-4">
+        {t("home.availableOptions")}
+      </h2>
+
+      <div className="flex flex-col gap-3">
+        {canAccessMassExecution && (
+          <button
+            onClick={() => handleNavigateToSection("mass-execution")}
+            className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted hover:cursor-pointer"
+          >
+            <Play className="h-5 w-5 mt-0.5 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium">{t("home.massExecution.title")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("home.massExecution.description")}</p>
+            </div>
+          </button>
+        )}
+        {canListExecutions && (
+          <button
+            onClick={() => handleNavigateToSection("change-history")}
+            className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted hover:cursor-pointer"
+          >
+            <History className="h-5 w-5 mt-0.5 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium">{t("home.changeHistory.title")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("home.changeHistory.description")}</p>
+            </div>
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
   const massExecutionForm = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
       <MassExecutionForm
@@ -123,36 +193,107 @@ export default function AdvancedPage() {
         onExecute={handleExecute}
         isExecuting={isExecuting}
         executeDisabled={executeDisabled}
+        selectionKey={selectionKey}
       />
     </div>
   )
 
   const changeHistory = (
     <div className="p-6">
-      <h1 className="text-xl font-semibold">{t("menu.changeHistory")}</h1>
-      <p className="text-sm text-muted-foreground mt-1">
-        {/* Placeholder for change history content */}
-      </p>
+      {/* Placeholder for change history content */}
     </div>
   )
 
   const isMassExecution = activeSection === "mass-execution"
+  const isHome = activeSection === "home"
 
-  return (
+  const sectionIcon = isMassExecution ? Play : History
+  const sectionTitle = isMassExecution ? t("home.massExecution.title") : t("home.changeHistory.title")
+  const sectionDescription = isMassExecution ? t("home.massExecution.description") : t("home.changeHistory.description")
+
+  const pageHeader = !isHome ? (
+    <div className="px-6 py-3">
+      <div className="-mb-6">
+        <PageHeader icon={sectionIcon} title={sectionTitle} showRefresh={false} />
+      </div>
+      <p className="text-sm text-muted-foreground">{sectionDescription}</p>
+    </div>
+  ) : undefined
+
+  const innerLayout = (
     <HuemulPageLayout
+      header={pageHeader}
+      showHeader={!isHome}
       columns={[
-        { content: sidebar, defaultSize: 15, resizable: false },
         {
-          content: isMassExecution ? massExecutionForm : changeHistory,
-          defaultSize: 30,
+          content: isHome ? homeContent : isMassExecution ? massExecutionForm : changeHistory,
+          defaultSize: isMassExecution ? 35 : 100,
           resizable: false,
         },
         {
           content: assetSelection,
+          defaultSize: 65,
           show: isMassExecution,
           resizable: false,
         },
       ]}
     />
+  )
+
+  return (
+    <>
+      <HuemulPageLayout
+        columns={[
+          { content: sidebar, defaultSize: 15, resizable: false },
+          { content: innerLayout, defaultSize: 85, resizable: false },
+        ]}
+      />
+
+      <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("massExecution.result.title")}</DialogTitle>
+            <DialogDescription>
+              {t("massExecution.result.total", { count: executionResult?.total ?? 0 })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2">
+            <div className="flex items-center gap-4 rounded-lg border p-4">
+              <CheckCircle2 className="h-8 w-8 shrink-0 text-primary" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{t("massExecution.result.enqueued")}</p>
+                <p className="text-xs text-muted-foreground">{t("massExecution.result.enqueuedDescription")}</p>
+              </div>
+              <span className="text-2xl font-bold text-primary">{executionResult?.enqueued ?? 0}</span>
+            </div>
+
+            <div className="flex items-center gap-4 rounded-lg border p-4">
+              <SkipForward className="h-8 w-8 shrink-0 text-yellow-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{t("massExecution.result.skipped")}</p>
+                <p className="text-xs text-muted-foreground">{t("massExecution.result.skippedDescription")}</p>
+              </div>
+              <span className="text-2xl font-bold text-yellow-500">{executionResult?.skipped ?? 0}</span>
+            </div>
+
+            <div className="flex items-center gap-4 rounded-lg border p-4">
+              <XCircle className="h-8 w-8 shrink-0 text-destructive" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{t("massExecution.result.failed")}</p>
+                <p className="text-xs text-muted-foreground">{t("massExecution.result.failedDescription")}</p>
+              </div>
+              <span className="text-2xl font-bold text-destructive">{executionResult?.failed ?? 0}</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button className="w-full hover:cursor-pointer">{t("massExecution.result.close")}</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
