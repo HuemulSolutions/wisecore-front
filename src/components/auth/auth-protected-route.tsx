@@ -18,6 +18,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
+    // Persist the intended URL so post-login flows can redirect back
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl !== '/' && currentUrl !== '/home') {
+      sessionStorage.setItem('returnUrl', currentUrl);
+    }
     return <AuthPage />;
   }
 

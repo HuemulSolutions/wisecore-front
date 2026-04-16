@@ -15,14 +15,14 @@ export function useUserPermissions() {
   try {
     contextData = usePermissions();
   } catch {
-    // Si el contexto no está disponible, retornar valores por defecto
-    console.warn('PermissionsContext not available, using default values');
+    // Context not available (e.g. Plate editor portals outside the provider tree).
+    // Return safe defaults with isLoading:false so consumers don't block rendering.
     contextData = {
       permissions: [],
       roles: [],
       isRootAdmin: false,
       isOrgAdmin: false,
-      isLoading: true,
+      isLoading: false,
       hasPermission: () => false,
       hasAnyPermission: () => false,
       hasAllPermissions: () => false,
