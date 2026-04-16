@@ -8,6 +8,7 @@ import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { MassExecutionForm } from "@/components/execution/mass-execution-form"
 import type { MassExecutionConfig } from "@/components/execution/mass-execution-form"
 import { AssetSelectionPanel } from "@/components/execution/asset-selection-panel"
+import { ChangeHistoryPanel } from "@/components/execution/change-history-panel"
 import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection } from "@/services/executions"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
@@ -199,8 +200,8 @@ export default function AdvancedPage() {
   )
 
   const changeHistory = (
-    <div className="p-6">
-      {/* Placeholder for change history content */}
+    <div className="p-6 h-full overflow-y-auto scrollbar-hide">
+      <ChangeHistoryPanel />
     </div>
   )
 

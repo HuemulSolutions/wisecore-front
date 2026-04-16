@@ -285,3 +285,64 @@ export async function rejectDocumentLifecycle(documentId: string, organizationId
   console.log('Document lifecycle rejected:', data.data);
   return data.data;
 }
+
+// --- Pending AI suggestions ---
+
+export interface PendingAiSuggestionExecution {
+  execution_id: string
+  execution_name: string
+  pending_ai_suggestion_count: number
+}
+
+export interface DocumentWithPendingChanges {
+  id: string
+  name: string
+  internal_code: string | null
+  updated_at: string
+  updated_by: string | null
+  document_type: {
+    id: string
+    name: string
+    color: string
+  }
+  template_name: string
+  has_pending_ai_suggestion: boolean
+  pending_ai_suggestion_executions: PendingAiSuggestionExecution[]
+}
+
+export interface PendingChangesResponse {
+  data: DocumentWithPendingChanges[]
+  page: number
+  page_size: number
+  has_next: boolean
+}
+
+export async function getDocumentsWithPendingChanges(
+  organizationId: string,
+  options: {
+    page?: number
+    pageSize?: number
+    search?: string
+    hasPendingAiSuggestion?: boolean
+  } = {}
+): Promise<PendingChangesResponse> {
+  const { page = 1, pageSize = 20, search, hasPendingAiSuggestion = true } = options
+  const url = new URL(`${backendUrl}/documents/`)
+  url.searchParams.append('page', String(page))
+  url.searchParams.append('page_size', String(pageSize))
+  if (search) url.searchParams.append('search', search)
+  if (hasPendingAiSuggestion !== undefined) {
+    url.searchParams.append('has_pending_ai_suggestion', String(hasPendingAiSuggestion))
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: { 'X-Org-Id': organizationId },
+  })
+  const json = await response.json()
+  return {
+    data: json.data,
+    page: json.page,
+    page_size: json.page_size,
+    has_next: json.has_next,
+  }
+}

@@ -121,6 +121,50 @@ const translations = {
     openAsset: { en: "Open asset", es: "Abrir activo" },
     openVersion: { en: "Open version", es: "Abrir versión" },
   },
+  changeHistory: {
+    title: { en: "Change History", es: "Historial de cambios" },
+    subtitle: {
+      en: "Select a document to view its changes",
+      es: "Selecciona un documento para ver sus cambios",
+    },
+    searchPlaceholder: { en: "Search document...", es: "Buscar documento..." },
+    filterPending: {
+      en: "View unapproved changes",
+      es: "Ver cambios sin aprobar",
+    },
+    sectionTitle: {
+      en: "Documents with pending changes",
+      es: "Documentos con cambios pendientes",
+    },
+    lastModified: {
+      en: "Last modified: {{date}}",
+      es: "Última modificación: {{date}}",
+    },
+    pendingCount_one: { en: "{{count}} pending", es: "{{count}} pendiente" },
+    pendingCount_other: { en: "{{count}} pending", es: "{{count}} pendientes" },
+    pendingCount: { en: "{{count}} pending", es: "{{count}} pendientes" },
+    suggestionCount: {
+      en: "{{count}} pending",
+      es: "{{count}} pendientes",
+    },
+    loading: { en: "Loading...", es: "Cargando..." },
+    empty: {
+      en: "No documents with pending changes",
+      es: "No hay documentos con cambios pendientes",
+    },
+    noResults: {
+      en: "No documents match your search",
+      es: "No se encontraron documentos con tu búsqueda",
+    },
+    page: { en: "Page {{page}}", es: "Página {{page}}" },
+    previous: { en: "Previous", es: "Anterior" },
+    next: { en: "Next", es: "Siguiente" },
+    openAsset: { en: "Open document", es: "Abrir documento" },
+    openVersion: {
+      en: "Open this version in a new tab",
+      es: "Abrir esta versión en una nueva pestaña",
+    },
+  },
 }
 
 export default translations
