@@ -67,8 +67,8 @@ import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 
 // Utilities and hooks
-import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
 import { SectionSeparator } from './components/SectionSeparator';
+import { withRefresh } from '@/lib/query-utils';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
@@ -431,16 +431,18 @@ export function AssetContent({
 
   // Mutation for checking (advancing) execution lifecycle
   const checkLifecycleMutation = useMutation({
-    mutationFn: async (comment?: string) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      const stepId = documentContent?.lifecycle_status?.current_step_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      if (!stepId) throw new Error('Missing step ID');
-      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
-    },
+    mutationFn: withRefresh(
+      async (comment?: string) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        const stepId = documentContent?.lifecycle_status?.current_step_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        if (!stepId) throw new Error('Missing step ID');
+        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['document', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       setIsCheckLifecycleDialogOpen(false);
     },
     meta: { successMessage: t('lifecycle.successComplete') },
@@ -452,14 +454,16 @@ export function AssetContent({
 
   // Mutation for assigning a semantic version to the execution
   const assignVersionMutation = useMutation({
-    mutationFn: async (version: { major: number; minor: number; patch: number }) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return assignExecutionVersion(executionId, version, selectedOrganizationId);
-    },
+    mutationFn: withRefresh(
+      async (version: { major: number; minor: number; patch: number }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return assignExecutionVersion(executionId, version, selectedOrganizationId);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       setIsAssignVersionDialogOpen(false);
     },
     meta: { successMessage: t('mutations.versionAssigned') },
@@ -471,15 +475,16 @@ export function AssetContent({
 
   // Mutation for rejecting (going back) execution lifecycle
   const rejectLifecycleMutation = useMutation({
-    mutationFn: async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
-    },
+    mutationFn: withRefresh(
+      async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['document', selectedFile?.id], ['rollback-targets']],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['rollback-targets'] });
       setIsRejectLifecycleDialogOpen(false);
     },
     meta: { successMessage: t('lifecycle.successReturn') },
@@ -491,16 +496,17 @@ export function AssetContent({
 
   // Mutation for advancing lifecycle (publish / archive)
   const advanceLifecycleMutation = useMutation({
-    mutationFn: async (options?: { comment?: string; skip_published?: boolean }) => {
-      preserveScrollPosition();
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
-    },
+    mutationFn: withRefresh(
+      async (options?: { comment?: string; skip_published?: boolean }) => {
+        preserveScrollPosition();
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       setIsPublishDialogOpen(false);
       setIsArchiveDialogOpen(false);
     },
@@ -519,16 +525,15 @@ export function AssetContent({
 
   // Mutation for renaming an execution version
   const renameVersionMutation = useMutation({
-    mutationFn: async ({ executionId, name }: { executionId: string; name: string }) => {
-      if (!selectedOrganizationId) throw new Error('Missing organization');
-      return updateExecutionName(executionId, name, selectedOrganizationId);
-    },
+    mutationFn: withRefresh(
+      async ({ executionId, name }: { executionId: string; name: string }) => {
+        if (!selectedOrganizationId) throw new Error('Missing organization');
+        return updateExecutionName(executionId, name, selectedOrganizationId);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id], ['library']],
+    ),
     onSuccess: () => {
-      // Use refetchQueries to force immediate refetch regardless of staleTime
-      queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.refetchQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['library'] });
       setIsRenameVersionDialogOpen(false);
       setExecutionToRename(null);
     },
@@ -1308,21 +1313,15 @@ export function AssetContent({
 
 
 
-  // Extract headings for table of contents
+  // Build table of contents from section names
   const tocItems = useMemo(() => {
-    if (!documentContent?.content) return [];
-    
-    // Check if content is in new format (array of sections)
-    if (Array.isArray(documentContent.content)) {
-      return extractHeadingsFromSections(documentContent.content);
-    }
-    
-    // Fallback for old format (single string)
-    if (typeof documentContent.content === 'string') {
-      return extractHeadings(documentContent.content);
-    }
-    
-    return [];
+    if (!documentContent?.content || !Array.isArray(documentContent.content)) return [];
+    return (documentContent.content as ContentSection[]).map((section, index) => ({
+      id: `section-${index}`,
+      title: section.section_name || `Section ${index + 1}`,
+      level: 1,
+      hasPendingSuggestion: section.ai_suggestion_status === 'completed',
+    }));
   }, [documentContent?.content]);
 
   const sectionOptionsForExecutionDialog = useMemo(() => {

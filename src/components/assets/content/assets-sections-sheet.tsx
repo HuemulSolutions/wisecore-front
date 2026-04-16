@@ -28,6 +28,7 @@ import { createSection, updateSection, updateSectionsOrder, deleteSection } from
 import { linkSectionToExecution } from "@/services/section_execution";
 import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
 import { toast } from "sonner";
+import { withRefresh } from "@/lib/query-utils";
 import { handleApiError } from "@/lib/error-utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -186,17 +187,18 @@ export function SectionSheet({
 
   // Mutations for sections management
   const addSectionMutation = useMutation({
-    mutationFn: (sectionData: any) => {
-      const payload = selectedConfigExecutionId
-        ? { ...sectionData, execution_id: selectedConfigExecutionId }
-        : sectionData;
+    mutationFn: withRefresh(
+      (sectionData: any) => {
+        const payload = selectedConfigExecutionId
+          ? { ...sectionData, execution_id: selectedConfigExecutionId }
+          : sectionData;
 
-      return createSection(payload, selectedOrganizationId!);
-    },
+        return createSection(payload, selectedOrganizationId!);
+      },
+      queryClient,
+      () => [['document', selectedFile?.id], ['document-content', selectedFile?.id], ['document-sections-config', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document-sections-config', selectedFile?.id] });
       setIsAddingSectionDialogOpen(false);
       setIsFormValid(false);
       setIsGenerating(false);

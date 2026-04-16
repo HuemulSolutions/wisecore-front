@@ -753,6 +753,7 @@ export default function SectionExecution({
                 closeOnSuccess: false,
                 onClick: async () => {
                     await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
                     setAiPreview(null);
                     setIsDiffOpen(false);
                 },
@@ -761,9 +762,9 @@ export default function SectionExecution({
                 label: t('section.diffAccept'),
                 onClick: async () => {
                     await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
                     setAiPreview(null);
                     setIsDiffOpen(false);
-                    queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
                     onUpdate?.();
                 },
                 closeOnSuccess: false,

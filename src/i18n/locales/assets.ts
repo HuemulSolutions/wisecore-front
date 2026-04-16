@@ -249,6 +249,7 @@ const translations = {
   tableOfContents: {
     expand: { en: "Expand", es: "Expandir" },
     collapse: { en: "Collapse", es: "Colapsar" },
+    pendingSuggestion: { en: "AI suggestion ready to review", es: "Sugerencia IA lista para revisar" },
   },
   templateSheet: {
     sectionCreated: { en: "Template section created successfully", es: "Sección de plantilla creada correctamente" },
