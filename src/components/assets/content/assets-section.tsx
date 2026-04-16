@@ -18,13 +18,7 @@ import {
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { HuemulField } from '@/huemul/components/huemul-field';
 import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
 import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { useOrganization } from '@/contexts/organization-context';
@@ -375,50 +369,40 @@ export default function SectionExecution({
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
                 <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
-                    {(sectionName || sectionType) && (
-                        <div className="mr-auto flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
-                            <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
-                                {sectionName || t('section.untitled')}
-                            </span>
-                            <span className="mx-1.5 text-[10px] text-blue-300">•</span>
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
-                                {sectionTypeLabel}
-                            </span>
-                        </div>
-                    )}
+                    {/* Left side: section info + review status */}
+                    <div className="mr-auto flex items-center gap-1.5">
+                        {(sectionName || sectionType) && (
+                            <div className="flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
+                                <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
+                                    {sectionName || t('section.untitled')}
+                                </span>
+                                <span className="mx-1.5 text-[10px] text-blue-300">•</span>
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
+                                    {sectionTypeLabel}
+                                </span>
+                            </div>
+                        )}
 
-                    {/* Review Status Selector */}
-                    {!isEditing && (
-                        <Select
-                            value={reviewStatus ?? ''}
-                            onValueChange={(value) => handleReviewStatusChange(value as ReviewStatus)}
-                            disabled={isUpdatingReviewStatus || !canEditSections}
-                        >
-                            <SelectTrigger className="h-7 w-[130px] text-xs mr-1 hover:cursor-pointer">
-                                <SelectValue placeholder={t('section.reviewStatusPlaceholder')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="editing" className="text-xs hover:cursor-pointer">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-blue-500" />
-                                        {t('section.reviewStatusEditing')}
-                                    </span>
-                                </SelectItem>
-                                <SelectItem value="reviewing" className="text-xs hover:cursor-pointer">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                        {t('section.reviewStatusReviewing')}
-                                    </span>
-                                </SelectItem>
-                                <SelectItem value="finished" className="text-xs hover:cursor-pointer">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-green-500" />
-                                        {t('section.reviewStatusFinished')}
-                                    </span>
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    )}
+                        {/* Review Status Selector - inline with section info */}
+                        {!isEditing && (
+                            <HuemulField
+                                type="select"
+                                label=""
+                                value={reviewStatus ?? ''}
+                                onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
+                                disabled={isUpdatingReviewStatus || !canEditSections}
+                                placeholder={t('section.reviewStatusPlaceholder')}
+                                options={[
+                                    { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
+                                    { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
+                                    { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                ]}
+                                className="w-auto"
+                                selectSize="xs"
+                                inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
+                            />
+                        )}
+                    </div>
                     
                     {!isEditing && (
                     <>
