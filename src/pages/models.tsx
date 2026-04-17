@@ -35,6 +35,7 @@ import {
   ModelsContentEmptyState,
   ModelDialog,
   DeleteModelDialog,
+  ModelCapabilitiesDialog,
 } from '@/components/llm'
 import {
   ProviderCard,
@@ -77,6 +78,7 @@ export default function Models() {
   const [deletingEmbeddingProvider, setDeletingEmbeddingProvider] = useState<any>(null)
   const [isDeletingEmbeddingProvider, setIsDeletingEmbeddingProvider] = useState(false)
   const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
+  const [capabilitiesModel, setCapabilitiesModel] = useState<LLM | null>(null)
 
   // Verificar permisos
   const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
@@ -314,6 +316,29 @@ export default function Models() {
     setTimeout(() => {
       setDeletingModel(model)
     }, 0)
+  }
+
+  const handleCapabilitiesModel = (model: LLM) => {
+    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
+    setTimeout(() => {
+      setCapabilitiesModel(model)
+    }, 0)
+  }
+
+  const handleCapabilitiesSubmit = (model: LLM, capabilities: string[]) => {
+    updateLLMMutation.mutate({
+      id: model.id,
+      data: {
+        name: model.name,
+        internal_name: model.internal_name,
+        provider_id: model.provider_id,
+        capabilities,
+      },
+    }, {
+      onSuccess: () => {
+        setCapabilitiesModel(null)
+      },
+    })
   }
 
   const confirmDeleteModel = async () => {
@@ -588,6 +613,7 @@ export default function Models() {
                       onEditModel={handleEditModel}
                       onDeleteModel={handleDeleteModel}
                       onTestModel={handleTestModel}
+                      onCapabilitiesModel={handleCapabilitiesModel}
                       onDefaultChange={handleDefaultChange}
                       isDeleting={deleteProviderMutation.isPending}
                       isDeletingModel={deleteLLMMutation.isPending}
@@ -635,6 +661,7 @@ export default function Models() {
                       onEditModel={handleEditModel}
                       onDeleteModel={handleDeleteModel}
                       onTestModel={handleTestModel}
+                      onCapabilitiesModel={handleCapabilitiesModel}
                       onDefaultChange={handleDefaultChange}
                       isDeleting={deleteProviderMutation.isPending}
                       isDeletingModel={deleteLLMMutation.isPending}
@@ -768,6 +795,19 @@ export default function Models() {
         }}
         model={deletingModel}
         onAction={confirmDeleteModel}
+      />
+
+      {/* Model Capabilities Dialog */}
+      <ModelCapabilitiesDialog
+        open={!!capabilitiesModel}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCapabilitiesModel(null)
+          }
+        }}
+        model={capabilitiesModel}
+        isUpdating={updateLLMMutation.isPending}
+        onSubmit={handleCapabilitiesSubmit}
       />
     </div>
   )

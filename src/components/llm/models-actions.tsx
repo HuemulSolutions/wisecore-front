@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, MoreVertical, Radio, Loader2 } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Radio, Loader2, Settings } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
@@ -11,6 +11,7 @@ interface ModelActionsProps {
   onEdit: (model: LLM) => void
   onDelete: (model: LLM) => void
   onTest: (model: LLM) => void
+  onCapabilities: (model: LLM) => void
   isDeleting: boolean
   isTesting: boolean
   dropdownOpen: boolean
@@ -24,6 +25,7 @@ export function ModelActions({
   onEdit, 
   onDelete, 
   onTest,
+  onCapabilities,
   isDeleting,
   isTesting,
   dropdownOpen,
@@ -81,6 +83,15 @@ export function ModelActions({
           </DropdownMenuItem>
           {canUpdate && (
             <DropdownMenuItem
+              onClick={() => onCapabilities(model)}
+              className="hover:cursor-pointer text-xs"
+            >
+              <Settings className="h-3 w-3 mr-2 text-blue-600" />
+              {t('modelActions.capabilities')}
+            </DropdownMenuItem>
+          )}
+          {canUpdate && (
+            <DropdownMenuItem
               onClick={() => onEdit(model)}
               className="hover:cursor-pointer text-xs"
             >
@@ -114,6 +125,16 @@ export function ModelActions({
         loading={isTesting}
         onClick={() => onTest(model)}
       />
+      {canUpdate && (
+        <HuemulButton
+          icon={Settings}
+          variant="ghost"
+          size="icon-sm"
+          iconClassName="text-blue-600"
+          tooltip={t('modelActions.capabilities')}
+          onClick={() => onCapabilities(model)}
+        />
+      )}
       {canUpdate && (
         <HuemulButton
           icon={Edit}
