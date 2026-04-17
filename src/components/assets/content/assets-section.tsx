@@ -1,4 +1,5 @@
 import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
@@ -84,6 +85,9 @@ export default function SectionExecution({
     const [isAiSuggestionActive, setIsAiSuggestionActive] = useState(
         sectionExecution.ai_suggestion_status === 'pending'
     );
+    // Tracks when polling just completed (banner still visible, button should already update)
+    const [suggestionReadyLocally, setSuggestionReadyLocally] = useState(false);
+    const [localSuggestionContent, setLocalSuggestionContent] = useState<string | null>(null);
     const [isDiffOpen, setIsDiffOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
@@ -91,12 +95,14 @@ export default function SectionExecution({
     );
     const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
 
-    // Derived: whether there's a completed suggestion ready to review
+    // Derived: whether there's a completed suggestion ready to review (from server props)
     const hasPendingSuggestion =
         !!sectionExecution.ai_suggestion_content &&
         sectionExecution.ai_suggestion_status === 'completed' &&
         aiPreview === null &&
         !isAiSuggestionActive;
+    // Combined: show suggestion-ready UI as soon as polling completes, even while banner is still shown
+    const showSuggestionReady = hasPendingSuggestion || suggestionReadyLocally;
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
@@ -319,6 +325,8 @@ export default function SectionExecution({
     const handleSendAiEdit = async (prompt: string) => {
         try {
             await createAiSuggestion(sectionExecution.id, prompt, selectedOrganizationId ?? undefined);
+            // Remove stale cache so AiSuggestionFeedback starts polling fresh data on mount
+            queryClient.removeQueries({ queryKey: ['ai-suggestion', sectionExecution.id] });
             setIsAiSuggestionActive(true);
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.executionFailed') });
@@ -346,15 +354,33 @@ export default function SectionExecution({
         setIsDiffOpen(true);
     };
 
-    const handleAiSuggestionCompleted = (_content: string) => {
-        setIsAiSuggestionActive(false);
-        // Invalidate so props refresh with ai_suggestion_status: 'completed'
-        // hasPendingSuggestion will become true and the button will update
+    const handleAiSuggestionCompleted = (content: string) => {
+        // Keep banner visible (transitions to completed state) and update the button immediately.
+        setSuggestionReadyLocally(true);
+        setLocalSuggestionContent(content);
+        // Refresh server props in the background so ai_suggestion_status becomes 'completed'.
         queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
     };
 
-    const handleAiSuggestionFailed = () => {
+    const handleAiSuggestionView = (content: string) => {
+        // User clicked "View Suggestion" (either in banner or header button) – open the diff.
         setIsAiSuggestionActive(false);
+        setSuggestionReadyLocally(false);
+        setLocalSuggestionContent(null);
+        setAiPreview(content || sectionExecution.ai_suggestion_content || null);
+        setIsDiffOpen(true);
+    };
+
+    const handleAiSuggestionDismiss = () => {
+        setIsAiSuggestionActive(false);
+        setSuggestionReadyLocally(false);
+        setLocalSuggestionContent(null);
+    };
+
+    const handleAiSuggestionFailed = () => {
+        // Called when the user dismisses a failed banner; clear all local suggestion state.
+        setSuggestionReadyLocally(false);
+        setLocalSuggestionContent(null);
     };
 
     // Debug logging for execution tracking
@@ -429,14 +455,38 @@ export default function SectionExecution({
                                         <HuemulButton
                                             variant="ghost"
                                             size="sm"
-                                            icon={hasPendingSuggestion ? GitCompare : Bot}
-                                            iconClassName={`h-3.5 w-3.5 ${hasPendingSuggestion ? 'text-amber-600' : 'text-blue-600'}`}
-                                            className={`h-7 w-7 ${hasPendingSuggestion ? 'hover:bg-amber-50' : 'hover:bg-blue-50'}`}
-                                            tooltip={hasPendingSuggestion ? t('section.viewAiSuggestion') : t('section.askAiToEdit')}
-                                            onClick={() => hasPendingSuggestion ? handleViewSuggestion() : setIsAiEditDialogOpen(true)}
+                                            icon={showSuggestionReady ? GitCompare : Bot}
+                                            iconClassName={cn(
+                                                'h-3.5 w-3.5 transition-colors duration-300',
+                                                showSuggestionReady ? 'text-amber-600' : 'text-blue-600'
+                                            )}
+                                            className={cn(
+                                                'h-7 w-7 transition-all duration-300',
+                                                showSuggestionReady ? 'hover:bg-amber-50' : 'hover:bg-blue-50',
+                                                isAiSuggestionActive && !suggestionReadyLocally && 'opacity-40 pointer-events-none'
+                                            )}
+                                            tooltip={
+                                                showSuggestionReady
+                                                    ? t('section.viewAiSuggestion')
+                                                    : isAiSuggestionActive
+                                                        ? t('section.suggestionInProgress')
+                                                        : t('section.askAiToEdit')
+                                            }
+                                            onClick={() => {
+                                                if (suggestionReadyLocally) {
+                                                    handleAiSuggestionView(localSuggestionContent ?? '');
+                                                } else if (hasPendingSuggestion) {
+                                                    handleViewSuggestion();
+                                                } else {
+                                                    setIsAiEditDialogOpen(true);
+                                                }
+                                            }}
                                         />
-                                        {hasPendingSuggestion && (
-                                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500" />
+                                        {showSuggestionReady && (
+                                            <span className={cn(
+                                                'absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 transition-all duration-300',
+                                                suggestionReadyLocally && 'animate-pulse'
+                                            )} />
                                         )}
                                     </div>
                                 )}
@@ -554,11 +604,15 @@ export default function SectionExecution({
                                         </DropdownMenuItem>
                                     )}
                                     {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
-                                        hasPendingSuggestion ? (
+                                        showSuggestionReady ? (
                                             <DropdownMenuItem
                                                 className="hover:cursor-pointer"
                                                 onSelect={() => {
-                                                    setTimeout(() => handleViewSuggestion(), 0);
+                                                    if (suggestionReadyLocally) {
+                                                        setTimeout(() => handleAiSuggestionView(localSuggestionContent ?? ''), 0);
+                                                    } else {
+                                                        setTimeout(() => handleViewSuggestion(), 0);
+                                                    }
                                                 }}
                                             >
                                                 <GitCompare className="h-4 w-4 mr-2 text-amber-600" />
@@ -567,6 +621,7 @@ export default function SectionExecution({
                                         ) : (
                                             <DropdownMenuItem 
                                                 className="hover:cursor-pointer"
+                                                disabled={isAiSuggestionActive}
                                                 onSelect={() => {
                                                     setTimeout(() => setIsAiEditDialogOpen(true), 0);
                                                 }}
@@ -632,7 +687,8 @@ export default function SectionExecution({
                         sectionExecutionId={sectionExecution.id}
                         onCompleted={handleAiSuggestionCompleted}
                         onFailed={handleAiSuggestionFailed}
-                        onDismiss={() => setIsAiSuggestionActive(false)}
+                        onDismiss={handleAiSuggestionDismiss}
+                        onViewSuggestion={handleAiSuggestionView}
                     />
                 </div>
             )}
