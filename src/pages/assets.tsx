@@ -28,9 +28,11 @@ function AssetsContent() {
     breadcrumb,
     selectedFile,
     selectedExecutionId,
+    selectedSectionId,
     isLoadingDocument,
     setSelectedFile,
     setSelectedExecutionId,
+    setSelectedSectionId,
     currentFolderId,
   } = useAssetNavigation({ selectedOrganizationId, organizationToken });
 
@@ -79,6 +81,8 @@ function AssetsContent() {
               breadcrumb={breadcrumb}
               selectedExecutionId={selectedExecutionId}
               setSelectedExecutionId={setSelectedExecutionId}
+              selectedSectionId={selectedSectionId}
+              setSelectedSectionId={setSelectedSectionId}
               setSelectedFile={setSelectedFile}
               onRefresh={handleRefresh}
               currentFolderId={currentFolderId}

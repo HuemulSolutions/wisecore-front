@@ -53,6 +53,7 @@ interface SectionExecutionProps {
     sectionName?: string;
     canEditSections?: boolean;
     onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
+    onCopyLink?: () => void;
 }
 
 export default function SectionExecution({ 
@@ -71,6 +72,7 @@ export default function SectionExecution({
     sectionName,
     canEditSections = false,
     onCreateSectionFromSelection,
+    // onCopyLink,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
@@ -461,6 +463,18 @@ export default function SectionExecution({
                                     onClick={handleCopy}
                                 />
 
+                                {/* {onCopyLink && (
+                                    <HuemulButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={Link2}
+                                        iconClassName="h-3.5 w-3.5 text-gray-600"
+                                        className="h-7 w-7 hover:bg-gray-100"
+                                        tooltip={t('section.copyLink')}
+                                        onClick={onCopyLink}
+                                    />
+                                )} */}
+
                                 {!isEditing && !isExecutionApproved && canDelete && canEditSections && (
                                     <HuemulButton
                                         variant="ghost"
@@ -496,6 +510,15 @@ export default function SectionExecution({
                                             <Copy className="h-4 w-4 mr-2" />
                                             {t('section.copy')}
                                         </DropdownMenuItem>
+                                        {/* {onCopyLink && (
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onClick={onCopyLink}
+                                            >
+                                                <Link2 className="h-4 w-4 mr-2" />
+                                                {t('section.copyLink')}
+                                            </DropdownMenuItem>
+                                        )} */}
                                     {/* </DocumentAccessControl> */}
                                     {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && canEditSections && (
                                         <>

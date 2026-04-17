@@ -130,6 +130,8 @@ export function AssetContent({
   selectedFile, 
   selectedExecutionId, 
   setSelectedExecutionId, 
+  selectedSectionId,
+  setSelectedSectionId,
   setSelectedFile,
   onRefresh,
   currentFolderId,
@@ -1324,6 +1326,51 @@ export function AssetContent({
     }));
   }, [documentContent?.content]);
 
+  // Scroll to section when selectedSectionId is set (e.g. from a shared URL)
+  const hasScrolledToSectionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !selectedSectionId ||
+      !documentContent?.content ||
+      !Array.isArray(documentContent.content) ||
+      hasScrolledToSectionRef.current === selectedSectionId
+    ) return;
+
+    // Find the index of the section with the matching section_id
+    const sectionIndex = (documentContent.content as ContentSection[]).findIndex(
+      (section) => section.section_id === selectedSectionId || section.id === selectedSectionId
+    );
+
+    if (sectionIndex === -1) return;
+
+    // Mark as handled so we don't re-scroll on every re-render
+    hasScrolledToSectionRef.current = selectedSectionId;
+
+    // Wait for DOM to render the section elements
+    const timeoutId = setTimeout(() => {
+      const element = document.getElementById(`section-${sectionIndex}`);
+      if (element) {
+        const SCROLL_OFFSET = 40;
+        const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+        if (viewport) {
+          const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+          viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+        } else {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // Clear section from URL after scrolling so it doesn't persist
+        setSelectedSectionId?.(null);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedSectionId, documentContent?.content]);
+
+  // Reset scroll tracking when the document changes
+  useEffect(() => {
+    hasScrolledToSectionRef.current = null;
+  }, [selectedFile?.id]);
+
   const sectionOptionsForExecutionDialog = useMemo(() => {
     const optionsById = new Map<string, string>();
 
@@ -1352,6 +1399,15 @@ export function AssetContent({
 
     return Array.from(optionsById.entries()).map(([id, name]) => ({ id, name }));
   }, [documentContent?.content, fullDocument?.sections]);
+
+  // Handle copy section link to clipboard
+  const handleCopySectionLink = (sectionId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('section', sectionId);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      toast.success(t('section.linkCopied'));
+    });
+  };
 
   // Handle export to markdown
   const handleExportMarkdown = async () => {
@@ -3160,6 +3216,7 @@ export function AssetContent({
                                   sectionName={section.section_name}
                                   canEditSections={frontendPermissions.canEditSections}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
+                                  onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />
                               </div>
                               

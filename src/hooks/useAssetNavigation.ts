@@ -13,11 +13,13 @@ interface UseAssetNavigationReturn {
   breadcrumb: BreadcrumbItem[];
   selectedFile: LibraryItem | null;
   selectedExecutionId: string | null;
+  selectedSectionId: string | null;
   isLoadingDocument: boolean;
   isUpdatingUrl: boolean;
   setBreadcrumb: React.Dispatch<React.SetStateAction<BreadcrumbItem[]>>;
   setSelectedFile: React.Dispatch<React.SetStateAction<LibraryItem | null>>;
   setSelectedExecutionId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedSectionId: React.Dispatch<React.SetStateAction<string | null>>;
   currentFolderId: string | undefined;
 }
 
@@ -36,6 +38,7 @@ export function useAssetNavigation({
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<LibraryItem | null>(null);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
 
@@ -112,7 +115,7 @@ export function useAssetNavigation({
    * Build URL path from breadcrumb and selected file.
    * Appends ?execution=<id> when both a file and an execution are provided.
    */
-  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string, executionId?: string) => {
+  const buildUrlPath = useCallback((breadcrumb: BreadcrumbItem[], selectedFileId?: string, executionId?: string, sectionId?: string) => {
     let path = '/asset';
     
     if (breadcrumb.length > 0) {
@@ -124,9 +127,15 @@ export function useAssetNavigation({
       path += '/' + encodeURIComponent(selectedFileId);
     }
 
+    const params = new URLSearchParams();
     if (executionId && selectedFileId) {
-      path += '?execution=' + encodeURIComponent(executionId);
+      params.set('execution', executionId);
     }
+    if (sectionId && selectedFileId) {
+      params.set('section', sectionId);
+    }
+    const qs = params.toString();
+    if (qs) path += '?' + qs;
     
     return path;
   }, []);
@@ -196,14 +205,16 @@ export function useAssetNavigation({
         // Mark this URL as processed (store without org prefix, include search)
         lastProcessedUrlRef.current = stripOrgPrefix(location.pathname) + location.search;
 
-        // Parse execution ID from query params (e.g. ?execution=<id>)
+        // Parse execution ID and section ID from query params (e.g. ?execution=<id>&section=<id>)
         const urlSearchParams = new URLSearchParams(location.search);
         const urlExecutionId = urlSearchParams.get('execution');
+        const urlSectionId = urlSearchParams.get('section');
         
         // Check if we're coming from FileTree navigation with full context
         const navState = location.state as LibraryNavigationState | undefined;
         if (navState?.fromFileTree && navState.selectedDocumentId) {
           setSelectedExecutionId(null);
+          setSelectedSectionId(null);
           setSelectedFile({
             id: navState.selectedDocumentId,
             name: navState.selectedDocumentName || 'Document',
@@ -248,8 +259,9 @@ export function useAssetNavigation({
         }
         
         if (selectedFileId) {
-          // Restore execution from URL query param if present
+          // Restore execution and section from URL query params if present
           setSelectedExecutionId(urlExecutionId);
+          setSelectedSectionId(urlSectionId);
           setSelectedFile({
             id: selectedFileId,
             name: `Document ${selectedFileId.substring(0, 8)}...`,
@@ -257,6 +269,7 @@ export function useAssetNavigation({
           });
         } else {
           setSelectedExecutionId(null);
+          setSelectedSectionId(null);
           setSelectedFile(null);
         }
       } catch (error) {
@@ -321,7 +334,7 @@ export function useAssetNavigation({
     // state (breadcrumb/selectedFile) hasn't settled yet.
     if (isInitializingRef.current) return;
     
-    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id, selectedExecutionId || undefined);
+    const newUrl = buildUrlPath(breadcrumb, selectedFile?.id, selectedExecutionId || undefined, selectedSectionId || undefined);
     
     // Don't update URL if navigation came from FileTree
     const navigationState = location.state as any;
@@ -342,7 +355,7 @@ export function useAssetNavigation({
         }, 100);
       }, 0);
     }
-  }, [breadcrumb, selectedFile, selectedExecutionId, buildUrlPath, navigate, location.pathname, location.search, selectedOrganizationId, organizationToken, isUpdatingUrl, location.state]);
+  }, [breadcrumb, selectedFile, selectedExecutionId, selectedSectionId, buildUrlPath, navigate, location.pathname, location.search, selectedOrganizationId, organizationToken, isUpdatingUrl, location.state]);
 
   /**
    * Reset state when organization changes
@@ -354,6 +367,7 @@ export function useAssetNavigation({
       setBreadcrumb([]);
       setSelectedFile(null);
       setSelectedExecutionId(null);
+      setSelectedSectionId(null);
       hasRestoredRef.current = false;
       lastProcessedUrlRef.current = '';
       
@@ -439,11 +453,13 @@ export function useAssetNavigation({
     breadcrumb,
     selectedFile,
     selectedExecutionId,
+    selectedSectionId,
     isLoadingDocument,
     isUpdatingUrl,
     setBreadcrumb,
     setSelectedFile,
     setSelectedExecutionId,
+    setSelectedSectionId,
     currentFolderId,
   };
 }

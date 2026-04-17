@@ -199,6 +199,8 @@ const translations = {
     askAiToEdit: { en: "Ask AI to edit", es: "Pedir a la IA que edite" },
     editSection: { en: "Edit section", es: "Editar sección" },
     copyContent: { en: "Copy content", es: "Copiar contenido" },
+    copyLink: { en: "Copy link to section", es: "Copiar enlace a la sección" },
+    linkCopied: { en: "Section link copied to clipboard", es: "Enlace de la sección copiado al portapapeles" },
     deleteSection: { en: "Delete section", es: "Eliminar sección" },
     copy: { en: "Copy", es: "Copiar" },
     executeSection: { en: "Execute Section", es: "Ejecutar Sección" },
