@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import type { TableOfContentsProps } from "@/types/table-of-contents";
 import { useTranslation } from "react-i18next";
@@ -6,81 +6,72 @@ import { useTranslation } from "react-i18next";
 export function TableOfContents({ items }: TableOfContentsProps) {
     const { t } = useTranslation('assets');
     const [activeId, setActiveId] = useState<string | null>(null);
-    const observer = useRef<IntersectionObserver | null>(null);
-    const isUserScrolling = useRef(false);
+    const isProgrammaticScroll = useRef(false);
     const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
+    const scrollContainerRef = useRef<HTMLElement | null>(null);
+    const rafId = useRef<number | null>(null);
 
-    useEffect(() => {
-        if (observer.current) {
-            observer.current.disconnect();
+    const updateActiveSection = useCallback(() => {
+        if (isProgrammaticScroll.current) return;
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const containerTop = container.getBoundingClientRect().top;
+        // Threshold: a section is "active" once its top crosses into the top 25% of the container
+        const threshold = containerTop + container.clientHeight * 0.25;
+
+        let currentActiveId: string | null = null;
+        for (const item of items) {
+            const el = document.getElementById(item.id);
+            if (!el) continue;
+            if (el.getBoundingClientRect().top <= threshold) {
+                currentActiveId = item.id;
+            }
         }
 
+        if (currentActiveId) {
+            setActiveId(currentActiveId);
+        }
+    }, [items]);
+
+    useEffect(() => {
         const handleScroll = () => {
-            if (!isUserScrolling.current) {
-                isUserScrolling.current = true;
-                if (scrollTimeout.current) {
-                    clearTimeout(scrollTimeout.current);
-                }
-                scrollTimeout.current = setTimeout(() => {
-                    isUserScrolling.current = false;
-                }, 150);
-            }
+            if (rafId.current) cancelAnimationFrame(rafId.current);
+            rafId.current = requestAnimationFrame(updateActiveSection);
         };
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-
-        observer.current = new IntersectionObserver(
-            (entries) => {
-                if (isUserScrolling.current) return;
-
-                const intersectingEntries = entries
-                    .filter(entry => entry.isIntersecting)
-                    .map(entry => ({
-                        id: entry.target.id,
-                        ratio: entry.intersectionRatio,
-                        top: entry.boundingClientRect.top
-                    }))
-                    .sort((a, b) => a.top - b.top);
-
-                const topEntry = intersectingEntries.find(entry => entry.ratio > 0.1);
-                if (topEntry) {
-                    setActiveId(topEntry.id);
-                }
-            },
-            {
-                rootMargin: "-10% 0px -60% 0px",
-                threshold: [0.1, 0.5]
-            }
-        );
-
         const timeoutId = setTimeout(() => {
-            const elements = items.map(item => document.getElementById(item.id)).filter(Boolean);
-            elements.forEach(el => {
-                if (el && observer.current) {
-                    observer.current.observe(el);
-                }
-            });
+            // Find the Radix ScrollArea viewport from one of the section elements
+            const firstEl = items.length > 0 ? document.getElementById(items[0].id) : null;
+            const container = firstEl?.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+
+            if (container) {
+                scrollContainerRef.current = container;
+                container.addEventListener('scroll', handleScroll, { passive: true });
+                // Initial check
+                updateActiveSection();
+            }
         }, 100);
 
         return () => {
             clearTimeout(timeoutId);
-            if (scrollTimeout.current) {
-                clearTimeout(scrollTimeout.current);
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.removeEventListener('scroll', handleScroll);
             }
-            window.removeEventListener('scroll', handleScroll);
-            observer.current?.disconnect();
+            if (rafId.current) cancelAnimationFrame(rafId.current);
+            if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
         };
-    }, [items]);
+    }, [items, updateActiveSection]);
 
     const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
         e.preventDefault();
         const element = document.getElementById(id);
         if (element) {
             setActiveId(id);
-            isUserScrolling.current = true;
+            isProgrammaticScroll.current = true;
 
             const SCROLL_OFFSET = 40;
-            const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+            const viewport = scrollContainerRef.current || element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
             if (viewport) {
                 const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
                 viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
@@ -92,7 +83,7 @@ export function TableOfContents({ items }: TableOfContentsProps) {
                 clearTimeout(scrollTimeout.current);
             }
             scrollTimeout.current = setTimeout(() => {
-                isUserScrolling.current = false;
+                isProgrammaticScroll.current = false;
             }, 1000);
         }
     };
