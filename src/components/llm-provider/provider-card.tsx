@@ -21,6 +21,7 @@ interface ProviderCardProps {
   onEditModel: (model: LLM) => void
   onDeleteModel: (model: LLM) => void
   onTestModel: (model: LLM) => void
+  onCapabilitiesModel: (model: LLM) => void
   onDefaultChange: (llmId: string, isDefault: boolean) => void
   isDeleting: boolean
   isDeletingModel: boolean
@@ -49,6 +50,7 @@ export function ProviderCard({
   onEditModel,
   onDeleteModel,
   onTestModel,
+  onCapabilitiesModel,
   onDefaultChange,
   isDeleting,
   isDeletingModel,
@@ -179,6 +181,7 @@ export function ProviderCard({
                       onEdit={onEditModel}
                       onDelete={onDeleteModel}
                       onTest={onTestModel}
+                      onCapabilities={onCapabilitiesModel}
                       onDefaultChange={onDefaultChange}
                       isDeleting={isDeletingModel}
                       testingModelId={testingModelId}

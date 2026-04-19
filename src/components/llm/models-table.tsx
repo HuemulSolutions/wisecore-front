@@ -9,6 +9,7 @@ interface ModelsTableProps {
   onEdit: (model: LLM) => void
   onDelete: (model: LLM) => void
   onTest: (model: LLM) => void
+  onCapabilities: (model: LLM) => void
   onDefaultChange: (llmId: string, isDefault: boolean) => void
   isDeleting: boolean
   testingModelId: string | null
@@ -23,6 +24,7 @@ export function ModelsTable({
   onEdit, 
   onDelete, 
   onTest,
+  onCapabilities,
   onDefaultChange, 
   isDeleting,
   testingModelId,
@@ -75,6 +77,7 @@ export function ModelsTable({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onTest={onTest}
+                    onCapabilities={onCapabilities}
                     isDeleting={isDeleting}
                     isTesting={testingModelId === model.id}
                     dropdownOpen={openDropdowns[`model-${model.id}`] || false}

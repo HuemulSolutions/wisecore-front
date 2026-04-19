@@ -397,6 +397,8 @@ export interface LibraryContentProps {
   breadcrumb: BreadcrumbItem[];
   selectedExecutionId: string | null;
   setSelectedExecutionId: (id: string | null) => void;
+  selectedSectionId?: string | null;
+  setSelectedSectionId?: (id: string | null) => void;
   setSelectedFile: (file: LibraryItem | null) => void;
   onRefresh: () => void;
   currentFolderId?: string;

@@ -217,6 +217,10 @@ export interface HuemulFieldProps {
   /** Pre-selected color for async-select — shown alongside selectedLabel before options load */
   selectedColor?: string;
 
+  // ── Select size ──────────────────────────────────────────────────────────
+  /** Size variant passed to the SelectTrigger. Use "xs" for compact inline usage (no forced height). */
+  selectSize?: "sm" | "default" | "xs";
+
   // ── Slot ─────────────────────────────────────────────────────────────────
   /** Optional content rendered below the control (e.g. tag list) */
   children?: React.ReactNode;}
@@ -975,6 +979,7 @@ export function HuemulField({
   pageSize = 10,
   selectedLabel,
   selectedColor,
+  selectSize = "default",
   children,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
@@ -1040,6 +1045,7 @@ export function HuemulField({
         const selectTrigger = (
           <SelectTrigger
             id={fieldId}
+            size={selectSize}
             className={cn("w-full", inputClassName)}
             aria-invalid={baseInvalid || undefined}
           >

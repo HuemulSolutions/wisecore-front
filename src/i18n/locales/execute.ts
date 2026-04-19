@@ -207,6 +207,10 @@ const translations = {
       completed: { en: "The suggestion has been applied as a preview. Review and save to keep it.", es: "La sugerencia se aplicó como vista previa. Revisa y guarda para conservarla." },
       failed: { en: "Something went wrong generating the suggestion. Please try again.", es: "Algo salió mal al generar la sugerencia. Intenta de nuevo." },
     },
+    completed: {
+      readyToReview: { en: "Click to compare and apply the suggested changes.", es: "Haz clic para comparar y aplicar los cambios sugeridos." },
+      viewSuggestion: { en: "View Suggestion", es: "Ver sugerencia" },
+    },
     refresh: { en: "Refresh status", es: "Actualizar estado" },
     dismiss: { en: "Dismiss", es: "Descartar" },
     toast: {

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { ChevronDown, ChevronRight, Folder, ExternalLink, Loader2, Play } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
+import { useEffectiveOrgId } from "@/hooks/useOrgRouter"
 import { getTemplateChildDocuments } from "@/services/templates"
 import type { ChildDocumentFolder, ChildDocument, ChildDocumentExecution } from "@/services/templates"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,17 +13,23 @@ interface AssetSelectionPanelProps {
   onExecute?: (executionIds: string[]) => void
   isExecuting?: boolean
   executeDisabled?: boolean
+  selectionKey?: number
 }
 
-export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled }: AssetSelectionPanelProps) {
+export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey }: AssetSelectionPanelProps) {
   const { t } = useTranslation("advanced")
   const { selectedOrganizationId } = useOrganization()
+  const orgId = useEffectiveOrgId()
 
   const [folders, setFolders] = useState<ChildDocumentFolder[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set())
   const [selectedExecutions, setSelectedExecutions] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    setSelectedExecutions(new Set())
+  }, [selectionKey])
 
   useEffect(() => {
     if (!templateId || !selectedOrganizationId) {
@@ -120,6 +127,13 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
     return folder.documents.some((d) => isSomeDocExecutionsSelected(d))
   }
 
+  const handleNavigateToDoc = (docId: string, executionId?: string) => {
+    const path = executionId
+      ? `/${orgId}/asset/${docId}?execution=${encodeURIComponent(executionId)}`
+      : `/${orgId}/asset/${docId}`
+    window.open(window.location.origin + path, '_blank', 'noopener,noreferrer')
+  }
+
   const toggleFolderSelection = (folder: ChildDocumentFolder) => {
     setSelectedExecutions((prev) => {
       const next = new Set(prev)
@@ -201,6 +215,7 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
               onToggleDocAllExecutions={toggleDocAllExecutions}
               isAllDocExecutionsSelected={isAllDocExecutionsSelected}
               isSomeDocExecutionsSelected={isSomeDocExecutionsSelected}
+              onNavigateToDoc={handleNavigateToDoc}
             />
           ))}
         </div>
@@ -245,6 +260,7 @@ interface FolderGroupProps {
   onToggleDocAllExecutions: (doc: ChildDocument) => void
   isAllDocExecutionsSelected: (doc: ChildDocument) => boolean
   isSomeDocExecutionsSelected: (doc: ChildDocument) => boolean
+  onNavigateToDoc: (docId: string, executionId?: string) => void
 }
 
 function FolderGroup({
@@ -261,6 +277,7 @@ function FolderGroup({
   onToggleDocAllExecutions,
   isAllDocExecutionsSelected,
   isSomeDocExecutionsSelected,
+  onNavigateToDoc,
 }: FolderGroupProps) {
   const { t } = useTranslation("advanced")
   return (
@@ -304,6 +321,7 @@ function FolderGroup({
               onToggleDocAllExecutions={onToggleDocAllExecutions}
               isAllSelected={isAllDocExecutionsSelected(doc)}
               isSomeSelected={isSomeDocExecutionsSelected(doc)}
+              onNavigateToDoc={onNavigateToDoc}
             />
           ))}
         </div>
@@ -323,6 +341,7 @@ interface DocumentRowProps {
   onToggleDocAllExecutions: (doc: ChildDocument) => void
   isAllSelected: boolean
   isSomeSelected: boolean
+  onNavigateToDoc: (docId: string, executionId?: string) => void
 }
 
 function DocumentRow({
@@ -334,6 +353,7 @@ function DocumentRow({
   onToggleDocAllExecutions,
   isAllSelected,
   isSomeSelected,
+  onNavigateToDoc,
 }: DocumentRowProps) {
   const { t } = useTranslation("advanced")
   const expanded = expandedDocs.has(doc.id)
@@ -365,7 +385,14 @@ function DocumentRow({
               {expanded ? t("assetSelection.hideVersions") : `${doc.executions.length} ${t("assetSelection.versions")}`}
             </button>
           )}
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+          <button
+            type="button"
+            onClick={() => onNavigateToDoc(doc.id)}
+            className="hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+            title={t("assetSelection.openAsset")}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
@@ -379,6 +406,7 @@ function DocumentRow({
               selected={selectedExecutions.has(exec.id)}
               onToggle={() => onToggleExecution(exec.id)}
               isLatest={i === 0}
+              onNavigate={() => onNavigateToDoc(doc.id, exec.id)}
             />
           ))}
         </div>
@@ -394,9 +422,11 @@ interface ExecutionRowProps {
   selected: boolean
   onToggle: () => void
   isLatest?: boolean
+  onNavigate: () => void
 }
 
-function ExecutionRow({ execution, selected, onToggle, isLatest }: ExecutionRowProps) {
+function ExecutionRow({ execution, selected, onToggle, isLatest, onNavigate }: ExecutionRowProps) {
+  const { t } = useTranslation("advanced")
   return (
     <div className="flex items-center gap-2 pl-8 pr-3 py-1.5 hover:bg-muted/30 transition-colors">
       <Checkbox checked={selected} onCheckedChange={onToggle} />
@@ -412,7 +442,14 @@ function ExecutionRow({ execution, selected, onToggle, isLatest }: ExecutionRowP
             {execution.version}
           </span>
         )}
-        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+          title={t("assetSelection.openVersion")}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   )

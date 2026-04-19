@@ -124,34 +124,411 @@ function lineToHtml(line: string): string {
   return `<p class='text-sm my-1'>${inlineMarkdown(line)}</p>`;
 }
 
+/* ─── Word-level inline diff helpers ────────────────────────────── */
+
+/**
+ * Splits text into tokens preserving whitespace as separate tokens so that
+ * word-level diff is accurate even with varied spacing.
+ */
+function tokenize(text: string): string[] {
+  return text.match(/\S+|\s+/g) ?? [];
+}
+
+/**
+ * LCS-based word diff between two plain-text strings.
+ * Returns an array of { type, val } for each word token.
+ */
+function computeWordDiff(
+  oldText: string,
+  newText: string
+): DiffEntry[] {
+  const a = tokenize(oldText);
+  const b = tokenize(newText);
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    new Array(n + 1).fill(0)
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1] + 1
+          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+
+  const result: DiffEntry[] = [];
+  let i = m;
+  let j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      result.unshift({ type: "eq", val: a[i - 1] });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      result.unshift({ type: "ins", val: b[j - 1] });
+      j--;
+    } else {
+      result.unshift({ type: "del", val: a[i - 1] });
+      i--;
+    }
+  }
+  return result;
+}
+
+/**
+ * Extracts the markdown "prefix" from a line (e.g. "## ", "- ", "> ")
+ * and the remaining body text.
+ */
+function splitLinePrefix(line: string): [string, string] {
+  const match = line.match(/^(#{1,6}\s|>\s|- |\d+\.\s)/);
+  if (match) return [match[0], line.slice(match[0].length)];
+  return ["", line];
+}
+
+/**
+ * Check whether two lines have the same markdown prefix type
+ * (both paragraphs, both same-level headings, etc.)
+ */
+function isSameLineType(oldLine: string, newLine: string): boolean {
+  const [pOld] = splitLinePrefix(oldLine);
+  const [pNew] = splitLinePrefix(newLine);
+  return pOld === pNew;
+}
+
+/**
+ * Groups consecutive word-diff tokens of the same type so that
+ * inlineMarkdown is applied to complete text segments rather than
+ * individual tokens — this prevents splitting markdown syntax
+ * (e.g. **bold**) across tokens and rendering raw markers.
+ */
+function groupWordDiff(wdiff: DiffEntry[]): { type: DiffType; text: string }[] {
+  const groups: { type: DiffType; text: string }[] = [];
+  for (const w of wdiff) {
+    const last = groups[groups.length - 1];
+    if (last && last.type === w.type) {
+      last.text += w.val;
+    } else {
+      groups.push({ type: w.type, text: w.val });
+    }
+  }
+  return groups;
+}
+
+/**
+ * Renders a word-level inline diff as HTML for the unified rendered view.
+ * Unchanged words render normally; deleted words are struck-through red,
+ * inserted words are highlighted green.
+ */
+function renderWordDiffUnified(oldLine: string, newLine: string): string {
+  const [, oldBody] = splitLinePrefix(oldLine);
+  const [, newBody] = splitLinePrefix(newLine);
+  const wdiff = computeWordDiff(oldBody, newBody);
+  const groups = groupWordDiff(wdiff);
+
+  const html = groups
+    .map((g) => {
+      if (g.type === "eq") return inlineMarkdown(g.text);
+      if (g.type === "del")
+        return `<span style='text-decoration:line-through;color:#991b1b;background:rgba(220,38,38,0.08);border-radius:2px;padding:0 1px;'>${inlineMarkdown(g.text)}</span>`;
+      return `<span style='color:#166534;background:rgba(34,197,94,0.1);border-radius:2px;padding:0 1px;font-weight:500;'>${inlineMarkdown(g.text)}</span>`;
+    })
+    .join("");
+
+  if (/^### /.test(oldLine)) return `<h3 class='text-base font-medium mt-4 mb-1'>${html}</h3>`;
+  if (/^## /.test(oldLine)) return `<h2 class='text-lg font-medium mt-4 mb-1'>${html}</h2>`;
+  if (/^# /.test(oldLine)) return `<h1 class='text-xl font-medium mt-4 mb-2'>${html}</h1>`;
+  if (/^> /.test(oldLine))
+    return `<blockquote class='border-l-2 border-gray-300 pl-3 text-gray-500 dark:text-gray-400 my-1 text-sm'>${html}</blockquote>`;
+  if (/^\d+\. /.test(oldLine)) return `<li class='list-decimal ml-5 text-sm'>${html}</li>`;
+  if (/^- /.test(oldLine)) return `<li class='list-disc ml-5 text-sm'>${html}</li>`;
+  return `<p class='text-sm my-1'>${html}</p>`;
+}
+
+/**
+ * Renders a word-level diff showing only one side (old or new) with its changes highlighted.
+ */
+function renderWordDiffSide(oldLine: string, newLine: string, side: "old" | "new"): string {
+  const [, oldBody] = splitLinePrefix(oldLine);
+  const [, newBody] = splitLinePrefix(newLine);
+  const wdiff = computeWordDiff(oldBody, newBody);
+  const ref = side === "old" ? oldLine : newLine;
+
+  // Filter to keep only the relevant side's tokens, then group
+  const filtered = wdiff.filter((w) => {
+    if (w.type === "eq") return true;
+    if (side === "old") return w.type === "del";
+    return w.type === "ins";
+  });
+  const groups = groupWordDiff(filtered);
+
+  const html = groups
+    .map((g) => {
+      if (g.type === "eq") return inlineMarkdown(g.text);
+      if (g.type === "del")
+        return `<span style='text-decoration:line-through;color:#991b1b;background:rgba(220,38,38,0.08);border-radius:2px;padding:0 1px;'>${inlineMarkdown(g.text)}</span>`;
+      return `<span style='color:#166534;background:rgba(34,197,94,0.1);border-radius:2px;padding:0 1px;font-weight:500;'>${inlineMarkdown(g.text)}</span>`;
+    })
+    .join("");
+
+  if (/^### /.test(ref)) return `<h3 class='text-base font-medium mt-4 mb-1'>${html}</h3>`;
+  if (/^## /.test(ref)) return `<h2 class='text-lg font-medium mt-4 mb-1'>${html}</h2>`;
+  if (/^# /.test(ref)) return `<h1 class='text-xl font-medium mt-4 mb-2'>${html}</h1>`;
+  if (/^> /.test(ref))
+    return `<blockquote class='border-l-2 border-gray-300 pl-3 text-gray-500 dark:text-gray-400 my-1 text-sm'>${html}</blockquote>`;
+  if (/^\d+\. /.test(ref)) return `<li class='list-decimal ml-5 text-sm'>${html}</li>`;
+  if (/^- /.test(ref)) return `<li class='list-disc ml-5 text-sm'>${html}</li>`;
+  return `<p class='text-sm my-1'>${html}</p>`;
+}
+
+/* ─── Cell-level table diff helpers ─────────────────────────────── */
+
+function parseCells(row: string): string[] {
+  return row.split("|").slice(1, -1).map((c) => c.trim());
+}
+
+function isTableSeparator(line: string): boolean {
+  return /^\|[-| ]+\|$/.test(line);
+}
+
+interface PairedRow {
+  kind: "paired";
+  oldLine: string;
+  newLine: string;
+}
+interface SingleRow {
+  kind: "eq" | "del" | "ins";
+  line: string;
+}
+type GroupedTableRow = PairedRow | SingleRow;
+
+/**
+ * Groups consecutive del/ins table rows into paired entries for cell-level comparison.
+ * Matches rows by their first cell (key column) so that only the cells that actually
+ * changed get highlighted. Unmatched dels/ins remain as single entries.
+ */
+function groupTableBuffer(
+  buffer: { type: DiffType; line: string }[]
+): GroupedTableRow[] {
+  const filtered = buffer.filter((r) => !isTableSeparator(r.line));
+  const result: GroupedTableRow[] = [];
+  let i = 0;
+  while (i < filtered.length) {
+    if (filtered[i].type === "eq") {
+      result.push({ kind: "eq", line: filtered[i].line });
+      i++;
+    } else {
+      const dels: string[] = [];
+      const inss: string[] = [];
+      while (i < filtered.length && filtered[i].type !== "eq") {
+        if (filtered[i].type === "del") dels.push(filtered[i].line);
+        else inss.push(filtered[i].line);
+        i++;
+      }
+
+      // Match del/ins rows by first cell (key column) for accurate pairing
+      const usedDel = new Set<number>();
+      const usedIns = new Set<number>();
+      const pairs: [number, number][] = [];
+      for (let d = 0; d < dels.length; d++) {
+        const delKey = parseCells(dels[d])[0];
+        if (!delKey) continue;
+        for (let n = 0; n < inss.length; n++) {
+          if (usedIns.has(n)) continue;
+          if (parseCells(inss[n])[0] === delKey) {
+            pairs.push([d, n]);
+            usedDel.add(d);
+            usedIns.add(n);
+            break;
+          }
+        }
+      }
+
+      // Emit unmatched dels first (pure deletions), then new-side rows in order
+      for (let d = 0; d < dels.length; d++) {
+        if (!usedDel.has(d)) {
+          result.push({ kind: "del", line: dels[d] });
+        }
+      }
+      const insToDel = new Map<number, number>();
+      for (const [d, n] of pairs) insToDel.set(n, d);
+      for (let n = 0; n < inss.length; n++) {
+        const dIdx = insToDel.get(n);
+        if (dIdx !== undefined) {
+          result.push({ kind: "paired", oldLine: dels[dIdx], newLine: inss[n] });
+        } else {
+          result.push({ kind: "ins", line: inss[n] });
+        }
+      }
+    }
+  }
+  return result;
+}
+
+const CELL_CLASS =
+  "border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs";
+
+/**
+ * Renders a paired table row with cell-level diff highlighting.
+ * Only the cells that actually changed get coloured; unchanged cells render normally.
+ * Returns "" when cells can't be compared (different column count) — caller falls back.
+ */
+function renderCellDiffRow(
+  oldLine: string,
+  newLine: string,
+  mode: "unified" | "old" | "new"
+): string {
+  const oldCells = parseCells(oldLine);
+  const newCells = parseCells(newLine);
+  if (oldCells.length !== newCells.length) return "";
+
+  const tds = oldCells.map((oc, i) => {
+    const nc = newCells[i];
+    if (oc === nc) {
+      return `<td class='${CELL_CLASS}'>${inlineMarkdown(mode === "new" ? nc : oc)}</td>`;
+    }
+    if (mode === "unified") {
+      return (
+        `<td class='${CELL_CLASS}' style='background:rgba(250,204,21,0.10);'>` +
+        `<span style='text-decoration:line-through;color:#991b1b;opacity:0.7;'>${inlineMarkdown(oc)}</span> ` +
+        `<span style='color:#166534;font-weight:500;'>${inlineMarkdown(nc)}</span></td>`
+      );
+    }
+    if (mode === "old") {
+      return (
+        `<td class='${CELL_CLASS}' style='background:rgba(220,38,38,0.08);'>` +
+        `<span style='text-decoration:line-through;color:#991b1b;'>${inlineMarkdown(oc)}</span></td>`
+      );
+    }
+    return (
+      `<td class='${CELL_CLASS}' style='background:rgba(34,197,94,0.1);'>` +
+      `<span style='color:#166534;'>${inlineMarkdown(nc)}</span></td>`
+    );
+  });
+  return `<tr>${tds.join("")}</tr>`;
+}
+
+function renderFullChangeRow(line: string, type: "del" | "ins"): string {
+  const cells = parseCells(line);
+  const style =
+    type === "del"
+      ? "style='background:rgba(220,38,38,0.08);text-decoration:line-through;color:#991b1b;'"
+      : "style='background:rgba(34,197,94,0.1);color:#166534;'";
+  const tds = cells
+    .map((c) => `<td class='${CELL_CLASS}'>${inlineMarkdown(c)}</td>`)
+    .join("");
+  return `<tr ${style}>${tds}</tr>`;
+}
+
+function renderEqRow(line: string): string {
+  const cells = parseCells(line);
+  const tds = cells
+    .map((c) => `<td class='${CELL_CLASS}'>${inlineMarkdown(c)}</td>`)
+    .join("");
+  return `<tr>${tds}</tr>`;
+}
+
 function buildRenderedDiffHtml(diff: DiffEntry[]): string {
   const parts: string[] = [];
   let tableBuffer: { type: DiffType; line: string }[] = [];
 
   function flushTable() {
     if (tableBuffer.length === 0) return;
-    const rows = tableBuffer
-      .filter((r) => !/^\|[-| ]+\|$/.test(r.line))
-      .map((r) => {
-        const cells = r.line.split("|").slice(1, -1);
-        const tds = cells
-          .map(
-            (c) =>
-              `<td class='border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs'>${inlineMarkdown(c.trim())}</td>`
-          )
-          .join("");
-        const rowStyle =
-          r.type === "del"
-            ? "style='background:rgba(220,38,38,0.08);text-decoration:line-through;color:#991b1b;'"
-            : r.type === "ins"
-            ? "style='background:rgba(34,197,94,0.1);color:#166534;'"
-            : "";
-        return `<tr ${rowStyle}>${tds}</tr>`;
-      });
-    parts.push(
-      `<table class='w-full border-collapse my-2 text-xs'><tbody>${rows.join("")}</tbody></table>`
-    );
+    const grouped = groupTableBuffer(tableBuffer);
+    const rows = grouped
+      .map((g) => {
+        if (g.kind === "eq") return renderEqRow(g.line);
+        if (g.kind === "paired") {
+          const cellDiff = renderCellDiffRow(g.oldLine, g.newLine, "unified");
+          if (cellDiff) return cellDiff;
+          return renderFullChangeRow(g.oldLine, "del") + renderFullChangeRow(g.newLine, "ins");
+        }
+        if (g.kind === "del") return renderFullChangeRow(g.line, "del");
+        return renderFullChangeRow(g.line, "ins");
+      })
+      .filter(Boolean);
+    if (rows.length > 0) {
+      parts.push(
+        `<table class='w-full border-collapse my-2 text-xs'><tbody>${rows.join("")}</tbody></table>`
+      );
+    }
     tableBuffer = [];
+  }
+
+  /** Flush buffered consecutive text del/ins entries with word-level pairing.
+   *  The buffer may also contain eq-empty entries that acted as "bridges"
+   *  between related del/ins groups (e.g. an empty line between a deleted
+   *  paragraph and its replacement). */
+  let textBuffer: DiffEntry[] = [];
+
+  function flushTextBuffer() {
+    if (textBuffer.length === 0) return;
+
+    // Collect dels and ins with their buffer positions (skip empty lines)
+    const dels: { bi: number; val: string }[] = [];
+    const inss: { bi: number; val: string }[] = [];
+    for (let i = 0; i < textBuffer.length; i++) {
+      if (textBuffer[i].val.trim() === "") continue;
+      if (textBuffer[i].type === "del") dels.push({ bi: i, val: textBuffer[i].val });
+      else if (textBuffer[i].type === "ins") inss.push({ bi: i, val: textBuffer[i].val });
+    }
+
+    // Pair del/ins lines that share the same markdown prefix type
+    const usedDel = new Set<number>();
+    const usedIns = new Set<number>();
+    const insToDelBi = new Map<number, number>(); // ins buffer-idx → del buffer-idx
+
+    for (let d = 0; d < dels.length; d++) {
+      for (let n = 0; n < inss.length; n++) {
+        if (usedIns.has(n)) continue;
+        if (isSameLineType(dels[d].val, inss[n].val)) {
+          insToDelBi.set(inss[n].bi, dels[d].bi);
+          usedDel.add(d);
+          usedIns.add(n);
+          break;
+        }
+      }
+    }
+
+    const pairedDelIndices = new Set(insToDelBi.values());
+
+    // Walk the buffer in order, rendering each entry
+    for (let i = 0; i < textBuffer.length; i++) {
+      const entry = textBuffer[i];
+
+      if (entry.val.trim() === "") {
+        parts.push("<br/>");
+        continue;
+      }
+
+      if (entry.type === "del") {
+        if (pairedDelIndices.has(i)) continue; // rendered with its paired ins
+        const inner = lineToHtml(entry.val);
+        if (!inner) continue;
+        parts.push(
+          `<div style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
+            `<span style='text-decoration:line-through;color:#991b1b;opacity:0.85;'>${inner}</span></div>`
+        );
+        continue;
+      }
+
+      // ins
+      const pairedDelBi = insToDelBi.get(i);
+      if (pairedDelBi !== undefined) {
+        const wordHtml = renderWordDiffUnified(textBuffer[pairedDelBi].val, entry.val);
+        parts.push(
+          `<div style='background:rgba(250,204,21,0.06);border-left:3px solid #eab308;padding-left:6px;margin:2px 0;'>${wordHtml}</div>`
+        );
+      } else {
+        const inner = lineToHtml(entry.val);
+        if (!inner) continue;
+        parts.push(
+          `<div style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
+            `<span style='color:#166534;'>${inner}</span></div>`
+        );
+      }
+    }
+
+    textBuffer = [];
   }
 
   for (const entry of diff) {
@@ -159,6 +536,7 @@ function buildRenderedDiffHtml(diff: DiffEntry[]): string {
     const isTableRow = /^\|/.test(val);
 
     if (isTableRow) {
+      flushTextBuffer();
       tableBuffer.push({ type, line: val });
       continue;
     }
@@ -166,30 +544,26 @@ function buildRenderedDiffHtml(diff: DiffEntry[]): string {
     flushTable();
 
     if (val.trim() === "") {
-      parts.push("<br/>");
+      if (textBuffer.length > 0) {
+        // Don't flush — bridge eq-empty lines between related del/ins groups
+        textBuffer.push(entry);
+      } else {
+        parts.push("<br/>");
+      }
       continue;
     }
 
-    const inner = lineToHtml(val);
-    if (!inner) continue;
-
     if (type === "eq") {
-      parts.push(inner);
-    } else if (type === "del") {
-      parts.push(
-        `<div style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
-          `<span style='text-decoration:line-through;color:#991b1b;opacity:0.85;'>${inner}</span>` +
-          `</div>`
-      );
+      flushTextBuffer();
+      const inner = lineToHtml(val);
+      if (inner) parts.push(inner);
     } else {
-      parts.push(
-        `<div style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
-          `<span style='color:#166534;'>${inner}</span>` +
-          `</div>`
-      );
+      // Buffer consecutive del/ins text lines
+      textBuffer.push(entry);
     }
   }
 
+  flushTextBuffer();
   flushTable();
   return parts.join("\n");
 }
@@ -205,24 +579,22 @@ function buildSideDiffHtml(diff: DiffEntry[], side: "old" | "new"): string {
 
   function flushTable() {
     if (tableBuffer.length === 0) return;
-    const rows = tableBuffer
-      .filter((r) => !/^\|[-| ]+\|$/.test(r.line) && keep.includes(r.type))
-      .map((r) => {
-        const cells = r.line.split("|").slice(1, -1);
-        const tds = cells
-          .map(
-            (c) =>
-              `<td class='border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs'>${inlineMarkdown(c.trim())}</td>`
-          )
-          .join("");
-        const rowStyle =
-          r.type === "del"
-            ? "style='background:rgba(220,38,38,0.08);text-decoration:line-through;color:#991b1b;'"
-            : r.type === "ins"
-            ? "style='background:rgba(34,197,94,0.1);color:#166534;'"
-            : "";
-        return `<tr ${rowStyle}>${tds}</tr>`;
-      });
+    const grouped = groupTableBuffer(tableBuffer);
+    const sideMode: "old" | "new" = side === "old" ? "old" : "new";
+    const rows = grouped
+      .flatMap((g) => {
+        if (g.kind === "eq") return [renderEqRow(g.line)];
+        if (g.kind === "paired") {
+          const cellDiff = renderCellDiffRow(g.oldLine, g.newLine, sideMode);
+          if (cellDiff) return [cellDiff];
+          return side === "old"
+            ? [renderFullChangeRow(g.oldLine, "del")]
+            : [renderFullChangeRow(g.newLine, "ins")];
+        }
+        if (g.kind === "del") return side === "old" ? [renderFullChangeRow(g.line, "del")] : [];
+        return side === "new" ? [renderFullChangeRow(g.line, "ins")] : [];
+      })
+      .filter(Boolean);
     if (rows.length > 0)
       parts.push(
         `<table class='w-full border-collapse my-2 text-xs'><tbody>${rows.join("")}</tbody></table>`
@@ -230,43 +602,112 @@ function buildSideDiffHtml(diff: DiffEntry[], side: "old" | "new"): string {
     tableBuffer = [];
   }
 
+  /** Flush buffered consecutive text del/ins entries with word-level pairing.
+   *  The buffer may also contain eq-empty bridge entries. */
+  let textBuffer: DiffEntry[] = [];
+
+  function flushTextBuffer() {
+    if (textBuffer.length === 0) return;
+
+    const dels: { bi: number; val: string }[] = [];
+    const inss: { bi: number; val: string }[] = [];
+    for (let i = 0; i < textBuffer.length; i++) {
+      if (textBuffer[i].val.trim() === "") continue;
+      if (textBuffer[i].type === "del") dels.push({ bi: i, val: textBuffer[i].val });
+      else if (textBuffer[i].type === "ins") inss.push({ bi: i, val: textBuffer[i].val });
+    }
+
+    const usedDel = new Set<number>();
+    const usedIns = new Set<number>();
+    const insToDelBi = new Map<number, number>();
+
+    for (let d = 0; d < dels.length; d++) {
+      for (let n = 0; n < inss.length; n++) {
+        if (usedIns.has(n)) continue;
+        if (isSameLineType(dels[d].val, inss[n].val)) {
+          insToDelBi.set(inss[n].bi, dels[d].bi);
+          usedDel.add(d);
+          usedIns.add(n);
+          break;
+        }
+      }
+    }
+
+    const pairedDelIndices = new Set(insToDelBi.values());
+
+    for (let i = 0; i < textBuffer.length; i++) {
+      const entry = textBuffer[i];
+
+      if (entry.val.trim() === "") {
+        parts.push("<br/>");
+        continue;
+      }
+
+      if (entry.type === "del") {
+        if (pairedDelIndices.has(i)) continue;
+        if (side !== "old") continue;
+        const inner = lineToHtml(entry.val);
+        if (!inner) continue;
+        parts.push(
+          `<div style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
+            `<span style='text-decoration:line-through;color:#991b1b;opacity:0.85;'>${inner}</span></div>`
+        );
+        continue;
+      }
+
+      // ins
+      const pairedDelBi = insToDelBi.get(i);
+      if (pairedDelBi !== undefined) {
+        const wordHtml = renderWordDiffSide(textBuffer[pairedDelBi].val, entry.val, side);
+        const borderColor = side === "old" ? "#ef4444" : "#22c55e";
+        const bgColor = side === "old" ? "rgba(220,38,38,0.04)" : "rgba(34,197,94,0.04)";
+        parts.push(
+          `<div style='background:${bgColor};border-left:3px solid ${borderColor};padding-left:6px;margin:2px 0;'>${wordHtml}</div>`
+        );
+      } else {
+        if (side !== "new") continue;
+        const inner = lineToHtml(entry.val);
+        if (!inner) continue;
+        parts.push(
+          `<div style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
+            `<span style='color:#166534;'>${inner}</span></div>`
+        );
+      }
+    }
+
+    textBuffer = [];
+  }
+
   for (const entry of diff) {
     const { type, val } = entry;
 
     if (/^\|/.test(val)) {
+      flushTextBuffer();
       tableBuffer.push({ type, line: val });
       continue;
     }
 
     flushTable();
 
-    if (!keep.includes(type)) continue;
-
     if (val.trim() === "") {
-      parts.push("<br/>");
+      if (textBuffer.length > 0) {
+        textBuffer.push(entry);
+      } else {
+        if (keep.includes(type)) parts.push("<br/>");
+      }
       continue;
     }
 
-    const inner = lineToHtml(val);
-    if (!inner) continue;
-
     if (type === "eq") {
-      parts.push(inner);
-    } else if (type === "del") {
-      parts.push(
-        `<div style='background:rgba(220,38,38,0.08);border-left:3px solid #ef4444;padding-left:6px;margin:2px 0;'>` +
-          `<span style='text-decoration:line-through;color:#991b1b;opacity:0.85;'>${inner}</span>` +
-          `</div>`
-      );
+      flushTextBuffer();
+      const inner = lineToHtml(val);
+      if (inner) parts.push(inner);
     } else {
-      parts.push(
-        `<div style='background:rgba(34,197,94,0.1);border-left:3px solid #22c55e;padding-left:6px;margin:2px 0;'>` +
-          `<span style='color:#166534;'>${inner}</span>` +
-          `</div>`
-      );
+      textBuffer.push(entry);
     }
   }
 
+  flushTextBuffer();
   flushTable();
   return parts.join("\n");
 }

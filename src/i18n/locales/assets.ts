@@ -197,8 +197,11 @@ const translations = {
     executionInProgress: { en: "Execution in progress", es: "Ejecución en progreso" },
     openExecuteSheet: { en: "Open Execute Sheet", es: "Abrir Panel de Ejecución" },
     askAiToEdit: { en: "Ask AI to edit", es: "Pedir a la IA que edite" },
+    suggestionInProgress: { en: "AI suggestion in progress...", es: "Sugerencia de IA en progreso..." },
     editSection: { en: "Edit section", es: "Editar sección" },
     copyContent: { en: "Copy content", es: "Copiar contenido" },
+    copyLink: { en: "Copy link to section", es: "Copiar enlace a la sección" },
+    linkCopied: { en: "Section link copied to clipboard", es: "Enlace de la sección copiado al portapapeles" },
     deleteSection: { en: "Delete section", es: "Eliminar sección" },
     copy: { en: "Copy", es: "Copiar" },
     executeSection: { en: "Execute Section", es: "Ejecutar Sección" },
@@ -249,6 +252,7 @@ const translations = {
   tableOfContents: {
     expand: { en: "Expand", es: "Expandir" },
     collapse: { en: "Collapse", es: "Colapsar" },
+    pendingSuggestion: { en: "AI suggestion ready to review", es: "Sugerencia IA lista para revisar" },
   },
   templateSheet: {
     sectionCreated: { en: "Template section created successfully", es: "Sección de plantilla creada correctamente" },

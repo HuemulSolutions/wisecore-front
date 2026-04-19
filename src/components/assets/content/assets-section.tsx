@@ -1,4 +1,5 @@
 import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
@@ -18,13 +19,7 @@ import {
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { HuemulField } from '@/huemul/components/huemul-field';
 import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
 import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { useOrganization } from '@/contexts/organization-context';
@@ -59,6 +54,7 @@ interface SectionExecutionProps {
     sectionName?: string;
     canEditSections?: boolean;
     onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
+    onCopyLink?: () => void;
 }
 
 export default function SectionExecution({ 
@@ -77,6 +73,7 @@ export default function SectionExecution({
     sectionName,
     canEditSections = false,
     onCreateSectionFromSelection,
+    // onCopyLink,
 }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
@@ -88,6 +85,9 @@ export default function SectionExecution({
     const [isAiSuggestionActive, setIsAiSuggestionActive] = useState(
         sectionExecution.ai_suggestion_status === 'pending'
     );
+    // Tracks when polling just completed (banner still visible, button should already update)
+    const [suggestionReadyLocally, setSuggestionReadyLocally] = useState(false);
+    const [localSuggestionContent, setLocalSuggestionContent] = useState<string | null>(null);
     const [isDiffOpen, setIsDiffOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
@@ -95,12 +95,14 @@ export default function SectionExecution({
     );
     const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
 
-    // Derived: whether there's a completed suggestion ready to review
+    // Derived: whether there's a completed suggestion ready to review (from server props)
     const hasPendingSuggestion =
         !!sectionExecution.ai_suggestion_content &&
         sectionExecution.ai_suggestion_status === 'completed' &&
         aiPreview === null &&
         !isAiSuggestionActive;
+    // Combined: show suggestion-ready UI as soon as polling completes, even while banner is still shown
+    const showSuggestionReady = hasPendingSuggestion || suggestionReadyLocally;
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
@@ -323,6 +325,8 @@ export default function SectionExecution({
     const handleSendAiEdit = async (prompt: string) => {
         try {
             await createAiSuggestion(sectionExecution.id, prompt, selectedOrganizationId ?? undefined);
+            // Remove stale cache so AiSuggestionFeedback starts polling fresh data on mount
+            queryClient.removeQueries({ queryKey: ['ai-suggestion', sectionExecution.id] });
             setIsAiSuggestionActive(true);
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('section.executionFailed') });
@@ -350,15 +354,33 @@ export default function SectionExecution({
         setIsDiffOpen(true);
     };
 
-    const handleAiSuggestionCompleted = (_content: string) => {
-        setIsAiSuggestionActive(false);
-        // Invalidate so props refresh with ai_suggestion_status: 'completed'
-        // hasPendingSuggestion will become true and the button will update
+    const handleAiSuggestionCompleted = (content: string) => {
+        // Keep banner visible (transitions to completed state) and update the button immediately.
+        setSuggestionReadyLocally(true);
+        setLocalSuggestionContent(content);
+        // Refresh server props in the background so ai_suggestion_status becomes 'completed'.
         queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
     };
 
-    const handleAiSuggestionFailed = () => {
+    const handleAiSuggestionView = (content: string) => {
+        // User clicked "View Suggestion" (either in banner or header button) – open the diff.
         setIsAiSuggestionActive(false);
+        setSuggestionReadyLocally(false);
+        setLocalSuggestionContent(null);
+        setAiPreview(content || sectionExecution.ai_suggestion_content || null);
+        setIsDiffOpen(true);
+    };
+
+    const handleAiSuggestionDismiss = () => {
+        setIsAiSuggestionActive(false);
+        setSuggestionReadyLocally(false);
+        setLocalSuggestionContent(null);
+    };
+
+    const handleAiSuggestionFailed = () => {
+        // Called when the user dismisses a failed banner; clear all local suggestion state.
+        setSuggestionReadyLocally(false);
+        setLocalSuggestionContent(null);
     };
 
     // Debug logging for execution tracking
@@ -375,50 +397,40 @@ export default function SectionExecution({
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
                 <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
-                    {(sectionName || sectionType) && (
-                        <div className="mr-auto flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
-                            <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
-                                {sectionName || t('section.untitled')}
-                            </span>
-                            <span className="mx-1.5 text-[10px] text-blue-300">•</span>
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
-                                {sectionTypeLabel}
-                            </span>
-                        </div>
-                    )}
+                    {/* Left side: section info + review status */}
+                    <div className="mr-auto flex items-center gap-1.5">
+                        {(sectionName || sectionType) && (
+                            <div className="flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
+                                <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
+                                    {sectionName || t('section.untitled')}
+                                </span>
+                                <span className="mx-1.5 text-[10px] text-blue-300">•</span>
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-600/70">
+                                    {sectionTypeLabel}
+                                </span>
+                            </div>
+                        )}
 
-                    {/* Review Status Selector */}
-                    {!isEditing && (
-                        <Select
-                            value={reviewStatus ?? ''}
-                            onValueChange={(value) => handleReviewStatusChange(value as ReviewStatus)}
-                            disabled={isUpdatingReviewStatus || !canEditSections}
-                        >
-                            <SelectTrigger className="h-7 w-[130px] text-xs mr-1 hover:cursor-pointer">
-                                <SelectValue placeholder={t('section.reviewStatusPlaceholder')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="editing" className="text-xs hover:cursor-pointer">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-blue-500" />
-                                        {t('section.reviewStatusEditing')}
-                                    </span>
-                                </SelectItem>
-                                <SelectItem value="reviewing" className="text-xs hover:cursor-pointer">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-amber-500" />
-                                        {t('section.reviewStatusReviewing')}
-                                    </span>
-                                </SelectItem>
-                                <SelectItem value="finished" className="text-xs hover:cursor-pointer">
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="h-2 w-2 rounded-full bg-green-500" />
-                                        {t('section.reviewStatusFinished')}
-                                    </span>
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    )}
+                        {/* Review Status Selector - inline with section info */}
+                        {!isEditing && (
+                            <HuemulField
+                                type="select"
+                                label=""
+                                value={reviewStatus ?? ''}
+                                onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
+                                disabled={isUpdatingReviewStatus || !canEditSections}
+                                placeholder={t('section.reviewStatusPlaceholder')}
+                                options={[
+                                    { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
+                                    { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
+                                    { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                ]}
+                                className="w-auto"
+                                selectSize="xs"
+                                inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
+                            />
+                        )}
+                    </div>
                     
                     {!isEditing && (
                     <>
@@ -443,14 +455,38 @@ export default function SectionExecution({
                                         <HuemulButton
                                             variant="ghost"
                                             size="sm"
-                                            icon={hasPendingSuggestion ? GitCompare : Bot}
-                                            iconClassName={`h-3.5 w-3.5 ${hasPendingSuggestion ? 'text-amber-600' : 'text-blue-600'}`}
-                                            className={`h-7 w-7 ${hasPendingSuggestion ? 'hover:bg-amber-50' : 'hover:bg-blue-50'}`}
-                                            tooltip={hasPendingSuggestion ? t('section.viewAiSuggestion') : t('section.askAiToEdit')}
-                                            onClick={() => hasPendingSuggestion ? handleViewSuggestion() : setIsAiEditDialogOpen(true)}
+                                            icon={showSuggestionReady ? GitCompare : Bot}
+                                            iconClassName={cn(
+                                                'h-3.5 w-3.5 transition-colors duration-300',
+                                                showSuggestionReady ? 'text-amber-600' : 'text-blue-600'
+                                            )}
+                                            className={cn(
+                                                'h-7 w-7 transition-all duration-300',
+                                                showSuggestionReady ? 'hover:bg-amber-50' : 'hover:bg-blue-50',
+                                                isAiSuggestionActive && !suggestionReadyLocally && 'opacity-40 pointer-events-none'
+                                            )}
+                                            tooltip={
+                                                showSuggestionReady
+                                                    ? t('section.viewAiSuggestion')
+                                                    : isAiSuggestionActive
+                                                        ? t('section.suggestionInProgress')
+                                                        : t('section.askAiToEdit')
+                                            }
+                                            onClick={() => {
+                                                if (suggestionReadyLocally) {
+                                                    handleAiSuggestionView(localSuggestionContent ?? '');
+                                                } else if (hasPendingSuggestion) {
+                                                    handleViewSuggestion();
+                                                } else {
+                                                    setIsAiEditDialogOpen(true);
+                                                }
+                                            }}
                                         />
-                                        {hasPendingSuggestion && (
-                                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500" />
+                                        {showSuggestionReady && (
+                                            <span className={cn(
+                                                'absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 transition-all duration-300',
+                                                suggestionReadyLocally && 'animate-pulse'
+                                            )} />
                                         )}
                                     </div>
                                 )}
@@ -476,6 +512,18 @@ export default function SectionExecution({
                                     tooltip={t('section.copyContent')}
                                     onClick={handleCopy}
                                 />
+
+                                {/* {onCopyLink && (
+                                    <HuemulButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={Link2}
+                                        iconClassName="h-3.5 w-3.5 text-gray-600"
+                                        className="h-7 w-7 hover:bg-gray-100"
+                                        tooltip={t('section.copyLink')}
+                                        onClick={onCopyLink}
+                                    />
+                                )} */}
 
                                 {!isEditing && !isExecutionApproved && canDelete && canEditSections && (
                                     <HuemulButton
@@ -512,6 +560,15 @@ export default function SectionExecution({
                                             <Copy className="h-4 w-4 mr-2" />
                                             {t('section.copy')}
                                         </DropdownMenuItem>
+                                        {/* {onCopyLink && (
+                                            <DropdownMenuItem
+                                                className='hover:cursor-pointer'
+                                                onClick={onCopyLink}
+                                            >
+                                                <Link2 className="h-4 w-4 mr-2" />
+                                                {t('section.copyLink')}
+                                            </DropdownMenuItem>
+                                        )} */}
                                     {/* </DocumentAccessControl> */}
                                     {documentId && executionId && sectionIdForExecution && !isExecutionApproved && canExecute && canEditSections && (
                                         <>
@@ -547,11 +604,15 @@ export default function SectionExecution({
                                         </DropdownMenuItem>
                                     )}
                                     {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
-                                        hasPendingSuggestion ? (
+                                        showSuggestionReady ? (
                                             <DropdownMenuItem
                                                 className="hover:cursor-pointer"
                                                 onSelect={() => {
-                                                    setTimeout(() => handleViewSuggestion(), 0);
+                                                    if (suggestionReadyLocally) {
+                                                        setTimeout(() => handleAiSuggestionView(localSuggestionContent ?? ''), 0);
+                                                    } else {
+                                                        setTimeout(() => handleViewSuggestion(), 0);
+                                                    }
                                                 }}
                                             >
                                                 <GitCompare className="h-4 w-4 mr-2 text-amber-600" />
@@ -560,6 +621,7 @@ export default function SectionExecution({
                                         ) : (
                                             <DropdownMenuItem 
                                                 className="hover:cursor-pointer"
+                                                disabled={isAiSuggestionActive}
                                                 onSelect={() => {
                                                     setTimeout(() => setIsAiEditDialogOpen(true), 0);
                                                 }}
@@ -625,7 +687,8 @@ export default function SectionExecution({
                         sectionExecutionId={sectionExecution.id}
                         onCompleted={handleAiSuggestionCompleted}
                         onFailed={handleAiSuggestionFailed}
-                        onDismiss={() => setIsAiSuggestionActive(false)}
+                        onDismiss={handleAiSuggestionDismiss}
+                        onViewSuggestion={handleAiSuggestionView}
                     />
                 </div>
             )}
@@ -769,6 +832,7 @@ export default function SectionExecution({
                 closeOnSuccess: false,
                 onClick: async () => {
                     await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
                     setAiPreview(null);
                     setIsDiffOpen(false);
                 },
@@ -777,9 +841,9 @@ export default function SectionExecution({
                 label: t('section.diffAccept'),
                 onClick: async () => {
                     await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
                     setAiPreview(null);
                     setIsDiffOpen(false);
-                    queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
                     onUpdate?.();
                 },
                 closeOnSuccess: false,

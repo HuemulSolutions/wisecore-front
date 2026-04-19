@@ -101,7 +101,7 @@ export default function AppLayout() {
   const { orgId } = useParams<{ orgId: string }>()
   const buildPath = useOrgPath()
   const { requiresOrganizationSelection, organizationToken, selectedOrganizationId, setSelectedOrganizationId, setOrganizationToken, setRequiresOrganizationSelection } = useOrganization()
-  const { isLoading: permissionsLoading } = useUserPermissions()
+  const { isLoading: permissionsLoading, refreshPermissions } = useUserPermissions()
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
@@ -138,15 +138,6 @@ export default function AppLayout() {
   useEffect(() => {
     if (!orgId || orgId === '_' || !user?.id) return
 
-    // If org selection is required (fresh login, no org in localStorage),
-    // don't auto-select from the URL. Navigate to a clean URL so the
-    // org-selection dialog is shown instead of silently picking the org
-    // that was left in the URL from the previous session.
-    if (requiresOrganizationSelection) {
-      rawNavigate('/home', { replace: true })
-      return
-    }
-
     // Only act when the URL orgId truly changed since last check
     if (orgId === lastSyncedUrlOrgRef.current) return
     lastSyncedUrlOrgRef.current = orgId
@@ -161,7 +152,7 @@ export default function AppLayout() {
     console.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
 
     generateOrganizationToken(orgId)
-      .then(async (tokenResponse) => {
+      .then((tokenResponse) => {
         if (cancelled) return
 
         const orgToken = tokenResponse.token || tokenResponse.data?.token
@@ -175,7 +166,12 @@ export default function AppLayout() {
 
         console.log(`[OrgSync] Switched to org "${orgId}" successfully`)
 
-        await new Promise(resolve => setTimeout(resolve, 200))
+        // Deep link URL is already correct — clean up any saved returnUrl
+        sessionStorage.removeItem('returnUrl')
+
+        // Immediately refresh permissions from the new token instead of
+        // waiting for the 2-second polling interval.
+        refreshPermissions()
 
         if (cancelled) return
 
@@ -242,6 +238,26 @@ export default function AppLayout() {
     }
   }, [selectedOrganizationId, orgId, rawNavigate])
 
+  // --- Redirect to saved deep-link URL after org selection at /home ---
+  // When the user lands at /home after login (no orgId in URL) and previously
+  // visited a deep link, redirect to that URL once the org is ready.
+  useEffect(() => {
+    if (requiresOrganizationSelection) return // still selecting
+    if (!selectedOrganizationId || !organizationToken) return // not ready
+    if (orgId) return // already at an org-scoped URL
+
+    const returnUrl = sessionStorage.getItem('returnUrl')
+    if (returnUrl) {
+      sessionStorage.removeItem('returnUrl')
+      const urlObj = new URL(returnUrl, window.location.origin)
+      const returnPathWithoutOrg = stripOrgPrefix(urlObj.pathname)
+      rawNavigate(
+        `/${selectedOrganizationId}${returnPathWithoutOrg}${urlObj.search}`,
+        { replace: true }
+      )
+    }
+  }, [requiresOrganizationSelection, selectedOrganizationId, organizationToken, orgId, rawNavigate])
+
   // Track active selection flow: enters when org selection is required,
   // exits once permissions finish loading after the user picks an org.
   useEffect(() => {
@@ -262,8 +278,13 @@ export default function AppLayout() {
   //    (keeps dialog open after org pick until permissions are ready).
   // This does NOT trigger on page refresh because isInSelectionFlow stays false
   // when the org/token are restored from localStorage.
-  const shouldShowDialog = requiresOrganizationSelection ||
+  // When the URL already contains a valid orgId (deep link), suppress the
+  // dialog so the URL→context sync can auto-select that org.
+  const urlHasOrg = !!orgId && orgId !== '_'
+  const shouldShowDialog = !urlHasOrg && (
+    requiresOrganizationSelection ||
     (isInSelectionFlow && !!organizationToken && permissionsLoading)
+  )
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
