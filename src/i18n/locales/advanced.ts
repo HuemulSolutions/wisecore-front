@@ -164,6 +164,7 @@ const translations = {
       en: "Open this version in a new tab",
       es: "Abrir esta versión en una nueva pestaña",
     },
+    refresh: { en: "Refresh", es: "Actualizar" },
   },
 }
 
