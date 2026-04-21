@@ -71,6 +71,7 @@ const translations = {
     technicalNameLabel: { en: "Technical Name", es: "Nombre Técnico" },
     technicalNamePlaceholder: { en: "e.g., gpt-4-turbo-preview", es: "ej., gpt-4-turbo-preview" },
     technicalNameDescription: { en: "Use the exact model name as specified by the provider's API documentation.", es: "Usa el nombre exacto del modelo según la documentación de la API del proveedor." },
+    capabilitiesLabel: { en: "Capabilities", es: "Capacidades" },
     updateModel: { en: "Update Model", es: "Actualizar Modelo" },
     saveModel: { en: "Save Model", es: "Guardar Modelo" },
   },
