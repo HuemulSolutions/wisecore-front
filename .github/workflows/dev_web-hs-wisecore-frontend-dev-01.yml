@@ -1,12 +1,12 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - web-hs-wisecore-frontend-qa-1
+name: Build and deploy Node.js app to Azure Web App - web-hs-wisecore-frontend-dev-01
 
 on:
   push:
     branches:
-      - qa
+      - dev
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: read #This is required for actions/checkout
     env:
-      VITE_API_URL: ${{ vars.VITE_API_URL_QA }}
+      VITE_API_URL: ${{ vars.VITE_API_URL_DEV }}
 
     steps:
       - uses: actions/checkout@v4
@@ -51,8 +51,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'web-hs-wisecore-frontend-qa-1'
+          app-name: 'web-hs-wisecore-frontend-dev-01'
           slot-name: 'Production'
           package: .
-
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_C2B10B36AA6F4EB4B22E2EA0BFF6A593 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_35F0D0E62A0C44A08688F3989B35FB9F }}
