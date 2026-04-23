@@ -57,6 +57,7 @@ const translations = {
     loadingModels: { en: "Loading models...", es: "Cargando modelos..." },
     default: { en: "Default", es: "Predeterminado" },
     instructions: { en: "AI instructions (optional)", es: "Instrucciones para la IA (opcional)" },
+    instructionsRequired: { en: "AI instructions", es: "Instrucciones para la IA" },
     instructionsPlaceholder: {
       en: "Enter specific instructions for this execution...",
       es: "Ingresa instrucciones específicas para esta ejecución...",
@@ -163,6 +164,10 @@ const translations = {
     openVersion: {
       en: "Open this version in a new tab",
       es: "Abrir esta versión en una nueva pestaña",
+    },
+    openSection: {
+      en: "Go to this section",
+      es: "Ir a esta sección",
     },
     refresh: { en: "Refresh", es: "Actualizar" },
   },

@@ -312,7 +312,11 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
       {showAiOptions && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="mass-exec-instructions" className="text-sm font-medium">
-            {t("massExecution.instructions")}
+            {editType === "edit-ai" ? (
+              <>{t("massExecution.instructionsRequired")}<span className="text-destructive ml-0.5">*</span></>
+            ) : (
+              t("massExecution.instructions")
+            )}
           </Label>
           <Textarea
             id="mass-exec-instructions"

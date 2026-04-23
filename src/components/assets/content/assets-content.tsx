@@ -2290,22 +2290,7 @@ export function AssetContent({
                           tooltipSide="right"
                           className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         />
-                        <HuemulButton
-                          size="sm"
-                          variant="ghost"
-                          icon={ExternalLink}
-                          iconClassName="h-3.5 w-3.5"
-                          tooltip={t('content.openInNewTab')}
-                          tooltipSide="right"
-                          className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                          onClick={() => {
-                            const execId = selectedExecutionId || documentContent?.execution_id;
-                            const path = execId
-                              ? `/asset/${selectedFile.id}?execution=${encodeURIComponent(execId)}`
-                              : `/asset/${selectedFile.id}`;
-                            window.open(buildPath(path), '_blank');
-                          }}
-                        />
+
                       </div>
                     </div>
                     

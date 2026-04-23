@@ -118,6 +118,11 @@ export default function App() {
             } />
             <Route path="advanced" element={
               <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:l"]}>
+                <Navigate to="home" replace />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="advanced/:section" element={
+              <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:l"]}>
                 <AdvancedPage />
               </PermissionProtectedRoute>
             } />

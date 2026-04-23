@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { FileText, ChevronDown, Loader2, SquareArrowOutUpRight, RefreshCw } from "lucide-react"
+import { FileText, ChevronDown, Loader2, SquareArrowOutUpRight, RefreshCw, Hash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -245,25 +245,53 @@ export function ChangeHistoryPanel() {
                     <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
                   </button>
 
-                  {/* Expanded: version list */}
+                  {/* Expanded: version + section list */}
                   {isExpanded && (
                     <div className="border-t bg-muted/30">
-                      {executions.map((exec) => (
-                        <button
-                          key={exec.execution_id}
-                          onClick={(e) => handleVersionClick(doc.id, exec.execution_id, e)}
-                          title={t("changeHistory.openVersion")}
-                          className="flex items-center gap-3 px-4 py-2.5 pl-18 w-full text-left text-sm hover:bg-muted hover:cursor-pointer transition-colors border-b last:border-b-0 group/version"
-                        >
-                          <span className="flex-1 truncate group-hover/version:text-primary transition-colors">
-                            {exec.execution_name}
-                          </span>
-                          <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                            {t("changeHistory.suggestionCount", { count: exec.pending_ai_suggestion_count })}
-                          </span>
-                          <SquareArrowOutUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover/version:text-primary transition-colors" />
-                        </button>
-                      ))}
+                      {executions.map((exec) => {
+                        const sections = exec.pending_ai_suggestion_sections ?? []
+                        return (
+                          <div key={exec.execution_id} className="border-b last:border-b-0">
+                            {/* Version header row */}
+                            <div className="flex items-center gap-3 px-4 py-2.5 w-full text-sm bg-muted/40">
+                              <span className="flex-1 truncate font-medium text-foreground">
+                                {exec.execution_name}
+                              </span>
+                              <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                                {t("changeHistory.suggestionCount", { count: exec.pending_ai_suggestion_count })}
+                              </span>
+                              <button
+                                onClick={(e) => handleVersionClick(doc.id, exec.execution_id, e)}
+                                title={t("changeHistory.openVersion")}
+                                className="shrink-0 p-1 rounded-md hover:bg-primary/10 hover:cursor-pointer transition-colors"
+                              >
+                                <SquareArrowOutUpRight className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </button>
+                            </div>
+                            {/* Section rows */}
+                            {sections.map((section) => (
+                              <button
+                                key={section.section_execution_id}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  window.open(
+                                    buildPath(`/asset/${doc.id}?execution=${encodeURIComponent(exec.execution_id)}&section=${encodeURIComponent(section.section_id)}`),
+                                    "_blank"
+                                  )
+                                }}
+                                title={t("changeHistory.openSection")}
+                                className="flex items-center gap-3 px-4 py-2 pl-8 w-full text-left text-sm hover:bg-muted hover:cursor-pointer transition-colors border-t group/section"
+                              >
+                                <Hash className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                <span className="flex-1 truncate text-muted-foreground group-hover/section:text-foreground transition-colors">
+                                  {section.section_name}
+                                </span>
+                                <SquareArrowOutUpRight className="h-3 w-3 shrink-0 text-muted-foreground/50 group-hover/section:text-primary transition-colors" />
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
