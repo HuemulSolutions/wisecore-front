@@ -84,6 +84,7 @@ import { SlashKit } from '@/components/plate-editor/components/slash-kit';
 import { DateKit } from '@/components/plate-editor/components/date-kit';
 import { TocKit } from '@/components/plate-editor/components/toc-kit';
 import { MarkdownKit } from '@/components/plate-editor/components/markdown-kit';
+import { CodeDrawingKit } from '@/components/plate-editor/components/code-drawing-kit';
 
 import { Editor, EditorContainer } from '@/components/ui/editor';
 import { FloatingToolbarButtons } from '@/components/ui/floating-toolbar-buttons';
@@ -99,6 +100,7 @@ import { FontColorToolbarButton } from '@/components/ui/font-color-toolbar-butto
 import { MediaToolbarButton } from '@/components/ui/media-toolbar-button';
 import { TurnIntoToolbarButton } from '@/components/ui/turn-into-toolbar-button';
 import { CommentToolbarButton } from '@/components/ui/comment-toolbar-button';
+import { CodeDrawingToolbarButton } from '@/components/ui/code-drawing-toolbar-button';
 import { ModeToolbarButton } from '@/components/ui/mode-toolbar-button';
 import { EmojiToolbarButton } from '@/components/ui/emoji-toolbar-button';
 import { FontSizeToolbarButton } from '@/components/ui/font-size-toolbar-button';
@@ -259,6 +261,7 @@ function EditorToolbar() {
           <TableToolbarButton />
           <ToggleToolbarButton />
           <MediaToolbarButton nodeType="img" />
+          <CodeDrawingToolbarButton />
           <EmojiToolbarButton />
 
           <ToolbarSeparator />
@@ -395,6 +398,7 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <LinkToolbarButton />
         <TableToolbarButton />
         <MediaToolbarButton nodeType="img" />
+        <CodeDrawingToolbarButton />
 
         <ToolbarSeparator />
 
@@ -489,6 +493,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       ...TableKit,
       ...ToggleKit,
       ...MediaKit,
+      ...CodeDrawingKit,
       ...DiscussionKit,
       ...CommentKit,
       ...SuggestionKit,
