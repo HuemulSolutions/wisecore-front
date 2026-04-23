@@ -650,6 +650,7 @@ function DateInputField({
   error?: string;
   inputClassName?: string;
 }) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
   const strValue = String(value ?? "");
   const selected = strValue ? parseISO(strValue) : undefined;
@@ -671,7 +672,7 @@ function DateInputField({
           )}
         >
           <CalendarIcon className="h-4 w-4 shrink-0" />
-          {selected ? format(selected, "dd-MM-yyyy") : (placeholder || "Pick a date")}
+          {selected ? format(selected, "dd-MM-yyyy") : (placeholder || t('pickDate'))}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
