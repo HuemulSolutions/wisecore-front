@@ -1,9 +1,9 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
-import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter";
+import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users, ExternalLink } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users, Info, Settings2 } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -15,9 +15,11 @@ import { OtherVersionExecutionBanner } from "@/components/execution/other-versio
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
+import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 
 import {
   DropdownMenu,
@@ -144,7 +146,6 @@ export function AssetContent({
   const { t } = useTranslation('assets');
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
-  const buildPath = useOrgPath();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
@@ -570,6 +571,8 @@ export function AssetContent({
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
+  const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
+  const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
   useEffect(() => {
@@ -731,6 +734,25 @@ export function AssetContent({
     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
     queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
+  };
+
+  // State for refresh animation
+  const [isRefreshingContent, setIsRefreshingContent] = useState(false);
+
+  // Handle manual refresh of all asset content
+  const handleRefreshContent = async () => {
+    if (isRefreshingContent) return;
+    setIsRefreshingContent(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
+      ]);
+    } finally {
+      setIsRefreshingContent(false);
+    }
   };
 
 
@@ -2145,10 +2167,30 @@ export function AssetContent({
                         );
                       })}
                     </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="hover:cursor-pointer p-2 gap-2 text-gray-700 hover:bg-gray-50"
+                      onSelect={() => setTimeout(() => setIsVersionManagementSheetOpen(true), 0)}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      <span className="text-xs font-medium">{t('content.manageVersions')}</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </DocumentAccessControl>
               )}
+              
+              {/* Refresh Button - Mobile */}
+              <HuemulButton
+                size="sm"
+                variant="ghost"
+                onClick={handleRefreshContent}
+                disabled={isRefreshingContent || isLoadingContent}
+                className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                title={t('content.refreshContent')}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshingContent ? 'animate-spin' : ''}`} />
+              </HuemulButton>
               
               {/* Clone Button - create permission only */}
               {lifecyclePermissions?.create && selectedExecutionId && (
@@ -2292,6 +2334,17 @@ export function AssetContent({
                         />
 
                       </div>
+                      {/* Info button - top right of header */}
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsInfoSheetOpen(true)}
+                        icon={Info}
+                        iconClassName="h-4 w-4"
+                        className="h-8 w-8 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                        tooltip={t('content.assetInfo')}
+                        tooltipSide="left"
+                      />
                     </div>
                     
                     {/* Metadata Row - Combined */}
@@ -2551,16 +2604,6 @@ export function AssetContent({
                                       <Pencil className="w-3 h-3" />
                                     </button>
                                   )}
-                                  <button
-                                    className="p-0.5 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
-                                    title={t('content.openVersionInNewTab')}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(buildPath(`/asset/${selectedFile.id}?execution=${encodeURIComponent(execution.id)}`), '_blank');
-                                    }}
-                                  >
-                                    <ExternalLink className="w-3 h-3" />
-                                  </button>
                                   {isLatest && (
                                     <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                       <Clock className="w-3 h-3" />
@@ -2584,6 +2627,14 @@ export function AssetContent({
                           );
                         })}
                       </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer p-2 gap-2 text-gray-700 hover:bg-gray-50"
+                        onSelect={() => setTimeout(() => setIsVersionManagementSheetOpen(true), 0)}
+                      >
+                        <Settings2 className="h-4 w-4" />
+                        <span className="text-xs font-medium">{t('content.manageVersions')}</span>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   </div>
@@ -2663,6 +2714,18 @@ export function AssetContent({
                     />
                   </div>
                 )}
+
+                {/* Refresh button */}
+                <HuemulButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRefreshContent}
+                  disabled={isRefreshingContent || isLoadingContent}
+                  icon={RefreshCw}
+                  iconClassName={`h-3.5 w-3.5 ${isRefreshingContent ? 'animate-spin' : ''}`}
+                  className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                  tooltip={t('content.refreshContent')}
+                />
 
                 {/* More Options Dropdown - only render when at least one item is available and user is not view-only */}
                 {!isViewOnly &&
@@ -3704,6 +3767,259 @@ export function AssetContent({
         }}
         isProcessing={renameVersionMutation.isPending}
       />
+
+      {/* Asset Info Sheet */}
+      <HuemulSheet
+        open={isInfoSheetOpen}
+        onOpenChange={setIsInfoSheetOpen}
+        title={t('content.assetInfoTitle')}
+        icon={Info}
+        showFooter={false}
+        maxWidth="sm:max-w-xl"
+      >
+        {(() => {
+          const copyId = (id: string) => {
+            navigator.clipboard.writeText(id).then(() => {
+              toast.success(t('content.info.copied'));
+            });
+          };
+
+          // Horizontal row: label on the left, value on the right
+          const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+            <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-50 last:border-0">
+              <span className="text-xs text-gray-500 shrink-0 pt-0.5 w-[120px]">{label}</span>
+              <div className="text-sm text-gray-900 font-medium text-right flex-1 min-w-0">{children}</div>
+            </div>
+          );
+
+          // ID row: full width code box (below the main row)
+          const IdRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
+            if (!value) return null;
+            return (
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-50 last:border-0">
+                <span className="text-xs text-gray-500 shrink-0 pt-0.5 w-[120px]">{label}</span>
+                <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 flex-1 min-w-0">
+                  <code className="text-[11px] font-mono text-gray-500 flex-1 truncate">{value}</code>
+                  <button
+                    onClick={() => copyId(value)}
+                    className="text-gray-400 hover:text-gray-700 transition-colors shrink-0 hover:cursor-pointer"
+                    title={t('content.info.copy')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          };
+
+          // Card section with title
+          const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</span>
+              </div>
+              <div className="px-3 divide-y divide-gray-50">{children}</div>
+            </div>
+          );
+
+          const EXECUTION_STATUS_COLORS: Record<string, string> = {
+            completed: 'bg-green-100 text-green-700',
+            approved: 'bg-blue-100 text-blue-700',
+            failed: 'bg-red-100 text-red-700',
+            running: 'bg-amber-100 text-amber-700',
+            pending: 'bg-gray-100 text-gray-600',
+          };
+
+          return (
+            <div className="space-y-3 pb-6">
+              {/* Document */}
+              <Section title={t('content.info.document')}>
+                <Row label={t('content.info.name')}>
+                  {documentContent?.document_name ?? '—'}
+                </Row>
+                <IdRow label={t('content.info.documentId')} value={documentContent?.document_id} />
+                {documentContent?.internal_code && (
+                  <Row label={t('content.info.internalCode')}>
+                    <span className="font-mono text-xs">{documentContent.internal_code}</span>
+                  </Row>
+                )}
+                {documentContent?.description && (
+                  <Row label={t('content.info.description')}>
+                    <span className="text-gray-600 font-normal text-xs">{documentContent.description}</span>
+                  </Row>
+                )}
+                {documentContent?.document_type && (
+                  <>
+                    <Row label={t('content.info.documentType')}>
+                      <span className="flex items-center justify-end gap-1.5">
+                        <span
+                          className="inline-block h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: documentContent.document_type.color }}
+                        />
+                        {documentContent.document_type.name}
+                      </span>
+                    </Row>
+                    <IdRow label={t('content.info.typeId')} value={documentContent.document_type.id} />
+                  </>
+                )}
+                {documentContent?.access_level && (
+                  <Row label={t('content.info.accessLevel')}>
+                    <span className="capitalize">{documentContent.access_level}</span>
+                  </Row>
+                )}
+                {documentContent?.template_name && (
+                  <>
+                    <Row label={t('content.info.template')}>
+                      {documentContent.template_name}
+                    </Row>
+                    <IdRow label={t('content.info.templateId')} value={documentContent.template_id} />
+                  </>
+                )}
+              </Section>
+
+              {/* Version */}
+              <Section title={t('content.info.version')}>
+                <Row label={t('content.info.versionName')}>
+                  {documentContent?.execution_name ?? '—'}
+                </Row>
+                <IdRow label={t('content.info.versionId')} value={documentContent?.execution_id} />
+                {selectedExecutionInfo?.status && (
+                  <Row label={t('content.info.status')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${EXECUTION_STATUS_COLORS[selectedExecutionInfo.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {selectedExecutionInfo.status}
+                    </span>
+                  </Row>
+                )}
+                {selectedExecutionInfo?.status_message && (
+                  <Row label={t('content.info.statusMessage')}>
+                    <span className="text-xs font-normal text-gray-600 text-right">{selectedExecutionInfo.status_message}</span>
+                  </Row>
+                )}
+                {selectedExecutionInfo?.created_at && (
+                  <Row label={t('content.info.createdAt')}>
+                    {formatApiDateTime(selectedExecutionInfo.created_at)}
+                  </Row>
+                )}
+                {selectedExecutionInfo?.version && (
+                  <Row label={t('content.info.semanticVersion')}>
+                    <span className="font-mono text-xs">{selectedExecutionInfo.version}</span>
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.expiration_date && (
+                  <Row label={t('content.info.expirationDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).expiration_date)}
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.estimated_publication_date && (
+                  <Row label={t('content.info.estimatedPublicationDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).estimated_publication_date)}
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.review_date && (
+                  <Row label={t('content.info.reviewDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).review_date)}
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.audit_date && (
+                  <Row label={t('content.info.auditDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).audit_date)}
+                  </Row>
+                )}
+              </Section>
+
+              {/* Lifecycle */}
+              {documentContent?.lifecycle_status && (
+                <Section title={t('content.info.lifecycle')}>
+                  <Row label={t('content.info.state')}>
+                    <span className="capitalize">{documentContent.lifecycle_status.state}</span>
+                  </Row>
+                  <Row label={t('content.info.stage')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {documentContent.lifecycle_status.stage}
+                    </span>
+                  </Row>
+                  {documentContent.lifecycle_status.current_group && (
+                    <Row label={t('content.info.currentGroup')}>
+                      {documentContent.lifecycle_status.current_group}
+                    </Row>
+                  )}
+                  {documentContent.lifecycle_status.version && (
+                    <Row label={t('content.info.semanticVersion')}>
+                      <span className="font-mono text-xs">{documentContent.lifecycle_status.version}</span>
+                    </Row>
+                  )}
+                  <Row label={t('content.info.canCheck')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_check ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {documentContent.lifecycle_status.can_check ? t('content.info.yes') : t('content.info.no')}
+                    </span>
+                  </Row>
+                  <Row label={t('content.info.versionRequired')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.version_required ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {documentContent.lifecycle_status.version_required ? t('content.info.yes') : t('content.info.no')}
+                    </span>
+                  </Row>
+                  <IdRow label={t('content.info.stepId')} value={documentContent.lifecycle_status.current_step_id} />
+                </Section>
+              )}
+
+              {/* Audit */}
+              <Section title={t('content.info.audit')}>
+                {documentContent?.created_by_user && (
+                  <div className="py-2 border-b border-gray-50 last:border-0 space-y-1.5">
+                    <span className="text-xs text-gray-500">{t('content.info.createdBy')}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-semibold text-blue-600">
+                          {documentContent.created_by_user.name.charAt(0)}{documentContent.created_by_user.last_name.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {documentContent.created_by_user.name} {documentContent.created_by_user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{documentContent.created_by_user.email}</p>
+                      </div>
+                    </div>
+                    <IdRow label="User ID" value={documentContent.created_by_user.id} />
+                  </div>
+                )}
+                {documentContent?.updated_by_user && (
+                  <div className="py-2 border-b border-gray-50 last:border-0 space-y-1.5">
+                    <span className="text-xs text-gray-500">{t('content.info.updatedBy')}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-semibold text-purple-600">
+                          {documentContent.updated_by_user.name.charAt(0)}{documentContent.updated_by_user.last_name.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{documentContent.updated_by_user.email}</p>
+                      </div>
+                    </div>
+                    <IdRow label="User ID" value={documentContent.updated_by_user.id} />
+                  </div>
+                )}
+              </Section>
+            </div>
+          );
+        })()}
+      </HuemulSheet>
+
+      {/* Version Management Sheet */}
+      {allExecutions && selectedOrganizationId && (
+        <VersionManagementSheet
+          open={isVersionManagementSheetOpen}
+          onOpenChange={setIsVersionManagementSheetOpen}
+          executions={allExecutions}
+          organizationId={selectedOrganizationId}
+          documentId={selectedFile?.id ?? ''}
+          canEdit={!!(lifecyclePermissions?.create && lifecyclePermissions?.edit)}
+          initialExecutionId={selectedExecutionId || documentContent?.execution_id}
+        />
+      )}
     </>
   );
 }
