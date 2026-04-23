@@ -360,6 +360,25 @@ export async function updateExecutionName(
     return data.data;
 }
 
+export async function updateExecutionBusinessDates(
+    executionId: string,
+    dates: {
+        expiration_date?: string | null;
+        estimated_publication_date?: string | null;
+        review_date?: string | null;
+        audit_date?: string | null;
+    },
+    organizationId: string
+) {
+    const response = await httpClient.patch(`${backendUrl}/execution/${executionId}/business-dates`, dates, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
 export async function bulkGenerateByTemplateSection({
     executionIds,
     templateSectionId,
