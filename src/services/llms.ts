@@ -25,7 +25,6 @@ export {
 export async function getLLMs(): Promise<LLM[]> {
     const response = await httpClient.get(`${backendUrl}/llms/`);
     const data = await response.json();
-    console.log('LLMs fetched:', data.data);
     return data.data || data;
 }
 

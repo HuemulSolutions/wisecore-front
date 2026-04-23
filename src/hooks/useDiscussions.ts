@@ -189,18 +189,21 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       return discussion.id;
     },
     onSuccess: () => invalidate(),
+    meta: { successMessage: 'Discussion created' },
   });
 
   const resolveDiscussionMutation = useMutation({
     mutationFn: (discussionId: string) =>
       resolveDiscussion(discussionId, selectedOrganizationId ?? undefined),
     onSuccess: () => invalidate(),
+    meta: { successMessage: 'Discussion resolved' },
   });
 
   const deleteDiscussionMutation = useMutation({
     mutationFn: (discussionId: string) =>
       deleteDiscussion(discussionId, selectedOrganizationId ?? undefined),
     onSuccess: () => invalidate(),
+    meta: { successMessage: 'Discussion deleted' },
   });
 
   const addCommentMutation = useMutation({
@@ -215,6 +218,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       return comment.id;
     },
     onSuccess: () => invalidate(),
+    meta: { successMessage: 'Comment added' },
   });
 
   const updateCommentMutation = useMutation({
@@ -229,6 +233,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       );
     },
     onSuccess: () => invalidate(),
+    meta: { successMessage: 'Comment updated' },
   });
 
   const deleteCommentMutation = useMutation({
@@ -239,6 +244,7 @@ export function useDiscussions(documentId: string | undefined, sectionExecutionI
       );
     },
     onSuccess: () => invalidate(),
+    meta: { successMessage: 'Comment deleted' },
   });
 
   // ── Callbacks for the Plate discussion plugin ───────────────────────

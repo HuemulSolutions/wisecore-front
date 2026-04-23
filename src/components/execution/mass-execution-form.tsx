@@ -1,25 +1,18 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { Bot, PenLine, Play, FastForward, Eye, Save, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOrganization } from "@/contexts/organization-context"
-import { getAllTemplates } from "@/services/templates"
-import { getTemplateById } from "@/services/templates"
+import { getAllTemplates, getTemplateById } from "@/services/templates"
 import { getLLMs, getDefaultLLM } from "@/services/llms"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import type { HuemulFieldOption } from "@/huemul/components/huemul-field"
-import type { LLM } from "@/types/llm"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 
 type EditType = "execute-ai" | "edit-ai" | "manual"
 type ExecutionMode = "single" | "from" | "review" | "save"
-
-interface TemplateSection {
-  id: string
-  name: string
-  order: number
-}
 
 export interface MassExecutionConfig {
   templateId: string
@@ -28,6 +21,12 @@ export interface MassExecutionConfig {
   llmId: string
   instructions: string
   executionMode: ExecutionMode
+}
+
+interface TemplateSection {
+  id: string
+  name: string
+  order: number
 }
 
 interface StepHeaderProps {
@@ -87,13 +86,39 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
   const [instructions, setInstructions] = useState("")
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("single")
 
-  // Data state
-  const [templateOptions, setTemplateOptions] = useState<HuemulFieldOption[]>([])
-  const [sectionOptions, setSectionOptions] = useState<HuemulFieldOption[]>([])
-  const [availableLLMs, setAvailableLLMs] = useState<LLM[]>([])
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
-  const [isLoadingSections, setIsLoadingSections] = useState(false)
-  const [isLoadingLLMs, setIsLoadingLLMs] = useState(false)
+  // Data queries
+  const { data: templatesData, isLoading: isLoadingTemplates } = useQuery({
+    queryKey: ["templates", selectedOrganizationId],
+    queryFn: () => getAllTemplates(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId,
+  })
+
+  const { data: templateDetail, isLoading: isLoadingSections } = useQuery({
+    queryKey: ["template", templateId, selectedOrganizationId],
+    queryFn: () => getTemplateById(templateId, selectedOrganizationId!),
+    enabled: !!templateId && !!selectedOrganizationId,
+  })
+
+  const { data: availableLLMs = [], isLoading: isLoadingLLMs } = useQuery({
+    queryKey: ["llms"],
+    queryFn: getLLMs,
+  })
+
+  const { data: defaultLLM } = useQuery({
+    queryKey: ["llms", "default"],
+    queryFn: getDefaultLLM,
+    retry: false,
+  })
+
+  // Derive options
+  const templateOptions: HuemulFieldOption[] = (templatesData?.data ?? []).map((tmpl) => ({
+    label: tmpl.name,
+    value: tmpl.id,
+  }))
+
+  const sectionOptions: HuemulFieldOption[] = [...((templateDetail?.sections ?? []) as TemplateSection[])]
+    .sort((a, b) => a.order - b.order)
+    .map((s, i) => ({ label: `${i + 1} · ${s.name}`, value: s.id }))
 
   // Emit config changes
   useEffect(() => {
@@ -107,68 +132,15 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
     })
   }, [templateId, sectionId, editType, llmId, instructions, executionMode, onConfigChange])
 
-  // Load templates
+  // Set initial llmId from default LLM (only once)
   useEffect(() => {
-    if (!selectedOrganizationId) return
-    setIsLoadingTemplates(true)
-    getAllTemplates(selectedOrganizationId)
-      .then((res) => {
-        setTemplateOptions(
-          res.data.map((t) => ({ label: t.name, value: t.id }))
-        )
-      })
-      .catch(console.error)
-      .finally(() => setIsLoadingTemplates(false))
-  }, [selectedOrganizationId])
-
-  // Load sections when template changes
-  useEffect(() => {
-    if (!templateId || !selectedOrganizationId) {
-      setSectionOptions([])
-      setSectionId("")
-      return
+    if (llmId) return
+    if (defaultLLM?.id) {
+      setLlmId(defaultLLM.id)
+    } else if (availableLLMs.length > 0) {
+      setLlmId(availableLLMs[0].id)
     }
-    setIsLoadingSections(true)
-    setSectionId("")
-    getTemplateById(templateId, selectedOrganizationId)
-      .then((template) => {
-        const sections = (template.sections || []) as TemplateSection[]
-        const sorted = [...sections].sort((a, b) => a.order - b.order)
-        setSectionOptions(
-          sorted.map((s, i) => ({
-            label: `${i + 1} · ${s.name}`,
-            value: s.id,
-          }))
-        )
-      })
-      .catch(console.error)
-      .finally(() => setIsLoadingSections(false))
-  }, [templateId, selectedOrganizationId])
-
-  // Load LLMs
-  const loadLLMs = useCallback(async () => {
-    setIsLoadingLLMs(true)
-    try {
-      const llms = await getLLMs()
-      setAvailableLLMs(llms)
-      if (llms.length > 0) {
-        try {
-          const defaultLLM = await getDefaultLLM()
-          setLlmId(defaultLLM.id)
-        } catch {
-          setLlmId(llms[0].id)
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load LLMs:", err)
-    } finally {
-      setIsLoadingLLMs(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadLLMs()
-  }, [loadLLMs])
+  }, [defaultLLM, availableLLMs, llmId])
 
   const showLlmModel = editType === "execute-ai"
   const showAiOptions = editType === "execute-ai" || editType === "edit-ai"

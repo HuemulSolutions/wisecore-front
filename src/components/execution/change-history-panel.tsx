@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { FileText, ChevronDown, Loader2, SquareArrowOutUpRight } from "lucide-react"
+import { FileText, ChevronDown, Loader2, SquareArrowOutUpRight, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -45,7 +45,7 @@ export function ChangeHistoryPanel() {
     }
   }
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: [
       "documents",
       "pending-changes",
@@ -109,14 +109,26 @@ export function ChangeHistoryPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Search — fixed top */}
-      <div className="shrink-0 pb-4" onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}>
-        <HuemulField
-          type="text"
-          label=""
-          value={search}
-          onChange={(val) => setSearch(String(val))}
-          placeholder={t("changeHistory.searchPlaceholder")}
-        />
+      <div className="shrink-0 pb-4 flex items-end gap-2" onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}>
+        <div className="flex-1">
+          <HuemulField
+            type="text"
+            label=""
+            value={search}
+            onChange={(val) => setSearch(String(val))}
+            placeholder={t("changeHistory.searchPlaceholder")}
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => refetch()}
+          disabled={isLoading || isFetching}
+          title={t("changeHistory.refresh")}
+          className="hover:cursor-pointer shrink-0"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {/* Section header */}
