@@ -221,6 +221,10 @@ export interface HuemulFieldProps {
   /** Size variant passed to the SelectTrigger. Use "xs" for compact inline usage (no forced height). */
   selectSize?: "sm" | "default" | "xs";
 
+  // ── Control wrapper ──────────────────────────────────────────────────────
+  /** Additional className on the div wrapping the control element (useful for height alignment in flex rows) */
+  controlClassName?: string;
+
   // ── Slot ─────────────────────────────────────────────────────────────────
   /** Optional content rendered below the control (e.g. tag list) */
   children?: React.ReactNode;}
@@ -859,7 +863,7 @@ function AsyncSelectField({
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] w-64 p-0" align="start">
         <div className="flex items-center border-b px-3">
           <Input
             placeholder={t('searchPlaceholder')}
@@ -980,6 +984,7 @@ export function HuemulField({
   selectedLabel,
   selectedColor,
   selectSize = "default",
+  controlClassName,
   children,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
@@ -1460,7 +1465,7 @@ export function HuemulField({
           )}
 
           {/* ── Control ────────────────────────────────────────── */}
-          <div>{renderControl()}</div>
+          <div className={controlClassName}>{renderControl()}</div>
         </>
       )}
 

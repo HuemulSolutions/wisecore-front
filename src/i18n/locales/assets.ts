@@ -407,6 +407,8 @@ const translations = {
     deleteVersion: { en: "Delete Version", es: "Eliminar Versión" },
     deleteDocumentLabel: { en: "Delete Asset", es: "Eliminar Activo" },
     cloneVersion: { en: "Clone Version", es: "Clonar Versión" },
+    openInNewTab: { en: "Open in new tab", es: "Abrir en nueva pestaña" },
+    openVersionInNewTab: { en: "Open this version in new tab", es: "Abrir esta versión en nueva pestaña" },
     renameVersion: { en: "Rename", es: "Renombrar" },
     renameVersionTitle: { en: "Rename Version", es: "Renombrar Versión" },
     renameVersionDescription: { en: "Enter a new name for this version.", es: "Ingresa un nuevo nombre para esta versión." },

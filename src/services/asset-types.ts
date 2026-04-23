@@ -14,6 +14,9 @@ export interface AssetTypesResponse {
   data: AssetType[];
   transaction_id: string;
   timestamp: string;
+  has_next?: boolean;
+  page?: number;
+  page_size?: number;
 }
 
 // Role access information
@@ -70,8 +73,13 @@ const getHeaders = (): Record<string, string> => {
 };
 
 // Get all asset types
-export const getAssetTypes = async (): Promise<AssetTypesResponse> => {
-  const response = await httpClient.get(`${backendUrl}/document_types`, {
+export const getAssetTypes = async (page: number = 1, pageSize: number = 100, search?: string): Promise<AssetTypesResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  if (search?.trim()) params.set('search', search.trim());
+  const response = await httpClient.get(`${backendUrl}/document_types?${params}`, {
     headers: getHeaders(),
   });
   

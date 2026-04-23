@@ -1,9 +1,9 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
-import { useOrgNavigate } from "@/hooks/useOrgRouter";
+import { useOrgNavigate, useOrgPath } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users, ExternalLink } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -144,6 +144,7 @@ export function AssetContent({
   const { t } = useTranslation('assets');
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
+  const buildPath = useOrgPath();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
@@ -2289,6 +2290,22 @@ export function AssetContent({
                           tooltipSide="right"
                           className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         />
+                        <HuemulButton
+                          size="sm"
+                          variant="ghost"
+                          icon={ExternalLink}
+                          iconClassName="h-3.5 w-3.5"
+                          tooltip={t('content.openInNewTab')}
+                          tooltipSide="right"
+                          className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                          onClick={() => {
+                            const execId = selectedExecutionId || documentContent?.execution_id;
+                            const path = execId
+                              ? `/asset/${selectedFile.id}?execution=${encodeURIComponent(execId)}`
+                              : `/asset/${selectedFile.id}`;
+                            window.open(buildPath(path), '_blank');
+                          }}
+                        />
                       </div>
                     </div>
                     
@@ -2549,6 +2566,16 @@ export function AssetContent({
                                       <Pencil className="w-3 h-3" />
                                     </button>
                                   )}
+                                  <button
+                                    className="p-0.5 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
+                                    title={t('content.openVersionInNewTab')}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(buildPath(`/asset/${selectedFile.id}?execution=${encodeURIComponent(execution.id)}`), '_blank');
+                                    }}
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                  </button>
                                   {isLatest && (
                                     <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                       <Clock className="w-3 h-3" />
