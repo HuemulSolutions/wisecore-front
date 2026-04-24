@@ -22,6 +22,7 @@ import AssetTypesPage from "./pages/assets-types";
 import CustomFieldsPage from "./pages/custom-fields";
 import GlobalAdminPage from "./pages/global-admin";
 import AdvancedPage from "./pages/advanced";
+import ExternalSystemsPage from "./pages/external-systems";
 import { RootRedirect } from "./components/organization/root-redirect";
 
 export default function App() {
@@ -124,6 +125,11 @@ export default function App() {
             <Route path="advanced/:section" element={
               <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:l"]}>
                 <AdvancedPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="external-systems" element={
+              <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
+                <ExternalSystemsPage />
               </PermissionProtectedRoute>
             } />
           </Route>

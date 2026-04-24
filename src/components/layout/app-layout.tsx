@@ -572,6 +572,13 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
+                        {(canAccessUsers || isOrgAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/external-systems")} className="hover:cursor-pointer">
+                              {t('settings.externalSystems')}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
                       </>
                     )}
                   </DropdownMenuContent>
