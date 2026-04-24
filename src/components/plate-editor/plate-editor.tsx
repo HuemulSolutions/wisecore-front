@@ -76,7 +76,7 @@ import { TableKit } from '@/components/plate-editor/components/table-kit';
 import { ToggleKit } from '@/components/plate-editor/components/toggle-kit';
 import { MediaKit } from '@/components/plate-editor/components/media-kit';
 import { CommentKit } from '@/components/plate-editor/components/comment-kit';
-import { DiscussionKit, discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
+import { discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
 import { BlockDiscussion } from '@/components/ui/block-discussion';
 import { SuggestionKit } from '@/components/plate-editor/components/suggestion-kit';
 import { EmojiKit } from '@/components/plate-editor/components/emoji-kit';
