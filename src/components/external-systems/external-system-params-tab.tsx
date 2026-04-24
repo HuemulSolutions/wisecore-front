@@ -5,6 +5,7 @@ import {
   useExternalParameters,
   useExternalParameterMutations,
 } from "@/hooks/useExternalParameters"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -49,6 +50,12 @@ export function ExternalSystemParamsTab({
 }: ExternalSystemParamsTabProps) {
   const { t } = useTranslation(["external-parameters", "common"])
 
+  const { isOrgAdmin, hasPermission } = useUserPermissions()
+  const canCreate = isOrgAdmin || hasPermission("external_parameter:c" as never)
+  const canUpdate = isOrgAdmin || hasPermission("external_parameter:u" as never)
+  const canDelete = isOrgAdmin || hasPermission("external_parameter:d" as never)
+  const canList   = isOrgAdmin || hasPermission("external_parameter:l" as never) || hasPermission("external_parameter:r" as never)
+
   const typeOptions = [
     { label: t("typeOptions.queryString"), value: "query_string" },
     { label: t("typeOptions.header"), value: "header" },
@@ -68,6 +75,7 @@ export function ExternalSystemParamsTab({
   const { data, isLoading, isFetching, refetch } = useExternalParameters(organizationId, systemId, {
     page,
     pageSize: PAGE_SIZE,
+    enabled: canList,
   })
 
   const { createExternalParameter, updateExternalParameter, deleteExternalParameter } =
@@ -237,24 +245,28 @@ export function ExternalSystemParamsTab({
         }
         return (
           <div className="flex items-center gap-0.5 justify-end">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:cursor-pointer"
-              disabled={isOtherRowEditing}
-              onClick={() => startEditing(param)}
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-destructive hover:text-destructive hover:cursor-pointer"
-              disabled={isOtherRowEditing}
-              onClick={() => setDeletingParam(param)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {canUpdate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:cursor-pointer"
+                disabled={isOtherRowEditing}
+                onClick={() => startEditing(param)}
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive hover:cursor-pointer"
+                disabled={isOtherRowEditing}
+                onClick={() => setDeletingParam(param)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         )
       },
@@ -278,15 +290,17 @@ export function ExternalSystemParamsTab({
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs px-2 hover:cursor-pointer"
-            onClick={openAddDialog}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            {t("addParameter")}
-          </Button>
+          {canCreate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2 hover:cursor-pointer"
+              onClick={openAddDialog}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              {t("addParameter")}
+            </Button>
+          )}
         </div>
 
         {/* Table */}

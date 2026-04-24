@@ -134,6 +134,22 @@ export function useUserPermissions() {
     return hasAnyPermission(['discussion:r', 'discussion:l', 'discussion:c', 'discussion:u', 'discussion:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessExternalSystems = useMemo(() => {
+    return hasAnyPermission(['external_system:r', 'external_system:l', 'external_system:c', 'external_system:u', 'external_system:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessExternalFunctionalities = useMemo(() => {
+    return hasAnyPermission(['external_functionality:r', 'external_functionality:l', 'external_functionality:c', 'external_functionality:u', 'external_functionality:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessExternalParameters = useMemo(() => {
+    return hasAnyPermission(['external_parameter:r', 'external_parameter:l', 'external_parameter:c', 'external_parameter:u', 'external_parameter:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
+  const canAccessExternalSecrets = useMemo(() => {
+    return hasAnyPermission(['external_secret:r', 'external_secret:l', 'external_secret:c', 'external_secret:u', 'external_secret:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
@@ -223,6 +239,10 @@ export function useUserPermissions() {
     canAccessOrganizations,
     canAccessVersions,
     canAccessDiscussions,
+    canAccessExternalSystems,
+    canAccessExternalFunctionalities,
+    canAccessExternalParameters,
+    canAccessExternalSecrets,
 
     // Funciones de utilidad
     hasResourceAccess,

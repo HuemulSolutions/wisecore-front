@@ -5,6 +5,7 @@ import {
   useExternalSecrets,
   useExternalSecretMutations,
 } from "@/hooks/useExternalSecrets"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -40,6 +41,12 @@ export function ExternalSystemSecretsTab({
 }: ExternalSystemSecretsTabProps) {
   const { t } = useTranslation(["external-secrets", "common"])
 
+  const { isOrgAdmin, hasPermission } = useUserPermissions()
+  const canCreate = isOrgAdmin || hasPermission("external_secret:c" as never)
+  const canUpdate = isOrgAdmin || hasPermission("external_secret:u" as never)
+  const canDelete = isOrgAdmin || hasPermission("external_secret:d" as never)
+  const canList   = isOrgAdmin || hasPermission("external_secret:l" as never) || hasPermission("external_secret:r" as never)
+
   const [page, setPage] = useState(1)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editing, setEditing] = useState<EditingState | null>(null)
@@ -54,6 +61,7 @@ export function ExternalSystemSecretsTab({
   const { data, isLoading, isFetching, refetch } = useExternalSecrets(organizationId, systemId, {
     page,
     pageSize: PAGE_SIZE,
+    enabled: canList,
   })
 
   const { createExternalSecret, updateExternalSecret, deleteExternalSecret } =
@@ -227,24 +235,28 @@ export function ExternalSystemSecretsTab({
         }
         return (
           <div className="flex items-center gap-0.5 justify-end">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:cursor-pointer"
-              disabled={isOtherRowEditing}
-              onClick={() => startEditing(secret)}
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-destructive hover:text-destructive hover:cursor-pointer"
-              disabled={isOtherRowEditing}
-              onClick={() => setDeletingSecret(secret)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {canUpdate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 hover:cursor-pointer"
+                disabled={isOtherRowEditing}
+                onClick={() => startEditing(secret)}
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-destructive hover:text-destructive hover:cursor-pointer"
+                disabled={isOtherRowEditing}
+                onClick={() => setDeletingSecret(secret)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         )
       },
@@ -268,15 +280,17 @@ export function ExternalSystemSecretsTab({
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs px-2 hover:cursor-pointer"
-            onClick={openAddDialog}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            {t("addSecret")}
-          </Button>
+          {canCreate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2 hover:cursor-pointer"
+              onClick={openAddDialog}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              {t("addSecret")}
+            </Button>
+          )}
         </div>
 
         {/* Table */}
