@@ -193,7 +193,7 @@ export async function getMediaDownloadUrl(
     headers: { 'X-Org-Id': organizationId },
   })
   const data = (await response.json()) as MediaDownloadUrlResponse
-  return data.data.url
+  return data.data.download_url
 }
 
 export type { Media, MediaVersion, MediaListResponse, MediaVersionListResponse }

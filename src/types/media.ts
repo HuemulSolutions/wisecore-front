@@ -62,7 +62,12 @@ export interface MediaVersionListResponse {
 
 export interface MediaDownloadUrlResponse {
   data: {
-    url: string
+    media_id: string
+    version_number: number
+    original_filename: string
+    content_type: string
+    file_size: number
+    download_url: string
   }
   transaction_id: string
 }
