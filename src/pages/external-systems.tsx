@@ -5,6 +5,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { useExternalSystems } from "@/hooks/useExternalSystems"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulFileTree, type HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree"
 import { HuemulButton } from "@/huemul/components/huemul-button"
@@ -49,6 +50,23 @@ export default function ExternalSystemsPage() {
   const { selectedOrganizationId } = useOrganization()
   const orgId = selectedOrganizationId ?? ""
 
+  const {
+    isLoading: isLoadingPermissions,
+    isOrgAdmin,
+    hasPermission,
+    hasAnyPermission,
+    canAccessExternalSystems,
+  } = useUserPermissions()
+
+  const canListSystems  = isOrgAdmin || hasAnyPermission(["external_system:l", "external_system:r"])
+  const canCreateSystem = isOrgAdmin || hasPermission("external_system:c" as never)
+  const canEditSystem   = isOrgAdmin || hasPermission("external_system:u" as never)
+  const canDeleteSystem = isOrgAdmin || hasPermission("external_system:d" as never)
+
+  const canCreateFunctionality = isOrgAdmin || hasPermission("external_functionality:c" as never)
+  const canEditFunctionality   = isOrgAdmin || hasPermission("external_functionality:u" as never)
+  const canDeleteFunctionality = isOrgAdmin || hasPermission("external_functionality:d" as never)
+
   const [state, setState] = useState<PageState>({
     searchTerm: "",
     isSearchOpen: false,
@@ -71,6 +89,7 @@ export default function ExternalSystemsPage() {
     page: 1,
     pageSize: 200,
     search: debouncedSearch || undefined,
+    enabled: canListSystems,
   })
 
   const { showPageLoader } = useTableLoadingState({
@@ -159,7 +178,7 @@ export default function ExternalSystemsPage() {
       {
         label: t("external-functionalities:addFunctionality"),
         icon: <Plus className="h-4 w-4" />,
-        show: (node) => node.type === "external-system",
+        show: (node) => node.type === "external-system" && canCreateFunctionality,
         onClick: async (nodeId) => {
           setState((s) => ({
             ...s,
@@ -171,7 +190,7 @@ export default function ExternalSystemsPage() {
       {
         label: t("external-functionalities:actions.edit"),
         icon: <Edit2 className="h-4 w-4" />,
-        show: (node) => node.type === "external-system",
+        show: (node) => node.type === "external-system" && canEditSystem,
         onClick: async (nodeId) => {
           const system = systemsRef.current.get(nodeId)
           if (system) setState((s) => ({ ...s, editingSystem: system }))
@@ -181,7 +200,7 @@ export default function ExternalSystemsPage() {
         label: t("external-systems:actions.delete"),
         variant: "destructive",
         icon: <Trash2 className="h-4 w-4" />,
-        show: (node) => node.type === "external-system",
+        show: (node) => node.type === "external-system" && canDeleteSystem,
         onClick: async (nodeId) => {
           const system = systemsRef.current.get(nodeId)
           if (system) setState((s) => ({ ...s, deletingSystem: system }))
@@ -191,7 +210,7 @@ export default function ExternalSystemsPage() {
       {
         label: t("external-functionalities:actions.edit"),
         icon: <Edit2 className="h-4 w-4" />,
-        show: (node) => node.type === "external-functionality",
+        show: (node) => node.type === "external-functionality" && canEditFunctionality,
         onClick: async (nodeId) => {
           const entry = functionalitiesRef.current.get(nodeId)
           if (entry) {
@@ -207,7 +226,7 @@ export default function ExternalSystemsPage() {
         label: t("external-functionalities:actions.delete"),
         variant: "destructive",
         icon: <Trash2 className="h-4 w-4" />,
-        show: (node) => node.type === "external-functionality",
+        show: (node) => node.type === "external-functionality" && canDeleteFunctionality,
         onClick: async (nodeId) => {
           const entry = functionalitiesRef.current.get(nodeId)
           if (entry) {
@@ -220,7 +239,7 @@ export default function ExternalSystemsPage() {
         },
       },
     ],
-    [t],
+    [t, canCreateFunctionality, canEditSystem, canDeleteSystem, canEditFunctionality, canDeleteFunctionality],
   )
 
   // Detail panel: render functionality detail or system detail
@@ -231,29 +250,29 @@ export default function ExternalSystemsPage() {
           functionality={state.selectedFunctionality}
           organizationId={orgId}
           systemId={functionalitiesRef.current.get(state.selectedFunctionality.id)?.systemId ?? ""}
-          onEdit={() => {
+          onEdit={canEditFunctionality ? () => {
             const entry = functionalitiesRef.current.get(state.selectedFunctionality!.id)
             setState((s) => ({
               ...s,
               editingFunctionality: s.selectedFunctionality,
               editingFunctionalitySystemId: entry?.systemId ?? null,
             }))
-          }}
-          onDelete={() => {
+          } : undefined}
+          onDelete={canDeleteFunctionality ? () => {
             const entry = functionalitiesRef.current.get(state.selectedFunctionality!.id)
             setState((s) => ({
               ...s,
               deletingFunctionality: s.selectedFunctionality,
               deletingFunctionalitySystemId: entry?.systemId ?? null,
             }))
-          }}
+          } : undefined}
         />
       )
     }
     return (
       <ExternalSystemDetail
         system={state.selectedSystem}        organizationId={orgId}        onAddFunctionality={
-          state.selectedSystem
+          state.selectedSystem && canCreateFunctionality
             ? () =>
                 setState((s) => ({
                   ...s,
@@ -263,12 +282,12 @@ export default function ExternalSystemsPage() {
             : undefined
         }
         onEdit={
-          state.selectedSystem
+          state.selectedSystem && canEditSystem
             ? () => setState((s) => ({ ...s, editingSystem: s.selectedSystem }))
             : undefined
         }
         onDelete={
-          state.selectedSystem
+          state.selectedSystem && canDeleteSystem
             ? () => setState((s) => ({ ...s, deletingSystem: s.selectedSystem }))
             : undefined
         }
@@ -277,6 +296,20 @@ export default function ExternalSystemsPage() {
   }
 
   if (showPageLoader) return <ExternalSystemsLoadingState />
+
+  if (isLoadingPermissions) return <ExternalSystemsLoadingState />
+
+  if (!canAccessExternalSystems) {
+    return (
+      <div className="flex h-full items-center justify-center text-center p-6">
+        <div className="flex flex-col items-center gap-3">
+          <Globe className="size-10 opacity-25" />
+          <h2 className="text-base font-semibold">{t("accessDenied.title", "Access Denied")}</h2>
+          <p className="text-sm text-muted-foreground">{t("accessDenied.description", "You don't have permission to access External Systems.")}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -310,15 +343,17 @@ export default function ExternalSystemsPage() {
                       loading={isFetching}
                       onClick={() => { refetch() }}
                     />
-                    <HuemulButton
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      icon={Plus}
-                      iconClassName="h-4 w-4"
-                      tooltip={t("header.newSystem")}
-                      onClick={() => setState((s) => ({ ...s, showCreateDialog: true }))}
-                    />
+                    {canCreateSystem && (
+                      <HuemulButton
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        icon={Plus}
+                        iconClassName="h-4 w-4"
+                        tooltip={t("header.newSystem")}
+                        onClick={() => setState((s) => ({ ...s, showCreateDialog: true }))}
+                      />
+                    )}
                   </div>
                 </div>
 

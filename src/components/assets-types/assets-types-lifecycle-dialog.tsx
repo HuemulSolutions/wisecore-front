@@ -185,6 +185,7 @@ function StepContent({
         documentTypeId={documentTypeId}
         stepType={stepType}
         hasSla={stepType === "publish" || stepType === "archive"}
+        hasValidity={stepType === "create"}
         onEditingChange={onEditingChange}
       />
     )

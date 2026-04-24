@@ -1581,31 +1581,41 @@ export function HuemulField({
     >
       {/* ── Inline row (switch/checkbox) or stacked label+control ── */}
       {isInline ? (
-        <div className="flex flex-row items-center gap-3">
+        <div className={cn(
+          "flex flex-row gap-3",
+          labelFirst ? "items-center justify-between max-w-sm" : "items-center",
+        )}>
           {/* Label row (left) */}
           {labelFirst && (
-            <div className="flex items-center gap-1">
-              <Label
-                htmlFor={fieldId}
-                className={cn(
-                  "text-sm font-medium leading-snug",
-                  disabled && "opacity-50",
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-1">
+                <Label
+                  htmlFor={fieldId}
+                  className={cn(
+                    "text-sm font-medium leading-snug",
+                    disabled && "opacity-50",
+                  )}
+                >
+                  {label}
+                </Label>
+                {required && (
+                  <Asterisk
+                    className="size-3 text-destructive shrink-0"
+                    aria-label="required"
+                  />
                 )}
-              >
-                {label}
-              </Label>
-              {required && (
-                <Asterisk
-                  className="size-3 text-destructive shrink-0"
-                  aria-label="required"
-                />
+                {helpText && <FieldHelpButton helpText={helpText} />}
+                {labelAction && <FieldLabelAction action={labelAction} />}
+              </div>
+              {description && !error && (
+                <p className="text-muted-foreground text-sm leading-normal">
+                  {description}
+                </p>
               )}
-              {helpText && <FieldHelpButton helpText={helpText} />}
-              {labelAction && <FieldLabelAction action={labelAction} />}
             </div>
           )}
           {/* Control */}
-          <div>{renderControl()}</div>
+          <div className="shrink-0">{renderControl()}</div>
           {/* Label row (right) */}
           {!labelFirst && <div className="flex items-center gap-1">
             <Label
@@ -1668,8 +1678,8 @@ export function HuemulField({
       {/* ── Children slot ───────────────────────────────────────── */}
       {children && <div className="mt-1.5">{children}</div>}
 
-      {/* ── Description ────────────────────────────────────────── */}
-      {description && !error && (
+      {/* ── Description (stacked layout only; inline uses inline description) ── */}
+      {description && !error && !isInline && (
         <p className="text-muted-foreground text-sm leading-normal">
           {description}
         </p>
