@@ -45,7 +45,7 @@ interface PageState {
 }
 
 export default function ExternalSystemsPage() {
-  const { t } = useTranslation("external-systems")
+  const { t } = useTranslation(["external-systems", "external-functionalities"])
   const { selectedOrganizationId } = useOrganization()
   const orgId = selectedOrganizationId ?? ""
 
@@ -157,7 +157,7 @@ export default function ExternalSystemsPage() {
     () => [
       // ── System actions ──────────────────────────────────────────────────────
       {
-        label: t("functionalities.addFunctionality"),
+        label: t("external-functionalities:addFunctionality"),
         icon: <Plus className="h-4 w-4" />,
         show: (node) => node.type === "external-system",
         onClick: async (nodeId) => {
@@ -169,7 +169,7 @@ export default function ExternalSystemsPage() {
         },
       },
       {
-        label: t("actions.edit"),
+        label: t("external-functionalities:actions.edit"),
         icon: <Edit2 className="h-4 w-4" />,
         show: (node) => node.type === "external-system",
         onClick: async (nodeId) => {
@@ -178,7 +178,7 @@ export default function ExternalSystemsPage() {
         },
       },
       {
-        label: t("actions.delete"),
+        label: t("external-systems:actions.delete"),
         variant: "destructive",
         icon: <Trash2 className="h-4 w-4" />,
         show: (node) => node.type === "external-system",
@@ -189,7 +189,7 @@ export default function ExternalSystemsPage() {
       },
       // ── Functionality actions ───────────────────────────────────────────────
       {
-        label: t("functionalities.actions.edit"),
+        label: t("external-functionalities:actions.edit"),
         icon: <Edit2 className="h-4 w-4" />,
         show: (node) => node.type === "external-functionality",
         onClick: async (nodeId) => {
@@ -204,7 +204,7 @@ export default function ExternalSystemsPage() {
         },
       },
       {
-        label: t("functionalities.actions.delete"),
+        label: t("external-functionalities:actions.delete"),
         variant: "destructive",
         icon: <Trash2 className="h-4 w-4" />,
         show: (node) => node.type === "external-functionality",
