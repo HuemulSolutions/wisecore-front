@@ -66,7 +66,7 @@ export function ExternalFunctionalityEditDialog({
     <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t("functionalities.edit.title")}
+      title={t("edit.title")}
       icon={Edit}
       maxWidth="sm:max-w-2xl"
       saveAction={{

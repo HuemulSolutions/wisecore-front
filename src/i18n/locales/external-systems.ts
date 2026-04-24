@@ -52,6 +52,13 @@ const translations = {
     failedToLoad: { en: "Failed to load external systems", es: "Error al cargar los sistemas externos" },
     errorDescription: { en: "An error occurred while loading systems. Please try again.", es: "Ocurrió un error al cargar los sistemas. Por favor, inténtalo de nuevo." },
   },
+  accessDenied: {
+    title: { en: "Access Denied", es: "Acceso Denegado" },
+    description: {
+      en: "You don't have permission to access External Systems.",
+      es: "No tienes permiso para acceder a los Sistemas Externos.",
+    },
+  },
   actions: {
     edit: { en: "Edit System", es: "Editar Sistema" },
     delete: { en: "Delete System", es: "Eliminar Sistema" },
