@@ -19,13 +19,13 @@ interface ExternalSystemDetailProps {
 }
 
 export function ExternalSystemDetail({ system, organizationId = "", onAddFunctionality, onEdit, onDelete }: ExternalSystemDetailProps) {
-  const { t } = useTranslation(["external-systems", "common"])
+  const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
   const [activeTab, setActiveTab] = useState<Tab>("docs")
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "docs", label: t("functionalities.detail.tabs.docs", "Docs") },
-    { id: "params", label: t("functionalities.detail.tabs.params", "Params") },
-    { id: "secrets", label: t("functionalities.detail.tabs.secrets", "Secrets") },
+    { id: "docs", label: t("external-functionalities:detail.tabs.docs") },
+    { id: "params", label: t("external-functionalities:detail.tabs.params") },
+    { id: "secrets", label: t("external-functionalities:detail.tabs.secrets") },
   ]
 
   if (!system) {
@@ -60,7 +60,7 @@ export function ExternalSystemDetail({ system, organizationId = "", onAddFunctio
                 onClick={onAddFunctionality}
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                {t("functionalities.addFunctionality")}
+                {t("external-functionalities:addFunctionality")}
               </Button>
             )}
             {onEdit && (
