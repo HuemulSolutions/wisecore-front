@@ -1,6 +1,6 @@
 import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import SectionPlateEditor from '@/components/plate-editor/section-plate-editor';
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ interface SectionExecutionProps {
     onCopyLink?: () => void;
 }
 
-export default function SectionExecution({ 
+function SectionExecutionInner({ 
     sectionExecution, 
     onUpdate, 
     readyToEdit, 
@@ -382,15 +382,6 @@ export default function SectionExecution({
         setSuggestionReadyLocally(false);
         setLocalSuggestionContent(null);
     };
-
-    // Debug logging for execution tracking
-    console.log('🔍 SectionExecution render:', {
-        executionId,
-        sectionId: sectionExecution.section_id,
-        executionMode,
-        showExecutionFeedback,
-        willRenderFeedback: !!(showExecutionFeedback && executionId && sectionExecution.section_id)
-    });
 
     return (
         <div ref={containerRef} className="p-2 relative">
@@ -863,3 +854,45 @@ export default function SectionExecution({
     );
 
 }
+
+/**
+ * Custom equality check for React.memo.
+ * Compares only the data-carrying props; callbacks are assumed stable enough
+ * (they are recreated per render in the parent but point to the same logic).
+ */
+function areSectionPropsEqual(prev: SectionExecutionProps, next: SectionExecutionProps): boolean {
+  // Section data
+  if (prev.sectionExecution.id !== next.sectionExecution.id) return false;
+  if (prev.sectionExecution.output !== next.sectionExecution.output) return false;
+  if (prev.sectionExecution.section_id !== next.sectionExecution.section_id) return false;
+  if (prev.sectionExecution.ai_suggestion_status !== next.sectionExecution.ai_suggestion_status) return false;
+  if (prev.sectionExecution.ai_suggestion_content !== next.sectionExecution.ai_suggestion_content) return false;
+  if (prev.sectionExecution.review_status !== next.sectionExecution.review_status) return false;
+
+  // plate_content: compare by reference first (fast path), then length + items
+  if (prev.sectionExecution.plate_content !== next.sectionExecution.plate_content) {
+    const ppc = prev.sectionExecution.plate_content;
+    const npc = next.sectionExecution.plate_content;
+    if (!ppc || !npc || ppc.length !== npc.length) return false;
+    for (let i = 0; i < ppc.length; i++) {
+      if (ppc[i] !== npc[i]) return false;
+    }
+  }
+
+  // Behavioral / display props
+  if (prev.readyToEdit !== next.readyToEdit) return false;
+  if (prev.sectionIndex !== next.sectionIndex) return false;
+  if (prev.documentId !== next.documentId) return false;
+  if (prev.executionId !== next.executionId) return false;
+  if (prev.executionStatus !== next.executionStatus) return false;
+  if (prev.executionMode !== next.executionMode) return false;
+  if (prev.showExecutionFeedback !== next.showExecutionFeedback) return false;
+  if (prev.sectionType !== next.sectionType) return false;
+  if (prev.sectionName !== next.sectionName) return false;
+  if (prev.canEditSections !== next.canEditSections) return false;
+
+  return true;
+}
+
+const SectionExecution = memo(SectionExecutionInner, areSectionPropsEqual);
+export default SectionExecution;
