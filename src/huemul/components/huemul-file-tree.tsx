@@ -3,7 +3,7 @@
 import type React from "react"
 import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from "@/types/huemul-tree"
 
-import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react"
+import { useState, useCallback, useEffect, useImperativeHandle, forwardRef, useRef } from "react"
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, RefreshCw, MoreVertical, Trash2, Share } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import {
@@ -136,8 +136,13 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       setExpandedFolders(new Set(getExpandedIds(nodes)))
     }, [nodes, folderType])
 
+    // Ref guard to prevent concurrent loadInitialData calls (e.g. from
+    // React StrictMode double-firing effects or rapid prop changes).
+    const isLoadingInitialRef = useRef(false)
+
     const loadInitialData = useCallback(async () => {
-      if (!onLoadChildren) return
+      if (!onLoadChildren || isLoadingInitialRef.current) return
+      isLoadingInitialRef.current = true
       setIsLoading(true)
       try {
         const data = await onLoadChildren(initialFolderId)
@@ -147,6 +152,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         console.error("Error loading initial data:", error)
       } finally {
         setIsLoading(false)
+        isLoadingInitialRef.current = false
       }
     }, [onLoadChildren, initialFolderId])
 
