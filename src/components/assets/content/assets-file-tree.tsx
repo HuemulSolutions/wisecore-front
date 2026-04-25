@@ -6,7 +6,7 @@ import type { FileNode } from "@/types/assets"
 import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul-tree"
 import type { HuemulFileTreeProps } from "@/huemul/components/huemul-file-tree"
 
-import { forwardRef } from "react"
+import { forwardRef, useCallback, useMemo } from "react"
 import { File } from "lucide-react"
 import { HuemulFileTree, type HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree"
 import { useTranslation } from "react-i18next"
@@ -97,21 +97,36 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
         }
       : undefined
 
+    // Memoize adapted callbacks to keep stable references and prevent
+    // HuemulFileTree from re-running loadInitialData on every parent render.
+    const adaptedLoadChildren = useCallback(
+      onLoadChildren
+        ? (folderId: string | null) => onLoadChildren(folderId) as Promise<HuemulTreeNode[]>
+        : () => Promise.resolve([]),
+      [onLoadChildren],
+    )
+
+    const adaptedCreateFile = useCallback(
+      onCreateFile ? (parentId: string | null, name: string) => onCreateFile(parentId, name) : () => Promise.resolve(),
+      [onCreateFile],
+    )
+
+    const adaptedFileClick = useMemo(
+      () => (onFileClick ? (node: HuemulTreeNode) => onFileClick(node as FileNode) : undefined),
+      [onFileClick],
+    )
+
     return (
       <HuemulFileTree
         ref={ref}
-        onLoadChildren={
-          onLoadChildren
-            ? (folderId) => onLoadChildren(folderId) as Promise<HuemulTreeNode[]>
-            : undefined
-        }
-        onCreateFile={onCreateFile ? (parentId, name) => onCreateFile(parentId, name) : undefined}
+        onLoadChildren={onLoadChildren ? adaptedLoadChildren : undefined}
+        onCreateFile={onCreateFile ? adaptedCreateFile : undefined}
         onCreateFolder={onCreateFolder}
         onDelete={onDelete as ((nodeId: string, nodeType: string) => Promise<void>) | undefined}
         onShare={onShare}
         onMoveFolder={onMoveFolder}
         onMoveFile={onMoveFile}
-        onFileClick={onFileClick ? (node) => onFileClick(node as FileNode) : undefined}
+        onFileClick={adaptedFileClick}
         activeNodeId={activeNodeId}
         menuActions={adaptedMenuActions}
         showDefaultActions={showDefaultActions}

@@ -49,6 +49,16 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   // Used to avoid wiping valid permissions during transient token-expiry windows.
   const hasLoadedValidPermissions = useRef(false);
 
+  // Refs for polling comparison — avoids re-creating the interval when state changes
+  const permissionsRef = useRef(permissions);
+  permissionsRef.current = permissions;
+  const rolesRef = useRef(roles);
+  rolesRef.current = roles;
+  const isRootAdminStateRef = useRef(isRootAdminState);
+  isRootAdminStateRef.current = isRootAdminState;
+  const isOrgAdminStateRef = useRef(isOrgAdminState);
+  isOrgAdminStateRef.current = isOrgAdminState;
+
   // Función para refrescar permisos desde los tokens JWT.
   // forceClean=true: always clear state (use on explicit logout).
   const refreshPermissions = useCallback((forceClean = false) => {
@@ -126,6 +136,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     // Poll for token changes (e.g. org switch, role update).
     // Only act when the NEW data is valid and non-empty — otherwise we'd
     // incorrectly clear permissions every time the org JWT transiently expires.
+    // Uses refs for comparison so the interval is never recreated on state change.
     const checkTokensInterval = setInterval(() => {
       const currentUserInfo = getCurrentUserInfo();
 
@@ -143,10 +154,10 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
       if (
         hasNewValidData &&
         (
-          JSON.stringify(currentPermissions) !== JSON.stringify(permissions) ||
-          JSON.stringify(currentRoles) !== JSON.stringify(roles) ||
-          currentIsRootAdmin !== isRootAdminState ||
-          currentIsOrgAdmin !== isOrgAdminState
+          JSON.stringify(currentPermissions) !== JSON.stringify(permissionsRef.current) ||
+          JSON.stringify(currentRoles) !== JSON.stringify(rolesRef.current) ||
+          currentIsRootAdmin !== isRootAdminStateRef.current ||
+          currentIsOrgAdmin !== isOrgAdminStateRef.current
         )
       ) {
         console.log('Token changes detected, refreshing permissions...');
@@ -155,7 +166,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     }, 2000);
 
     return () => clearInterval(checkTokensInterval);
-  }, [permissions, roles, isRootAdminState, isOrgAdminState]);
+  }, [refreshPermissions]);
 
   // Escuchar cambios en localStorage (por ejemplo, logout)
   useEffect(() => {

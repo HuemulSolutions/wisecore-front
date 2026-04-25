@@ -20,26 +20,6 @@ import {
   ResizeHandle,
 } from './resize-handle';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Try to extract a media ID from an Azure Blob Storage SAS URL.
- * Blob paths look like: /container-name/{uuid}.ext
- */
-function extractMediaIdFromBlobUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  try {
-    const parsed = new URL(url);
-    if (!parsed.hostname.endsWith('.blob.core.windows.net')) return undefined;
-    const segments = parsed.pathname.split('/');
-    const blobName = segments[segments.length - 1]; // e.g. "uuid.png"
-    const uuidPart = blobName.replace(/\.[^.]+$/, ''); // strip extension
-    return UUID_RE.test(uuidPart) ? uuidPart : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 export const ImageElement = withHOC(
   ResizableProvider,
   function ImageElement(props: PlateElementProps<TImageElement>) {
@@ -53,8 +33,10 @@ export const ImageElement = withHOC(
 
     const { selectedOrganizationId } = useOrganization();
 
-    // Prefer explicit mediaId; fall back to extracting from blob URL
-    const resolvedMediaId = element.mediaId ?? extractMediaIdFromBlobUrl(element.url);
+    // Only call the API when we have an explicit mediaId stored in the node.
+    // The blob-URL UUID fallback was producing 404s because the blob filename
+    // UUID does not necessarily match the backend media ID.
+    const resolvedMediaId = element.mediaId;
 
     const { data: freshUrl } = useMediaDownloadUrl(
       selectedOrganizationId ?? '',

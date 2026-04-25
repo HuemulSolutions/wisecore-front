@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState, useRef } from "react";
+import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
@@ -755,7 +755,14 @@ export function AssetContent({
     }
   };
 
+  // Stable callback for section onUpdate — invalidates document content.
+  // Memoized so React.memo on SectionExecution can skip re-renders.
+  const selectedFileIdRef = useRef(selectedFile?.id);
+  selectedFileIdRef.current = selectedFile?.id;
 
+  const handleSectionUpdate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileIdRef.current] });
+  }, [queryClient]);
 
   // Handle add section
   const handleAddSection = () => {
@@ -3257,9 +3264,7 @@ export function AssetContent({
                                     ai_suggestion_instruction: section.ai_suggestion_instruction,
                                     review_status: section.review_status,
                                   }}
-                                  onUpdate={() => {
-                                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                  }}
+                                  onUpdate={handleSectionUpdate}
                                   readyToEdit={showEditorActions}
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
