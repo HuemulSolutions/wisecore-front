@@ -6,11 +6,12 @@ export interface MediaVersion {
   id: string
   media_id: string
   version_number: number
-  file_name: string
+  is_current: boolean
+  original_filename: string
+  file_identifier: string
   file_size: number
-  media_type: string
-  origin: string | null
-  summary: string | null
+  content_type: string
+  download_url: string
   created_at: string
   created_by: string | null
 }
@@ -18,12 +19,13 @@ export interface MediaVersion {
 export interface Media {
   id: string
   name: string | null
-  level: MediaLevel
-  parent_id: string | null
-  media_type: string | null
+  type: string | null
   origin: string | null
   summary: string | null
-  current_version: number
+  document_type_id: string | null
+  document_id: string | null
+  execution_id: string | null
+  current_version: MediaVersion | null
   created_at: string
   created_by: string | null
   updated_at: string
