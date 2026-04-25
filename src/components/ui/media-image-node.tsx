@@ -1,15 +1,15 @@
 'use client';
 
-// import * as React from 'react';
-
 import type { TImageElement } from 'platejs';
 import type { PlateElementProps } from 'platejs/react';
 
 import { useDraggable } from '@platejs/dnd';
-import { Image, ImagePlugin, useMediaState } from '@platejs/media/react';
+import { ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
 
+import { useOrganization } from '@/contexts/organization-context';
+import { useMediaDownloadUrl } from '@/hooks/useMedia';
 import { cn } from '@/lib/utils';
 
 import { Caption, CaptionTextarea } from './caption';
@@ -25,10 +25,26 @@ export const ImageElement = withHOC(
   function ImageElement(props: PlateElementProps<TImageElement>) {
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
+    const element = props.element as TImageElement & { mediaId?: string };
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,
     });
+
+    const { selectedOrganizationId } = useOrganization();
+
+    // Only call the API when we have an explicit mediaId stored in the node.
+    // The blob-URL UUID fallback was producing 404s because the blob filename
+    // UUID does not necessarily match the backend media ID.
+    const resolvedMediaId = element.mediaId;
+
+    const { data: freshUrl } = useMediaDownloadUrl(
+      selectedOrganizationId ?? '',
+      resolvedMediaId ?? '',
+    );
+
+    // Use the fresh backend URL when available; otherwise fall back to element.url
+    const displayUrl = resolvedMediaId && freshUrl ? freshUrl : element.url;
 
     return (
       <MediaToolbar plugin={ImagePlugin}>
@@ -45,8 +61,9 @@ export const ImageElement = withHOC(
                 className={mediaResizeHandleVariants({ direction: 'left' })}
                 options={{ direction: 'left' }}
               />
-              <Image
+              <img
                 ref={handleRef}
+                src={displayUrl}
                 className={cn(
                   'block w-full max-w-full cursor-pointer object-cover px-0',
                   'rounded-sm',

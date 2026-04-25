@@ -15,6 +15,7 @@ export interface CreateStepContentProps {
   documentTypeId: string
   stepType: string
   hasSla?: boolean
+  hasValidity?: boolean
   onEditingChange?: (isEditing: boolean) => void
 }
 
@@ -24,6 +25,7 @@ export function CreateStepContent({
   documentTypeId,
   stepType,
   hasSla = false,
+  hasValidity = true,
   onEditingChange,
 }: CreateStepContentProps) {
   const { t } = useTranslation("asset-types")
@@ -41,7 +43,8 @@ export function CreateStepContent({
 
   const [isEditing, setIsEditing] = useState(false)
   const [snapshot, setSnapshot] = useState<{
-    accessType: "all" | "custom"
+    accessType: "all" | "owner" | "custom"
+    ownerCanExecute: boolean
     validFrom: string | null
     validTo: string | null
     roleIds: string[]
@@ -49,7 +52,8 @@ export function CreateStepContent({
     slaValue: string
     slaUnit: string
   } | null>(null)
-  const [accessType, setAccessType] = useState<"all" | "custom">("all")
+  const [accessType, setAccessType] = useState<"all" | "owner" | "custom">("all")
+  const [ownerCanExecute, setOwnerCanExecute] = useState(true)
   const [validFrom, setValidFrom] = useState<string | null>(null)
   const [validTo, setValidTo] = useState<string | null>(null)
   const [roleIds, setRoleIds] = useState<string[]>([])
@@ -58,7 +62,7 @@ export function CreateStepContent({
   const [slaUnit, setSlaUnit] = useState("")
 
   const handleEdit = () => {
-    setSnapshot({ accessType, validFrom, validTo, roleIds, slaEnabled, slaValue, slaUnit })
+    setSnapshot({ accessType, ownerCanExecute, validFrom, validTo, roleIds, slaEnabled, slaValue, slaUnit })
     setIsEditing(true)
     onEditingChange?.(true)
   }
@@ -66,6 +70,7 @@ export function CreateStepContent({
   const handleCancel = () => {
     if (snapshot) {
       setAccessType(snapshot.accessType)
+      setOwnerCanExecute(snapshot.ownerCanExecute)
       setValidFrom(snapshot.validFrom)
       setValidTo(snapshot.validTo)
       setRoleIds(snapshot.roleIds)
@@ -86,13 +91,15 @@ export function CreateStepContent({
           stepId: step.id,
           data: {
             access_type: accessType,
-            valid_from: validFrom ? validFrom.split("T")[0] : null,
-            valid_to: validTo ? validTo.split("T")[0] : null,
+            ...(hasValidity && {
+              valid_from: validFrom ? validFrom.split("T")[0] : null,
+              valid_to: validTo ? validTo.split("T")[0] : null,
+            }),
             ...(hasSla && {
               sla_value: slaEnabled ? Number(slaValue) || null : null,
               sla_unit: slaEnabled ? slaUnit || null : null,
             }),
-            ...(accessType === "custom" && { role_ids: roleIds }),
+            ...((accessType === "custom") && { role_ids: roleIds }),
           },
         })
         toast.success(t("lifecycle.savedSuccess"))
@@ -104,7 +111,9 @@ export function CreateStepContent({
 
   useEffect(() => {
     if (step) {
-      setAccessType(step.access_type === "custom" ? "custom" : "all")
+      const at = step.access_type === "custom" ? "custom" : step.access_type === "owner" ? "owner" : "all"
+      setAccessType(at)
+      setOwnerCanExecute(at === "all" || at === "owner")
       setValidFrom(step.valid_from ?? null)
       setValidTo(step.valid_to ?? null)
       setRoleIds(step.step_roles.map((r) => r.role_id))
@@ -181,20 +190,50 @@ export function CreateStepContent({
         </div>
       </div>
 
-      {/* Access type options */}
-      <div className="rounded-md border border-border bg-muted/30 p-5">
+      {/* Access type: switch all → switch owner → role picker */}
+      <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4">
         <HuemulField
-          type="radio"
-          label={t("lifecycle.options")}
-          name="create-access-type"
-          value={accessType}
-          options={[
-            { value: "all", label: t("lifecycle.everyone") },
-            { value: "custom", label: t("lifecycle.customOption") },
-          ]}
-          onChange={(v) => setAccessType(v as "all" | "custom")}
+          type="switch"
+          label={t("lifecycle.allowAnyoneLabel")}
+          name={`access-all-${stepType}`}
+          value={accessType === "all"}
+          onChange={(v) => {
+            if (v) {
+              setAccessType("all")
+              setOwnerCanExecute(true)
+              setRoleIds([])
+            } else {
+              setAccessType("owner")
+              setOwnerCanExecute(true)
+            }
+          }}
           disabled={!isEditing}
+          labelFirst
         />
+
+        {accessType !== "all" && (
+          <>
+            <div className="h-px bg-border" />
+            <HuemulField
+              type="switch"
+              label={t("lifecycle.ownerCanExecuteLabel")}
+              name={`access-owner-${stepType}`}
+              value={ownerCanExecute}
+              onChange={(v) => {
+                const newOwner = Boolean(v)
+                setOwnerCanExecute(newOwner)
+                if (newOwner) {
+                  setAccessType("owner")
+                  setRoleIds([])
+                } else {
+                  setAccessType("custom")
+                }
+              }}
+              disabled={!isEditing}
+              labelFirst
+            />
+          </>
+        )}
       </div>
 
       {/* SLA (only for steps that support it) */}
@@ -244,7 +283,7 @@ export function CreateStepContent({
         </div>
       )}
 
-      {/* Custom role management */}
+      {/* Role picker — shown when access is "custom" */}
       {accessType === "custom" && (
         <HuemulField
           type="combobox"
@@ -288,7 +327,7 @@ export function CreateStepContent({
       )}
 
       {/* Validity date range */}
-      <div className="flex items-center gap-4">
+      {hasValidity && <div className="flex items-center gap-4">
         <p className="text-sm font-medium shrink-0">{t("lifecycle.validity")}</p>
         <HuemulField
           type="date"
@@ -309,7 +348,7 @@ export function CreateStepContent({
           onChange={(v) => setValidTo(v ? String(v) : null)}
           disabled={!isEditing}
         />
-      </div>
+      </div>}
     </div>
   )
 }

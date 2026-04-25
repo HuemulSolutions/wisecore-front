@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
+import { useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { Play, History, Home, CheckCircle2, SkipForward, XCircle } from "lucide-react"
 import { toast } from "sonner"
@@ -12,6 +13,7 @@ import { ChangeHistoryPanel } from "@/components/execution/change-history-panel"
 import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection } from "@/services/executions"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -30,6 +32,8 @@ export default function AdvancedPage() {
   const { t } = useTranslation("advanced")
   const { selectedOrganizationId } = useOrganization()
   const { isOrgAdmin, hasPermission, hasAnyPermission } = useUserPermissions()
+  const navigate = useOrgNavigate()
+  const { section: sectionParam } = useParams<{ section: string }>()
 
   // Permission flags
   const canListTemplates = isOrgAdmin || hasAnyPermission(['template:l', 'template:r'])
@@ -40,7 +44,12 @@ export default function AdvancedPage() {
 
   const canAccessMassExecution = canListTemplates && canListTemplateSections && canListExecutions
 
-  const [activeSection, setActiveSection] = useState<AdvancedSection>("home")
+  const VALID_SECTIONS: AdvancedSection[] = ["home", "mass-execution", "change-history"]
+  const activeSection: AdvancedSection =
+    VALID_SECTIONS.includes(sectionParam as AdvancedSection)
+      ? (sectionParam as AdvancedSection)
+      : "home"
+
   const [selectedTemplateId, setSelectedTemplateId] = useState("")
   const [massExecutionConfig, setMassExecutionConfig] = useState<MassExecutionConfig | null>(null)
   const [isExecuting, setIsExecuting] = useState(false)
@@ -48,18 +57,22 @@ export default function AdvancedPage() {
   const [showResultDialog, setShowResultDialog] = useState(false)
   const [selectionKey, setSelectionKey] = useState(0)
 
-  const handleSectionChange = useCallback((section: AdvancedSection) => {
-    setActiveSection(section)
-    if (section !== "mass-execution") {
+  // Reset form state when leaving mass-execution
+  useEffect(() => {
+    if (activeSection !== "mass-execution") {
       setSelectedTemplateId("")
       setMassExecutionConfig(null)
       setExecutionResult(null)
     }
-  }, [])
+  }, [activeSection])
+
+  const handleSectionChange = useCallback((section: AdvancedSection) => {
+    navigate(`/advanced/${section}`)
+  }, [navigate])
 
   const handleNavigateToSection = useCallback((section: AdvancedSection) => {
-    handleSectionChange(section)
-  }, [handleSectionChange])
+    navigate(`/advanced/${section}`)
+  }, [navigate])
 
   const handleExecute = useCallback(async (executionIds: string[]) => {
     if (!massExecutionConfig || !selectedOrganizationId || !canCreateExecution) return
@@ -185,7 +198,7 @@ export default function AdvancedPage() {
     </div>
   )
 
-  const executeDisabled = !canCreateExecution || !massExecutionConfig || !massExecutionConfig.sectionId || (massExecutionConfig.editType === "execute-ai" && (!massExecutionConfig.llmId || !canListLlms)) || (massExecutionConfig.editType === "edit-ai" && massExecutionConfig.executionMode !== "review" && massExecutionConfig.executionMode !== "save") || (massExecutionConfig.editType !== "execute-ai" && massExecutionConfig.editType !== "edit-ai")
+  const executeDisabled = !canCreateExecution || !massExecutionConfig || !massExecutionConfig.sectionId || (massExecutionConfig.editType === "execute-ai" && (!massExecutionConfig.llmId || !canListLlms)) || (massExecutionConfig.editType === "edit-ai" && massExecutionConfig.executionMode !== "review" && massExecutionConfig.executionMode !== "save") || (massExecutionConfig.editType === "edit-ai" && !massExecutionConfig.instructions?.trim()) || (massExecutionConfig.editType !== "execute-ai" && massExecutionConfig.editType !== "edit-ai")
 
   const assetSelection = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">

@@ -288,10 +288,17 @@ export async function rejectDocumentLifecycle(documentId: string, organizationId
 
 // --- Pending AI suggestions ---
 
+export interface PendingAiSuggestionSection {
+  section_execution_id: string
+  section_id: string
+  section_name: string
+}
+
 export interface PendingAiSuggestionExecution {
   execution_id: string
   execution_name: string
   pending_ai_suggestion_count: number
+  pending_ai_suggestion_sections: PendingAiSuggestionSection[]
 }
 
 export interface DocumentWithPendingChanges {

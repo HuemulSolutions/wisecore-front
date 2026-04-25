@@ -76,7 +76,8 @@ import { TableKit } from '@/components/plate-editor/components/table-kit';
 import { ToggleKit } from '@/components/plate-editor/components/toggle-kit';
 import { MediaKit } from '@/components/plate-editor/components/media-kit';
 import { CommentKit } from '@/components/plate-editor/components/comment-kit';
-import { DiscussionKit } from '@/components/plate-editor/components/discussion-kit';
+import { discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
+import { BlockDiscussion } from '@/components/ui/block-discussion';
 import { SuggestionKit } from '@/components/plate-editor/components/suggestion-kit';
 import { EmojiKit } from '@/components/plate-editor/components/emoji-kit';
 import { MentionKit } from '@/components/plate-editor/components/mention-kit';
@@ -494,7 +495,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
       ...ToggleKit,
       ...MediaKit,
       ...CodeDrawingKit,
-      ...DiscussionKit,
+      discussionPlugin.configure({ render: { aboveNodes: BlockDiscussion } }),
       ...CommentKit,
       ...SuggestionKit,
       ...EmojiKit,

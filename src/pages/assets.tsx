@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AssetContent } from "@/components/assets";
+import { AssetEmptyContent } from "@/components/assets/content/assets-empty-content";
 import { EmptyState } from "@/components/assets/empty-state";
 import { LoadingOverlay } from "@/components/assets/loading-overlay";
 import { useOrganization } from "@/contexts/organization-context";
@@ -76,20 +77,27 @@ function AssetsContent() {
         
         <ResizablePanel defaultSize={80} minSize={50}>
           <div ref={scrollContainerRef} className="h-full bg-white">
-            <AssetContent
-              selectedFile={selectedFile}
-              breadcrumb={breadcrumb}
-              selectedExecutionId={selectedExecutionId}
-              setSelectedExecutionId={setSelectedExecutionId}
-              selectedSectionId={selectedSectionId}
-              setSelectedSectionId={setSelectedSectionId}
-              setSelectedFile={setSelectedFile}
-              onRefresh={handleRefresh}
-              currentFolderId={currentFolderId}
-              isSidebarOpen={false}
-              onToggleSidebar={() => {}}
-              onPreserveScroll={preserveScroll}
-            />
+            {selectedFile ? (
+              <AssetContent
+                selectedFile={selectedFile}
+                breadcrumb={breadcrumb}
+                selectedExecutionId={selectedExecutionId}
+                setSelectedExecutionId={setSelectedExecutionId}
+                selectedSectionId={selectedSectionId}
+                setSelectedSectionId={setSelectedSectionId}
+                setSelectedFile={setSelectedFile}
+                onRefresh={handleRefresh}
+                currentFolderId={currentFolderId}
+                isSidebarOpen={false}
+                onToggleSidebar={() => {}}
+                onPreserveScroll={preserveScroll}
+              />
+            ) : (
+              <AssetEmptyContent
+                currentFolderId={currentFolderId}
+                onPreserveScroll={preserveScroll}
+              />
+            )}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>

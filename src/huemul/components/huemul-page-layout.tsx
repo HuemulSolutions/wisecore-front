@@ -82,6 +82,12 @@ export interface HuemulPageLayoutProps {
    * Defaults to `false`.
    */
   withHandle?: boolean
+  /**
+   * Direction of the panel group.
+   * - `"horizontal"` (default): panels are side-by-side columns.
+   * - `"vertical"`: panels are stacked rows.
+   */
+  direction?: "horizontal" | "vertical"
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -152,6 +158,7 @@ export function HuemulPageLayout({
   headerClassName,
   bodyClassName,
   withHandle = false,
+  direction = "horizontal",
 }: HuemulPageLayoutProps) {
   const normalizedColumns = React.useMemo(
     () => normalise(columns.filter((c) => c.show !== false)),
@@ -176,7 +183,7 @@ export function HuemulPageLayout({
             {normalizedColumns[0].content}
           </div>
         ) : (
-          <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanelGroup direction={direction} className="h-full">
             {normalizedColumns.map((col, index) => (
               <React.Fragment key={index}>
                 {index > 0 && (
