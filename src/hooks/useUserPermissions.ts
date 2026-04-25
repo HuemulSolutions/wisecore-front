@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { usePermissions } from '@/contexts/permissions-context';
 import type { Permission } from '@/lib/jwt-utils';
 
@@ -172,35 +172,6 @@ export function useUserPermissions() {
       );
     };
   }, [hasPermission, isOrgAdmin]);
-
-  // Debug info (solo en desarrollo) - con throttling para evitar spam
-  const lastLogRef = useRef<string>('');
-  
-  if (process.env.NODE_ENV === 'development') {
-    const currentState = JSON.stringify({
-      isRootAdmin,
-      isOrgAdmin,
-      permissionsCount: permissions.length,
-      canAccessUsers,
-      canAccessRoles,
-      canAccessAssets,
-      isLoading
-    });
-    
-    // Solo logear cuando el estado realmente cambia
-    if (currentState !== lastLogRef.current && permissions.length > 0) {
-      lastLogRef.current = currentState;
-      console.log('useUserPermissions state changed:', {
-        isRootAdmin,
-        isOrgAdmin,
-        permissionsCount: permissions.length,
-        canAccessUsers,
-        canAccessRoles,
-        canAccessAssets,
-        isLoading
-      });
-    }
-  }
 
   return {
     // Estado
