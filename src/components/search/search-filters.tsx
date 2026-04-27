@@ -96,6 +96,7 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
   );
 
   const LIFECYCLE_STATES = [
+    { value: "__all__",     label: t("filters.all") },
     { value: "draft",       label: tAssets("lifecycle.stateLabels.draft") },
     { value: "in_review",   label: tAssets("lifecycle.stateLabels.in_review") },
     { value: "in_approval", label: tAssets("lifecycle.stateLabels.in_approval") },
@@ -191,8 +192,8 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
           type="select"
           label={t("filters.lifecycleState")}
           placeholder={t("filters.all")}
-          value={pending.lifecycle_state ?? ""}
-          onChange={(v) => setPending((p) => ({ ...p, lifecycle_state: v ? String(v) : null }))}
+          value={pending.lifecycle_state ?? "__all__"}
+          onChange={(v) => setPending((p) => ({ ...p, lifecycle_state: v === "__all__" ? null : String(v) }))}
           options={LIFECYCLE_STATES}
           selectSize="xs"
           className="w-auto"

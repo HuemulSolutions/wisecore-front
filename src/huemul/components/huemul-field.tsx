@@ -903,6 +903,26 @@ function AsyncSelectField({
             <p className="py-6 text-center text-sm text-muted-foreground">{t('noResults')}</p>
           ) : (
             <>
+              {/* All / clear option */}
+              <button
+                type="button"
+                className={cn(
+                  "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  !strValue && "bg-accent text-accent-foreground",
+                )}
+                onClick={() => {
+                  onChange?.("");
+                  setSelectedLabel("");
+                  setSelectedColor(undefined);
+                  setOpen(false);
+                }}
+              >
+                <span className="flex size-4 items-center justify-center">
+                  {!strValue && <Check className="size-4" />}
+                </span>
+                <span className="truncate text-muted-foreground">{placeholder ?? t('selectPlaceholder')}</span>
+              </button>
               {options.map((option) => {
                 const isSelected = strValue === option.value;
                 return (
