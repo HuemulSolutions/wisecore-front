@@ -88,7 +88,6 @@ interface EditStepCardProps {
 
 function EditStepCard({
   card,
-  stepType,
   slaUnitOptions,
   allRoles,
   onChange,
