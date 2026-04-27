@@ -100,7 +100,6 @@ function EditStepCard({
   dragHandleProps,
   onEditingChange,
 }: EditStepCardProps) {
-  const hideAllOption = stepType === "review" || stepType === "approve"
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [snapshot, setSnapshot] = useState<EditStepCardData | null>(null)
@@ -253,24 +252,22 @@ function EditStepCard({
         )}
       </div>
 
-      {/* Allow anyone switch (only for "edit" step) */}
-      {!hideAllOption && (
-        <HuemulField
-          type="switch"
-          label={t("lifecycle.allowAnyoneLabel")}
-          name={`access-all-${card.id}`}
-          value={card.accessType === "all"}
-          onChange={(v) => {
-            if (v) {
-              onChange({ accessType: "all", ownerCanExecute: false, roleIds: [] })
-            } else {
-              onChange({ accessType: "owner", ownerCanExecute: true, roleIds: [] })
-            }
-          }}
-          disabled={ro}
-          labelFirst
-        />
-      )}
+      {/* Allow anyone switch */}
+      <HuemulField
+        type="switch"
+        label={t("lifecycle.allowAnyoneLabel")}
+        name={`access-all-${card.id}`}
+        value={card.accessType === "all"}
+        onChange={(v) => {
+          if (v) {
+            onChange({ accessType: "all", ownerCanExecute: false, roleIds: [] })
+          } else {
+            onChange({ accessType: "owner", ownerCanExecute: true, roleIds: [] })
+          }
+        }}
+        disabled={ro}
+        labelFirst
+      />
 
       {/* When not "all": owner switch + role picker */}
       {card.accessType !== "all" && (
