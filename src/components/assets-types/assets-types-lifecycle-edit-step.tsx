@@ -401,8 +401,8 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
   const [newGroupSlaUnit, setNewGroupSlaUnit] = useState("")
   const [newGroupAccessType, setNewGroupAccessType] = useState<
     "all" | "custom_owner"
-  >("custom_owner")
-  const [newGroupOwnerCanExecute, setNewGroupOwnerCanExecute] = useState(true)
+  >("all")
+  const [newGroupOwnerCanExecute, setNewGroupOwnerCanExecute] = useState(false)
   const [newGroupRoleIds, setNewGroupRoleIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -496,8 +496,8 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
             setNewGroupHasSla(false)
             setNewGroupSlaValue("")
             setNewGroupSlaUnit("")
-            setNewGroupAccessType("custom_owner")
-            setNewGroupOwnerCanExecute(true)
+            setNewGroupAccessType("all")
+            setNewGroupOwnerCanExecute(false)
             setNewGroupRoleIds([])
             setAddGroupOpen(true)
           }}
@@ -577,14 +577,14 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
         open={addGroupOpen}
         onOpenChange={setAddGroupOpen}
         title={t("lifecycle.addGroupTitle")}
-        maxWidth="sm:max-w-sm"
+        maxWidth="sm:max-w-md"
         saveAction={{
           label: t("lifecycle.add"),
           onClick: handleAddGroup,
           closeOnSuccess: true,
         }}
       >
-        <div className="flex flex-col gap-4 py-2">
+        <div className="flex flex-col gap-4 py-2 min-h-[280px]">
           <HuemulField
             type="text"
             label={t("lifecycle.groupNameLabel")}
