@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { ApiError } from "@/types/api-error";
 
 
 export async function getExecutionsByDocumentId(documentId: string, organizationId: string) {
@@ -434,4 +435,62 @@ export async function bulkAiFixByTemplateSection({
     });
     const data = await response.json();
     return data.data;
+}
+
+export async function bulkExportExcel({
+    templateId,
+    executionIds,
+    templateSectionIds,
+    organizationId,
+}: {
+    templateId: string;
+    executionIds: string[];
+    templateSectionIds: string[];
+    organizationId: string;
+}) {
+    const orgToken = httpClient.getOrganizationToken();
+    const response = await fetch(`${backendUrl}/execution/bulk_export_excel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${orgToken}`,
+            'X-Org-Id': organizationId,
+        },
+        body: JSON.stringify({
+            template_id: templateId,
+            execution_ids: executionIds,
+            template_section_ids: templateSectionIds,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        if (ApiError.isApiErrorResponse(errorBody)) {
+            throw new ApiError(errorBody);
+        }
+        throw new Error(errorBody?.message ?? 'Error al exportar a Excel');
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('content-disposition');
+
+    let filename = `bulk_export.xlsx`;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/) ||
+                             contentDisposition.match(/filename=([^;]+)/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].trim();
+        }
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
 }

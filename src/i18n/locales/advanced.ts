@@ -3,6 +3,7 @@ const translations = {
   menu: {
     home: { en: "Home", es: "Inicio" },
     massExecution: { en: "Mass Execution", es: "Ejecución masiva" },
+    excelExport: { en: "Excel Export", es: "Exportación Excel" },
     changeHistory: { en: "Pending Changes", es: "Cambios pendientes" },
   },
   home: {
@@ -24,6 +25,13 @@ const translations = {
       description: {
         en: "Review pending changes across your assets, including AI-generated content and manual edits awaiting approval.",
         es: "Revisa los cambios pendientes en tus activos, incluyendo contenido generado por IA y ediciones manuales que esperan aprobación.",
+      },
+    },
+    excelExport: {
+      title: { en: "Mass Excel Export", es: "Exportación masiva a Excel" },
+      description: {
+        en: "Export data from multiple assets to Excel at once. Select a template, choose the sections to include, and download the result.",
+        es: "Exporta datos de múltiples activos a Excel a la vez. Selecciona un template, elige las secciones a incluir y descarga el resultado.",
       },
     },
   },
@@ -119,6 +127,8 @@ const translations = {
     uncategorized: { en: "Uncategorized", es: "Sin carpeta" },
     execute: { en: "Execute", es: "Ejecutar" },
     executing: { en: "Executing...", es: "Ejecutando..." },
+    export: { en: "Export", es: "Exportar" },
+    exporting: { en: "Exporting...", es: "Exportando..." },
     openAsset: { en: "Open asset", es: "Abrir activo" },
     openVersion: { en: "Open version", es: "Abrir versión" },
   },
@@ -170,6 +180,18 @@ const translations = {
       es: "Ir a esta sección",
     },
     refresh: { en: "Refresh", es: "Actualizar" },
+  },
+  excelExport: {
+    steps: {
+      sections: { en: "Sections to export", es: "Secciones a exportar" },
+    },
+    noSections: { en: "No sections available", es: "No hay secciones disponibles" },
+    selectSections: { en: "Select sections...", es: "Seleccionar secciones..." },
+    sectionsSelected: { en: "{{count}} sections selected", es: "{{count}} secciones seleccionadas" },
+    searchSections: { en: "Search sections...", es: "Buscar secciones..." },
+    noResults: { en: "No sections found", es: "No se encontraron secciones" },
+    exportSuccess: { en: "Excel export started successfully", es: "Exportación a Excel iniciada exitosamente" },
+    exportError: { en: "Failed to export to Excel", es: "Error al exportar a Excel" },
   },
 }
 

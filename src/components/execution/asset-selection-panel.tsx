@@ -14,9 +14,12 @@ interface AssetSelectionPanelProps {
   isExecuting?: boolean
   executeDisabled?: boolean
   selectionKey?: number
+  actionLabel?: string
+  actionLoadingLabel?: string
+  ActionIcon?: React.ElementType
 }
 
-export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey }: AssetSelectionPanelProps) {
+export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey, actionLabel, actionLoadingLabel, ActionIcon }: AssetSelectionPanelProps) {
   const { t } = useTranslation("advanced")
   const { selectedOrganizationId } = useOrganization()
   const orgId = useEffectiveOrgId()
@@ -231,12 +234,14 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
           >
             {isExecuting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : ActionIcon ? (
+              <ActionIcon className="h-4 w-4" />
             ) : (
               <Play className="h-4 w-4" />
             )}
             {isExecuting
-              ? t("assetSelection.executing")
-              : `${t("assetSelection.execute")} (${selectedExecutions.size})`}
+              ? (actionLoadingLabel ?? t("assetSelection.executing"))
+              : `${actionLabel ?? t("assetSelection.execute")} (${selectedExecutions.size})`}
           </Button>
         </div>
       )}
@@ -283,29 +288,30 @@ function FolderGroup({
   return (
     <div className="rounded-lg border">
       {/* Folder header */}
-      <button
-        type="button"
-        onClick={onToggleFolder}
-        className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 hover:cursor-pointer transition-colors rounded-t-lg"
-      >
+      <div className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors rounded-t-lg">
         <div className="flex items-center gap-2">
           <Checkbox
             checked={isFolderAllSelected ? true : isFolderSomeSelected ? "indeterminate" : false}
             onCheckedChange={() => onToggleFolderSelection()}
-            onClick={(e) => e.stopPropagation()}
           />
-          {expanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
-          <Folder className="h-4 w-4 text-amber-500" />
-          <span className={`text-sm font-medium ${!folder.folder_name ? 'italic text-muted-foreground' : ''}`}>
-            {folder.folder_name || t("assetSelection.uncategorized")}
-          </span>
+          <button
+            type="button"
+            onClick={onToggleFolder}
+            className="flex items-center gap-2 hover:cursor-pointer"
+          >
+            {expanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <Folder className="h-4 w-4 text-amber-500" />
+            <span className={`text-sm font-medium ${!folder.folder_name ? 'italic text-muted-foreground' : ''}`}>
+              {folder.folder_name || t("assetSelection.uncategorized")}
+            </span>
+          </button>
         </div>
         <span className="text-xs text-muted-foreground">{folder.documents.length}</span>
-      </button>
+      </div>
 
       {/* Documents */}
       {expanded && (
