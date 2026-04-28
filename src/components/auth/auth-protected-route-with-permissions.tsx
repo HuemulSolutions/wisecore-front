@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { useOrganization } from '@/contexts/organization-context';
 import { AuthPage } from '@/pages/auth';
 import type { Permission } from '@/lib/jwt-utils';
 
@@ -90,9 +91,15 @@ export function ProtectedRoute({
     hasRole,
     hasAnyRole,
   } = useUserPermissions();
+  const { organizationToken } = useOrganization();
+  const { orgId } = useParams<{ orgId: string }>();
+
+  // If we're on an org-scoped route but the org token hasn't been generated
+  // yet (e.g. deep-link OrgSync is in progress), wait before checking perms.
+  const orgTokenPending = !!orgId && orgId !== '_' && !organizationToken;
 
   // Mostrar loading mientras se cargan datos
-  if (authLoading || permissionsLoading) {
+  if (authLoading || permissionsLoading || orgTokenPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>

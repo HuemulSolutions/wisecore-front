@@ -17,7 +17,7 @@ import { useFilePicker } from 'use-file-picker';
 import type { SelectedFilesOrErrors } from 'use-file-picker/types';
 
 import { cn } from '@/lib/utils';
-import { useUploadFile } from '@/hooks/use-upload-file';
+import { useEditorUploadFile } from '@/hooks/use-editor-upload-file';
 
 const CONTENT: Record<
   string,
@@ -57,7 +57,7 @@ export const PlaceholderElement = withHOC(
     const { api } = useEditorPlugin(PlaceholderPlugin);
 
     const { isUploading, progress, uploadedFile, uploadFile, uploadingFile } =
-      useUploadFile();
+      useEditorUploadFile();
 
     const loading = isUploading && uploadingFile;
 
@@ -110,6 +110,7 @@ export const PlaceholderElement = withHOC(
           initialHeight: imageRef.current?.height,
           initialWidth: imageRef.current?.width,
           isUpload: true,
+          mediaId: uploadedFile.mediaId,
           name: element.mediaType === KEYS.file ? uploadedFile.name : '',
           placeholderId: element.id as string,
           type: element.mediaType!,

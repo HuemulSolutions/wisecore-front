@@ -26,7 +26,7 @@ export interface LifecycleStep {
   type: string;
   name: string | null;
   order: number | null;
-  access_type: 'all' | 'owner' | 'custom';
+  access_type: 'all' | 'owner' | 'custom' | 'custom_owner';
   valid_from: string | null;
   valid_to: string | null;
   sla_value: number | null;
@@ -47,7 +47,7 @@ export interface LifecycleStepsResponse {
 }
 
 export interface UpdateLifecycleStepData {
-  access_type?: 'all' | 'owner' | 'custom';
+  access_type?: 'all' | 'owner' | 'custom' | 'custom_owner';
   name?: string;
   order?: number;
   valid_from?: string | null;

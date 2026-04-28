@@ -50,6 +50,7 @@ const translations = {
     testing: { en: "Testing...", es: "Probando..." },
     editModel: { en: "Edit Model", es: "Editar Modelo" },
     deleteModel: { en: "Delete Model", es: "Eliminar Modelo" },
+    capabilities: { en: "Capabilities", es: "Capacidades" },
   },
   providerActions: {
     editProvider: { en: "Edit Provider", es: "Editar Proveedor" },
@@ -70,6 +71,7 @@ const translations = {
     technicalNameLabel: { en: "Technical Name", es: "Nombre Técnico" },
     technicalNamePlaceholder: { en: "e.g., gpt-4-turbo-preview", es: "ej., gpt-4-turbo-preview" },
     technicalNameDescription: { en: "Use the exact model name as specified by the provider's API documentation.", es: "Usa el nombre exacto del modelo según la documentación de la API del proveedor." },
+    capabilitiesLabel: { en: "Capabilities", es: "Capacidades" },
     updateModel: { en: "Update Model", es: "Actualizar Modelo" },
     saveModel: { en: "Save Model", es: "Guardar Modelo" },
   },
@@ -114,6 +116,19 @@ const translations = {
     activeDescription: { en: "This provider is active for embeddings in your organization.", es: "Este proveedor está activo para embeddings en tu organización." },
     configureDescription: { en: "Configure this provider to enable embeddings generation.", es: "Configura este proveedor para habilitar la generación de embeddings." },
     noPermission: { en: "You don't have permission to configure this provider.", es: "No tienes permiso para configurar este proveedor." },
+  },
+  capabilitiesDialog: {
+    title: { en: "Capabilities - {{name}}", es: "Capacidades - {{name}}" },
+    description: { en: "Select what this model will be used for.", es: "Selecciona para qué se utilizará este modelo." },
+    save: { en: "Save Capabilities", es: "Guardar Capacidades" },
+    capabilities: {
+      text_input: { en: "Text Input", es: "Entrada de Texto" },
+      text_output: { en: "Text Output", es: "Salida de Texto" },
+      image_input: { en: "Image Input", es: "Entrada de Imagen" },
+      image_output: { en: "Image Output", es: "Salida de Imagen" },
+      tool_use: { en: "Tool Use", es: "Uso de Herramientas" },
+    },
+    updated: { en: "Capabilities updated successfully", es: "Capacidades actualizadas exitosamente" },
   },
   embeddingDialog: {
     configureTitle: { en: "Configure Provider - {{name}}", es: "Configurar Proveedor - {{name}}" },

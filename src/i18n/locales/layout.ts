@@ -24,6 +24,7 @@ const translations = {
     roles: { en: "Roles", es: "Roles" },
     models: { en: "Models", es: "Modelos" },
     authTypes: { en: "Auth Types", es: "Tipos de Autenticación" },
+    externalSystems: { en: "External Systems", es: "Sistemas Externos" },
     advanced: { en: "Advanced", es: "Avanzado" },
   },
   knowledge: {

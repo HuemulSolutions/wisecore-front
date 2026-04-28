@@ -1,9 +1,9 @@
-import { useMemo, useEffect, useState, useRef } from "react";
+import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users, Info, Settings2 } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -15,9 +15,11 @@ import { OtherVersionExecutionBanner } from "@/components/execution/other-versio
 import { ExecutionStatusBanner } from "@/components/execution/execution-status-banner";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
+import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 
 import {
   DropdownMenu,
@@ -67,8 +69,8 @@ import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 
 // Utilities and hooks
-import { extractHeadingsFromSections, extractHeadings } from './utils/heading-utils';
 import { SectionSeparator } from './components/SectionSeparator';
+import { withRefresh } from '@/lib/query-utils';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
@@ -130,6 +132,8 @@ export function AssetContent({
   selectedFile, 
   selectedExecutionId, 
   setSelectedExecutionId, 
+  selectedSectionId,
+  setSelectedSectionId,
   setSelectedFile,
   onRefresh,
   currentFolderId,
@@ -431,16 +435,18 @@ export function AssetContent({
 
   // Mutation for checking (advancing) execution lifecycle
   const checkLifecycleMutation = useMutation({
-    mutationFn: async (comment?: string) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      const stepId = documentContent?.lifecycle_status?.current_step_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      if (!stepId) throw new Error('Missing step ID');
-      return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
-    },
+    mutationFn: withRefresh(
+      async (comment?: string) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        const stepId = documentContent?.lifecycle_status?.current_step_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        if (!stepId) throw new Error('Missing step ID');
+        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['document', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       setIsCheckLifecycleDialogOpen(false);
     },
     meta: { successMessage: t('lifecycle.successComplete') },
@@ -452,14 +458,16 @@ export function AssetContent({
 
   // Mutation for assigning a semantic version to the execution
   const assignVersionMutation = useMutation({
-    mutationFn: async (version: { major: number; minor: number; patch: number }) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return assignExecutionVersion(executionId, version, selectedOrganizationId);
-    },
+    mutationFn: withRefresh(
+      async (version: { major: number; minor: number; patch: number }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return assignExecutionVersion(executionId, version, selectedOrganizationId);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
       setIsAssignVersionDialogOpen(false);
     },
     meta: { successMessage: t('mutations.versionAssigned') },
@@ -471,15 +479,16 @@ export function AssetContent({
 
   // Mutation for rejecting (going back) execution lifecycle
   const rejectLifecycleMutation = useMutation({
-    mutationFn: async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
-    },
+    mutationFn: withRefresh(
+      async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['document', selectedFile?.id], ['rollback-targets']],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['rollback-targets'] });
       setIsRejectLifecycleDialogOpen(false);
     },
     meta: { successMessage: t('lifecycle.successReturn') },
@@ -491,16 +500,17 @@ export function AssetContent({
 
   // Mutation for advancing lifecycle (publish / archive)
   const advanceLifecycleMutation = useMutation({
-    mutationFn: async (options?: { comment?: string; skip_published?: boolean }) => {
-      preserveScrollPosition();
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-      return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
-    },
+    mutationFn: withRefresh(
+      async (options?: { comment?: string; skip_published?: boolean }) => {
+        preserveScrollPosition();
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id]],
+    ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       setIsPublishDialogOpen(false);
       setIsArchiveDialogOpen(false);
     },
@@ -519,16 +529,15 @@ export function AssetContent({
 
   // Mutation for renaming an execution version
   const renameVersionMutation = useMutation({
-    mutationFn: async ({ executionId, name }: { executionId: string; name: string }) => {
-      if (!selectedOrganizationId) throw new Error('Missing organization');
-      return updateExecutionName(executionId, name, selectedOrganizationId);
-    },
+    mutationFn: withRefresh(
+      async ({ executionId, name }: { executionId: string; name: string }) => {
+        if (!selectedOrganizationId) throw new Error('Missing organization');
+        return updateExecutionName(executionId, name, selectedOrganizationId);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id], ['library']],
+    ),
     onSuccess: () => {
-      // Use refetchQueries to force immediate refetch regardless of staleTime
-      queryClient.refetchQueries({ queryKey: ['document-content', selectedFile?.id] });
-      queryClient.refetchQueries({ queryKey: ['executions', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
-      queryClient.invalidateQueries({ queryKey: ['library'] });
       setIsRenameVersionDialogOpen(false);
       setExecutionToRename(null);
     },
@@ -562,6 +571,8 @@ export function AssetContent({
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
+  const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
+  const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
   useEffect(() => {
@@ -725,7 +736,33 @@ export function AssetContent({
     queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
   };
 
+  // State for refresh animation
+  const [isRefreshingContent, setIsRefreshingContent] = useState(false);
 
+  // Handle manual refresh of all asset content
+  const handleRefreshContent = async () => {
+    if (isRefreshingContent) return;
+    setIsRefreshingContent(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['custom-field-documents', selectedFile?.id] }),
+      ]);
+    } finally {
+      setIsRefreshingContent(false);
+    }
+  };
+
+  // Stable callback for section onUpdate — invalidates document content.
+  // Memoized so React.memo on SectionExecution can skip re-renders.
+  const selectedFileIdRef = useRef(selectedFile?.id);
+  selectedFileIdRef.current = selectedFile?.id;
+
+  const handleSectionUpdate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileIdRef.current] });
+  }, [queryClient]);
 
   // Handle add section
   const handleAddSection = () => {
@@ -1308,22 +1345,61 @@ export function AssetContent({
 
 
 
-  // Extract headings for table of contents
+  // Build table of contents from section names
   const tocItems = useMemo(() => {
-    if (!documentContent?.content) return [];
-    
-    // Check if content is in new format (array of sections)
-    if (Array.isArray(documentContent.content)) {
-      return extractHeadingsFromSections(documentContent.content);
-    }
-    
-    // Fallback for old format (single string)
-    if (typeof documentContent.content === 'string') {
-      return extractHeadings(documentContent.content);
-    }
-    
-    return [];
+    if (!documentContent?.content || !Array.isArray(documentContent.content)) return [];
+    return (documentContent.content as ContentSection[]).map((section, index) => ({
+      id: `section-${index}`,
+      title: section.section_name || `Section ${index + 1}`,
+      level: 1,
+      hasPendingSuggestion: section.ai_suggestion_status === 'completed',
+    }));
   }, [documentContent?.content]);
+
+  // Scroll to section when selectedSectionId is set (e.g. from a shared URL)
+  const hasScrolledToSectionRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !selectedSectionId ||
+      !documentContent?.content ||
+      !Array.isArray(documentContent.content) ||
+      hasScrolledToSectionRef.current === selectedSectionId
+    ) return;
+
+    // Find the index of the section with the matching section_id
+    const sectionIndex = (documentContent.content as ContentSection[]).findIndex(
+      (section) => section.section_id === selectedSectionId || section.id === selectedSectionId
+    );
+
+    if (sectionIndex === -1) return;
+
+    // Mark as handled so we don't re-scroll on every re-render
+    hasScrolledToSectionRef.current = selectedSectionId;
+
+    // Wait for DOM to render the section elements
+    const timeoutId = setTimeout(() => {
+      const element = document.getElementById(`section-${sectionIndex}`);
+      if (element) {
+        const SCROLL_OFFSET = 40;
+        const viewport = element.closest('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+        if (viewport) {
+          const elementTop = element.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
+          viewport.scrollTo({ top: elementTop - SCROLL_OFFSET, behavior: 'smooth' });
+        } else {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // Clear section from URL after scrolling so it doesn't persist
+        setSelectedSectionId?.(null);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [selectedSectionId, documentContent?.content]);
+
+  // Reset scroll tracking when the document changes
+  useEffect(() => {
+    hasScrolledToSectionRef.current = null;
+  }, [selectedFile?.id]);
 
   const sectionOptionsForExecutionDialog = useMemo(() => {
     const optionsById = new Map<string, string>();
@@ -1353,6 +1429,15 @@ export function AssetContent({
 
     return Array.from(optionsById.entries()).map(([id, name]) => ({ id, name }));
   }, [documentContent?.content, fullDocument?.sections]);
+
+  // Handle copy section link to clipboard
+  const handleCopySectionLink = (sectionId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('section', sectionId);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      toast.success(t('section.linkCopied'));
+    });
+  };
 
   // Handle export to markdown
   const handleExportMarkdown = async () => {
@@ -2089,10 +2174,30 @@ export function AssetContent({
                         );
                       })}
                     </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="hover:cursor-pointer p-2 gap-2 text-gray-700 hover:bg-gray-50"
+                      onSelect={() => setTimeout(() => setIsVersionManagementSheetOpen(true), 0)}
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      <span className="text-xs font-medium">{t('content.manageVersions')}</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </DocumentAccessControl>
               )}
+              
+              {/* Refresh Button - Mobile */}
+              <HuemulButton
+                size="sm"
+                variant="ghost"
+                onClick={handleRefreshContent}
+                disabled={isRefreshingContent || isLoadingContent}
+                className="h-8 w-8 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors rounded-full"
+                title={t('content.refreshContent')}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshingContent ? 'animate-spin' : ''}`} />
+              </HuemulButton>
               
               {/* Clone Button - create permission only */}
               {lifecyclePermissions?.create && selectedExecutionId && (
@@ -2234,7 +2339,19 @@ export function AssetContent({
                           tooltipSide="right"
                           className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         />
+
                       </div>
+                      {/* Info button - top right of header */}
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsInfoSheetOpen(true)}
+                        icon={Info}
+                        iconClassName="h-4 w-4"
+                        className="h-8 w-8 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                        tooltip={t('content.assetInfo')}
+                        tooltipSide="left"
+                      />
                     </div>
                     
                     {/* Metadata Row - Combined */}
@@ -2517,6 +2634,14 @@ export function AssetContent({
                           );
                         })}
                       </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer p-2 gap-2 text-gray-700 hover:bg-gray-50"
+                        onSelect={() => setTimeout(() => setIsVersionManagementSheetOpen(true), 0)}
+                      >
+                        <Settings2 className="h-4 w-4" />
+                        <span className="text-xs font-medium">{t('content.manageVersions')}</span>
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   </div>
@@ -2596,6 +2721,18 @@ export function AssetContent({
                     />
                   </div>
                 )}
+
+                {/* Refresh button */}
+                <HuemulButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleRefreshContent}
+                  disabled={isRefreshingContent || isLoadingContent}
+                  icon={RefreshCw}
+                  iconClassName={`h-3.5 w-3.5 ${isRefreshingContent ? 'animate-spin' : ''}`}
+                  className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
+                  tooltip={t('content.refreshContent')}
+                />
 
                 {/* More Options Dropdown - only render when at least one item is available and user is not view-only */}
                 {!isViewOnly &&
@@ -3127,9 +3264,7 @@ export function AssetContent({
                                     ai_suggestion_instruction: section.ai_suggestion_instruction,
                                     review_status: section.review_status,
                                   }}
-                                  onUpdate={() => {
-                                    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                  }}
+                                  onUpdate={handleSectionUpdate}
                                   readyToEdit={showEditorActions}
                                   sectionIndex={index}
                                   documentId={selectedFile?.id}
@@ -3161,6 +3296,7 @@ export function AssetContent({
                                   sectionName={section.section_name}
                                   canEditSections={frontendPermissions.canEditSections}
                                   onCreateSectionFromSelection={handleCreateSectionFromSelection(index)}
+                                  onCopyLink={realSectionId ? () => handleCopySectionLink(realSectionId) : undefined}
                                 />
                               </div>
                               
@@ -3636,6 +3772,259 @@ export function AssetContent({
         }}
         isProcessing={renameVersionMutation.isPending}
       />
+
+      {/* Asset Info Sheet */}
+      <HuemulSheet
+        open={isInfoSheetOpen}
+        onOpenChange={setIsInfoSheetOpen}
+        title={t('content.assetInfoTitle')}
+        icon={Info}
+        showFooter={false}
+        maxWidth="sm:max-w-xl"
+      >
+        {(() => {
+          const copyId = (id: string) => {
+            navigator.clipboard.writeText(id).then(() => {
+              toast.success(t('content.info.copied'));
+            });
+          };
+
+          // Horizontal row: label on the left, value on the right
+          const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+            <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-50 last:border-0">
+              <span className="text-xs text-gray-500 shrink-0 pt-0.5 w-[120px]">{label}</span>
+              <div className="text-sm text-gray-900 font-medium text-right flex-1 min-w-0">{children}</div>
+            </div>
+          );
+
+          // ID row: full width code box (below the main row)
+          const IdRow = ({ label, value }: { label: string; value: string | null | undefined }) => {
+            if (!value) return null;
+            return (
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-gray-50 last:border-0">
+                <span className="text-xs text-gray-500 shrink-0 pt-0.5 w-[120px]">{label}</span>
+                <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1 flex-1 min-w-0">
+                  <code className="text-[11px] font-mono text-gray-500 flex-1 truncate">{value}</code>
+                  <button
+                    onClick={() => copyId(value)}
+                    className="text-gray-400 hover:text-gray-700 transition-colors shrink-0 hover:cursor-pointer"
+                    title={t('content.info.copy')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          };
+
+          // Card section with title
+          const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</span>
+              </div>
+              <div className="px-3 divide-y divide-gray-50">{children}</div>
+            </div>
+          );
+
+          const EXECUTION_STATUS_COLORS: Record<string, string> = {
+            completed: 'bg-green-100 text-green-700',
+            approved: 'bg-blue-100 text-blue-700',
+            failed: 'bg-red-100 text-red-700',
+            running: 'bg-amber-100 text-amber-700',
+            pending: 'bg-gray-100 text-gray-600',
+          };
+
+          return (
+            <div className="space-y-3 pb-6">
+              {/* Document */}
+              <Section title={t('content.info.document')}>
+                <Row label={t('content.info.name')}>
+                  {documentContent?.document_name ?? '—'}
+                </Row>
+                <IdRow label={t('content.info.documentId')} value={documentContent?.document_id} />
+                {documentContent?.internal_code && (
+                  <Row label={t('content.info.internalCode')}>
+                    <span className="font-mono text-xs">{documentContent.internal_code}</span>
+                  </Row>
+                )}
+                {documentContent?.description && (
+                  <Row label={t('content.info.description')}>
+                    <span className="text-gray-600 font-normal text-xs">{documentContent.description}</span>
+                  </Row>
+                )}
+                {documentContent?.document_type && (
+                  <>
+                    <Row label={t('content.info.documentType')}>
+                      <span className="flex items-center justify-end gap-1.5">
+                        <span
+                          className="inline-block h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: documentContent.document_type.color }}
+                        />
+                        {documentContent.document_type.name}
+                      </span>
+                    </Row>
+                    <IdRow label={t('content.info.typeId')} value={documentContent.document_type.id} />
+                  </>
+                )}
+                {documentContent?.access_level && (
+                  <Row label={t('content.info.accessLevel')}>
+                    <span className="capitalize">{documentContent.access_level}</span>
+                  </Row>
+                )}
+                {documentContent?.template_name && (
+                  <>
+                    <Row label={t('content.info.template')}>
+                      {documentContent.template_name}
+                    </Row>
+                    <IdRow label={t('content.info.templateId')} value={documentContent.template_id} />
+                  </>
+                )}
+              </Section>
+
+              {/* Version */}
+              <Section title={t('content.info.version')}>
+                <Row label={t('content.info.versionName')}>
+                  {documentContent?.execution_name ?? '—'}
+                </Row>
+                <IdRow label={t('content.info.versionId')} value={documentContent?.execution_id} />
+                {selectedExecutionInfo?.status && (
+                  <Row label={t('content.info.status')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${EXECUTION_STATUS_COLORS[selectedExecutionInfo.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {selectedExecutionInfo.status}
+                    </span>
+                  </Row>
+                )}
+                {selectedExecutionInfo?.status_message && (
+                  <Row label={t('content.info.statusMessage')}>
+                    <span className="text-xs font-normal text-gray-600 text-right">{selectedExecutionInfo.status_message}</span>
+                  </Row>
+                )}
+                {selectedExecutionInfo?.created_at && (
+                  <Row label={t('content.info.createdAt')}>
+                    {formatApiDateTime(selectedExecutionInfo.created_at)}
+                  </Row>
+                )}
+                {selectedExecutionInfo?.version && (
+                  <Row label={t('content.info.semanticVersion')}>
+                    <span className="font-mono text-xs">{selectedExecutionInfo.version}</span>
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.expiration_date && (
+                  <Row label={t('content.info.expirationDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).expiration_date)}
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.estimated_publication_date && (
+                  <Row label={t('content.info.estimatedPublicationDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).estimated_publication_date)}
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.review_date && (
+                  <Row label={t('content.info.reviewDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).review_date)}
+                  </Row>
+                )}
+                {(selectedExecutionInfo as any)?.audit_date && (
+                  <Row label={t('content.info.auditDate')}>
+                    {formatApiDateTime((selectedExecutionInfo as any).audit_date)}
+                  </Row>
+                )}
+              </Section>
+
+              {/* Lifecycle */}
+              {documentContent?.lifecycle_status && (
+                <Section title={t('content.info.lifecycle')}>
+                  <Row label={t('content.info.state')}>
+                    <span className="capitalize">{documentContent.lifecycle_status.state}</span>
+                  </Row>
+                  <Row label={t('content.info.stage')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-700'}`}>
+                      {documentContent.lifecycle_status.stage}
+                    </span>
+                  </Row>
+                  {documentContent.lifecycle_status.current_group && (
+                    <Row label={t('content.info.currentGroup')}>
+                      {documentContent.lifecycle_status.current_group}
+                    </Row>
+                  )}
+                  {documentContent.lifecycle_status.version && (
+                    <Row label={t('content.info.semanticVersion')}>
+                      <span className="font-mono text-xs">{documentContent.lifecycle_status.version}</span>
+                    </Row>
+                  )}
+                  <Row label={t('content.info.canCheck')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_check ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {documentContent.lifecycle_status.can_check ? t('content.info.yes') : t('content.info.no')}
+                    </span>
+                  </Row>
+                  <Row label={t('content.info.versionRequired')}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.version_required ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {documentContent.lifecycle_status.version_required ? t('content.info.yes') : t('content.info.no')}
+                    </span>
+                  </Row>
+                  <IdRow label={t('content.info.stepId')} value={documentContent.lifecycle_status.current_step_id} />
+                </Section>
+              )}
+
+              {/* Audit */}
+              <Section title={t('content.info.audit')}>
+                {documentContent?.created_by_user && (
+                  <div className="py-2 border-b border-gray-50 last:border-0 space-y-1.5">
+                    <span className="text-xs text-gray-500">{t('content.info.createdBy')}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-semibold text-blue-600">
+                          {documentContent.created_by_user.name.charAt(0)}{documentContent.created_by_user.last_name.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {documentContent.created_by_user.name} {documentContent.created_by_user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{documentContent.created_by_user.email}</p>
+                      </div>
+                    </div>
+                    <IdRow label="User ID" value={documentContent.created_by_user.id} />
+                  </div>
+                )}
+                {documentContent?.updated_by_user && (
+                  <div className="py-2 border-b border-gray-50 last:border-0 space-y-1.5">
+                    <span className="text-xs text-gray-500">{t('content.info.updatedBy')}</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-7 w-7 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-semibold text-purple-600">
+                          {documentContent.updated_by_user.name.charAt(0)}{documentContent.updated_by_user.last_name.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {documentContent.updated_by_user.name} {documentContent.updated_by_user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{documentContent.updated_by_user.email}</p>
+                      </div>
+                    </div>
+                    <IdRow label="User ID" value={documentContent.updated_by_user.id} />
+                  </div>
+                )}
+              </Section>
+            </div>
+          );
+        })()}
+      </HuemulSheet>
+
+      {/* Version Management Sheet */}
+      {allExecutions && selectedOrganizationId && (
+        <VersionManagementSheet
+          open={isVersionManagementSheetOpen}
+          onOpenChange={setIsVersionManagementSheetOpen}
+          executions={allExecutions}
+          organizationId={selectedOrganizationId}
+          documentId={selectedFile?.id ?? ''}
+          canEdit={!!(lifecyclePermissions?.create && lifecyclePermissions?.edit)}
+          initialExecutionId={selectedExecutionId || documentContent?.execution_id}
+        />
+      )}
     </>
   );
 }

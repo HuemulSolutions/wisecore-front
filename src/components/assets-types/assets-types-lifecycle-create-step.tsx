@@ -15,6 +15,9 @@ export interface CreateStepContentProps {
   documentTypeId: string
   stepType: string
   hasSla?: boolean
+  hasValidity?: boolean
+  noOwner?: boolean
+  useAllOrCustomOwner?: boolean
   onEditingChange?: (isEditing: boolean) => void
 }
 
@@ -24,6 +27,9 @@ export function CreateStepContent({
   documentTypeId,
   stepType,
   hasSla = false,
+  hasValidity = true,
+  noOwner = false,
+  useAllOrCustomOwner = false,
   onEditingChange,
 }: CreateStepContentProps) {
   const { t } = useTranslation("asset-types")
@@ -41,7 +47,8 @@ export function CreateStepContent({
 
   const [isEditing, setIsEditing] = useState(false)
   const [snapshot, setSnapshot] = useState<{
-    accessType: "all" | "custom"
+    accessType: "all" | "owner" | "custom" | "custom_owner"
+    ownerCanExecute: boolean
     validFrom: string | null
     validTo: string | null
     roleIds: string[]
@@ -49,7 +56,8 @@ export function CreateStepContent({
     slaValue: string
     slaUnit: string
   } | null>(null)
-  const [accessType, setAccessType] = useState<"all" | "custom">("all")
+  const [accessType, setAccessType] = useState<"all" | "owner" | "custom" | "custom_owner">("all")
+  const [ownerCanExecute, setOwnerCanExecute] = useState(true)
   const [validFrom, setValidFrom] = useState<string | null>(null)
   const [validTo, setValidTo] = useState<string | null>(null)
   const [roleIds, setRoleIds] = useState<string[]>([])
@@ -58,7 +66,7 @@ export function CreateStepContent({
   const [slaUnit, setSlaUnit] = useState("")
 
   const handleEdit = () => {
-    setSnapshot({ accessType, validFrom, validTo, roleIds, slaEnabled, slaValue, slaUnit })
+    setSnapshot({ accessType, ownerCanExecute, validFrom, validTo, roleIds, slaEnabled, slaValue, slaUnit })
     setIsEditing(true)
     onEditingChange?.(true)
   }
@@ -66,6 +74,7 @@ export function CreateStepContent({
   const handleCancel = () => {
     if (snapshot) {
       setAccessType(snapshot.accessType)
+      setOwnerCanExecute(snapshot.ownerCanExecute)
       setValidFrom(snapshot.validFrom)
       setValidTo(snapshot.validTo)
       setRoleIds(snapshot.roleIds)
@@ -86,13 +95,15 @@ export function CreateStepContent({
           stepId: step.id,
           data: {
             access_type: accessType,
-            valid_from: validFrom ? validFrom.split("T")[0] : null,
-            valid_to: validTo ? validTo.split("T")[0] : null,
+            ...(hasValidity && {
+              valid_from: validFrom ? validFrom.split("T")[0] : null,
+              valid_to: validTo ? validTo.split("T")[0] : null,
+            }),
             ...(hasSla && {
               sla_value: slaEnabled ? Number(slaValue) || null : null,
               sla_unit: slaEnabled ? slaUnit || null : null,
             }),
-            ...(accessType === "custom" && { role_ids: roleIds }),
+            ...((accessType === "custom" || accessType === "custom_owner") && { role_ids: roleIds }),
           },
         })
         toast.success(t("lifecycle.savedSuccess"))
@@ -104,7 +115,14 @@ export function CreateStepContent({
 
   useEffect(() => {
     if (step) {
-      setAccessType(step.access_type === "custom" ? "custom" : "all")
+      let at: "all" | "owner" | "custom" | "custom_owner"
+      if (useAllOrCustomOwner) {
+        at = step.access_type === "all" ? "all" : "custom_owner"
+      } else {
+        at = step.access_type === "custom" ? "custom" : (noOwner || step.access_type !== "owner") ? "all" : "owner"
+      }
+      setAccessType(at)
+      setOwnerCanExecute(at === "all" || at === "owner" || at === "custom_owner")
       setValidFrom(step.valid_from ?? null)
       setValidTo(step.valid_to ?? null)
       setRoleIds(step.step_roles.map((r) => r.role_id))
@@ -114,7 +132,7 @@ export function CreateStepContent({
         setSlaUnit(step.sla_unit ?? "")
       }
     }
-  }, [step, hasSla])
+  }, [step, hasSla, noOwner, useAllOrCustomOwner])
 
   if (isLoading) {
     return (
@@ -181,21 +199,119 @@ export function CreateStepContent({
         </div>
       </div>
 
-      {/* Access type options */}
-      <div className="rounded-md border border-border bg-muted/30 p-5">
+      {/* Access type: switch all → switch owner → role picker */}
+      <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4">
         <HuemulField
-          type="radio"
-          label={t("lifecycle.options")}
-          name="create-access-type"
-          value={accessType}
-          options={[
-            { value: "all", label: t("lifecycle.everyone") },
-            { value: "custom", label: t("lifecycle.customOption") },
-          ]}
-          onChange={(v) => setAccessType(v as "all" | "custom")}
+          type="switch"
+          label={t("lifecycle.allowAnyoneLabel")}
+          name={`access-all-${stepType}`}
+          value={accessType === "all"}
+          onChange={(v) => {
+            if (v) {
+              setAccessType("all")
+              setOwnerCanExecute(true)
+              setRoleIds([])
+            } else if (noOwner) {
+              setAccessType("custom")
+              setOwnerCanExecute(false)
+            } else {
+              setAccessType("owner")
+              setOwnerCanExecute(true)
+            }
+          }}
           disabled={!isEditing}
+          labelFirst
         />
+
+        {!noOwner && accessType !== "all" && (
+          <>
+            <div className="h-px bg-border" />
+            <HuemulField
+              type="switch"
+              label={t("lifecycle.ownerCanExecuteLabel")}
+              name={`access-owner-${stepType}`}
+              value={ownerCanExecute}
+              onChange={(v) => {
+                const newOwner = Boolean(v)
+                setOwnerCanExecute(newOwner)
+                if (useAllOrCustomOwner) {
+                  const newAccessType =
+                    roleIds.length > 0
+                      ? newOwner ? "custom_owner" : "custom"
+                      : "owner"
+                  setAccessType(newAccessType)
+                } else if (newOwner) {
+                  setAccessType("owner")
+                  setRoleIds([])
+                } else {
+                  setAccessType("custom")
+                }
+              }}
+              disabled={!isEditing}
+              labelFirst
+            />
+          </>
+        )}
       </div>
+
+      {/* Role picker — shown when access is "custom"/"custom_owner", or any non-all when useAllOrCustomOwner */}
+      {(useAllOrCustomOwner ? accessType !== "all" : (accessType === "custom" || accessType === "custom_owner")) && (
+        <HuemulField
+          type="combobox"
+          label={t("lifecycle.addRole")}
+          name="add-role-create"
+          placeholder={t("lifecycle.addRolePlaceholder")}
+          value=""
+          options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+          onChange={(roleId) => {
+            if (!roleId) return
+            setRoleIds((prev) => {
+              const newIds = [...prev, roleId as string]
+              if (useAllOrCustomOwner) {
+                setAccessType(ownerCanExecute ? "custom_owner" : "custom")
+              }
+              return newIds
+            })
+          }}
+          disabled={!isEditing}
+        >
+          {assignedRoles.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {assignedRoles.map((r) => (
+                <Badge
+                  key={r.id}
+                  variant="secondary"
+                  className="flex items-center gap-1 pr-1.5"
+                >
+                  <span className="text-xs">{r.name}</span>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
+                      onClick={() => {
+                        setRoleIds((prev) => {
+                          const newIds = prev.filter((id) => id !== r.id)
+                          if (useAllOrCustomOwner) {
+                            const newAccessType =
+                              newIds.length > 0
+                                ? ownerCanExecute ? "custom_owner" : "custom"
+                                : "owner"
+                            setAccessType(newAccessType)
+                          }
+                          return newIds
+                        })
+                      }}
+                      aria-label={`Remove ${r.name}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </HuemulField>
+      )}
 
       {/* SLA (only for steps that support it) */}
       {hasSla && (
@@ -244,51 +360,8 @@ export function CreateStepContent({
         </div>
       )}
 
-      {/* Custom role management */}
-      {accessType === "custom" && (
-        <HuemulField
-          type="combobox"
-          label={t("lifecycle.addRole")}
-          name="add-role-create"
-          placeholder={t("lifecycle.addRolePlaceholder")}
-          value=""
-          options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-          onChange={(roleId) => {
-            if (!roleId) return
-            setRoleIds((prev) => [...prev, roleId as string])
-          }}
-          disabled={!isEditing}
-        >
-          {assignedRoles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {assignedRoles.map((r) => (
-                <Badge
-                  key={r.id}
-                  variant="secondary"
-                  className="flex items-center gap-1 pr-1.5"
-                >
-                  <span className="text-xs">{r.name}</span>
-                  {isEditing && (
-                    <button
-                      type="button"
-                      className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                      onClick={() =>
-                        setRoleIds((prev) => prev.filter((id) => id !== r.id))
-                      }
-                      aria-label={`Remove ${r.name}`}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </HuemulField>
-      )}
-
       {/* Validity date range */}
-      <div className="flex items-center gap-4">
+      {hasValidity && <div className="flex items-center gap-4">
         <p className="text-sm font-medium shrink-0">{t("lifecycle.validity")}</p>
         <HuemulField
           type="date"
@@ -309,7 +382,7 @@ export function CreateStepContent({
           onChange={(v) => setValidTo(v ? String(v) : null)}
           disabled={!isEditing}
         />
-      </div>
+      </div>}
     </div>
   )
 }

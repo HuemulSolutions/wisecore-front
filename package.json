@@ -1,7 +1,7 @@
 {
   "name": "wisecore-front",
   "private": true,
-  "version": "1.0.55",
+  "version": "1.0.61",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -26,6 +26,7 @@
     "@platejs/callout": "^52.0.11",
     "@platejs/caption": "^52.0.11",
     "@platejs/code-block": "^52.0.11",
+    "@platejs/code-drawing": "^52.3.10",
     "@platejs/combobox": "^52.0.15",
     "@platejs/comment": "^52.0.11",
     "@platejs/date": "^52.0.11",

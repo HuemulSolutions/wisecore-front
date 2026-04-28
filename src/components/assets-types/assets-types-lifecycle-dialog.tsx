@@ -179,12 +179,15 @@ function StepContent({
   stepLabel,
   onEditingChange,
 }: StepContentProps) {
-  if (stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive") {
+  if (stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read") {
     return (
       <CreateStepContent
         documentTypeId={documentTypeId}
         stepType={stepType}
         hasSla={stepType === "publish" || stepType === "archive"}
+        hasValidity={stepType === "create"}
+        noOwner={stepType === "create"}
+        useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read"}
         onEditingChange={onEditingChange}
       />
     )

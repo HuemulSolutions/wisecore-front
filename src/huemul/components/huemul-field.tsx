@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { Value } from "platejs";
+import { tokenize, tokenStyle } from "./json-viewer";
 
 import SectionPlateEditor from "@/components/plate-editor/section-plate-editor";
 
@@ -57,7 +58,8 @@ export type HuemulFieldType =
   | "date"
   | "radio"
   | "richtext"
-  | "async-select";
+  | "async-select"
+  | "json";
 
 export interface HuemulFieldOption {
   /** Display label */
@@ -216,6 +218,14 @@ export interface HuemulFieldProps {
   selectedLabel?: string;
   /** Pre-selected color for async-select — shown alongside selectedLabel before options load */
   selectedColor?: string;
+
+  // ── Select size ──────────────────────────────────────────────────────────
+  /** Size variant passed to the SelectTrigger. Use "xs" for compact inline usage (no forced height). */
+  selectSize?: "sm" | "default" | "xs";
+
+  // ── Control wrapper ──────────────────────────────────────────────────────
+  /** Additional className on the div wrapping the control element (useful for height alignment in flex rows) */
+  controlClassName?: string;
 
   // ── Slot ─────────────────────────────────────────────────────────────────
   /** Optional content rendered below the control (e.g. tag list) */
@@ -642,6 +652,7 @@ function DateInputField({
   error?: string;
   inputClassName?: string;
 }) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
   const strValue = String(value ?? "");
   const selected = strValue ? parseISO(strValue) : undefined;
@@ -663,7 +674,7 @@ function DateInputField({
           )}
         >
           <CalendarIcon className="h-4 w-4 shrink-0" />
-          {selected ? format(selected, "dd-MM-yyyy") : (placeholder || "Pick a date")}
+          {selected ? format(selected, "dd-MM-yyyy") : (placeholder || t('pickDate'))}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -855,7 +866,7 @@ function AsyncSelectField({
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] w-64 p-0" align="start">
         <div className="flex items-center border-b px-3">
           <Input
             placeholder={t('searchPlaceholder')}
@@ -892,6 +903,26 @@ function AsyncSelectField({
             <p className="py-6 text-center text-sm text-muted-foreground">{t('noResults')}</p>
           ) : (
             <>
+              {/* All / clear option */}
+              <button
+                type="button"
+                className={cn(
+                  "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  !strValue && "bg-accent text-accent-foreground",
+                )}
+                onClick={() => {
+                  onChange?.("");
+                  setSelectedLabel("");
+                  setSelectedColor(undefined);
+                  setOpen(false);
+                }}
+              >
+                <span className="flex size-4 items-center justify-center">
+                  {!strValue && <Check className="size-4" />}
+                </span>
+                <span className="truncate text-muted-foreground">{placeholder ?? t('selectPlaceholder')}</span>
+              </button>
               {options.map((option) => {
                 const isSelected = strValue === option.value;
                 return (
@@ -935,6 +966,182 @@ function AsyncSelectField({
   );
 }
 
+// ── JSON Editor Field ──────────────────────────────────────────────────────
+
+function JsonEditorField({
+  fieldId,
+  name,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  readOnly,
+  rows = 6,
+  error,
+  autoFocus,
+  inputClassName,
+}: {
+  fieldId: string;
+  name?: string;
+  value: string;
+  onChange?: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  readOnly?: boolean;
+  rows?: number;
+  error?: string;
+  autoFocus?: boolean;
+  inputClassName?: string;
+}) {
+  const [formatError, setFormatError] = React.useState<string | null>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const preRef = React.useRef<HTMLPreElement>(null);
+
+  const tokens = React.useMemo(() => tokenize(value), [value]);
+
+  // Auto-resize textarea to content height (fires before paint)
+  React.useLayoutEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [value]);
+
+  // Keep highlight layer scroll in sync with textarea
+  const syncScroll = React.useCallback(() => {
+    if (preRef.current && textareaRef.current) {
+      preRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
+
+  const handleFormat = () => {
+    const raw = value.trim();
+    if (!raw) return;
+    try {
+      const pretty = JSON.stringify(JSON.parse(raw), null, 2);
+      onChange?.(pretty);
+      setFormatError(null);
+    } catch {
+      setFormatError("Invalid JSON");
+    }
+  };
+
+  // Approximate min-height: rows × line-height + top/bottom padding
+  const rowLineHeight = 18; // 12px font × 1.5 line-height
+  const paddingY = 8;
+  const minH = rows * rowLineHeight + paddingY * 2;
+
+  // Shared font/spacing so the pre and textarea overlap pixel-perfectly
+  const sharedStyle: React.CSSProperties = {
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+    fontSize: "0.75rem",
+    lineHeight: "1.5",
+    padding: "8px 12px",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-all",
+  };
+
+  const prRight = !readOnly && !disabled ? "72px" : "12px";
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "relative rounded-md border bg-background",
+          error && "border-destructive ring-2 ring-destructive/20",
+          (disabled || readOnly) && "opacity-60",
+          inputClassName,
+        )}
+        style={{ minHeight: `${minH}px` }}
+      >
+        {/* ── Syntax-highlighted layer (behind textarea) ── */}
+        <pre
+          ref={preRef}
+          aria-hidden
+          style={{
+            ...sharedStyle,
+            paddingRight: prRight,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            margin: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        >
+          {value.length > 0
+            ? tokens.map((token, i) =>
+                token.type === "whitespace" ? (
+                  token.value
+                ) : (
+                  <span key={i} style={tokenStyle[token.type]}>
+                    {token.value}
+                  </span>
+                ),
+              )
+            : (
+              <span style={{ color: "var(--muted-foreground)" }}>
+                {placeholder ?? '{\n  "key": "value"\n}'}
+              </span>
+            )}
+        </pre>
+
+        {/* ── Transparent textarea on top (drives height + input) ── */}
+        <textarea
+          ref={textareaRef}
+          id={fieldId}
+          name={name}
+          value={value}
+          onChange={(e) => {
+            setFormatError(null);
+            onChange?.(e.target.value);
+          }}
+          onScroll={syncScroll}
+          disabled={disabled}
+          readOnly={readOnly}
+          autoFocus={autoFocus}
+          spellCheck={false}
+          aria-invalid={!!error || undefined}
+          style={{
+            ...sharedStyle,
+            paddingRight: prRight,
+            display: "block",
+            position: "relative",
+            zIndex: 1,
+            width: "100%",
+            minHeight: `${minH}px`,
+            background: "transparent",
+            color: "transparent",
+            caretColor: "var(--foreground)",
+            resize: "none",
+            outline: "none",
+            border: "none",
+            overflow: "hidden",
+          }}
+        />
+
+        {/* ── Format button ── */}
+        {!readOnly && !disabled && (
+          <button
+            type="button"
+            onClick={handleFormat}
+            className="absolute top-2 right-2 z-10 text-[10px] px-2 py-0.5 rounded border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted hover:cursor-pointer transition-colors select-none"
+            tabIndex={-1}
+            title="Format JSON"
+          >
+            Format
+          </button>
+        )}
+      </div>
+      {formatError && (
+        <p className="text-destructive text-xs mt-1">{formatError}</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export function HuemulField({
@@ -975,6 +1182,8 @@ export function HuemulField({
   pageSize = 10,
   selectedLabel,
   selectedColor,
+  selectSize = "default",
+  controlClassName,
   children,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
@@ -1040,6 +1249,7 @@ export function HuemulField({
         const selectTrigger = (
           <SelectTrigger
             id={fieldId}
+            size={selectSize}
             className={cn("w-full", inputClassName)}
             aria-invalid={baseInvalid || undefined}
           >
@@ -1277,6 +1487,23 @@ export function HuemulField({
           />
         ) : null;
 
+      case "json":
+        return (
+          <JsonEditorField
+            fieldId={fieldId}
+            name={name}
+            value={String(value ?? "")}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            readOnly={readOnly}
+            rows={rows}
+            error={error}
+            autoFocus={autoFocus}
+            inputClassName={inputClassName}
+          />
+        );
+
       case "richtext":
         return (
           <div
@@ -1374,31 +1601,41 @@ export function HuemulField({
     >
       {/* ── Inline row (switch/checkbox) or stacked label+control ── */}
       {isInline ? (
-        <div className="flex flex-row items-center gap-3">
+        <div className={cn(
+          "flex flex-row gap-3",
+          labelFirst ? "items-center justify-between max-w-sm" : "items-center",
+        )}>
           {/* Label row (left) */}
           {labelFirst && (
-            <div className="flex items-center gap-1">
-              <Label
-                htmlFor={fieldId}
-                className={cn(
-                  "text-sm font-medium leading-snug",
-                  disabled && "opacity-50",
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-1">
+                <Label
+                  htmlFor={fieldId}
+                  className={cn(
+                    "text-sm font-medium leading-snug",
+                    disabled && "opacity-50",
+                  )}
+                >
+                  {label}
+                </Label>
+                {required && (
+                  <Asterisk
+                    className="size-3 text-destructive shrink-0"
+                    aria-label="required"
+                  />
                 )}
-              >
-                {label}
-              </Label>
-              {required && (
-                <Asterisk
-                  className="size-3 text-destructive shrink-0"
-                  aria-label="required"
-                />
+                {helpText && <FieldHelpButton helpText={helpText} />}
+                {labelAction && <FieldLabelAction action={labelAction} />}
+              </div>
+              {description && !error && (
+                <p className="text-muted-foreground text-sm leading-normal">
+                  {description}
+                </p>
               )}
-              {helpText && <FieldHelpButton helpText={helpText} />}
-              {labelAction && <FieldLabelAction action={labelAction} />}
             </div>
           )}
           {/* Control */}
-          <div>{renderControl()}</div>
+          <div className="shrink-0">{renderControl()}</div>
           {/* Label row (right) */}
           {!labelFirst && <div className="flex items-center gap-1">
             <Label
@@ -1454,15 +1691,15 @@ export function HuemulField({
           )}
 
           {/* ── Control ────────────────────────────────────────── */}
-          <div>{renderControl()}</div>
+          <div className={controlClassName}>{renderControl()}</div>
         </>
       )}
 
       {/* ── Children slot ───────────────────────────────────────── */}
       {children && <div className="mt-1.5">{children}</div>}
 
-      {/* ── Description ────────────────────────────────────────── */}
-      {description && !error && (
+      {/* ── Description (stacked layout only; inline uses inline description) ── */}
+      {description && !error && !isInline && (
         <p className="text-muted-foreground text-sm leading-normal">
           {description}
         </p>

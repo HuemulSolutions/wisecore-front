@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { 
   getCurrentUserInfo,
@@ -49,10 +49,25 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   // Used to avoid wiping valid permissions during transient token-expiry windows.
   const hasLoadedValidPermissions = useRef(false);
 
+  // Refs for polling comparison — avoids re-creating the interval when state changes
+  const permissionsRef = useRef(permissions);
+  permissionsRef.current = permissions;
+  const rolesRef = useRef(roles);
+  rolesRef.current = roles;
+  const isRootAdminStateRef = useRef(isRootAdminState);
+  isRootAdminStateRef.current = isRootAdminState;
+  const isOrgAdminStateRef = useRef(isOrgAdminState);
+  isOrgAdminStateRef.current = isOrgAdminState;
+
   // Función para refrescar permisos desde los tokens JWT.
   // forceClean=true: always clear state (use on explicit logout).
-  const refreshPermissions = (forceClean = false) => {
-    setIsLoading(true);
+  const refreshPermissions = useCallback((forceClean = false) => {
+    // Only show loading on initial load or forced clean.
+    // Subsequent refreshes (polling, org-switch) skip the loading toggle
+    // to avoid a cascade of re-renders across all consumers.
+    if (!hasLoadedValidPermissions.current || forceClean) {
+      setIsLoading(true);
+    }
     
     try {
       const userInfo = getCurrentUserInfo();
@@ -104,7 +119,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Efecto para cargar permisos iniciales con un pequeño delay
   useEffect(() => {
@@ -121,6 +136,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     // Poll for token changes (e.g. org switch, role update).
     // Only act when the NEW data is valid and non-empty — otherwise we'd
     // incorrectly clear permissions every time the org JWT transiently expires.
+    // Uses refs for comparison so the interval is never recreated on state change.
     const checkTokensInterval = setInterval(() => {
       const currentUserInfo = getCurrentUserInfo();
 
@@ -138,10 +154,10 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
       if (
         hasNewValidData &&
         (
-          JSON.stringify(currentPermissions) !== JSON.stringify(permissions) ||
-          JSON.stringify(currentRoles) !== JSON.stringify(roles) ||
-          currentIsRootAdmin !== isRootAdminState ||
-          currentIsOrgAdmin !== isOrgAdminState
+          JSON.stringify(currentPermissions) !== JSON.stringify(permissionsRef.current) ||
+          JSON.stringify(currentRoles) !== JSON.stringify(rolesRef.current) ||
+          currentIsRootAdmin !== isRootAdminStateRef.current ||
+          currentIsOrgAdmin !== isOrgAdminStateRef.current
         )
       ) {
         console.log('Token changes detected, refreshing permissions...');
@@ -150,7 +166,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     }, 2000);
 
     return () => clearInterval(checkTokensInterval);
-  }, [permissions, roles, isRootAdminState, isOrgAdminState]);
+  }, [refreshPermissions]);
 
   // Escuchar cambios en localStorage (por ejemplo, logout)
   useEffect(() => {
@@ -172,30 +188,30 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
 
   // Funciones de verificación que usan el estado local para mejor rendimiento
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO (solo da acceso a rutas admin)
-  const checkPermission = (permission: Permission | string): boolean => {
+  const checkPermission = useCallback((permission: Permission | string): boolean => {
     if (isOrgAdminState) return true;
     return permissions.includes(permission);
-  };
+  }, [permissions, isOrgAdminState]);
 
-  const checkAnyPermission = (permissionsToCheck: (Permission | string)[]): boolean => {
+  const checkAnyPermission = useCallback((permissionsToCheck: (Permission | string)[]): boolean => {
     if (isOrgAdminState) return true;
     return permissionsToCheck.some(permission => permissions.includes(permission));
-  };
+  }, [permissions, isOrgAdminState]);
 
-  const checkAllPermissions = (permissionsToCheck: (Permission | string)[]): boolean => {
+  const checkAllPermissions = useCallback((permissionsToCheck: (Permission | string)[]): boolean => {
     if (isOrgAdminState) return true;
     return permissionsToCheck.every(permission => permissions.includes(permission));
-  };
+  }, [permissions, isOrgAdminState]);
 
-  const checkRole = (roleId: string): boolean => {
+  const checkRole = useCallback((roleId: string): boolean => {
     return roles.includes(roleId);
-  };
+  }, [roles]);
 
-  const checkAnyRole = (roleIds: string[]): boolean => {
+  const checkAnyRole = useCallback((roleIds: string[]): boolean => {
     return roleIds.some(roleId => roles.includes(roleId));
-  };
+  }, [roles]);
 
-  const value: PermissionsContextType = {
+  const value: PermissionsContextType = useMemo(() => ({
     permissions,
     roles,
     isRootAdmin: isRootAdminState,
@@ -207,7 +223,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     hasRole: checkRole,
     hasAnyRole: checkAnyRole,
     refreshPermissions,
-  };
+  }), [permissions, roles, isRootAdminState, isOrgAdminState, isLoading, checkPermission, checkAnyPermission, checkAllPermissions, checkRole, checkAnyRole, refreshPermissions]);
 
   return (
     <PermissionsContext.Provider value={value}>

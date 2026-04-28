@@ -22,9 +22,9 @@ export function AuthPage() {
       if (returnUrl) {
         sessionStorage.removeItem('returnUrl');
         navigate(returnUrl, { replace: true });
-      } else {
-        navigate('/');
       }
+      // Don't navigate to '/' — ProtectedRoute renders the routes at the
+      // current URL, preserving deep links automatically.
     }
   }, [isAuthenticated, navigate])
 
