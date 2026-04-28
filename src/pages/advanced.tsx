@@ -1,16 +1,18 @@
 import { useState, useCallback, useEffect } from "react"
 import { useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Play, History, Home, CheckCircle2, SkipForward, XCircle } from "lucide-react"
+import { Play, History, Home, CheckCircle2, SkipForward, XCircle, FileSpreadsheet, Download } from "lucide-react"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { MassExecutionForm } from "@/components/execution/mass-execution-form"
 import type { MassExecutionConfig } from "@/components/execution/mass-execution-form"
+import { ExcelExportForm } from "@/components/execution/excel-export-form"
+import type { ExcelExportConfig } from "@/components/execution/excel-export-form"
 import { AssetSelectionPanel } from "@/components/execution/asset-selection-panel"
 import { ChangeHistoryPanel } from "@/components/execution/change-history-panel"
-import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection } from "@/services/executions"
+import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection, bulkExportExcel } from "@/services/executions"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
@@ -26,7 +28,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
-type AdvancedSection = "home" | "mass-execution" | "change-history"
+type AdvancedSection = "home" | "mass-execution" | "change-history" | "excel-export"
 
 export default function AdvancedPage() {
   const { t } = useTranslation("advanced")
@@ -43,8 +45,9 @@ export default function AdvancedPage() {
   const canListExecutions = isOrgAdmin || hasAnyPermission(['section_execution:l', 'section_execution:r'])
 
   const canAccessMassExecution = canListTemplates && canListTemplateSections && canListExecutions
+  const canAccessExcelExport = isOrgAdmin || (canListTemplates && canListTemplateSections && canListExecutions)
 
-  const VALID_SECTIONS: AdvancedSection[] = ["home", "mass-execution", "change-history"]
+  const VALID_SECTIONS: AdvancedSection[] = ["home", "mass-execution", "change-history", "excel-export"]
   const activeSection: AdvancedSection =
     VALID_SECTIONS.includes(sectionParam as AdvancedSection)
       ? (sectionParam as AdvancedSection)
@@ -57,12 +60,24 @@ export default function AdvancedPage() {
   const [showResultDialog, setShowResultDialog] = useState(false)
   const [selectionKey, setSelectionKey] = useState(0)
 
+  const [selectedExcelTemplateId, setSelectedExcelTemplateId] = useState("")
+  const [excelExportConfig, setExcelExportConfig] = useState<ExcelExportConfig | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+
   // Reset form state when leaving mass-execution
   useEffect(() => {
     if (activeSection !== "mass-execution") {
       setSelectedTemplateId("")
       setMassExecutionConfig(null)
       setExecutionResult(null)
+    }
+  }, [activeSection])
+
+  // Reset form state when leaving excel-export
+  useEffect(() => {
+    if (activeSection !== "excel-export") {
+      setSelectedExcelTemplateId("")
+      setExcelExportConfig(null)
     }
   }, [activeSection])
 
@@ -117,9 +132,28 @@ export default function AdvancedPage() {
     }
   }, [massExecutionConfig, selectedOrganizationId, canCreateExecution, t])
 
+  const handleExcelExport = useCallback(async (executionIds: string[]) => {
+    if (!excelExportConfig || !selectedOrganizationId) return
+    setIsExporting(true)
+    try {
+      await bulkExportExcel({
+        templateId: excelExportConfig.templateId,
+        executionIds,
+        templateSectionIds: excelExportConfig.templateSectionIds,
+        organizationId: selectedOrganizationId,
+      })
+      toast.success(t("excelExport.exportSuccess"))
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t("excelExport.exportError"), showDescription: false })
+    } finally {
+      setIsExporting(false)
+    }
+  }, [excelExportConfig, selectedOrganizationId, t])
+
   const menuItems: { key: AdvancedSection; label: string; icon: React.ElementType; visible: boolean }[] = [
     { key: "home", label: t("menu.home"), icon: Home, visible: true },
     { key: "mass-execution", label: t("menu.massExecution"), icon: Play, visible: canAccessMassExecution },
+    { key: "excel-export", label: t("menu.excelExport"), icon: FileSpreadsheet, visible: canAccessExcelExport },
     { key: "change-history", label: t("menu.changeHistory"), icon: History, visible: canListExecutions },
   ]
 
@@ -173,6 +207,18 @@ export default function AdvancedPage() {
             </div>
           </button>
         )}
+        {canAccessExcelExport && (
+          <button
+            onClick={() => handleNavigateToSection("excel-export")}
+            className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted hover:cursor-pointer"
+          >
+            <FileSpreadsheet className="h-5 w-5 mt-0.5 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium">{t("home.excelExport.title")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("home.excelExport.description")}</p>
+            </div>
+          </button>
+        )}
         {canListExecutions && (
           <button
             onClick={() => handleNavigateToSection("change-history")}
@@ -198,7 +244,18 @@ export default function AdvancedPage() {
     </div>
   )
 
+  const excelExportForm = (
+    <div className="p-6 h-full overflow-y-auto scrollbar-hide">
+      <ExcelExportForm
+        onTemplateChange={setSelectedExcelTemplateId}
+        onConfigChange={setExcelExportConfig}
+      />
+    </div>
+  )
+
   const executeDisabled = !canCreateExecution || !massExecutionConfig || !massExecutionConfig.sectionId || (massExecutionConfig.editType === "execute-ai" && (!massExecutionConfig.llmId || !canListLlms)) || (massExecutionConfig.editType === "edit-ai" && massExecutionConfig.executionMode !== "review" && massExecutionConfig.executionMode !== "save") || (massExecutionConfig.editType === "edit-ai" && !massExecutionConfig.instructions?.trim()) || (massExecutionConfig.editType !== "execute-ai" && massExecutionConfig.editType !== "edit-ai")
+
+  const excelExportDisabled = !canAccessExcelExport || !excelExportConfig || !excelExportConfig.templateId || excelExportConfig.templateSectionIds.length === 0
 
   const assetSelection = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
@@ -212,6 +269,20 @@ export default function AdvancedPage() {
     </div>
   )
 
+  const excelAssetSelection = (
+    <div className="p-6 h-full overflow-y-auto scrollbar-hide">
+      <AssetSelectionPanel
+        templateId={selectedExcelTemplateId}
+        onExecute={handleExcelExport}
+        isExecuting={isExporting}
+        executeDisabled={excelExportDisabled}
+        actionLabel={t("assetSelection.export")}
+        actionLoadingLabel={t("assetSelection.exporting")}
+        ActionIcon={Download}
+      />
+    </div>
+  )
+
   const changeHistory = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
       <ChangeHistoryPanel />
@@ -219,11 +290,20 @@ export default function AdvancedPage() {
   )
 
   const isMassExecution = activeSection === "mass-execution"
+  const isExcelExport = activeSection === "excel-export"
   const isHome = activeSection === "home"
 
-  const sectionIcon = isMassExecution ? Play : History
-  const sectionTitle = isMassExecution ? t("home.massExecution.title") : t("home.changeHistory.title")
-  const sectionDescription = isMassExecution ? t("home.massExecution.description") : t("home.changeHistory.description")
+  const sectionIcon = isMassExecution ? Play : isExcelExport ? FileSpreadsheet : History
+  const sectionTitle = isMassExecution
+    ? t("home.massExecution.title")
+    : isExcelExport
+      ? t("home.excelExport.title")
+      : t("home.changeHistory.title")
+  const sectionDescription = isMassExecution
+    ? t("home.massExecution.description")
+    : isExcelExport
+      ? t("home.excelExport.description")
+      : t("home.changeHistory.description")
 
   const pageHeader = !isHome ? (
     <div className="px-6 py-3">
@@ -234,20 +314,28 @@ export default function AdvancedPage() {
     </div>
   ) : undefined
 
+  const leftContent = isHome
+    ? homeContent
+    : isMassExecution
+      ? massExecutionForm
+      : isExcelExport
+        ? excelExportForm
+        : changeHistory
+
   const innerLayout = (
     <HuemulPageLayout
       header={pageHeader}
       showHeader={!isHome}
       columns={[
         {
-          content: isHome ? homeContent : isMassExecution ? massExecutionForm : changeHistory,
-          defaultSize: isMassExecution ? 35 : 100,
+          content: leftContent,
+          defaultSize: isMassExecution || isExcelExport ? 35 : 100,
           resizable: false,
         },
         {
-          content: assetSelection,
+          content: isMassExecution ? assetSelection : excelAssetSelection,
           defaultSize: 65,
-          show: isMassExecution,
+          show: isMassExecution || isExcelExport,
           resizable: false,
         },
       ]}

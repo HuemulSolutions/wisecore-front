@@ -52,8 +52,8 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
             setIsEditing(false);
             setAiPreview(null);
             onUpdate?.();
-        } catch (e) {
-            console.error('Error saving content', e);
+        } catch (error) {
+            handleApiError(error, { fallbackMessage: t('section.saveFailed') });
         } finally {
             setIsSaving(false);
         }
