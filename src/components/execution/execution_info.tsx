@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { RefreshCw, MoreVertical, Plus, Settings, Trash2, Network, DiamondMinus } from "lucide-react";
+import { RefreshCw, MoreVertical, Plus, Trash2, Network, DiamondMinus } from "lucide-react";
 import { formatDate } from '@/services/utils';
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionCustomWord, deleteExecution, createExecution } from '@/services/executions';
 import { useState } from 'react';
@@ -81,9 +81,9 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
 
     const handleNewExecution = () => {
         createExecution(execution.document_id!, selectedOrganizationId!)
-          .then((execution) => {
-            console.log("Execution created:", execution);
-            navigate(`/execution/${execution.id}`);
+          .then((newExec) => {
+            console.log("Execution created:", newExec);
+            onRefresh?.();
           })
           .catch((error) => {
             handleApiError(error);
@@ -176,13 +176,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
                                         <Plus className="h-4 w-4 mr-2" />
                                         New execution
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                        className="hover:cursor-pointer"
-                                        onClick={() => navigate(`/configDocument/${execution.document_id}`)}
-                                    >
-                                        <Settings className="h-4 w-4 mr-2" />
-                                        Configure document
-                                    </DropdownMenuItem>
+
                                     <DropdownMenuItem 
                                         className="hover:cursor-pointer text-red-600"
                                         onClick={() => setIsDeleteOpen(true)}
