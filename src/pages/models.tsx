@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { handleApiError } from '@/lib/error-utils'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
+import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout'
 import { 
   getSupportedProviders,
   getAllProviders, 
@@ -535,15 +536,21 @@ export default function Models() {
   const errorMessage = t('errors.failedToLoadProviders')
 
   return (
-    <div className="p-6 space-y-6">
-      <ModelsHeader 
-        onRefresh={handleRefresh}
-        configuredProviders={hasError ? 0 : allProvidersList.length}
-        totalModels={hasError ? 0 : (llms as LLM[]).length}
-        isLoading={isRefreshing}
-      />
-
-      <Tabs defaultValue="models">
+    <>
+      <HuemulPageLayout
+        header={
+          <ModelsHeader 
+            onRefresh={handleRefresh}
+            configuredProviders={hasError ? 0 : allProvidersList.length}
+            totalModels={hasError ? 0 : (llms as LLM[]).length}
+            isLoading={isRefreshing}
+          />
+        }
+        headerClassName="p-6 pb-0"
+        columns={[
+          {
+            content: (
+              <Tabs defaultValue="models">
         <TabsList>
           <TabsTrigger value="models" className="hover:cursor-pointer">{t('tabs.models')}</TabsTrigger>
           <TabsTrigger value="embeddings" className="hover:cursor-pointer">{t('tabs.embeddings')}</TabsTrigger>
@@ -728,6 +735,11 @@ export default function Models() {
           )}
         </TabsContent>
       </Tabs>
+            ),
+            className: "p-6 pt-0",
+          },
+        ]}
+      />
 
       {/* Create Provider Dialog */}
       <CreateProviderDialog
@@ -809,6 +821,6 @@ export default function Models() {
         isUpdating={updateLLMMutation.isPending}
         onSubmit={handleCapabilitiesSubmit}
       />
-    </div>
+    </>
   )
 }

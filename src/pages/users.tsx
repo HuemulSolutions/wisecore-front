@@ -10,6 +10,7 @@ import { useUsers, useUserMutations, userQueryKeys } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 
 // Components
 import {
@@ -168,75 +169,81 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="bg-background p-4 md:p-6">
-      <div className="mx-auto">
-        {/* Header */}
-        <UserPageHeader
-          userCount={filteredUsers.length}
-          onCreateUser={() => updateState({ showCreateDialog: true })}
-          onRefresh={handleRefresh}
-          isLoading={isRefreshing}
-          hasError={isError}
-          searchTerm={state.searchTerm}
-          onSearchChange={(value) => {
-            updateState({ searchTerm: value })
-            setPage(1)
-          }}
-          filterStatus={state.filterStatus}
-          onStatusFilterChange={(value) => updateState({ filterStatus: value })}
-          canCreate={canCreateUser}
-        />
-
-        {isError ? (
-          <UserContentEmptyState 
-            type="error" 
-            message={t('users:emptyState.errorLoading')} 
-            onRetry={handleRefresh}
-          />
-        ) : !isTableLoading && !isTableFetching && filteredUsers.length === 0 ? (
-          <UserContentEmptyState 
-            type="empty"
-          />
-        ) : (
-          <UserTable
-            users={filteredUsers}
-            selectedUsers={state.selectedUsers}
-            onUserSelection={handleUserSelection}
-            onSelectAll={handleSelectAll}
-            onEditUser={handleEditUser}
-            onViewOrganizations={handleViewOrganizations}
-            onAssignRoles={handleAssignRoles}
-            onDeleteUser={handleDeleteUser}
-            onManageRootAdmin={handleManageRootAdmin}
-            isCurrentUserRootAdmin={isRootAdmin}
-            userMutations={userMutations}
-            canUpdate={canUpdateUser}
-            canDelete={canDeleteUser}
-            isLoading={isTableLoading}
-            isFetching={isTableFetching}
-            pagination={{
-              page: usersResponse?.page || page,
-              pageSize: usersResponse?.page_size || pageSize,
-              hasNext: usersResponse?.has_next,
-              hasPrevious: (usersResponse?.page || page) > 1,
-              onPageChange: (newPage) => setPage(newPage),
-              onPageSizeChange: (newPageSize) => {
-                setPageSize(newPageSize)
-                setPage(1)
-              },
-              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+    <>
+      <HuemulPageLayout
+        header={
+          <UserPageHeader
+            userCount={filteredUsers.length}
+            onCreateUser={() => updateState({ showCreateDialog: true })}
+            onRefresh={handleRefresh}
+            isLoading={isRefreshing}
+            hasError={isError}
+            searchTerm={state.searchTerm}
+            onSearchChange={(value) => {
+              updateState({ searchTerm: value })
+              setPage(1)
             }}
+            filterStatus={state.filterStatus}
+            onStatusFilterChange={(value) => updateState({ filterStatus: value })}
+            canCreate={canCreateUser}
           />
-        )}
+        }
+        headerClassName="p-4 md:p-6 pb-0 md:pb-0"
+        columns={[
+          {
+            content: isError ? (
+              <UserContentEmptyState 
+                type="error" 
+                message={t('users:emptyState.errorLoading')} 
+                onRetry={handleRefresh}
+              />
+            ) : !isTableLoading && !isTableFetching && filteredUsers.length === 0 ? (
+              <UserContentEmptyState 
+                type="empty"
+              />
+            ) : (
+              <UserTable
+                users={filteredUsers}
+                selectedUsers={state.selectedUsers}
+                onUserSelection={handleUserSelection}
+                onSelectAll={handleSelectAll}
+                onEditUser={handleEditUser}
+                onViewOrganizations={handleViewOrganizations}
+                onAssignRoles={handleAssignRoles}
+                onDeleteUser={handleDeleteUser}
+                onManageRootAdmin={handleManageRootAdmin}
+                isCurrentUserRootAdmin={isRootAdmin}
+                userMutations={userMutations}
+                canUpdate={canUpdateUser}
+                canDelete={canDeleteUser}
+                isLoading={isTableLoading}
+                isFetching={isTableFetching}
+                pagination={{
+                  page: usersResponse?.page || page,
+                  pageSize: usersResponse?.page_size || pageSize,
+                  hasNext: usersResponse?.has_next,
+                  hasPrevious: (usersResponse?.page || page) > 1,
+                  onPageChange: (newPage) => setPage(newPage),
+                  onPageSizeChange: (newPageSize) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                }}
+              />
+            ),
+            className: "p-4 md:p-6 pt-0 md:pt-0",
+          },
+        ]}
+      />
 
-        {/* Dialogs and Sheets */}
-        <UserPageDialogs
-          state={state}
-          onCloseDialog={closeDialog}
-          onUpdateState={updateState}
-          userMutations={userMutations}
-        />
-      </div>
-    </div>
+      {/* Dialogs and Sheets */}
+      <UserPageDialogs
+        state={state}
+        onCloseDialog={closeDialog}
+        onUpdateState={updateState}
+        userMutations={userMutations}
+      />
+    </>
   )
 }
