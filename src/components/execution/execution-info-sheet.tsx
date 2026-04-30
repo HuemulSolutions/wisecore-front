@@ -82,6 +82,7 @@ export function ExecutionInfoSheet({
         sourceKey={`execution-sheet-${executionId}`}
         executionId={executionId}
         documentId={execution?.document_id}
+        assetName={documentName}
         enabled={isOpen && Boolean(executionId)}
         priority={40}
       />
