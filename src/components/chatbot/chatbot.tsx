@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   Bot,
   MessageCircle,
@@ -45,13 +46,14 @@ interface ChatbotProps {
 // ========================================
 
 function WelcomeMessage() {
+  const { t } = useTranslation('chatbot');
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
       <div className="w-12 h-12 bg-[#4464f7]/10 rounded-full flex items-center justify-center mb-4">
         <MessageCircle className="w-6 h-6 text-[#4464f7]" />
       </div>
       <p className="text-sm text-gray-500">
-        Hi! How can I assist you today?
+        {t('welcome.message')}
       </p>
     </div>
   );
@@ -63,6 +65,7 @@ function WelcomeMessage() {
 
 function ChatbotContent() {
   const endRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation('chatbot');
   const {
     isOpen,
     setIsOpen,
@@ -151,12 +154,12 @@ function ChatbotContent() {
   const isModelSelectorDisabled =
     isInputDisabled || isLoadingLlms || isLoadingDefaultLLM || llms.length === 0;
   const modelSelectorHint = isTyping || isSending
-    ? 'Locked while generating'
+    ? t('model.lockedWhileGenerating')
     : isLoadingConversation
-      ? 'Locked while loading conversation'
+      ? t('model.lockedWhileLoading')
       : llms.length === 0
-        ? 'No models available'
-        : 'Applies to the next message';
+        ? t('model.noModels')
+        : t('model.appliesToNext');
 
   return (
     <>
@@ -188,7 +191,7 @@ function ChatbotContent() {
           <div className="bg-[#4464f7] text-white px-5 py-4 rounded-t-xl flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <MessageCircle className="w-5 h-5" />
-              <h3 className="font-semibold text-base">Wisecore AI</h3>
+              <h3 className="font-semibold text-base">{t('header.title')}</h3>
             </div>
             <div className="flex items-center space-x-1">
               {/* Expand / Collapse */}
@@ -208,7 +211,7 @@ function ChatbotContent() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p>{isExpanded ? 'Collapse' : 'Expand'}</p>
+                  <p>{isExpanded ? t('actions.collapse') : t('actions.expand')}</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -229,7 +232,7 @@ function ChatbotContent() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p>Conversation history</p>
+                  <p>{t('actions.conversationHistory')}</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -246,7 +249,7 @@ function ChatbotContent() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p>New conversation</p>
+                  <p>{t('actions.newConversation')}</p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -290,7 +293,7 @@ function ChatbotContent() {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Write your message..."
+                    placeholder={t('input.placeholder')}
                     disabled={isInputDisabled}
                     rows={1}
                     className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4464f7] focus:border-transparent text-sm resize-none overflow-hidden min-h-[44px] max-h-32 bg-gray-50 hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -327,7 +330,7 @@ function ChatbotContent() {
                       className="h-8 min-w-[132px] max-w-[180px] rounded-lg border-transparent bg-transparent px-2 text-xs text-slate-500 shadow-none transition-colors hover:cursor-pointer hover:border-slate-200 hover:bg-slate-50/70 focus:ring-[#4464f7]/15 disabled:hover:cursor-not-allowed"
                     >
                       <div className="flex min-w-0 items-center gap-2">
-                        <SelectValue placeholder={isLoadingLlms ? 'Loading...' : 'Select model'} />
+                        <SelectValue placeholder={isLoadingLlms ? t('model.loading') : t('model.selectModel')} />
                       </div>
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-slate-200 bg-white shadow-xl">
@@ -341,7 +344,7 @@ function ChatbotContent() {
                             <span className="truncate">{llm.name}</span>
                             {defaultLLM?.id === llm.id && (
                               <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                                Default
+                                {t('model.default')}
                               </span>
                             )}
                           </div>
