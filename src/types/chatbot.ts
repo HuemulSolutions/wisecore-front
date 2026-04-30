@@ -25,6 +25,13 @@ export interface ConversationReference {
 }
 
 /**
+ * Working context item with display name for UI rendering.
+ */
+export interface WorkingContextItem extends ConversationReference {
+  name: string;
+}
+
+/**
  * Conversacion del chatbot.
  */
 export interface Conversation {
@@ -46,6 +53,7 @@ export interface Conversation {
 export interface ConversationWithDetail extends Conversation {
   messages: ChatMessage[];
   last_message: ChatMessage | null;
+  last_working_context: ConversationReference[];
 }
 
 /**
@@ -62,8 +70,18 @@ export interface ChatMessageMetadata {
   input_tokens?: number;
   output_tokens?: number;
   total_tokens?: number;
+  llm_id?: string;
+  llm_name?: string;
   error?: string;
-  progress?: ChatMessageProgressMetadata;
+  progress?: ChatMessageProgressMetadata | null;
+}
+
+/**
+ * LLM info attached to a completed assistant message.
+ */
+export interface ChatMessageLlm {
+  id: string;
+  name: string;
 }
 
 /**
@@ -76,6 +94,9 @@ export interface ChatMessage {
   content: string | null;
   metadata: ChatMessageMetadata | null;
   status: MessageStatus;
+  llm: ChatMessageLlm | null;
+  /** Working context items attached when the message was sent (local-only, not persisted by backend). */
+  working_context_items?: WorkingContextItem[];
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -88,19 +109,24 @@ export interface ChatMessage {
 
 export interface CreateConversationRequest {
   title?: string;
-  references?: ConversationReference[];
 }
 
 export interface SendMessageRequest {
   content: string;
-  /** References to associate with this message (e.g. current document/execution context). */
+  /** @deprecated Only for backward compatibility — use working_context instead. */
   references?: ConversationReference[];
+  /** Contextual items for this turn (documents, executions, folders, etc.). */
+  working_context?: ConversationReference[];
   /** Optional LLM override for the next assistant response generation. */
   llm_id?: string;
 }
 
 export interface UpdateTitleRequest {
   title: string;
+}
+
+export interface UpdateReferencesRequest {
+  references: ConversationReference[];
 }
 
 // ========================================
@@ -125,6 +151,7 @@ export interface SendMessageResponse {
   conversation_id: string;
   message_id: string;
   assistant_message_id: string;
+  working_context: ConversationReference[];
 }
 
 /**
