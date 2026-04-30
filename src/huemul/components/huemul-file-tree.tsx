@@ -354,7 +354,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     const handleDragStart = (e: React.DragEvent, nodeId: string, node: HuemulTreeNode) => {
       if (node.disabled) { e.preventDefault(); return }
       setDraggedNode(nodeId)
-      e.dataTransfer.effectAllowed = "move"
+      e.dataTransfer.effectAllowed = "copyMove"
+      e.dataTransfer.setData(
+        "application/wisy-context",
+        JSON.stringify({ type: node.type === folderType ? "folder" : "document", id: node.id, name: node.name })
+      )
     }
 
     const handleDragOver = (e: React.DragEvent, nodeId: string | null, nodeType?: string) => {
@@ -449,6 +453,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
+            onDragEnd={() => { setDraggedNode(null); setDragOverNode(null) }}
             onDragOver={(e) =>
               isFolder && !node.disabled ? handleDragOver(e, node.id, node.type) : e.preventDefault()
             }
