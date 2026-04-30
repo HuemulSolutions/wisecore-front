@@ -54,7 +54,7 @@ function AssetsContent() {
   }
 
   return (
-    <>
+    <div className="relative h-full">
       {isLoadingDocument && <LoadingOverlay />}
       <HuemulPageLayout
         className="bg-gray-50"
@@ -103,7 +103,7 @@ function AssetsContent() {
           },
         ]}
       />
-    </>
+    </div>
   );
 }
 
