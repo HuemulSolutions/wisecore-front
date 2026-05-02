@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { useChatbot } from '@/hooks/use-chatbot';
-import type { ChatMessage, ConversationReference } from '@/types/chatbot';
+import type { ChatMessage, ConversationReference, WorkingContextItem } from '@/types/chatbot';
 
 export type ChatView = 'chat' | 'history';
 
@@ -10,6 +10,14 @@ export interface ChatbotContextValue {
   setReferences: (references?: ConversationReference[]) => void;
   registerReferenceSource: (sourceKey: string, references?: ConversationReference[], priority?: number) => void;
   unregisterReferenceSource: (sourceKey: string) => void;
+  /** User-managed working context items (drag-drop, badge, etc.) */
+  workingContextItems: WorkingContextItem[];
+  addWorkingContextItem: (item: WorkingContextItem) => void;
+  removeWorkingContextItem: (type: string, id: string) => void;
+  clearWorkingContextItems: () => void;
+  /** Current page context item (for the "add to context" badge) */
+  currentPageContext: WorkingContextItem | null;
+  setCurrentPageContext: (item: WorkingContextItem | null) => void;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   isExpanded: boolean;
@@ -80,10 +88,27 @@ export function ChatbotProvider({
   const [inputValue, setInputValue] = useState('');
   const [view, setView] = useState<ChatView>('chat');
   const [selectedLlmId, setSelectedLlmId] = useState<string>();
+  const [workingContextItems, setWorkingContextItems] = useState<WorkingContextItem[]>([]);
+  const [currentPageContext, setCurrentPageContext] = useState<WorkingContextItem | null>(null);
   const sourceOrderRef = useRef(0);
 
   const setReferences = useCallback((references?: ConversationReference[]) => {
     setFallbackReferences(references);
+  }, []);
+
+  const addWorkingContextItem = useCallback((item: WorkingContextItem) => {
+    setWorkingContextItems((prev) => {
+      if (prev.some((i) => i.type === item.type && i.id === item.id)) return prev;
+      return [...prev, item];
+    });
+  }, []);
+
+  const removeWorkingContextItem = useCallback((type: string, id: string) => {
+    setWorkingContextItems((prev) => prev.filter((i) => !(i.type === type && i.id === id)));
+  }, []);
+
+  const clearWorkingContextItems = useCallback(() => {
+    setWorkingContextItems([]);
   }, []);
 
   const registerReferenceSource = useCallback(
@@ -128,7 +153,7 @@ export function ChatbotProvider({
     return activeSource?.references ?? fallbackReferences;
   }, [fallbackReferences, referenceSources]);
 
-  const chatbotState = useChatbot({ references, selectedLlmId });
+  const chatbotState = useChatbot({ references, selectedLlmId, workingContextItems });
 
   const value = useMemo<ChatbotContextValue>(
     () => ({
@@ -136,6 +161,12 @@ export function ChatbotProvider({
       setReferences,
       registerReferenceSource,
       unregisterReferenceSource,
+      workingContextItems,
+      addWorkingContextItem,
+      removeWorkingContextItem,
+      clearWorkingContextItems,
+      currentPageContext,
+      setCurrentPageContext,
       isOpen,
       setIsOpen,
       isExpanded,
@@ -161,6 +192,11 @@ export function ChatbotProvider({
       setReferences,
       registerReferenceSource,
       unregisterReferenceSource,
+      workingContextItems,
+      addWorkingContextItem,
+      removeWorkingContextItem,
+      clearWorkingContextItems,
+      currentPageContext,
       isOpen,
       isExpanded,
       inputValue,

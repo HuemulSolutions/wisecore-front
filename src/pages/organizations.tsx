@@ -5,6 +5,7 @@ import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 
 // Components
 import {
@@ -143,105 +144,110 @@ export default function Organizations() {
   }
 
   return (
-    <div className="bg-background p-6 md:p-8">
-      <div className="mx-auto">
-        {/* Header */}
-        <OrganizationPageHeader
-          organizationCount={organizationsResponse?.total || organizations.length}
-          onCreateOrganization={() => updateState({ showCreateDialog: true })}
-          onRefresh={handleRefresh}
-          isLoading={isRefreshing}
-          searchTerm={state.searchTerm}
-          onSearchChange={(value: string) => {
-            updateState({ searchTerm: value })
-            setPage(1)
+    <>
+      <HuemulPageLayout
+        header={
+          <OrganizationPageHeader
+            organizationCount={organizationsResponse?.total || organizations.length}
+            onCreateOrganization={() => updateState({ showCreateDialog: true })}
+            onRefresh={handleRefresh}
+            isLoading={isRefreshing}
+            searchTerm={state.searchTerm}
+            onSearchChange={(value: string) => {
+              updateState({ searchTerm: value })
+              setPage(1)
+            }}
+            canManage={canCreateOrg}
+          />
+        }
+        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+        columns={[
+          {
+            content: queryError ? (
+              <OrganizationContentEmptyState 
+                type="error" 
+                message={(queryError as Error).message} 
+                onRetry={handleRefresh}
+              />
+            ) : !isTableLoading && !isTableFetching && organizations.length === 0 && !state.searchTerm ? (
+              <OrganizationContentEmptyState 
+                type="empty"
+                onCreateFirst={() => updateState({ showCreateDialog: true })}
+              />
+            ) : !isTableLoading && !isTableFetching && organizations.length === 0 ? (
+              <OrganizationContentEmptyState 
+                type="no-results"
+                onClearFilters={handleClearFilters}
+              />
+            ) : (
+              <OrganizationTable
+                organizations={organizations}
+                onEditOrganization={handleEditOrganization}
+                onDeleteOrganization={handleDeleteOrganization}
+                isLoading={isTableLoading}
+                isFetching={isTableFetching}
+                pagination={{
+                  page: organizationsResponse?.page || page,
+                  pageSize: organizationsResponse?.page_size || pageSize,
+                  hasNext: organizationsResponse?.has_next,
+                  hasPrevious: (organizationsResponse?.page || page) > 1,
+                  onPageChange: (newPage: number) => setPage(newPage),
+                  onPageSizeChange: (newPageSize: number) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                }}
+                canUpdate={canUpdateOrg}
+                canDelete={canDeleteOrg}
+              />
+            ),
+            className: "p-6 md:p-8 pt-0 md:pt-0",
+          },
+        ]}
+      />
+
+      {/* Dialogs */}
+      <CreateOrganizationDialog
+        open={state.showCreateDialog}
+        onOpenChange={(open) => updateState({ showCreateDialog: open })}
+        onSubmit={(data) => createMutation.mutate(data)}
+        isPending={createMutation.isPending}
+      />
+
+      {state.editingOrganization && (
+        <EditOrganizationDialog
+          open={!!state.editingOrganization}
+          onOpenChange={(open: boolean) => !open && closeDialog("editingOrganization")}
+          organization={state.editingOrganization}
+          onSave={() => {
+            if (state.editingOrganization) {
+              updateMutation.mutate({
+                id: state.editingOrganization.id,
+                data: {
+                  name: state.editingOrganization.name,
+                  description: state.editingOrganization.description || undefined
+                }
+              })
+            }
           }}
-          canManage={canCreateOrg}
+          isSaving={updateMutation.isPending}
+          onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
         />
+      )}
 
-        {/* Content Area - Table or Error */}
-        {queryError ? (
-          <OrganizationContentEmptyState 
-            type="error" 
-            message={(queryError as Error).message} 
-            onRetry={handleRefresh}
-          />
-        ) : !isTableLoading && !isTableFetching && organizations.length === 0 && !state.searchTerm ? (
-          <OrganizationContentEmptyState 
-            type="empty"
-            onCreateFirst={() => updateState({ showCreateDialog: true })}
-          />
-        ) : !isTableLoading && !isTableFetching && organizations.length === 0 ? (
-          <OrganizationContentEmptyState 
-            type="no-results"
-            onClearFilters={handleClearFilters}
-          />
-        ) : (
-          <OrganizationTable
-            organizations={organizations}
-            onEditOrganization={handleEditOrganization}
-            onDeleteOrganization={handleDeleteOrganization}
-            isLoading={isTableLoading}
-            isFetching={isTableFetching}
-            pagination={{
-              page: organizationsResponse?.page || page,
-              pageSize: organizationsResponse?.page_size || pageSize,
-              hasNext: organizationsResponse?.has_next,
-              hasPrevious: (organizationsResponse?.page || page) > 1,
-              onPageChange: (newPage: number) => setPage(newPage),
-              onPageSizeChange: (newPageSize: number) => {
-                setPageSize(newPageSize)
-                setPage(1)
-              },
-              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
-            }}
-            canUpdate={canUpdateOrg}
-            canDelete={canDeleteOrg}
-          />
-        )}
-
-        {/* Dialogs */}
-        <CreateOrganizationDialog
-          open={state.showCreateDialog}
-          onOpenChange={(open) => updateState({ showCreateDialog: open })}
-          onSubmit={(data) => createMutation.mutate(data)}
-          isPending={createMutation.isPending}
+      {state.deletingOrganization && (
+        <DeleteOrganizationDialog
+          open={!!state.deletingOrganization}
+          onOpenChange={(open: boolean) => !open && closeDialog("deletingOrganization")}
+          organization={state.deletingOrganization}
+          onConfirm={async () => {
+            if (state.deletingOrganization) {
+              await deleteMutation.mutateAsync(state.deletingOrganization.id)
+            }
+          }}
         />
-
-        {state.editingOrganization && (
-          <EditOrganizationDialog
-            open={!!state.editingOrganization}
-            onOpenChange={(open: boolean) => !open && closeDialog("editingOrganization")}
-            organization={state.editingOrganization}
-            onSave={() => {
-              if (state.editingOrganization) {
-                updateMutation.mutate({
-                  id: state.editingOrganization.id,
-                  data: {
-                    name: state.editingOrganization.name,
-                    description: state.editingOrganization.description || undefined
-                  }
-                })
-              }
-            }}
-            isSaving={updateMutation.isPending}
-            onOrgChange={(org: Organization) => updateState({ editingOrganization: org })}
-          />
-        )}
-
-        {state.deletingOrganization && (
-          <DeleteOrganizationDialog
-            open={!!state.deletingOrganization}
-            onOpenChange={(open: boolean) => !open && closeDialog("deletingOrganization")}
-            organization={state.deletingOrganization}
-            onConfirm={async () => {
-              if (state.deletingOrganization) {
-                await deleteMutation.mutateAsync(state.deletingOrganization.id)
-              }
-            }}
-          />
-        )}
-      </div>
-    </div>
+      )}
+    </>
   )
 }

@@ -3454,6 +3454,13 @@ export function AssetContent({
         sourceKey="asset-content"
         executionId={documentContent?.execution_id}
         documentId={selectedFile?.id}
+        assetName={
+          selectedFile?.name
+            ? documentContent?.execution_id && selectedExecutionInfo
+              ? `${getExecutionDisplayLabel(selectedExecutionInfo) || selectedExecutionInfo.formattedDate} - ${selectedFile.name}`
+              : selectedFile.name
+            : undefined
+        }
         enabled={Boolean(documentContent && documentContent.content && selectedFile?.id)}
         priority={20}
       />

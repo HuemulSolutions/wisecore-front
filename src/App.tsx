@@ -8,8 +8,7 @@ import AppLayout from "./components/layout/app-layout";
 import Home from "./pages/home";
 import Templates from "./pages/templates";
 import SearchPage from "./pages/search";
-import ConfigDocumentPage from "./pages/config_document";
-import ExecutionPage from "./pages/execution"; 
+
 import Organizations from "./pages/organizations";
 // import Library from "./pages/library"; // Hidden - library functionality disabled
 import Assets from "./pages/assets";
@@ -107,16 +106,7 @@ export default function App() {
                 <CustomFieldsPage />
               </PermissionProtectedRoute>
             } />
-            <Route path="configDocument/:id" element={
-              <PermissionProtectedRoute permissions={["section:u", "section:c"]}>
-                <ConfigDocumentPage />
-              </PermissionProtectedRoute>
-            } />
-            <Route path="execution/:id" element={
-              <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:c"]}>
-                <ExecutionPage />
-              </PermissionProtectedRoute>
-            } />
+
             <Route path="advanced" element={
               <PermissionProtectedRoute permissions={["section_execution:r", "section_execution:l"]}>
                 <Navigate to="home" replace />
