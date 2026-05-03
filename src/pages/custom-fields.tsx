@@ -7,6 +7,7 @@ import { useCustomFields, useCustomFieldMutations } from "@/hooks/useCustomField
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 
 // Components
 import {
@@ -101,69 +102,74 @@ export default function CustomFieldsPage() {
   }
 
   return (
-    <div className="bg-background p-6 md:p-8">
-      <div className="mx-auto">
-        {/* Header */}
-        <CustomFieldPageHeader
-          customFieldCount={filteredCustomFields.length}
-          onCreateCustomField={() => updateState({ showCreateDialog: true })}
-          onRefresh={handleRefresh}
-          isLoading={isRefreshing}
-          searchTerm={state.searchTerm}
-          onSearchChange={(value: string) => {
-            updateState({ searchTerm: value })
-            setPage(1)
-          }}
-          canManage={isRootAdmin}
-        />
-
-        {/* Content Area - Table or Error */}
-        {error ? (
-          <CustomFieldContentEmptyState 
-            type="error" 
-            message={error.message} 
-            onRetry={handleRefresh}
-          />
-        ) : filteredCustomFields.length === 0 && customFields.length === 0 ? (
-          <CustomFieldContentEmptyState 
-            type="empty"
-            onCreateFirst={() => updateState({ showCreateDialog: true })}
-          />
-        ) : filteredCustomFields.length === 0 && customFields.length > 0 ? (
-          <CustomFieldContentEmptyState 
-            type="no-results"
-            onClearFilters={handleClearFilters}
-          />
-        ) : (
-          <CustomFieldTable
-            customFields={filteredCustomFields}
-            onEditCustomField={handleEditCustomField}
-            onDeleteCustomField={handleDeleteCustomField}
-            canManage={isRootAdmin}
-            isLoading={isTableLoading}
-            isFetching={isTableFetching}
-            pagination={{
-              page: customFieldsResponse?.page || page,
-              pageSize: customFieldsResponse?.page_size || pageSize,
-              hasNext: customFieldsResponse?.has_next,
-              hasPrevious: (customFieldsResponse?.page || page) > 1,
-              onPageChange: (newPage) => setPage(newPage),
-              onPageSizeChange: (newPageSize) => {
-                setPageSize(newPageSize)
-                setPage(1)
-              },
-              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+    <>
+      <HuemulPageLayout
+        header={
+          <CustomFieldPageHeader
+            customFieldCount={filteredCustomFields.length}
+            onCreateCustomField={() => updateState({ showCreateDialog: true })}
+            onRefresh={handleRefresh}
+            isLoading={isRefreshing}
+            searchTerm={state.searchTerm}
+            onSearchChange={(value: string) => {
+              updateState({ searchTerm: value })
+              setPage(1)
             }}
+            canManage={isRootAdmin}
           />
-        )}
+        }
+        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+        columns={[
+          {
+            content: error ? (
+              <CustomFieldContentEmptyState 
+                type="error" 
+                message={error.message} 
+                onRetry={handleRefresh}
+              />
+            ) : filteredCustomFields.length === 0 && customFields.length === 0 ? (
+              <CustomFieldContentEmptyState 
+                type="empty"
+                onCreateFirst={() => updateState({ showCreateDialog: true })}
+              />
+            ) : filteredCustomFields.length === 0 && customFields.length > 0 ? (
+              <CustomFieldContentEmptyState 
+                type="no-results"
+                onClearFilters={handleClearFilters}
+              />
+            ) : (
+              <CustomFieldTable
+                customFields={filteredCustomFields}
+                onEditCustomField={handleEditCustomField}
+                onDeleteCustomField={handleDeleteCustomField}
+                canManage={isRootAdmin}
+                isLoading={isTableLoading}
+                isFetching={isTableFetching}
+                pagination={{
+                  page: customFieldsResponse?.page || page,
+                  pageSize: customFieldsResponse?.page_size || pageSize,
+                  hasNext: customFieldsResponse?.has_next,
+                  hasPrevious: (customFieldsResponse?.page || page) > 1,
+                  onPageChange: (newPage) => setPage(newPage),
+                  onPageSizeChange: (newPageSize) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                }}
+              />
+            ),
+            className: "p-6 md:p-8 pt-0 md:pt-0",
+          },
+        ]}
+      />
 
-        {/* Dialogs */}
-        <CustomFieldPageDialogs
-          state={state}
-          onCloseDialog={closeDialog}
-          customFieldMutations={customFieldMutations}
-        />
-      </div>
-    </div>
+      {/* Dialogs */}
+      <CustomFieldPageDialogs
+        state={state}
+        onCloseDialog={closeDialog}
+        customFieldMutations={customFieldMutations}
+      />
+    </>
   )
 }

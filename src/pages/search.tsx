@@ -1,5 +1,6 @@
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { PageHeader } from "@/huemul/components/huemul-page-header";
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { search } from "@/services/search";
@@ -133,103 +134,107 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="bg-gray-50 p-6 md:p-8 h-full w-full">
-      <div className="mx-auto">
-        {/* Header */}
-        <PageHeader
-          icon={Search}
-          title={t('page.title')}
-          showRefresh={false}
-          searchConfig={{
-            placeholder: t('page.searchPlaceholder'),
-            value: query,
-            onChange: setQuery,
-            onKeyDown: handleKeyDown
-          }}
-        >
-          <div className="flex gap-2 items-center">
-            <HuemulButton
-              icon={Search}
-              label={t('page.searchButton')}
-              loading={isLoading}
-              onClick={handleSearch}
-              className="h-8 text-xs px-3"
-            />
-            {hasActiveSearch && (
+    <HuemulPageLayout
+      header={
+        <>
+          <PageHeader
+            icon={Search}
+            title={t('page.title')}
+            showRefresh={false}
+            searchConfig={{
+              placeholder: t('page.searchPlaceholder'),
+              value: query,
+              onChange: setQuery,
+              onKeyDown: handleKeyDown
+            }}
+          >
+            <div className="flex gap-2 items-center">
               <HuemulButton
-                variant="outline"
-                icon={X}
-                onClick={handleClearSearch}
-                className="h-8 px-2"
-                tooltip={t('page.clearSearch')}
+                icon={Search}
+                label={t('page.searchButton')}
+                loading={isLoading}
+                onClick={handleSearch}
+                className="h-8 text-xs px-3"
               />
-            )}
-          </div>
-        </PageHeader>
-
-        {/* Filters */}
-        {selectedOrganizationId && (
-          <SearchFilters
-            organizationId={selectedOrganizationId}
-            searchType={searchType}
-            onSearchTypeChange={setSearchType}
-            onApply={handleFiltersApply}
-            initialFilters={initialFiltersFromURL}
-          />
-        )}
-
-        {/* Search Results */}
-        {hasActiveSearch && (
-          <div className="space-y-4 pb-8 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {isLoading && <SearchResultsSkeleton />}
-
-            {isError && (
-              <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
-                <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
-                <p className="text-red-600 mb-2 font-medium">
-                  {getErrorMessage(error, t('errors.performSearch'))}
-                </p>
-                {ApiError.isApiError(error) && error.detail && (
-                  <p className="text-sm text-muted-foreground mb-4">{error.detail}</p>
-                )}
-                {!ApiError.isApiError(error) && (
-                  <p className="text-sm text-muted-foreground mb-4">{t('errors.tryAgain')}</p>
-                )}
+              {hasActiveSearch && (
                 <HuemulButton
                   variant="outline"
-                  size="sm"
-                  label={t('errors.retry')}
-                  onClick={() => { refetch(); }}
+                  icon={X}
+                  onClick={handleClearSearch}
+                  className="h-8 px-2"
+                  tooltip={t('page.clearSearch')}
                 />
-              </div>
-            )}
+              )}
+            </div>
+          </PageHeader>
 
-            {searchResponse && searchResponse.data.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
-                <FileText className="w-8 h-8 text-muted-foreground mb-3" />
-                <h3 className="text-sm font-medium text-foreground mb-1">{t('empty.noResultsTitle')}</h3>
-                <p className="text-xs text-muted-foreground">{t('empty.noResultsDescription')}</p>
-              </div>
-            )}
+          {selectedOrganizationId && (
+            <SearchFilters
+              organizationId={selectedOrganizationId}
+              searchType={searchType}
+              onSearchTypeChange={setSearchType}
+              onApply={handleFiltersApply}
+              initialFilters={initialFiltersFromURL}
+            />
+          )}
+        </>
+      }
+      headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+      columns={[
+        {
+          content: hasActiveSearch ? (
+            <div className="space-y-4 pb-8">
+              {isLoading && <SearchResultsSkeleton />}
 
-            {searchResponse && searchResponse.data.length > 0 && (
-              <div className="space-y-4">
-                <div className="mb-4">
-                  <h2 className="text-sm font-semibold text-foreground mb-3">{t('page.supportingDocuments')}</h2>
-                  <div className="space-y-3">
-                    {searchResponse.data.map((document: SearchResultDocument) => (
-                      <DocumentResult 
-                        key={document.document_id} 
-                        document={document}
-                      />
-                    ))}
+              {isError && (
+                <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+                  <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
+                  <p className="text-red-600 mb-2 font-medium">
+                    {getErrorMessage(error, t('errors.performSearch'))}
+                  </p>
+                  {ApiError.isApiError(error) && error.detail && (
+                    <p className="text-sm text-muted-foreground mb-4">{error.detail}</p>
+                  )}
+                  {!ApiError.isApiError(error) && (
+                    <p className="text-sm text-muted-foreground mb-4">{t('errors.tryAgain')}</p>
+                  )}
+                  <HuemulButton
+                    variant="outline"
+                    size="sm"
+                    label={t('errors.retry')}
+                    onClick={() => { refetch(); }}
+                  />
+                </div>
+              )}
+
+              {searchResponse && searchResponse.data.length === 0 && !isLoading && (
+                <div className="flex flex-col items-center justify-center min-h-[400px] text-center rounded-lg border border-dashed bg-muted/50 p-8">
+                  <FileText className="w-8 h-8 text-muted-foreground mb-3" />
+                  <h3 className="text-sm font-medium text-foreground mb-1">{t('empty.noResultsTitle')}</h3>
+                  <p className="text-xs text-muted-foreground">{t('empty.noResultsDescription')}</p>
+                </div>
+              )}
+
+              {searchResponse && searchResponse.data.length > 0 && (
+                <div className="space-y-4">
+                  <div className="mb-4">
+                    <h2 className="text-sm font-semibold text-foreground mb-3">{t('page.supportingDocuments')}</h2>
+                    <div className="space-y-3">
+                      {searchResponse.data.map((document: SearchResultDocument) => (
+                        <DocumentResult 
+                          key={document.document_id} 
+                          document={document}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+              )}
+            </div>
+          ) : null,
+          className: "p-6 md:p-8 pt-0 md:pt-0",
+        },
+      ]}
+    />
   );
 }

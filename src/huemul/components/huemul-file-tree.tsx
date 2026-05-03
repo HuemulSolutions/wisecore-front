@@ -113,6 +113,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     const [draggedNode, setDraggedNode] = useState<string | null>(null)
     const [dragOverNode, setDragOverNode] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null)
     const [isInitialized, setIsInitialized] = useState(false)
     const [activeDialog, setActiveDialog] = useState<{
       type: "createFile" | "createFolder" | "delete" | "share"
@@ -135,6 +136,20 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       }
       setExpandedFolders(new Set(getExpandedIds(nodes)))
     }, [nodes, folderType])
+
+    // Clear per-node loading indicator when activeNodeId changes to match
+    useEffect(() => {
+      if (loadingNodeId && activeNodeId === loadingNodeId) {
+        setLoadingNodeId(null)
+      }
+    }, [activeNodeId, loadingNodeId])
+
+    // Safety timeout: clear loading indicator after 3s to avoid stuck state
+    useEffect(() => {
+      if (!loadingNodeId) return
+      const timeout = setTimeout(() => setLoadingNodeId(null), 3000)
+      return () => clearTimeout(timeout)
+    }, [loadingNodeId])
 
     // Ref guard to prevent concurrent loadInitialData calls (e.g. from
     // React StrictMode double-firing effects or rapid prop changes).
@@ -267,11 +282,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     const handleFileClick = async (node: HuemulTreeNode) => {
       if (node.disabled) return
       if (node.type !== folderType && onFileClick) {
-        setIsLoading(true)
+        setLoadingNodeId(node.id)
         try {
           await onFileClick(node)
-        } finally {
-          setIsLoading(false)
+        } catch {
+          setLoadingNodeId(null)
         }
       }
     }
@@ -354,7 +369,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     const handleDragStart = (e: React.DragEvent, nodeId: string, node: HuemulTreeNode) => {
       if (node.disabled) { e.preventDefault(); return }
       setDraggedNode(nodeId)
-      e.dataTransfer.effectAllowed = "move"
+      e.dataTransfer.effectAllowed = "copyMove"
+      e.dataTransfer.setData(
+        "application/wisy-context",
+        JSON.stringify({ type: node.type === folderType ? "folder" : "document", id: node.id, name: node.name })
+      )
     }
 
     const handleDragOver = (e: React.DragEvent, nodeId: string | null, nodeType?: string) => {
@@ -416,6 +435,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isDragging = draggedNode === node.id
       const isDragOver = dragOverNode === node.id
       const isActive = activeNodeId === node.id
+      const isNodeLoading = loadingNodeId === node.id
 
       const hasVisibleMenuActions =
         (isFolder && showDefaultActions.create) ||
@@ -445,10 +465,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
               isActive && "bg-accent font-medium",
+              isNodeLoading && "bg-accent/50",
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
+            onDragEnd={() => { setDraggedNode(null); setDragOverNode(null) }}
             onDragOver={(e) =>
               isFolder && !node.disabled ? handleDragOver(e, node.id, node.type) : e.preventDefault()
             }
@@ -479,8 +501,10 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             >
               {isFolder
                 ? (renderFolderIcon ? renderFolderIcon(node, !!isExpanded) : defaultFolderIcon(node, !!isExpanded))
-                : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}
-              <p className="text-sm truncate">{node.name}</p>
+                : isNodeLoading
+                  ? <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}
+              <p className={cn("text-sm truncate", isNodeLoading && "text-muted-foreground")}>{node.name}</p>
             </div>
 
             {hasVisibleMenuActions && !node.disabled && (

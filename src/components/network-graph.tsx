@@ -20,7 +20,6 @@ import {
   RotateCcw,
   MoreVertical,
   Network,
-  Settings,
 } from "lucide-react"
 
 interface NetworkNode {
@@ -402,10 +401,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
         const docId = nodeId.replace('doc-', '')
         navigate(`/docDepend/${docId}`)
         break
-      case "configure-sections":
-        const configDocId = nodeId.replace('doc-', '')
-        navigate(`/configDocument/${configDocId}`)
-        break
+
       default:
         break
     }
@@ -424,10 +420,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
           <Network className="w-4 h-4 mr-2" />
           View Dependencies
         </DropdownMenuItem>,
-        <DropdownMenuItem key="configure-sections" onClick={() => handleMenuAction("configure-sections", node.id)}>
-          <Settings className="w-4 h-4 mr-2" />
-          Configure Sections
-        </DropdownMenuItem>,
+
       )
     }
 

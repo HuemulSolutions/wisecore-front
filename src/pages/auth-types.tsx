@@ -13,6 +13,7 @@ import { AuthTypesSearch } from "@/components/auth-types/auth-types-search"
 import { AuthTypesTable } from "@/components/auth-types/auth-types-table"
 import { AuthTypesLoadingState } from "@/components/auth-types/auth-types-loading-state"
 import { AuthTypesErrorState } from "@/components/auth-types/auth-types-error-state"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 
 /**
  * Authentication Types management page
@@ -81,60 +82,66 @@ export default function AuthTypes() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      <div className="mx-auto">
-        <AuthTypesSearch
-          searchTerm={inputSearch}
-          onSearchChange={(value) => {
-            setInputSearch(value)
-            setSearchTerm(value)
-            setPage(1)
-          }}
-          authTypesCount={error ? 0 : authTypes.length}
-          isLoading={isRefreshing}
-          onRefresh={handleRefresh}
-          onCreateClick={() => setIsCreateDialogOpen(true)}
-          hasError={!!error}
-        />
-
-        {error ? (
-          <AuthTypesErrorState error={error} onRetry={handleRefresh} />
-        ) : (
-          <AuthTypesTable
-            authTypes={pagedAuthTypes}
-            onEdit={setEditingAuthType}
-            onDelete={setDeletingAuthType}
-            isLoading={isTableLoading}
-            isFetching={isTableFetching}
-            pagination={{
-              page,
-              pageSize,
-              totalItems: authTypes.length,
-              onPageChange: setPage,
-              onPageSizeChange: (size) => { setPageSize(size); setPage(1) },
-              pageSizeOptions: [5, 10, 25],
+    <>
+      <HuemulPageLayout
+        header={
+          <AuthTypesSearch
+            searchTerm={inputSearch}
+            onSearchChange={(value) => {
+              setInputSearch(value)
+              setSearchTerm(value)
+              setPage(1)
             }}
+            authTypesCount={error ? 0 : authTypes.length}
+            isLoading={isRefreshing}
+            onRefresh={handleRefresh}
+            onCreateClick={() => setIsCreateDialogOpen(true)}
+            hasError={!!error}
           />
-        )}
+        }
+        headerClassName="p-4 md:p-6 pb-0 md:pb-0"
+        columns={[
+          {
+            content: error ? (
+              <AuthTypesErrorState error={error} onRetry={handleRefresh} />
+            ) : (
+              <AuthTypesTable
+                authTypes={pagedAuthTypes}
+                onEdit={setEditingAuthType}
+                onDelete={setDeletingAuthType}
+                isLoading={isTableLoading}
+                isFetching={isTableFetching}
+                pagination={{
+                  page,
+                  pageSize,
+                  totalItems: authTypes.length,
+                  onPageChange: setPage,
+                  onPageSizeChange: (size) => { setPageSize(size); setPage(1) },
+                  pageSizeOptions: [5, 10, 25],
+                }}
+              />
+            ),
+            className: "p-4 md:p-6 pt-0 md:pt-0",
+          },
+        ]}
+      />
 
-        {/* Dialogs */}
-        <CreateAuthTypeDialog 
-          open={isCreateDialogOpen}
-          onOpenChange={setIsCreateDialogOpen}
-        />
+      <CreateAuthTypeDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+      />
 
-        <EditAuthTypeDialog
-          open={!!editingAuthType}
-          onOpenChange={(open) => !open && setEditingAuthType(null)}
-          authType={editingAuthType}
-        />
+      <EditAuthTypeDialog
+        open={!!editingAuthType}
+        onOpenChange={(open) => !open && setEditingAuthType(null)}
+        authType={editingAuthType}
+      />
 
-        <DeleteAuthTypeDialog
-          open={!!deletingAuthType}
-          onOpenChange={(open) => !open && setDeletingAuthType(null)}
-          authType={deletingAuthType}
-        />
-      </div>
-    </div>
+      <DeleteAuthTypeDialog
+        open={!!deletingAuthType}
+        onOpenChange={(open) => !open && setDeletingAuthType(null)}
+        authType={deletingAuthType}
+      />
+    </>
   )
 }
