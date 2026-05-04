@@ -7,6 +7,7 @@ import { useRoles, useRoleMutations } from "@/hooks/useRbac"
 import { useUsers } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { type Role } from "@/services/rbac"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import EditRoleSheet from "@/components/roles/roles-edit-sheet"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
@@ -141,97 +142,103 @@ export default function Roles() {
   // )
 
   return (
-    <div className="bg-background p-2 sm:p-4 md:p-4 lg:p-6">
-      <div className="mx-auto">
-        <RolesSearch
-          searchTerm={searchTerm}
-          onSearchChange={(value) => {
-            setSearchTerm(value)
-            setPage(1)
-          }}
-          rolesCount={rolesResponse?.total ?? roles.length}
-          isRefreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          onCreateRole={openDialog.create}
-          hasError={!!error}
-          canManage={canManageRbac}
-        />
-
-        {/* Show error state or content */}
-        {error ? (
-          <RolesContentEmptyState error={error} onRetry={handleRefresh} />
-        ) : (
-          <RolesTable
-            roles={roles}
-            isTableLoading={isTableLoading}
-            isTableFetching={isTableFetching}
-            isLoadingUsers={isLoadingUsers}
-            onAssignToUsers={openDialog.assignToUsers}
-            onEditRole={openDialog.edit}
-            onDeleteRole={openDialog.delete}
-            onCloneRole={openDialog.clone}
-            canManage={canManageRbac}
-            pagination={{
-              page: rolesResponse?.page || page,
-              pageSize: rolesResponse?.page_size || pageSize,
-              hasNext: rolesResponse?.has_next,
-              hasPrevious: (rolesResponse?.page || page) > 1,
-              onPageChange: (newPage) => setPage(newPage),
-              onPageSizeChange: (newPageSize) => {
-                setPageSize(newPageSize)
-                setPage(1)
-              },
-              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+    <>
+      <HuemulPageLayout
+        header={
+          <RolesSearch
+            searchTerm={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value)
+              setPage(1)
             }}
+            rolesCount={rolesResponse?.total ?? roles.length}
+            isRefreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            onCreateRole={openDialog.create}
+            hasError={!!error}
+            canManage={canManageRbac}
           />
-        )}
+        }
+        headerClassName="p-2 sm:p-4 md:p-4 lg:p-6 pb-0 sm:pb-0 md:pb-0 lg:pb-0"
+        columns={[
+          {
+            content: error ? (
+              <RolesContentEmptyState error={error} onRetry={handleRefresh} />
+            ) : (
+              <RolesTable
+                roles={roles}
+                isTableLoading={isTableLoading}
+                isTableFetching={isTableFetching}
+                isLoadingUsers={isLoadingUsers}
+                onAssignToUsers={openDialog.assignToUsers}
+                onEditRole={openDialog.edit}
+                onDeleteRole={openDialog.delete}
+                onCloneRole={openDialog.clone}
+                canManage={canManageRbac}
+                pagination={{
+                  page: rolesResponse?.page || page,
+                  pageSize: rolesResponse?.page_size || pageSize,
+                  hasNext: rolesResponse?.has_next,
+                  hasPrevious: (rolesResponse?.page || page) > 1,
+                  onPageChange: (newPage) => setPage(newPage),
+                  onPageSizeChange: (newPageSize) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                }}
+              />
+            ),
+            className: "p-2 sm:p-4 md:p-4 lg:p-6 pt-0 sm:pt-0 md:pt-0 lg:pt-0",
+          },
+        ]}
+      />
 
-        {/* Dialogs and Sheets */}
-        <CreateRoleSheet
-          open={showCreateDialog}
-          onOpenChange={(open) => !open && closeDialog.create()}
-        />
+      {/* Dialogs and Sheets */}
+      <CreateRoleSheet
+        open={showCreateDialog}
+        onOpenChange={(open) => !open && closeDialog.create()}
+      />
 
-        <EditRoleSheet
-          role={editingRole}
-          open={!!editingRole}
-          onOpenChange={(open) => !open && closeDialog.edit()}
-        />
+      <EditRoleSheet
+        role={editingRole}
+        open={!!editingRole}
+        onOpenChange={(open) => !open && closeDialog.edit()}
+      />
 
-        <AssignRolesSheet
-          user={users.find(u => u.id === assigningUserId) || null}
-          open={!!assigningUserId}
-          onOpenChange={(open) => !open && closeDialog.assignUser()}
-        />
+      <AssignRolesSheet
+        user={users.find(u => u.id === assigningUserId) || null}
+        open={!!assigningUserId}
+        onOpenChange={(open) => !open && closeDialog.assignUser()}
+      />
 
-        <AssignRoleToUsersDialog
-          role={assigningRoleToUsers}
-          open={!!assigningRoleToUsers}
-          onOpenChange={(open) => !open && closeDialog.assignToUsers()}
-        />
+      <AssignRoleToUsersDialog
+        role={assigningRoleToUsers}
+        open={!!assigningRoleToUsers}
+        onOpenChange={(open) => !open && closeDialog.assignToUsers()}
+      />
 
-        <DeleteRoleDialog
-          open={!!deletingRole}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDialog.delete()
-            }
-          }}
-          role={deletingRole}
-          onConfirm={confirmDeleteRole}
-        />
+      <DeleteRoleDialog
+        open={!!deletingRole}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDialog.delete()
+          }
+        }}
+        role={deletingRole}
+        onConfirm={confirmDeleteRole}
+      />
 
-        <CloneRoleDialog
-          open={!!cloningRole}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDialog.clone()
-            }
-          }}
-          role={cloningRole}
-          onConfirm={confirmCloneRole}
-        />
-      </div>
-    </div>
+      <CloneRoleDialog
+        open={!!cloningRole}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeDialog.clone()
+          }
+        }}
+        role={cloningRole}
+        onConfirm={confirmCloneRole}
+      />
+    </>
   )
 }

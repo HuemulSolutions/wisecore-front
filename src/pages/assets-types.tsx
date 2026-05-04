@@ -18,6 +18,7 @@ import {
   AssetTypeContentEmptyState,
   type AssetTypePageState
 } from "@/components/assets-types"
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 
 export default function AssetTypesPage() {
   const [state, setState] = useState<AssetTypePageState>({
@@ -103,68 +104,72 @@ export default function AssetTypesPage() {
   }
 
   return (
-    <div className="bg-background p-6 md:p-8">
-      <div className="mx-auto">
-        {/* Header */}
-        <AssetTypePageHeader
-          assetTypeCount={assetTypes.length}
-          onCreateAssetType={() => updateState({ showCreateDialog: true })}
-          onRefresh={handleRefresh}
-          isLoading={isRefreshing}
-          hasError={!!error}
-          searchTerm={state.searchTerm}
-          onSearchChange={(value) => {
-            updateState({ searchTerm: value })
-            setPage(1)
-          }}
-          canCreate={canCreateDocumentType}
-        />
-
-        {/* Content Area - Table or Error */}
-        {error ? (
-          <AssetTypeContentEmptyState 
-            type="error" 
-            message={error.message} 
-            onRetry={handleRefresh}
-          />
-        ) : assetTypes.length === 0 ? (
-          <AssetTypeContentEmptyState 
-            type="empty"
-            onCreateFirst={() => updateState({ showCreateDialog: true })}
-          />
-        ) : (
-          <AssetTypeTable
-            assetTypes={assetTypes}
-            onEditAssetType={handleEditAssetType}
-            onDeleteAssetType={handleDeleteAssetType}
-            onLifecycle={handleLifecycle}
-            canUpdate={canUpdateDocumentType}
-            canDelete={canDeleteDocumentType}
-            isLoading={isTableLoading}
-            isFetching={isTableFetching}
-            pagination={{
-              page: assetTypesResponse?.page || page,
-              pageSize: assetTypesResponse?.page_size || pageSize,
-              hasNext: assetTypesResponse?.has_next,
-              hasPrevious: (assetTypesResponse?.page || page) > 1,
-              onPageChange: (newPage: number) => setPage(newPage),
-              onPageSizeChange: (newPageSize: number) => {
-                setPageSize(newPageSize)
-                setPage(1)
-              },
-              pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+    <>
+      <HuemulPageLayout
+        header={
+          <AssetTypePageHeader
+            assetTypeCount={assetTypes.length}
+            onCreateAssetType={() => updateState({ showCreateDialog: true })}
+            onRefresh={handleRefresh}
+            isLoading={isRefreshing}
+            hasError={!!error}
+            searchTerm={state.searchTerm}
+            onSearchChange={(value) => {
+              updateState({ searchTerm: value })
+              setPage(1)
             }}
+            canCreate={canCreateDocumentType}
           />
-        )}
+        }
+        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+        columns={[
+          {
+            content: error ? (
+              <AssetTypeContentEmptyState
+                type="error"
+                message={error.message}
+                onRetry={handleRefresh}
+              />
+            ) : assetTypes.length === 0 ? (
+              <AssetTypeContentEmptyState
+                type="empty"
+                onCreateFirst={() => updateState({ showCreateDialog: true })}
+              />
+            ) : (
+              <AssetTypeTable
+                assetTypes={assetTypes}
+                onEditAssetType={handleEditAssetType}
+                onDeleteAssetType={handleDeleteAssetType}
+                onLifecycle={handleLifecycle}
+                canUpdate={canUpdateDocumentType}
+                canDelete={canDeleteDocumentType}
+                isLoading={isTableLoading}
+                isFetching={isTableFetching}
+                pagination={{
+                  page: assetTypesResponse?.page || page,
+                  pageSize: assetTypesResponse?.page_size || pageSize,
+                  hasNext: assetTypesResponse?.has_next,
+                  hasPrevious: (assetTypesResponse?.page || page) > 1,
+                  onPageChange: (newPage: number) => setPage(newPage),
+                  onPageSizeChange: (newPageSize: number) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                }}
+              />
+            ),
+            className: "p-6 md:p-8 pt-0 md:pt-0",
+          },
+        ]}
+      />
 
-        {/* Dialogs */}
-        <AssetTypePageDialogs
-          state={state}
-          onCloseDialog={closeDialog}
-          onUpdateState={updateState}
-          assetTypeMutations={assetTypeMutations}
-        />
-      </div>
-    </div>
+      <AssetTypePageDialogs
+        state={state}
+        onCloseDialog={closeDialog}
+        onUpdateState={updateState}
+        assetTypeMutations={assetTypeMutations}
+      />
+    </>
   )
 }

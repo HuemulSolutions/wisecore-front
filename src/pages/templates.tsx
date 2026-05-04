@@ -7,11 +7,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 
 interface TemplateItem {
   id: string;
@@ -83,43 +79,43 @@ export default function Templates() {
   }, [selectedOrganizationId]);
 
   return (
-    <div className="flex h-full bg-gray-50">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Templates Sidebar */}
-        <ResizablePanel defaultSize={15} minSize={15} maxSize={30}>
-          <TemplatesSidebar
-            templates={templates}
-            isLoading={isFetching}
-            error={queryError}
-            selectedTemplateId={selectedTemplate?.id || null}
-            onTemplateSelect={handleTemplateSelect}
-            onTemplateDeleted={() => {
-              setSelectedTemplate(null);
-              navigate('/templates', { replace: true });
-            }}
-            organizationId={selectedOrganizationId}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize] })}
-            onSearch={(term) => { setSearchTerm(term); setPage(1); }}
-            searchValue={searchTerm}
-            canCreate={canCreateTemplate}
-            canUpdate={canUpdateTemplate}
-            canDelete={canDeleteTemplate}
-            pagination={{
-              page: templatesData?.page ?? page,
-              pageSize: templatesData?.page_size ?? pageSize,
-              hasNext: templatesData?.has_next ?? false,
-              hasPrevious: (templatesData?.page ?? page) > 1,
-              onPageChange: setPage,
-              onPageSizeChange: (size) => { setPageSize(size); setPage(1); },
-            }}
-          />
-        </ResizablePanel>
-
-        <ResizableHandle />
-
-        {/* Main Content */}
-        <ResizablePanel defaultSize={80}>
-          <div className="h-full bg-white">
+    <HuemulPageLayout
+      columns={[
+        {
+          content: (
+            <TemplatesSidebar
+              templates={templates}
+              isLoading={isFetching}
+              error={queryError}
+              selectedTemplateId={selectedTemplate?.id || null}
+              onTemplateSelect={handleTemplateSelect}
+              onTemplateDeleted={() => {
+                setSelectedTemplate(null);
+                navigate('/templates', { replace: true });
+              }}
+              organizationId={selectedOrganizationId}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId, searchTerm, page, pageSize] })}
+              onSearch={(term) => { setSearchTerm(term); setPage(1); }}
+              searchValue={searchTerm}
+              canCreate={canCreateTemplate}
+              canUpdate={canUpdateTemplate}
+              canDelete={canDeleteTemplate}
+              pagination={{
+                page: templatesData?.page ?? page,
+                pageSize: templatesData?.page_size ?? pageSize,
+                hasNext: templatesData?.has_next ?? false,
+                hasPrevious: (templatesData?.page ?? page) > 1,
+                onPageChange: setPage,
+                onPageSizeChange: (size) => { setPageSize(size); setPage(1); },
+              }}
+            />
+          ),
+          defaultSize: 15,
+          minSize: 15,
+          maxSize: 30,
+        },
+        {
+          content: (
             <TemplateContent
               selectedTemplate={selectedTemplate}
               onRefresh={() => queryClient.invalidateQueries({ queryKey: ["templates", selectedOrganizationId] })}
@@ -128,7 +124,6 @@ export default function Templates() {
                 navigate('/templates', { replace: true });
               }}
               onTemplateCreated={(template) => {
-                // Select the newly created template
                 setSelectedTemplate(template);
                 navigate(`/templates/${template.id}`, { replace: true });
               }}
@@ -140,9 +135,11 @@ export default function Templates() {
               canUpdateSection={canUpdateSection}
               canDeleteSection={canDeleteSection}
             />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+          ),
+          defaultSize: 85,
+          minSize: 50,
+        },
+      ]}
+    />
   );
 }

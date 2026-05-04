@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap } from "lucide-react"
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
 import { useQueryClient } from "@tanstack/react-query"
@@ -32,12 +32,94 @@ import { OrganizationSwitcher } from "@/components/organization/organization-swi
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
-import Chatbot from "@/components/chatbot/chatbot"
+
 import { ChatbotProvider } from "@/contexts/chatbot-context"
 import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
+import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-context"
+import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserDialog from "@/components/users/users-edit-dialog"
 import { cn } from "@/lib/utils"
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable"
+import { X } from "lucide-react"
+
+/** Wraps <Outlet /> with the global resizable side-panel. */
+function GlobalPanelOutlet() {
+  const { isOpen, side, content, title, raw, defaultSize, minSize, maxSize, panelRef, closePanel } = useGlobalPanel()
+  const [wasOpen, setWasOpen] = useState(isOpen)
+
+  // Sync the panel imperative handle with the isOpen state.
+  // On open: expand to defaultSize. On close: collapse to 0.
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+
+    if (isOpen && !wasOpen) {
+      panel.expand(defaultSize)
+    } else if (!isOpen && wasOpen) {
+      panel.collapse()
+    }
+    setWasOpen(isOpen)
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCollapse = useCallback(() => {
+    // Only close the context when the panel is truly collapsing while open
+    if (isOpen) closePanel()
+  }, [isOpen, closePanel])
+
+  const panelContent = raw ? (
+    content
+  ) : (
+    <div className="flex flex-col h-full border-l">
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 shrink-0">
+        <span className="text-sm font-medium truncate">{title || "Panel"}</span>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="hover:cursor-pointer"
+          onClick={closePanel}
+        >
+          <X className="size-3.5" />
+        </Button>
+      </div>
+      <div className="flex-1 overflow-auto">{content}</div>
+    </div>
+  )
+
+  const outletPanel = (
+    <ResizablePanel order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
+      <Outlet />
+    </ResizablePanel>
+  )
+
+  const sidePanel = (
+    <ResizablePanel
+      ref={panelRef}
+      order={side === "left" ? 1 : 3}
+      defaultSize={isOpen ? defaultSize : 0}
+      minSize={minSize}
+      maxSize={maxSize}
+      collapsible
+      collapsedSize={0}
+      onCollapse={handleCollapse}
+      className={raw ? "overflow-hidden" : "overflow-auto"}
+    >
+      {panelContent}
+    </ResizablePanel>
+  )
+
+  return (
+    <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+      {outletPanel}
+      <ResizableHandle className={cn("transition-opacity", isOpen ? "opacity-100" : "opacity-0 pointer-events-none")} />
+      {sidePanel}
+    </ResizablePanelGroup>
+  )
+}
 
 /** Nav link that checks for unsaved section edits before navigating. */
 function GuardedNavLink({ to, onClick, children, ...props }: React.ComponentProps<typeof Link>) {
@@ -374,7 +456,6 @@ export default function AppLayout() {
     isSwitchingOrg
   ])
 
-  const shouldShowChatbot = location.pathname !== '/home' && !location.pathname.endsWith('/home')
   const chatbotProviderKey = selectedOrganizationId ?? 'no-org'
 
   useEffect(() => {
@@ -391,6 +472,7 @@ export default function AppLayout() {
 
   return (
     <ChatbotProvider key={chatbotProviderKey}>
+      <GlobalPanelProvider>
       <TooltipProvider>
         <EditingGuardProvider>
         <NavKnowledgeProvider>
@@ -484,7 +566,8 @@ export default function AppLayout() {
             {/* Right section: Version + Settings + User (initials only) */}
             <div className="flex items-center gap-2">
 
-              {/* Version indicator */}
+              {/* Wisy toggle */}
+              <WisyToggle />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="hidden md:flex bg-muted/50 text-muted-foreground text-xs font-mono px-2 py-1 rounded border">
@@ -624,13 +707,9 @@ export default function AppLayout() {
             </div>
           </header>
           
-          <div className="flex-1 overflow-auto">
-            <Outlet />
-          </div>
+          <GlobalPanelOutlet />
         </div>
 
-        {shouldShowChatbot && <Chatbot />}
-        
         {/* Dialog de selección de organización */}
         <OrganizationSelectionDialog open={shouldShowDialog} />
         
@@ -645,6 +724,7 @@ export default function AppLayout() {
         </NavKnowledgeProvider>
         </EditingGuardProvider>
       </TooltipProvider>
+      </GlobalPanelProvider>
     </ChatbotProvider>
   )
 }

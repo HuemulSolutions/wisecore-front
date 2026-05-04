@@ -12,6 +12,7 @@ import type {
   ChatMessage,
   ConversationReference,
   SendMessageResponse,
+  WorkingContextItem,
 } from "@/types/chatbot";
 
 // ========================================
@@ -45,7 +46,8 @@ function buildOptimisticMessage(
   conversationId: string,
   role: "user" | "assistant",
   content: string | null,
-  status: "completed" | "pending" = "completed"
+  status: "completed" | "pending" = "completed",
+  workingContextItems?: WorkingContextItem[],
 ): ChatMessage {
   const now = new Date().toISOString();
   return {
@@ -55,6 +57,8 @@ function buildOptimisticMessage(
     content,
     metadata: null,
     status,
+    llm: null,
+    working_context_items: workingContextItems,
     created_at: now,
     updated_at: now,
     created_by: null,
@@ -86,6 +90,30 @@ function getLatestPendingAssistantMessage(
   return null;
 }
 
+/**
+ * Merge stored working_context with current references and explicit items,
+ * deduplicating by type+id.
+ */
+function buildWorkingContext(
+  stored: ConversationReference[],
+  current?: ConversationReference[],
+  explicit?: ConversationReference[]
+): ConversationReference[] {
+  const all = [...stored, ...(current ?? []), ...(explicit ?? [])];
+  const seen = new Set<string>();
+  const result: ConversationReference[] = [];
+
+  for (const ref of all) {
+    const key = `${ref.type}:${ref.id}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push({ type: ref.type, id: ref.id });
+    }
+  }
+
+  return result;
+}
+
 // ========================================
 // Hook
 // ========================================
@@ -93,12 +121,13 @@ function getLatestPendingAssistantMessage(
 interface UseChatbotProps {
   /**
    * References representing the user's current context (document/execution).
-   * Sent with every message so the backend keeps context up to date.
-   * Also used when creating a new conversation.
+   * Merged with stored working_context and sent as working_context on each turn.
    */
   references?: ConversationReference[];
   /** Optional LLM selected for the next message to send. */
   selectedLlmId?: string;
+  /** Explicit working context items added by the user (drag-drop, badge, etc.). */
+  workingContextItems?: WorkingContextItem[];
 }
 
 interface UseChatbotReturn {
@@ -127,6 +156,7 @@ interface UseChatbotReturn {
 export function useChatbot({
   references,
   selectedLlmId,
+  workingContextItems,
 }: UseChatbotProps = {}): UseChatbotReturn {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
@@ -157,6 +187,7 @@ export function useChatbot({
                 content: nextAssistantMessage.content,
                 metadata: nextAssistantMessage.metadata,
                 status: nextAssistantMessage.status,
+                llm: nextAssistantMessage.llm,
                 created_at: nextAssistantMessage.created_at,
                 updated_at: nextAssistantMessage.updated_at,
                 created_by: nextAssistantMessage.created_by,
@@ -174,6 +205,9 @@ export function useChatbot({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingAssistantId, setPendingAssistantId] = useState<string | null>(
     null
+  );
+  const [workingContext, setWorkingContext] = useState<ConversationReference[]>(
+    []
   );
 
   // Track whether the first message has been sent (for auto-title)
@@ -221,12 +255,12 @@ export function useChatbot({
     {
       conversationId: string;
       content: string;
-      references?: ConversationReference[];
+      workingContext?: ConversationReference[];
       llmId?: string;
     }
   >({
-    mutationFn: ({ conversationId: convId, content, references: refs, llmId }) =>
-      sendMessageService(convId, content, refs, llmId),
+    mutationFn: ({ conversationId: convId, content, workingContext: wc, llmId }) =>
+      sendMessageService(convId, content, wc, llmId),
     onSuccess: (data, variables) => {
       // Replace the optimistic user message ID with the real one
       setMessages((prev) =>
@@ -236,6 +270,9 @@ export function useChatbot({
             : msg
         )
       );
+
+      // Store the normalized working_context returned by the backend
+      setWorkingContext(data.working_context ?? []);
 
       // Start polling for the assistant's response
       setPendingAssistantId(data.assistant_message_id);
@@ -279,9 +316,7 @@ export function useChatbot({
       // If no active conversation, create one first
       if (!activeConversationId) {
         try {
-          const conv = await createConversation({
-            references,
-          });
+          const conv = await createConversation();
           activeConversationId = conv.id;
           setConversationId(conv.id);
 
@@ -299,7 +334,9 @@ export function useChatbot({
       const optimisticUser = buildOptimisticMessage(
         activeConversationId,
         "user",
-        trimmed
+        trimmed,
+        "completed",
+        workingContextItems && workingContextItems.length > 0 ? [...workingContextItems] : undefined,
       );
       const optimisticAssistant = buildOptimisticMessage(
         activeConversationId,
@@ -309,15 +346,22 @@ export function useChatbot({
       );
       setMessages((prev) => [...prev, optimisticUser, optimisticAssistant]);
 
-      // Fire the mutation — include references so backend updates context on every message
+      // Build working_context: merge stored context with current references and explicit items
+      const mergedContext = buildWorkingContext(
+        workingContext,
+        references,
+        workingContextItems,
+      );
+
+      // Fire the mutation — include working_context so backend has turn context
       sendMutation.mutate({
         conversationId: activeConversationId,
         content: trimmed,
-        references,
+        workingContext: mergedContext,
         llmId: selectedLlmId,
       });
     },
-    [conversationId, references, queryClient, selectedLlmId, selectedOrganizationId, sendMutation]
+    [conversationId, references, queryClient, selectedLlmId, selectedOrganizationId, sendMutation, workingContext, workingContextItems]
   );
 
   const startNewConversation = useCallback(
@@ -327,6 +371,7 @@ export function useChatbot({
       setConversationId(null);
       setMessages([]);
       setPendingAssistantId(null);
+      setWorkingContext([]);
       setIsLoadingConversation(false);
       isFirstMessageRef.current = true;
       isSendingRef.current = false;
@@ -350,6 +395,7 @@ export function useChatbot({
 
         setMessages(loadedMessages);
         setPendingAssistantId(pendingAssistantMessage?.id ?? null);
+        setWorkingContext(detail.last_working_context ?? []);
         // If the conversation already has messages, it's not the first message
         isFirstMessageRef.current =
           loadedMessages.length === 0;

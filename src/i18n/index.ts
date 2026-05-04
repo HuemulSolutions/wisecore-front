@@ -27,6 +27,7 @@ import externalSystems from './locales/external-systems'
 import externalFunctionalities from './locales/external-functionalities'
 import externalSecrets from './locales/external-secrets'
 import externalParameters from './locales/external-parameters'
+import chatbot from './locales/chatbot'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -73,6 +74,7 @@ const modules = {
   'external-functionalities': externalFunctionalities,
   'external-secrets': externalSecrets,
   'external-parameters': externalParameters,
+  chatbot,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const
