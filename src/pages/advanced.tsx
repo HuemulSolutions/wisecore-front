@@ -161,7 +161,7 @@ export default function AdvancedPage() {
 
   const sidebar = (
     <nav className="flex flex-col gap-1 p-4">
-      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 truncate">
         {t("title")}
       </h2>
       {visibleMenuItems.map((item) => {
@@ -171,14 +171,14 @@ export default function AdvancedPage() {
             key={item.key}
             onClick={() => handleSectionChange(item.key)}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:cursor-pointer",
+              "flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:cursor-pointer",
               activeSection === item.key
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <Icon className="h-4 w-4" />
-            {item.label}
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{item.label}</span>
           </button>
         )
       })}
@@ -330,13 +330,15 @@ export default function AdvancedPage() {
         {
           content: leftContent,
           defaultSize: isMassExecution || isExcelExport ? 35 : 100,
-          resizable: false,
+          minSize: 20,
+          maxSize: 80,
         },
         {
           content: isMassExecution ? assetSelection : excelAssetSelection,
           defaultSize: 65,
+          minSize: 20,
+          maxSize: 80,
           show: isMassExecution || isExcelExport,
-          resizable: false,
         },
       ]}
     />
@@ -346,8 +348,8 @@ export default function AdvancedPage() {
     <>
       <HuemulPageLayout
         columns={[
-          { content: sidebar, defaultSize: 15, resizable: false },
-          { content: innerLayout, defaultSize: 85, resizable: false },
+          { content: sidebar, defaultSize: 15, minSize: 12, maxSize: 50 },
+          { content: innerLayout, defaultSize: 85, minSize: 50 },
         ]}
       />
 

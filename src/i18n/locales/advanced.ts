@@ -3,7 +3,7 @@ const translations = {
   menu: {
     home: { en: "Home", es: "Inicio" },
     massExecution: { en: "Mass Execution", es: "Ejecución masiva" },
-    excelExport: { en: "Excel Export", es: "Exportación Excel" },
+    excelExport: { en: "Mass Export", es: "Exportación masiva" },
     changeHistory: { en: "Pending Changes", es: "Cambios pendientes" },
   },
   home: {
@@ -28,7 +28,7 @@ const translations = {
       },
     },
     excelExport: {
-      title: { en: "Mass Excel Export", es: "Exportación masiva a Excel" },
+      title: { en: "Mass Export", es: "Exportación masiva" },
       description: {
         en: "Export data from multiple assets to Excel at once. Select a template, choose the sections to include, and download the result.",
         es: "Exporta datos de múltiples activos a Excel a la vez. Selecciona un template, elige las secciones a incluir y descarga el resultado.",
