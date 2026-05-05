@@ -170,7 +170,7 @@ export function HuemulTable<T>({
       <div className={cn("overflow-auto flex-1", maxHeight)}>
         <table className="w-full caption-bottom text-sm">
           {/* ── Header ── */}
-          <TableHeader className="sticky top-0 z-10 bg-muted/60">
+          <TableHeader className="sticky top-0 z-10 bg-muted">
             <TableRow className="border-b border-border hover:bg-transparent">
               {columns.map((col) => (
                 <TableHead

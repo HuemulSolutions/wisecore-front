@@ -1,7 +1,27 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { ApiError } from "@/types/api-error";
+import type { ExecutionsResponse, GetExecutionsParams } from "@/types/executions";
 
+export async function getAllExecutions(
+  organizationId: string,
+  params: GetExecutionsParams = {},
+): Promise<ExecutionsResponse> {
+  const { page = 1, page_size = 100, search, has_pending_ai_suggestion, lifecycle_state, owner_scope, has_unresolved_comments } = params
+  const query = new URLSearchParams({
+    page: page.toString(),
+    page_size: page_size.toString(),
+  })
+  if (search?.trim()) query.set('search', search.trim())
+  if (has_pending_ai_suggestion != null) query.set('has_pending_ai_suggestion', has_pending_ai_suggestion.toString())
+  if (lifecycle_state) query.set('lifecycle_state', lifecycle_state)
+  if (owner_scope) query.set('owner_scope', owner_scope)
+  if (has_unresolved_comments != null) query.set('has_unresolved_comments', has_unresolved_comments.toString())
+  const response = await httpClient.get(`${backendUrl}/execution/?${query}`, {
+    headers: { 'X-Org-Id': organizationId },
+  })
+  return response.json() as Promise<ExecutionsResponse>
+}
 
 export async function getExecutionsByDocumentId(documentId: string, organizationId: string) {
     console.log(`Fetching executions for document ID: ${documentId}`);
