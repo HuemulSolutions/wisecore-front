@@ -29,6 +29,8 @@ export interface Execution {
   updated_by_user_name: string | null
   has_pending_ai_suggestion: boolean
   task_status: string | null
+  has_unresolved_comments: boolean
+  unresolved_comments_count: number
 }
 
 export interface ExecutionsResponse {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
-import { FileUp, ClipboardList, Plus, GitBranch, MessageSquare, ChevronDown, RefreshCw, ExternalLink } from 'lucide-react';
+import { FileUp, ClipboardList, Plus, GitBranch, MessageSquare, ChevronDown, RefreshCw, ExternalLink, MessageCircle } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
@@ -71,6 +71,19 @@ export default function Home() {
       key: 'documentName',
       label: t('executionsTable.columns.documentName'),
       render: (item) => <span className="font-medium">{item.document_name}</span>,
+    },
+    {
+      key: 'unresolvedComments',
+      label: t('executionsTable.columns.unresolvedComments'),
+      render: (item) =>
+        item.unresolved_comments_count > 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
+            <MessageCircle className="h-3.5 w-3.5" />
+            {item.unresolved_comments_count}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: 'version',

@@ -299,6 +299,7 @@ const translations = {
       estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
       reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
       auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
+      unresolvedComments: { en: "Comments", es: "Comentarios" },
     },
     status: {
       completed: { en: "Completed", es: "Completado" },
