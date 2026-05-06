@@ -10,6 +10,7 @@ import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
 import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh } from "@/components/layout/nav-knowledge";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
+import { useGlobalPanel } from "@/contexts/global-panel-context";
 
 /**
  * Main content component for the Assets page
@@ -19,6 +20,7 @@ function AssetsContent() {
   const queryClient = useQueryClient();
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
+  const { isOpen: isWisyOpen } = useGlobalPanel();
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -70,7 +72,10 @@ function AssetsContent() {
                 </div>
               </div>
             ),
-            defaultSize: 20,
+            defaultSize: isWisyOpen ? 15 : 20,
+            minSize: isWisyOpen ? 10 : 12,
+            collapsible: true,
+            collapsedSize: 0,
           },
           {
             content: (

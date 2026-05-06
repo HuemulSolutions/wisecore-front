@@ -253,6 +253,70 @@ const translations = {
       },
     },
   },
+
+  actions: {
+    refresh: { en: "Refresh", es: "Actualizar" },
+    uploadDocument: { en: "Upload Document", es: "Subir Documento" },
+    pendingReviews: { en: "Pending Reviews", es: "Revisiones Pendientes" },
+    createAsset: { en: "Create Asset", es: "Crear Activo" },
+    pendingReviewsTitle: { en: "Pending Reviews", es: "Revisiones Pendientes" },
+    pendingReviewsDescription: {
+      en: "Documents with pending AI suggestions awaiting review.",
+      es: "Documentos con sugerencias de IA pendientes de revisión.",
+    },
+  },
+
+  filters: {
+    title: { en: "Filters", es: "Filtros" },
+    search: { en: "Search", es: "Buscar" },
+    searchPlaceholder: { en: "Search by name...", es: "Buscar por nombre..." },
+    lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
+    allLifecycleStates: { en: "All states", es: "Todos los estados" },
+    ownerScope: { en: "Owner", es: "Propietario" },
+    allOwners: { en: "All owners", es: "Todos los propietarios" },
+    ownerAll: { en: "All", es: "Todos" },
+    ownerMe: { en: "Me", es: "Yo" },
+    pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
+    unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
+    all: { en: "All", es: "Todos" },
+    yes: { en: "Yes", es: "Sí" },
+    no: { en: "No", es: "No" },
+  },
+
+  executionsTable: {
+    title: { en: "Recent Executions", es: "Ejecuciones Recientes" },
+    columns: {
+      name: { en: "Name", es: "Nombre" },
+      documentName: { en: "Asset", es: "Activo" },
+      version: { en: "Version", es: "Versión" },
+      status: { en: "Status", es: "Estado" },
+      lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
+      taskStatus: { en: "Task Status", es: "Estado de Tarea" },
+      owner: { en: "Owner", es: "Propietario" },
+      totalTokens: { en: "Tokens", es: "Tokens" },
+      updatedAt: { en: "Last Modified", es: "Última Modificación" },
+      expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
+      estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
+      reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
+      auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
+      unresolvedComments: { en: "Comments", es: "Comentarios" },
+    },
+    status: {
+      completed: { en: "Completed", es: "Completado" },
+      failed: { en: "Failed", es: "Fallido" },
+      running: { en: "Running", es: "En ejecución" },
+      pending: { en: "Pending", es: "Pendiente" },
+      queued: { en: "Queued", es: "En cola" },
+    },
+    empty: {
+      title: { en: "No executions found", es: "No se encontraron ejecuciones" },
+      description: { en: "Create an asset and run a version to see it here.", es: "Crea un activo y genera una versión para verla aquí." },
+    },
+    resultsCount: { en: "{{count}} assets found", es: "{{count}} activos encontrados" },
+    actions: {
+      openAsset: { en: "Open asset", es: "Abrir activo" },
+    },
+  },
 }
 
 export default translations

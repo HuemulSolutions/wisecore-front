@@ -67,6 +67,7 @@ import type { ContentSection, FrontendPermissions, LibraryContentProps, Lifecycl
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
+import { useGlobalPanel } from '@/contexts/global-panel-context';
 
 // Utilities and hooks
 import { SectionSeparator } from './components/SectionSeparator';
@@ -151,6 +152,7 @@ export function AssetContent({
   const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
+  const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
   
   // Scroll restoration hook - maintains scroll position across re-renders
   const scrollRestoration = useScrollRestoration(
@@ -570,6 +572,13 @@ export function AssetContent({
   const [isTocSidebarOpen, setIsTocSidebarOpen] = useState(true);
   const [isSectionSheetOpen, setIsSectionSheetOpen] = useState(false);
   const [isDependenciesSheetOpen, setIsDependenciesSheetOpen] = useState(false);
+
+  // Close TOC when Wisy panel opens
+  useEffect(() => {
+    if (isGlobalPanelOpen) {
+      setIsTocSidebarOpen(false);
+    }
+  }, [isGlobalPanelOpen]);
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
@@ -2734,6 +2743,24 @@ export function AssetContent({
                   tooltip={t('content.refreshContent')}
                 />
 
+                {/* TOC Toggle button - desktop only, shown when there's content with headings */}
+                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
+                 (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
+                  <HuemulButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsTocSidebarOpen((prev) => !prev)}
+                    icon={List}
+                    iconClassName="h-3.5 w-3.5"
+                    className={`h-7 px-2 transition-colors hover:cursor-pointer ${
+                      isTocSidebarOpen
+                        ? 'bg-gray-200 text-gray-900 hover:bg-gray-300'
+                        : 'text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                    }`}
+                    tooltip={isTocSidebarOpen ? t('content.hideSidebar') : t('content.showSidebar')}
+                  />
+                )}
+
                 {/* More Options Dropdown - only render when at least one item is available and user is not view-only */}
                 {!isViewOnly &&
                  (!isViewMode || !canSwitchToEditorMode || frontendPermissions.canAccessSectionSheet) &&
@@ -3395,6 +3422,7 @@ export function AssetContent({
 
       {/* Table of Contents Sidebar - only show for documents with content and not during full/full-single executions */}
       {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 && 
+       isTocSidebarOpen &&
        (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
         <>
           <ResizableHandle/>
