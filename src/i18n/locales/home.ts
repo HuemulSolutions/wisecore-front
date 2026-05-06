@@ -295,6 +295,10 @@ const translations = {
       owner: { en: "Owner", es: "Propietario" },
       totalTokens: { en: "Tokens", es: "Tokens" },
       updatedAt: { en: "Last Modified", es: "Última Modificación" },
+      expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
+      estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
+      reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
+      auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
     },
     status: {
       completed: { en: "Completed", es: "Completado" },
@@ -308,6 +312,9 @@ const translations = {
       description: { en: "Create an asset and run a version to see it here.", es: "Crea un activo y genera una versión para verla aquí." },
     },
     resultsCount: { en: "{{count}} assets found", es: "{{count}} activos encontrados" },
+    actions: {
+      openAsset: { en: "Open asset", es: "Abrir activo" },
+    },
   },
 }
 
