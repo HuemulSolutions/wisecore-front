@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
-import { FileUp, ClipboardList, Plus, GitBranch, MessageSquare, ChevronDown, RefreshCw } from 'lucide-react';
+import { FileUp, ClipboardList, Plus, GitBranch, MessageSquare, ChevronDown, RefreshCw, ExternalLink, MessageCircle } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulTable } from '@/huemul/components/huemul-table';
-import type { HuemulTableColumn } from '@/huemul/components/huemul-table';
+import type { HuemulTableColumn, HuemulTableAction } from '@/huemul/components/huemul-table';
 import { ImportAssetFromFileDialog } from '@/components/assets/dialogs/assets-import-from-file-dialog';
 import { CreateAssetDialog } from '@/components/assets/dialogs/assets-create-dialog';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
 import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useOrganization } from '@/contexts/organization-context';
 import type { Execution, ExecutionLifecycleState } from '@/types/executions';
-import { formatRelativeTime } from '@/lib/format-relative-time';
+import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -54,11 +54,36 @@ export default function Home() {
 
   const executions = data?.data ?? [];
 
+  const tableActions: HuemulTableAction<Execution>[] = [
+    {
+      key: 'openAsset',
+      label: t('executionsTable.actions.openAsset'),
+      icon: ExternalLink,
+      onClick: (item) => {
+        const url = `${window.location.origin}/${selectedOrganizationId}/asset/${item.document_id}?execution=${item.id}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+      },
+    },
+  ];
+
   const columns: HuemulTableColumn<Execution>[] = [
     {
       key: 'documentName',
       label: t('executionsTable.columns.documentName'),
       render: (item) => <span className="font-medium">{item.document_name}</span>,
+    },
+    {
+      key: 'unresolvedComments',
+      label: t('executionsTable.columns.unresolvedComments'),
+      render: (item) =>
+        item.unresolved_comments_count > 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
+            <MessageCircle className="h-3.5 w-3.5" />
+            {item.unresolved_comments_count}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: 'version',
@@ -98,6 +123,42 @@ export default function Home() {
       render: (item) => (
         <span className="text-muted-foreground" title={item.updated_at}>
           {formatRelativeTime(item.updated_at)}
+        </span>
+      ),
+    },
+    {
+      key: 'expirationDate',
+      label: t('executionsTable.columns.expirationDate'),
+      render: (item) => (
+        <span className="text-muted-foreground" title={item.expiration_date ?? undefined}>
+          {item.expiration_date ? formatAbsoluteDate(item.expiration_date) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'estimatedPublicationDate',
+      label: t('executionsTable.columns.estimatedPublicationDate'),
+      render: (item) => (
+        <span className="text-muted-foreground" title={item.estimated_publication_date ?? undefined}>
+          {item.estimated_publication_date ? formatAbsoluteDate(item.estimated_publication_date) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'reviewDate',
+      label: t('executionsTable.columns.reviewDate'),
+      render: (item) => (
+        <span className="text-muted-foreground" title={item.review_date ?? undefined}>
+          {item.review_date ? formatAbsoluteDate(item.review_date) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'auditDate',
+      label: t('executionsTable.columns.auditDate'),
+      render: (item) => (
+        <span className="text-muted-foreground" title={item.audit_date ?? undefined}>
+          {item.audit_date ? formatAbsoluteDate(item.audit_date) : '—'}
         </span>
       ),
     },
@@ -214,6 +275,8 @@ export default function Home() {
                   getRowKey={(item) => item.id}
                   isLoading={isLoading}
                   isFetching={isFetching}
+                  actions={tableActions}
+                  actionsMode="inline"
                   className="h-full"
                   maxHeight=""
                   emptyState={{

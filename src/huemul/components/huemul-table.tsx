@@ -186,7 +186,7 @@ export function HuemulTable<T>({
                 </TableHead>
               ))}
               {hasActions && (
-                <TableHead className="h-auto px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-[1%] whitespace-nowrap">
+                <TableHead className="h-auto px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-[1%] whitespace-nowrap sticky right-0 z-20 bg-muted border-l border-border">
                   {t("actions")}
                 </TableHead>
               )}
@@ -212,7 +212,7 @@ export function HuemulTable<T>({
                       </TableCell>
                     ))}
                     {hasActions && (
-                      <TableCell className="px-4 py-3 text-right">
+                      <TableCell className="px-4 py-3 text-right sticky right-0 bg-background border-l border-border">
                         <Skeleton className="h-7 w-7 ml-auto" />
                       </TableCell>
                     )}
@@ -223,7 +223,7 @@ export function HuemulTable<T>({
                   const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
 
                   return (
-                    <TableRow key={key} className="bg-background hover:bg-muted/30">
+                    <TableRow key={key} className="group bg-background hover:bg-muted/30">
                       {columns.map((col) => (
                         <TableCell
                           key={col.key}
@@ -242,7 +242,7 @@ export function HuemulTable<T>({
                       ))}
 
                       {hasActions && (
-                        <TableCell className="px-4 py-3 text-right whitespace-nowrap">
+                        <TableCell className="px-4 py-3 text-right whitespace-nowrap sticky right-0 z-10 bg-background group-hover:bg-muted/30 border-l border-border">
                           {actionsMode === "inline" ? (
                             // ── Inline icon buttons ──
                             <div className="flex items-center justify-end gap-1">

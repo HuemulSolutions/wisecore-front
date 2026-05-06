@@ -1,32 +1,23 @@
 import { useState, useCallback, useEffect } from "react"
 import { useParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Play, History, Home, CheckCircle2, SkipForward, XCircle, FileSpreadsheet, Download } from "lucide-react"
+import { Play, History, Home, CheckCircle2, SkipForward, XCircle, FileSpreadsheet, Download, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { MassExecutionForm } from "@/components/execution/mass-execution-form"
 import type { MassExecutionConfig } from "@/components/execution/mass-execution-form"
-import { ExcelExportForm } from "@/components/execution/excel-export-form"
-import type { ExcelExportConfig } from "@/components/execution/excel-export-form"
+import { CombinedExportForm } from "@/components/execution/combined-export-form"
+import type { CombinedExportConfig } from "@/components/execution/combined-export-form"
 import { AssetSelectionPanel } from "@/components/execution/asset-selection-panel"
 import { ChangeHistoryPanel } from "@/components/execution/change-history-panel"
-import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection, bulkExportExcel } from "@/services/executions"
+import { bulkGenerateByTemplateSection, bulkAiFixByTemplateSection, bulkExportExcel, bulkExportCustomWord } from "@/services/executions"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { cn } from "@/lib/utils"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 
 type AdvancedSection = "home" | "mass-execution" | "change-history" | "excel-export"
 
@@ -46,6 +37,8 @@ export default function AdvancedPage() {
 
   const canAccessMassExecution = canListTemplates && canListTemplateSections && canListExecutions
   const canAccessExcelExport = isOrgAdmin || (canListTemplates && canListTemplateSections && canListExecutions)
+  const canAccessWordExport = isOrgAdmin || hasPermission('version:r')
+  const canAccessExports = canAccessExcelExport || canAccessWordExport
 
   const VALID_SECTIONS: AdvancedSection[] = ["home", "mass-execution", "change-history", "excel-export"]
   const activeSection: AdvancedSection =
@@ -60,8 +53,8 @@ export default function AdvancedPage() {
   const [showResultDialog, setShowResultDialog] = useState(false)
   const [selectionKey, setSelectionKey] = useState(0)
 
-  const [selectedExcelTemplateId, setSelectedExcelTemplateId] = useState("")
-  const [excelExportConfig, setExcelExportConfig] = useState<ExcelExportConfig | null>(null)
+  const [selectedExportTemplateId, setSelectedExportTemplateId] = useState("")
+  const [combinedExportConfig, setCombinedExportConfig] = useState<CombinedExportConfig | null>(null)
   const [isExporting, setIsExporting] = useState(false)
 
   // Reset form state when leaving mass-execution
@@ -76,8 +69,8 @@ export default function AdvancedPage() {
   // Reset form state when leaving excel-export
   useEffect(() => {
     if (activeSection !== "excel-export") {
-      setSelectedExcelTemplateId("")
-      setExcelExportConfig(null)
+      setSelectedExportTemplateId("")
+      setCombinedExportConfig(null)
     }
   }, [activeSection])
 
@@ -87,6 +80,10 @@ export default function AdvancedPage() {
 
   const handleNavigateToSection = useCallback((section: AdvancedSection) => {
     navigate(`/advanced/${section}`)
+  }, [navigate])
+
+  const navigateToExportTab = useCallback(() => {
+    navigate(`/advanced/excel-export`)
   }, [navigate])
 
   const handleExecute = useCallback(async (executionIds: string[]) => {
@@ -132,28 +129,43 @@ export default function AdvancedPage() {
     }
   }, [massExecutionConfig, selectedOrganizationId, canCreateExecution, t])
 
-  const handleExcelExport = useCallback(async (executionIds: string[]) => {
-    if (!excelExportConfig || !selectedOrganizationId) return
+  const handleExport = useCallback(async (executionIds: string[]) => {
+    if (!combinedExportConfig || !selectedOrganizationId) return
     setIsExporting(true)
     try {
-      await bulkExportExcel({
-        templateId: excelExportConfig.templateId,
-        executionIds,
-        templateSectionIds: excelExportConfig.templateSectionIds,
-        organizationId: selectedOrganizationId,
-      })
-      toast.success(t("excelExport.exportSuccess"))
+      if (combinedExportConfig.type === "excel") {
+        await bulkExportExcel({
+          templateId: combinedExportConfig.templateId,
+          executionIds,
+          templateSectionIds: combinedExportConfig.templateSectionIds,
+          organizationId: selectedOrganizationId,
+        })
+        toast.success(t("excelExport.exportSuccess"))
+      } else {
+        const useTemplateDocx = combinedExportConfig.docxSource === "template"
+        await bulkExportCustomWord({
+          templateId: combinedExportConfig.templateId,
+          executionIds,
+          docxTemplateId: useTemplateDocx ? combinedExportConfig.docxTemplateId : null,
+          file: useTemplateDocx ? combinedExportConfig.file : null,
+          organizationId: selectedOrganizationId,
+        })
+        toast.success(t("wordExport.exportSuccess"))
+      }
     } catch (error) {
-      handleApiError(error, { fallbackMessage: t("excelExport.exportError"), showDescription: false })
+      handleApiError(error, {
+        fallbackMessage: combinedExportConfig.type === "excel" ? t("excelExport.exportError") : t("wordExport.exportError"),
+        showDescription: false,
+      })
     } finally {
       setIsExporting(false)
     }
-  }, [excelExportConfig, selectedOrganizationId, t])
+  }, [combinedExportConfig, selectedOrganizationId, t])
 
   const menuItems: { key: AdvancedSection; label: string; icon: React.ElementType; visible: boolean }[] = [
     { key: "home", label: t("menu.home"), icon: Home, visible: true },
     { key: "mass-execution", label: t("menu.massExecution"), icon: Play, visible: canAccessMassExecution },
-    { key: "excel-export", label: t("menu.excelExport"), icon: FileSpreadsheet, visible: canAccessExcelExport },
+    { key: "excel-export", label: t("menu.excelExport"), icon: FileSpreadsheet, visible: canAccessExports },
     { key: "change-history", label: t("menu.changeHistory"), icon: History, visible: canListExecutions },
   ]
 
@@ -161,7 +173,7 @@ export default function AdvancedPage() {
 
   const sidebar = (
     <nav className="flex flex-col gap-1 p-4">
-      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 truncate">
         {t("title")}
       </h2>
       {visibleMenuItems.map((item) => {
@@ -171,14 +183,14 @@ export default function AdvancedPage() {
             key={item.key}
             onClick={() => handleSectionChange(item.key)}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:cursor-pointer",
+              "flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:cursor-pointer",
               activeSection === item.key
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <Icon className="h-4 w-4" />
-            {item.label}
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{item.label}</span>
           </button>
         )
       })}
@@ -207,9 +219,9 @@ export default function AdvancedPage() {
             </div>
           </button>
         )}
-        {canAccessExcelExport && (
+        {canAccessExports && (
           <button
-            onClick={() => handleNavigateToSection("excel-export")}
+            onClick={() => navigateToExportTab()}
             className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-muted hover:cursor-pointer"
           >
             <FileSpreadsheet className="h-5 w-5 mt-0.5 shrink-0 text-primary" />
@@ -244,18 +256,22 @@ export default function AdvancedPage() {
     </div>
   )
 
-  const excelExportForm = (
-    <div className="p-6 h-full overflow-y-auto scrollbar-hide">
-      <ExcelExportForm
-        onTemplateChange={setSelectedExcelTemplateId}
-        onConfigChange={setExcelExportConfig}
+  const exportForm = (
+    <div className="p-6 h-full overflow-y-auto scrollbar-hide flex flex-col gap-6">
+      <CombinedExportForm
+        canAccessExcelExport={canAccessExcelExport}
+        canAccessWordExport={canAccessWordExport}
+        onTemplateChange={setSelectedExportTemplateId}
+        onConfigChange={setCombinedExportConfig}
       />
     </div>
   )
 
   const executeDisabled = !canCreateExecution || !massExecutionConfig || !massExecutionConfig.sectionId || (massExecutionConfig.editType === "execute-ai" && (!massExecutionConfig.llmId || !canListLlms)) || (massExecutionConfig.editType === "edit-ai" && massExecutionConfig.executionMode !== "review" && massExecutionConfig.executionMode !== "save") || (massExecutionConfig.editType === "edit-ai" && !massExecutionConfig.instructions?.trim()) || (massExecutionConfig.editType !== "execute-ai" && massExecutionConfig.editType !== "edit-ai")
 
-  const excelExportDisabled = !canAccessExcelExport || !excelExportConfig || !excelExportConfig.templateId || excelExportConfig.templateSectionIds.length === 0
+  const exportDisabled = !combinedExportConfig
+    || (combinedExportConfig.type === "excel" && (!canAccessExcelExport || combinedExportConfig.templateSectionIds.length === 0))
+    || (combinedExportConfig.type === "word" && (!canAccessWordExport || !combinedExportConfig.docxTemplateId))
 
   const assetSelection = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
@@ -269,13 +285,13 @@ export default function AdvancedPage() {
     </div>
   )
 
-  const excelAssetSelection = (
+  const exportAssetSelection = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
       <AssetSelectionPanel
-        templateId={selectedExcelTemplateId}
-        onExecute={handleExcelExport}
+        templateId={selectedExportTemplateId}
+        onExecute={handleExport}
         isExecuting={isExporting}
-        executeDisabled={excelExportDisabled}
+        executeDisabled={exportDisabled}
         actionLabel={t("assetSelection.export")}
         actionLoadingLabel={t("assetSelection.exporting")}
         ActionIcon={Download}
@@ -293,16 +309,17 @@ export default function AdvancedPage() {
   const isExcelExport = activeSection === "excel-export"
   const isHome = activeSection === "home"
 
-  const sectionIcon = isMassExecution ? Play : isExcelExport ? FileSpreadsheet : History
+  const activeExportType = combinedExportConfig?.type
+  const sectionIcon = isMassExecution ? Play : isExcelExport ? (activeExportType === "word" ? FileText : FileSpreadsheet) : History
   const sectionTitle = isMassExecution
     ? t("home.massExecution.title")
     : isExcelExport
-      ? t("home.excelExport.title")
+      ? (activeExportType === "word" ? t("home.wordExport.title") : t("home.excelExport.title"))
       : t("home.changeHistory.title")
   const sectionDescription = isMassExecution
     ? t("home.massExecution.description")
     : isExcelExport
-      ? t("home.excelExport.description")
+      ? (activeExportType === "word" ? t("home.wordExport.description") : t("home.excelExport.description"))
       : t("home.changeHistory.description")
 
   const pageHeader = !isHome ? (
@@ -319,7 +336,7 @@ export default function AdvancedPage() {
     : isMassExecution
       ? massExecutionForm
       : isExcelExport
-        ? excelExportForm
+        ? exportForm
         : changeHistory
 
   const innerLayout = (
@@ -330,13 +347,15 @@ export default function AdvancedPage() {
         {
           content: leftContent,
           defaultSize: isMassExecution || isExcelExport ? 35 : 100,
-          resizable: false,
+          minSize: 20,
+          maxSize: 80,
         },
         {
-          content: isMassExecution ? assetSelection : excelAssetSelection,
+          content: isMassExecution ? assetSelection : exportAssetSelection,
           defaultSize: 65,
+          minSize: 20,
+          maxSize: 80,
           show: isMassExecution || isExcelExport,
-          resizable: false,
         },
       ]}
     />
@@ -346,56 +365,49 @@ export default function AdvancedPage() {
     <>
       <HuemulPageLayout
         columns={[
-          { content: sidebar, defaultSize: 15, resizable: false },
-          { content: innerLayout, defaultSize: 85, resizable: false },
+          { content: sidebar, defaultSize: 15, minSize: 12, maxSize: 50 },
+          { content: innerLayout, defaultSize: 85, minSize: 50 },
         ]}
       />
 
-      <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("massExecution.result.title")}</DialogTitle>
-            <DialogDescription>
-              {t("massExecution.result.total", { count: executionResult?.total ?? 0 })}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex items-center gap-4 rounded-lg border p-4">
-              <CheckCircle2 className="h-8 w-8 shrink-0 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{t("massExecution.result.enqueued")}</p>
-                <p className="text-xs text-muted-foreground">{t("massExecution.result.enqueuedDescription")}</p>
-              </div>
-              <span className="text-2xl font-bold text-primary">{executionResult?.enqueued ?? 0}</span>
+      <HuemulDialog
+        open={showResultDialog}
+        onOpenChange={setShowResultDialog}
+        title={t("massExecution.result.title")}
+        description={t("massExecution.result.total", { count: executionResult?.total ?? 0 })}
+        showCancelButton={false}
+        saveAction={{ label: t("massExecution.result.close"), closeOnSuccess: true }}
+        maxWidth="sm:max-w-md"
+      >
+        <div className="flex flex-col gap-3 py-2">
+          <div className="flex items-center gap-4 rounded-lg border p-4">
+            <CheckCircle2 className="h-8 w-8 shrink-0 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{t("massExecution.result.enqueued")}</p>
+              <p className="text-xs text-muted-foreground">{t("massExecution.result.enqueuedDescription")}</p>
             </div>
-
-            <div className="flex items-center gap-4 rounded-lg border p-4">
-              <SkipForward className="h-8 w-8 shrink-0 text-yellow-500" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{t("massExecution.result.skipped")}</p>
-                <p className="text-xs text-muted-foreground">{t("massExecution.result.skippedDescription")}</p>
-              </div>
-              <span className="text-2xl font-bold text-yellow-500">{executionResult?.skipped ?? 0}</span>
-            </div>
-
-            <div className="flex items-center gap-4 rounded-lg border p-4">
-              <XCircle className="h-8 w-8 shrink-0 text-destructive" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{t("massExecution.result.failed")}</p>
-                <p className="text-xs text-muted-foreground">{t("massExecution.result.failedDescription")}</p>
-              </div>
-              <span className="text-2xl font-bold text-destructive">{executionResult?.failed ?? 0}</span>
-            </div>
+            <span className="text-2xl font-bold text-primary">{executionResult?.enqueued ?? 0}</span>
           </div>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button className="w-full hover:cursor-pointer">{t("massExecution.result.close")}</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="flex items-center gap-4 rounded-lg border p-4">
+            <SkipForward className="h-8 w-8 shrink-0 text-yellow-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{t("massExecution.result.skipped")}</p>
+              <p className="text-xs text-muted-foreground">{t("massExecution.result.skippedDescription")}</p>
+            </div>
+            <span className="text-2xl font-bold text-yellow-500">{executionResult?.skipped ?? 0}</span>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-lg border p-4">
+            <XCircle className="h-8 w-8 shrink-0 text-destructive" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{t("massExecution.result.failed")}</p>
+              <p className="text-xs text-muted-foreground">{t("massExecution.result.failedDescription")}</p>
+            </div>
+            <span className="text-2xl font-bold text-destructive">{executionResult?.failed ?? 0}</span>
+          </div>
+        </div>
+      </HuemulDialog>
     </>
   )
 }

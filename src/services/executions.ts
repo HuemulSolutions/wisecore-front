@@ -2,6 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams } from "@/types/executions";
+import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 
 export async function getAllExecutions(
   organizationId: string,
@@ -237,8 +238,64 @@ export async function exportExecutionToWord(executionId: string, organizationId:
     return exportExecutionFile(executionId, 'word', organizationId);
 }
 
-export async function exportExecutionCustomWord(executionId: string, organizationId: string) {
-    return exportExecutionFile(executionId, 'custom_word', organizationId);
+export async function exportExecutionCustomWord(
+    executionId: string,
+    organizationId: string,
+    options: { docxTemplateId?: string; file?: File } = {},
+): Promise<{ success: true }> {
+    const { docxTemplateId, file } = options
+    const orgToken = httpClient.getOrganizationToken()
+
+    const formData = new FormData()
+    if (docxTemplateId) formData.append('docx_template_id', docxTemplateId)
+    if (file) formData.append('file', file)
+
+    const response = await fetch(`${backendUrl}/execution/${executionId}/export_custom_word`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${orgToken}`,
+            'X-Org-Id': organizationId,
+        },
+        body: formData,
+    })
+
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        if (ApiError.isApiErrorResponse(errorBody)) throw new ApiError(errorBody)
+        throw new Error(errorBody?.message ?? 'Error al exportar a Word')
+    }
+
+    const blob = await response.blob()
+    const contentDisposition = response.headers.get('content-disposition')
+    let filename = `execution_${executionId}.docx`
+    if (contentDisposition) {
+        const match = contentDisposition.match(/filename="([^"]+)"/) ||
+                      contentDisposition.match(/filename=([^;]+)/)
+        if (match?.[1]) filename = match[1].trim()
+    }
+
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    return { success: true }
+}
+
+export async function getAvailableDocxTemplatesForExecution(
+    executionId: string,
+    organizationId: string,
+): Promise<AvailableDocxTemplate[]> {
+    const response = await httpClient.get(
+        `${backendUrl}/execution/${executionId}/available_docx_templates`,
+        { headers: { 'X-Org-Id': organizationId } },
+    )
+    const data = (await response.json()) as AvailableDocxTemplatesResponse
+    return data.data
 }
 
 export async function exportExecutionToExcel(executionId: string, organizationId: string) {
@@ -495,6 +552,68 @@ export async function bulkExportExcel({
     const contentDisposition = response.headers.get('content-disposition');
 
     let filename = `bulk_export.xlsx`;
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/) ||
+                             contentDisposition.match(/filename=([^;]+)/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].trim();
+        }
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
+}
+
+export async function bulkExportCustomWord({
+    templateId,
+    executionIds,
+    docxTemplateId,
+    file,
+    organizationId,
+}: {
+    templateId: string;
+    executionIds: string[];
+    docxTemplateId?: string | null;
+    file?: File | null;
+    organizationId: string;
+}) {
+    const orgToken = httpClient.getOrganizationToken();
+
+    const formData = new FormData();
+    formData.append('template_id', templateId);
+    executionIds.forEach((id) => formData.append('execution_ids', id));
+    if (docxTemplateId) formData.append('docx_template_id', docxTemplateId);
+    if (file) formData.append('file', file);
+
+    const response = await fetch(`${backendUrl}/execution/bulk_export_custom_word`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${orgToken}`,
+            'X-Org-Id': organizationId,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        if (ApiError.isApiErrorResponse(errorBody)) {
+            throw new ApiError(errorBody);
+        }
+        throw new Error(errorBody?.message ?? 'Error al exportar a Word');
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('content-disposition');
+
+    let filename = `bulk_export.zip`;
     if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="([^"]+)"/) ||
                              contentDisposition.match(/filename=([^;]+)/);

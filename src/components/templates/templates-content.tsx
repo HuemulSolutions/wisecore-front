@@ -16,6 +16,7 @@ import { TemplateSectionsList } from "./templates-sections-list";
 import { TemplateEmptyState } from "./templates-empty-state";
 import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
 import { CreateTemplateDialog } from "./templates-create-dialog";
+import { TemplateDocxList } from "./templates-docx-list";
 
 interface TemplateItem {
   id: string;
@@ -210,6 +211,12 @@ export function TemplateContent({
                     >
                       {t('templates:content.customFieldsTab')}
                     </TabsTrigger>
+                    <TabsTrigger 
+                      value="docx-templates" 
+                      className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                    >
+                      {t('templates:content.docxTemplatesTab')}
+                    </TabsTrigger>
                   </TabsList>
                   
                   {/* Action Icons */}
@@ -333,6 +340,18 @@ export function TemplateContent({
               <TabsContent value="custom-fields" className="mt-0 flex-1 overflow-auto bg-gray-50">
                 {selectedTemplate && (
                   <TemplateCustomFields templateId={selectedTemplate.id} />
+                )}
+              </TabsContent>
+
+              <TabsContent value="docx-templates" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                {selectedTemplate && (
+                  <TemplateDocxList
+                    templateId={selectedTemplate.id}
+                    organizationId={selectedOrganizationId!}
+                    canCreate={canUpdate}
+                    canUpdate={canUpdate}
+                    canDelete={canDelete}
+                  />
                 )}
               </TabsContent>
             </Tabs>

@@ -39,3 +39,13 @@ export function formatRelativeTime(dateString: string): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Formats a date string as a locale-aware absolute date (no relative time).
+ * Uses the browser's language setting.
+ */
+export function formatAbsoluteDate(dateString: string): string {
+  const date = parseApiDate(dateString);
+  const locale = navigator.language || 'en-US';
+  return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
