@@ -372,6 +372,12 @@ const translations = {
     useExistingTemplate: { en: "Use Existing Template", es: "Usar Plantilla Existente" },
     existingDescription: { en: "Export using the previously uploaded template for this asset.", es: "Exporta usando la plantilla previamente subida para este activo." },
     exportWithExisting: { en: "Export with Existing Template", es: "Exportar con Plantilla Existente" },
+    availableTemplates: { en: "Available Templates", es: "Plantillas Disponibles" },
+    noTemplatesAvailable: { en: "No templates available. Upload a template first.", es: "No hay plantillas disponibles. Sube una plantilla primero." },
+    loadingTemplates: { en: "Loading templates...", es: "Cargando plantillas..." },
+    export: { en: "Export", es: "Exportar" },
+    sourceDocument: { en: "Document template", es: "Plantilla del documento" },
+    sourceTemplate: { en: "Inherited from template", es: "Heredada de la plantilla" },
   },
   content: {
     welcomeTitle: { en: "Welcome to Assets", es: "Bienvenido a Activos" },
