@@ -335,7 +335,7 @@ export function TemplateDocxList({
               loading={isFetching}
               tooltip={t("common:refresh")}
               className="h-8 w-8 p-0 hover:bg-gray-100"
-              onClick={() => refetch()}
+              onClick={() => { refetch(); }}
             />
             {canCreate && templates.length > 0 && (
               <HuemulButton
