@@ -271,7 +271,7 @@ export default function AdvancedPage() {
 
   const exportDisabled = !combinedExportConfig
     || (combinedExportConfig.type === "excel" && (!canAccessExcelExport || combinedExportConfig.templateSectionIds.length === 0))
-    || (combinedExportConfig.type === "word" && (!canAccessWordExport || !combinedExportConfig.docxSource))
+    || (combinedExportConfig.type === "word" && (!canAccessWordExport || !combinedExportConfig.docxTemplateId))
 
   const assetSelection = (
     <div className="p-6 h-full overflow-y-auto scrollbar-hide">
