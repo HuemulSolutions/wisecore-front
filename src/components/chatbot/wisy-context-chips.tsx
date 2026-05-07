@@ -17,13 +17,13 @@ function WisyContextChip({ item, onRemove }: WisyContextChipProps) {
   const Icon = config.icon;
 
   return (
-    <span className="inline-flex items-center gap-1 max-w-[180px] rounded-md bg-primary/8 text-primary pl-1.5 pr-0.5 py-0.5 text-[11px] leading-tight">
-      <Icon className="w-3 h-3 shrink-0" />
+    <span className="inline-flex items-center gap-1 max-w-[180px] rounded-md bg-primary text-primary-foreground pl-1.5 pr-0.5 py-0.5 text-[11px] leading-tight font-medium shadow-sm">
+      <Icon className="w-3 h-3 shrink-0 opacity-80" />
       <span className="truncate">{item.name}</span>
       <button
         type="button"
         onClick={() => onRemove(item.type, item.id)}
-        className="shrink-0 rounded p-0.5 hover:bg-primary/15 hover:cursor-pointer transition-colors"
+        className="shrink-0 rounded p-0.5 hover:bg-white/20 hover:cursor-pointer transition-colors"
       >
         <X className="w-2.5 h-2.5" />
       </button>
@@ -63,7 +63,7 @@ export function WisyContextChips({ items, onRemove, currentPageContext, onAddCur
         <button
           type="button"
           onClick={onAddCurrentPage}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary/30 bg-primary/5 pl-1.5 pr-1.5 py-0.5 text-[11px] leading-tight text-primary hover:bg-primary/10 hover:cursor-pointer transition-colors"
+          className="inline-flex items-center gap-1 rounded-md border border-dashed border-muted-foreground/40 bg-transparent pl-1.5 pr-1.5 py-0.5 text-[11px] leading-tight text-muted-foreground hover:border-primary/60 hover:text-primary hover:bg-primary/5 hover:cursor-pointer transition-colors"
         >
           {currentPageContext.type === 'execution' ? (
             <Zap className="w-3 h-3 shrink-0" />

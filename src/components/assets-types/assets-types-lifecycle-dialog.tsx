@@ -187,7 +187,7 @@ function StepContent({
         hasSla={stepType === "publish" || stepType === "archive"}
         hasValidity={stepType === "create"}
         noOwner={stepType === "create"}
-        useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read"}
+        useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
         onEditingChange={onEditingChange}
       />
     )

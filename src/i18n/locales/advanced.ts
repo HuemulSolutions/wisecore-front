@@ -3,7 +3,8 @@ const translations = {
   menu: {
     home: { en: "Home", es: "Inicio" },
     massExecution: { en: "Mass Execution", es: "Ejecución masiva" },
-    excelExport: { en: "Excel Export", es: "Exportación Excel" },
+    excelExport: { en: "Mass Export", es: "Exportación masiva" },
+    wordExport: { en: "Word Export", es: "Exportación Word" },
     changeHistory: { en: "Pending Changes", es: "Cambios pendientes" },
   },
   home: {
@@ -28,10 +29,17 @@ const translations = {
       },
     },
     excelExport: {
-      title: { en: "Mass Excel Export", es: "Exportación masiva a Excel" },
+      title: { en: "Excel Export", es: "Exportación Excel" },
       description: {
         en: "Export data from multiple assets to Excel at once. Select a template, choose the sections to include, and download the result.",
         es: "Exporta datos de múltiples activos a Excel a la vez. Selecciona un template, elige las secciones a incluir y descarga el resultado.",
+      },
+    },
+    wordExport: {
+      title: { en: "Word Export", es: "Exportación Word" },
+      description: {
+        en: "Export multiple assets as Word documents in a ZIP file. Optionally upload a DOCX template to customize the output.",
+        es: "Exporta múltiples activos como documentos Word en un archivo ZIP. Opcionalmente sube un template DOCX para personalizar el resultado.",
       },
     },
   },
@@ -183,6 +191,7 @@ const translations = {
   },
   excelExport: {
     steps: {
+      exportType: { en: "Export format", es: "Formato de exportación" },
       sections: { en: "Sections to export", es: "Secciones a exportar" },
     },
     noSections: { en: "No sections available", es: "No hay secciones disponibles" },
@@ -192,6 +201,25 @@ const translations = {
     noResults: { en: "No sections found", es: "No se encontraron secciones" },
     exportSuccess: { en: "Excel export started successfully", es: "Exportación a Excel iniciada exitosamente" },
     exportError: { en: "Failed to export to Excel", es: "Error al exportar a Excel" },
+  },
+  wordExport: {
+    steps: {
+      docxTemplate: { en: "Word template", es: "Template Word" },
+    },
+    sourceAsset: { en: "Asset template", es: "Template del activo" },
+    sourceAssetDescription: { en: "Each asset uses its own DOCX template.", es: "Cada activo usa su propia plantilla DOCX." },
+    sourceTemplate: { en: "Template's DOCX", es: "DOCX de la plantilla" },
+    sourceTemplateDescription: { en: "Use a DOCX template from the selected template.", es: "Usa una plantilla DOCX de la plantilla seleccionada." },
+    selectTemplateFirst: { en: "Select a template first to see its DOCX templates.", es: "Selecciona un template primero para ver sus plantillas DOCX." },
+    loadingDocxTemplates: { en: "Loading DOCX templates...", es: "Cargando plantillas DOCX..." },
+    noDocxTemplates: { en: "No DOCX templates found for this template.", es: "No se encontraron plantillas DOCX para este template." },
+    selectDocxTemplate: { en: "Select a DOCX template...", es: "Seleccionar una plantilla DOCX..." },
+    searchDocxTemplates: { en: "Search templates...", es: "Buscar plantillas..." },
+    noDocxResults: { en: "No templates match your search", es: "No hay plantillas que coincidan con tu búsqueda" },
+    orUploadFile: { en: "or upload a file", es: "o sube un archivo" },
+    uploadDocxTemplate: { en: "Upload .docx template", es: "Subir template .docx" },
+    exportSuccess: { en: "Word export started successfully", es: "Exportación Word iniciada exitosamente" },
+    exportError: { en: "Failed to export to Word", es: "Error al exportar a Word" },
   },
 }
 

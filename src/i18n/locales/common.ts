@@ -44,6 +44,12 @@ const translations = {
     of: { en: "of", es: "de" },
     items: { en: "items", es: "elementos" },
   },
+  relativeTime: {
+    justNow: { en: "Just now", es: "Ahora mismo" },
+    minutesAgo: { en: "{{count}}m ago", es: "hace {{count}}m" },
+    hoursAgo: { en: "{{count}}h ago", es: "hace {{count}}h" },
+    yesterday: { en: "Yesterday", es: "Ayer" },
+  },
 }
 
 export default translations
