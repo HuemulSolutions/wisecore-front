@@ -53,6 +53,8 @@ const translations = {
       es: "Esta conversación será eliminada permanentemente. Esta acción no se puede deshacer.",
     },
     cancel: { en: "Cancel", es: "Cancelar" },
+    renameTooltip: { en: "Rename conversation", es: "Renombrar conversación" },
+    deleteTooltip: { en: "Delete conversation", es: "Eliminar conversación" },
   },
   context: {
     label: { en: "Context", es: "Contexto" },

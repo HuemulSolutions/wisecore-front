@@ -356,3 +356,48 @@
     opacity: 1;
   }
 }
+
+/* Wisy panel gradient header */
+.wisy-header-gradient {
+  background: linear-gradient(135deg, oklch(0.569 0.2218 268.76 / 12%), oklch(0.569 0.2218 268.76 / 4%) 50%, transparent 100%);
+}
+
+/* Wisy chat background pattern */
+.wisy-chat-bg {
+  background-color: oklch(0.985 0.002 248);
+  background-image:
+    radial-gradient(oklch(0.569 0.2218 268.76 / 3%) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .wisy-chat-bg {
+  background-color: oklch(0.16 0.04 265);
+  background-image:
+    radial-gradient(oklch(0.569 0.2218 268.76 / 6%) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Wisy floating input area */
+.wisy-input-area {
+  background: linear-gradient(to top, var(--background) 80%, transparent 100%);
+}
+
+/* Wisy sparkle pulse */
+@keyframes wisy-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.wisy-sparkle-pulse {
+  animation: wisy-pulse 2.5s ease-in-out infinite;
+}
+
+/* Wisy AI avatar glow */
+.wisy-avatar-glow {
+  box-shadow: 0 0 8px oklch(0.569 0.2218 268.76 / 25%);
+}
+
+/* Wisy welcome gradient */
+.wisy-welcome-gradient {
+  background: linear-gradient(135deg, oklch(0.569 0.2218 268.76 / 10%), oklch(0.623 0.214 259.815 / 8%) 50%, oklch(0.569 0.2218 268.76 / 4%) 100%);
+}

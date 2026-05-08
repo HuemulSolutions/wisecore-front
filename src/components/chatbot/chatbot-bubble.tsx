@@ -1,5 +1,5 @@
 import Markdown from '@/components/ui/markdown';
-import { AlertCircle, Loader2, FileText, FolderClosed, Zap } from 'lucide-react';
+import { AlertCircle, Loader2, FileText, FolderClosed, Zap, Sparkles, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage, WorkingContextItem } from '@/types/chatbot';
 
@@ -9,11 +9,11 @@ import type { ChatMessage, WorkingContextItem } from '@/types/chatbot';
 
 function TypingIndicator() {
   return (
-    <div className="flex items-center space-x-1 px-0.5 py-0.5">
+    <div className="flex items-center space-x-1.5 px-0.5 py-1">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-1.5 h-1.5 bg-gray-400 rounded-full"
+          className="w-1.5 h-1.5 bg-primary/50 rounded-full"
           style={{
             animation: 'typing-bounce 1.2s ease-in-out infinite',
             animationDelay: `${i * 150}ms`,
@@ -42,7 +42,7 @@ function MessageContextChips({ items }: { items: WorkingContextItem[] }) {
         return (
           <span
             key={`${item.type}:${item.id}`}
-            className="inline-flex items-center gap-1 max-w-[160px] rounded-sm bg-white/15 px-1.5 py-0.5 text-[10px] leading-tight text-primary-foreground/90"
+            className="inline-flex items-center gap-1 max-w-[160px] rounded-full bg-white/15 px-2 py-0.5 text-[10px] leading-tight text-primary-foreground/90"
           >
             <Icon className="w-2.5 h-2.5 shrink-0" />
             <span className="truncate">{item.name}</span>
@@ -83,8 +83,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   // Pending assistant message with no content → show subtle status
   if (!isUser && isPending && !message.content) {
     return (
-      <div className="flex justify-start">
-        <div className="px-3.5 py-2.5 rounded-md text-[13px] bg-card border border-border text-foreground max-w-[85%]">
+      <div className="flex justify-start gap-2">
+        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 wisy-avatar-glow">
+          <Sparkles className="w-3 h-3 text-primary" />
+        </div>
+        <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm text-[13px] bg-card border border-border/60 text-foreground max-w-[80%] shadow-sm">
           <AssistantStatusLine message={message} />
           <div className="opacity-70">
             <TypingIndicator />
@@ -95,14 +98,21 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   }
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} gap-2`}>
+      {/* AI avatar */}
+      {!isUser && (
+        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 wisy-avatar-glow">
+          <Sparkles className="w-3 h-3 text-primary" />
+        </div>
+      )}
+
       <div
-        className={`px-3.5 py-2.5 rounded-md text-[13px] ${
+        className={`px-3.5 py-2.5 text-[13px] ${
           isUser
-            ? 'bg-primary text-primary-foreground max-w-[75%]'
+            ? 'bg-primary text-primary-foreground max-w-[75%] rounded-2xl rounded-tr-sm shadow-md shadow-primary/15'
             : isError
-              ? 'bg-card border border-red-200 text-foreground max-w-[85%]'
-              : 'bg-card border border-border text-foreground max-w-[85%]'
+              ? 'bg-card border border-red-200 text-foreground max-w-[80%] rounded-2xl rounded-tl-sm shadow-sm'
+              : 'bg-card border border-border/60 text-foreground max-w-[80%] rounded-2xl rounded-tl-sm shadow-sm'
         }`}
       >
         {!isUser && isPending && <AssistantStatusLine message={message} />}
@@ -130,6 +140,13 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
       </div>
+
+      {/* User avatar */}
+      {isUser && (
+        <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+          <User className="w-3 h-3 text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 }

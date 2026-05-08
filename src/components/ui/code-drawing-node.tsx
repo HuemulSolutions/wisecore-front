@@ -28,7 +28,7 @@ import {
   useSelected,
 } from 'platejs/react';
 import debounce from 'lodash/debounce.js';
-import { Trash2, DownloadIcon } from 'lucide-react';
+import { Trash2, DownloadIcon, GripHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -194,9 +194,28 @@ export function CodeDrawingElement(
     [editor, element]
   );
 
+  const handleHeightChange = React.useCallback(
+    (height: number) => {
+      const path = editor.api.findPath(element);
+      if (path) {
+        editor.tf.setNodes(
+          {
+            data: {
+              ...element.data,
+              height,
+            },
+          },
+          { at: path }
+        );
+      }
+    },
+    [editor, element]
+  );
+
   const code = element.data?.code ?? '';
   const drawingType = element.data?.drawingType ?? 'Mermaid';
   const drawingMode = element.data?.drawingMode ?? 'Both';
+  const height = (element.data as any)?.height as number | undefined;
 
   const selectionCollapsed = useEditorSelector(
     (editor) => !editor.api.isExpanded(),
@@ -214,9 +233,11 @@ export function CodeDrawingElement(
           drawingMode={drawingMode}
           image={image}
           loading={loading}
+          height={height}
           onCodeChange={handleCodeChange}
           onDrawingTypeChange={handleDrawingTypeChange}
           onDrawingModeChange={handleDrawingModeChange}
+          onHeightChange={handleHeightChange}
           readOnly={readOnly}
           isMobile={isMobile}
         />
@@ -269,9 +290,11 @@ function CodeDrawingPreview({
   drawingMode,
   image,
   loading,
+  height,
   onCodeChange,
   onDrawingTypeChange,
   onDrawingModeChange,
+  onHeightChange,
   readOnly = false,
   isMobile = false,
 }: {
@@ -280,9 +303,11 @@ function CodeDrawingPreview({
   drawingMode: ViewMode;
   image: string;
   loading: boolean;
+  height?: number;
   onCodeChange: (code: string) => void;
   onDrawingTypeChange: (type: CodeDrawingType) => void;
   onDrawingModeChange: (mode: ViewMode) => void;
+  onHeightChange: (height: number) => void;
   readOnly?: boolean;
   isMobile?: boolean;
 }) {
@@ -308,13 +333,61 @@ function CodeDrawingPreview({
     />
   );
 
+  // --- Resize handle state ---
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = React.useState(false);
+  const startYRef = React.useRef(0);
+  const startHeightRef = React.useRef(0);
+
+  const handlePointerDown = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (readOnly) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setIsResizing(true);
+      startYRef.current = e.clientY;
+      startHeightRef.current =
+        containerRef.current?.getBoundingClientRect().height ?? DEFAULT_MIN_HEIGHT;
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [readOnly]
+  );
+
+  const handlePointerMove = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!isResizing) return;
+      const delta = e.clientY - startYRef.current;
+      const newHeight = Math.max(DEFAULT_MIN_HEIGHT, startHeightRef.current + delta);
+      if (containerRef.current) {
+        containerRef.current.style.height = `${newHeight}px`;
+      }
+    },
+    [isResizing]
+  );
+
+  const handlePointerUp = React.useCallback(
+    (e: React.PointerEvent) => {
+      if (!isResizing) return;
+      setIsResizing(false);
+      const delta = e.clientY - startYRef.current;
+      const newHeight = Math.max(DEFAULT_MIN_HEIGHT, startHeightRef.current + delta);
+      onHeightChange(newHeight);
+    },
+    [isResizing, onHeightChange]
+  );
+
+  const resolvedHeight = height ?? undefined;
+
   return (
-    <div
-      className={`flex ${isMobile ? 'flex-col-reverse' : 'flex-col'} group my-4 w-full items-stretch border bg-muted/50 md:flex-row`}
-      style={{
-        minHeight: `${DEFAULT_MIN_HEIGHT}px`,
-      }}
-    >
+    <div className="relative my-4 w-full">
+      <div
+        ref={containerRef}
+        className={`flex ${isMobile ? 'flex-col-reverse' : 'flex-col'} group w-full items-stretch border bg-muted/50 md:flex-row overflow-hidden`}
+        style={{
+          minHeight: `${DEFAULT_MIN_HEIGHT}px`,
+          height: resolvedHeight ? `${resolvedHeight}px` : undefined,
+        }}
+      >
       {showCode && (
         <CodeDrawingTextarea
           code={code}
@@ -338,6 +411,21 @@ function CodeDrawingPreview({
           showBorder={showBorder}
           toolbar={toolbar}
         />
+      )}
+      </div>
+
+      {/* Bottom resize handle */}
+      {!readOnly && (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          className="flex h-3 w-full cursor-row-resize items-center justify-center rounded-b border border-t-0 bg-muted/30 hover:bg-muted/60 transition-colors select-none"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <GripHorizontal className="size-4 text-muted-foreground" />
+        </div>
       )}
     </div>
   );
@@ -492,12 +580,11 @@ function CodeDrawingTextarea({
         </div>
       )}
 
-      <div className="relative flex-1 rounded-md">
+      <div className="relative flex-1 overflow-hidden rounded-md" style={{ minHeight: 0 }}>
         <pre
           className={
-            'm-0 overflow-x-auto p-8 pr-4 font-mono text-sm leading-[normal] [tab-size:2] print:break-inside-avoid'
+            'm-0 h-full overflow-auto p-8 pr-4 font-mono text-sm leading-[normal] [tab-size:2] print:break-inside-avoid'
           }
-          style={{ minHeight: `${DEFAULT_MIN_HEIGHT}px`, height: '100%' }}
         >
           <code className="block h-full w-full">
             <textarea
@@ -506,7 +593,6 @@ function CodeDrawingTextarea({
               onChange={handleChange}
               readOnly={readOnly}
               className="m-0 h-full w-full resize-none overflow-auto border-0 bg-transparent p-0 font-mono text-sm outline-none"
-              style={{ minHeight: `${DEFAULT_MIN_HEIGHT}px` }}
               placeholder="Enter your code here..."
               spellCheck={false}
             />
@@ -540,7 +626,7 @@ function CodeDrawingPreviewArea({
 
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-col ${isMobile ? '' : 'relative'} ${
+      className={`flex min-w-0 flex-1 flex-col overflow-hidden ${isMobile ? '' : 'relative'} ${
         showBorder && isMobile ? 'border-b' : ''
       }`}
     >
@@ -559,15 +645,17 @@ function CodeDrawingPreviewArea({
       {showImage ? (
         <div
           className={
-            'flex flex-1 items-center justify-center rounded-md bg-muted/30 p-4'
+            'flex flex-1 items-center justify-center rounded-md bg-muted/30 p-4 overflow-hidden'
           }
+          style={{ minHeight: 0 }}
         >
           {loading && <div className="text-muted-foreground">Loading...</div>}
           {!loading && image && (
             <img
               src={image}
               alt="Code drawing"
-              className="max-h-full max-w-full object-contain"
+              className="object-contain"
+              style={{ maxWidth: '100%', maxHeight: '100%' }}
             />
           )}
           {!loading && !image && (
