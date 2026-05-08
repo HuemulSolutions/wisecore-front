@@ -35,6 +35,7 @@ const translations = {
   sectionLabel: { en: "Section: {{name}}", es: "Sección: {{name}}" },
   viewDocument: { en: "View Asset", es: "Ver Activo" },
   removeDependency: { en: "Remove Dependency", es: "Eliminar Dependencia" },
+  linkedBadge: { en: "Linked", es: "Vinculado" },
   toast: {
     added: { en: "Dependency added successfully", es: "Dependencia agregada exitosamente" },
     removed: { en: "Dependency removed successfully", es: "Dependencia eliminada exitosamente" },
