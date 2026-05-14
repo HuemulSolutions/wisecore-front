@@ -7,6 +7,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import Markdown from "../ui/markdown";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -63,6 +64,7 @@ export default function SortableSectionSheet({
   currentExecutionId = null,
   useExecutionDeleteDialog = false,
 }: SortableSectionSheetProps) {
+  const { t } = useTranslation(["sections"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -121,7 +123,7 @@ export default function SortableSectionSheet({
           {!isOverlay && !isDisabledSection && (
             <div
               className="hover:cursor-grab cursor-grabbing active:cursor-grabbing shrink-0 flex items-center h-5"
-              title="Drag to reorder"
+              title={t("sections:sortableSection.dragToReorder")}
               {...attributes}
               {...listeners}
             >
@@ -143,17 +145,17 @@ export default function SortableSectionSheet({
                   <h3 className="text-sm font-semibold text-gray-900">{item.name}</h3>
                   {sectionType === 'ai' && (
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                      AI
+                      {t("sections:sortableSection.typeBadgeAi")}
                     </Badge>
                   )}
                   {sectionType === 'manual' && (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                      MANUAL
+                      {t("sections:sortableSection.typeBadgeManual")}
                     </Badge>
                   )}
                   {sectionType === 'reference' && (
                     <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
-                      REFERENCE
+                      {t("sections:sortableSection.typeBadgeReference")}
                     </Badge>
                   )}
                 </div>
@@ -164,7 +166,7 @@ export default function SortableSectionSheet({
                   if (sectionType === 'ai' && item.prompt) {
                     const prompt = (item as any).prompt;
                     return (
-                      <Markdown>{prompt ? `${prompt.substring(0, 150)}...` : 'No content available'}</Markdown>
+                      <Markdown>{prompt ? `${prompt.substring(0, 150)}...` : t("sections:sortableSection.noContentAvailable")}</Markdown>
                     );
                   }
                   
@@ -173,7 +175,7 @@ export default function SortableSectionSheet({
                     const manualInput = (item as any).manual_input;
                     return (
                       <div className="max-h-23 overflow-hidden">
-                        <Markdown>{manualInput ? `${manualInput.substring(0, 150)}...` : 'No content available'}</Markdown>
+                        <Markdown>{manualInput ? `${manualInput.substring(0, 150)}...` : t("sections:sortableSection.noContentAvailable")}</Markdown>
                       </div>
                     );
                   }
@@ -182,7 +184,7 @@ export default function SortableSectionSheet({
                   if (sectionType === 'reference') {
                     const referencedContent = (item as any).referenced_content;
                     return (
-                      <Markdown>{referencedContent ? `${referencedContent.substring(0, 150)}...` : 'No content available'}</Markdown>
+                      <Markdown>{referencedContent ? `${referencedContent.substring(0, 150)}...` : t("sections:sortableSection.noContentAvailable")}</Markdown>
                     );
                   }
                   
@@ -192,7 +194,7 @@ export default function SortableSectionSheet({
                 {/* Dependencies */}
                 {!isExpanded && item.dependencies && item.dependencies.length > 0 && (
                   <div className="mt-2 flex items-center gap-2 min-w-0 overflow-hidden">
-                    <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide shrink-0">Depends on:</span>
+                    <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wide shrink-0">{t("sections:sortableSection.dependsOn")}</span>
                     <div className="flex flex-wrap gap-1 min-w-0 overflow-hidden">
                       {item.dependencies.map((d) => (
                         <Badge key={d.id} variant="outline" className="text-xs shrink-0">
@@ -213,7 +215,7 @@ export default function SortableSectionSheet({
                       size="sm"
                       onClick={() => setIsExpanded(!isExpanded)}
                       className="h-8 w-8 p-0"
-                      title={isExpanded ? "Collapse" : "Expand"}
+                      title={isExpanded ? t("sections:sortableSection.collapse") : t("sections:sortableSection.expand")}
                     >
                       {isExpanded ? (
                         <ChevronUp className="h-4 w-4 text-gray-500" />
@@ -229,7 +231,7 @@ export default function SortableSectionSheet({
                         className="h-8 px-2 text-xs"
                         onClick={() => onAddToCurrentVersion?.(item.id)}
                         disabled={isAddToCurrentVersionPending}
-                        label={isAddToCurrentVersionPending ? "Adding..." : "+ Add section to current version"}
+                        label={isAddToCurrentVersionPending ? t("sections:sortableSection.adding") : t("sections:sortableSection.addToCurrentVersion")}
                       />
                     )}
 
@@ -240,7 +242,7 @@ export default function SortableSectionSheet({
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            title="More options"
+                            title={t("sections:sortableSection.moreOptions")}
                           >
                             <MoreVertical className="h-4 w-4 text-gray-500" />
                           </HuemulButton>
@@ -254,7 +256,7 @@ export default function SortableSectionSheet({
                               className="hover:cursor-pointer"
                             >
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit
+                              {t("sections:sortableSection.edit")}
                             </DropdownMenuItem>
                           )}
                           {canDelete && (
@@ -269,7 +271,7 @@ export default function SortableSectionSheet({
                               }}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
+                              {t("sections:sortableSection.delete")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -286,14 +288,14 @@ export default function SortableSectionSheet({
                 {/* Manual Input */}
                 {sectionType === 'manual' && (
                   <div>
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Manual Input:</h4>
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.manualInputTitle")}</h4>
                     {(item as any).manual_input ? (
                       <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                         <Markdown>{(item as any).manual_input}</Markdown>
                       </div>
                     ) : (
                       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p className="text-sm text-gray-500 italic">No content yet. This is a manual section where content can be entered directly.</p>
+                        <p className="text-sm text-gray-500 italic">{t("sections:sortableSection.noManualContent")}</p>
                       </div>
                     )}
                   </div>
@@ -303,18 +305,18 @@ export default function SortableSectionSheet({
                 {sectionType === 'reference' && (item as any).reference_section_id && (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Reference Configuration:</h4>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.referenceConfigTitle")}</h4>
                       <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 space-y-2">
                         <div className="text-sm">
-                          <span className="font-medium text-purple-900">Asset Name:</span>{' '}
+                          <span className="font-medium text-purple-900">{t("sections:sortableSection.assetNameLabel")}</span>{' '}
                           <span className="text-purple-700 font-mono text-xs">{(item as any).reference_section_name}</span>
                         </div>
                         <div className="text-sm">
-                          <span className="font-medium text-purple-900">Mode:</span>{' '}
+                          <span className="font-medium text-purple-900">{t("sections:sortableSection.modeLabel")}</span>{' '}
                           <span className="text-purple-700">{(item as any).reference_mode || 'latest'}</span>
                         </div>
                         <div className="text-sm">
-                          <span className="font-medium text-purple-900">Execution Name:</span>{' '}
+                          <span className="font-medium text-purple-900">{t("sections:sortableSection.executionNameLabel")}</span>{' '}
                           <span className="text-purple-700 font-mono text-xs">{(item as any).reference_execution_name}</span>
                         </div>
                       </div>
@@ -322,7 +324,7 @@ export default function SortableSectionSheet({
                     
                     {/* Referenced Content */}
                     <div>
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Referenced Content:</h4>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.referencedContentTitle")}</h4>
                       {(item as any).referenced_content ? (
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 max-h-96 overflow-y-auto">
                           <div className="prose prose-sm max-w-none text-gray-700">
@@ -331,7 +333,7 @@ export default function SortableSectionSheet({
                         </div>
                       ) : (
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                          <p className="text-sm text-gray-500 italic">No content available yet.</p>
+                          <p className="text-sm text-gray-500 italic">{t("sections:sortableSection.noReferencedContent")}</p>
                         </div>
                       )}
                     </div>
@@ -348,7 +350,7 @@ export default function SortableSectionSheet({
                   
                   return (
                     <div>
-                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Prompt:</h4>
+                      <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.promptTitle")}</h4>
                       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <div className="prose prose-sm max-w-none text-gray-700">
                           <Markdown>{decodedPrompt}</Markdown>
@@ -361,9 +363,9 @@ export default function SortableSectionSheet({
                 {/* Mensaje cuando no hay contenido para tipo AI */}
                 {sectionType === 'ai' && !item.prompt && (
                   <div>
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Prompt:</h4>
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.promptTitle")}</h4>
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <p className="text-sm text-gray-500 italic">No prompt defined. AI sections require a prompt to generate content.</p>
+                      <p className="text-sm text-gray-500 italic">{t("sections:sortableSection.noPrompt")}</p>
                     </div>
                   </div>
                 )}
@@ -371,7 +373,7 @@ export default function SortableSectionSheet({
                 {/* Dependencies - Para todos los tipos cuando están expandidas */}
                 {item.dependencies && item.dependencies.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Dependencies:</h4>
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.dependenciesTitle")}</h4>
                     <div className="flex flex-wrap gap-2">
                       {item.dependencies.map((dep) => (
                         <Badge key={dep.id} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
@@ -398,11 +400,11 @@ export default function SortableSectionSheet({
               }
             }
           }}
-          title="Delete section"
-          description="What do you want to delete?"
+          title={t("sections:sortableSection.deleteExecutionTitle")}
+          description={t("sections:sortableSection.deleteExecutionDescription")}
           maxWidth="sm:max-w-[640px]"
           saveAction={{
-            label: isDeleting ? "Delete..." : "Delete",
+            label: isDeleting ? t("sections:sortableSection.deleting") : t("sections:sortableSection.delete"),
             variant: "destructive",
             disabled: isDeleting || !canConfirmDelete,
             loading: isDeleting,
@@ -428,9 +430,9 @@ export default function SortableSectionSheet({
                 disabled={isDeleting}
               />
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-900">Remove from structure</p>
+                <p className="text-sm font-semibold text-slate-900">{t("sections:sortableSection.deleteStructureTitle")}</p>
                 <p className="text-xs text-slate-600">
-                  The section is removed from the structure but does not affect content.
+                  {t("sections:sortableSection.deleteStructureDesc")}
                 </p>
               </div>
             </Label>
@@ -450,9 +452,9 @@ export default function SortableSectionSheet({
                 disabled={isDeleting || !currentExecutionId}
               />
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-900">Remove from structure and current version</p>
+                <p className="text-sm font-semibold text-slate-900">{t("sections:sortableSection.deleteStructureVersionTitle")}</p>
                 <p className="text-xs text-slate-600">
-                  The section is removed from the structure and from the current version content, while previous versions remain unchanged.
+                  {t("sections:sortableSection.deleteStructureVersionDesc")}
                 </p>
               </div>
             </Label>
@@ -462,11 +464,11 @@ export default function SortableSectionSheet({
         <HuemulAlertDialog
           open={showDeleteDialog}
           onOpenChange={(open) => !isDeleting && setShowDeleteDialog(open)}
-          title="Delete Section"
+          title={t("sections:deleteDialog.title")}
           description={
             <div className="space-y-3">
               <p>
-                Are you sure you want to delete the section "{item.name}"? This action cannot be undone.
+                {t("sections:sortableSection.deleteAlertDescription", { name: item.name })}
               </p>
               {isTemplateSection && (
                 <div className="flex items-center space-x-2">
@@ -480,14 +482,14 @@ export default function SortableSectionSheet({
                     htmlFor={`propagate-delete-${item.id}`}
                     className="text-xs font-medium text-gray-700 hover:cursor-pointer"
                   >
-                    Also remove related asset sections created from this template
+                    {t("sections:sortableSection.propagateDeleteToAssets")}
                   </Label>
                 </div>
               )}
             </div>
           }
           onAction={handleDelete}
-          actionLabel="Delete"
+          actionLabel={t("sections:sortableSection.delete")}
           actionVariant="destructive"
         />
       )}
