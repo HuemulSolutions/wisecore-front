@@ -37,6 +37,22 @@ export default function AssetTypePageDialogs({
     ])
   }
 
+  const handleClone = async () => {
+    if (!state.cloningAssetType) return
+
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    await Promise.all([
+      new Promise<void>((resolve, reject) => {
+        assetTypeMutations.cloneAssetType.mutate(state.cloningAssetType!.document_type_id, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error)
+        })
+      }),
+      minDelay
+    ])
+  }
+
   return (
     <>
       {/* Create/Edit Dialog */}
@@ -70,6 +86,21 @@ export default function AssetTypePageDialogs({
         actionLabel={t('common:delete')}
         cancelLabel={t('common:cancel')}
         actionVariant="destructive"
+      />
+
+      {/* Clone Asset Type Dialog */}
+      <HuemulAlertDialog
+        open={!!state.cloningAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('cloningAssetType')
+          }
+        }}
+        title={t('clone.title')}
+        description={t('clone.description', { name: state.cloningAssetType?.document_type_name })}
+        onAction={handleClone}
+        actionLabel={t('clone.confirm')}
+        cancelLabel={t('common:cancel')}
       />
 
       {/* Role Permissions Dialog */}
