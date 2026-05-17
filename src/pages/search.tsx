@@ -179,7 +179,7 @@ export default function SearchPage() {
           )}
         </>
       }
-      headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+      headerClassName="p-6 md:p-8"
       columns={[
         {
           content: hasActiveSearch ? (
