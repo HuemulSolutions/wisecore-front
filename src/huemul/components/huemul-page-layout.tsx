@@ -179,7 +179,7 @@ export function HuemulPageLayout({
       <div className={cn("flex-1 min-h-0 overflow-hidden", bodyClassName)}>
         {normalizedColumns.length === 0 ? null : normalizedColumns.length === 1 ? (
           /* Single column — no resizable overhead */
-          <div className={cn("h-full overflow-auto", normalizedColumns[0].className)}>
+          <div className={cn("h-full overflow-auto [scrollbar-gutter:stable] flex flex-col", normalizedColumns[0].className)}>
             {normalizedColumns[0].content}
           </div>
         ) : (
@@ -204,7 +204,7 @@ export function HuemulPageLayout({
                   collapsedSize={col.collapsedSize ?? (col.collapsible ? 0 : undefined)}
                   onCollapse={col.onCollapse}
                   onExpand={col.onExpand}
-                  className={cn("overflow-auto", col.className)}
+                  className={cn("overflow-auto [scrollbar-gutter:stable]", col.className)}
                 >
                   {col.content}
                 </ResizablePanel>
