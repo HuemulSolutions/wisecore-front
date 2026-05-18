@@ -168,15 +168,21 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     fileTreeRef.current?.refresh()
   }, [])
 
-  const handleFolderDeleted = useCallback(async () => {
+  const handleFolderDeleted = useCallback(async (deleteDocuments: boolean) => {
     if (!folderToDelete || !selectedOrganizationId) return
 
     try {
-      await deleteFolder(folderToDelete.id, selectedOrganizationId)
+      await deleteFolder(folderToDelete.id, selectedOrganizationId, deleteDocuments)
       toast.success(t('knowledge.folderDeletedSuccess', { name: folderToDelete.name }))
       setDeleteFolderDialogOpen(false)
       setFolderToDelete(null)
       fileTreeRef.current?.refresh()
+      if (deleteDocuments) {
+        // Navigate away from any open asset since it may have been deleted
+        setTimeout(() => {
+          navigateRef.current('/asset', { replace: true })
+        }, 300)
+      }
     } catch (error) {
       handleApiError(error, { fallbackMessage: t('knowledge.folderDeleteError') })
       throw error
