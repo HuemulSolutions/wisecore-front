@@ -29,13 +29,6 @@ function ExecutionResult({ execution, documentId }: ExecutionResultProps) {
       <div className="border border-border rounded-lg bg-muted/30">
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2 min-w-0">
-            <CollapsibleTrigger asChild>
-              <button className="flex-shrink-0 hover:cursor-pointer text-muted-foreground hover:text-foreground">
-                {isExpanded
-                  ? <ChevronDown className="w-3.5 h-3.5" />
-                  : <ChevronRight className="w-3.5 h-3.5" />}
-              </button>
-            </CollapsibleTrigger>
             <GitBranch className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <span className="text-xs font-medium text-foreground truncate">{execution.execution_name}</span>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
@@ -55,6 +48,13 @@ function ExecutionResult({ execution, documentId }: ExecutionResultProps) {
               onClick={handleOpen}
               className="h-6 text-[10px] px-1.5"
             />
+            <CollapsibleTrigger asChild>
+              <button className="flex-shrink-0 hover:cursor-pointer text-muted-foreground hover:text-foreground">
+                {isExpanded
+                  ? <ChevronDown className="w-3.5 h-3.5" />
+                  : <ChevronRight className="w-3.5 h-3.5" />}
+              </button>
+            </CollapsibleTrigger>
           </div>
         </div>
 

@@ -60,6 +60,10 @@ export interface HuemulFileTreeProps {
   renderLeafIcon?: (node: HuemulTreeNode) => React.ReactNode
   /** Custom renderer for folder icons. */
   renderFolderIcon?: (node: HuemulTreeNode, isExpanded: boolean) => React.ReactNode
+  /** Return extra CSS classes to apply to a node row. */
+  renderNodeClassName?: (node: HuemulTreeNode) => string | undefined
+  /** Always show the menu button instead of only on hover. */
+  alwaysShowMenuActions?: boolean
   showCreateButtons?: boolean
   initialFolderId?: string | null
   showBorder?: boolean
@@ -92,6 +96,8 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       folderType = "folder",
       renderLeafIcon,
       renderFolderIcon,
+      renderNodeClassName,
+      alwaysShowMenuActions = false,
       showCreateButtons = true,
       initialFolderId = null,
       showBorder = true,
@@ -437,11 +443,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isActive = activeNodeId === node.id
       const isNodeLoading = loadingNodeId === node.id
 
+      const hasCustomMenuActions = menuActions.some((action) => (action.show ? action.show(node) : true))
       const hasVisibleMenuActions =
         (isFolder && showDefaultActions.create) ||
         showDefaultActions.delete ||
         showDefaultActions.share ||
-        menuActions.some((action) => (action.show ? action.show(node) : true))
+        hasCustomMenuActions
 
       return (
         <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
@@ -466,6 +473,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
               isActive && "bg-accent font-medium",
               isNodeLoading && "bg-accent/50",
+              renderNodeClassName?.(node),
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}
@@ -507,7 +515,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               <p className={cn("text-sm truncate", isNodeLoading && "text-muted-foreground")}>{node.name}</p>
             </div>
 
-            {hasVisibleMenuActions && !node.disabled && (
+            {((hasVisibleMenuActions && !node.disabled) || (hasCustomMenuActions && node.disabled)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <HuemulButton
@@ -515,7 +523,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                     size="icon"
                     icon={MoreVertical}
                     iconClassName="h-4 w-4"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className={cn(
+                      "h-6 w-6 transition-opacity",
+                      alwaysShowMenuActions && hasCustomMenuActions
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100",
+                    )}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </DropdownMenuTrigger>

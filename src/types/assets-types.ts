@@ -84,6 +84,7 @@ export interface AssetTypePageState {
   editingAssetType: AssetTypeWithRoles | null;
   showCreateDialog: boolean;
   deletingAssetType: AssetTypeWithRoles | null;
+  cloningAssetType: AssetTypeWithRoles | null;
   rolePermissionsAssetType: AssetTypeWithRoles | null;
   lifecycleAssetType: AssetTypeWithRoles | null;
 }

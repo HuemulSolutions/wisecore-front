@@ -141,6 +141,7 @@ export default function SearchPage() {
             icon={Search}
             title={t('page.title')}
             showRefresh={false}
+            className="mb-3"
             searchConfig={{
               placeholder: t('page.searchPlaceholder'),
               value: query,
@@ -179,7 +180,7 @@ export default function SearchPage() {
           )}
         </>
       }
-      headerClassName="p-6 md:p-8 pb-0 md:pb-0"
+      headerClassName="px-6 py-4 md:px-8 md:py-5"
       columns={[
         {
           content: hasActiveSearch ? (
@@ -232,7 +233,7 @@ export default function SearchPage() {
               )}
             </div>
           ) : null,
-          className: "p-6 md:p-8 pt-0 md:pt-0",
+          className: "p-6 md:p-8 pt-4 md:pt-6",
         },
       ]}
     />

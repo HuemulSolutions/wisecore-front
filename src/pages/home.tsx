@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
-import { FileUp, ClipboardList, Plus, GitBranch, MessageSquare, ChevronDown, RefreshCw, ExternalLink, MessageCircle } from 'lucide-react';
+import { FileUp, ClipboardList, Plus, GitBranch, ExternalLink, MessageCircle } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulTable } from '@/huemul/components/huemul-table';
 import type { HuemulTableColumn, HuemulTableAction } from '@/huemul/components/huemul-table';
+import { HuemulFilters } from '@/huemul/components/huemul-filters';
+import { HuemulField } from '@/huemul/components/huemul-field';
 import { ImportAssetFromFileDialog } from '@/components/assets/dialogs/assets-import-from-file-dialog';
 import { CreateAssetDialog } from '@/components/assets/dialogs/assets-create-dialog';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
@@ -14,9 +16,6 @@ import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useOrganization } from '@/contexts/organization-context';
 import type { Execution, ExecutionLifecycleState } from '@/types/executions';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
 
 export default function Home() {
   const { t } = useTranslation('home');
@@ -194,73 +193,56 @@ export default function Home() {
           content: (
             <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
               {/* Filters */}
-              <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="shrink-0">
-                <div className="flex items-center justify-between mb-3">
-                  <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-foreground hover:cursor-pointer">
-                    <ChevronDown
-                      className={cn('h-4 w-4 transition-transform duration-200', !filtersOpen && '-rotate-90')}
-                    />
-                    {t('filters.title')}
-                  </CollapsibleTrigger>
-                  <button
-                    type="button"
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-accent hover:cursor-pointer transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
-                    {t('actions.refresh')}
-                  </button>
-                </div>
-                <CollapsibleContent>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select
-                      value={lifecycleState || ALL_VALUE}
-                      onValueChange={(v) => { setLifecycleState(v === ALL_VALUE ? '' : v); setPage(1); }}
-                    >
-                      <SelectTrigger className="h-8 w-auto gap-1 rounded-md border-border bg-background px-3 text-sm shadow-none hover:cursor-pointer hover:bg-accent">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ALL_VALUE}>{t('filters.allLifecycleStates')}</SelectItem>
-                        <SelectItem value="draft">{tAssets('lifecycle.stateLabels.draft')}</SelectItem>
-                        <SelectItem value="in_review">{tAssets('lifecycle.stateLabels.in_review')}</SelectItem>
-                        <SelectItem value="in_approval">{tAssets('lifecycle.stateLabels.in_approval')}</SelectItem>
-                        <SelectItem value="approved">{tAssets('lifecycle.stateLabels.approved')}</SelectItem>
-                        <SelectItem value="published">{tAssets('lifecycle.stateLabels.published')}</SelectItem>
-                        <SelectItem value="archived">{tAssets('lifecycle.stateLabels.archived')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <HuemulFilters
+                title={t('filters.title')}
+                open={filtersOpen}
+                onOpenChange={setFiltersOpen}
+                onRefresh={() => refetch()}
+                isRefreshing={isFetching}
+              >
+                <HuemulField
+                  type="select"
+                  label={t('filters.lifecycleState')}
+                  value={lifecycleState || ALL_VALUE}
+                  onChange={(v) => { setLifecycleState(v === ALL_VALUE ? '' : String(v)); setPage(1); }}
+                  options={[
+                    { value: ALL_VALUE, label: t('filters.allLifecycleStates') },
+                    { value: 'draft', label: tAssets('lifecycle.stateLabels.draft') },
+                    { value: 'in_review', label: tAssets('lifecycle.stateLabels.in_review') },
+                    { value: 'in_approval', label: tAssets('lifecycle.stateLabels.in_approval') },
+                    { value: 'approved', label: tAssets('lifecycle.stateLabels.approved') },
+                    { value: 'published', label: tAssets('lifecycle.stateLabels.published') },
+                    { value: 'archived', label: tAssets('lifecycle.stateLabels.archived') },
+                  ]}
+                  selectSize="xs"
+                  className="w-auto"
+                  inputClassName="w-44 h-8 text-xs"
+                />
 
-                    <Select
-                      value={ownerScope || ALL_VALUE}
-                      onValueChange={(v) => { setOwnerScope(v === ALL_VALUE ? '' : v); setPage(1); }}
-                    >
-                      <SelectTrigger className="h-8 w-auto gap-1 rounded-md border-border bg-background px-3 text-sm shadow-none hover:cursor-pointer hover:bg-accent">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ALL_VALUE}>{t('filters.allOwners')}</SelectItem>
-                        <SelectItem value="me">{t('filters.ownerMe')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <HuemulField
+                  type="select"
+                  label={t('filters.ownerScope')}
+                  value={ownerScope || ALL_VALUE}
+                  onChange={(v) => { setOwnerScope(v === ALL_VALUE ? '' : String(v)); setPage(1); }}
+                  options={[
+                    { value: ALL_VALUE, label: t('filters.allOwners') },
+                    { value: 'me', label: t('filters.ownerMe') },
+                  ]}
+                  selectSize="xs"
+                  className="w-auto"
+                  inputClassName="w-36 h-8 text-xs"
+                />
 
-                    <button
-                      type="button"
-                      onClick={() => { setHasUnresolvedComments((v) => !v); setPage(1); }}
-                      className={cn(
-                        'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium hover:cursor-pointer transition-colors',
-                        hasUnresolvedComments
-                          ? 'border-yellow-400 bg-yellow-50 text-yellow-800 dark:border-yellow-500 dark:bg-yellow-950 dark:text-yellow-200'
-                          : 'border-border bg-background text-muted-foreground hover:bg-accent',
-                      )}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      {t('filters.unresolvedComments')}
-                    </button>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+                <HuemulField
+                  type="switch"
+                  label={t('filters.unresolvedComments')}
+                  inline={false}
+                  value={hasUnresolvedComments}
+                  onChange={(v) => { setHasUnresolvedComments(Boolean(v)); setPage(1); }}
+                  className="w-auto"
+                  controlClassName="h-8 flex items-center"
+                />
+              </HuemulFilters>
 
               {!isLoading && (
                 <p className="shrink-0 text-sm text-muted-foreground -mt-2">

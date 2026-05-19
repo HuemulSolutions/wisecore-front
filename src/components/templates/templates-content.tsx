@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import { getTemplateById, generateTemplateSections } from "@/services/templates";
@@ -64,6 +65,7 @@ export function TemplateContent({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddingSectionOpen, setIsAddingSectionOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
+  const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isGeneratingIndividual, setIsGeneratingIndividual] = useState(false);
   const [activeTab, setActiveTab] = useState("sections");
@@ -165,6 +167,7 @@ export function TemplateContent({
           onGenerateWithAI={() => selectedTemplate?.id && generateSectionsMutation.mutate(selectedTemplate.id)}
           onEdit={() => setIsEditDialogOpen(true)}
           onDelete={() => setIsDeleteDialogOpen(true)}
+          onInfo={() => setIsInfoSheetOpen(true)}
           onRefresh={() => {
             queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
             onRefresh();
@@ -399,6 +402,15 @@ export function TemplateContent({
           />
         </>
       )}
+
+      {/* Info Sheet */}
+      <TemplateInfoSheet
+        open={isInfoSheetOpen}
+        onOpenChange={setIsInfoSheetOpen}
+        templateData={templateData}
+        selectedTemplate={selectedTemplate}
+        sectionsCount={orderedSections.length}
+      />
     </div>
   );
 }

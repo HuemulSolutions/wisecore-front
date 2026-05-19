@@ -137,3 +137,12 @@ export const deleteAssetType = async (id: string): Promise<void> => {
     headers: getHeaders(),
   });
 };
+
+// Clone asset type
+export const cloneAssetType = async (id: string): Promise<AssetType> => {
+  const response = await httpClient.post(`${backendUrl}/document_types/${id}/clone`, undefined, {
+    headers: getHeaders(),
+  });
+
+  return response.json();
+};

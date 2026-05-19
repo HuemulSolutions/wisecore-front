@@ -53,11 +53,12 @@ export async function editFolder(folderId: string, name: string, organizationId:
     return data?.data;
 }
 
-export async function deleteFolder(folderId: string, organizationId: string) {
+export async function deleteFolder(folderId: string, organizationId: string, deleteDocuments: boolean = false) {
     const response = await httpClient.delete(`${backendUrl}/folder/${folderId}`, {
         headers: {
             'X-Org-Id': organizationId,
         },
+        body: JSON.stringify({ delete_documents: deleteDocuments }),
     });
     const data = await response.json();
     console.log('Folder deleted:', folderId, data?.data);

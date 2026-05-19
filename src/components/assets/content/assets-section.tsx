@@ -95,6 +95,11 @@ function SectionExecutionInner({
     );
     const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
 
+    // Sync reviewStatus with server data when the parent refreshes content
+    useEffect(() => {
+        setReviewStatus((sectionExecution.review_status as ReviewStatus) ?? null);
+    }, [sectionExecution.review_status]);
+
     // Derived: whether there's a completed suggestion ready to review (from server props)
     const hasPendingSuggestion =
         !!sectionExecution.ai_suggestion_content &&

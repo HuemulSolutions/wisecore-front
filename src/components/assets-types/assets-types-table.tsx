@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, FileStack, Activity } from "lucide-react"
+import { Edit2, Trash2, FileStack, Activity, Copy } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
 
@@ -17,6 +17,7 @@ interface AssetTypeTableProps {
   assetTypes: AssetTypeWithRoles[]
   onEditAssetType: (assetType: AssetTypeWithRoles) => void
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
+  onCloneAssetType: (assetType: AssetTypeWithRoles) => void
   onLifecycle: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
   canUpdate?: boolean
@@ -29,6 +30,7 @@ export default function AssetTypeTable({
   assetTypes,
   onEditAssetType,
   onDeleteAssetType,
+  onCloneAssetType,
   onLifecycle,
   pagination,
   canUpdate = true,
@@ -84,6 +86,12 @@ export default function AssetTypeTable({
       label: t('actions.lifecycle'),
       icon: Activity,
       onClick: onLifecycle
+    },
+    {
+      key: "clone",
+      label: t('actions.cloneAssetType'),
+      icon: Copy,
+      onClick: onCloneAssetType
     },
     ...(canUpdate ? [{
       key: "edit" as const,
