@@ -567,7 +567,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                     icon={MoreVertical}
                     iconClassName="h-4 w-4"
                     className={cn(
-                      "h-6 w-6 transition-opacity",
+                      "h-6 w-6 shrink-0 transition-opacity",
                       alwaysShowMenuActions && hasCustomMenuActions
                         ? "opacity-100"
                         : "opacity-0 group-hover:opacity-100",
@@ -700,7 +700,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         <div
           ref={containerRef}
           className={cn(
-            "relative rounded-lg transition-colors",
+            "relative rounded-lg transition-colors overflow-hidden",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
             dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",
