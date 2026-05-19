@@ -44,6 +44,9 @@ interface FileTreeProps {
   showBorder?: boolean
   showRefreshButton?: boolean
   minHeight?: string
+  renderLeafIcon?: (node: FileNode) => React.ReactNode
+  renderNodeClassName?: (node: FileNode) => string | undefined
+  alwaysShowMenuActions?: boolean
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}
@@ -75,6 +78,9 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
       showBorder = true,
       showRefreshButton = false,
       minHeight = "530px",
+      renderLeafIcon: renderLeafIconProp,
+      renderNodeClassName: renderNodeClassNameProp,
+      alwaysShowMenuActions,
     },
     ref,
   ) => {
@@ -132,15 +138,23 @@ export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
         showDefaultActions={showDefaultActions}
         customDialogs={adaptedCustomDialogs}
         folderType="folder"
-        renderLeafIcon={(node) => {
-          const fileNode = node as FileNode
-          return (
-            <File
-              className="h-3.5 w-3.5 shrink-0"
-              style={{ color: fileNode.document_type?.color || "currentColor" }}
-            />
-          )
-        }}
+        renderLeafIcon={renderLeafIconProp
+          ? (node) => renderLeafIconProp(node as FileNode)
+          : (node) => {
+              const fileNode = node as FileNode
+              return (
+                <File
+                  className="h-3.5 w-3.5 shrink-0"
+                  style={{ color: fileNode.document_type?.color || "currentColor" }}
+                />
+              )
+            }
+        }
+        renderNodeClassName={renderNodeClassNameProp
+          ? (node) => renderNodeClassNameProp(node as FileNode)
+          : undefined
+        }
+        alwaysShowMenuActions={alwaysShowMenuActions}
         showCreateButtons={showCreateButtons}
         initialFolderId={initialFolderId}
         showBorder={showBorder}

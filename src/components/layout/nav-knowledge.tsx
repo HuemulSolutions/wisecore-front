@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X } from "lucide-react"
+import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -168,15 +168,21 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     fileTreeRef.current?.refresh()
   }, [])
 
-  const handleFolderDeleted = useCallback(async () => {
+  const handleFolderDeleted = useCallback(async (deleteDocuments: boolean) => {
     if (!folderToDelete || !selectedOrganizationId) return
 
     try {
-      await deleteFolder(folderToDelete.id, selectedOrganizationId)
+      await deleteFolder(folderToDelete.id, selectedOrganizationId, deleteDocuments)
       toast.success(t('knowledge.folderDeletedSuccess', { name: folderToDelete.name }))
       setDeleteFolderDialogOpen(false)
       setFolderToDelete(null)
       fileTreeRef.current?.refresh()
+      if (deleteDocuments) {
+        // Navigate away from any open asset since it may have been deleted
+        setTimeout(() => {
+          navigateRef.current('/asset', { replace: true })
+        }, 300)
+      }
     } catch (error) {
       handleApiError(error, { fallbackMessage: t('knowledge.folderDeleteError') })
       throw error
@@ -447,6 +453,7 @@ export function NavKnowledgeContent() {
   const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, committedSearch } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
+  const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
   const { guardedAction } = useOptionalEditingGuard()
@@ -543,6 +550,15 @@ export function NavKnowledgeContent() {
           return newMap
         })
 
+        // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
+        setNodeParentIds((prev) => {
+          const newMap = new Map(prev)
+          content.content.forEach((item: any) => {
+            newMap.set(item.id, folderId)
+          })
+          return newMap
+        })
+
         return nodes
       } catch (error) {
         console.error("Error loading folder content:", error)
@@ -580,13 +596,16 @@ export function NavKnowledgeContent() {
 
       try {
         await moveFolder(folderId, parentFolderId === null ? undefined : parentFolderId, selectedOrganizationId)
-        toast.success(t('knowledge.folderMovedSuccess'))
+        const destination = parentFolderId === null
+          ? t('knowledge.rootFolder')
+          : (folderNames.get(parentFolderId) ?? parentFolderId)
+        toast.success(t('knowledge.folderMovedSuccess', { destination }))
         fileTreeRef.current?.refresh()
       } catch (error) {
         handleApiError(error, { fallbackMessage: t('knowledge.folderMoveError') })
       }
     },
-    [selectedOrganizationId]
+    [selectedOrganizationId, folderNames, t]
   )
 
   const handleMoveFile = useCallback(
@@ -595,13 +614,16 @@ export function NavKnowledgeContent() {
 
       try {
         await moveDocument(documentId, folderId === null ? undefined : folderId, selectedOrganizationId)
-        toast.success(t('knowledge.documentMovedSuccess'))
+        const destination = folderId === null
+          ? t('knowledge.rootFolder')
+          : (folderNames.get(folderId) ?? folderId)
+        toast.success(t('knowledge.documentMovedSuccess', { destination }))
         fileTreeRef.current?.refresh()
       } catch (error) {
         handleApiError(error, { fallbackMessage: t('knowledge.documentMoveError') })
       }
     },
-    [selectedOrganizationId]
+    [selectedOrganizationId, folderNames, t]
   )
 
   const menuActions: MenuAction[] = [
@@ -658,6 +680,20 @@ export function NavKnowledgeContent() {
       variant: "default",
     },
     {
+      label: t('knowledge.moveToRoot'),
+      icon: <FolderUp className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        await handleMoveFolder(nodeId, null)
+      },
+      show: (node) => {
+        if (node.type !== "folder") return false
+        // Only show for folders that are NOT at root level
+        if (nodeParentIds.get(node.id) === null) return false
+        return canUpdate('folder') || node.access_levels?.includes('edit') || false
+      },
+      variant: "default",
+    },
+    {
       label: t('knowledge.deleteFolder'),
       icon: <Trash2 className="h-4 w-4" />,
       onClick: async (nodeId) => {
@@ -670,6 +706,20 @@ export function NavKnowledgeContent() {
         return canDelete('folder') || node.access_levels?.includes('delete') || false
       },
       variant: "destructive",
+    },
+    {
+      label: t('knowledge.moveToRoot'),
+      icon: <FolderUp className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        await handleMoveFile(nodeId, null)
+      },
+      show: (node) => {
+        if (node.type !== "document") return false
+        // Only show for documents that are NOT at root level
+        if (nodeParentIds.get(node.id) === null) return false
+        return canUpdate('asset') || node.access_levels?.includes('edit') || false
+      },
+      variant: "default",
     },
     {
       label: t('knowledge.editFile'),
@@ -763,6 +813,7 @@ export function NavKnowledgeContent() {
           initialFolderId={null}
           showBorder={false}
           showRefreshButton={false}
+          alwaysShowMenuActions={true}
         />
       )}
     </SidebarGroup>

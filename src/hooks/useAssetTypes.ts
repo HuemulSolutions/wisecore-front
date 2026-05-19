@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType } from "@/services/asset-types"
+import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType, cloneAssetType } from "@/services/asset-types"
 
 // Query keys
 export const assetTypeQueryKeys = {
@@ -79,9 +79,19 @@ export function useAssetTypeMutations() {
     },
   })
 
+  const cloneAssetTypeMutation = useMutation({
+    mutationFn: cloneAssetType,
+    meta: { successMessage: 'Asset type cloned successfully' },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
+      queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
+    },
+  })
+
   return {
     createAssetType: createAssetTypeMutation,
     updateAssetType: updateAssetTypeMutation,
     deleteAssetType: deleteAssetTypeMutation,
+    cloneAssetType: cloneAssetTypeMutation,
   }
 }

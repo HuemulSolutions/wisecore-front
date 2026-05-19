@@ -29,6 +29,8 @@ export interface ChatbotContextValue {
   selectedLlmId?: string;
   setSelectedLlmId: (llmId?: string) => void;
   conversationId: string | null;
+  conversationTitle: string | null;
+  setConversationTitle: (title: string | null) => void;
   messages: ChatMessage[];
   assistantMessage: ChatMessage | null;
   isTyping: boolean;
@@ -178,6 +180,8 @@ export function ChatbotProvider({
       selectedLlmId,
       setSelectedLlmId,
       conversationId: chatbotState.conversationId,
+      conversationTitle: chatbotState.conversationTitle,
+      setConversationTitle: chatbotState.setConversationTitle,
       messages: chatbotState.messages,
       assistantMessage: chatbotState.assistantMessage,
       isTyping: chatbotState.isTyping,
@@ -203,6 +207,8 @@ export function ChatbotProvider({
       view,
       selectedLlmId,
       chatbotState.conversationId,
+      chatbotState.conversationTitle,
+      chatbotState.setConversationTitle,
       chatbotState.messages,
       chatbotState.assistantMessage,
       chatbotState.isTyping,

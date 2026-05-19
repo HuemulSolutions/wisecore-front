@@ -5,6 +5,7 @@ import { HuemulField } from "./huemul-field"
 import { useTranslation } from "react-i18next"
 import { useState, useEffect, useRef } from "react"
 import { useDebounce } from "@/hooks/use-debounce"
+import { cn } from "@/lib/utils"
 import type { PageHeaderProps } from "@/types/page-header"
 
 export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/page-header"
@@ -20,7 +21,8 @@ export function PageHeader({
   additionalActions = [],
   searchConfig,
   hasError = false,
-  children
+  children,
+  className,
 }: PageHeaderProps) {
   const { t } = useTranslation('common')
 
@@ -62,7 +64,7 @@ export function PageHeader({
   }
 
   return (
-    <div className="space-y-4 mb-6">
+    <div className={cn("space-y-4 mb-6", className)}>
       {/* Header Row */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         {/* Title Section */}

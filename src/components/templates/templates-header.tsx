@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Button } from "@/components/ui/button";
-import { Plus, List, RefreshCw } from "lucide-react";
+import { Plus, List, RefreshCw, Info } from "lucide-react";
 
 interface TemplateHeaderProps {
   templateName: string;
@@ -17,6 +17,7 @@ interface TemplateHeaderProps {
   onEdit: () => void;
   onDelete: () => void;
   onRefresh: () => void;
+  onInfo?: () => void;
 }
 
 export function TemplateHeader({
@@ -28,8 +29,9 @@ export function TemplateHeader({
   onToggleSidebar,
   onAddSection,
   onRefresh,
+  onInfo,
 }: TemplateHeaderProps) {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['common', 'templates']);
 
   if (isMobile) {
     return (
@@ -83,16 +85,29 @@ export function TemplateHeader({
 
   return (
     <div className="bg-white px-4 py-3 z-10 shrink-0">
-      <div className="flex flex-col gap-1">
-        {/* Template Name */}
-        <h1 className="text-xl font-semibold text-gray-900">
-          {templateName}
-        </h1>
-        {/* Template Description */}
-        {templateDescription && (
-          <p className="text-sm text-gray-600">
-            {templateDescription}
-          </p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1 min-w-0">
+          {/* Template Name */}
+          <h1 className="text-xl font-semibold text-gray-900">
+            {templateName}
+          </h1>
+          {/* Template Description */}
+          {templateDescription && (
+            <p className="text-sm text-gray-600">
+              {templateDescription}
+            </p>
+          )}
+        </div>
+        {onInfo && (
+          <HuemulButton
+            icon={Info}
+            iconClassName="h-4 w-4 text-gray-500"
+            variant="ghost"
+            size="sm"
+            tooltip={t('templates:infoSheet.title')}
+            className="h-8 w-8 p-0 hover:bg-gray-100 shrink-0 mt-0.5 hover:cursor-pointer"
+            onClick={onInfo}
+          />
         )}
       </div>
     </div>

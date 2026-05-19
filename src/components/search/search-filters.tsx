@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { HuemulField } from "@/huemul/components/huemul-field";
-import { HuemulButton } from "@/huemul/components/huemul-button";
-import { X } from "lucide-react";
+import { HuemulFilters } from "@/huemul/components/huemul-filters";
 import { getAssetTypes } from "@/services/asset-types";
 import { getUsers } from "@/services/users";
 import { getAllTemplates } from "@/services/templates";
@@ -24,6 +23,7 @@ interface SearchFiltersProps {
   onSearchTypeChange: (type: SearchType) => void;
   onApply: (filters: SearchFilterValues) => void;
   initialFilters?: SearchFilterValues;
+  defaultOpen?: boolean;
 }
 
 function countActiveFilters(f: SearchFilterValues): number {
@@ -36,7 +36,7 @@ function countActiveFilters(f: SearchFilterValues): number {
   return count;
 }
 
-export function SearchFilters({ organizationId, searchType, onSearchTypeChange, onApply, initialFilters }: SearchFiltersProps) {
+export function SearchFilters({ organizationId, searchType, onSearchTypeChange, onApply, initialFilters, defaultOpen = true }: SearchFiltersProps) {
   const { t } = useTranslation("search");
   const { t: tAssets } = useTranslation("assets");
 
@@ -119,8 +119,14 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
   }
 
   return (
-    <div className="mb-3 rounded-lg border bg-white p-3">
-      <div className="flex flex-wrap items-end gap-3">
+    <HuemulFilters
+      title={t("filters.title")}
+      defaultOpen={defaultOpen}
+      onApply={handleApply}
+      onClear={handleClear}
+      hasActiveFilters={activeCount > 0}
+    >
+      <>
         {/* Search Type */}
         <HuemulField
           type="select"
@@ -213,30 +219,8 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
           />
         )}
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Actions */}
-        <div className="flex items-end gap-1.5 pb-0.5">
-          {activeCount > 0 && (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={X}
-              label={t("filters.clearAll")}
-              onClick={handleClear}
-              className="h-8 text-xs text-muted-foreground"
-            />
-          )}
-          <HuemulButton
-            size="sm"
-            label={t("filters.apply")}
-            onClick={handleApply}
-            className="h-8 text-xs px-4"
-          />
-        </div>
-      </div>
-    </div>
+      </>
+    </HuemulFilters>
   );
 }
 

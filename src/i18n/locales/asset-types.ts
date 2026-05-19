@@ -17,6 +17,7 @@ const translations = {
   actions: {
     managePermissions: { en: "Manage Permissions", es: "Gestionar Permisos" },
     lifecycle: { en: "Lifecycle", es: "Ciclo de vida" },
+    cloneAssetType: { en: "Clone Asset Type", es: "Clonar Tipo de Activo" },
     editAssetType: { en: "Edit Asset Type", es: "Editar Tipo de Activo" },
     deleteAssetType: { en: "Delete Asset Type", es: "Eliminar Tipo de Activo" },
   },
@@ -39,6 +40,11 @@ const translations = {
   delete: {
     title: { en: "Delete Asset Type", es: "Eliminar Tipo de Activo" },
     description: { en: "Are you sure you want to delete the asset type \"{{name}}\"? This action cannot be undone and may affect existing assets of this type.", es: "¿Estás seguro de que deseas eliminar el tipo de activo \"{{name}}\"? Esta acción no se puede deshacer y puede afectar los activos existentes de este tipo." },
+  },
+  clone: {
+    title: { en: "Clone Asset Type", es: "Clonar Tipo de Activo" },
+    description: { en: "Are you sure you want to clone the asset type \"{{name}}\"? A new copy will be created with the same configuration.", es: "¿Estás seguro de que deseas clonar el tipo de activo \"{{name}}\"? Se creará una nueva copia con la misma configuración." },
+    confirm: { en: "Clone", es: "Clonar" },
   },
   form: {
     assetTypeName: { en: "Asset Type Name", es: "Nombre del Tipo de Activo" },

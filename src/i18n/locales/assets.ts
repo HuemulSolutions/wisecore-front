@@ -339,7 +339,8 @@ const translations = {
   },
   deleteFolder: {
     title: { en: "Delete Folder", es: "Eliminar Carpeta" },
-    description: { en: "Are you sure you want to delete \"{{name}}\"? All files and subfolders will be permanently deleted and this action cannot be undone.", es: "¿Estás seguro de que quieres eliminar \"{{name}}\"? Todos los archivos y subcarpetas se eliminarán permanentemente y esta acción no se puede deshacer." },
+    description: { en: "Are you sure you want to delete \"{{name}}\"? The folder and its subfolders will be removed. By default, documents will be moved to the root.", es: "¿Estás seguro de que quieres eliminar \"{{name}}\"? La carpeta y sus subcarpetas serán eliminadas. Por defecto, los documentos se moverán a la raíz." },
+    deleteDocumentsLabel: { en: "Also permanently delete all documents in this folder and its subfolders", es: "También eliminar permanentemente todos los documentos de esta carpeta y sus subcarpetas" },
     confirmLabel: { en: "Delete", es: "Eliminar" },
   },
   editFolder: {

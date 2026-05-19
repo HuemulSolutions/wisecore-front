@@ -90,7 +90,6 @@ export function AuthTypesTable({
         title: t('emptyState.empty'),
         description: t('emptyState.noResults'),
       }}
-      maxHeight="max-h-[70vh]"
       isLoading={isLoading}
       isFetching={isFetching}
       pagination={pagination}

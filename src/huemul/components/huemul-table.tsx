@@ -127,7 +127,7 @@ export function HuemulTable<T>({
   pagination,
   isLoading = false,
   isFetching = false,
-  maxHeight = "max-h-[70vh]",
+  maxHeight = "",
   className,
 }: HuemulTableProps<T>) {
   const { t } = useTranslation("common")
@@ -142,7 +142,7 @@ export function HuemulTable<T>({
   if (!isLoading && data.length === 0 && emptyState) {
     const EmptyIcon = emptyState.icon ?? Inbox
     return (
-      <div className={cn("rounded-lg border border-border bg-card", className)}>
+      <div className={cn("rounded-lg border border-border bg-card flex-1 min-h-0", className)}>
         <div className="flex flex-col items-center justify-center py-14 text-center px-6">
           <EmptyIcon className="w-10 h-10 text-muted-foreground mb-3" />
           <p className="text-sm font-medium text-foreground">{emptyState.title}</p>
@@ -155,7 +155,7 @@ export function HuemulTable<T>({
   }
 
   return (
-    <div className={cn("rounded-lg border border-border bg-card overflow-hidden flex flex-col", className)}>
+    <div className={cn("rounded-lg border border-border bg-card overflow-hidden flex flex-col flex-1 min-h-0", className)}>
       {/* Refetch indicator */}
       <div
         className={cn(
@@ -170,7 +170,7 @@ export function HuemulTable<T>({
       <div className={cn("overflow-auto flex-1", maxHeight)}>
         <table className="w-full caption-bottom text-sm">
           {/* ── Header ── */}
-          <TableHeader className="sticky top-0 z-10 bg-muted">
+          <TableHeader className="sticky top-0 z-20 bg-muted">
             <TableRow className="border-b border-border hover:bg-transparent">
               {columns.map((col) => (
                 <TableHead
@@ -186,7 +186,7 @@ export function HuemulTable<T>({
                 </TableHead>
               ))}
               {hasActions && (
-                <TableHead className="h-auto px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-[1%] whitespace-nowrap sticky right-0 z-20 bg-muted border-l border-border">
+                <TableHead className="h-auto px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-[1%] whitespace-nowrap sticky right-0 z-30 bg-muted border-l border-border">
                   {t("actions")}
                 </TableHead>
               )}
