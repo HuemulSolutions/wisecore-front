@@ -1,7 +1,29 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string) {
+export interface LibraryContentAsset {
+    id: string;
+    name: string;
+    document_type?: { id: string; name: string; color: string };
+    folder_id: string | null;
+    access_levels?: string[];
+}
+
+export interface LibraryContentFolder {
+    id: string;
+    name: string;
+    parent_folder_id: string | null;
+    path: string;
+    is_match: boolean;
+    is_context: boolean;
+}
+
+export interface LibraryContent {
+    assets: LibraryContentAsset[];
+    folders: LibraryContentFolder[];
+}
+
+export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string): Promise<LibraryContent> {
     const folderPath = folderId || 'root';
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (search) params.set('search', search);
@@ -12,8 +34,7 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
         },
     });
     const data = await response.json();
-    console.log('Library content fetched:', data.data);
-    return data.data;
+    return data.data as LibraryContent;
 }
 
 

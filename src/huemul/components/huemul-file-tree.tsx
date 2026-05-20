@@ -15,20 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 // ─── Default labels ───────────────────────────────────────────────────────────
-const DEFAULT_LABELS: Required<HuemulFileTreeLabels> = {
-  newFile: "New file",
-  newFolder: "New folder",
-  shareLink: "Share link",
-  deleteFolder: "Delete folder",
-  deleteFile: "Delete file",
-  loading: "Loading...",
-  empty: "No files or folders",
-  createFile: "Create file",
-  createFolder: "Create folder",
-  inputPlaceholder: "Name...",
-}
 
 // ─── Props & Ref ──────────────────────────────────────────────────────────────
 export interface HuemulFileTreeProps {
@@ -107,7 +96,20 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     },
     ref,
   ) => {
-    const labels: Required<HuemulFileTreeLabels> = { ...DEFAULT_LABELS, ...labelOverrides }
+    const { t } = useTranslation("huemul-file-tree")
+    const labels: Required<HuemulFileTreeLabels> = {
+      newFile: t("newFile"),
+      newFolder: t("newFolder"),
+      shareLink: t("shareLink"),
+      deleteFolder: t("deleteFolder"),
+      deleteFile: t("deleteFile"),
+      loading: t("loading"),
+      empty: t("empty"),
+      createFile: t("createFile"),
+      createFolder: t("createFolder"),
+      inputPlaceholder: t("inputPlaceholder"),
+      ...labelOverrides,
+    }
 
     const [nodes, setNodes] = useState<HuemulTreeNode[]>([])
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())

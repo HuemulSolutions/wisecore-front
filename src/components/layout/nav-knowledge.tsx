@@ -37,6 +37,7 @@ import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
 import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
+import { cn } from "@/lib/utils"
 
 // Context para compartir el fileTreeRef entre header y content
 const NavKnowledgeContext = React.createContext<{
@@ -459,11 +460,13 @@ export function NavKnowledgeContent() {
   const { guardedAction } = useOptionalEditingGuard()
 
   const [searchResults, setSearchResults] = React.useState<FileNode[]>([])
+  const [searchMatchIds, setSearchMatchIds] = React.useState<Set<string>>(new Set())
   const [isSearching, setIsSearching] = React.useState(false)
 
   React.useEffect(() => {
     if (!committedSearch || !selectedOrganizationId) {
       setSearchResults([])
+      setSearchMatchIds(new Set())
       return
     }
     let cancelled = false
@@ -471,15 +474,55 @@ export function NavKnowledgeContent() {
     getLibraryContent(selectedOrganizationId, undefined, 1, 1000, committedSearch)
       .then((data) => {
         if (!cancelled) {
-          setSearchResults(
-            data?.content?.map((item: any) => ({
-              id: item.id,
-              name: item.name,
-              type: item.type,
-              document_type: item.document_type,
-              access_levels: item.access_levels,
-            })) ?? []
-          )
+          // Build a map of id -> FileNode for folders
+          const nodeMap = new Map<string, FileNode>()
+          ;(data?.folders ?? []).forEach((folder) => {
+            nodeMap.set(folder.id, {
+              id: folder.id,
+              name: folder.name,
+              type: 'folder',
+              children: [],
+              isExpanded: true,
+            })
+          })
+
+          // Track which nodes are direct matches
+          const matchIds = new Set<string>()
+          ;(data?.folders ?? []).forEach((f) => { if (f.is_match) matchIds.add(f.id) })
+          ;(data?.assets ?? []).forEach((a) => matchIds.add(a.id))
+
+          // Attach assets to their parent folder (or mark as root)
+          const rootAssets: FileNode[] = []
+          ;(data?.assets ?? []).forEach((asset) => {
+            const node: FileNode = {
+              id: asset.id,
+              name: asset.name,
+              type: 'document',
+              document_type: asset.document_type,
+              access_levels: asset.access_levels,
+            }
+            const parentFolder = asset.folder_id ? nodeMap.get(asset.folder_id) : undefined
+            if (parentFolder) {
+              parentFolder.children!.push(node)
+            } else {
+              rootAssets.push(node)
+            }
+          })
+
+          // Build folder hierarchy
+          const roots: FileNode[] = []
+          ;(data?.folders ?? []).forEach((folder) => {
+            const node = nodeMap.get(folder.id)!
+            const parentFolder = folder.parent_folder_id ? nodeMap.get(folder.parent_folder_id) : undefined
+            if (parentFolder) {
+              parentFolder.children!.push(node)
+            } else {
+              roots.push(node)
+            }
+          })
+
+          setSearchMatchIds(matchIds)
+          setSearchResults([...roots, ...rootAssets])
         }
       })
       .catch(() => {
@@ -519,43 +562,41 @@ export function NavKnowledgeContent() {
 
       try {
         const content = await getLibraryContent(selectedOrganizationId, folderId === null ? undefined : folderId)
-        
-        const nodes = content.content.map((item: any) => ({
+
+        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
           id: item.id,
           name: item.name,
-          type: item.type,
+          type: 'folder',
+          hasChildren: true,
+        }))
+
+        const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: 'document',
           document_type: item.document_type,
           access_levels: item.access_levels,
-          ...(item.type === "folder" && { hasChildren: true }),
         }))
+
+        const nodes = [...folderNodes, ...assetNodes]
 
         // Store folder and document names for later use in delete dialog
         setFolderNames((prev) => {
           const newMap = new Map(prev)
-          content.content.forEach((item: any) => {
-            if (item.type === "folder") {
-              newMap.set(item.id, item.name)
-            }
-          })
+          content.folders.forEach((item) => newMap.set(item.id, item.name))
           return newMap
         })
-        
+
         setDocumentNames((prev) => {
           const newMap = new Map(prev)
-          content.content.forEach((item: any) => {
-            if (item.type === "document") {
-              newMap.set(item.id, item.name)
-            }
-          })
+          content.assets.forEach((item) => newMap.set(item.id, item.name))
           return newMap
         })
 
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
-          content.content.forEach((item: any) => {
-            newMap.set(item.id, folderId)
-          })
+          nodes.forEach((item) => newMap.set(item.id, folderId))
           return newMap
         })
 
@@ -780,21 +821,49 @@ export function NavKnowledgeContent() {
             {t('knowledge.searchNoResults')}
           </div>
         ) : (
-          <div className="space-y-0.5 px-1">
-            {searchResults.map((node) => (
-              <button
-                key={node.id}
-                className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-sidebar-accent hover:cursor-pointer text-left${node.type === 'document' && activeAssetId === node.id ? ' bg-sidebar-accent' : ''}`}
-                onClick={() => node.type === 'document' && handleFileClick(node)}
-              >
-                {node.type === 'folder' ? (
-                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <File className="h-4 w-4 shrink-0 text-muted-foreground" />
-                )}
-                <span className="truncate">{node.name}</span>
-              </button>
-            ))}
+          <div className="space-y-0.5">
+            {(function renderSearchNodes(nodes: FileNode[], level: number): React.ReactNode {
+              return nodes.map((node, index) => {
+                const isLastChild = index === nodes.length - 1
+                const isFolder = node.type === 'folder'
+                return (
+                  <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
+                    {level > 0 && (
+                      <div
+                        className="absolute w-px bg-border"
+                        style={{ left: `${level * 12 - 14}px`, top: 0, height: isLastChild ? "1.25rem" : "100%" }}
+                      />
+                    )}
+                    {level > 0 && (
+                      <div
+                        className="absolute top-5 w-3 h-px bg-border"
+                        style={{ left: `${level * 12 - 14}px` }}
+                      />
+                    )}
+                    <button
+                      className={cn(
+                        "group flex w-full items-center gap-1.5 py-0.5 rounded-md transition-colors text-sm hover:bg-accent hover:cursor-pointer text-left",
+                        node.type === 'document' && activeAssetId === node.id && "bg-accent font-medium",
+                        searchMatchIds.has(node.id) && "font-medium",
+                      )}
+                      style={{ paddingLeft: `${level * 12 + 6}px`, paddingRight: '8px' }}
+                      onClick={() => node.type === 'document' && handleFileClick(node)}
+                    >
+                      {isFolder ? (
+                        <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                      ) : (
+                        <File
+                          className="h-3.5 w-3.5 shrink-0"
+                          style={{ color: node.document_type?.color ?? undefined }}
+                        />
+                      )}
+                      <p className="text-sm truncate">{node.name}</p>
+                    </button>
+                    {node.children && node.children.length > 0 && renderSearchNodes(node.children, level + 1)}
+                  </div>
+                )
+              })
+            })(searchResults, 0)}
           </div>
         )
       ) : (
@@ -814,6 +883,10 @@ export function NavKnowledgeContent() {
           showBorder={false}
           showRefreshButton={false}
           alwaysShowMenuActions={true}
+          renderLeafIcon={(node) => {
+            const color = (node as FileNode).document_type?.color
+            return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
+          }}
         />
       )}
     </SidebarGroup>
