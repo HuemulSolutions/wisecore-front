@@ -36,6 +36,7 @@ function DefaultStepContent({
     documentTypeId,
     stepType
   )
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
   const allRoles = rolesData?.data ?? []
@@ -78,7 +79,7 @@ function DefaultStepContent({
         {/* Switch: all vs owner */}
         <HuemulField
           type="switch"
-          label={t("lifecycle.allowAnyoneLabel")}
+          label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
           name="access-all"
           value={isAll}
           onChange={(v) =>
@@ -90,8 +91,8 @@ function DefaultStepContent({
           disabled={isCustom || isMutating}
           description={
             isAll
-              ? t("lifecycle.allowAnyoneDescOn")
-              : t("lifecycle.allowAnyoneDescOff")
+              ? t("lifecycle.allowAnyoneDescOn", { action: stepAction })
+              : t("lifecycle.allowAnyoneDescOff", { action: stepAction })
           }
           labelFirst
         />
@@ -111,7 +112,7 @@ function DefaultStepContent({
             })
           }
           disabled={isMutating}
-          description={t("lifecycle.customRolesDesc")}
+          description={t("lifecycle.customRolesDesc", { action: stepAction })}
           labelFirst
         />
       </div>
@@ -120,7 +121,7 @@ function DefaultStepContent({
       {isCustom && (
         <HuemulField
           type="combobox"
-          label={t("lifecycle.addRole")}
+          label={t("lifecycle.addRole", { action: stepAction })}
           name="add-role"
           placeholder={t("lifecycle.addRolePlaceholder")}
           value=""

@@ -37,6 +37,7 @@ export function CreateStepContent({
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
   const allRoles = rolesData?.data ?? []
@@ -203,7 +204,7 @@ export function CreateStepContent({
       <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4">
         <HuemulField
           type="switch"
-          label={t("lifecycle.allowAnyoneLabel")}
+          label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
           name={`access-all-${stepType}`}
           value={accessType === "all"}
           onChange={(v) => {
@@ -228,7 +229,7 @@ export function CreateStepContent({
             <div className="h-px bg-border" />
             <HuemulField
               type="switch"
-              label={t("lifecycle.ownerCanExecuteLabel")}
+              label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
               name={`access-owner-${stepType}`}
               value={ownerCanExecute}
               onChange={(v) => {
@@ -258,7 +259,7 @@ export function CreateStepContent({
       {(useAllOrCustomOwner ? accessType !== "all" : (accessType === "custom" || accessType === "custom_owner")) && (
         <HuemulField
           type="combobox"
-          label={t("lifecycle.addRole")}
+          label={t("lifecycle.addRole", { action: stepAction })}
           name="add-role-create"
           placeholder={t("lifecycle.addRolePlaceholder")}
           value=""

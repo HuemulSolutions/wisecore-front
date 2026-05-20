@@ -41,6 +41,7 @@ export function ConfigStepContent({
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
   const allRoles = rolesData?.data ?? []
@@ -310,7 +311,7 @@ export function ConfigStepContent({
       {accessType === "custom" && (
         <HuemulField
           type="combobox"
-          label={t("lifecycle.addRole")}
+          label={t("lifecycle.addRole", { action: stepAction })}
           name={`add-role-${stepType}`}
           placeholder={t("lifecycle.addRolePlaceholder")}
           value=""

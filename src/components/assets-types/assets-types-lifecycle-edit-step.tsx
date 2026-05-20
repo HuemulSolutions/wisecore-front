@@ -79,7 +79,7 @@ interface EditStepCardProps {
   onChange: (updated: Partial<EditStepCardData>) => void
   onDelete: () => void
   onSave: () => Promise<void>
-  t: (key: string) => string
+  t: (key: string, options?: Record<string, unknown>) => string
   isDeleting: boolean
   canDelete: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
@@ -88,6 +88,7 @@ interface EditStepCardProps {
 
 function EditStepCard({
   card,
+  stepType,
   slaUnitOptions,
   allRoles,
   onChange,
@@ -106,6 +107,7 @@ function EditStepCard({
   const assignedRoles = allRoles.filter((r) => card.roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !card.roleIds.includes(r.id))
   const ro = !isEditing
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const handleCheckClick = async () => {
     if (isEditing) {
@@ -254,7 +256,7 @@ function EditStepCard({
       {/* Allow anyone switch */}
       <HuemulField
         type="switch"
-        label={t("lifecycle.allowAnyoneLabel")}
+        label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
         name={`access-all-${card.id}`}
         value={card.accessType === "all"}
         onChange={(v) => {
@@ -273,7 +275,7 @@ function EditStepCard({
         <>
           <HuemulField
             type="switch"
-            label={t("lifecycle.ownerCanExecuteLabel")}
+            label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
             name={`access-owner-${card.id}`}
             value={card.ownerCanExecute}
             onChange={(v) => {
@@ -290,7 +292,7 @@ function EditStepCard({
 
           <HuemulField
             type="combobox"
-            label={t("lifecycle.addRole")}
+            label={t("lifecycle.addRole", { action: stepAction })}
             name={`role-${card.id}`}
             placeholder={t("lifecycle.addRolePlaceholder")}
             value=""
@@ -383,6 +385,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
     documentTypeId,
     stepType
   )
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const allRoles = rolesData?.data ?? []
   const slaUnitOptions = (slaUnitsData?.data ?? []).map((u) => ({
@@ -637,7 +640,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
           {stepType !== "review" && stepType !== "approve" && (
             <HuemulField
               type="switch"
-              label={t("lifecycle.allowAnyoneLabel")}
+              label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
               name="new-group-access-all"
               value={newGroupAccessType === "all"}
               onChange={(v) => {
@@ -653,7 +656,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
             <>
               <HuemulField
                 type="switch"
-                label={t("lifecycle.ownerCanExecuteLabel")}
+                label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
                 name="new-group-access-owner"
                 value={newGroupOwnerCanExecute}
                 onChange={(v) => setNewGroupOwnerCanExecute(Boolean(v))}
@@ -662,7 +665,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
 
               <HuemulField
                 type="combobox"
-                label={t("lifecycle.addRole")}
+                label={t("lifecycle.addRole", { action: stepAction })}
                 name="new-group-role"
                 placeholder={t("lifecycle.addRolePlaceholder")}
                 value=""
