@@ -56,6 +56,12 @@ const NavKnowledgeContext = React.createContext<{
   setSearchTerm: (term: string) => void
   committedSearch: string
   setCommittedSearch: (term: string) => void
+  rootPage: number
+  rootPageSize: number
+  hasNextRootPage: boolean
+  setRootPage: (page: number) => void
+  setRootPageSize: (size: number) => void
+  setHasNextRootPage: (hasNext: boolean) => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
@@ -81,6 +87,9 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [committedSearch, setCommittedSearch] = useState('')
+  const [rootPage, setRootPage] = useState(1)
+  const [rootPageSize, setRootPageSize] = useState(50)
+  const [hasNextRootPage, setHasNextRootPage] = useState(false)
   const { selectedOrganizationId } = useOrganization()
 
   // Refs to keep callbacks stable across re-renders while accessing latest state
@@ -261,7 +270,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetDialog
@@ -338,6 +347,19 @@ export function useNavKnowledgeActions() {
   return {
     handleCreateAsset: context?.handleCreateAsset || (() => {}),
     handleCreateFolder: context?.handleCreateFolder || (() => {}),
+  }
+}
+
+// Export hook for accessing pagination state of the root file tree
+export function useNavKnowledgePagination() {
+  const context = React.useContext(NavKnowledgeContext)
+  return {
+    page: context?.rootPage ?? 1,
+    pageSize: context?.rootPageSize ?? 50,
+    hasNext: context?.hasNextRootPage ?? false,
+    hasPrevious: (context?.rootPage ?? 1) > 1,
+    setPage: context?.setRootPage ?? (() => {}),
+    setPageSize: context?.setRootPageSize ?? (() => {}),
   }
 }
 
@@ -451,13 +473,19 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, committedSearch } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
   const { guardedAction } = useOptionalEditingGuard()
+
+  // Refs so handleLoadChildren callback stays stable while always reading latest values
+  const rootPageRef = React.useRef(rootPage)
+  rootPageRef.current = rootPage
+  const rootPageSizeRef = React.useRef(rootPageSize)
+  rootPageSizeRef.current = rootPageSize
 
   const [searchResults, setSearchResults] = React.useState<FileNode[]>([])
   const [searchMatchIds, setSearchMatchIds] = React.useState<Set<string>>(new Set())
@@ -556,12 +584,29 @@ export function NavKnowledgeContent() {
     }
   }, [selectedOrganizationId, fileTreeRef])
 
+  // Refresh root-level items when pagination changes
+  const isFirstPaginationRender = React.useRef(true)
+  React.useEffect(() => {
+    if (isFirstPaginationRender.current) {
+      isFirstPaginationRender.current = false
+      return
+    }
+    fileTreeRef.current?.refresh()
+  }, [rootPage, rootPageSize, fileTreeRef])
+
   const handleLoadChildren = useCallback(
     async (folderId: string | null): Promise<FileNode[]> => {
       if (!selectedOrganizationId) return []
 
       try {
-        const content = await getLibraryContent(selectedOrganizationId, folderId === null ? undefined : folderId)
+        const isRoot = folderId === null
+        const content = isRoot
+          ? await getLibraryContent(selectedOrganizationId, undefined, rootPageRef.current, rootPageSizeRef.current)
+          : await getLibraryContent(selectedOrganizationId, folderId)
+
+        if (isRoot) {
+          setHasNextRootPage(content.has_next)
+        }
 
         const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
           id: item.id,
