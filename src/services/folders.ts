@@ -21,6 +21,7 @@ export interface LibraryContentFolder {
 export interface LibraryContent {
     assets: LibraryContentAsset[];
     folders: LibraryContentFolder[];
+    has_next: boolean;
 }
 
 export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string): Promise<LibraryContent> {
@@ -33,8 +34,11 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
             'X-Org-Id': organizationId,
         },
     });
-    const data = await response.json();
-    return data.data as LibraryContent;
+    const raw = await response.json();
+    return {
+        ...(raw.data as Omit<LibraryContent, 'has_next'>),
+        has_next: raw.has_next ?? false,
+    };
 }
 
 
