@@ -39,7 +39,7 @@ export function CustomFieldsList({
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
 
   const formatCalendarDate = (dateValue: string) => {
     const normalizedDate = dateValue.split('T')[0];
@@ -313,7 +313,7 @@ export function CustomFieldsList({
                       }, 0)
                     }} className="hover:cursor-pointer text-destructive focus:text-destructive">
                       <Trash2 className="mr-2 h-3 w-3" />
-                      {t('customFieldsList.delete')}
+                      {t('common:delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

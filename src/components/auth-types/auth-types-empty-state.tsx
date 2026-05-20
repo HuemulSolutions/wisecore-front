@@ -16,8 +16,8 @@ export function AuthTypesEmptyState({ searchTerm }: AuthTypesEmptyStateProps) {
             <tr className="border-b border-border">
               <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('common:name')}</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('columns.type')}</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('columns.created')}</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('columns.updated')}</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('common:created')}</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('common:updated')}</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">{t('common:actions')}</th>
             </tr>
           </thead>

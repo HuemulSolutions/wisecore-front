@@ -19,7 +19,7 @@ export function DeleteCustomFieldDialog({
   customField,
   onConfirm,
 }: DeleteCustomFieldDialogProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   const handleDelete = async () => {
     onConfirm(customField!)
@@ -54,7 +54,7 @@ export function DeleteCustomFieldDialog({
         <div className="rounded-lg border p-3 bg-muted/50">
           <div className="space-y-2 text-sm">
             <div>
-              <span className="font-medium">{t('deleteDialog.nameLabel')}:</span> {customField.name}
+              <span className="font-medium">{t('common:name')}:</span> {customField.name}
             </div>
             <div>
               <span className="font-medium">{t('deleteDialog.descriptionLabel')}:</span> {customField.description}

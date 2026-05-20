@@ -64,7 +64,7 @@ export default function SortableSectionSheet({
   currentExecutionId = null,
   useExecutionDeleteDialog = false,
 }: SortableSectionSheetProps) {
-  const { t } = useTranslation(["sections"]);
+  const { t } = useTranslation(["sections", "common"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -256,7 +256,7 @@ export default function SortableSectionSheet({
                               className="hover:cursor-pointer"
                             >
                               <Edit className="h-4 w-4 mr-2" />
-                              {t("sections:sortableSection.edit")}
+                              {t("common:edit")}
                             </DropdownMenuItem>
                           )}
                           {canDelete && (
@@ -271,7 +271,7 @@ export default function SortableSectionSheet({
                               }}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              {t("sections:sortableSection.delete")}
+                              {t("common:delete")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -404,7 +404,7 @@ export default function SortableSectionSheet({
           description={t("sections:sortableSection.deleteExecutionDescription")}
           maxWidth="sm:max-w-[640px]"
           saveAction={{
-            label: isDeleting ? t("sections:sortableSection.deleting") : t("sections:sortableSection.delete"),
+            label: isDeleting ? t("common:deleting") : t("common:delete"),
             variant: "destructive",
             disabled: isDeleting || !canConfirmDelete,
             loading: isDeleting,
@@ -489,7 +489,7 @@ export default function SortableSectionSheet({
             </div>
           }
           onAction={handleDelete}
-          actionLabel={t("sections:sortableSection.delete")}
+          actionLabel={t("common:delete")}
           actionVariant="destructive"
         />
       )}

@@ -21,7 +21,7 @@ export function LoginForm({
   ...props
 }: LoginFormProps) {
   const [email, setEmail] = useState("")
-  const { t } = useTranslation('auth')
+  const { t } = useTranslation(['auth', 'common'])
 
   const requestCodeMutation = useMutation({
     mutationFn: (email: string) =>
@@ -48,7 +48,7 @@ export function LoginForm({
           </div>
           <HuemulField
             type="email"
-            label={t('login.email')}
+            label={t('common:email')}
             name="email"
             placeholder={t('login.emailPlaceholder')}
             value={email}

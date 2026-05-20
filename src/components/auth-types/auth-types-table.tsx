@@ -44,7 +44,7 @@ export function AuthTypesTable({
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.created_at).toLocaleDateString()}
@@ -53,7 +53,7 @@ export function AuthTypesTable({
     },
     {
       key: "updated",
-      label: t('columns.updated'),
+      label: t('common:updated'),
       render: (authType) => (
         <span className="text-xs text-foreground">
           {new Date(authType.updated_at).toLocaleDateString()}

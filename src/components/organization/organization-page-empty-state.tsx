@@ -6,14 +6,14 @@ interface OrganizationPageEmptyStateProps {
 }
 
 export function OrganizationPageEmptyState({ type }: OrganizationPageEmptyStateProps) {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
 
   if (type === "access-denied") {
     return (
       <div className="flex h-[calc(100vh-8rem)] items-center justify-center p-6">
         <div className="text-center max-w-md">
           <ShieldAlert className="mx-auto h-16 w-16 text-destructive mb-4" />
-          <h2 className="text-2xl font-bold mb-2">{t('emptyState.accessDenied')}</h2>
+          <h2 className="text-2xl font-bold mb-2">{t('common:accessDenied')}</h2>
           <p className="text-muted-foreground">
             {t('emptyState.accessDeniedDescription')}
           </p>

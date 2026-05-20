@@ -32,7 +32,7 @@ export function CreateStepContent({
   useAllOrCustomOwner = false,
   onEditingChange,
 }: CreateStepContentProps) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
@@ -175,14 +175,14 @@ export function CreateStepContent({
             <>
               <HuemulButton
                 icon={Ban}
-                label={t("lifecycle.cancel")}
+                label={t("common:cancel")}
                 variant="ghost"
                 onClick={handleCancel}
                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               />
               <HuemulButton
                 icon={Save}
-                label={t("lifecycle.save")}
+                label={t("common:save")}
                 variant="default"
                 onClick={async () => await saveFnRef.current?.()}
                 loading={updateStep.isPending}
@@ -191,7 +191,7 @@ export function CreateStepContent({
           ) : (
             <HuemulButton
               icon={Pencil}
-              label={t("lifecycle.edit")}
+              label={t("common:edit")}
               variant="ghost"
               onClick={handleEdit}
               className="text-muted-foreground"

@@ -51,13 +51,13 @@ export function OrganizationTable({
   isLoading = false,
   isFetching = false
 }: OrganizationTableProps) {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
 
   // Define columns
   const columns: HuemulTableColumn<Organization>[] = [
     {
       key: "name",
-      label: t('columns.name'),
+      label: t('common:name'),
       render: (organization) => (
         <div className="flex items-center gap-3">
           <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -106,7 +106,7 @@ export function OrganizationTable({
     ] : []),
     {
       key: "created_at",
-      label: t('columns.createdAt'),
+      label: t('common:created'),
       render: (organization) => (
         <div className="text-xs text-muted-foreground">
           {organization.created_at ? formatDate(organization.created_at) : "N/A"}
@@ -125,13 +125,13 @@ export function OrganizationTable({
     }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
-      label: t('actions.edit'),
+      label: t('common:edit'),
       icon: Edit2,
       onClick: onEditOrganization
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
-      label: t('actions.delete'),
+      label: t('common:delete'),
       icon: Trash2,
       onClick: onDeleteOrganization,
       destructive: true

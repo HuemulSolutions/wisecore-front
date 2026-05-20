@@ -36,13 +36,13 @@ export default function CustomFieldFormFields({
   disabled = false,
   loadingDataTypes = false,
 }: CustomFieldFormFieldsProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   return (
     <div className="space-y-4">
       <HuemulField
         type="text"
-        label={t('columns.name')}
+        label={t('common:name')}
         name="name"
         placeholder={t('form.namePlaceholder')}
         value={name}

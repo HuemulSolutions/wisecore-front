@@ -65,7 +65,7 @@ function WelcomeMessage() {
 
 function ChatbotContent() {
   const endRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation('chatbot');
+  const { t } = useTranslation(['chatbot', 'common']);
   const {
     isOpen,
     setIsOpen,
@@ -330,7 +330,7 @@ function ChatbotContent() {
                       className="h-8 min-w-[132px] max-w-[180px] rounded-lg border-transparent bg-transparent px-2 text-xs text-slate-500 shadow-none transition-colors hover:cursor-pointer hover:border-slate-200 hover:bg-slate-50/70 focus:ring-[#4464f7]/15 disabled:hover:cursor-not-allowed"
                     >
                       <div className="flex min-w-0 items-center gap-2">
-                        <SelectValue placeholder={isLoadingLlms ? t('model.loading') : t('model.selectModel')} />
+                        <SelectValue placeholder={isLoadingLlms ? t('common:loading') : t('model.selectModel')} />
                       </div>
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-slate-200 bg-white shadow-xl">

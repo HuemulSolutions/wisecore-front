@@ -13,7 +13,7 @@ export function DeleteContextDialog({
   onOpenChange,
   onConfirm,
 }: DeleteContextDialogProps) {
-  const { t } = useTranslation('context')
+  const { t } = useTranslation(['context', 'common'])
 
   return (
     <HuemulAlertDialog
@@ -21,7 +21,7 @@ export function DeleteContextDialog({
       onOpenChange={onOpenChange}
       title={t('deleteDialog.title')}
       description={t('deleteDialog.description')}
-      actionLabel={t('deleteDialog.deleteButton')}
+      actionLabel={t('common:delete')}
       onAction={onConfirm}
       actionVariant="destructive"
       actionIcon={Trash2}

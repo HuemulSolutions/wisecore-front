@@ -61,7 +61,7 @@ export function TemplateInfoSheet({
           {/* General */}
           <HuemulInfoSection title={t("templates:infoSheet.sectionIdentifiers")}>
             <HuemulInfoItem
-              label={t("templates:infoSheet.name")}
+              label={t("common:name")}
               value={name}
             />
             <HuemulInfoItem

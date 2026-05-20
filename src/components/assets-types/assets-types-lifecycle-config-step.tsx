@@ -36,7 +36,7 @@ export function ConfigStepContent({
   onRegisterSave,
   onEditingChange,
 }: ConfigStepContentProps) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
@@ -197,7 +197,7 @@ export function ConfigStepContent({
               variant="ghost"
               size="icon"
               onClick={handleCancel}
-              tooltip={t("lifecycle.cancel")}
+              tooltip={t("common:cancel")}
               className="text-muted-foreground hover:text-destructive"
             />
           ) : (
@@ -206,7 +206,7 @@ export function ConfigStepContent({
               variant="ghost"
               size="icon"
               onClick={handleEdit}
-              tooltip={t("lifecycle.edit")}
+              tooltip={t("common:edit")}
               className="text-muted-foreground"
             />
           )}

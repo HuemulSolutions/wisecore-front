@@ -20,7 +20,7 @@ interface AssetSelectionPanelProps {
 }
 
 export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey, actionLabel, actionLoadingLabel, ActionIcon }: AssetSelectionPanelProps) {
-  const { t } = useTranslation("advanced")
+  const { t } = useTranslation(["advanced", "common"])
   const { selectedOrganizationId } = useOrganization()
   const orgId = useEffectiveOrgId()
 
@@ -165,7 +165,7 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
     return (
       <div className="flex items-center justify-center h-full gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        {t("assetSelection.loading")}
+        {t("common:loading")}
       </div>
     )
   }
@@ -187,7 +187,7 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
             checked={totalExecutions > 0 && selectedExecutions.size === totalExecutions}
             onCheckedChange={toggleSelectAll}
           />
-          {t("assetSelection.selectAll")}
+          {t("common:selectAll")}
         </label>
         <span className="text-xs text-muted-foreground">
           {totalExecutions} {t("assetSelection.available")}
@@ -240,8 +240,8 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
               <Play className="h-4 w-4" />
             )}
             {isExecuting
-              ? (actionLoadingLabel ?? t("assetSelection.executing"))
-              : `${actionLabel ?? t("assetSelection.execute")} (${selectedExecutions.size})`}
+              ? (actionLoadingLabel ?? t("common:executing"))
+              : `${actionLabel ?? t("common:execute")} (${selectedExecutions.size})`}
           </Button>
         </div>
       )}

@@ -39,7 +39,7 @@ export function CustomWordExportDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const { selectedOrganizationId } = useOrganization();
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
   const queryClient = useQueryClient();
 
   const availableTemplatesKey = ['available-docx-templates-execution', selectedExecutionId, selectedOrganizationId];
@@ -194,7 +194,7 @@ export function CustomWordExportDialog({
                     {isProcessing ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {uploadTemplateMutation.isPending ? t('exportCustomWord.uploadingTemplate') : t('exportCustomWord.exporting')}
+                        {uploadTemplateMutation.isPending ? t('exportCustomWord.uploadingTemplate') : t('common:exporting')}
                       </>
                     ) : (
                       <>
@@ -254,12 +254,12 @@ export function CustomWordExportDialog({
                   {exportMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {t('exportCustomWord.exporting')}
+                      {t('common:exporting')}
                     </>
                   ) : (
                     <>
                       <Download className="h-4 w-4 mr-2" />
-                      {t('exportCustomWord.export')}
+                      {t('common:export')}
                     </>
                   )}
                 </Button>

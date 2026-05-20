@@ -16,7 +16,7 @@ export function CustomFieldPageEmptyState({
   message,
   onCreateFirst,
 }: CustomFieldPageEmptyStateProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   if (type === "access-denied") {
     return (
@@ -27,7 +27,7 @@ export function CustomFieldPageEmptyState({
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
                 <ShieldAlert className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="mt-4 text-lg font-medium">{t('emptyState.accessDeniedTitle')}</h3>
+              <h3 className="mt-4 text-lg font-medium">{t('common:accessDenied')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 {t('emptyState.accessDeniedDescription')}
               </p>

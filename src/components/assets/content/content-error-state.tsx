@@ -9,7 +9,7 @@ interface ContentErrorStateProps {
 }
 
 export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
 
   // Determinar tipo de error para mostrar icono/mensaje apropiado
   const isAccessError = ApiError.isApiError(error) && 
@@ -18,7 +18,7 @@ export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
   
   const Icon = isAccessError ? Lock : isNotFoundError ? FileX : AlertCircle;
   const title = isAccessError 
-    ? t('contentError.accessDenied')
+    ? t('common:accessDenied')
     : isNotFoundError 
       ? t('contentError.documentNotFound')
       : t('contentError.errorLoading');
@@ -37,7 +37,7 @@ export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
         {onRetry && !isAccessError && (
           <Button onClick={onRetry} variant="outline" className="hover:cursor-pointer">
             <RefreshCw className="h-4 w-4 mr-2" />
-            {t('contentError.tryAgain')}
+            {t('common:tryAgain')}
           </Button>
         )}
       </div>

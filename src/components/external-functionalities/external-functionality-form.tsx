@@ -28,7 +28,7 @@ interface ExternalFunctionalityFormProps {
 }
 
 export function ExternalFunctionalityForm({ formData, onChange }: ExternalFunctionalityFormProps) {
-  const { t } = useTranslation("external-functionalities")
+  const { t } = useTranslation(["external-functionalities", "common"])
 
   const httpMethodOptions = (["GET", "POST", "PATCH", "PUT", "DELETE"] as ExternalFunctionalityHttpMethod[]).map(
     (m) => ({ value: m, label: m }),
@@ -51,7 +51,7 @@ export function ExternalFunctionalityForm({ formData, onChange }: ExternalFuncti
   return (
     <HuemulFieldGroup className="py-2">
       <HuemulField
-        label={t("detail.name")}
+        label={t("common:name")}
         name="name"
         value={formData.name ?? ""}
         onChange={(v) => onChange("name", v as string)}

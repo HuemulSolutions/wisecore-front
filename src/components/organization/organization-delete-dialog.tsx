@@ -26,7 +26,7 @@ export function DeleteOrganizationDialog({
 }: DeleteOrganizationDialogProps) {
   if (!organization) return null;
 
-  const { t } = useTranslation('organizations');
+  const { t } = useTranslation(['organizations', 'common']);
 
   return (
     <HuemulAlertDialog
@@ -34,7 +34,7 @@ export function DeleteOrganizationDialog({
       onOpenChange={onOpenChange}
       title={t('delete.title')}
       description={t('delete.description', { name: organization.name })}
-      actionLabel={t('actions.delete')}
+      actionLabel={t('common:delete')}
       actionIcon={Trash2}
       onAction={onConfirm}
     />

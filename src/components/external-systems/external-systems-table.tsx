@@ -33,7 +33,7 @@ export function ExternalSystemsTable({
   const columns: HuemulTableColumn<ExternalSystem>[] = [
     {
       key: "name",
-      label: t("columns.name"),
+      label: t("common:name"),
       render: (system) => (
         <span className="text-xs font-medium text-foreground">{system.name}</span>
       ),
@@ -49,7 +49,7 @@ export function ExternalSystemsTable({
     },
     {
       key: "status",
-      label: t("columns.status"),
+      label: t("common:status"),
       render: (system) => (
         <Badge
           variant={system.status === "active" ? "default" : "secondary"}
@@ -61,7 +61,7 @@ export function ExternalSystemsTable({
     },
     {
       key: "updated_at",
-      label: t("columns.updatedAt"),
+      label: t("common:updated"),
       render: (system) => (
         <span className="text-xs text-muted-foreground">
           {new Date(system.updated_at).toLocaleDateString()}

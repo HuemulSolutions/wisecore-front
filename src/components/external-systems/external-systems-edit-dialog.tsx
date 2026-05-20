@@ -73,7 +73,7 @@ export function ExternalSystemEditDialog({
     >
       <HuemulFieldGroup className="py-2">
         <HuemulField
-          label={t("columns.name")}
+          label={t("common:name")}
           name="name"
           value={formData.name}
           onChange={(v) => handleChange("name", v as string)}
@@ -91,7 +91,7 @@ export function ExternalSystemEditDialog({
         />
         <HuemulField
           type="select"
-          label={t("columns.status")}
+          label={t("common:status")}
           name="status"
           value={formData.status}
           options={statusOptions}

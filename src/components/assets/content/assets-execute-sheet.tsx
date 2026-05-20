@@ -63,7 +63,7 @@ export function ExecuteSheet({
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
   const { selectedOrganizationId } = useOrganization();
-  const { t } = useTranslation('execute');
+  const { t } = useTranslation(['execute', 'common']);
   
   // Refs para la inicialización
   const instructionsInitialized = useRef<boolean>(false);
@@ -432,8 +432,8 @@ export function ExecuteSheet({
             loading={executeDocumentMutation.isPending || isActuallyLoadingFullDocument || isLoadingDefaultLLM}
             icon={Play}
             label={
-              executeDocumentMutation.isPending ? t('button.creating') :
-              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('button.loading') :
+              executeDocumentMutation.isPending ? t('common:creating') :
+              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('common:loading') :
               t('button.execute')
             }
             disabled={
@@ -479,7 +479,7 @@ export function ExecuteSheet({
                           loading={executeDocumentMutation.isPending}
                           disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || (!sheetSelectedLLM && !defaultLLM?.id)}
                           icon={Play}
-                          label={t('button.tryAgain')}
+                          label={t('common:tryAgain')}
                           className="bg-[#4464f7] hover:bg-[#3451e6] px-6"
                         />
                         </div>

@@ -6,7 +6,6 @@ const translations = {
     typesTitle: { en: "Title", es: "Título" },
     typesCode: { en: "Code", es: "Código" },
     typesContent: { en: "Content", es: "Contenido" },
-    searchButton: { en: "Search", es: "Buscar" },
     clearSearch: { en: "Clear search", es: "Limpiar búsqueda" },
     supportingDocuments: { en: "Supporting Assets", es: "Activos de Soporte" },
   },
@@ -21,7 +20,6 @@ const translations = {
     filterWithLlmShort: { en: "AI filter", es: "Filtro IA" },
     searchType: { en: "Search Type", es: "Tipo de búsqueda" },
     apply: { en: "Apply", es: "Aplicar" },
-    cancel: { en: "Cancel", es: "Cancelar" },
     clearAll: { en: "Clear filters", es: "Limpiar filtros" },
   },
   errors: {

@@ -29,7 +29,7 @@ export function RolesTable({
   pagination,
   canManage = false
 }: RolesTableProps) {
-  const { t } = useTranslation('roles')
+  const { t } = useTranslation(['roles', 'common'])
   // Define columns
   const columns: HuemulTableColumn<Role>[] = [
     {
@@ -78,7 +78,7 @@ export function RolesTable({
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
       hideOnMobile: true,
       render: (role) => (
         <span className="text-xs text-foreground">

@@ -21,7 +21,7 @@ export function SectionRegenerationFeedback({
 }: SectionRegenerationFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
-  const { t } = useTranslation('execute');
+  const { t } = useTranslation(['execute', 'common']);
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
 
   // Poll execution status
@@ -91,7 +91,7 @@ export function SectionRegenerationFeedback({
           className="hover:cursor-pointer text-xs"
         >
           <RefreshCw className="h-3 w-3 mr-1" />
-          {t('sectionRegeneration.refresh')}
+          {t('common:refresh')}
         </Button>
       </div>
     </div>

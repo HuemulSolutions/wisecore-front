@@ -20,7 +20,7 @@ export function DeleteTemplateDialog({
   organizationId,
   onSuccess,
 }: DeleteTemplateDialogProps) {
-  const { t } = useTranslation('templates');
+  const { t } = useTranslation(['templates', 'common']);
   const queryClient = useQueryClient();
 
   const deleteTemplateMutation = useMutation({
@@ -47,7 +47,7 @@ export function DeleteTemplateDialog({
       onOpenChange={onOpenChange}
       title={t('delete.title')}
       description={t('delete.description', { name: templateName })}
-      actionLabel={t('delete.actionLabel')}
+      actionLabel={t('common:delete')}
       onAction={handleDelete}
     />
   );

@@ -85,7 +85,7 @@ export function HuemulFilters({
   hasActiveFilters = false,
   className,
 }: HuemulFiltersProps) {
-  const { t } = useTranslation("huemul-filters");
+  const { t } = useTranslation(["huemul-filters", "common"]);
 
   const [internalOpen, setInternalOpen] = React.useState(defaultOpen);
 
@@ -118,7 +118,7 @@ export function HuemulFilters({
             className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-accent hover:cursor-pointer transition-colors disabled:opacity-50 disabled:pointer-events-none"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-            {t("refresh", "Refresh")}
+            {t("common:refresh")}
           </button>
         )}
       </div>

@@ -112,7 +112,7 @@ function SectionExecutionInner({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
-    const { t } = useTranslation('assets');
+    const { t } = useTranslation(["assets", "common"]);
     const isExecutionApproved = executionStatus === 'approved';
     
     // Determine which actions are available based on section type
@@ -596,7 +596,7 @@ function SectionExecutionInner({
                                             onClick={handleStartEditing}
                                         >
                                             <Edit className="h-4 w-4 mr-2" />
-                                            {t('section.edit')}
+                                            {t('common:edit')}
                                         </DropdownMenuItem>
                                     )}
                                     {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
@@ -635,7 +635,7 @@ function SectionExecutionInner({
                                             }}
                                         >
                                             <Trash2 className="h-4 w-4 mr-2" />
-                                            {t('section.delete')}
+                                            {t('common:delete')}
                                         </DropdownMenuItem>
                                     )}
                                     {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
@@ -698,7 +698,7 @@ function SectionExecutionInner({
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
-                            {t('section.save')}
+                            {t('common:save')}
                         </Button>
                         <Button
                             size="sm"

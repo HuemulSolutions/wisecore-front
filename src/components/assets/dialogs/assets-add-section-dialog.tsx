@@ -34,7 +34,7 @@ export function AddSectionDialog({
   isPending,
 }: AddSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
-  const { t } = useTranslation('assets')
+  const { t } = useTranslation(["assets", "common"])
 
   useEffect(() => {
     if (!open) {
@@ -64,9 +64,9 @@ export function AddSectionDialog({
       icon={PlusCircle}
       maxWidth="sm:max-w-2xl"
       maxHeight="max-h-[90vh]"
-      cancelLabel={t('addSectionDialog.cancel')}
+      cancelLabel={t('common:cancel')}
       saveAction={{
-        label: isPending ? t('addSectionDialog.creating') : t('addSectionDialog.createSection'),
+        label: isPending ? t('common:creating') : t('addSectionDialog.createSection'),
         disabled: !isFormValid || isPending,
         loading: isPending,
         closeOnSuccess: false,

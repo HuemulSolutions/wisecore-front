@@ -65,7 +65,7 @@ function ConversationItem({
   onDelete: (id: string) => void;
   isRenaming: boolean;
 }) {
-  const { t } = useTranslation('chatbot');
+  const { t } = useTranslation(['chatbot', 'common']);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +189,7 @@ function ConversationItem({
             className="hover:cursor-pointer text-xs gap-2 text-red-600 focus:text-red-600"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            {t('conversations.delete')}
+            {t('common:delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -208,7 +208,7 @@ export function ConversationList({
   activeConversationId,
   onDeletedActiveConversation,
 }: ConversationListProps) {
-  const { t } = useTranslation('chatbot');
+  const { t } = useTranslation(['chatbot', 'common']);
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
 
@@ -326,7 +326,7 @@ export function ConversationList({
         {hasNext && (
           <div className="flex justify-center pt-2 pb-1">
             <HuemulButton
-              label={isFetching ? t('conversations.loading') : t('conversations.loadMore')}
+              label={isFetching ? t('common:loading') : t('common:loadMore')}
               variant="ghost"
               size="sm"
               loading={isFetching}
@@ -343,8 +343,8 @@ export function ConversationList({
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
         title={t('conversations.deleteTitle')}
         description={t('conversations.deleteDescription')}
-        actionLabel={t('conversations.delete')}
-        cancelLabel={t('conversations.cancel')}
+        actionLabel={t('common:delete')}
+        cancelLabel={t('common:cancel')}
         onAction={async () => {
           if (deleteTarget) {
             await archiveConversation(deleteTarget);

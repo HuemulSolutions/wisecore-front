@@ -37,7 +37,7 @@ interface GlobalUsersResponse {
 }
 
 export function GlobalAdminUsersSection() {
-  const { t } = useTranslation(['users', 'global-admin'])
+  const { t } = useTranslation(['users', 'global-admin', 'common'])
   const [state, setState] = useState<UserPageState>({
     searchTerm: "",
     filterStatus: "all",
@@ -184,7 +184,7 @@ export function GlobalAdminUsersSection() {
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
       render: (user) => (
         <span className="text-xs text-foreground">{formatDate(user.created_at)}</span>
       )
@@ -295,9 +295,9 @@ export function GlobalAdminUsersSection() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('header.filterAllStatus')}</SelectItem>
-              <SelectItem value="active">{t('header.filterActive')}</SelectItem>
-              <SelectItem value="inactive">{t('header.filterInactive')}</SelectItem>
-              <SelectItem value="pending">{t('header.filterPending')}</SelectItem>
+              <SelectItem value="active">{t('common:active')}</SelectItem>
+              <SelectItem value="inactive">{t('common:inactive')}</SelectItem>
+              <SelectItem value="pending">{t('common:pending')}</SelectItem>
             </SelectContent>
           </Select>
         </PageHeader>

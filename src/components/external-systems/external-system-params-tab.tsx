@@ -385,7 +385,7 @@ export function ExternalSystemParamsTab({
         description={t("delete.description", { name: deletingParam?.name })}
         icon={Trash2}
         iconClassName="text-destructive"
-        actionLabel={t("delete.confirmLabel")}
+        actionLabel={t("common:delete")}
         actionVariant="destructive"
         onAction={handleDelete}
         cancelLabel={t("common:cancel")}

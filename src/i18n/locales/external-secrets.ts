@@ -3,7 +3,6 @@ const translations = {
   refresh: { en: "Refresh secrets", es: "Actualizar secretos" },
   columns: {
     key: { en: "Key", es: "Clave" },
-    name: { en: "Name", es: "Nombre" },
     value: { en: "Value", es: "Valor" },
   },
   masked: { en: "••••••••", es: "••••••••" },
@@ -16,9 +15,7 @@ const translations = {
     description: { en: "Add a new secret to this external system.", es: "Agrega un nuevo secreto a este sistema externo." },
     submitLabel: { en: "Add Secret", es: "Agregar Secreto" },
     keyLabel: { en: "Key", es: "Clave" },
-    keyPlaceholder: { en: "e.g. n8n-bearer", es: "ej. n8n-bearer" },
-    nameLabel: { en: "Name", es: "Nombre" },
-    namePlaceholder: { en: "e.g. N8N Connection Key", es: "ej. Clave de conexión N8N" },
+    keyPlaceholder: { en: "e.g. N8N Connection Key", es: "ej. Clave de conexión N8N" },
     valueLabel: { en: "Value", es: "Valor" },
     valuePlaceholder: { en: "Secret value", es: "Valor secreto" },
   },
@@ -28,7 +25,6 @@ const translations = {
   delete: {
     title: { en: "Delete Secret", es: "Eliminar Secreto" },
     description: { en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar \"{{name}}\"? Esta acción no se puede deshacer." },
-    confirmLabel: { en: "Delete", es: "Eliminar" },
   },
 }
 

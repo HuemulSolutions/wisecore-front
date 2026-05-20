@@ -171,7 +171,7 @@ function EditStepCard({
           <>
             <HuemulButton
               icon={Ban}
-              label={t("lifecycle.cancel")}
+              label={t("common:cancel")}
               variant="ghost"
               onClick={handleCancel}
               disabled={isSaving}
@@ -179,7 +179,7 @@ function EditStepCard({
             />
             <HuemulButton
               icon={Save}
-              label={t("lifecycle.save")}
+              label={t("common:save")}
               variant="default"
               onClick={handleCheckClick}
               loading={isSaving}
@@ -189,7 +189,7 @@ function EditStepCard({
         ) : (
           <HuemulButton
             icon={Pencil}
-            label={t("lifecycle.edit")}
+            label={t("common:edit")}
             variant="ghost"
             onClick={handleCheckClick}
             className="text-muted-foreground"
@@ -377,7 +377,7 @@ function SortableEditStepCard(
 // ─── EditStepContent ──────────────────────────────────────────────────────────
 
 export function EditStepContent({ documentTypeId, stepType, onEditingChange }: EditStepContentProps) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
@@ -581,7 +581,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
         title={t("lifecycle.addGroupTitle")}
         maxWidth="sm:max-w-md"
         saveAction={{
-          label: t("lifecycle.add"),
+          label: t("common:add"),
           onClick: handleAddGroup,
           closeOnSuccess: true,
         }}

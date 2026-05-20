@@ -108,7 +108,7 @@ export function SectionSheet({
   stage,
   showTrigger = true,
 }: SectionSheetProps) {
-  const { t } = useTranslation('sections');
+  const { t } = useTranslation(['sections', 'common']);
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
   const [isAddingSectionDialogOpen, setIsAddingSectionDialogOpen] = useState(false);
@@ -394,13 +394,13 @@ export function SectionSheet({
                     variant="outline"
                     className="h-8 hover:cursor-pointer text-gray-700"
                   >
-                    {t('update.label')}
+                    {t('common:update')}
                     <ChevronDown className="h-4 w-4 ml-1.5" />
                   </HuemulButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64 p-0">
                   <DropdownMenuLabel className="text-sm font-semibold px-4 py-3">
-                    {t('update.label')}
+                    {t('common:update')}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

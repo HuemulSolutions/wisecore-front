@@ -38,7 +38,7 @@ export function TemplateConfigSheet({
 }: TemplateConfigSheetProps) {
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
   const [isAddingSection, setIsAddingSection] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
 
@@ -225,7 +225,7 @@ export function TemplateConfigSheet({
                         size="sm"
                         disabled={addSectionMutation.isPending}
                       >
-                        {t('templateSheet.cancel')}
+                        {t('common:cancel')}
                       </Button>
                       <Button
                         form="add-template-section-form"

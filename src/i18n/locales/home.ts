@@ -98,7 +98,6 @@ const translations = {
 
   sheetShowcase: {
     title: { en: "HuemulSheet showcase", es: "Demo de HuemulSheet" },
-    saveLabel: { en: "Save", es: "Guardar" },
     confirmLabel: { en: "Confirm", es: "Confirmar" },
     applyLabel: { en: "Apply", es: "Aplicar" },
     downloadLabel: { en: "Download", es: "Descargar" },
@@ -255,7 +254,6 @@ const translations = {
   },
 
   actions: {
-    refresh: { en: "Refresh", es: "Actualizar" },
     uploadDocument: { en: "Upload Document", es: "Subir Documento" },
     pendingReviews: { en: "Pending Reviews", es: "Revisiones Pendientes" },
     createAsset: { en: "Create Asset", es: "Crear Activo" },
@@ -268,7 +266,6 @@ const translations = {
 
   filters: {
     title: { en: "Filters", es: "Filtros" },
-    search: { en: "Search", es: "Buscar" },
     searchPlaceholder: { en: "Search by name...", es: "Buscar por nombre..." },
     lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
     allLifecycleStates: { en: "All states", es: "Todos los estados" },
@@ -279,17 +276,13 @@ const translations = {
     pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
     unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
     all: { en: "All", es: "Todos" },
-    yes: { en: "Yes", es: "Sí" },
-    no: { en: "No", es: "No" },
   },
 
   executionsTable: {
     title: { en: "Recent Executions", es: "Ejecuciones Recientes" },
     columns: {
-      name: { en: "Name", es: "Nombre" },
       documentName: { en: "Asset", es: "Activo" },
       version: { en: "Version", es: "Versión" },
-      status: { en: "Status", es: "Estado" },
       lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
       taskStatus: { en: "Task Status", es: "Estado de Tarea" },
       owner: { en: "Owner", es: "Propietario" },
@@ -305,7 +298,6 @@ const translations = {
       completed: { en: "Completed", es: "Completado" },
       failed: { en: "Failed", es: "Fallido" },
       running: { en: "Running", es: "En ejecución" },
-      pending: { en: "Pending", es: "Pendiente" },
       queued: { en: "Queued", es: "En cola" },
     },
     empty: {

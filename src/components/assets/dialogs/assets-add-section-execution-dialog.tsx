@@ -34,7 +34,7 @@ export function AddSectionExecutionDialog({
   defaultManualInput,
 }: AddSectionExecutionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
-  const { t } = useTranslation('assets')
+  const { t } = useTranslation(["assets", "common"])
 
   useEffect(() => {
     if (!open) {
@@ -63,7 +63,7 @@ export function AddSectionExecutionDialog({
       showDefaultFooter
       onCancel={handleCancel}
       submitLabel={t('addSectionExecution.submitLabel')}
-      cancelLabel={t('addSectionExecution.cancelLabel')}
+      cancelLabel={t('common:cancel')}
       isSubmitting={isPending}
       isValid={isFormValid}
       formId="add-section-execution-form"

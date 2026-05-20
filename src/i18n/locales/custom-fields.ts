@@ -6,11 +6,9 @@ const translations = {
     customFieldsCount: { en: "{{count}} fields", es: "{{count}} campos" },
   },
   columns: {
-    name: { en: "Name", es: "Nombre" },
     description: { en: "Description", es: "Descripción" },
     dataType: { en: "Data Type", es: "Tipo de Dato" },
     mask: { en: "Mask", es: "Máscara" },
-    created: { en: "Created", es: "Creado" },
     noDescription: { en: "No description", es: "Sin descripción" },
     none: { en: "None", es: "Ninguna" },
   },
@@ -49,7 +47,6 @@ const translations = {
   deleteDialog: {
     title: { en: "Delete Custom Field", es: "Eliminar Campo Personalizado" },
     description: { en: "Are you sure you want to delete this custom field? This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar este campo personalizado? Esta acción no se puede deshacer." },
-    nameLabel: { en: "Name", es: "Nombre" },
     descriptionLabel: { en: "Description", es: "Descripción" },
     dataTypeLabel: { en: "Data Type", es: "Tipo de Dato" },
     maskLabel: { en: "Mask", es: "Máscara" },
@@ -85,7 +82,6 @@ const translations = {
     valueLabel: { en: "Value", es: "Valor" },
     valuePlaceholderInt: { en: "Enter integer value", es: "Ingresa el valor entero" },
     valuePlaceholderDecimal: { en: "Enter decimal value", es: "Ingresa el valor decimal" },
-    valuePlaceholderDate: { en: "Pick a date", es: "Selecciona una fecha" },
     valuePlaceholderTime: { en: "HH:MM:SS", es: "HH:MM:SS" },
     valuePlaceholderDatetime: { en: "YYYY-MM-DDTHH:MM:SS", es: "YYYY-MM-DDTHH:MM:SS" },
     valuePlaceholderGeneric: { en: "Enter value", es: "Ingresa el valor" },
@@ -99,7 +95,6 @@ const translations = {
     saveNew: { en: "Create & Add Field", es: "Crear y Agregar Campo" },
   },
   emptyState: {
-    accessDeniedTitle: { en: "Access Denied", es: "Acceso Denegado" },
     accessDeniedDescription: { en: "You don't have permission to manage custom fields.", es: "No tienes permiso para gestionar campos personalizados." },
     errorLoadingTitle: { en: "Error Loading Custom Fields", es: "Error al Cargar Campos Personalizados" },
     errorLoadingDescription: { en: "There was an error loading the custom fields.", es: "Hubo un error al cargar los campos personalizados." },

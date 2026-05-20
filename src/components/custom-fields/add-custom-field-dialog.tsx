@@ -67,7 +67,7 @@ export function AddCustomFieldDialog({
 
   // Custom field mutations for creating new custom fields
   const customFieldMutations = useCustomFieldMutations()
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -335,7 +335,7 @@ export function AddCustomFieldDialog({
           <HuemulField
             type="date"
             label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderDate')}
+            placeholder={t('common:pickDate')}
             value={value}
             onChange={(v) => setValue(String(v))}
             error={formErrors.value}

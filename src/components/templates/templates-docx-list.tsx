@@ -87,7 +87,7 @@ function DocxTemplateCard({
   onReplace,
   onDelete,
 }: DocxTemplateCardProps) {
-  const { t } = useTranslation("templates");
+  const { t } = useTranslation(["templates", "common"]);
   const formattedDate = formatDate(parseApiDate(template.updated_at), {
     year: "numeric",
     month: "short",
@@ -136,7 +136,7 @@ function DocxTemplateCard({
                   onSelect={() => onDelete(template)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  {t("docxTemplates.delete")}
+                  {t("common:delete")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -218,7 +218,7 @@ export function TemplateDocxList({
   canUpdate = false,
   canDelete = false,
 }: TemplateDocxListProps) {
-  const { t } = useTranslation("templates");
+  const { t } = useTranslation(["templates", "common"]);
 
   // ── Queries & mutations ──────────────────────────────────────────────────
 
@@ -398,7 +398,7 @@ export function TemplateDocxList({
         <div className="space-y-4">
           <HuemulField
             type="text"
-            label={t("docxTemplates.nameLabel")}
+            label={t("common:name")}
             name="upload-name"
             value={uploadName}
             placeholder={t("docxTemplates.namePlaceholder")}
@@ -433,7 +433,7 @@ export function TemplateDocxList({
       >
         <HuemulField
           type="text"
-          label={t("docxTemplates.nameLabel")}
+          label={t("common:name")}
           name="rename-name"
           value={renameName}
           placeholder={t("docxTemplates.namePlaceholder")}
@@ -462,7 +462,7 @@ export function TemplateDocxList({
         <div className="space-y-4">
           <HuemulField
             type="text"
-            label={t("docxTemplates.nameLabel")}
+            label={t("common:name")}
             name="replace-name"
             value={replaceName}
             placeholder={t("docxTemplates.namePlaceholder")}
@@ -488,7 +488,7 @@ export function TemplateDocxList({
           name: deleteTarget?.name ?? "",
         })}
         icon={Trash2}
-        actionLabel={t("docxTemplates.deleteAction")}
+        actionLabel={t("common:delete")}
         actionVariant="destructive"
         onAction={handleDelete}
         cancelLabel={t("common:cancel")}

@@ -130,7 +130,7 @@ export function ExternalSystemSecretsTab({
   const columns: HuemulTableColumn<ExternalSecret>[] = [
     {
       key: "name",
-      label: t("columns.name"),
+      label: t("common:name"),
       width: "w-[35%]",
       render: (secret) => {
         const isEditingRow = editing?.id === secret.id
@@ -336,7 +336,7 @@ export function ExternalSystemSecretsTab({
       >
         <div className="flex flex-col gap-4">
           <HuemulField
-            label={t("add.nameLabel")}
+            label={t("common:name")}
             type="text"
             placeholder={t("add.namePlaceholder")}
             value={addForm.name}
@@ -373,7 +373,7 @@ export function ExternalSystemSecretsTab({
         description={t("delete.description", { name: deletingSecret?.name })}
         icon={Trash2}
         iconClassName="text-destructive"
-        actionLabel={t("delete.confirmLabel")}
+        actionLabel={t("common:delete")}
         actionVariant="destructive"
         onAction={handleDelete}
         cancelLabel={t("common:cancel")}
