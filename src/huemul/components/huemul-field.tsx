@@ -731,6 +731,7 @@ function AsyncSelectField({
 
   const listRef = React.useRef<HTMLDivElement>(null);
   const isInitialMount = React.useRef(true);
+  const lastManualSelection = React.useRef<{ value: string; label: string; color?: string } | null>(null);
 
   const loadOptions = React.useCallback(
     async (searchTerm: string, pageNum: number, append = false) => {
@@ -806,6 +807,10 @@ function AsyncSelectField({
       if (option) {
         setSelectedLabel(option.label);
         setSelectedColor(option.color);
+      } else if (lastManualSelection.current?.value === String(value)) {
+        // User just selected this value — options were cleared on close but the label is known
+        setSelectedLabel(lastManualSelection.current.label);
+        setSelectedColor(lastManualSelection.current.color);
       } else if (externalSelectedLabel) {
         setSelectedLabel(externalSelectedLabel);
         setSelectedColor(externalSelectedColor);
@@ -813,6 +818,7 @@ function AsyncSelectField({
     } else {
       setSelectedLabel("");
       setSelectedColor(undefined);
+      lastManualSelection.current = null;
     }
   }, [value, options, externalSelectedLabel, externalSelectedColor]);
 
@@ -826,10 +832,12 @@ function AsyncSelectField({
       if (option) {
         setSelectedLabel(option.label);
         setSelectedColor(option.color);
+        lastManualSelection.current = { value: newValue, label: option.label, color: option.color };
       }
     } else {
       setSelectedLabel("");
       setSelectedColor(undefined);
+      lastManualSelection.current = null;
     }
     setOpen(false);
   };
