@@ -47,6 +47,22 @@ export interface SearchParams {
     created_by?: string | null;
     lifecycle_state?: string | null;
     filter_with_llm?: boolean;
+    owner_scope?: string | null;
+    has_unresolved_comments?: boolean | null;
+    has_pending_ai_suggestion?: boolean | null;
+    expiration_date?: string | null;
+    expiration_date_from?: string | null;
+    expiration_date_to?: string | null;
+    estimated_publication_date?: string | null;
+    estimated_publication_date_from?: string | null;
+    estimated_publication_date_to?: string | null;
+    review_date?: string | null;
+    review_date_from?: string | null;
+    review_date_to?: string | null;
+    audit_date?: string | null;
+    audit_date_from?: string | null;
+    audit_date_to?: string | null;
+    sort?: string | null;
     page?: number;
     page_size?: number;
 }
@@ -60,6 +76,22 @@ export async function search({
     created_by,
     lifecycle_state,
     filter_with_llm = true,
+    owner_scope,
+    has_unresolved_comments,
+    has_pending_ai_suggestion,
+    expiration_date,
+    expiration_date_from,
+    expiration_date_to,
+    estimated_publication_date,
+    estimated_publication_date_from,
+    estimated_publication_date_to,
+    review_date,
+    review_date_from,
+    review_date_to,
+    audit_date,
+    audit_date_from,
+    audit_date_to,
+    sort,
     page = 1,
     page_size = 100,
 }: SearchParams) {
@@ -73,6 +105,22 @@ export async function search({
     if (template_id != null) params.set('template_id', template_id);
     if (created_by != null) params.set('created_by', created_by);
     if (lifecycle_state != null) params.set('lifecycle_state', lifecycle_state);
+    if (owner_scope != null) params.set('owner_scope', owner_scope);
+    if (has_unresolved_comments != null) params.set('has_unresolved_comments', String(has_unresolved_comments));
+    if (has_pending_ai_suggestion != null) params.set('has_pending_ai_suggestion', String(has_pending_ai_suggestion));
+    if (expiration_date != null) params.set('expiration_date', expiration_date);
+    if (expiration_date_from != null) params.set('expiration_date_from', expiration_date_from);
+    if (expiration_date_to != null) params.set('expiration_date_to', expiration_date_to);
+    if (estimated_publication_date != null) params.set('estimated_publication_date', estimated_publication_date);
+    if (estimated_publication_date_from != null) params.set('estimated_publication_date_from', estimated_publication_date_from);
+    if (estimated_publication_date_to != null) params.set('estimated_publication_date_to', estimated_publication_date_to);
+    if (review_date != null) params.set('review_date', review_date);
+    if (review_date_from != null) params.set('review_date_from', review_date_from);
+    if (review_date_to != null) params.set('review_date_to', review_date_to);
+    if (audit_date != null) params.set('audit_date', audit_date);
+    if (audit_date_from != null) params.set('audit_date_from', audit_date_from);
+    if (audit_date_to != null) params.set('audit_date_to', audit_date_to);
+    if (sort != null) params.set('sort', sort);
 
     const response = await httpClient.get(`${backendUrl}/search/?${params.toString()}`, {
         headers: {
