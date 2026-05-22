@@ -43,7 +43,7 @@ function buildSearchParams(
 }
 
 export default function SearchPage() {
-  const { t } = useTranslation('search');
+  const { t } = useTranslation(['search', 'common']);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchType, setSearchType] = useState<SearchType>((searchParams.get("search_type") as SearchType) || "semantic");
   const [query, setQuery] = useState(searchParams.get("q") || "");
@@ -152,7 +152,7 @@ export default function SearchPage() {
             <div className="flex gap-2 items-center">
               <HuemulButton
                 icon={Search}
-                label={t('page.searchButton')}
+                label={t('common:search')}
                 loading={isLoading}
                 onClick={handleSearch}
                 className="h-8 text-xs px-3"

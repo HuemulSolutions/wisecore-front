@@ -5,7 +5,8 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import type { LLM } from "@/types/llm"
+import type { ModelDialogProps } from "@/types/models-dialog"
+export type { ModelDialogProps } from "@/types/models-dialog"
 
 const ALL_CAPABILITIES = [
   'text_input',
@@ -14,16 +15,6 @@ const ALL_CAPABILITIES = [
   'image_output',
   'tool_use',
 ] as const
-
-interface ModelDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  model?: LLM | null
-  providerName?: string
-  isCreating: boolean
-  isUpdating: boolean
-  onSubmit: (data: { name: string; internal_name: string; capabilities: string[] }) => void
-}
 
 export function ModelDialog({
   open,

@@ -18,28 +18,8 @@ import { TemplateEmptyState } from "./templates-empty-state";
 import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { TemplateDocxList } from "./templates-docx-list";
-
-interface TemplateItem {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-interface TemplateContentProps {
-  selectedTemplate: TemplateItem | null;
-  onRefresh: () => void;
-  onTemplateDeleted?: () => void;
-  onTemplateCreated?: (template: TemplateItem) => void;
-  isSidebarOpen?: boolean;
-  onToggleSidebar?: () => void;
-  canCreate: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
-  canListSections: boolean;
-  canCreateSection: boolean;
-  canUpdateSection: boolean;
-  canDeleteSection: boolean;
-}
+import type { TemplateContentProps } from '@/types/templates-content';
+export type { TemplateContentProps } from '@/types/templates-content';
 
 export function TemplateContent({ 
   selectedTemplate, 

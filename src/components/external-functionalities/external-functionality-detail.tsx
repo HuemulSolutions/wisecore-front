@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { JsonViewer } from "@/huemul/components/json-viewer"
 import { cn } from "@/lib/utils"
-import type { ExternalFunctionality } from "@/types/external-functionalities"
+import type { Tab, ExternalFunctionalityDetailProps } from "@/types/external-functionality-detail"
 import { ExternalFunctionalityParamsTab } from "./external-functionality-params-tab"
+
+export type { ExternalFunctionalityDetailProps } from "@/types/external-functionality-detail"
 
 const methodColors: Record<string, string> = {
   GET: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -16,16 +18,6 @@ const methodColors: Record<string, string> = {
   PUT: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
   PATCH: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
   DELETE: "bg-red-500/10 text-red-600 dark:text-red-400",
-}
-
-type Tab = "docs" | "params" | "body" | "logs"
-
-interface ExternalFunctionalityDetailProps {
-  functionality: ExternalFunctionality
-  organizationId?: string
-  systemId?: string
-  onEdit?: () => void
-  onDelete?: () => void
 }
 
 export function ExternalFunctionalityDetail({

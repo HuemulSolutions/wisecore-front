@@ -3,15 +3,9 @@ import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
-import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
-import { type AssetTypePageState } from "@/types/assets-types"
+import type { AssetTypePageDialogsProps } from "@/types/assets-types-page-dialogs"
 
-interface AssetTypePageDialogsProps {
-  state: AssetTypePageState
-  onCloseDialog: (dialog: keyof AssetTypePageState) => void
-  onUpdateState: (updates: Partial<AssetTypePageState>) => void
-  assetTypeMutations: ReturnType<typeof useAssetTypeMutations>
-}
+export type { AssetTypePageDialogsProps } from "@/types/assets-types-page-dialogs"
 
 export default function AssetTypePageDialogs({ 
   state, 

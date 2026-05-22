@@ -8,6 +8,7 @@ import { useOrgNavigate } from "@/hooks/useOrgRouter";
 import { TemplateContent } from "@/components/templates/templates-content";
 import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 
 interface TemplateItem {
   id: string;
@@ -38,7 +39,7 @@ export default function Templates() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [pageSize] = useState(100);
   const hasRestoredRef = useRef(false);
 
   // Query para listar templates - solo si tiene permisos
@@ -100,19 +101,22 @@ export default function Templates() {
               canCreate={canCreateTemplate}
               canUpdate={canUpdateTemplate}
               canDelete={canDeleteTemplate}
-              pagination={{
-                page: templatesData?.page ?? page,
-                pageSize: templatesData?.page_size ?? pageSize,
-                hasNext: templatesData?.has_next ?? false,
-                hasPrevious: (templatesData?.page ?? page) > 1,
-                onPageChange: setPage,
-                onPageSizeChange: (size) => { setPageSize(size); setPage(1); },
-              }}
             />
           ),
           defaultSize: 15,
           minSize: 15,
           maxSize: 30,
+          footer: {
+            content: (
+              <HuemulPagination
+                page={templatesData?.page ?? page}
+                pageSize={templatesData?.page_size ?? pageSize}
+                hasNext={templatesData?.has_next ?? false}
+                hasPrevious={(templatesData?.page ?? page) > 1}
+                onPageChange={setPage}
+              />
+            ),
+          },
         },
         {
           content: (

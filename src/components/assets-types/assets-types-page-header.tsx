@@ -1,17 +1,9 @@
 import { FileStack, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
+import type { AssetTypePageHeaderProps } from "@/types/assets-types-page-header"
 
-interface AssetTypePageHeaderProps {
-  assetTypeCount: number
-  onCreateAssetType: () => void
-  onRefresh: () => void
-  isLoading: boolean
-  hasError?: boolean
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  canCreate?: boolean
-}
+export type { AssetTypePageHeaderProps } from "@/types/assets-types-page-header"
 
 export default function AssetTypePageHeader({ 
   assetTypeCount, 

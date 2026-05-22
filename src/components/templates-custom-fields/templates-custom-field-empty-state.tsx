@@ -3,10 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Plus, FileText } from "lucide-react"
-
-interface CustomFieldTemplateEmptyStateProps {
-  onAddCustomFieldTemplate: () => void
-}
+import type { CustomFieldTemplateEmptyStateProps } from '@/types/templates-custom-field-empty-state';
+export type { CustomFieldTemplateEmptyStateProps } from '@/types/templates-custom-field-empty-state';
 
 export function CustomFieldTemplateEmptyState({
   onAddCustomFieldTemplate,

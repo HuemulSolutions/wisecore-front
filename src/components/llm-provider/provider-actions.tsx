@@ -4,17 +4,8 @@ import { Edit, Trash2, MoreVertical } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-
-interface ProviderActionsProps {
-  provider: any
-  onEdit: (provider: any) => void | Promise<void>
-  onDelete: (provider: any) => void
-  isDeleting: boolean
-  dropdownOpen: boolean
-  onDropdownChange: (open: boolean) => void
-  canUpdate: boolean
-  canDelete: boolean
-}
+import type { ProviderActionsProps } from "@/types/provider-actions"
+export type { ProviderActionsProps } from "@/types/provider-actions"
 
 export function ProviderActions({ 
   provider, 

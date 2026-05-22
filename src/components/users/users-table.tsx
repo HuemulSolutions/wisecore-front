@@ -94,13 +94,13 @@ export default function UserTable({
   isLoading = false,
   isFetching = false
 }: UserTableProps) {
-  const { t } = useTranslation(['users'])
+  const { t } = useTranslation(['users', 'common'])
 
   // Define columns
   const columns: HuemulTableColumn<User>[] = [
     {
       key: "name",
-      label: t('users:columns.name'),
+      label: t('common:name'),
       render: (user) => (
         <div className="flex flex-col gap-0">
           <span className="text-xs font-medium text-foreground leading-tight">
@@ -175,13 +175,13 @@ export default function UserTable({
       label: t('common:status'),
       render: (user) => (
         <Badge className={`text-[10px] px-1.5 py-0 h-5 ${getStatusColor(user.status)}`}>
-          {t(`users:status.${user.status}`, { defaultValue: user.status })}
+          {t(`common:${user.status}`, { defaultValue: user.status })}
         </Badge>
       )
     },
     {
       key: "created",
-      label: t('users:columns.created'),
+      label: t('common:created'),
       render: (user) => (
         <span className="text-xs text-foreground">{formatDate(user.created_at)}</span>
       )

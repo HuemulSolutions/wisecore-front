@@ -88,11 +88,8 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
 }
 
 // Legacy wrapper component for backward compatibility
-interface CreateFolderLegacyProps {
-  trigger: React.ReactNode;
-  parentFolder?: string;
-  onFolderCreated?: () => void;
-}
+import type { CreateFolderLegacyProps } from "@/types/assets-create-folder-dialog"
+export type { CreateFolderLegacyProps } from "@/types/assets-create-folder-dialog"
 
 export default function CreateFolder({ trigger, parentFolder, onFolderCreated }: CreateFolderLegacyProps) {
   const [open, setOpen] = useState(false)

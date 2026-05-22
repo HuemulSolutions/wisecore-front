@@ -2,27 +2,8 @@ import { Pencil } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
-
-interface Organization {
-  id: string;
-  name: string;
-  description?: string | null;
-  db_name?: string;
-  created_at?: string;
-  updated_at?: string;
-  max_users?: number | null;
-  token_limit?: number | null;
-}
-
-interface EditOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  organization: Organization | null;
-  onSave: () => void;
-  isSaving: boolean;
-  onOrgChange: (org: Organization) => void;
-  isRootAdmin?: boolean;
-}
+import type { EditOrganizationDialogProps } from '@/types/organization-edit-dialog';
+export type { EditOrganizationDialogProps } from '@/types/organization-edit-dialog';
 
 export function EditOrganizationDialog({
   open,

@@ -89,7 +89,6 @@ const translations = {
       skippedDescription: { en: "Not processed due to an expected condition (e.g. no content to process)", es: "No se procesaron por una condición esperada (ej. sin contenido que procesar)" },
       failed: { en: "Failed", es: "Fallidos" },
       failedDescription: { en: "A real error occurred while processing these executions", es: "Ocurrió un error real al procesar estas ejecuciones" },
-      close: { en: "Close", es: "Cerrar" },
     },
     executionModes: {
       single: {
@@ -125,18 +124,13 @@ const translations = {
   assetSelection: {
     title: { en: "Select assets", es: "Seleccionar activos" },
     selected: { en: "selected", es: "seleccionados" },
-    selectAll: { en: "Select all", es: "Seleccionar todos" },
     available: { en: "assets available", es: "activos disponibles" },
-    loading: { en: "Loading assets...", es: "Cargando activos..." },
     noAssets: { en: "No assets found for this template", es: "No se encontraron activos para este template" },
     selectTemplateFirst: { en: "Select a template to see available assets", es: "Selecciona un template para ver los activos disponibles" },
     versions: { en: "versions", es: "versiones" },
     hideVersions: { en: "- hide", es: "- ocultar" },
     uncategorized: { en: "Uncategorized", es: "Sin carpeta" },
-    execute: { en: "Execute", es: "Ejecutar" },
-    executing: { en: "Executing...", es: "Ejecutando..." },
-    export: { en: "Export", es: "Exportar" },
-    exporting: { en: "Exporting...", es: "Exportando..." },
+
     openAsset: { en: "Open asset", es: "Abrir activo" },
     openVersion: { en: "Open version", es: "Abrir versión" },
   },
@@ -166,7 +160,6 @@ const translations = {
       en: "{{count}} pending",
       es: "{{count}} pendientes",
     },
-    loading: { en: "Loading...", es: "Cargando..." },
     empty: {
       en: "No documents with pending changes",
       es: "No hay documentos con cambios pendientes",
@@ -176,8 +169,6 @@ const translations = {
       es: "No se encontraron documentos con tu búsqueda",
     },
     page: { en: "Page {{page}}", es: "Página {{page}}" },
-    previous: { en: "Previous", es: "Anterior" },
-    next: { en: "Next", es: "Siguiente" },
     openAsset: { en: "Open document", es: "Abrir documento" },
     openVersion: {
       en: "Open this version in a new tab",

@@ -8,7 +8,6 @@ const translations = {
     description: { en: "Add, edit, and organize sections to structure your asset content.", es: "Agrega, edita y organiza secciones para estructurar el contenido de tu activo." },
   },
   update: {
-    label: { en: "Update", es: "Actualizar" },
     documentToTemplate: { en: "Asset -> Template", es: "Activo -> Plantilla" },
     documentToTemplateDesc: { en: "Update the template", es: "Actualizar la plantilla" },
     templateToDocument: { en: "Template -> Asset", es: "Plantilla -> Activo" },
@@ -138,9 +137,6 @@ const translations = {
     addToCurrentVersion: { en: "+ Add section to current version", es: "+ Agregar sección a la versión actual" },
     adding: { en: "Adding...", es: "Agregando..." },
     moreOptions: { en: "More options", es: "Más opciones" },
-    edit: { en: "Edit", es: "Editar" },
-    delete: { en: "Delete", es: "Eliminar" },
-    deleting: { en: "Deleting...", es: "Eliminando..." },
     typeBadgeAi: { en: "AI", es: "AI" },
     typeBadgeManual: { en: "MANUAL", es: "MANUAL" },
     typeBadgeReference: { en: "REFERENCE", es: "REFERENCIA" },

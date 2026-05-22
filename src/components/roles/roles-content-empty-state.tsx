@@ -1,11 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-interface RolesContentEmptyStateProps {
-  error?: any
-  onRetry?: () => void
-}
+import type { RolesContentEmptyStateProps } from '@/types/roles-content-empty-state'
+export type { RolesContentEmptyStateProps } from '@/types/roles-content-empty-state'
 
 export function RolesContentEmptyState({ error, onRetry }: RolesContentEmptyStateProps) {
   const { t } = useTranslation(['roles', 'common'])

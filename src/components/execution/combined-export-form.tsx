@@ -12,17 +12,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import type { ExportType, TemplateSection, StepHeaderProps, CombinedExportFormProps } from "@/types/combined-export-form"
 
-interface TemplateSection {
-  id: string
-  name: string
-  order: number
-}
-
-interface StepHeaderProps {
-  step: number
-  label: string
-}
+export type { ExportType, DocxSource, CombinedExportConfig, CombinedExportFormProps } from "@/types/combined-export-form"
 
 function StepHeader({ step, label }: StepHeaderProps) {
   return (
@@ -33,26 +25,6 @@ function StepHeader({ step, label }: StepHeaderProps) {
       <span className="text-sm font-medium text-foreground">{label}</span>
     </div>
   )
-}
-
-export type ExportType = "excel" | "word"
-
-export type DocxSource = "asset" | "template"
-
-export interface CombinedExportConfig {
-  type: ExportType
-  templateId: string
-  templateSectionIds: string[]
-  docxSource: DocxSource | null
-  docxTemplateId: string | null
-  file: File | null
-}
-
-interface CombinedExportFormProps {
-  canAccessExcelExport: boolean
-  canAccessWordExport: boolean
-  onTemplateChange?: (templateId: string) => void
-  onConfigChange?: (config: CombinedExportConfig | null) => void
 }
 
 export function CombinedExportForm({

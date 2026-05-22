@@ -8,23 +8,8 @@ import type { SearchType } from "@/services/search";
 import { useTranslation } from "react-i18next";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/huemul/components/huemul-field";
 import { useOrganization } from "@/contexts/organization-context";
-
-export interface SearchFilterValues {
-  document_type_id?: string | null;
-  template_id?: string | null;
-  created_by?: string | null;
-  lifecycle_state?: string | null;
-  filter_with_llm: boolean;
-}
-
-interface SearchFiltersProps {
-  organizationId: string;
-  searchType: SearchType;
-  onSearchTypeChange: (type: SearchType) => void;
-  onApply: (filters: SearchFilterValues) => void;
-  initialFilters?: SearchFilterValues;
-  defaultOpen?: boolean;
-}
+import type { SearchFilterValues, SearchFiltersProps } from '@/types/search-filters';
+export type { SearchFilterValues, SearchFiltersProps } from '@/types/search-filters';
 
 function countActiveFilters(f: SearchFilterValues): number {
   let count = 0;

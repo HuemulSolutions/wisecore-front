@@ -2,7 +2,10 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Edit2, Trash2, FileStack, Activity, Copy } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import type { AssetTypeTableProps } from "@/types/assets-types-table"
+
+export type { AssetTypeTableProps } from "@/types/assets-types-table"
 
 // Helper functions
 export const formatDate = (dateString: string) => {
@@ -11,19 +14,6 @@ export const formatDate = (dateString: string) => {
     month: 'short',
     day: 'numeric'
   })
-}
-
-interface AssetTypeTableProps {
-  assetTypes: AssetTypeWithRoles[]
-  onEditAssetType: (assetType: AssetTypeWithRoles) => void
-  onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
-  onCloneAssetType: (assetType: AssetTypeWithRoles) => void
-  onLifecycle: (assetType: AssetTypeWithRoles) => void
-  pagination?: HuemulTablePagination
-  canUpdate?: boolean
-  canDelete?: boolean
-  isLoading?: boolean
-  isFetching?: boolean
 }
 
 export default function AssetTypeTable({

@@ -6,17 +6,8 @@ import { useEditorRef } from 'platejs/react';
 import { useDiscussions } from '@/hooks/useDiscussions';
 import { discussionPlugin } from '@/components/plate-editor/components/discussion-kit';
 import type { DiscussionCallbacks } from '@/components/plate-editor/components/discussion-kit';
-
-interface DiscussionSyncProps {
-  documentId: string;
-  /** Section execution ID – required to create discussions via with-comment endpoint */
-  sectionExecutionId?: string;
-  /**
-   * Called after any discussion mutation (create discussion, add comment).
-   * Use this to auto-save plate_content so comment marks are persisted.
-   */
-  onAfterDiscussionMutation?: () => void;
-}
+import type { DiscussionSyncProps } from '@/types/discussion-sync';
+export type { DiscussionSyncProps } from '@/types/discussion-sync';
 
 /**
  * Invisible component that lives inside <Plate> and keeps the

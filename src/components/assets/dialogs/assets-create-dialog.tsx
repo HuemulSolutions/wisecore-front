@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { createDocument } from "@/services/assets"
 import { getAllTemplates } from "@/services/templates"
-import { getDocumentTypesWithInfo } from "@/services/role-document-type"
+import { getAssetTypes } from "@/services/asset-types"
 import { useOrganization } from "@/contexts/organization-context"
 import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { toast } from "sonner"
@@ -59,13 +59,13 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
     [selectedOrganizationId],
   )
 
-  // Async fetch for document types (pagination only — endpoint has no search support)
+  // Async fetch for document types
   const fetchDocumentTypeOptions = React.useCallback(
-    async ({ page, pageSize }: FetchOptionsParams) => {
-      const res = await getDocumentTypesWithInfo(page, pageSize)
+    async ({ search, page, pageSize }: FetchOptionsParams) => {
+      const res = await getAssetTypes(page, pageSize, search)
       return {
-        options: res.data.map(dt => ({ value: dt.id, label: dt.name, color: dt.color })),
-        hasMore: res.has_next,
+        options: res.data.map(dt => ({ value: dt.id, label: dt.name, color: dt.color ?? undefined })),
+        hasMore: res.has_next ?? false,
       }
     },
     [],

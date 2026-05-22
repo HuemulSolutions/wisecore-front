@@ -14,28 +14,8 @@ import { getExecutionById, updateExecutionName, updateExecutionBusinessDates } f
 import { formatApiDateTime, parseApiDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-interface ExecutionSummary {
-  id: string;
-  name: string;
-  status: string;
-  created_at: string;
-  version?: string | null;
-  lifecycle_state?: string;
-}
-
-interface VersionManagementSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  executions: ExecutionSummary[];
-  organizationId: string;
-  canEdit: boolean;
-  documentId: string;
-  /** The execution currently viewed in the document — used to pre-select the version */
-  initialExecutionId?: string | null;
-}
+import type { ExecutionSummary, VersionManagementSheetProps, EditFormState, ExecutionDetailProps } from '@/types/assets-version-management-sheet';
+export type { VersionManagementSheetProps } from '@/types/assets-version-management-sheet';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -66,21 +46,6 @@ function toInputDate(isoDate?: string | null): string {
 }
 
 // ── Edit Form ──────────────────────────────────────────────────────────────
-
-interface EditFormState {
-  name: string;
-  expiration_date: string;
-  estimated_publication_date: string;
-  review_date: string;
-  audit_date: string;
-}
-
-interface ExecutionDetailProps {
-  executionId: string;
-  organizationId: string;
-  canEdit: boolean;
-  onSaved: () => void;
-}
 
 function ExecutionDetail({
   executionId,

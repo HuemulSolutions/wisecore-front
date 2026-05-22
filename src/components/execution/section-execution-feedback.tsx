@@ -7,16 +7,9 @@ import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import type { SectionExecutionFeedbackProps } from '@/types/section-execution-feedback';
 
-interface SectionExecutionFeedbackProps {
-  executionId: string;
-  sectionId: string;
-  sectionIndex: number;  // 0-based index of the section
-  executionMode: 'single' | 'from';
-  onComplete?: () => void;
-  onDismiss?: () => void;
-  className?: string;
-}
+export type { SectionExecutionFeedbackProps } from '@/types/section-execution-feedback';
 
 export function SectionExecutionFeedback({
   executionId,

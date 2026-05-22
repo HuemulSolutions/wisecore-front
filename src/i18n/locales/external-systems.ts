@@ -4,16 +4,11 @@ const translations = {
     addSystem: { en: "Add System", es: "Agregar Sistema" },
     searchPlaceholder: { en: "Search systems...", es: "Buscar sistemas..." },
     systemsCount: { en: "{{count}} systems", es: "{{count}} sistemas" },
-    refresh: { en: "Refresh", es: "Actualizar" },
-    search: { en: "Search", es: "Buscar" },
     closeSearch: { en: "Close search", es: "Cerrar búsqueda" },
     newSystem: { en: "New external system", es: "Nuevo sistema externo" },
   },
   columns: {
-    name: { en: "Name", es: "Nombre" },
     baseUrl: { en: "Base URL", es: "URL Base" },
-    status: { en: "Status", es: "Estado" },
-    updatedAt: { en: "Updated", es: "Actualizado" },
   },
   list: {
     empty: { en: "No external systems found", es: "No se encontraron sistemas externos" },
@@ -32,9 +27,7 @@ const translations = {
       en: "Select a system to view its details",
       es: "Selecciona un sistema para ver sus detalles",
     },
-    name: { en: "Name", es: "Nombre" },
     baseUrl: { en: "Base URL", es: "URL Base" },
-    status: { en: "Status", es: "Estado" },
     createdAt: { en: "Created At", es: "Creado el" },
     updatedAt: { en: "Updated At", es: "Actualizado el" },
     createdBy: { en: "Created By", es: "Creado por" },
@@ -53,7 +46,6 @@ const translations = {
     errorDescription: { en: "An error occurred while loading systems. Please try again.", es: "Ocurrió un error al cargar los sistemas. Por favor, inténtalo de nuevo." },
   },
   accessDenied: {
-    title: { en: "Access Denied", es: "Acceso Denegado" },
     description: {
       en: "You don't have permission to access External Systems.",
       es: "No tienes permiso para acceder a los Sistemas Externos.",
@@ -96,7 +88,6 @@ const translations = {
       en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
       es: "¿Estás seguro de que deseas eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
     },
-    confirmLabel: { en: "Delete", es: "Eliminar" },
     success: { en: "System deleted successfully", es: "Sistema eliminado correctamente" },
     errorFailed: { en: "Failed to delete system", es: "Error al eliminar el sistema" },
   },

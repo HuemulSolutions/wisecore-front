@@ -8,11 +8,8 @@ import { useState } from "react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { useTranslation } from "react-i18next";
 import { useOrgPath } from "@/hooks/useOrgRouter";
-import type { SearchResultDocument, SearchResultExecution } from "@/services/search";
-interface ExecutionResultProps {
-  execution: SearchResultExecution;
-  documentId: string;
-}
+import type { ExecutionResultProps, DocumentResultProps } from '@/types/search-document-result';
+export type { DocumentResultProps } from '@/types/search-document-result';
 
 function ExecutionResult({ execution, documentId }: ExecutionResultProps) {
   const { t } = useTranslation('search');
@@ -76,9 +73,6 @@ function ExecutionResult({ execution, documentId }: ExecutionResultProps) {
   );
 }
 
-interface DocumentResultProps {
-  document: SearchResultDocument;
-}
 
 export function DocumentResult({ document }: DocumentResultProps) {
   const { t } = useTranslation('search');

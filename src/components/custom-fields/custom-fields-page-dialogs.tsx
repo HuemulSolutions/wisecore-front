@@ -1,15 +1,10 @@
 "use client"
 
-import type { CustomFieldPageState } from "./index"
-import type { useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { CreateEditCustomFieldDialog } from "./custom-fields-create-edit-dialog"
 import { DeleteCustomFieldDialog } from "./custom-fields-delete-dialog"
+import type { CustomFieldPageDialogsProps } from "@/types/custom-fields-page-dialogs"
 
-interface CustomFieldPageDialogsProps {
-  state: CustomFieldPageState
-  onCloseDialog: (dialog: keyof CustomFieldPageState) => void
-  customFieldMutations: ReturnType<typeof useCustomFieldMutations>
-}
+export type { CustomFieldPageDialogsProps } from "@/types/custom-fields-page-dialogs"
 
 export function CustomFieldPageDialogs({
   state,

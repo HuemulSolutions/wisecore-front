@@ -15,13 +15,8 @@ import {
 } from '@/services/executions';
 import { createSectionExecution } from '@/services/section_execution';
 import { useTranslation } from 'react-i18next';
-
-interface UseDocumentMutationsProps {
-  selectedFileId?: string;
-  selectedOrganizationId?: string;
-  onPreserveScroll?: () => void;
-  fullDocument?: any;
-}
+import type { UseDocumentMutationsProps } from '@/types/use-document-mutations';
+export type { UseDocumentMutationsProps } from '@/types/use-document-mutations';
 
 export function useDocumentMutations({ 
   selectedFileId, 

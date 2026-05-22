@@ -1,12 +1,7 @@
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useTranslation } from "react-i18next"
-
-interface DeleteProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: any | null
-  onAction: () => Promise<void>
-}
+import type { DeleteProviderDialogProps } from "@/types/provider-delete-dialog"
+export type { DeleteProviderDialogProps } from "@/types/provider-delete-dialog"
 
 export function DeleteProviderDialog({
   open,

@@ -15,13 +15,8 @@ import { toast } from "sonner"
 import { ApiError } from "@/types/api-error"
 import { handleApiError } from "@/lib/error-utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
-
-interface ImportAssetFromFileDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  folderId?: string
-  onAssetCreated?: (asset: { id: string; name: string; type: string }) => void
-}
+import type { ImportAssetFromFileDialogProps } from "@/types/assets-import-from-file-dialog"
+export type { ImportAssetFromFileDialogProps } from "@/types/assets-import-from-file-dialog"
 
 export function ImportAssetFromFileDialog({
   open,

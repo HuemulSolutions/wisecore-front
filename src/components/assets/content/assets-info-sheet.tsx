@@ -8,13 +8,8 @@ import {
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
 import { formatApiDateTime } from "@/lib/utils";
-
-interface AssetsInfoSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  documentContent: any;
-  selectedExecutionInfo: any;
-}
+import type { AssetsInfoSheetProps } from "@/types/assets-info-sheet";
+export type { AssetsInfoSheetProps } from "@/types/assets-info-sheet";
 
 const STAGE_COLORS: Record<string, string> = {
   create: "bg-purple-100 text-purple-700",
@@ -94,7 +89,7 @@ export function AssetsInfoSheet({
   documentContent,
   selectedExecutionInfo,
 }: AssetsInfoSheetProps) {
-  const { t } = useTranslation("assets");
+  const { t } = useTranslation(["assets", "common"]);
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id).then(() => {
@@ -184,7 +179,7 @@ export function AssetsInfoSheet({
               label={t("content.info.canCheck")}
               value={
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_check ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                  {documentContent.lifecycle_status.can_check ? t("content.info.yes") : t("content.info.no")}
+                  {documentContent.lifecycle_status.can_check ? t("common:yes") : t("common:no")}
                 </span>
               }
             />
@@ -192,7 +187,7 @@ export function AssetsInfoSheet({
               label={t("content.info.versionRequired")}
               value={
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.version_required ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                  {documentContent.lifecycle_status.version_required ? t("content.info.yes") : t("content.info.no")}
+                  {documentContent.lifecycle_status.version_required ? t("common:yes") : t("common:no")}
                 </span>
               }
             />

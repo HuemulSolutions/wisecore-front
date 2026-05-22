@@ -3,13 +3,8 @@ import { Plus } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
-
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { name: string; description?: string }) => void;
-  isPending: boolean;
-}
+import type { CreateOrganizationDialogProps } from '@/types/organization-create-dialog';
+export type { CreateOrganizationDialogProps } from '@/types/organization-create-dialog';
 
 export function CreateOrganizationDialog({
   open,

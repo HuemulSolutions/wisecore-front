@@ -1,38 +1,12 @@
-import type { ReactNode } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useOrganization } from '@/contexts/organization-context';
 import { AuthPage } from '@/pages/auth';
 import type { Permission } from '@/lib/jwt-utils';
+import type { ProtectedRouteWithPermissionsProps as ProtectedRouteProps } from '@/types/auth'
 
-interface ProtectedRouteProps {
-  children: ReactNode;
-  
-  // Verificación por permisos específicos
-  permission?: Permission | string;
-  permissions?: (Permission | string)[];
-  requireAllPermissions?: boolean;
-  
-  // Verificación por roles
-  role?: string;
-  roles?: string[];
-  requireAllRoles?: boolean;
-  
-  // Verificación por recursos
-  resource?: string;
-  resourceAction?: 'c' | 'r' | 'u' | 'd' | 'l' | 'manage';
-  resourceActions?: ('c' | 'r' | 'u' | 'd' | 'l' | 'manage')[];
-  
-  // Solo para root admin
-  requireRootAdmin?: boolean;
-  
-  // Página a la que redirigir si no tiene permisos (por defecto /home)
-  redirectTo?: string;
-  
-  // Mostrar página de error en lugar de redirigir
-  showErrorPage?: boolean;
-}
+export type { ProtectedRouteWithPermissionsProps as ProtectedRouteProps } from '@/types/auth'
 
 /**
  * Componente que protege rutas basado en autenticación y permisos

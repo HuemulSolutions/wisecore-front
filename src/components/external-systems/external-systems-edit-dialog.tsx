@@ -7,17 +7,12 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useExternalSystemMutations } from "@/hooks/useExternalSystems"
 import type {
-  ExternalSystem,
   UpdateExternalSystemRequest,
   ExternalSystemStatus,
 } from "@/types/external-systems"
+import type { ExternalSystemEditDialogProps } from "@/types/external-systems-edit-dialog"
 
-interface ExternalSystemEditDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  organizationId: string
-  system: ExternalSystem | null
-}
+export type { ExternalSystemEditDialogProps } from "@/types/external-systems-edit-dialog"
 
 export function ExternalSystemEditDialog({
   open,
@@ -73,7 +68,7 @@ export function ExternalSystemEditDialog({
     >
       <HuemulFieldGroup className="py-2">
         <HuemulField
-          label={t("columns.name")}
+          label={t("common:name")}
           name="name"
           value={formData.name}
           onChange={(v) => handleChange("name", v as string)}
@@ -91,7 +86,7 @@ export function ExternalSystemEditDialog({
         />
         <HuemulField
           type="select"
-          label={t("columns.status")}
+          label={t("common:status")}
           name="status"
           value={formData.status}
           options={statusOptions}

@@ -7,11 +7,9 @@ import { getAllTemplates } from "@/services/templates"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import type { HuemulFieldOption } from "@/huemul/components/huemul-field"
 import { Button } from "@/components/ui/button"
+import type { StepHeaderProps, WordExportFormProps } from "@/types/word-export-form"
 
-interface StepHeaderProps {
-  step: number
-  label: string
-}
+export type { WordExportConfig, WordExportFormProps } from "@/types/word-export-form"
 
 function StepHeader({ step, label }: StepHeaderProps) {
   return (
@@ -22,16 +20,6 @@ function StepHeader({ step, label }: StepHeaderProps) {
       <span className="text-sm font-medium text-foreground">{label}</span>
     </div>
   )
-}
-
-export interface WordExportConfig {
-  templateId: string
-  file: File | null
-}
-
-interface WordExportFormProps {
-  onTemplateChange?: (templateId: string) => void
-  onConfigChange?: (config: WordExportConfig) => void
 }
 
 export function WordExportForm({ onTemplateChange, onConfigChange }: WordExportFormProps) {

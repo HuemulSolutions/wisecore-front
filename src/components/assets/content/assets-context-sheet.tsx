@@ -3,23 +3,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import AddContext from "@/components/context/context-add";
-import type { LifecyclePermissions } from "@/types/assets";
-
-interface ContextSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  isMobile?: boolean;
-  documentName?: string;
-  lifecyclePermissions?: LifecyclePermissions;
-  stage?: string;
-  showTrigger?: boolean;
-}
+import type { ContextSheetProps } from "@/types/assets-context-sheet";
+export type { ContextSheetProps } from "@/types/assets-context-sheet";
 
 export function ContextSheet({
   selectedFile,

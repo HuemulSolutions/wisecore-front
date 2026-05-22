@@ -4,7 +4,6 @@ import { Activity, X } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { type AssetTypeWithRoles } from "@/services/asset-types"
 import {
   useLifecycleStepTypes,
   useLifecycleSteps,
@@ -15,14 +14,11 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
 import { EditStepContent } from "./assets-types-lifecycle-edit-step"
+import type { DefaultStepContentProps, StepContentProps, AssetTypeLifecycleDialogProps } from '@/types/assets-types-lifecycle-dialog'
+
+export type { AssetTypeLifecycleDialogProps } from '@/types/assets-types-lifecycle-dialog'
 
 // Handles all step types that are not "create" or "edit" (review, approve, etc.)
-
-interface DefaultStepContentProps {
-  documentTypeId: string
-  stepType: string
-  stepLabel: string
-}
 
 function DefaultStepContent({
   documentTypeId,
@@ -36,6 +32,7 @@ function DefaultStepContent({
     documentTypeId,
     stepType
   )
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
   const allRoles = rolesData?.data ?? []
@@ -78,7 +75,7 @@ function DefaultStepContent({
         {/* Switch: all vs owner */}
         <HuemulField
           type="switch"
-          label={t("lifecycle.allowAnyoneLabel")}
+          label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
           name="access-all"
           value={isAll}
           onChange={(v) =>
@@ -90,8 +87,8 @@ function DefaultStepContent({
           disabled={isCustom || isMutating}
           description={
             isAll
-              ? t("lifecycle.allowAnyoneDescOn")
-              : t("lifecycle.allowAnyoneDescOff")
+              ? t("lifecycle.allowAnyoneDescOn", { action: stepAction })
+              : t("lifecycle.allowAnyoneDescOff", { action: stepAction })
           }
           labelFirst
         />
@@ -111,7 +108,7 @@ function DefaultStepContent({
             })
           }
           disabled={isMutating}
-          description={t("lifecycle.customRolesDesc")}
+          description={t("lifecycle.customRolesDesc", { action: stepAction })}
           labelFirst
         />
       </div>
@@ -120,7 +117,7 @@ function DefaultStepContent({
       {isCustom && (
         <HuemulField
           type="combobox"
-          label={t("lifecycle.addRole")}
+          label={t("lifecycle.addRole", { action: stepAction })}
           name="add-role"
           placeholder={t("lifecycle.addRolePlaceholder")}
           value=""
@@ -166,13 +163,6 @@ function DefaultStepContent({
 
 // Routes to the appropriate sub-component based on stepType.
 
-interface StepContentProps {
-  documentTypeId: string
-  stepType: string
-  stepLabel: string
-  onEditingChange?: (isEditing: boolean) => void
-}
-
 function StepContent({
   documentTypeId,
   stepType,
@@ -202,12 +192,6 @@ function StepContent({
       stepLabel={stepLabel}
     />
   )
-}
-
-interface AssetTypeLifecycleDialogProps {
-  assetType: AssetTypeWithRoles | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
 }
 
 export default function AssetTypeLifecycleDialog({

@@ -72,7 +72,7 @@ function SessionBar({
   onTitleChanged: (title: string) => void;
   onDeleted: () => void;
 }) {
-  const { t } = useTranslation('chatbot');
+  const { t } = useTranslation(['chatbot', 'common']);
   const queryClient = useQueryClient();
   const { selectedOrganizationId } = useOrganization();
 
@@ -201,8 +201,8 @@ function SessionBar({
         onOpenChange={setDeleteOpen}
         title={t('conversations.deleteTitle')}
         description={t('conversations.deleteDescription')}
-        actionLabel={t('conversations.delete')}
-        cancelLabel={t('conversations.cancel')}
+        actionLabel={t('common:delete')}
+        cancelLabel={t('common:cancel')}
         onAction={handleDelete}
       />
     </>
@@ -215,7 +215,7 @@ function SessionBar({
 
 export function WisyPanel() {
   const endRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation('chatbot');
+  const { t } = useTranslation(['chatbot', 'common']);
   const { closePanel } = useGlobalPanel();
   const [isDragOver, setIsDragOver] = useState(false);
   const {
@@ -405,7 +405,7 @@ export function WisyPanel() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>{t('actions.close')}</p>
+              <p>{t('common:close')}</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -511,7 +511,7 @@ export function WisyPanel() {
                   className="h-7 min-w-[120px] max-w-[160px] border-transparent bg-transparent px-2 text-[11px] text-muted-foreground shadow-none transition-colors hover:cursor-pointer hover:border-border hover:bg-accent/50 focus:ring-ring/15 disabled:hover:cursor-not-allowed"
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <SelectValue placeholder={isLoadingLlms ? t('model.loading') : t('model.selectModel')} />
+                    <SelectValue placeholder={isLoadingLlms ? t('common:loading') : t('model.selectModel')} />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="border-border bg-popover">

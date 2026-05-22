@@ -1,11 +1,7 @@
 import { Folder as FolderIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
-
-interface EmptyStateProps {
-  type: 'no-organization' | 'permission-error';
-  onChangeOrganization?: () => void;
-}
+import type { EmptyStateProps } from "@/types";
 
 /**
  * Empty state components for different scenarios in the assets page

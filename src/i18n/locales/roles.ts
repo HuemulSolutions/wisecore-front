@@ -8,7 +8,6 @@ const translations = {
   columns: {
     roleName: { en: "Role Name", es: "Nombre del Rol" },
     permissions: { en: "Permissions", es: "Permisos" },
-    created: { en: "Created", es: "Creado" },
   },
   table: {
     showingOf: { en: "Showing {{filtered}} of {{total}} roles", es: "Mostrando {{filtered}} de {{total}} roles" },

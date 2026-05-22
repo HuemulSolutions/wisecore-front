@@ -20,27 +20,8 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { handleApiError } from "@/lib/error-utils";
-
-interface ExecuteSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  fullDocument?: any;
-  isLoadingFullDocument?: boolean;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSectionSheetOpen: () => void;
-  onExecutionComplete?: () => void;
-  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void;
-  isMobile?: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-  selectedExecutionId?: string | null;
-  executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null;
-}
+import type { ExecuteSheetProps } from "@/types/assets-execute-sheet";
+export type { ExecuteSheetProps } from "@/types/assets-execute-sheet";
 
 export function ExecuteSheet({
   selectedFile,
@@ -63,7 +44,7 @@ export function ExecuteSheet({
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   
   const { selectedOrganizationId } = useOrganization();
-  const { t } = useTranslation('execute');
+  const { t } = useTranslation(['execute', 'common']);
   
   // Refs para la inicialización
   const instructionsInitialized = useRef<boolean>(false);
@@ -432,8 +413,8 @@ export function ExecuteSheet({
             loading={executeDocumentMutation.isPending || isActuallyLoadingFullDocument || isLoadingDefaultLLM}
             icon={Play}
             label={
-              executeDocumentMutation.isPending ? t('button.creating') :
-              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('button.loading') :
+              executeDocumentMutation.isPending ? t('common:creating') :
+              (isActuallyLoadingFullDocument || isLoadingDefaultLLM) ? t('common:loading') :
               t('button.execute')
             }
             disabled={
@@ -479,7 +460,7 @@ export function ExecuteSheet({
                           loading={executeDocumentMutation.isPending}
                           disabled={isActuallyLoadingFullDocument || isLoadingDefaultLLM || (!sheetSelectedLLM && !defaultLLM?.id)}
                           icon={Play}
-                          label={t('button.tryAgain')}
+                          label={t('common:tryAgain')}
                           className="bg-[#4464f7] hover:bg-[#3451e6] px-6"
                         />
                         </div>

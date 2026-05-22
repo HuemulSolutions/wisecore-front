@@ -5,14 +5,11 @@ import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useAuthTypeMutations, useAuthTypeTypes } from "@/hooks/useAuthTypes"
-import type { AuthType, UpdateAuthTypeRequest } from "@/services/auth-types"
+import type { UpdateAuthTypeRequest } from "@/services/auth-types"
 import { Edit } from "lucide-react"
+import type { EditAuthTypeDialogProps } from "@/types/auth-types-edit-dialog"
 
-interface EditAuthTypeDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  authType: AuthType | null
-}
+export type { EditAuthTypeDialogProps } from "@/types/auth-types-edit-dialog"
 
 export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])

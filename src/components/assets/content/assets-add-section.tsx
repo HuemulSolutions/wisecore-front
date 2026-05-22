@@ -3,23 +3,12 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { SectionForm } from "@/components/sections/sections-form";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface AddSectionFormProps {
-  documentId: string;
-  onSubmit: (values: any) => void;
-  onCancel: () => void;
-  isPending: boolean;
-  existingSections?: Section[];
-}
+import type { AddSectionFormProps } from "@/types/assets-add-section";
+export type { AddSectionFormProps } from "@/types/assets-add-section";
 
 export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {
   const [isFormValid, setIsFormValid] = useState(false);
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
 
   const handleSubmit = (values: any) => {
     onSubmit(values);
@@ -44,10 +33,10 @@ export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, exis
       </CardContent>
       <CardFooter className="flex justify-end space-x-2 py-3">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={isPending} className="hover:cursor-pointer">
-          {t('addSectionForm.cancel')}
+          {t('common:cancel')}
         </Button>
         <Button type="submit" form="add-document-section-form" disabled={!isFormValid || isPending} className="hover:cursor-pointer">
-          {isPending ? t('addSectionForm.adding') : t('addSectionForm.save')}
+          {isPending ? t('addSectionForm.adding') : t('common:save')}
         </Button>
       </CardFooter>
     </Card>

@@ -6,17 +6,10 @@ import { PenLine, Plus } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
-import type { CustomField } from "@/types/custom-fields"
-import type { useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useCustomFieldDataTypes } from "@/hooks/useCustomFields"
+import type { CreateEditCustomFieldDialogProps } from "@/types/custom-fields-create-edit-dialog"
 
-interface CreateEditCustomFieldDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  customField: CustomField | null
-  onSuccess: () => void
-  customFieldMutations: ReturnType<typeof useCustomFieldMutations>
-}
+export type { CreateEditCustomFieldDialogProps } from "@/types/custom-fields-create-edit-dialog"
 
 export function CreateEditCustomFieldDialog({
   open,

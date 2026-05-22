@@ -30,3 +30,18 @@ export interface SortableSectionSheetItem {
   reference_execution_id?: string
   template_section_id?: string
 }
+
+export interface Item {
+  id: string;
+  name: string;
+  prompt: string;
+  order: number;
+  dependencies: { id: string; name: string }[];
+}
+
+export interface Props {
+  item: Item;
+  existingSections: object[];
+  onSave: (sectionId: string, sectionData: object) => void;
+  onDelete: (sectionId: string) => void;
+}

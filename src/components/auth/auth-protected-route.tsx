@@ -1,10 +1,8 @@
-import { type ReactNode } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthPage } from '@/pages/auth';
+import type { BasicProtectedRouteProps as ProtectedRouteProps } from '@/types/auth'
 
-interface ProtectedRouteProps {
-  children: ReactNode;
-}
+export type { BasicProtectedRouteProps as ProtectedRouteProps } from '@/types/auth'
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();

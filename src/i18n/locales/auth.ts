@@ -1,6 +1,5 @@
 const translations = {
   login: {
-    email: { en: "Email", es: "Correo Electrónico" },
     emailPlaceholder: { en: "email@example.com", es: "correo@dominio.com" },
     sendingCode: { en: "Sending code...", es: "Enviando código..." },
     continueWithEmail: { en: "Continue with Email", es: "Continuar con Correo" },

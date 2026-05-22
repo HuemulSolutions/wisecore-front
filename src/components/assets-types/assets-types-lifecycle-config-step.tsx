@@ -12,18 +12,9 @@ import {
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { ConfigStepContentProps } from '@/types/assets-types-lifecycle-config-step'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface ConfigStepContentProps {
-  documentTypeId: string
-  stepType: string
-  stepLabel: string
-  hasSla: boolean
-  hasValidity?: boolean
-  onRegisterSave?: (fn: (() => Promise<void>) | null, isPending: boolean) => void
-  onEditingChange?: (isEditing: boolean) => void
-}
+export type { ConfigStepContentProps } from '@/types/assets-types-lifecycle-config-step'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -36,11 +27,12 @@ export function ConfigStepContent({
   onRegisterSave,
   onEditingChange,
 }: ConfigStepContentProps) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
   const allRoles = rolesData?.data ?? []
@@ -196,7 +188,7 @@ export function ConfigStepContent({
               variant="ghost"
               size="icon"
               onClick={handleCancel}
-              tooltip={t("lifecycle.cancel")}
+              tooltip={t("common:cancel")}
               className="text-muted-foreground hover:text-destructive"
             />
           ) : (
@@ -205,7 +197,7 @@ export function ConfigStepContent({
               variant="ghost"
               size="icon"
               onClick={handleEdit}
-              tooltip={t("lifecycle.edit")}
+              tooltip={t("common:edit")}
               className="text-muted-foreground"
             />
           )}
@@ -310,7 +302,7 @@ export function ConfigStepContent({
       {accessType === "custom" && (
         <HuemulField
           type="combobox"
-          label={t("lifecycle.addRole")}
+          label={t("lifecycle.addRole", { action: stepAction })}
           name={`add-role-${stepType}`}
           placeholder={t("lifecycle.addRolePlaceholder")}
           value=""

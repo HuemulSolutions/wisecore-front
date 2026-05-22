@@ -1,13 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { List, Plus, Sparkles } from "lucide-react";
-
-interface TemplateEmptyStateProps {
-  isGenerating: boolean;
-  onAddSection: () => void;
-  onGenerateWithAI: () => void;
-  canCreate?: boolean;
-}
+import type { TemplateEmptyStateProps } from '@/types/templates-empty-state';
+export type { TemplateEmptyStateProps } from '@/types/templates-empty-state';
 
 export function TemplateEmptyState({
   isGenerating,

@@ -2,24 +2,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useTranslation } from "react-i18next"
-
-interface NameDescriptionFieldsProps {
-  name: string
-  description?: string
-  onNameChange: (name: string) => void
-  onDescriptionChange?: (description: string) => void
-  nameLabel?: string
-  descriptionLabel?: string
-  namePlaceholder?: string
-  descriptionPlaceholder?: string
-  includeDescription?: boolean
-  useTextarea?: boolean
-  nameRequired?: boolean
-  descriptionRequired?: boolean
-  disabled?: boolean
-  nameError?: string
-  descriptionError?: string
-}
+import type { NameDescriptionFieldsProps } from "@/types/name-description-fields"
+export type { NameDescriptionFieldsProps } from "@/types/name-description-fields"
 
 export default function NameDescriptionFields({
   name,

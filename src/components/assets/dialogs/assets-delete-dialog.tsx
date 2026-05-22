@@ -10,7 +10,7 @@ export const DeleteDocumentDialog = memo(function DeleteDocumentDialog({
   onConfirm,
   isDeleting = false,
 }: DeleteDocumentDialogProps) {
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
   return (
     <ReusableAlertDialog
       open={open}
@@ -18,7 +18,7 @@ export const DeleteDocumentDialog = memo(function DeleteDocumentDialog({
       title={t('deleteDocument.title')}
       description={t('deleteDocument.description', { name: documentName })}
       onConfirm={onConfirm}
-      confirmLabel={t('deleteDocument.confirmLabel')}
+      confirmLabel={t('common:delete')}
       isProcessing={isDeleting}
       variant="destructive"
     />

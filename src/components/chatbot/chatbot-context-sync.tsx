@@ -1,16 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { useChatbotScreenContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
 import type { ConversationReference, WorkingContextItem } from '@/types/chatbot';
+import type { ChatbotContextSyncProps } from '@/types/chatbot-context-sync';
 
-interface ChatbotContextSyncProps {
-  sourceKey: string;
-  executionId?: string;
-  documentId?: string;
-  /** Display name of the current asset (shown in the "add to context" badge). */
-  assetName?: string;
-  enabled?: boolean;
-  priority?: number;
-}
+export type { ChatbotContextSyncProps } from '@/types/chatbot-context-sync';
 
 export function ChatbotContextSync({
   sourceKey,

@@ -46,7 +46,7 @@ interface PageState {
 }
 
 export default function ExternalSystemsPage() {
-  const { t } = useTranslation(["external-systems", "external-functionalities"])
+  const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
   const { selectedOrganizationId } = useOrganization()
   const orgId = selectedOrganizationId ?? ""
 
@@ -304,7 +304,7 @@ export default function ExternalSystemsPage() {
       <div className="flex h-full items-center justify-center text-center p-6">
         <div className="flex flex-col items-center gap-3">
           <Globe className="size-10 opacity-25" />
-          <h2 className="text-base font-semibold">{t("accessDenied.title", "Access Denied")}</h2>
+          <h2 className="text-base font-semibold">{t("common:accessDenied")}</h2>
           <p className="text-sm text-muted-foreground">{t("accessDenied.description", "You don't have permission to access External Systems.")}</p>
         </div>
       </div>
@@ -330,7 +330,7 @@ export default function ExternalSystemsPage() {
                       className="h-6 w-6"
                       icon={state.isSearchOpen ? X : Search}
                       iconClassName="h-4 w-4"
-                      tooltip={state.isSearchOpen ? t("header.closeSearch") : t("header.search")}
+                      tooltip={state.isSearchOpen ? t("header.closeSearch") : t("common:search")}
                       onClick={handleToggleSearch}
                     />
                     <HuemulButton
@@ -339,7 +339,7 @@ export default function ExternalSystemsPage() {
                       className="h-6 w-6"
                       icon={RefreshCw}
                       iconClassName="h-4 w-4"
-                      tooltip={t("header.refresh")}
+                      tooltip={t("common:refresh")}
                       loading={isFetching}
                       onClick={() => { refetch() }}
                     />

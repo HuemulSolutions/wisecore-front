@@ -2,13 +2,8 @@ import { FileStack, RefreshCw, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Card } from "@/components/ui/card"
-
-interface AssetTypeContentEmptyStateProps {
-  type: 'empty' | 'error'
-  message?: string
-  onRetry?: () => void
-  onCreateFirst?: () => void
-}
+import type { AssetTypeContentEmptyStateProps } from "@/types/assets-types-content-empty-state"
+export type { AssetTypeContentEmptyStateProps } from "@/types/assets-types-content-empty-state"
 
 export function AssetTypeContentEmptyState({ 
   type, 

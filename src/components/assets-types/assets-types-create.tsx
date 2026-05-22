@@ -6,20 +6,10 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
 import { Plus, Loader2 } from "lucide-react";
-import { type AssetTypeWithRoles } from "@/services/asset-types";
 import { getErrorMessage } from "@/lib/error-utils";
+import type { CreateDocumentTypeProps } from '@/types/assets-types-create'
 
-interface CreateDocumentTypeProps {
-  trigger?: React.ReactNode;
-  onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string }) => void;
-  // Optional external control
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  // Document type for editing
-  documentType?: AssetTypeWithRoles | null;
-  // Type: 'document' or 'asset'
-  type?: 'document' | 'asset';
-}
+export type { CreateDocumentTypeProps } from '@/types/assets-types-create'
 
 export default function CreateDocumentType({ 
   trigger, 

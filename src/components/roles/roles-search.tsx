@@ -1,17 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { Shield, Plus } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-
-interface RolesSearchProps {
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  rolesCount: number
-  isRefreshing: boolean
-  onRefresh: () => void
-  onCreateRole: () => void
-  hasError?: boolean
-  canManage?: boolean
-}
+import type { RolesSearchProps } from '@/types/roles-search'
+export type { RolesSearchProps } from '@/types/roles-search'
 
 export function RolesSearch({
   searchTerm,

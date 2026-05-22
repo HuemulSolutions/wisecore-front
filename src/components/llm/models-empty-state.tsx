@@ -1,11 +1,8 @@
 import { Card } from "@/components/ui/card"
 import { Settings } from "lucide-react"
 import { useTranslation } from "react-i18next"
-
-interface ModelsEmptyStateProps {
-  title?: string
-  description?: string
-}
+import type { ModelsEmptyStateProps } from "@/types/models-empty-state"
+export type { ModelsEmptyStateProps } from "@/types/models-empty-state"
 
 export function ModelsEmptyState({ 
   title, 
