@@ -39,7 +39,7 @@ export default function Templates() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [pageSize] = useState(100);
   const hasRestoredRef = useRef(false);
 
   // Query para listar templates - solo si tiene permisos

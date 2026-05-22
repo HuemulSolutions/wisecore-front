@@ -1,5 +1,5 @@
 import * as React from "react"
-import { type LucideIcon, MoreVertical, Inbox } from "lucide-react"
+import { type LucideIcon, MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
@@ -40,6 +40,12 @@ export interface HuemulTableColumn<T> {
   align?: "left" | "right" | "center"
   /** Cell renderer */
   render: (item: T) => ReactNode
+  /**
+   * API sort key for this column (e.g. "document_name").
+   * When provided the header becomes clickable.
+   * Ascending = "key", descending = "-key".
+   */
+  sortKey?: string
 }
 
 export interface HuemulTableAction<T> {
@@ -109,6 +115,14 @@ export interface HuemulTableProps<T> {
   isLoading?: boolean
   /** Show subtle refetch indicator while data is present */
   isFetching?: boolean
+  /** Error to display instead of table content */
+  error?: Error | null
+  /** Called when the user clicks the retry button on the error state */
+  onRetry?: () => void
+  /** Current sort value — "field" for asc, "-field" for desc, null for none */
+  sort?: string | null
+  /** Called when the user clicks a sortable column header */
+  onSortChange?: (sort: string | null) => void
   /** Max height of the table container (default: "max-h-[70vh]") */
   maxHeight?: string
   /** Additional className for the outer wrapper */
@@ -127,12 +141,61 @@ export function HuemulTable<T>({
   pagination,
   isLoading = false,
   isFetching = false,
+  error,
+  onRetry,
+  sort,
+  onSortChange,
   maxHeight = "",
   className,
 }: HuemulTableProps<T>) {
   const { t } = useTranslation("common")
 
   const hasActions = !!actions && actions.length > 0
+
+  function handleSortClick(sortKey: string) {
+    if (!onSortChange) return
+    if (sort === `${sortKey}_asc`) {
+      onSortChange(`${sortKey}_desc`)
+    } else if (sort === `${sortKey}_desc`) {
+      onSortChange(null)
+    } else {
+      onSortChange(`${sortKey}_asc`)
+    }
+  }
+
+  function SortIcon({ sortKey }: { sortKey: string }) {
+    if (sort === `${sortKey}_asc`) return <ArrowUp className="h-3 w-3" />
+    if (sort === `${sortKey}_desc`) return <ArrowDown className="h-3 w-3" />
+    return <ChevronsUpDown className="h-3 w-3 opacity-40" />
+  }
+
+  // ── Error state ──────────────────────────────────────────────────────────
+  if (error) {
+    const detail = (error as Record<string, unknown>).detail as string | undefined
+    return (
+      <div className={cn("rounded-lg border border-destructive/30 bg-card flex-1 min-h-0", className)}>
+        <div className="flex flex-col items-center justify-center py-14 text-center px-6 gap-3">
+          <AlertCircle className="w-9 h-9 text-destructive" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">{error.message}</p>
+            {detail && (
+              <p className="text-xs text-muted-foreground max-w-sm">{detail}</p>
+            )}
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:cursor-pointer transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {t("retry")}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // ── Empty state ──────────────────────────────────────────────────────────
   if (!isLoading && data.length === 0 && emptyState) {
@@ -178,7 +241,19 @@ export function HuemulTable<T>({
                     col.hideOnMobile && "hidden sm:table-cell"
                   )}
                 >
-                  {col.label}
+                  {col.sortKey ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSortClick(col.sortKey!)}
+                      className={cn(
+                        "inline-flex items-center gap-1 hover:cursor-pointer hover:text-foreground transition-colors",
+                        (sort === `${col.sortKey}_asc` || sort === `${col.sortKey}_desc`) && "text-foreground"
+                      )}
+                    >
+                      {col.label}
+                      <SortIcon sortKey={col.sortKey} />
+                    </button>
+                  ) : col.label}
                 </TableHead>
               ))}
               {hasActions && (
