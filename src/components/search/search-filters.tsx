@@ -15,9 +15,15 @@ function countActiveFilters(f: SearchFilterValues): number {
   let count = 0;
   if (f.document_type_id) count++;
   if (f.template_id) count++;
-  if (f.created_by) count++;
+  if (f.ownerValue) count++;
   if (f.lifecycle_state) count++;
   if (!f.filter_with_llm) count++;
+  if (f.has_unresolved_comments) count++;
+  if (f.has_pending_ai_suggestion) count++;
+  if (f.expiration_date || f.expiration_date_from || f.expiration_date_to) count++;
+  if (f.estimated_publication_date || f.estimated_publication_date_from || f.estimated_publication_date_to) count++;
+  if (f.review_date || f.review_date_from || f.review_date_to) count++;
+  if (f.audit_date || f.audit_date_from || f.audit_date_to) count++;
   return count;
 }
 
@@ -28,9 +34,23 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
   const defaultFilters: SearchFilterValues = {
     document_type_id: null,
     template_id: null,
-    created_by: null,
+    ownerValue: null,
     lifecycle_state: null,
     filter_with_llm: true,
+    has_unresolved_comments: false,
+    has_pending_ai_suggestion: false,
+    expiration_date: '',
+    expiration_date_from: '',
+    expiration_date_to: '',
+    estimated_publication_date: '',
+    estimated_publication_date_from: '',
+    estimated_publication_date_to: '',
+    review_date: '',
+    review_date_from: '',
+    review_date_to: '',
+    audit_date: '',
+    audit_date_from: '',
+    audit_date_to: '',
   };
 
   const base = initialFilters ?? defaultFilters;
@@ -39,7 +59,6 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
 
   // Pre-selected labels for async-select (restored from URL on mount)
   const [templateLabel, setTemplateLabel] = useState<string | undefined>(undefined);
-  const [createdByLabel, setCreatedByLabel] = useState<string | undefined>(undefined);
 
   const { selectedOrganizationId } = useOrganization();
 
@@ -47,7 +66,7 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
     async ({ search, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
       const res = await getAssetTypes(page, pageSize, search);
       return {
-        options: (res.data ?? []).map((at) => ({ value: at.id, label: at.name })),
+        options: (res.data ?? []).map((at) => ({ value: at.id, label: at.name, color: at.color })),
         hasMore: res.has_next ?? false,
       };
     },
@@ -161,21 +180,20 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
           inputClassName="w-36 h-8 text-xs"
         />
 
-        {/* Created By */}
+        {/* Owner */}
         <HuemulField
           type="async-select"
-          label={t("filters.createdBy")}
-          placeholder={t("filters.all")}
-          value={pending.created_by ?? ""}
-          onChange={(v) => {
-            setPending((p) => ({ ...p, created_by: v ? String(v) : null }));
-            if (!v) setCreatedByLabel(undefined);
-          }}
+          label={t("filters.ownerScope")}
+          placeholder={t("filters.allOwners")}
+          value={pending.ownerValue ?? ""}
+          onChange={(v) => setPending((p) => ({ ...p, ownerValue: v ? String(v) : null }))}
+          asyncStaticOptions={[{ value: "__me__", label: t("filters.ownerMe"), description: t("filters.ownerMeDescription") }]}
+          asyncStaticOptionsLabel={t("filters.ownerScopeLabel")}
+          asyncResultsLabel={t("filters.ownerUsersLabel")}
           fetchOptions={fetchUsers}
           pageSize={20}
-          selectedLabel={createdByLabel}
           className="w-auto"
-          inputClassName="w-36 h-8 text-xs"
+          inputClassName="w-44 h-8 text-xs"
         />
 
         {/* Lifecycle State */}
@@ -191,6 +209,62 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
           inputClassName="w-44 h-8 text-xs"
         />
 
+        <div className="w-px h-8 bg-border self-end" />
+
+        {/* Expiration Date */}
+        <HuemulField
+          type="date-range"
+          label={t("filters.expirationDate")}
+          dateValue={pending.expiration_date ?? ''}
+          dateRangeFrom={pending.expiration_date_from ?? ''}
+          dateRangeTo={pending.expiration_date_to ?? ''}
+          onDateChange={(v) => setPending((p) => ({ ...p, expiration_date: v, expiration_date_from: '', expiration_date_to: '' }))}
+          onDateRangeChange={(from, to) => setPending((p) => ({ ...p, expiration_date: '', expiration_date_from: from, expiration_date_to: to }))}
+          className="w-auto"
+          inputClassName="w-52 h-8 text-xs"
+        />
+
+        {/* Estimated Publication Date */}
+        <HuemulField
+          type="date-range"
+          label={t("filters.estimatedPublicationDate")}
+          dateValue={pending.estimated_publication_date ?? ''}
+          dateRangeFrom={pending.estimated_publication_date_from ?? ''}
+          dateRangeTo={pending.estimated_publication_date_to ?? ''}
+          onDateChange={(v) => setPending((p) => ({ ...p, estimated_publication_date: v, estimated_publication_date_from: '', estimated_publication_date_to: '' }))}
+          onDateRangeChange={(from, to) => setPending((p) => ({ ...p, estimated_publication_date: '', estimated_publication_date_from: from, estimated_publication_date_to: to }))}
+          className="w-auto"
+          inputClassName="w-52 h-8 text-xs"
+        />
+
+        {/* Review Date */}
+        <HuemulField
+          type="date-range"
+          label={t("filters.reviewDate")}
+          dateValue={pending.review_date ?? ''}
+          dateRangeFrom={pending.review_date_from ?? ''}
+          dateRangeTo={pending.review_date_to ?? ''}
+          onDateChange={(v) => setPending((p) => ({ ...p, review_date: v, review_date_from: '', review_date_to: '' }))}
+          onDateRangeChange={(from, to) => setPending((p) => ({ ...p, review_date: '', review_date_from: from, review_date_to: to }))}
+          className="w-auto"
+          inputClassName="w-52 h-8 text-xs"
+        />
+
+        {/* Audit Date */}
+        <HuemulField
+          type="date-range"
+          label={t("filters.auditDate")}
+          dateValue={pending.audit_date ?? ''}
+          dateRangeFrom={pending.audit_date_from ?? ''}
+          dateRangeTo={pending.audit_date_to ?? ''}
+          onDateChange={(v) => setPending((p) => ({ ...p, audit_date: v, audit_date_from: '', audit_date_to: '' }))}
+          onDateRangeChange={(from, to) => setPending((p) => ({ ...p, audit_date: '', audit_date_from: from, audit_date_to: to }))}
+          className="w-auto"
+          inputClassName="w-52 h-8 text-xs"
+        />
+
+        <div className="w-px h-8 bg-border self-end" />
+
         {/* LLM toggle — only for semantic */}
         {searchType === "semantic" && (
           <HuemulField
@@ -203,6 +277,27 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
             controlClassName="h-8 flex items-center"
           />
         )}
+
+        <HuemulField
+          type="switch"
+          label={t("filters.unresolvedComments")}
+          inline={false}
+          value={pending.has_unresolved_comments ?? false}
+          onChange={(v) => setPending((p) => ({ ...p, has_unresolved_comments: Boolean(v) }))}
+          className="w-auto"
+          controlClassName="h-8 flex items-center"
+        />
+
+        {/* Pending AI suggestion */}
+        <HuemulField
+          type="switch"
+          label={t("filters.pendingAiSuggestion")}
+          inline={false}
+          value={pending.has_pending_ai_suggestion ?? false}
+          onChange={(v) => setPending((p) => ({ ...p, has_pending_ai_suggestion: Boolean(v) }))}
+          className="w-auto"
+          controlClassName="h-8 flex items-center"
+        />
 
       </>
     </HuemulFilters>
