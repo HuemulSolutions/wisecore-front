@@ -30,26 +30,9 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { LifecycleStep } from "@/services/lifecycle"
+import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets-types-lifecycle-edit-step'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface EditStepCardData {
-  id: string
-  name: string
-  hasSla: boolean
-  slaValue: string
-  slaUnit: string
-  accessType: "all" | "owner" | "custom" | "custom_owner"
-  ownerCanExecute: boolean
-  roleIds: string[]
-  roleNames: Record<string, string>
-}
-
-export interface EditStepContentProps {
-  documentTypeId: string
-  stepType: string
-  onEditingChange?: (isEditing: boolean) => void
-}
+export type { EditStepCardData, EditStepContentProps } from '@/types/assets-types-lifecycle-edit-step'
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -70,21 +53,6 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
 }
 
 // ─── EditStepCard ─────────────────────────────────────────────────────────────
-
-interface EditStepCardProps {
-  card: EditStepCardData
-  stepType: string
-  slaUnitOptions: { value: string; label: string }[]
-  allRoles: { id: string; name: string }[]
-  onChange: (updated: Partial<EditStepCardData>) => void
-  onDelete: () => void
-  onSave: () => Promise<void>
-  t: (key: string, options?: Record<string, unknown>) => string
-  isDeleting: boolean
-  canDelete: boolean
-  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
-  onEditingChange?: (isEditing: boolean) => void
-}
 
 function EditStepCard({
   card,

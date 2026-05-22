@@ -3,23 +3,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import AddDependencySheet from "@/components/dependency/dependency-add";
-import type { LifecyclePermissions } from "@/types/assets";
-
-interface DependenciesSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  isMobile?: boolean;
-  documentName?: string;
-  lifecyclePermissions?: LifecyclePermissions;
-  stage?: string;
-  showTrigger?: boolean;
-}
+import type { DependenciesSheetProps } from "@/types/assets-dependencies-sheet";
+export type { DependenciesSheetProps } from "@/types/assets-dependencies-sheet";
 
 export function DependenciesSheet({
   selectedFile,

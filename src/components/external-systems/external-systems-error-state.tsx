@@ -1,11 +1,9 @@
 import { RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import type { ExternalSystemsErrorStateProps } from "@/types/external-systems-error-state"
 
-interface ExternalSystemsErrorStateProps {
-  error?: unknown
-  onRetry?: () => void
-}
+export type { ExternalSystemsErrorStateProps } from "@/types/external-systems-error-state"
 
 export function ExternalSystemsErrorState({ error, onRetry }: ExternalSystemsErrorStateProps) {
   const { t } = useTranslation(["external-systems", "common"])

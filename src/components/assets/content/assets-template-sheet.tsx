@@ -19,17 +19,8 @@ import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, us
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useOrganization } from "@/contexts/organization-context";
 import { useTranslation } from "react-i18next";
-
-interface TemplateConfigSheetProps {
-  template: {
-    id: string;
-    name: string;
-    description?: string;
-    template_sections?: any[];
-  } | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import type { TemplateConfigSheetProps } from "@/types/assets-template-sheet";
+export type { TemplateConfigSheetProps } from "@/types/assets-template-sheet";
 
 export function TemplateConfigSheet({
   template,

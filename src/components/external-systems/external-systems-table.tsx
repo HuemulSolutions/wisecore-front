@@ -5,19 +5,11 @@ import {
   HuemulTable,
   type HuemulTableColumn,
   type HuemulTableAction,
-  type HuemulTablePagination,
 } from "@/huemul/components/huemul-table"
 import { Badge } from "@/components/ui/badge"
+import type { ExternalSystemsTableProps } from "@/types/external-systems-table"
 
-interface ExternalSystemsTableProps {
-  systems: ExternalSystem[]
-  onEdit: (system: ExternalSystem) => void
-  onDelete: (system: ExternalSystem) => void
-  isLoading?: boolean
-  isFetching?: boolean
-  pagination?: HuemulTablePagination
-  searchTerm?: string
-}
+export type { ExternalSystemsTableProps } from "@/types/external-systems-table"
 
 export function ExternalSystemsTable({
   systems,

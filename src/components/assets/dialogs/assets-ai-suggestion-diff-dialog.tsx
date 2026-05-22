@@ -2,17 +2,8 @@ import { GitCompare } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
 import { useTranslation } from 'react-i18next';
-
-interface AiSuggestionDiffDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    sectionOutput: string;
-    aiSuggestionInstruction?: string | null;
-    aiSuggestionContent?: string | null;
-    aiPreview: string | null;
-    onAccept: () => Promise<void>;
-    onReject: () => Promise<void>;
-}
+import type { AiSuggestionDiffDialogProps } from '@/types/assets-ai-suggestion-diff-dialog';
+export type { AiSuggestionDiffDialogProps } from '@/types/assets-ai-suggestion-diff-dialog';
 
 export function AiSuggestionDiffDialog({
     open,

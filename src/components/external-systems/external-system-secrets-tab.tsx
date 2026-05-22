@@ -14,26 +14,11 @@ import type { HuemulTableColumn } from "@/huemul/components/huemul-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ExternalSecret } from "@/types/external-secrets"
+import type { ExternalSystemSecretsTabProps, EditingState, AddFormState } from "@/types/external-system-secrets-tab"
+
+export type { ExternalSystemSecretsTabProps } from "@/types/external-system-secrets-tab"
 
 const PAGE_SIZE = 20
-
-interface ExternalSystemSecretsTabProps {
-  organizationId: string
-  systemId: string
-}
-
-interface EditingState {
-  id: string
-  secret_key: string
-  name: string
-  secret_value: string
-}
-
-interface AddFormState {
-  secret_key: string
-  name: string
-  secret_value: string
-}
 
 export function ExternalSystemSecretsTab({
   organizationId,

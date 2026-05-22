@@ -2,15 +2,8 @@ import { useState } from 'react'
 import MdxEditor from './mdx-editor'
 import { Button } from '@/components/ui/button'
 import { Check, X, Loader2 } from 'lucide-react'
-
-
-interface EditorProps {
-    sectionId: string;
-    content: string;
-    onSave: (sectionId: string, newContent: string) => void | Promise<void>;
-    onCancel: () => void;
-    isSaving?: boolean;
-}
+import type { EditorProps } from '@/types/editor'
+export type { EditorProps } from '@/types/editor'
 
 export default function Editor({ sectionId, content, onSave, onCancel, isSaving = false }: EditorProps) {
     const [value, setValue] = useState(content)

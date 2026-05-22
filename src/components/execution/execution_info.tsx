@@ -10,19 +10,9 @@ import { useState } from 'react';
 import { DeleteExecutionDialog } from './execution-delete-dialog';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
+import type { ExecutionInfoProps } from '@/types/execution-info';
 
-
-export interface ExecutionInfoProps {
-    execution: {
-        id: string;
-        document_id: string;
-        status: string;
-        created_at: string;
-        updated_at: string;
-    };
-    onRefresh?: () => void;
-    isGenerating: boolean;
-}
+export type { ExecutionInfoProps } from '@/types/execution-info';
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useOrgNavigate();

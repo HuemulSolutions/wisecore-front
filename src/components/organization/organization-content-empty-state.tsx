@@ -1,14 +1,8 @@
 import { Plus, RefreshCw, AlertCircle, Building2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useTranslation } from "react-i18next"
-
-interface OrganizationContentEmptyStateProps {
-  type: "empty" | "no-results" | "error"
-  onCreateFirst?: () => void
-  onClearFilters?: () => void
-  onRetry?: () => void
-  message?: string
-}
+import type { OrganizationContentEmptyStateProps } from "@/types/organization-content-empty-state"
+export type { OrganizationContentEmptyStateProps } from "@/types/organization-content-empty-state"
 
 export function OrganizationContentEmptyState({
   type,

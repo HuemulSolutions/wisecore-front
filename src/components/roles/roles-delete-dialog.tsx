@@ -1,13 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { type Role } from "@/services/rbac"
-
-interface DeleteRoleDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  role: Role | null
-  onConfirm: () => Promise<void>
-}
+import type { DeleteRoleDialogProps } from '@/types/roles-delete-dialog'
+export type { DeleteRoleDialogProps } from '@/types/roles-delete-dialog'
 
 export function DeleteRoleDialog({ open, onOpenChange, role, onConfirm }: DeleteRoleDialogProps) {
   const { t } = useTranslation('roles')

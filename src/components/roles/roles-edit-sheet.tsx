@@ -6,12 +6,8 @@ import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
 import { type Role } from "@/services/rbac"
 import PermissionSelector from "./roles-permission-selector"
 import RoleFormFields from "./roles-form-fields"
-
-interface EditRoleSheetProps {
-  role: Role | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+import type { EditRoleSheetProps } from '@/types/roles-edit-sheet'
+export type { EditRoleSheetProps } from '@/types/roles-edit-sheet'
 
 export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])

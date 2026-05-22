@@ -1,13 +1,7 @@
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useTranslation } from "react-i18next"
-import type { LLM } from "@/types/llm"
-
-interface DeleteModelDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  model: LLM | null
-  onAction: () => Promise<void>
-}
+import type { DeleteModelDialogProps } from "@/types/models-delete-dialog"
+export type { DeleteModelDialogProps } from "@/types/models-delete-dialog"
 
 export function DeleteModelDialog({
   open,

@@ -12,14 +12,8 @@ import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Users, RefreshCw, UserCheck, ChevronLeft, ChevronRight } from "lucide-react"
 import { useRoleWithAllUsers, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
-import { type Role } from "@/services/rbac"
-
-interface AssignRoleToUsersDialogProps {
-  role: Role | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-}
+import type { AssignRoleToUsersDialogProps } from '@/types/roles-assign-to-users-sheet'
+export type { AssignRoleToUsersDialogProps } from '@/types/roles-assign-to-users-sheet'
 
 export default function AssignRoleToUsersDialog({
   role,

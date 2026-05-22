@@ -16,41 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface SectionItem {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: { id: string; name: string }[];
-  referenced_document_id?: string;
-  template_section_id?: string;
-}
-
-interface SectionFormProps {
-  mode: 'create' | 'edit';
-  editorType?: 'simple' | 'rich'; // simple = Textarea, rich = PlateEditor
-  formId?: string;
-  documentId?: string;
-  templateId?: string;
-  item?: SectionItem; // Solo requerido en modo edit
-  onSubmit: (values: any) => void;
-  isPending?: boolean;
-  existingSections?: Section[];
-  onValidationChange?: (isValid: boolean) => void;
-  onGeneratingChange?: (isGenerating: boolean) => void;
-  hasTemplate?: boolean;
-  isTemplateSection?: boolean;
-  /** Default section type for create mode */
-  defaultType?: 'ai' | 'manual' | 'reference';
-  /** Default manual content for create mode */
-  defaultManualInput?: string;
-}
+import type { SectionFormProps } from '@/types/sections-form';
+export type { SectionFormProps } from '@/types/sections-form';
 
 export function SectionForm({ 
   mode,
@@ -196,14 +163,21 @@ export function SectionForm({
     try {
       const response = await getLibraryContent(selectedOrganizationId, folderId || undefined);
       
-      return response.content.map((item: any) => ({
+      const folderNodes: FileNode[] = response.folders.map((item) => ({
         id: item.id,
         name: item.name,
-        type: item.type as "document" | "folder",
+        type: "folder" as const,
+        hasChildren: true,
+      }));
+      const assetNodes: FileNode[] = response.assets.map((item) => ({
+        id: item.id,
+        name: item.name,
+        type: "document" as const,
         document_type: item.document_type,
         access_levels: item.access_levels,
-        hasChildren: item.type === "folder",
+        hasChildren: false,
       }));
+      return [...folderNodes, ...assetNodes];
     } catch (error) {
       console.error('Error loading folder content:', error);
       return [];

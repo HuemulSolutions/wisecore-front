@@ -4,12 +4,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ShieldAlert, Plus } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useTranslation } from "react-i18next"
+import type { CustomFieldPageEmptyStateProps } from "@/types/custom-fields-page-empty-state"
 
-interface CustomFieldPageEmptyStateProps {
-  type: "access-denied" | "error" | "empty"
-  message?: string
-  onCreateFirst?: () => void
-}
+export type { CustomFieldPageEmptyStateProps } from "@/types/custom-fields-page-empty-state"
 
 export function CustomFieldPageEmptyState({
   type,

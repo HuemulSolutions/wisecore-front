@@ -3,15 +3,9 @@ import { Blocks, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { SupportedProvider, CreateLLMProviderRequest } from "@/types/llm-provider"
-
-interface CreateProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  supportedProviders: SupportedProvider[]
-  onSubmit: (data: CreateLLMProviderRequest) => void
-  isCreating: boolean
-}
+import type { CreateLLMProviderRequest } from "@/types/llm-provider"
+import type { CreateProviderDialogProps } from "@/types/create-provider-dialog"
+export type { CreateProviderDialogProps } from "@/types/create-provider-dialog"
 
 export function CreateProviderDialog({
   open,

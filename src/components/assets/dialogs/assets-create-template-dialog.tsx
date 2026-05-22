@@ -3,13 +3,8 @@ import { FileCode } from 'lucide-react';
 import { ReusableDialog } from '@/components/ui/reusable-dialog';
 import NameDescriptionFields from '@/components/assets/content/name-description-fields';
 import { useTranslation } from 'react-i18next';
-
-interface CreateTemplateDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { name: string; description?: string }) => void;
-  isPending: boolean;
-}
+import type { CreateTemplateDialogProps } from '@/types/assets-create-template-dialog';
+export type { CreateTemplateDialogProps } from '@/types/assets-create-template-dialog';
 
 export function CreateTemplateDialog({
   open,

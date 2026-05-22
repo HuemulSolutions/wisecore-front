@@ -5,13 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { Button } from '@/components/ui/button';
+import type { SectionRegenerationFeedbackProps } from '@/types/section-regeneration-feedback';
 
-interface SectionRegenerationFeedbackProps {
-  sectionIndex: number;
-  executionId: string;
-  executionMode: 'single' | 'from';
-  totalSections: number;
-}
+export type { SectionRegenerationFeedbackProps } from '@/types/section-regeneration-feedback';
 
 export function SectionRegenerationFeedback({
   sectionIndex,

@@ -12,18 +12,9 @@ import {
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { ConfigStepContentProps } from '@/types/assets-types-lifecycle-config-step'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface ConfigStepContentProps {
-  documentTypeId: string
-  stepType: string
-  stepLabel: string
-  hasSla: boolean
-  hasValidity?: boolean
-  onRegisterSave?: (fn: (() => Promise<void>) | null, isPending: boolean) => void
-  onEditingChange?: (isEditing: boolean) => void
-}
+export type { ConfigStepContentProps } from '@/types/assets-types-lifecycle-config-step'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

@@ -2,23 +2,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Button } from "@/components/ui/button";
 import { Plus, List, RefreshCw, Info } from "lucide-react";
-
-interface TemplateHeaderProps {
-  templateName: string;
-  templateDescription?: string;
-  isMobile: boolean;
-  hasNoSections: boolean;
-  isGenerating: boolean;
-  isRefreshing?: boolean;
-  activeTab?: string;
-  onToggleSidebar?: () => void;
-  onAddSection: () => void;
-  onGenerateWithAI: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onRefresh: () => void;
-  onInfo?: () => void;
-}
+import type { TemplateHeaderProps } from '@/types/templates-header';
+export type { TemplateHeaderProps } from '@/types/templates-header';
 
 export function TemplateHeader({
   templateName,

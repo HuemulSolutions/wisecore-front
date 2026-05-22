@@ -5,7 +5,8 @@ import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown }
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { useOrganization } from "@/contexts/organization-context";
-import type { LifecyclePermissions } from "@/types/assets";
+import type { SectionSheetProps, SectionsConfigExecution, SectionsConfigResponse } from "@/types/assets-sections-sheet";
+export type { SectionSheetProps } from "@/types/assets-sections-sheet";
 import {
   Select,
   SelectContent,
@@ -32,68 +33,6 @@ import { withRefresh } from "@/lib/query-utils";
 import { handleApiError } from "@/lib/error-utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-
-interface SectionSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  fullDocument?: any;
-  documentName?: string;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  isMobile?: boolean;
-  executionId?: string | null;
-  executionInfo?: {
-    id: string;
-    name: string;
-    status: string;
-    created_at: string;
-    formattedDate?: string;
-    isLatest?: boolean;
-  } | null;
-  lifecyclePermissions?: LifecyclePermissions;
-  stage?: string;
-  showTrigger?: boolean;
-}
-
-interface SectionsConfigExecution {
-  id: string;
-  name?: string;
-  status?: string;
-  created_at?: string;
-}
-
-interface SectionsConfigSection {
-  id: string;
-  name: string;
-  type?: "ai" | "manual" | "reference";
-  prompt?: string;
-  order?: number;
-  dependencies?: Array<{ id: string; name: string }>;
-  manual_input?: string;
-  reference_section_id?: string;
-  reference_mode?: "latest" | "specific";
-  reference_execution_id?: string;
-  not_in_execution?: boolean | null;
-}
-
-interface SectionsConfigResponse {
-  template_id?: string | null;
-  document?: {
-    id: string;
-    name: string;
-    description?: string;
-    template_id?: string | null;
-  };
-  executions?: {
-    active?: SectionsConfigExecution | null;
-    others?: SectionsConfigExecution[];
-  };
-  sections?: SectionsConfigSection[];
-}
 
 export function SectionSheet({
   selectedFile,

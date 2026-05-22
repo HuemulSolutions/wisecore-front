@@ -20,27 +20,8 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { handleApiError } from "@/lib/error-utils";
-
-interface ExecuteSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-    access_levels?: string[];
-  } | null;
-  fullDocument?: any;
-  isLoadingFullDocument?: boolean;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSectionSheetOpen: () => void;
-  onExecutionComplete?: () => void;
-  onExecutionCreated?: (executionId: string, mode: 'full' | 'full-single' | 'single' | 'from', sectionIndex?: number) => void;
-  isMobile?: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-  selectedExecutionId?: string | null;
-  executionContext?: { type: 'header' | 'section', sectionIndex?: number, sectionId?: string } | null;
-}
+import type { ExecuteSheetProps } from "@/types/assets-execute-sheet";
+export type { ExecuteSheetProps } from "@/types/assets-execute-sheet";
 
 export function ExecuteSheet({
   selectedFile,

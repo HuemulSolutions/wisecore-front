@@ -7,15 +7,9 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { addTextContext } from "@/services/context";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import type { AddContextDialogProps } from "@/types/context-add-dialog";
 
-interface AddContextDialogProps {
-  /** Document ID to add context to */
-  documentId: string;
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the dialog requests to open or close */
-  onOpenChange: (open: boolean) => void;
-}
+export type { AddContextDialogProps } from "@/types/context-add-dialog";
 
 export function AddContextDialog({
   documentId,

@@ -8,18 +8,9 @@ import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { CreateStepContentProps } from '@/types/assets-types-lifecycle-create-step'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface CreateStepContentProps {
-  documentTypeId: string
-  stepType: string
-  hasSla?: boolean
-  hasValidity?: boolean
-  noOwner?: boolean
-  useAllOrCustomOwner?: boolean
-  onEditingChange?: (isEditing: boolean) => void
-}
+export type { CreateStepContentProps } from '@/types/assets-types-lifecycle-create-step'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

@@ -10,10 +10,9 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { authService } from "@/services/auth"
 import { getErrorMessage } from "@/lib/error-utils"
 import packageJson from "../../../package.json"
+import type { LoginFormProps } from "@/types/auth"
 
-interface LoginFormProps extends React.ComponentProps<"div"> {
-  onCodeRequested?: (email: string) => void
-}
+export type { LoginFormProps } from "@/types/auth"
 
 export function LoginForm({
   className,

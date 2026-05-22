@@ -1,11 +1,9 @@
 import { RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import type { AuthTypesErrorStateProps } from "@/types/auth-types-error-state"
 
-interface AuthTypesErrorStateProps {
-  error?: any
-  onRetry?: () => void
-}
+export type { AuthTypesErrorStateProps } from "@/types/auth-types-error-state"
 
 export function AuthTypesErrorState({ error, onRetry }: AuthTypesErrorStateProps) {
   const { t } = useTranslation(['auth-types', 'common'])

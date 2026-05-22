@@ -1,32 +1,9 @@
 import { Edit2, Trash2, Building2, Shield } from "lucide-react"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
 import i18n from "@/i18n"
-
-export interface Organization {
-  id: string
-  name: string
-  description?: string | null
-  created_at?: string
-  updated_at?: string
-  max_users?: number | null
-  token_limit?: number | null
-}
-
-interface OrganizationTableProps {
-  organizations: Organization[]
-  onEditOrganization: (organization: Organization) => void
-  onDeleteOrganization: (organization: Organization) => void
-  onSetAdmin?: (organization: Organization) => void
-  pagination?: HuemulTablePagination
-  canUpdate?: boolean
-  canDelete?: boolean
-  canSetAdmin?: boolean
-  isRootAdmin?: boolean
-  maxHeight?: string
-  isLoading?: boolean
-  isFetching?: boolean
-}
+import type { Organization, OrganizationTableProps } from "@/types/organization-table"
+export type { Organization, OrganizationTableProps } from "@/types/organization-table"
 
 // Helper function for date formatting
 export const formatDate = (dateString: string) => {

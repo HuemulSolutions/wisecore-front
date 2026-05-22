@@ -16,17 +16,8 @@ import { exportExecutionCustomWord, getAvailableDocxTemplatesForExecution } from
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { useTranslation } from "react-i18next";
-
-interface CustomWordExportSheetProps {
-  selectedFile: {
-    id: string;
-    name: string;
-    type: "folder" | "document";
-  } | null;
-  selectedExecutionId: string | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import type { CustomWordExportSheetProps } from "@/types/assets-export-custom.word-dialog";
+export type { CustomWordExportSheetProps } from "@/types/assets-export-custom.word-dialog";
 
 export function CustomWordExportDialog({
   selectedFile,

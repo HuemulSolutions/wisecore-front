@@ -30,16 +30,9 @@ import { ConversationList } from './conversation-list';
 import { ChatbotProvider, useChatbotContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
 import { getDefaultLLM, getLLMs } from '@/services/llms';
 
-// ========================================
-// Types
-// ========================================
+import type { ChatbotProps } from '@/types/chatbot';
 
-interface ChatbotProps {
-  /** Execution/version ID — if provided, sent as reference with every message */
-  executionId?: string;
-  /** Document ID — used as fallback reference when no executionId is available */
-  documentId?: string;
-}
+export type { ChatbotProps } from '@/types/chatbot';
 
 // ========================================
 // Welcome empty state

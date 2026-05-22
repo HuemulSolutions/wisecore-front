@@ -13,15 +13,8 @@ import {
 } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-interface SectionHistorySheetProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    sectionExecutionId: string;
-    sectionName?: string;
-}
+import type { SectionHistorySheetProps } from '@/types/section-history-sheet';
+export type { SectionHistorySheetProps } from '@/types/section-history-sheet';
 
 // ── Config ─────────────────────────────────────────────────────────────────
 

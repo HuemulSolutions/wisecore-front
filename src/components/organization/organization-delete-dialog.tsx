@@ -1,22 +1,8 @@
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-interface Organization {
-  id: string;
-  name: string;
-  description?: string | null;
-  db_name?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface DeleteOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  organization: Organization | null;
-  onConfirm: () => Promise<void>;
-}
+import type { DeleteOrganizationDialogProps } from '@/types/organization-delete-dialog';
+export type { DeleteOrganizationDialogProps } from '@/types/organization-delete-dialog';
 
 export function DeleteOrganizationDialog({
   open,

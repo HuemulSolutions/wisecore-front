@@ -3,14 +3,8 @@
  */
 
 import type { ContentSection } from '@/types';
-
-export interface HeadingItem {
-  id: string;
-  title: string;
-  level: number;
-  sectionId?: string;
-  sectionIndex?: number;
-}
+import type { HeadingItem } from '@/types/heading-utils';
+export type { HeadingItem } from '@/types/heading-utils';
 
 /**
  * Extract headings from multiple content sections for table of contents

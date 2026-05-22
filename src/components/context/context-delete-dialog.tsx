@@ -1,12 +1,9 @@
 import { Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import type { DeleteContextDialogProps } from "@/types/context-delete-dialog"
 
-interface DeleteContextDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: () => Promise<void>
-}
+export type { DeleteContextDialogProps } from "@/types/context-delete-dialog"
 
 export function DeleteContextDialog({
   open,

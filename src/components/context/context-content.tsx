@@ -1,23 +1,12 @@
 import React, { useState } from 'react';
-// import ReactMarkdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import Markdown from '../ui/markdown';
+import type { ContextDisplayProps } from '@/types/context-content';
 
-interface ContextItem {
-  id: string;
-  name: string;
-  content: string;
-}
-
-interface ContextDisplayProps {
-  item: ContextItem;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  hideHeader?: boolean;
-}
+export type { ContextDisplayProps } from '@/types/context-content';
 
 export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   item,

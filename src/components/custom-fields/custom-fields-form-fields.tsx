@@ -1,25 +1,8 @@
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
+import type { CustomFieldFormFieldsProps } from '@/types/custom-fields-form-fields';
 
-interface CustomFieldFormFieldsProps {
-  name: string;
-  description: string;
-  dataType: string;
-  masc: string;
-  onNameChange: (value: string) => void;
-  onDescriptionChange: (value: string) => void;
-  onDataTypeChange: (value: string) => void;
-  onMascChange: (value: string) => void;
-  dataTypes: string[];
-  formatDataType: (dataType: string) => string;
-  errors?: {
-    name?: string;
-    description?: string;
-    data_type?: string;
-  };
-  disabled?: boolean;
-  loadingDataTypes?: boolean;
-}
+export type { CustomFieldFormFieldsProps } from '@/types/custom-fields-form-fields';
 
 export default function CustomFieldFormFields({
   name,

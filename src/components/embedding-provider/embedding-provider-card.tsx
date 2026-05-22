@@ -6,30 +6,9 @@ import { CheckCircle, Circle, ChevronUp, ChevronDown, Settings, Loader2, Zap } f
 import { ProviderActions } from "@/components/llm-provider/provider-actions"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import type { EmbeddingProviderCardProps } from "@/types/embedding-provider-card"
 
-type EmbeddingProviderCardData = {
-  id: string
-  name: string
-  display_name?: string
-  isConfigured: boolean
-}
-
-interface EmbeddingProviderCardProps {
-  provider: EmbeddingProviderCardData
-  isOpen: boolean
-  onToggle: (open: boolean) => void
-  onEditProvider: (provider: EmbeddingProviderCardData) => void
-  onDeleteProvider: (provider: EmbeddingProviderCardData) => void
-  onConfigureProvider: (provider: EmbeddingProviderCardData) => void
-  onTestProvider?: () => void
-  isTestingProvider?: boolean
-  isDeleting: boolean
-  openDropdowns: { [key: string]: boolean }
-  onDropdownChange: (key: string, open: boolean) => void
-  canCreateProvider: boolean
-  canUpdateProvider: boolean
-  canDeleteProvider: boolean
-}
+export type { EmbeddingProviderCardData, EmbeddingProviderCardProps } from "@/types/embedding-provider-card"
 
 export function EmbeddingProviderCard({
   provider,

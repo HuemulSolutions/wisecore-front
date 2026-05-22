@@ -1,21 +1,8 @@
-import React from 'react'
 import { Button } from '@/components/ui/button'
 import { lifecycleAllows } from '@/hooks/useDocumentAccess'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
-import type { LifecyclePermissions } from '@/types/assets'
-
-interface DocumentAccessControlProps {
-  requiredAccess: string | string[]
-  requireAll?: boolean
-  children: React.ReactNode
-  fallback?: React.ReactNode
-  /** Si se debe verificar también los permisos globales del usuario (asset:*, folder:*, etc.) */
-  checkGlobalPermissions?: boolean
-  /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
-  resource?: string
-  /** Lifecycle permissions from the document content response */
-  lifecyclePermissions?: LifecyclePermissions
-}
+import type { DocumentAccessControlProps, DocumentActionButtonProps } from '@/types/assets-access-control'
+export type { DocumentAccessControlProps, DocumentActionButtonProps } from '@/types/assets-access-control'
 
 /**
  * Componente que controla la visibilidad de elementos basándose en access levels del documento
@@ -71,22 +58,6 @@ export function DocumentAccessControl({
   }
 
   return <>{children}</>
-}
-
-/**
- * Componente específico para botones de acciones de documentos
- * Combina verificación de access levels del documento con permisos globales del usuario
- */
-interface DocumentActionButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
-  requiredAccess: string | string[]
-  requireAll?: boolean
-  children: React.ReactNode
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
-  size?: 'default' | 'sm' | 'lg' | 'icon'
-  /** Si se debe verificar también los permisos globales del usuario */
-  checkGlobalPermissions?: boolean
-  /** Recurso para verificar permisos globales (ej: 'asset', 'folder', 'context') */
-  resource?: string
 }
 
 export function DocumentActionButton({

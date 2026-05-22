@@ -15,17 +15,9 @@ import {
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import type { Conversation } from '@/types/chatbot';
+import type { ConversationListProps } from '@/types/conversation-list';
 
-// ========================================
-// Types
-// ========================================
-
-interface ConversationListProps {
-  onSelectConversation: (conversationId: string) => void;
-  activeConversationId: string | null;
-  /** Called after deleting the active conversation so the parent can reset the view. */
-  onDeletedActiveConversation?: () => void;
-}
+export type { ConversationListProps } from '@/types/conversation-list';
 
 // ========================================
 // Empty state

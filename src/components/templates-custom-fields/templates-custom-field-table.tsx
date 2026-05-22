@@ -7,25 +7,9 @@ import { DataTable, type TableColumn, type TableAction } from "@/components/ui/d
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
 import { ReusableDialog } from "@/components/ui/reusable-dialog"
 import { Edit2, Trash2, FileEdit } from "lucide-react"
-import type { CustomFieldTemplate } from "@/types/custom-fields-templates"
-
-interface PaginationConfig {
-  page: number
-  pageSize: number
-  hasNext?: boolean
-  hasPrevious?: boolean
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: number) => void
-  pageSizeOptions?: number[]
-}
-
-interface CustomFieldTemplateTableProps {
-  customFieldTemplates: CustomFieldTemplate[]
-  onEditCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
-  onEditContentCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
-  onDeleteCustomFieldTemplate: (customFieldTemplate: CustomFieldTemplate) => void
-  pagination?: PaginationConfig
-}
+import type { CustomFieldTemplate } from "@/types/custom-fields-templates";
+import type { CustomFieldTemplateTableProps } from '@/types/templates-custom-field-table';
+export type { CustomFieldTemplateTableProps } from '@/types/templates-custom-field-table';
 
 const formatDataType = (dataType: string) => {
   switch (dataType) {

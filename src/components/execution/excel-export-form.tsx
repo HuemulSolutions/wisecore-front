@@ -10,17 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import type { TemplateSection, StepHeaderProps, ExcelExportFormProps } from "@/types/excel-export-form"
 
-interface TemplateSection {
-  id: string
-  name: string
-  order: number
-}
-
-interface StepHeaderProps {
-  step: number
-  label: string
-}
+export type { ExcelExportConfig, ExcelExportFormProps } from "@/types/excel-export-form"
 
 function StepHeader({ step, label }: StepHeaderProps) {
   return (
@@ -31,16 +23,6 @@ function StepHeader({ step, label }: StepHeaderProps) {
       <span className="text-sm font-medium text-foreground">{label}</span>
     </div>
   )
-}
-
-export interface ExcelExportConfig {
-  templateId: string
-  templateSectionIds: string[]
-}
-
-interface ExcelExportFormProps {
-  onTemplateChange?: (templateId: string) => void
-  onConfigChange?: (config: ExcelExportConfig) => void
 }
 
 export function ExcelExportForm({ onTemplateChange, onConfigChange }: ExcelExportFormProps) {

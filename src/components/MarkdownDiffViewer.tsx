@@ -1,4 +1,24 @@
 import { useState, useMemo, type FC } from "react";
+import type {
+  DiffType,
+  ViewMode,
+  RenderedSubMode,
+  DiffEntry,
+  DiffEntryWithLine,
+  SplitEntry,
+  UnifiedEntry,
+  ModeOption,
+  DiffLineProps,
+  SubToggleProps,
+  PanelProps,
+  SplitViewProps,
+  UnifiedViewProps,
+  RenderedViewProps,
+  RenderedDiffPanelProps,
+  MarkdownDiffViewerProps,
+  GroupedTableRow,
+} from "@/types/markdown-diff-viewer";
+export type { MarkdownDiffViewerProps } from "@/types/markdown-diff-viewer";
 
 /**
  * MarkdownDiffViewer — componente reutilizable que muestra diferencias entre dos strings markdown.
@@ -12,38 +32,6 @@ import { useState, useMemo, type FC } from "react";
  *   showModeToggle  — muestra/oculta el selector de modo (default: true)
  *   className       — clase adicional para el contenedor raíz
  */
-
-/* ─── Types ─────────────────────────────────────────────────────── */
-
-type DiffType = "eq" | "ins" | "del";
-type ViewMode = "split" | "unified" | "rendered";
-type RenderedSubMode = "split" | "unified";
-
-interface DiffEntry {
-  type: DiffType;
-  val: string;
-}
-
-interface DiffEntryWithLine extends DiffEntry {
-  n?: number;
-}
-
-interface EmptyEntry {
-  type: "empty";
-}
-
-type SplitEntry = DiffEntryWithLine | EmptyEntry;
-
-interface UnifiedEntry extends DiffEntry {
-  lo?: number;
-  ln?: number;
-  i: number;
-}
-
-interface ModeOption {
-  id: ViewMode;
-  label: string;
-}
 
 /* ─── LCS diff engine ───────────────────────────────────────────── */
 
@@ -289,17 +277,6 @@ function parseCells(row: string): string[] {
 function isTableSeparator(line: string): boolean {
   return /^\|[-| ]+\|$/.test(line);
 }
-
-interface PairedRow {
-  kind: "paired";
-  oldLine: string;
-  newLine: string;
-}
-interface SingleRow {
-  kind: "eq" | "del" | "ins";
-  line: string;
-}
-type GroupedTableRow = PairedRow | SingleRow;
 
 /**
  * Groups consecutive del/ins table rows into paired entries for cell-level comparison.
@@ -714,14 +691,6 @@ function buildSideDiffHtml(diff: DiffEntry[], side: "old" | "new"): string {
 
 /* ─── Sub-componentes base ──────────────────────────────────────── */
 
-interface DiffLineProps {
-  type: DiffType;
-  val: string;
-  lineOld?: number;
-  lineNew?: number;
-  unified?: boolean;
-}
-
 const DiffLine: FC<DiffLineProps> = ({
   type,
   val,
@@ -784,12 +753,6 @@ const DiffLine: FC<DiffLineProps> = ({
 
 /* ─── Sub-toggle reutilizable ───────────────────────────────────── */
 
-interface SubToggleProps {
-  value: string;
-  options: { id: string; label: string }[];
-  onChange: (id: string) => void;
-}
-
 const SubToggle: FC<SubToggleProps> = ({ value, options, onChange }) => (
   <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden text-xs">
     {options.map(({ id, label }) => (
@@ -809,17 +772,6 @@ const SubToggle: FC<SubToggleProps> = ({ value, options, onChange }) => (
 );
 
 /* ─── Vistas de código ──────────────────────────────────────────── */
-
-interface SharedViewProps {
-  oldLabel: string;
-  newLabel: string;
-}
-
-interface PanelProps {
-  lines: SplitEntry[];
-  label: string;
-  dot: string;
-}
 
 const Panel: FC<PanelProps> = ({ lines, label, dot }) => (
   <div className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
@@ -843,10 +795,6 @@ const Panel: FC<PanelProps> = ({ lines, label, dot }) => (
     </div>
   </div>
 );
-
-interface SplitViewProps extends SharedViewProps {
-  diff: DiffEntry[];
-}
 
 const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel }) => {
   const oldLines: SplitEntry[] = [];
@@ -874,10 +822,6 @@ const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel }) => {
     </div>
   );
 };
-
-interface UnifiedViewProps extends SharedViewProps {
-  diff: DiffEntry[];
-}
 
 const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
   let oN = 1;
@@ -919,13 +863,6 @@ const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
 
 /* ─── Vista renderizada ─────────────────────────────────────────── */
 
-interface RenderedViewProps extends SharedViewProps {
-  diff: DiffEntry[];
-  oldContent: string;
-  newContent: string;
-  showRenderedDiffPanel: boolean;
-  showRenderedSubToggle: boolean;
-}
 const RENDERED_SUB_OPTIONS = [
   { id: "split", label: "Dividido" },
   { id: "unified", label: "Unificado" },
@@ -952,12 +889,7 @@ const DiffLegend: FC<{ oldLabel: string; newLabel: string }> = ({ oldLabel, newL
 );
 
 /** Panel de diff renderizado (usado tanto en el panel principal como en el sub-modo unificado) */
-const RenderedDiffPanel: FC<{
-  diffHtml: string;
-  title: string;
-  oldLabel: string;
-  newLabel: string;
-}> = ({ diffHtml, title, oldLabel, newLabel }) => (
+const RenderedDiffPanel: FC<RenderedDiffPanelProps> = ({ diffHtml, title, oldLabel, newLabel }) => (
   <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
     <div className="flex flex-wrap items-center gap-3 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
       <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{title}</span>
@@ -1057,33 +989,6 @@ const MODES: ModeOption[] = [
   { id: "unified", label: "Unificado" },
   { id: "rendered", label: "Renderizado" },
 ];
-
-export interface MarkdownDiffViewerProps {
-  oldContent?: string;
-  newContent?: string;
-  oldLabel?: string;
-  newLabel?: string;
-  /** Vista inicial. Default: "split" */
-  defaultMode?: ViewMode;
-  /** Muestra u oculta el selector de modo principal. Default: true */
-  showModeToggle?: boolean;
-  /**
-   * En la vista Renderizada, muestra u oculta el panel superior de "Cambios renderizados".
-   * - true  → se muestra el panel con el diff marcado.
-   * - false → solo se muestran las versiones individuales.
-   * Default: true
-   */
-  showRenderedDiffPanel?: boolean;
-  /**
-   * En la vista Renderizada, muestra u oculta la sección de versiones
-   * individuales con su sub-toggle (Dividido / Unificado).
-   * - true  → se muestran el switch y los paneles de versiones individuales.
-   * - false → solo se muestra el panel de "Cambios renderizados".
-   * Default: true
-   */
-  showRenderedSubToggle?: boolean;
-  className?: string;
-}
 
 const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
   oldContent = "",

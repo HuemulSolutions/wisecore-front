@@ -3,19 +3,8 @@ import Markdown from "@/components/ui/markdown";
 import { FileText } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-
-interface SearchResultSection {
-  section_execution_id: string;
-  section_execution_name: string;
-  content: string;
-}
-
-interface SectionContentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  section: SearchResultSection | null;
-  index: number;
-}
+import type { SectionContentDialogProps } from '@/types/search-section-content-dialog';
+export type { SectionContentDialogProps } from '@/types/search-section-content-dialog';
 
 export function SectionContentDialog({
   open,

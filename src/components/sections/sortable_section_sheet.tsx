@@ -26,27 +26,10 @@ import {
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
 import type { SortableSectionSheetItem } from "@/types/sections";
+import type { SortableSectionSheetProps, DeleteMode } from "@/types/sortable-section-sheet";
 
 export type { SortableSectionSheetItem } from "@/types/sections";
-
-interface SortableSectionSheetProps {
-  item: SortableSectionSheetItem;
-  existingSections: object[];
-  onSave: (sectionId: string, sectionData: object) => void;
-  onDelete: (sectionId: string, options?: { executionId?: string; propagate_to_documents?: boolean }) => Promise<void>;
-  isOverlay?: boolean;
-  hasTemplate?: boolean;
-  isTemplateSection?: boolean;
-  canUpdate?: boolean;
-  canDelete?: boolean;
-  isDisabledSection?: boolean;
-  onAddToCurrentVersion?: (sectionId: string) => void;
-  isAddToCurrentVersionPending?: boolean;
-  currentExecutionId?: string | null;
-  useExecutionDeleteDialog?: boolean;
-}
-
-type DeleteMode = "structure" | "structure_and_current_version";
+export type { SortableSectionSheetProps } from "@/types/sortable-section-sheet";
 
 export default function SortableSectionSheet({
   item,

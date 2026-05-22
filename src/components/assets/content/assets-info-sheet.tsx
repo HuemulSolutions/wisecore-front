@@ -8,13 +8,8 @@ import {
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
 import { formatApiDateTime } from "@/lib/utils";
-
-interface AssetsInfoSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  documentContent: any;
-  selectedExecutionInfo: any;
-}
+import type { AssetsInfoSheetProps } from "@/types/assets-info-sheet";
+export type { AssetsInfoSheetProps } from "@/types/assets-info-sheet";
 
 const STAGE_COLORS: Record<string, string> = {
   create: "bg-purple-100 text-purple-700",

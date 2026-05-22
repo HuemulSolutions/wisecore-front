@@ -3,16 +3,9 @@ import { Edit } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { SupportedProvider, CreateLLMProviderRequest } from "@/types/llm-provider"
-
-interface EditProviderDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: any | null
-  supportedProviders: SupportedProvider[]
-  onSubmit: (data: CreateLLMProviderRequest) => void
-  isUpdating: boolean
-}
+import type { CreateLLMProviderRequest } from "@/types/llm-provider"
+import type { EditProviderDialogProps } from "@/types/provider-edit-dialog"
+export type { EditProviderDialogProps } from "@/types/provider-edit-dialog"
 
 export function EditProviderDialog({
   open,

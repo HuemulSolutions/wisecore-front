@@ -8,12 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Shield } from "lucide-react"
 import { useDocumentTypeRolesAccessLevels, useRoleDocumentTypeMutations } from "@/hooks/useRoleDocumentType"
 import { type DocumentType } from "@/services/document-types"
-
-interface RolePermissionsDialogProps {
-  documentType: DocumentType | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+import type { RolePermissionsDialogProps } from '@/types/roles-permissions-dialog'
+export type { RolePermissionsDialogProps } from '@/types/roles-permissions-dialog'
 
 export default function RolePermissionsDialog({
   documentType,

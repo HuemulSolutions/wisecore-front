@@ -2,25 +2,9 @@ import { useState, useEffect } from "react"
 import { PlusCircle } from "lucide-react"
 import { ReusableDialog } from "@/components/ui/reusable-dialog"
 import { AddSectionExecutionForm } from "@/components/sections/sections-execution-add-form"
-import type { AddSectionExecutionRequest } from "@/services/section_execution"
 import { useTranslation } from "react-i18next"
-
-interface SectionOption {
-  id: string
-  name: string
-}
-
-interface AddSectionExecutionDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  afterFromSectionId: string | null
-  existingSections: SectionOption[]
-  onSubmit: (values: AddSectionExecutionRequest) => void
-  isPending: boolean
-  onClose: () => void
-  defaultType?: 'ai' | 'manual' | 'reference'
-  defaultManualInput?: string
-}
+import type { AddSectionExecutionDialogProps } from "@/types/assets-add-section-execution-dialog"
+export type { AddSectionExecutionDialogProps } from "@/types/assets-add-section-execution-dialog"
 
 export function AddSectionExecutionDialog({
   open,

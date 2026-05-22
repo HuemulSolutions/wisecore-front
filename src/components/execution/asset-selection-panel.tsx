@@ -4,20 +4,12 @@ import { ChevronDown, ChevronRight, Folder, ExternalLink, Loader2, Play } from "
 import { useOrganization } from "@/contexts/organization-context"
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter"
 import { getTemplateChildDocuments } from "@/services/templates"
-import type { ChildDocumentFolder, ChildDocument, ChildDocumentExecution } from "@/services/templates"
+import type { ChildDocumentFolder, ChildDocument } from "@/services/templates"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import type { AssetSelectionPanelProps, FolderGroupProps, DocumentRowProps, ExecutionRowProps } from "@/types/asset-selection-panel"
 
-interface AssetSelectionPanelProps {
-  templateId: string
-  onExecute?: (executionIds: string[]) => void
-  isExecuting?: boolean
-  executeDisabled?: boolean
-  selectionKey?: number
-  actionLabel?: string
-  actionLoadingLabel?: string
-  ActionIcon?: React.ElementType
-}
+export type { AssetSelectionPanelProps } from "@/types/asset-selection-panel"
 
 export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey, actionLabel, actionLoadingLabel, ActionIcon }: AssetSelectionPanelProps) {
   const { t } = useTranslation(["advanced", "common"])
@@ -251,23 +243,6 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
 
 // ── Folder Group ────────────────────────────────────────────────────────────
 
-interface FolderGroupProps {
-  folder: ChildDocumentFolder
-  expanded: boolean
-  expandedDocs: Set<string>
-  selectedExecutions: Set<string>
-  onToggleFolder: () => void
-  onToggleFolderSelection: () => void
-  isFolderAllSelected: boolean
-  isFolderSomeSelected: boolean
-  onToggleDocExpand: (docId: string) => void
-  onToggleExecution: (executionId: string) => void
-  onToggleDocAllExecutions: (doc: ChildDocument) => void
-  isAllDocExecutionsSelected: (doc: ChildDocument) => boolean
-  isSomeDocExecutionsSelected: (doc: ChildDocument) => boolean
-  onNavigateToDoc: (docId: string, executionId?: string) => void
-}
-
 function FolderGroup({
   folder,
   expanded,
@@ -337,18 +312,6 @@ function FolderGroup({
 }
 
 // ── Document Row ────────────────────────────────────────────────────────────
-
-interface DocumentRowProps {
-  doc: ChildDocument
-  expandedDocs: Set<string>
-  selectedExecutions: Set<string>
-  onToggleDocExpand: (docId: string) => void
-  onToggleExecution: (executionId: string) => void
-  onToggleDocAllExecutions: (doc: ChildDocument) => void
-  isAllSelected: boolean
-  isSomeSelected: boolean
-  onNavigateToDoc: (docId: string, executionId?: string) => void
-}
 
 function DocumentRow({
   doc,
@@ -422,14 +385,6 @@ function DocumentRow({
 }
 
 // ── Execution Row ───────────────────────────────────────────────────────────
-
-interface ExecutionRowProps {
-  execution: ChildDocumentExecution
-  selected: boolean
-  onToggle: () => void
-  isLatest?: boolean
-  onNavigate: () => void
-}
 
 function ExecutionRow({ execution, selected, onToggle, isLatest, onNavigate }: ExecutionRowProps) {
   const { t } = useTranslation("advanced")

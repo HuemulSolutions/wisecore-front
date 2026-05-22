@@ -12,18 +12,9 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Settings, Sparkles, Info, Loader2 } from "lucide-react";
+import type { ExecutionConfigSheetProps } from "@/types/execution-config-sheet";
 
-interface ExecutionConfigSheetProps {
-  instructions: string;
-  onInstructionsChange: (value: string) => void;
-  selectedLLM: string;
-  onLLMChange: (value: string) => void;
-  llms?: any[];
-  isGenerating: boolean;
-  executionStatus: string;
-  isUpdatingLLM: boolean;
-  readonly?: boolean;
-}
+export type { ExecutionConfigSheetProps } from "@/types/execution-config-sheet";
 
 export function ExecutionConfigSheet({
   instructions,

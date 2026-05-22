@@ -4,15 +4,10 @@ import Section from "./sections";
 import { GripVertical } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import type { SortableSectionItem } from "@/types/sections";
+import type { SortableSectionProps } from "@/types/sortable-section";
 
 export type { SortableSectionItem } from "@/types/sections";
-
-interface SortableSectionProps {
-  item: SortableSectionItem;
-  existingSections: object[];
-  onSave: (sectionId: string, sectionData: object) => void;
-  onDelete: (sectionId: string) => void;
-}
+export type { SortableSectionProps } from "@/types/sortable-section";
 
 export default function SortableSection({ item, existingSections, onSave, onDelete }: SortableSectionProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });

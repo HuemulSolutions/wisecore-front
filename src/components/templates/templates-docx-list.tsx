@@ -28,6 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { parseApiDate, formatDate } from "@/lib/utils";
 import type { DocxTemplate } from "@/types/docx-templates";
+import type { DocxTemplateCardProps, TemplateDocxListProps } from '@/types/templates-docx-list';
+export type { TemplateDocxListProps } from '@/types/templates-docx-list';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,15 +71,6 @@ function WordIcon({ className }: { className?: string }) {
 }
 
 // ─── Single card ──────────────────────────────────────────────────────────────
-
-interface DocxTemplateCardProps {
-  template: DocxTemplate;
-  canUpdate: boolean;
-  canDelete: boolean;
-  onRename: (template: DocxTemplate) => void;
-  onReplace: (template: DocxTemplate) => void;
-  onDelete: (template: DocxTemplate) => void;
-}
 
 function DocxTemplateCard({
   template,
@@ -202,14 +195,6 @@ function DocxEmptyState({
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-
-interface TemplateDocxListProps {
-  templateId: string;
-  organizationId: string;
-  canCreate?: boolean;
-  canUpdate?: boolean;
-  canDelete?: boolean;
-}
 
 export function TemplateDocxList({
   templateId,

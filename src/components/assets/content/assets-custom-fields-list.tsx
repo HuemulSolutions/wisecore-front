@@ -10,20 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
 import type { CustomFieldDocument } from "@/types/custom-fields-documents";
+import type { CustomFieldsListProps } from "@/types/assets-custom-fields-list";
+export type { CustomFieldsListProps } from "@/types/assets-custom-fields-list";
 import { useTranslation } from "react-i18next";
-
-interface CustomFieldsListProps {
-  customFields: CustomFieldDocument[];
-  isLoading: boolean;
-  onAdd: () => void;
-  onEdit: (field: CustomFieldDocument) => void;
-  onEditContent: (field: CustomFieldDocument) => void;
-  onDelete: (field: CustomFieldDocument) => void;
-  onRefresh: () => void;
-  uploadingImageFieldId?: string | null;
-  isRefreshing?: boolean;
-  canEdit?: boolean;
-}
 
 export function CustomFieldsList({ 
   customFields, 

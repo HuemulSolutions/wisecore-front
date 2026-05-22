@@ -3,19 +3,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { SectionForm } from "@/components/sections/sections-form";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface AddSectionFormProps {
-  documentId: string;
-  onSubmit: (values: any) => void;
-  onCancel: () => void;
-  isPending: boolean;
-  existingSections?: Section[];
-}
+import type { AddSectionFormProps } from "@/types/assets-add-section";
+export type { AddSectionFormProps } from "@/types/assets-add-section";
 
 export function AddSectionForm({ documentId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {
   const [isFormValid, setIsFormValid] = useState(false);

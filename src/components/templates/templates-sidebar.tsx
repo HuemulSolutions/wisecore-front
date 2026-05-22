@@ -25,28 +25,9 @@ import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, Mo
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
-
-interface TemplateItem {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-interface TemplatesSidebarProps {
-  templates: TemplateItem[];
-  isLoading: boolean;
-  error?: Error | unknown | null;
-  selectedTemplateId: string | null;
-  onTemplateSelect: (template: TemplateItem) => void;
-  onTemplateDeleted?: () => void;
-  organizationId: string | null;
-  onRefresh?: () => void;
-  onSearch?: (term: string) => void;
-  searchValue?: string;
-  canCreate: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
-}
+import type { TemplateItem } from '@/types/templates';
+import type { TemplatesSidebarProps } from '@/types/templates-sidebar';
+export type { TemplatesSidebarProps } from '@/types/templates-sidebar';
 
 export function TemplatesSidebar({
   templates,

@@ -4,17 +4,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-
-interface UseExecutionStateProps {
-  selectedFileId?: string;
-  selectedOrganizationId?: string;
-  documentContent?: any;
-  documentExecutions?: any[];
-  selectedExecutionId: string | null;
-  // setSelectedExecutionId is intentionally not used internally - 
-  // it's passed down for external state management
-  setSelectedExecutionId: (id: string | null) => void;
-}
+import type { UseExecutionStateProps } from '@/types/use-execution-state';
+export type { UseExecutionStateProps } from '@/types/use-execution-state';
 
 export function useExecutionState({
   selectedFileId,

@@ -7,17 +7,12 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useExternalSystemMutations } from "@/hooks/useExternalSystems"
 import type {
-  ExternalSystem,
   UpdateExternalSystemRequest,
   ExternalSystemStatus,
 } from "@/types/external-systems"
+import type { ExternalSystemEditDialogProps } from "@/types/external-systems-edit-dialog"
 
-interface ExternalSystemEditDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  organizationId: string
-  system: ExternalSystem | null
-}
+export type { ExternalSystemEditDialogProps } from "@/types/external-systems-edit-dialog"
 
 export function ExternalSystemEditDialog({
   open,

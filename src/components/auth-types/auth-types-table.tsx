@@ -1,18 +1,11 @@
 import { Edit2, Trash2, Shield } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import type { AuthTypesTableProps } from "@/types/auth-types-table"
 
-interface AuthTypesTableProps {
-  authTypes: AuthType[]
-  onEdit: (authType: AuthType) => void
-  onDelete: (authType: AuthType) => void
-  isLoading?: boolean
-  isFetching?: boolean
-  pagination?: HuemulTablePagination
-}
-
+export type { AuthTypesTableProps } from "@/types/auth-types-table"
 
 export function AuthTypesTable({ 
   authTypes, 

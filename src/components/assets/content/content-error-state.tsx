@@ -2,11 +2,8 @@ import { AlertCircle, RefreshCw, Lock, FileX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/types/api-error";
 import { useTranslation } from "react-i18next";
-
-interface ContentErrorStateProps {
-  error: unknown;
-  onRetry?: () => void;
-}
+import type { ContentErrorStateProps } from "@/types/content-error-state";
+export type { ContentErrorStateProps } from "@/types/content-error-state";
 
 export function ContentErrorState({ error, onRetry }: ContentErrorStateProps) {
   const { t } = useTranslation(["assets", "common"]);
