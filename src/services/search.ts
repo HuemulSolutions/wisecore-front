@@ -1,6 +1,11 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
+/** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
+function toDateParam(value: string): string {
+  return value.slice(0, 10);
+}
+
 export type SearchType = 'semantic' | 'title' | 'code' | 'content';
 
 export interface SearchResultSection {
@@ -108,18 +113,18 @@ export async function search({
     if (owner_scope != null) params.set('owner_scope', owner_scope);
     if (has_unresolved_comments != null) params.set('has_unresolved_comments', String(has_unresolved_comments));
     if (has_pending_ai_suggestion != null) params.set('has_pending_ai_suggestion', String(has_pending_ai_suggestion));
-    if (expiration_date != null) params.set('expiration_date', expiration_date);
-    if (expiration_date_from != null) params.set('expiration_date_from', expiration_date_from);
-    if (expiration_date_to != null) params.set('expiration_date_to', expiration_date_to);
-    if (estimated_publication_date != null) params.set('estimated_publication_date', estimated_publication_date);
-    if (estimated_publication_date_from != null) params.set('estimated_publication_date_from', estimated_publication_date_from);
-    if (estimated_publication_date_to != null) params.set('estimated_publication_date_to', estimated_publication_date_to);
-    if (review_date != null) params.set('review_date', review_date);
-    if (review_date_from != null) params.set('review_date_from', review_date_from);
-    if (review_date_to != null) params.set('review_date_to', review_date_to);
-    if (audit_date != null) params.set('audit_date', audit_date);
-    if (audit_date_from != null) params.set('audit_date_from', audit_date_from);
-    if (audit_date_to != null) params.set('audit_date_to', audit_date_to);
+    if (expiration_date != null) params.set('expiration_date', toDateParam(expiration_date));
+    if (expiration_date_from != null) params.set('expiration_date_from', toDateParam(expiration_date_from));
+    if (expiration_date_to != null) params.set('expiration_date_to', toDateParam(expiration_date_to));
+    if (estimated_publication_date != null) params.set('estimated_publication_date', toDateParam(estimated_publication_date));
+    if (estimated_publication_date_from != null) params.set('estimated_publication_date_from', toDateParam(estimated_publication_date_from));
+    if (estimated_publication_date_to != null) params.set('estimated_publication_date_to', toDateParam(estimated_publication_date_to));
+    if (review_date != null) params.set('review_date', toDateParam(review_date));
+    if (review_date_from != null) params.set('review_date_from', toDateParam(review_date_from));
+    if (review_date_to != null) params.set('review_date_to', toDateParam(review_date_to));
+    if (audit_date != null) params.set('audit_date', toDateParam(audit_date));
+    if (audit_date_from != null) params.set('audit_date_from', toDateParam(audit_date_from));
+    if (audit_date_to != null) params.set('audit_date_to', toDateParam(audit_date_to));
     if (sort != null) params.set('sort', sort);
 
     const response = await httpClient.get(`${backendUrl}/search/?${params.toString()}`, {
