@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { Edit3 } from "lucide-react"
 import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
-import { type Role } from "@/services/rbac"
 import PermissionSelector from "./roles-permission-selector"
 import RoleFormFields from "./roles-form-fields"
 import type { EditRoleSheetProps } from '@/types/roles-edit-sheet'

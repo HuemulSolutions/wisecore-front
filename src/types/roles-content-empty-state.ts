@@ -1,4 +1,4 @@
 export interface RolesContentEmptyStateProps {
-  error?: unknown
+  error?: Error
   onRetry?: () => void
 }

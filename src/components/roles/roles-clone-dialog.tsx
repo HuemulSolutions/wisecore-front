@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next"
 import { Copy } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { type Role } from "@/services/rbac"
 import type { CloneRoleDialogProps } from '@/types/roles-clone-dialog'
 export type { CloneRoleDialogProps } from '@/types/roles-clone-dialog'
 

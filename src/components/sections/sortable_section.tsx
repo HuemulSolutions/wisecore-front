@@ -3,7 +3,6 @@ import { useSortable } from "@dnd-kit/sortable";
 import Section from "./sections";
 import { GripVertical } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import type { SortableSectionItem } from "@/types/sections";
 import type { SortableSectionProps } from "@/types/sortable-section";
 
 export type { SortableSectionItem } from "@/types/sections";

@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import { type Role } from "@/services/rbac"
 import type { DeleteRoleDialogProps } from '@/types/roles-delete-dialog'
 export type { DeleteRoleDialogProps } from '@/types/roles-delete-dialog'
 

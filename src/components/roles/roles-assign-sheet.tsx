@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserCheck, Shield, RefreshCw, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { useUserAllRoles, useRoleMutations, rbacQueryKeys } from "@/hooks/useRbac"
 import { userQueryKeys } from "@/hooks/useUsers"
-import { type User } from "@/types/users"
 import type { AssignRolesSheetProps } from '@/types/roles-assign-sheet'
 export type { AssignRolesSheetProps } from '@/types/roles-assign-sheet'
 

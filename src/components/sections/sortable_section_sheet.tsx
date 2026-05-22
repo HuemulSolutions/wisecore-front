@@ -25,7 +25,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
-import type { SortableSectionSheetItem } from "@/types/sections";
 import type { SortableSectionSheetProps, DeleteMode } from "@/types/sortable-section-sheet";
 
 export type { SortableSectionSheetItem } from "@/types/sections";

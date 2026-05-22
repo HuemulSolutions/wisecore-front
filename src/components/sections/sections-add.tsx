@@ -2,7 +2,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionForm } from "@/components/sections/sections-form";
 import { useState } from "react";
-import type { Section, AddSectionFormProps } from '@/types/sections-add';
+import type { AddSectionFormProps } from '@/types/sections-add';
 export type { AddSectionFormProps } from '@/types/sections-add';
 
 export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {

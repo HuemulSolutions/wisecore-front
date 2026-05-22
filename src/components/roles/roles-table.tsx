@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Shield, RefreshCw, UserPlus, Trash2, Copy } from "lucide-react"
 import { type Role } from "@/services/rbac"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import type { RolesTableProps } from '@/types/roles-table'
 export type { RolesTableProps } from '@/types/roles-table'
 

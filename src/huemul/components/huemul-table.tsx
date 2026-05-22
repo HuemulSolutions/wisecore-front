@@ -171,7 +171,7 @@ export function HuemulTable<T>({
 
   // ── Error state ──────────────────────────────────────────────────────────
   if (error) {
-    const detail = (error as Record<string, unknown>).detail as string | undefined
+    const detail = (error as unknown as Record<string, unknown>).detail as string | undefined
     return (
       <div className={cn("rounded-lg border border-destructive/30 bg-card flex-1 min-h-0", className)}>
         <div className="flex flex-col items-center justify-center py-14 text-center px-6 gap-3">
