@@ -7,17 +7,8 @@ import {
   HuemulInfoSection,
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-interface TemplateInfoSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  templateData: any;
-  selectedTemplate: { id: string; name: string; description?: string } | null;
-  sectionsCount: number;
-  docxTemplatesCount?: number;
-}
+import type { TemplateInfoSheetProps } from '@/types/templates-info-sheet';
+export type { TemplateInfoSheetProps } from '@/types/templates-info-sheet';
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -61,7 +52,7 @@ export function TemplateInfoSheet({
           {/* General */}
           <HuemulInfoSection title={t("templates:infoSheet.sectionIdentifiers")}>
             <HuemulInfoItem
-              label={t("templates:infoSheet.name")}
+              label={t("common:name")}
               value={name}
             />
             <HuemulInfoItem

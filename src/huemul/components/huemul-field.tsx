@@ -2,6 +2,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { ar, de, enUS, es, fr, it, ja, ptBR, zhCN, type Locale } from "date-fns/locale";
 import type { Value } from "platejs";
 import { tokenize, tokenStyle } from "./json-viewer";
 
@@ -36,6 +37,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
+import { type DateRange } from "react-day-picker";
+
+// ── Browser locale helper ─────────────────────────────────────────────────
+
+const DATE_FNS_LOCALE_MAP: Record<string, Locale> = {
+  ar, de, fr, it, ja,
+  es, 'es-419': es, 'es-AR': es, 'es-MX': es, 'es-CL': es, 'es-CO': es,
+  en: enUS, 'en-US': enUS, 'en-GB': enUS, 'en-AU': enUS,
+  pt: ptBR, 'pt-BR': ptBR, 'pt-PT': ptBR,
+  zh: zhCN, 'zh-CN': zhCN, 'zh-TW': zhCN,
+};
+
+function getBrowserDateLocale(): Locale {
+  const lang = typeof navigator !== 'undefined' ? navigator.language : 'en';
+  return DATE_FNS_LOCALE_MAP[lang]
+    ?? DATE_FNS_LOCALE_MAP[lang.split('-')[0]]
+    ?? enUS;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -56,6 +75,7 @@ export type HuemulFieldType =
   | "combobox"
   | "color"
   | "date"
+  | "date-range"
   | "radio"
   | "richtext"
   | "async-select"
@@ -92,6 +112,8 @@ export interface AsyncSelectOption {
   value: string;
   label: string;
   color?: string;
+  /** Optional description shown below the label */
+  description?: string;
 }
 
 export interface FetchOptionsParams {
@@ -193,6 +215,16 @@ export interface HuemulFieldProps {
   onRichTextChange?: (value: Value) => void;
   /** Minimum height for the rich text editor */
   richTextMinHeight?: string;
+  /** "From" value for date-range type (ISO date string) */
+  dateRangeFrom?: string;
+  /** "To" value for date-range type (ISO date string) */
+  dateRangeTo?: string;
+  /** Change handler for date-range - called with (from, to) ISO strings */
+  onDateRangeChange?: (from: string, to: string) => void;
+  /** Single-date value for date-range type in "single" mode (ISO date string) */
+  dateValue?: string;
+  /** Change handler for date-range in "single" mode */
+  onDateChange?: (value: string) => void;
 
   // ── Layout ────────────────────────────────────────────────────────────
   /** Force the control to render stacked (label above, control below) even for switch/checkbox. Defaults to true for switch/checkbox. */
@@ -218,6 +250,12 @@ export interface HuemulFieldProps {
   selectedLabel?: string;
   /** Pre-selected color for async-select — shown alongside selectedLabel before options load */
   selectedColor?: string;
+  /** Static options always pinned at the top of an async-select, above fetched results */
+  asyncStaticOptions?: AsyncSelectOption[];
+  /** Non-clickable section label shown above the static options */
+  asyncStaticOptionsLabel?: string;
+  /** Non-clickable section label shown above the async results */
+  asyncResultsLabel?: string;
 
   // ── Select size ──────────────────────────────────────────────────────────
   /** Size variant passed to the SelectTrigger. Use "xs" for compact inline usage (no forced height). */
@@ -674,13 +712,14 @@ function DateInputField({
           )}
         >
           <CalendarIcon className="h-4 w-4 shrink-0" />
-          {selected ? format(selected, "dd-MM-yyyy") : (placeholder || t('pickDate'))}
+          {selected ? format(selected, "d MMM yyyy", { locale: getBrowserDateLocale() }) : (placeholder || t('pickDate'))}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
           selected={selected}
+          locale={getBrowserDateLocale()}
           onSelect={(day) => {
             onChange?.(day ? day.toISOString() : "");
             setOpen(false);
@@ -692,6 +731,189 @@ function DateInputField({
 }
 
 // ── Async Select Field ────────────────────────────────────────────────────
+
+function DateRangeField({
+  fieldId,
+  dateValue,
+  valueFrom,
+  valueTo,
+  onDateChange,
+  onDateRangeChange,
+  placeholder,
+  disabled,
+  error,
+  inputClassName,
+}: {
+  fieldId: string;
+  dateValue?: string;
+  valueFrom?: string;
+  valueTo?: string;
+  onDateChange?: (value: string) => void;
+  onDateRangeChange?: (from: string, to: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+}) {
+  const { t } = useTranslation('common');
+  const [open, setOpen] = React.useState(false);
+
+  // Derive initial mode from which values are set
+  const [mode, setMode] = React.useState<'single' | 'range'>(
+    valueFrom || valueTo ? 'range' : 'single',
+  );
+
+  const selectedSingle = dateValue ? parseISO(dateValue) : undefined;
+  const selectedFrom = valueFrom ? parseISO(valueFrom) : undefined;
+  const selectedTo = valueTo ? parseISO(valueTo) : undefined;
+  const hasValue = mode === 'single' ? !!dateValue : !!(valueFrom || valueTo);
+
+  let displayText: string;
+  const browserLocale = getBrowserDateLocale();
+  if (mode === 'single') {
+    displayText = dateValue
+      ? format(parseISO(dateValue), 'd MMM yyyy', { locale: browserLocale })
+      : placeholder ?? t('anyDate');
+  } else if (valueFrom && valueTo) {
+    const from = parseISO(valueFrom);
+    const to = parseISO(valueTo);
+    const sameYear = from.getFullYear() === to.getFullYear();
+    displayText = sameYear
+      ? `${format(from, 'd MMM', { locale: browserLocale })} – ${format(to, 'd MMM yyyy', { locale: browserLocale })}`
+      : `${format(from, 'd MMM yyyy', { locale: browserLocale })} – ${format(to, 'd MMM yyyy', { locale: browserLocale })}`;
+  } else if (valueFrom) {
+    displayText = `${t('dateFrom')} ${format(parseISO(valueFrom), 'd MMM yyyy', { locale: browserLocale })}`;
+  } else if (valueTo) {
+    displayText = `${t('dateTo')} ${format(parseISO(valueTo), 'd MMM yyyy', { locale: browserLocale })}`;
+  } else {
+    displayText = placeholder ?? t('anyDate');
+  }
+
+  function handleClear(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (mode === 'single') {
+      onDateChange?.('');
+    } else {
+      onDateRangeChange?.('', '');
+    }
+  }
+
+  function handleModeChange(next: 'single' | 'range') {
+    if (next === mode) return;
+    setMode(next);
+    // Clear the outgoing mode values
+    if (next === 'range') {
+      onDateChange?.('');
+    } else {
+      onDateRangeChange?.('', '');
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                id={fieldId}
+                type="button"
+                variant="outline"
+                disabled={disabled}
+                aria-invalid={!!error || undefined}
+                className={cn(
+                  "w-full justify-start font-normal hover:cursor-pointer gap-2",
+                  !hasValue && "text-muted-foreground",
+                  error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+                  inputClassName,
+                )}
+              >
+                <CalendarIcon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate text-left">{displayText}</span>
+                {hasValue && (
+                  <span
+                    role="button"
+                    aria-label="Clear"
+                    tabIndex={-1}
+                    className="shrink-0 rounded-sm text-muted-foreground hover:text-foreground hover:cursor-pointer"
+                    onClick={handleClear}
+                  >
+                    <X className="size-3.5" />
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          {hasValue && (
+            <TooltipContent side="bottom">
+              {displayText}
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+      <PopoverContent className="w-auto p-0" align="start">
+        <div className="flex flex-col">
+          {/* Mode toggle */}
+          <div className="flex rounded-none border-b border-border overflow-hidden text-xs">
+            <button
+              type="button"
+              onClick={() => handleModeChange('single')}
+              className={cn(
+                "flex-1 px-3 py-2 hover:cursor-pointer transition-colors",
+                mode === 'single'
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "bg-background text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {t('dateSingle')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange('range')}
+              className={cn(
+                "flex-1 px-3 py-2 hover:cursor-pointer transition-colors border-l border-border",
+                mode === 'range'
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "bg-background text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {t('dateRange')}
+            </button>
+          </div>
+
+          {mode === 'single' ? (
+            <Calendar
+              mode="single"
+              selected={selectedSingle}
+              locale={getBrowserDateLocale()}
+              onSelect={(day) => {
+                onDateChange?.(day ? day.toISOString() : '');
+                if (day) setOpen(false);
+              }}
+            />
+          ) : (
+            <Calendar
+              mode="range"
+              defaultMonth={selectedFrom}
+              locale={getBrowserDateLocale()}
+              selected={{
+                from: selectedFrom,
+                to: selectedTo,
+              } as DateRange}
+              onSelect={(range) => {
+                onDateRangeChange?.(
+                  range?.from ? range.from.toISOString() : '',
+                  range?.to ? range.to.toISOString() : '',
+                );
+              }}
+              numberOfMonths={2}
+            />
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function AsyncSelectField({
   fieldId,
@@ -705,6 +927,9 @@ function AsyncSelectField({
   pageSize = 10,
   externalSelectedLabel,
   externalSelectedColor,
+  staticOptions = [],
+  staticOptionsLabel,
+  asyncResultsLabel,
 }: {
   fieldId: string;
   value?: string | number | boolean;
@@ -717,6 +942,9 @@ function AsyncSelectField({
   pageSize?: number;
   externalSelectedLabel?: string;
   externalSelectedColor?: string;
+  staticOptions?: AsyncSelectOption[];
+  staticOptionsLabel?: string;
+  asyncResultsLabel?: string;
 }) {
   const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
@@ -731,6 +959,7 @@ function AsyncSelectField({
 
   const listRef = React.useRef<HTMLDivElement>(null);
   const isInitialMount = React.useRef(true);
+  const lastManualSelection = React.useRef<{ value: string; label: string; color?: string } | null>(null);
 
   const loadOptions = React.useCallback(
     async (searchTerm: string, pageNum: number, append = false) => {
@@ -802,19 +1031,30 @@ function AsyncSelectField({
   // Keep selectedLabel / selectedColor in sync when options list changes
   React.useEffect(() => {
     if (value) {
-      const option = options.find((opt) => opt.value === String(value));
-      if (option) {
-        setSelectedLabel(option.label);
-        setSelectedColor(option.color);
-      } else if (externalSelectedLabel) {
-        setSelectedLabel(externalSelectedLabel);
-        setSelectedColor(externalSelectedColor);
+      const staticOpt = staticOptions.find((o) => o.value === String(value));
+      if (staticOpt) {
+        setSelectedLabel(staticOpt.label);
+        setSelectedColor(staticOpt.color);
+      } else {
+        const option = options.find((opt) => opt.value === String(value));
+        if (option) {
+          setSelectedLabel(option.label);
+          setSelectedColor(option.color);
+        } else if (lastManualSelection.current?.value === String(value)) {
+          // User just selected this value — options were cleared on close but the label is known
+          setSelectedLabel(lastManualSelection.current.label);
+          setSelectedColor(lastManualSelection.current.color);
+        } else if (externalSelectedLabel) {
+          setSelectedLabel(externalSelectedLabel);
+          setSelectedColor(externalSelectedColor);
+        }
       }
     } else {
       setSelectedLabel("");
       setSelectedColor(undefined);
+      lastManualSelection.current = null;
     }
-  }, [value, options, externalSelectedLabel, externalSelectedColor]);
+  }, [value, options, staticOptions, externalSelectedLabel, externalSelectedColor]);
 
   const strValue = String(value ?? "");
 
@@ -826,10 +1066,12 @@ function AsyncSelectField({
       if (option) {
         setSelectedLabel(option.label);
         setSelectedColor(option.color);
+        lastManualSelection.current = { value: newValue, label: option.label, color: option.color };
       }
     } else {
       setSelectedLabel("");
       setSelectedColor(undefined);
+      lastManualSelection.current = null;
     }
     setOpen(false);
   };
@@ -894,6 +1136,75 @@ function AsyncSelectField({
           onScroll={handleScroll}
           onWheel={(e) => e.stopPropagation()}
         >
+          {/* All / clear option — always visible */}
+          <button
+            type="button"
+            className={cn(
+              "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
+              "hover:bg-accent hover:text-accent-foreground",
+              !strValue && "bg-accent text-accent-foreground",
+            )}
+            onClick={() => {
+              onChange?.("");
+              setSelectedLabel("");
+              setSelectedColor(undefined);
+              setOpen(false);
+            }}
+          >
+            <span className="flex size-4 items-center justify-center">
+              {!strValue && <Check className="size-4" />}
+            </span>
+            <span className="truncate text-muted-foreground">{placeholder ?? t('selectPlaceholder')}</span>
+          </button>
+
+          {/* Static section label */}
+          {staticOptionsLabel && staticOptions.length > 0 && (
+            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {staticOptionsLabel}
+            </p>
+          )}
+
+          {/* Static options — always visible, pinned above async results */}
+          {staticOptions.map((option) => {
+            const isStaticSelected = strValue === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={cn(
+                  "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  isStaticSelected && "bg-accent text-accent-foreground",
+                )}
+                onClick={() => handleSelect(option.value)}
+              >
+                <span className="flex size-4 shrink-0 items-center justify-center">
+                  {isStaticSelected && <Check className="size-4" />}
+                </span>
+                {option.color && (
+                  <span className="shrink-0 size-3 rounded-full" style={{ backgroundColor: option.color }} />
+                )}
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="truncate">{option.label}</span>
+                  {option.description && (
+                    <span className="text-xs text-muted-foreground truncate">{option.description}</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+
+          {/* Separator + async section label */}
+          {staticOptions.length > 0 && (
+            <div className="my-1 -mx-1 border-t border-border" />
+          )}
+          {asyncResultsLabel && (
+            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {asyncResultsLabel}
+            </p>
+          )}
+
+          {/* Async results */}
           {isLoading ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
@@ -903,26 +1214,6 @@ function AsyncSelectField({
             <p className="py-6 text-center text-sm text-muted-foreground">{t('noResults')}</p>
           ) : (
             <>
-              {/* All / clear option */}
-              <button
-                type="button"
-                className={cn(
-                  "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  !strValue && "bg-accent text-accent-foreground",
-                )}
-                onClick={() => {
-                  onChange?.("");
-                  setSelectedLabel("");
-                  setSelectedColor(undefined);
-                  setOpen(false);
-                }}
-              >
-                <span className="flex size-4 items-center justify-center">
-                  {!strValue && <Check className="size-4" />}
-                </span>
-                <span className="truncate text-muted-foreground">{placeholder ?? t('selectPlaceholder')}</span>
-              </button>
               {options.map((option) => {
                 const isSelected = strValue === option.value;
                 return (
@@ -1172,6 +1463,11 @@ export function HuemulField({
   richTextValue,
   onRichTextChange,
   richTextMinHeight = "200px",
+  dateRangeFrom,
+  dateRangeTo,
+  onDateRangeChange,
+  dateValue,
+  onDateChange,
   className,
   inputClassName,
   autoFocus,
@@ -1182,6 +1478,9 @@ export function HuemulField({
   pageSize = 10,
   selectedLabel,
   selectedColor,
+  asyncStaticOptions,
+  asyncStaticOptionsLabel,
+  asyncResultsLabel,
   selectSize = "default",
   controlClassName,
   children,
@@ -1380,6 +1679,22 @@ export function HuemulField({
           />
         );
 
+      case "date-range":
+        return (
+          <DateRangeField
+            fieldId={fieldId}
+            dateValue={dateValue}
+            valueFrom={dateRangeFrom}
+            valueTo={dateRangeTo}
+            onDateChange={onDateChange}
+            onDateRangeChange={onDateRangeChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            error={error}
+            inputClassName={inputClassName}
+          />
+        );
+
       case "radio":
         return (
           <RadioGroup
@@ -1484,6 +1799,9 @@ export function HuemulField({
             pageSize={pageSize}
             externalSelectedLabel={selectedLabel}
             externalSelectedColor={selectedColor}
+            staticOptions={asyncStaticOptions}
+            staticOptionsLabel={asyncStaticOptionsLabel}
+            asyncResultsLabel={asyncResultsLabel}
           />
         ) : null;
 

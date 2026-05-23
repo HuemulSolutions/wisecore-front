@@ -3,16 +3,9 @@
 import { Plus, Settings2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useTranslation } from "react-i18next"
+import type { CustomFieldPageHeaderProps } from "@/types/custom-fields-page-header"
 
-interface CustomFieldPageHeaderProps {
-  customFieldCount: number
-  onCreateCustomField: () => void
-  onRefresh: () => void
-  isLoading?: boolean
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  canManage?: boolean
-}
+export type { CustomFieldPageHeaderProps } from "@/types/custom-fields-page-header"
 
 export function CustomFieldPageHeader({
   customFieldCount,

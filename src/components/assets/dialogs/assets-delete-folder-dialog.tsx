@@ -13,7 +13,7 @@ export function DeleteFolderDialog({
 }: DeleteFolderDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDocuments, setDeleteDocuments] = useState(false)
-  const { t } = useTranslation('assets')
+  const { t } = useTranslation(["assets", "common"])
 
   useEffect(() => {
     if (!open) setDeleteDocuments(false)
@@ -52,7 +52,7 @@ export function DeleteFolderDialog({
       title={t('deleteFolder.title')}
       description={description}
       onConfirm={handleConfirm}
-      confirmLabel={t('deleteFolder.confirmLabel')}
+      confirmLabel={t('common:delete')}
       isProcessing={isDeleting}
     />
   )

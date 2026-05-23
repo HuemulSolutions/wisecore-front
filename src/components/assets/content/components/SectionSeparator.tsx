@@ -1,13 +1,8 @@
 import { BetweenHorizontalStart } from 'lucide-react';
 import { DocumentActionButton } from '@/components/assets/content/assets-access-control';
 import { useTranslation } from 'react-i18next';
-
-interface SectionSeparatorProps {
-  onAddSection: (afterIndex?: number) => void;
-  index?: number;
-  isLastSection?: boolean;
-  isMobile?: boolean;
-}
+import type { SectionSeparatorProps } from '@/types/section-separator';
+export type { SectionSeparatorProps } from '@/types/section-separator';
 
 /**
  * Section Separator Component with hover add button

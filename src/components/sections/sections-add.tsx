@@ -2,19 +2,8 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionForm } from "@/components/sections/sections-form";
 import { useState } from "react";
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface AddSectionFormProps {
-  templateId: string;
-  onSubmit: (values: any) => void;
-  onCancel: () => void;
-  isPending: boolean;
-  existingSections?: Section[];
-}
+import type { AddSectionFormProps } from '@/types/sections-add';
+export type { AddSectionFormProps } from '@/types/sections-add';
 
 export function AddSectionForm({ templateId, onSubmit, onCancel, isPending, existingSections = [] }: AddSectionFormProps) {
   const [isFormValid, setIsFormValid] = useState(false);

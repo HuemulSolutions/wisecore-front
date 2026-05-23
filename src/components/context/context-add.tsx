@@ -20,12 +20,9 @@ import { getContext, deleteContext, editTextContext, addDocumentContext } from "
 import { ContextDisplay } from "./context-content";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import type { AddContextSheetProps } from "@/types/context-add";
 
-interface AddContextSheetProps {
-  id: string;
-  isSheetOpen?: boolean;
-  canEdit?: boolean;
-}
+export type { AddContextSheetProps } from "@/types/context-add";
 
 export default function AddContext({ id, isSheetOpen = true, canEdit = true }: AddContextSheetProps) {
   const { t } = useTranslation('context')

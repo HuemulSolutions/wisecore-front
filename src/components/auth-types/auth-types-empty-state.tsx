@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { Card } from "@/components/ui/card"
+import type { AuthTypesEmptyStateProps } from "@/types/auth-types-empty-state"
 
-interface AuthTypesEmptyStateProps {
-  searchTerm: string
-}
+export type { AuthTypesEmptyStateProps } from "@/types/auth-types-empty-state"
 
 export function AuthTypesEmptyState({ searchTerm }: AuthTypesEmptyStateProps) {
   const { t } = useTranslation(['auth-types', 'common'])
@@ -16,8 +15,8 @@ export function AuthTypesEmptyState({ searchTerm }: AuthTypesEmptyStateProps) {
             <tr className="border-b border-border">
               <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('common:name')}</th>
               <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('columns.type')}</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('columns.created')}</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('columns.updated')}</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('common:created')}</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-foreground">{t('common:updated')}</th>
               <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">{t('common:actions')}</th>
             </tr>
           </thead>

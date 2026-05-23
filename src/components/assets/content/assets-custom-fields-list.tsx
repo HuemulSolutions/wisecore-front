@@ -10,20 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReusableDialog } from "@/components/ui/reusable-dialog";
 import type { CustomFieldDocument } from "@/types/custom-fields-documents";
+import type { CustomFieldsListProps } from "@/types/assets-custom-fields-list";
+export type { CustomFieldsListProps } from "@/types/assets-custom-fields-list";
 import { useTranslation } from "react-i18next";
-
-interface CustomFieldsListProps {
-  customFields: CustomFieldDocument[];
-  isLoading: boolean;
-  onAdd: () => void;
-  onEdit: (field: CustomFieldDocument) => void;
-  onEditContent: (field: CustomFieldDocument) => void;
-  onDelete: (field: CustomFieldDocument) => void;
-  onRefresh: () => void;
-  uploadingImageFieldId?: string | null;
-  isRefreshing?: boolean;
-  canEdit?: boolean;
-}
 
 export function CustomFieldsList({ 
   customFields, 
@@ -39,7 +28,7 @@ export function CustomFieldsList({
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
 
   const formatCalendarDate = (dateValue: string) => {
     const normalizedDate = dateValue.split('T')[0];
@@ -313,7 +302,7 @@ export function CustomFieldsList({
                       }, 0)
                     }} className="hover:cursor-pointer text-destructive focus:text-destructive">
                       <Trash2 className="mr-2 h-3 w-3" />
-                      {t('customFieldsList.delete')}
+                      {t('common:delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

@@ -5,7 +5,7 @@ import { updateDocument, getDocumentById } from '@/services/assets';
 import { useOrganization } from '@/contexts/organization-context';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField, HuemulFieldGroup, type FetchOptionsParams } from '@/huemul/components/huemul-field';
-import { getDocumentTypesWithInfo } from '@/services/role-document-type';
+import { getAssetTypes } from '@/services/asset-types';
 import { toast } from 'sonner';
 import { Edit3 } from 'lucide-react';
 import type { EditDocumentDialogProps } from "@/types/assets";
@@ -78,13 +78,10 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   });
 
   const fetchDocumentTypeOptions = useCallback(async ({ search, page, pageSize }: FetchOptionsParams) => {
-    const response = await getDocumentTypesWithInfo(page, pageSize);
-    const filtered = search
-      ? response.data.filter((dt) => dt.name.toLowerCase().includes(search.toLowerCase()))
-      : response.data;
+    const response = await getAssetTypes(page, pageSize, search);
     return {
-      options: filtered.map((dt) => ({ value: dt.id, label: dt.name, color: dt.color ?? undefined })),
-      hasMore: response.has_next,
+      options: response.data.map((dt) => ({ value: dt.id, label: dt.name, color: dt.color ?? undefined })),
+      hasMore: response.has_next ?? false,
     };
   }, []);
 

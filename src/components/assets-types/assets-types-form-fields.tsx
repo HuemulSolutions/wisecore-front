@@ -1,17 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { HuemulField } from '@/huemul/components/huemul-field';
+import type { DocumentTypeFormFieldsProps } from '@/types/assets-types-form-fields'
 
-interface DocumentTypeFormFieldsProps {
-  name: string;
-  color: string;
-  onNameChange: (value: string) => void;
-  onColorChange: (value: string) => void;
-  errors?: {
-    name?: string;
-    color?: string;
-  };
-  disabled?: boolean;
-}
+export type { DocumentTypeFormFieldsProps } from '@/types/assets-types-form-fields'
 
 export default function DocumentTypeFormFields({
   name,

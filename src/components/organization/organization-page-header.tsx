@@ -3,16 +3,8 @@
 import { Plus, Building2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-
-interface OrganizationPageHeaderProps {
-  organizationCount: number
-  onCreateOrganization: () => void
-  onRefresh: () => void
-  isLoading?: boolean
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  canManage?: boolean
-}
+import type { OrganizationPageHeaderProps } from "@/types/organization-page-header"
+export type { OrganizationPageHeaderProps } from "@/types/organization-page-header"
 
 export function OrganizationPageHeader({
   organizationCount,

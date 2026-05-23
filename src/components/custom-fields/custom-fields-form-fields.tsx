@@ -1,25 +1,8 @@
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
+import type { CustomFieldFormFieldsProps } from '@/types/custom-fields-form-fields';
 
-interface CustomFieldFormFieldsProps {
-  name: string;
-  description: string;
-  dataType: string;
-  masc: string;
-  onNameChange: (value: string) => void;
-  onDescriptionChange: (value: string) => void;
-  onDataTypeChange: (value: string) => void;
-  onMascChange: (value: string) => void;
-  dataTypes: string[];
-  formatDataType: (dataType: string) => string;
-  errors?: {
-    name?: string;
-    description?: string;
-    data_type?: string;
-  };
-  disabled?: boolean;
-  loadingDataTypes?: boolean;
-}
+export type { CustomFieldFormFieldsProps } from '@/types/custom-fields-form-fields';
 
 export default function CustomFieldFormFields({
   name,
@@ -36,13 +19,13 @@ export default function CustomFieldFormFields({
   disabled = false,
   loadingDataTypes = false,
 }: CustomFieldFormFieldsProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   return (
     <div className="space-y-4">
       <HuemulField
         type="text"
-        label={t('columns.name')}
+        label={t('common:name')}
         name="name"
         placeholder={t('form.namePlaceholder')}
         value={name}

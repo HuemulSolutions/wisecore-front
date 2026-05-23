@@ -28,7 +28,6 @@ const translations = {
   delete: {
     title: { en: "Delete Parameter", es: "Eliminar Parámetro" },
     description: { en: "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar \"{{name}}\"? Esta acción no se puede deshacer." },
-    confirmLabel: { en: "Delete", es: "Eliminar" },
   },
 }
 

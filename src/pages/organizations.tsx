@@ -29,7 +29,7 @@ interface OrganizationPageState {
 }
 
 export default function Organizations() {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
   const [state, setState] = useState<OrganizationPageState>({
     searchTerm: "",
     selectedOrganizations: new Set(),
@@ -124,7 +124,7 @@ export default function Organizations() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ["organizations"] })
-      toast.success(t('toasts.dataRefreshed'))
+      toast.success(t('common:dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }

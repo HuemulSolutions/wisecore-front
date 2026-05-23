@@ -15,20 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 // ─── Default labels ───────────────────────────────────────────────────────────
-const DEFAULT_LABELS: Required<HuemulFileTreeLabels> = {
-  newFile: "New file",
-  newFolder: "New folder",
-  shareLink: "Share link",
-  deleteFolder: "Delete folder",
-  deleteFile: "Delete file",
-  loading: "Loading...",
-  empty: "No files or folders",
-  createFile: "Create file",
-  createFolder: "Create folder",
-  inputPlaceholder: "Name...",
-}
 
 // ─── Props & Ref ──────────────────────────────────────────────────────────────
 export interface HuemulFileTreeProps {
@@ -107,7 +96,20 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     },
     ref,
   ) => {
-    const labels: Required<HuemulFileTreeLabels> = { ...DEFAULT_LABELS, ...labelOverrides }
+    const { t } = useTranslation("huemul-file-tree")
+    const labels: Required<HuemulFileTreeLabels> = {
+      newFile: t("newFile"),
+      newFolder: t("newFolder"),
+      shareLink: t("shareLink"),
+      deleteFolder: t("deleteFolder"),
+      deleteFile: t("deleteFile"),
+      loading: t("loading"),
+      empty: t("empty"),
+      createFile: t("createFile"),
+      createFolder: t("createFolder"),
+      inputPlaceholder: t("inputPlaceholder"),
+      ...labelOverrides,
+    }
 
     const [nodes, setNodes] = useState<HuemulTreeNode[]>([])
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
@@ -567,7 +569,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                     icon={MoreVertical}
                     iconClassName="h-4 w-4"
                     className={cn(
-                      "h-6 w-6 transition-opacity",
+                      "h-6 w-6 shrink-0 transition-opacity",
                       alwaysShowMenuActions && hasCustomMenuActions
                         ? "opacity-100"
                         : "opacity-0 group-hover:opacity-100",
@@ -700,7 +702,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         <div
           ref={containerRef}
           className={cn(
-            "relative rounded-lg transition-colors",
+            "relative rounded-lg transition-colors overflow-hidden",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
             dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",

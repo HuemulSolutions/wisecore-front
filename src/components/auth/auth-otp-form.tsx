@@ -22,13 +22,9 @@ import { authService } from "@/services/auth"
 import { useAuth } from "@/contexts/auth-context"
 import { getErrorMessage } from "@/lib/error-utils"
 import packageJson from "../../../package.json"
+import type { OTPFormProps } from "@/types/auth"
 
-interface OTPFormProps extends React.ComponentProps<"div"> {
-  email: string
-  purpose: "login"
-  onBack?: () => void
-  onSuccess?: () => void
-}
+export type { OTPFormProps } from "@/types/auth"
 
 export function OTPForm({
   className,

@@ -16,14 +16,9 @@ import SectionExecution from "@/components/sections/sections_execution";
 import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { useOrganization } from "@/contexts/organization-context";
+import type { ExecutionInfoSheetProps } from "@/types/execution-info-sheet";
 
-interface ExecutionInfoSheetProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  executionId: string;
-  documentName?: string;
-  sectionName?: string;
-}
+export type { ExecutionInfoSheetProps } from "@/types/execution-info-sheet";
 
 export function ExecutionInfoSheet({
   isOpen,

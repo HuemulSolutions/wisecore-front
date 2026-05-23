@@ -4,21 +4,8 @@ import { Edit, Trash2, MoreVertical, Radio, Loader2, Settings } from "lucide-rea
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import type { LLM } from "@/types/llm"
-
-interface ModelActionsProps {
-  model: LLM
-  onEdit: (model: LLM) => void
-  onDelete: (model: LLM) => void
-  onTest: (model: LLM) => void
-  onCapabilities: (model: LLM) => void
-  isDeleting: boolean
-  isTesting: boolean
-  dropdownOpen: boolean
-  onDropdownChange: (open: boolean) => void
-  canUpdate: boolean
-  canDelete: boolean
-}
+import type { ModelActionsProps } from "@/types/models-actions"
+export type { ModelActionsProps } from "@/types/models-actions"
 
 export function ModelActions({ 
   model, 

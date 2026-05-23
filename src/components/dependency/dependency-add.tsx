@@ -21,25 +21,9 @@ import { useOrganization } from "@/contexts/organization-context";
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/error-utils";
+import type { Dependency, DocumentType, AddDependencySheetProps } from "@/types/dependency-add";
 
-interface Dependency {
-    document_id: string;
-    document_name: string;
-    section_name: string | null;
-    dependency_type: string;
-}
-
-interface DocumentType {
-    id: string;
-    name: string;
-    color: string;
-}
-
-interface AddDependencySheetProps {
-    id: string;
-    isSheetOpen?: boolean;
-    canEdit?: boolean;
-}
+export type { AddDependencySheetProps } from "@/types/dependency-add";
 
 export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = true }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')
@@ -103,18 +87,26 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
             const currentDependencies = queryClient.getQueryData<Dependency[]>(['documentDependencies', id]) || [];
             const dependencyIds = new Set(currentDependencies.map(dep => dep.document_id));
             
-            return response.content
-                .filter((item: any) => !(item.type === "document" && item.id === id))
-                .map((item: any) => ({
+            const folderNodes: FileNode[] = response.folders.map((item) => ({
                 id: item.id,
                 name: item.name,
-                type: item.type as "document" | "folder",
+                type: "folder" as const,
+                hasChildren: true,
+                isDependency: false,
+            }));
+            const assetNodes: FileNode[] = response.assets
+                .filter((item) => item.id !== id)
+                .map((item) => ({
+                id: item.id,
+                name: item.name,
+                type: "document" as const,
                 document_type: item.document_type,
                 access_levels: item.access_levels,
-                hasChildren: item.type === "folder",
+                hasChildren: false,
                 // Mark dependencies so menu actions and icons can identify them
-                isDependency: item.type === "document" && dependencyIds.has(item.id),
+                isDependency: dependencyIds.has(item.id),
             }));
+            return [...folderNodes, ...assetNodes];
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('toast.loadFailed') });
             return [];

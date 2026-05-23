@@ -144,7 +144,7 @@ export function AssetContent({
   // ============================================================================
   // HOOKS AND CONTEXT
   // ============================================================================
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(["assets", "common"]);
   const queryClient = useQueryClient();
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
@@ -3217,7 +3217,7 @@ export function AssetContent({
                                             {executeDocumentMutation.isPending ? (
                                               <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                {t('content.executing')}
+                                                {t('common:executing')}
                                               </>
                                             ) : (
                                               <>
@@ -3385,7 +3385,7 @@ export function AssetContent({
                               {executeDocumentMutation.isPending ? (
                                 <>
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  {t('content.executing')}
+                                  {t('common:executing')}
                                 </>
                               ) : (
                                 <>

@@ -3,14 +3,9 @@ import { Settings, Edit } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
+import type { EmbeddingProviderEditDialogProps } from "@/types/embedding-provider-edit-dialog"
 
-interface EmbeddingProviderEditDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  provider: any | null
-  onSubmit: (data: { name: string; key?: string; endpoint?: string; deployment?: string }) => void
-  isSubmitting: boolean
-}
+export type { EmbeddingProviderEditDialogProps } from "@/types/embedding-provider-edit-dialog"
 
 export function EmbeddingProviderEditDialog({
   open,

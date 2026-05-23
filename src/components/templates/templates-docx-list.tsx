@@ -28,6 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { parseApiDate, formatDate } from "@/lib/utils";
 import type { DocxTemplate } from "@/types/docx-templates";
+import type { DocxTemplateCardProps, TemplateDocxListProps } from '@/types/templates-docx-list';
+export type { TemplateDocxListProps } from '@/types/templates-docx-list';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,15 +72,6 @@ function WordIcon({ className }: { className?: string }) {
 
 // ─── Single card ──────────────────────────────────────────────────────────────
 
-interface DocxTemplateCardProps {
-  template: DocxTemplate;
-  canUpdate: boolean;
-  canDelete: boolean;
-  onRename: (template: DocxTemplate) => void;
-  onReplace: (template: DocxTemplate) => void;
-  onDelete: (template: DocxTemplate) => void;
-}
-
 function DocxTemplateCard({
   template,
   canUpdate,
@@ -87,7 +80,7 @@ function DocxTemplateCard({
   onReplace,
   onDelete,
 }: DocxTemplateCardProps) {
-  const { t } = useTranslation("templates");
+  const { t } = useTranslation(["templates", "common"]);
   const formattedDate = formatDate(parseApiDate(template.updated_at), {
     year: "numeric",
     month: "short",
@@ -136,7 +129,7 @@ function DocxTemplateCard({
                   onSelect={() => onDelete(template)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  {t("docxTemplates.delete")}
+                  {t("common:delete")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -203,14 +196,6 @@ function DocxEmptyState({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-interface TemplateDocxListProps {
-  templateId: string;
-  organizationId: string;
-  canCreate?: boolean;
-  canUpdate?: boolean;
-  canDelete?: boolean;
-}
-
 export function TemplateDocxList({
   templateId,
   organizationId,
@@ -218,7 +203,7 @@ export function TemplateDocxList({
   canUpdate = false,
   canDelete = false,
 }: TemplateDocxListProps) {
-  const { t } = useTranslation("templates");
+  const { t } = useTranslation(["templates", "common"]);
 
   // ── Queries & mutations ──────────────────────────────────────────────────
 
@@ -398,7 +383,7 @@ export function TemplateDocxList({
         <div className="space-y-4">
           <HuemulField
             type="text"
-            label={t("docxTemplates.nameLabel")}
+            label={t("common:name")}
             name="upload-name"
             value={uploadName}
             placeholder={t("docxTemplates.namePlaceholder")}
@@ -433,7 +418,7 @@ export function TemplateDocxList({
       >
         <HuemulField
           type="text"
-          label={t("docxTemplates.nameLabel")}
+          label={t("common:name")}
           name="rename-name"
           value={renameName}
           placeholder={t("docxTemplates.namePlaceholder")}
@@ -462,7 +447,7 @@ export function TemplateDocxList({
         <div className="space-y-4">
           <HuemulField
             type="text"
-            label={t("docxTemplates.nameLabel")}
+            label={t("common:name")}
             name="replace-name"
             value={replaceName}
             placeholder={t("docxTemplates.namePlaceholder")}
@@ -488,7 +473,7 @@ export function TemplateDocxList({
           name: deleteTarget?.name ?? "",
         })}
         icon={Trash2}
-        actionLabel={t("docxTemplates.deleteAction")}
+        actionLabel={t("common:delete")}
         actionVariant="destructive"
         onAction={handleDelete}
         cancelLabel={t("common:cancel")}

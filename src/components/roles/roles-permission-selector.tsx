@@ -9,6 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Search, Shield, Users, Database, FileText, Settings, Brain, Lock, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react"
 import { type Permission, type PermissionWithStatus } from "@/services/rbac"
+import type { PermissionSelectorProps } from '@/types/roles-permission-selector'
+export type { PermissionSelectorProps } from '@/types/roles-permission-selector'
 
 // Permission categories for better organization
 const getPermissionCategory = (permission: string) => {
@@ -38,16 +40,6 @@ const getCategoryIcon = (category: string) => {
     default:
       return Settings
   }
-}
-
-interface PermissionSelectorProps {
-  permissions: (Permission | PermissionWithStatus)[]
-  selectedPermissions: string[]
-  onPermissionsChange: (permissions: string[]) => void
-  isLoading?: boolean
-  compact?: boolean
-  /** If provided, client-side filtering is skipped and this is called when the user presses Enter */
-  onSearchChange?: (search: string) => void
 }
 
 export default function PermissionSelector({

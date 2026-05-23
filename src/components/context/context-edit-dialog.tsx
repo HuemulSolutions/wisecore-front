@@ -3,22 +3,9 @@ import { Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import type { EditContextDialogProps } from "@/types/context-edit-dialog";
 
-
-interface ContextItem {
-  id: string;
-  name: string;
-  content: string;
-  context_type?: string;
-}
-
-interface EditContextDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  context: ContextItem | null;
-  onConfirm: (id: string, name: string, content: string) => void;
-  isProcessing: boolean;
-}
+export type { EditContextDialogProps } from "@/types/context-edit-dialog";
 
 export function EditContextDialog({
   open,

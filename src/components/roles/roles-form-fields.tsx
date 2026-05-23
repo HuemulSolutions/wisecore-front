@@ -1,15 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { HuemulField } from "@/huemul/components/huemul-field"
-
-interface RoleFormFieldsProps {
-  name: string
-  description: string
-  onNameChange: (name: string) => void
-  onDescriptionChange: (description: string) => void
-  nameLabel?: string
-  descriptionLabel?: string
-  includeTextarea?: boolean
-}
+import type { RoleFormFieldsProps } from '@/types/roles-form-fields'
+export type { RoleFormFieldsProps } from '@/types/roles-form-fields'
 
 export default function RoleFormFields({
   name,

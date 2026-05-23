@@ -5,13 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
-
-interface AssignVersionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: (version: { major: number; minor: number; patch: number }) => void;
-  isProcessing?: boolean;
-}
+import type { AssignVersionDialogProps } from '@/types/assets-assign-version-dialog';
+export type { AssignVersionDialogProps } from '@/types/assets-assign-version-dialog';
 
 export function AssignVersionDialog({
   open,

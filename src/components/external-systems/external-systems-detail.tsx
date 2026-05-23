@@ -4,19 +4,11 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import type { ExternalSystem } from "@/types/external-systems"
+import type { Tab, ExternalSystemDetailProps } from "@/types/external-systems-detail"
 import { ExternalSystemParamsTab } from "./external-system-params-tab"
 import { ExternalSystemSecretsTab } from "./external-system-secrets-tab"
 
-type Tab = "docs" | "params" | "secrets"
-
-interface ExternalSystemDetailProps {
-  system: ExternalSystem | null
-  organizationId?: string
-  onAddFunctionality?: () => void
-  onEdit?: () => void
-  onDelete?: () => void
-}
+export type { ExternalSystemDetailProps } from "@/types/external-systems-detail"
 
 export function ExternalSystemDetail({ system, organizationId = "", onAddFunctionality, onEdit, onDelete }: ExternalSystemDetailProps) {
   const { t } = useTranslation(["external-systems", "external-functionalities", "common"])

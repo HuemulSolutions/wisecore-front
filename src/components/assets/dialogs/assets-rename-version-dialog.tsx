@@ -4,14 +4,8 @@ import { Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
-
-interface RenameVersionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: (name: string) => void;
-  currentName: string;
-  isProcessing?: boolean;
-}
+import type { RenameVersionDialogProps } from '@/types/assets-rename-version-dialog';
+export type { RenameVersionDialogProps } from '@/types/assets-rename-version-dialog';
 
 export function RenameVersionDialog({
   open,

@@ -1,16 +1,13 @@
 import { X, FileText, FolderClosed, Zap, Plus } from 'lucide-react';
-import type { WorkingContextItem } from '@/types/chatbot';
+import type { WisyContextChipProps, WisyContextChipsProps } from '@/types/wisy-context-chips';
+
+export type { WisyContextChipsProps } from '@/types/wisy-context-chips';
 
 const TYPE_CONFIG: Record<string, { icon: typeof FileText; label: string }> = {
   document: { icon: FileText, label: 'Document' },
   folder: { icon: FolderClosed, label: 'Folder' },
   execution: { icon: Zap, label: 'Version' },
 };
-
-interface WisyContextChipProps {
-  item: WorkingContextItem;
-  onRemove: (type: string, id: string) => void;
-}
 
 function WisyContextChip({ item, onRemove }: WisyContextChipProps) {
   const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.document;
@@ -29,15 +26,6 @@ function WisyContextChip({ item, onRemove }: WisyContextChipProps) {
       </button>
     </span>
   );
-}
-
-interface WisyContextChipsProps {
-  items: WorkingContextItem[];
-  onRemove: (type: string, id: string) => void;
-  /** Current page context item to suggest adding */
-  currentPageContext?: WorkingContextItem | null;
-  /** Called when the user clicks the "add current page" badge */
-  onAddCurrentPage?: () => void;
 }
 
 export function WisyContextChips({ items, onRemove, currentPageContext, onAddCurrentPage }: WisyContextChipsProps) {

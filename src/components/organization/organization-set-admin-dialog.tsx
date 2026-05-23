@@ -6,14 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Shield, User, Crown, UserPlus } from "lucide-react"
 import { useOrganizationUsers, useSetOrganizationAdmin } from "@/hooks/useOrganizations"
 import { useTranslation } from "react-i18next"
-import type { Organization } from "./organization-table"
-
-interface SetOrganizationAdminDialogProps {
-  organization: Organization | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-}
+import type { SetOrganizationAdminDialogProps } from "@/types/organization-set-admin-dialog"
+export type { SetOrganizationAdminDialogProps } from "@/types/organization-set-admin-dialog"
 
 export function SetOrganizationAdminDialog({
   organization,

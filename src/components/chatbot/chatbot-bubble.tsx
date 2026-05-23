@@ -1,7 +1,10 @@
 import Markdown from '@/components/ui/markdown';
 import { AlertCircle, Loader2, FileText, FolderClosed, Zap, Sparkles, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { ChatMessage, WorkingContextItem } from '@/types/chatbot';
+import type { WorkingContextItem } from '@/types/chatbot';
+import type { MessageBubbleProps } from '@/types/chatbot-bubble';
+
+export type { MessageBubbleProps } from '@/types/chatbot-bubble';
 
 // ========================================
 // Typing indicator (animated dots)
@@ -56,10 +59,6 @@ function MessageContextChips({ items }: { items: WorkingContextItem[] }) {
 // ========================================
 // Message bubble
 // ========================================
-
-interface MessageBubbleProps {
-  message: ChatMessage;
-}
 
 function AssistantStatusLine({ message }: MessageBubbleProps) {
   const { t } = useTranslation('chatbot');

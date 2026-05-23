@@ -1,19 +1,6 @@
 import { SectionForm } from "@/components/sections/sections-form";
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface AddSectionFormSheetProps {
-  documentId?: string;
-  templateId?: string;
-  onSubmit: (values: any) => void;
-  isPending: boolean;
-  existingSections?: Section[];
-  onValidationChange?: (isValid: boolean) => void;
-  onGeneratingChange?: (isGenerating: boolean) => void;
-}
+import type { AddSectionFormSheetProps } from '@/types/sections-add-form-sheet';
+export type { AddSectionFormSheetProps } from '@/types/sections-add-form-sheet';
 
 export function AddSectionFormSheet({ 
   documentId, 

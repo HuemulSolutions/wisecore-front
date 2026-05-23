@@ -16,26 +16,11 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { ExternalParameter, ExternalParameterType } from "@/types/external-parameters"
+import type { ExternalSystemParamsTabProps, EditingState, AddFormState } from "@/types/external-system-params-tab"
+
+export type { ExternalSystemParamsTabProps } from "@/types/external-system-params-tab"
 
 const PAGE_SIZE = 20
-
-interface ExternalSystemParamsTabProps {
-  organizationId: string
-  systemId: string
-}
-
-interface EditingState {
-  id: string
-  name: string
-  value: string
-  param_type: ExternalParameterType
-}
-
-interface AddFormState {
-  param_type: ExternalParameterType
-  name: string
-  value: string
-}
 
 const TYPE_BADGE_CLASS: Record<ExternalParameterType, string> = {
   query_string:
@@ -385,7 +370,7 @@ export function ExternalSystemParamsTab({
         description={t("delete.description", { name: deletingParam?.name })}
         icon={Trash2}
         iconClassName="text-destructive"
-        actionLabel={t("delete.confirmLabel")}
+        actionLabel={t("common:delete")}
         actionVariant="destructive"
         onAction={handleDelete}
         cancelLabel={t("common:cancel")}

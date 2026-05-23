@@ -29,6 +29,7 @@ import externalSecrets from './locales/external-secrets'
 import externalParameters from './locales/external-parameters'
 import chatbot from './locales/chatbot'
 import huemulFilters from './locales/huemul-filters'
+import huemulFileTree from './locales/huemul-file-tree'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -77,6 +78,7 @@ const modules = {
   'external-parameters': externalParameters,
   chatbot,
   'huemul-filters': huemulFilters,
+  'huemul-file-tree': huemulFileTree,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const

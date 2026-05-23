@@ -23,6 +23,7 @@ import GlobalAdminPage from "./pages/global-admin";
 import AdvancedPage from "./pages/advanced";
 import ExternalSystemsPage from "./pages/external-systems";
 import { RootRedirect } from "./components/organization/root-redirect";
+import HuemulLayoutDemoPage from "./pages/huemul-layout-demo";
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
           {/* Non-org-scoped routes (no orgId needed) */}
           <Route element={<AppLayout />}>
             <Route path="/home" element={<Home />} />
+            <Route path="/huemul-demo" element={<HuemulLayoutDemoPage />} />
             <Route path="/global-admin" element={
               <PermissionProtectedRoute requireRootAdmin>
                 <GlobalAdminPage />

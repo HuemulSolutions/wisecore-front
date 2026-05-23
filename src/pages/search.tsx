@@ -20,9 +20,23 @@ function parseFiltersFromURL(params: URLSearchParams): SearchFilterValues {
   return {
     document_type_id: params.get("document_type_id"),
     template_id: params.get("template_id"),
-    created_by: params.get("created_by"),
+    ownerValue: params.get("owner"),
     lifecycle_state: params.get("lifecycle_state"),
     filter_with_llm: params.get("filter_with_llm") !== "false",
+    has_unresolved_comments: params.get("has_unresolved_comments") === "true",
+    has_pending_ai_suggestion: params.get("has_pending_ai_suggestion") === "true",
+    expiration_date: params.get("expiration_date") ?? '',
+    expiration_date_from: params.get("expiration_date_from") ?? '',
+    expiration_date_to: params.get("expiration_date_to") ?? '',
+    estimated_publication_date: params.get("estimated_publication_date") ?? '',
+    estimated_publication_date_from: params.get("estimated_publication_date_from") ?? '',
+    estimated_publication_date_to: params.get("estimated_publication_date_to") ?? '',
+    review_date: params.get("review_date") ?? '',
+    review_date_from: params.get("review_date_from") ?? '',
+    review_date_to: params.get("review_date_to") ?? '',
+    audit_date: params.get("audit_date") ?? '',
+    audit_date_from: params.get("audit_date_from") ?? '',
+    audit_date_to: params.get("audit_date_to") ?? '',
   };
 }
 
@@ -36,14 +50,28 @@ function buildSearchParams(
   params.set("search_type", searchType);
   if (filters.document_type_id) params.set("document_type_id", filters.document_type_id);
   if (filters.template_id) params.set("template_id", filters.template_id);
-  if (filters.created_by) params.set("created_by", filters.created_by);
+  if (filters.ownerValue) params.set("owner", filters.ownerValue);
   if (filters.lifecycle_state) params.set("lifecycle_state", filters.lifecycle_state);
   if (!filters.filter_with_llm) params.set("filter_with_llm", "false");
+  if (filters.has_unresolved_comments) params.set("has_unresolved_comments", "true");
+  if (filters.has_pending_ai_suggestion) params.set("has_pending_ai_suggestion", "true");
+  if (filters.expiration_date) params.set("expiration_date", filters.expiration_date);
+  if (filters.expiration_date_from) params.set("expiration_date_from", filters.expiration_date_from);
+  if (filters.expiration_date_to) params.set("expiration_date_to", filters.expiration_date_to);
+  if (filters.estimated_publication_date) params.set("estimated_publication_date", filters.estimated_publication_date);
+  if (filters.estimated_publication_date_from) params.set("estimated_publication_date_from", filters.estimated_publication_date_from);
+  if (filters.estimated_publication_date_to) params.set("estimated_publication_date_to", filters.estimated_publication_date_to);
+  if (filters.review_date) params.set("review_date", filters.review_date);
+  if (filters.review_date_from) params.set("review_date_from", filters.review_date_from);
+  if (filters.review_date_to) params.set("review_date_to", filters.review_date_to);
+  if (filters.audit_date) params.set("audit_date", filters.audit_date);
+  if (filters.audit_date_from) params.set("audit_date_from", filters.audit_date_from);
+  if (filters.audit_date_to) params.set("audit_date_to", filters.audit_date_to);
   return params;
 }
 
 export default function SearchPage() {
-  const { t } = useTranslation('search');
+  const { t } = useTranslation(['search', 'common']);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchType, setSearchType] = useState<SearchType>((searchParams.get("search_type") as SearchType) || "semantic");
   const [query, setQuery] = useState(searchParams.get("q") || "");
@@ -52,9 +80,23 @@ export default function SearchPage() {
   const defaultFilters: SearchFilterValues = {
     document_type_id: null,
     template_id: null,
-    created_by: null,
+    ownerValue: null,
     lifecycle_state: null,
     filter_with_llm: true,
+    has_unresolved_comments: false,
+    has_pending_ai_suggestion: false,
+    expiration_date: '',
+    expiration_date_from: '',
+    expiration_date_to: '',
+    estimated_publication_date: '',
+    estimated_publication_date_from: '',
+    estimated_publication_date_to: '',
+    review_date: '',
+    review_date_from: '',
+    review_date_to: '',
+    audit_date: '',
+    audit_date_from: '',
+    audit_date_to: '',
   };
 
   const initialFiltersFromURL = parseFiltersFromURL(searchParams);
@@ -67,8 +109,24 @@ export default function SearchPage() {
   const hasActiveSearch = !!committedQuery.trim() ||
     !!committedFilters.document_type_id ||
     !!committedFilters.template_id ||
-    !!committedFilters.created_by ||
-    !!committedFilters.lifecycle_state;
+    !!committedFilters.ownerValue ||
+    !!committedFilters.lifecycle_state ||
+    !!committedFilters.has_unresolved_comments ||
+    !!committedFilters.has_pending_ai_suggestion ||
+    !!committedFilters.expiration_date ||
+    !!committedFilters.expiration_date_from ||
+    !!committedFilters.expiration_date_to ||
+    !!committedFilters.estimated_publication_date ||
+    !!committedFilters.estimated_publication_date_from ||
+    !!committedFilters.estimated_publication_date_to ||
+    !!committedFilters.review_date ||
+    !!committedFilters.review_date_from ||
+    !!committedFilters.review_date_to ||
+    !!committedFilters.audit_date ||
+    !!committedFilters.audit_date_from ||
+    !!committedFilters.audit_date_to;
+
+  const canSearch = !!query.trim() || hasActiveSearch;
 
   const { data: searchResponse, isLoading, isError, error, refetch } = useQuery<SearchResponse>({
     queryKey: [
@@ -84,21 +142,32 @@ export default function SearchPage() {
       search_type: committedSearchType,
       document_type_id: committedFilters.document_type_id,
       template_id: committedFilters.template_id,
-      created_by: committedFilters.created_by,
+      owner_scope: committedFilters.ownerValue === '__me__' ? 'me' : undefined,
+      created_by: committedFilters.ownerValue && committedFilters.ownerValue !== '__me__' ? committedFilters.ownerValue : undefined,
       lifecycle_state: committedFilters.lifecycle_state,
       filter_with_llm: committedFilters.filter_with_llm,
+      has_unresolved_comments: committedFilters.has_unresolved_comments || undefined,
+      has_pending_ai_suggestion: committedFilters.has_pending_ai_suggestion || undefined,
+      expiration_date: committedFilters.expiration_date || undefined,
+      expiration_date_from: committedFilters.expiration_date_from || undefined,
+      expiration_date_to: committedFilters.expiration_date_to || undefined,
+      estimated_publication_date: committedFilters.estimated_publication_date || undefined,
+      estimated_publication_date_from: committedFilters.estimated_publication_date_from || undefined,
+      estimated_publication_date_to: committedFilters.estimated_publication_date_to || undefined,
+      review_date: committedFilters.review_date || undefined,
+      review_date_from: committedFilters.review_date_from || undefined,
+      review_date_to: committedFilters.review_date_to || undefined,
+      audit_date: committedFilters.audit_date || undefined,
+      audit_date_from: committedFilters.audit_date_from || undefined,
+      audit_date_to: committedFilters.audit_date_to || undefined,
     }),
     enabled: hasActiveSearch && !!selectedOrganizationId,
   });
 
   const handleSearch = () => {
     const trimmedQuery = query.trim();
-    const hasFilters = !!committedFilters.document_type_id ||
-      !!committedFilters.template_id ||
-      !!committedFilters.created_by ||
-      !!committedFilters.lifecycle_state;
 
-    if (!trimmedQuery && !hasFilters) return;
+    if (!trimmedQuery && !hasActiveSearch) return;
 
     const isSameState = trimmedQuery === committedQuery && searchType === committedSearchType;
     if (isSameState && hasActiveSearch) {
@@ -152,8 +221,9 @@ export default function SearchPage() {
             <div className="flex gap-2 items-center">
               <HuemulButton
                 icon={Search}
-                label={t('page.searchButton')}
+                label={t('common:search')}
                 loading={isLoading}
+                disabled={!canSearch}
                 onClick={handleSearch}
                 className="h-8 text-xs px-3"
               />

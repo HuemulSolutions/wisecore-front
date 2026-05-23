@@ -82,10 +82,10 @@ export function useAssetNavigation({
         : undefined;
       
       const parentContent = await getLibraryContent(selectedOrganizationId!, parentFolderId);
-      const items = parentContent?.content || [];
+      const items = parentContent?.assets || [];
       
       const foundFile = items.find(
-        (item: LibraryItem) => item.id === possibleFileId && item.type === 'document'
+        (item) => item.id === possibleFileId
       );
       
       if (foundFile) {
@@ -100,7 +100,7 @@ export function useAssetNavigation({
       const lastFolderId = segments[segments.length - 1];
       const folderContent = await getLibraryContent(selectedOrganizationId!, lastFolderId);
       
-      if (folderContent?.content !== undefined) {
+      if (folderContent?.assets !== undefined) {
         return { folderPath: segments, selectedFileId: null };
       }
     } catch {
@@ -153,12 +153,12 @@ export function useAssetNavigation({
       try {
         const data = await getLibraryContent(selectedOrganizationId!, currentFolderId);
         
-        if (!data?.content) {
+        if (!data?.folders) {
           break;
         }
         
-        const folders = data.content.filter((item: LibraryItem) => item.type === 'folder');
-        const targetFolder = folders.find((folder: LibraryItem) => folder.id === targetFolderId);
+        const folders = data.folders;
+        const targetFolder = folders.find((folder) => folder.id === targetFolderId);
         
         if (targetFolder) {
           hierarchy.push({ id: targetFolder.id, name: targetFolder.name });

@@ -11,34 +11,8 @@ import { MDXEditor, headingsPlugin, listsPlugin, quotePlugin, thematicBreakPlugi
     CodeToggle, InsertCodeBlock, InsertThematicBreak, ListsToggle, Separator
  } from '@mdxeditor/editor';
 import type { MDXEditorMethods } from '@mdxeditor/editor';
-
-interface Item {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: { id: string; name: string }[];
-}
-
-interface ItemForBackend {
-  id: string;
-  name: string;
-  prompt: string;
-  order: number;
-  dependencies: string[];
-}
-
-interface Section {
-  id: string;
-  name: string;
-}
-
-interface EditSectionProps {
-  item: Item;
-  onCancel: () => void;
-  onSave: (updatedItem: ItemForBackend) => void;
-  existingSections?: Section[];
-}
+import type { Item, ItemForBackend, EditSectionProps } from '@/types/sections-edit';
+export type { EditSectionProps } from '@/types/sections-edit';
 
 export default function EditSection({ item, onCancel, onSave, existingSections = [] }: EditSectionProps) {
   const [formData, setFormData] = useState<Item>({

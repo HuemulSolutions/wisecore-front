@@ -1,13 +1,8 @@
 import { Blocks } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-
-interface ModelsHeaderProps {
-  configuredProviders: number
-  totalModels: number
-  isLoading: boolean
-  onRefresh: () => void
-}
+import type { ModelsHeaderProps } from "@/types/models-header"
+export type { ModelsHeaderProps } from "@/types/models-header"
 
 export function ModelsHeader({ 
   configuredProviders, 

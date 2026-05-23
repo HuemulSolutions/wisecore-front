@@ -1,13 +1,3 @@
-import type { CustomField } from "@/types/custom-fields";
-
-// Main types
-export interface CustomFieldPageState {
-  searchTerm: string;
-  editingCustomField: CustomField | null;
-  showCreateDialog: boolean;
-  deletingCustomField: CustomField | null;
-}
-
 // Re-export components
 export { CustomFieldPageHeader } from "./custom-fields-page-header";
 export { CustomFieldTable } from "./custom-fields-table";
@@ -17,4 +7,5 @@ export { CustomFieldContentEmptyState } from "./custom-fields-content-empty-stat
 export { CustomFieldPageDialogs } from "./custom-fields-page-dialogs";
 
 // Types re-export
-export type { CustomField };
+export type { CustomField } from "@/types/custom-fields";
+export type { CustomFieldPageState } from "@/types/custom-fields-page-state";

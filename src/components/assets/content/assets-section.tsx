@@ -1,4 +1,4 @@
-import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ExecutionConfigDialog, { type ExecutionConfig } from '@/components/execution/execution-config-dialog';
 import { DeleteSectionDialog } from '@/components/assets/dialogs/assets-delete-section-dialog';
 import { AiEditSectionDialog } from '@/components/assets/dialogs/assets-ai-edit-section-dialog';
+import { SectionHistorySheet } from '@/components/assets/content/section-history-sheet';
 import { SectionExecutionFeedback } from '@/components/execution/section-execution-feedback';
 import {
   DropdownMenu,
@@ -16,46 +17,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { executeSingleSection, executeFromSection } from '@/services/generate';
 import { deleteSectionExec, modifyContent, createAiSuggestion, acceptAiSuggestion, rejectAiSuggestion, updateReviewStatus, type ReviewStatus } from '@/services/section_execution';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { AiSuggestionFeedback } from '@/components/execution/ai-suggestion-feedback';
-import MarkdownDiffViewer from '@/components/MarkdownDiffViewer';
+import { AiSuggestionDiffDialog } from '@/components/assets/dialogs/assets-ai-suggestion-diff-dialog';
 import { useOrganization } from '@/contexts/organization-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
-
-interface SectionExecutionProps {
-    sectionExecution: {
-        id: string;
-        output: string;
-        section_id?: string;
-        /** Plate JSON nodes (stringified) – used to restore comment marks on load */
-        plate_content?: string[];
-        ai_suggestion_status?: 'pending' | 'completed' | 'failed' | null;
-        ai_suggestion_content?: string | null;
-        ai_suggestion_instruction?: string | null;
-        review_status?: 'editing' | 'reviewing' | 'finished' | null;
-    }
-    onUpdate?: () => void;
-    readyToEdit: boolean;
-    sectionIndex?: number;
-    documentId?: string;
-    executionId?: string;
-    onExecutionStart?: (executionId?: string) => void;
-    executionStatus?: string;
-    onOpenExecuteSheet?: () => void;
-    executionMode?: 'single' | 'from' | 'full' | 'full-single';
-    showExecutionFeedback?: boolean;
-    sectionType?: 'ai' | 'manual' | 'reference' | null;
-    sectionName?: string;
-    canEditSections?: boolean;
-    onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
-    onCopyLink?: () => void;
-}
+import type { SectionExecutionProps } from '@/types/assets-section';
+export type { SectionExecutionProps } from '@/types/assets-section';
 
 function SectionExecutionInner({ 
     sectionExecution, 
@@ -90,6 +63,7 @@ function SectionExecutionInner({
     const [localSuggestionContent, setLocalSuggestionContent] = useState<string | null>(null);
     const [isDiffOpen, setIsDiffOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false);
     const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(
         (sectionExecution.review_status as ReviewStatus) ?? null
     );
@@ -112,7 +86,7 @@ function SectionExecutionInner({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
-    const { t } = useTranslation('assets');
+    const { t } = useTranslation(["assets", "common"]);
     const isExecutionApproved = executionStatus === 'approved';
     
     // Determine which actions are available based on section type
@@ -509,6 +483,16 @@ function SectionExecutionInner({
                                     onClick={handleCopy}
                                 />
 
+                                <HuemulButton
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={History}
+                                    iconClassName="h-3.5 w-3.5 text-gray-600"
+                                    className="h-7 w-7 hover:bg-gray-100"
+                                    tooltip={t('section.viewHistory')}
+                                    onClick={() => setIsHistorySheetOpen(true)}
+                                />
+
                                 {/* {onCopyLink && (
                                     <HuemulButton
                                         variant="ghost"
@@ -556,6 +540,15 @@ function SectionExecutionInner({
                                             <Copy className="h-4 w-4 mr-2" />
                                             {t('section.copy')}
                                         </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className='hover:cursor-pointer'
+                                            onSelect={() => {
+                                                setTimeout(() => setIsHistorySheetOpen(true), 0);
+                                            }}
+                                        >
+                                            <History className="h-4 w-4 mr-2" />
+                                            {t('section.viewHistoryMenu')}
+                                        </DropdownMenuItem>
                                         {/* {onCopyLink && (
                                             <DropdownMenuItem
                                                 className='hover:cursor-pointer'
@@ -596,7 +589,7 @@ function SectionExecutionInner({
                                             onClick={handleStartEditing}
                                         >
                                             <Edit className="h-4 w-4 mr-2" />
-                                            {t('section.edit')}
+                                            {t('common:edit')}
                                         </DropdownMenuItem>
                                     )}
                                     {!isEditing && !isExecutionApproved && canAiEdit && canEditSections && (
@@ -635,7 +628,7 @@ function SectionExecutionInner({
                                             }}
                                         >
                                             <Trash2 className="h-4 w-4 mr-2" />
-                                            {t('section.delete')}
+                                            {t('common:delete')}
                                         </DropdownMenuItem>
                                     )}
                                     {onOpenExecuteSheet && !isExecutionApproved && canExecute && canEditSections && !!sectionExecution.section_id && (
@@ -698,7 +691,7 @@ function SectionExecutionInner({
                             disabled={isSaving}
                             className="hover:cursor-pointer"
                         >
-                            {t('section.save')}
+                            {t('common:save')}
                         </Button>
                         <Button
                             size="sm"
@@ -799,8 +792,16 @@ function SectionExecutionInner({
             isProcessing={false}
         />
 
+        {/* Change History Sheet */}
+        <SectionHistorySheet
+            open={isHistorySheetOpen}
+            onOpenChange={setIsHistorySheetOpen}
+            sectionExecutionId={sectionExecution.id}
+            sectionName={sectionName}
+        />
+
         {/* AI Suggestion Diff Dialog */}
-        <HuemulDialog
+        <AiSuggestionDiffDialog
             open={isDiffOpen}
             onOpenChange={(open) => {
                 if (!open) {
@@ -810,51 +811,24 @@ function SectionExecutionInner({
                     queryClient.invalidateQueries({ queryKey: ['document-content', documentId] });
                 }
             }}
-            title={t('section.diffDialogTitle')}
-            description={
-                sectionExecution.ai_suggestion_instruction
-                    ? `${t('section.diffInstruction')} "${sectionExecution.ai_suggestion_instruction}"`
-                    : undefined
-            }
-            icon={GitCompare}
-            iconClassName="text-amber-600"
-            maxWidth="w-[95vw]"
-            maxHeight="max-h-[90vh]"
-            className="!max-w-[95vw]"
-            cancelLabel={t('section.diffDismiss')}
-            extraActions={[{
-                label: t('section.diffReject'),
-                variant: 'destructive',
-                closeOnSuccess: false,
-                onClick: async () => {
-                    await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
-                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
-                    setAiPreview(null);
-                    setIsDiffOpen(false);
-                },
-            }]}
-            saveAction={{
-                label: t('section.diffAccept'),
-                onClick: async () => {
-                    await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
-                    await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
-                    setAiPreview(null);
-                    setIsDiffOpen(false);
-                    onUpdate?.();
-                },
-                closeOnSuccess: false,
+            sectionOutput={sectionExecution.output}
+            aiSuggestionInstruction={sectionExecution.ai_suggestion_instruction}
+            aiSuggestionContent={sectionExecution.ai_suggestion_content}
+            aiPreview={aiPreview}
+            onReject={async () => {
+                await rejectAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
+                setAiPreview(null);
+                setIsDiffOpen(false);
             }}
-        >
-            <MarkdownDiffViewer
-                oldContent={sectionExecution.output.replace(/\\n/g, "\n")}
-                newContent={aiPreview ?? sectionExecution.ai_suggestion_content ?? ''}
-                oldLabel={t('section.diffCurrentLabel')}
-                newLabel={t('section.diffSuggestionLabel')}
-                defaultMode='rendered'
-                showModeToggle={false}
-                showRenderedDiffPanel={false}
-            />
-        </HuemulDialog>
+            onAccept={async () => {
+                await acceptAiSuggestion(sectionExecution.id, selectedOrganizationId ?? undefined);
+                await queryClient.refetchQueries({ queryKey: ['document-content', documentId] });
+                setAiPreview(null);
+                setIsDiffOpen(false);
+                onUpdate?.();
+            }}
+        />
         </div>
     );
 

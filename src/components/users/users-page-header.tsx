@@ -30,7 +30,7 @@ export default function UserPageHeader({
   onStatusFilterChange,
   canCreate = false
 }: UserPageHeaderProps) {
-  const { t } = useTranslation(['users'])
+  const { t } = useTranslation(['users', 'common'])
 
   return (
     <PageHeader
@@ -72,9 +72,9 @@ export default function UserPageHeader({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t('users:header.filterAllStatus')}</SelectItem>
-          <SelectItem value="active">{t('users:header.filterActive')}</SelectItem>
-          <SelectItem value="inactive">{t('users:header.filterInactive')}</SelectItem>
-          <SelectItem value="pending">{t('users:header.filterPending')}</SelectItem>
+          <SelectItem value="active">{t('common:active')}</SelectItem>
+          <SelectItem value="inactive">{t('common:inactive')}</SelectItem>
+          <SelectItem value="pending">{t('common:pending')}</SelectItem>
         </SelectContent>
       </Select>
     </PageHeader>

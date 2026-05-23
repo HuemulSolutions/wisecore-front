@@ -3,26 +3,8 @@ import { PlusCircle } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet"
 import { useTranslation } from "react-i18next"
-
-interface Section {
-  id: string
-  name: string
-  prompt: string
-  dependencies: string[]
-  document_id?: string
-  template_id?: string
-  type?: string
-}
-
-interface AddSectionDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  documentId: string
-  sectionInsertPosition?: number
-  existingSections: Section[]
-  onSubmit: (values: any) => void
-  isPending: boolean
-}
+import type { AddSectionDialogProps } from "@/types/assets-add-section-dialog"
+export type { AddSectionDialogProps } from "@/types/assets-add-section-dialog"
 
 export function AddSectionDialog({
   open,
@@ -34,7 +16,7 @@ export function AddSectionDialog({
   isPending,
 }: AddSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
-  const { t } = useTranslation('assets')
+  const { t } = useTranslation(["assets", "common"])
 
   useEffect(() => {
     if (!open) {
@@ -64,9 +46,9 @@ export function AddSectionDialog({
       icon={PlusCircle}
       maxWidth="sm:max-w-2xl"
       maxHeight="max-h-[90vh]"
-      cancelLabel={t('addSectionDialog.cancel')}
+      cancelLabel={t('common:cancel')}
       saveAction={{
-        label: isPending ? t('addSectionDialog.creating') : t('addSectionDialog.createSection'),
+        label: isPending ? t('common:creating') : t('addSectionDialog.createSection'),
         disabled: !isFormValid || isPending,
         loading: isPending,
         closeOnSuccess: false,

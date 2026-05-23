@@ -16,27 +16,11 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { ExternalParameter, ExternalParameterType } from "@/types/external-parameters"
+import type { ExternalFunctionalityParamsTabProps, EditingState, AddFormState } from "@/types/external-functionality-params-tab"
+
+export type { ExternalFunctionalityParamsTabProps } from "@/types/external-functionality-params-tab"
 
 const PAGE_SIZE = 20
-
-interface ExternalFunctionalityParamsTabProps {
-  organizationId: string
-  systemId: string
-  functionalityId: string
-}
-
-interface EditingState {
-  id: string
-  name: string
-  value: string
-  param_type: ExternalParameterType
-}
-
-interface AddFormState {
-  param_type: ExternalParameterType
-  name: string
-  value: string
-}
 
 const TYPE_BADGE_CLASS: Record<ExternalParameterType, string> = {
   query_string:

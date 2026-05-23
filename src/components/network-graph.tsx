@@ -1,5 +1,12 @@
 import type React from "react"
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import type {
+  NetworkNode,
+  Connection,
+  Viewport,
+  DragState,
+  NetworkGraphProps,
+} from "@/types/network-graph"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,43 +28,6 @@ import {
   MoreVertical,
   Network,
 } from "lucide-react"
-
-interface NetworkNode {
-  id: string
-  label: string
-  fullLabel: string
-  x: number
-  y: number
-  icon: React.ReactNode
-  type: "document"
-  dependencyCount?: number
-  documentType?: { id: string; name: string; color: string }
-}
-
-interface Connection {
-  from: string
-  to: string
-  type: "dependency"
-}
-
-interface Viewport {
-  x: number
-  y: number
-  scale: number
-}
-
-interface DragState {
-  isDragging: boolean
-  nodeId: string | null
-  startX: number
-  startY: number
-  offsetX: number
-  offsetY: number
-}
-
-interface NetworkGraphProps {
-  documents?: any[]
-}
 
 export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
   const navigate = useOrgNavigate()

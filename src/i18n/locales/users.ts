@@ -5,17 +5,11 @@ const translations = {
     searchPlaceholder: { en: "Search users...", es: "Buscar usuarios..." },
     usersCount: { en: "{{count}} users", es: "{{count}} usuarios" },
     filterAllStatus: { en: "All Status", es: "Todos los estados" },
-    filterActive: { en: "Active", es: "Activo" },
-    filterInactive: { en: "Inactive", es: "Inactivo" },
-    filterPending: { en: "Pending", es: "Pendiente" },
   },
   columns: {
-    name: { en: "Name", es: "Nombre" },
     birthday: { en: "Birthday", es: "Cumpleaños" },
     roles: { en: "Roles", es: "Roles" },
-    status: { en: "Status", es: "Estado" },
     rootAdmin: { en: "Root Admin", es: "Admin Root" },
-    created: { en: "Created", es: "Creado" },
     noRoles: { en: "No roles", es: "Sin roles" },
   },
   activated: { en: "Activated: {{date}}", es: "Activado: {{date}}" },
@@ -29,11 +23,6 @@ const translations = {
     deleteUser: { en: "Delete User", es: "Eliminar Usuario" },
     assignRoles: { en: "Assign Roles", es: "Asignar Roles" },
     viewOrganizations: { en: "View Organizations", es: "Ver Organizaciones" },
-  },
-  status: {
-    active: { en: "Active", es: "Activo" },
-    inactive: { en: "Inactive", es: "Inactivo" },
-    pending: { en: "Pending", es: "Pendiente" },
   },
   emptyState: {
     title: { en: "No users found", es: "No se encontraron usuarios" },
@@ -125,7 +114,6 @@ const translations = {
     removeButton: { en: "Remove", es: "Eliminar" },
   },
   toast: {
-    dataRefreshed: { en: "Data refreshed", es: "Datos actualizados" },
     userUpdated: { en: "User updated successfully", es: "Usuario actualizado exitosamente" },
   },
 }

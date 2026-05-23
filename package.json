@@ -1,7 +1,7 @@
 {
   "name": "wisecore-front",
   "private": true,
-  "version": "1.0.66",
+  "version": "1.0.68",
   "type": "module",
   "engines": {
     "node": ">=22"

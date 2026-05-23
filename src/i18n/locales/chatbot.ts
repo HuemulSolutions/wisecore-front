@@ -14,7 +14,6 @@ const translations = {
     placeholder: { en: "Write your message...", es: "Escribe tu mensaje..." },
   },
   model: {
-    loading: { en: "Loading...", es: "Cargando..." },
     selectModel: { en: "Select model", es: "Seleccionar modelo" },
     default: { en: "Default", es: "Predeterminado" },
     lockedWhileGenerating: { en: "Locked while generating", es: "Bloqueado durante la generación" },
@@ -27,7 +26,6 @@ const translations = {
     collapse: { en: "Collapse", es: "Contraer" },
     conversationHistory: { en: "Conversation history", es: "Historial de conversaciones" },
     newConversation: { en: "New conversation", es: "Nueva conversación" },
-    close: { en: "Close", es: "Cerrar" },
   },
   status: {
     thinking: { en: "Thinking...", es: "Pensando..." },
@@ -43,16 +41,12 @@ const translations = {
       es: "Inicia una nueva conversación para verla aquí",
     },
     defaultTitle: { en: "New conversation", es: "Nueva conversación" },
-    loadMore: { en: "Load more", es: "Cargar más" },
-    loading: { en: "Loading...", es: "Cargando..." },
     rename: { en: "Rename", es: "Renombrar" },
-    delete: { en: "Delete", es: "Eliminar" },
     deleteTitle: { en: "Delete conversation", es: "Eliminar conversación" },
     deleteDescription: {
       en: "This conversation will be permanently deleted. This action cannot be undone.",
       es: "Esta conversación será eliminada permanentemente. Esta acción no se puede deshacer.",
     },
-    cancel: { en: "Cancel", es: "Cancelar" },
     renameTooltip: { en: "Rename conversation", es: "Renombrar conversación" },
     deleteTooltip: { en: "Delete conversation", es: "Eliminar conversación" },
   },

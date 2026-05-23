@@ -20,7 +20,7 @@ export default function EditFolder({
   onOpenChange
 }: EditFolderDialogProps) {
   const [name, setName] = useState(currentName)
-  const { t } = useTranslation('assets')
+  const { t } = useTranslation(["assets", "common"])
 
   // Reset name when currentName changes or dialog opens
   React.useEffect(() => {
@@ -75,7 +75,7 @@ export default function EditFolder({
       showDefaultFooter
       onCancel={() => onOpenChange(false)}
       submitLabel={t('editFolder.submitLabel')}
-      cancelLabel={t('editFolder.cancelLabel')}
+      cancelLabel={t('common:cancel')}
       isSubmitting={editFolderMutation.isPending}
       isValid={!!name.trim()}
       formId="edit-folder-form"
