@@ -84,6 +84,7 @@ export interface AssetTypePageState {
   editingAssetType: AssetTypeWithRoles | null;
   showCreateDialog: boolean;
   deletingAssetType: AssetTypeWithRoles | null;
+  cloningAssetType: AssetTypeWithRoles | null;
   rolePermissionsAssetType: AssetTypeWithRoles | null;
   lifecycleAssetType: AssetTypeWithRoles | null;
 }
@@ -99,53 +100,3 @@ export interface AssetTypePageActions {
 // ========================================
 // Asset Type Component Props
 // ========================================
-
-/**
- * Props for the asset type page header component
- */
-export interface AssetTypePageHeaderProps {
-  assetTypeCount: number;
-  onCreateAssetType: () => void;
-  onRefresh: () => void;
-  isLoading: boolean;
-  hasError?: boolean;
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-}
-
-/**
- * Props for the asset type table component
- */
-export interface AssetTypeTableProps {
-  assetTypes: AssetTypeWithRoles[];
-  selectedAssetTypes: Set<string>;
-  onAssetTypeSelection: (assetTypeId: string) => void;
-  onSelectAll: () => void;
-  onEditAssetType: (assetType: AssetTypeWithRoles) => void;
-  onDeleteAssetType: (assetType: AssetTypeWithRoles) => void;
-  assetTypeMutations: {
-    createAssetType: any; // UseMutationResult from @tanstack/react-query
-    updateAssetType: any;
-    deleteAssetType: any;
-  };
-  pagination?: {
-    currentPage: number;
-    pageSize: number;
-    totalItems: number;
-    onPageChange: (page: number) => void;
-    onPageSizeChange: (pageSize: number) => void;
-  };
-  showFooterStats?: boolean;
-}
-
-/**
- * Props for the asset type page dialogs component
- */
-export interface AssetTypePageDialogsProps {
-  state: AssetTypePageState;
-  onCloseDialog: (dialog: keyof AssetTypePageState) => void;
-  onUpdateState: (updates: Partial<AssetTypePageState>) => void;
-  assetTypeMutations: {
-    deleteAssetType: any; // UseMutationResult from @tanstack/react-query
-  };
-}

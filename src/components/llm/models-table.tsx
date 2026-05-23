@@ -2,22 +2,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ModelActions } from "./models-actions"
 import { useTranslation } from "react-i18next"
-import type { LLM } from "@/types/llm"
-
-interface ModelsTableProps {
-  models: LLM[]
-  onEdit: (model: LLM) => void
-  onDelete: (model: LLM) => void
-  onTest: (model: LLM) => void
-  onCapabilities: (model: LLM) => void
-  onDefaultChange: (llmId: string, isDefault: boolean) => void
-  isDeleting: boolean
-  testingModelId: string | null
-  openDropdowns: {[key: string]: boolean}
-  onDropdownChange: (key: string, open: boolean) => void
-  canUpdate: boolean
-  canDelete: boolean
-}
+import type { ModelsTableProps } from "@/types/models-table"
+export type { ModelsTableProps } from "@/types/models-table"
 
 export function ModelsTable({ 
   models, 

@@ -1,19 +1,18 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  FileText, 
+  File, 
   Trash2, 
-  Plus, 
   Link2, 
   ExternalLink,
   Loader2,
   AlertCircle 
 } from "lucide-react";
-import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree";
 import type { FileNode } from "@/types/assets";
+import type { MenuAction } from "@/types/menu-action";
 import { RemoveDependencyDialog } from "@/components/dependency/dependency-delete-dialog";
 import { getDocumentDependencies, addDocumentDependency, removeDocumentDependency } from "@/services/dependencies";
 import { getLibraryContent } from "@/services/folders";
@@ -22,25 +21,9 @@ import { useOrganization } from "@/contexts/organization-context";
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/error-utils";
+import type { Dependency, DocumentType, AddDependencySheetProps } from "@/types/dependency-add";
 
-interface Dependency {
-    document_id: string;
-    document_name: string;
-    section_name: string | null;
-    dependency_type: string;
-}
-
-interface DocumentType {
-    id: string;
-    name: string;
-    color: string;
-}
-
-interface AddDependencySheetProps {
-    id: string;
-    isSheetOpen?: boolean;
-    canEdit?: boolean;
-}
+export type { AddDependencySheetProps } from "@/types/dependency-add";
 
 export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = true }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')
@@ -86,7 +69,10 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
     });
 
     const handleSelectDocument = async (node: FileNode) => {
-        if (node.type === "document" && node.id) {
+        // Skip if it's the current document or already a dependency
+        const currentDependencies = queryClient.getQueryData<Dependency[]>(['documentDependencies', id]) || [];
+        const excludedIds = new Set([id, ...currentDependencies.map(dep => dep.document_id)]);
+        if (node.type === "document" && node.id && !excludedIds.has(node.id)) {
             addDependencyMutation.mutate(node.id);
         }
     };
@@ -99,22 +85,53 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
             
             // Get current dependencies from queryClient to ensure we have the latest data
             const currentDependencies = queryClient.getQueryData<Dependency[]>(['documentDependencies', id]) || [];
-            const excludedIds = new Set([id, ...currentDependencies.map(dep => dep.document_id)]);
+            const dependencyIds = new Set(currentDependencies.map(dep => dep.document_id));
             
-            return response.content.map((item: any) => ({
+            const folderNodes: FileNode[] = response.folders.map((item) => ({
                 id: item.id,
                 name: item.name,
-                type: item.type as "document" | "folder",
+                type: "folder" as const,
+                hasChildren: true,
+                isDependency: false,
+            }));
+            const assetNodes: FileNode[] = response.assets
+                .filter((item) => item.id !== id)
+                .map((item) => ({
+                id: item.id,
+                name: item.name,
+                type: "document" as const,
                 document_type: item.document_type,
                 access_levels: item.access_levels,
-                hasChildren: item.type === "folder",
-                disabled: item.type === "document" && excludedIds.has(item.id),
+                hasChildren: false,
+                // Mark dependencies so menu actions and icons can identify them
+                isDependency: dependencyIds.has(item.id),
             }));
+            return [...folderNodes, ...assetNodes];
         } catch (error) {
             handleApiError(error, { fallbackMessage: t('toast.loadFailed') });
             return [];
         }
     };
+
+    const dependencyMenuActions: MenuAction[] = useMemo(() => [
+        {
+            label: t('viewDocument'),
+            icon: <ExternalLink className="h-4 w-4" />,
+            onClick: async (nodeId: string) => {
+                window.open(`/${orgId}/asset/${nodeId}`, '_blank');
+            },
+            show: (node: FileNode) => !!(node as any).isDependency,
+        },
+        ...(canEdit ? [{
+            label: t('removeDependency'),
+            icon: <Trash2 className="h-4 w-4" />,
+            variant: "destructive" as const,
+            onClick: async (nodeId: string) => {
+                handleRemoveDependency(nodeId);
+            },
+            show: (node: FileNode) => !!(node as any).isDependency,
+        }] : []),
+    ], [t, orgId, canEdit]);
 
     const handleRemoveDependency = (dependencyId: string) => {
         setDependencyToDelete(dependencyId);
@@ -152,104 +169,60 @@ export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = t
     return (
         <>
             <div className="space-y-6">
-                {/* Add New Dependency Section */}
-                {canEdit && (
-                  <div className="border rounded-lg bg-white shadow-sm">
+                {/* Dependencies FileTree Section */}
+                <div className="border rounded-lg bg-white shadow-sm">
                     {/* Header */}
                     <div className="flex items-center gap-2 p-4 border-b border-gray-100 bg-gray-50">
-                        <Plus className="h-4 w-4 text-[#4464f7]" />
-                        <h3 className="text-sm font-medium text-gray-900">{t('addSection.title')}</h3>
+                        <Link2 className="h-4 w-4 text-[#4464f7]" />
+                        <h3 className="text-sm font-medium text-gray-900">{t('sheet.title')}</h3>
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                            {t('currentSection.badge', { count: dependencies.length })}
+                        </Badge>
                     </div>
 
                     {/* Content */}
-                    <div className="p-4 max overflow-y-auto max-h-[350px]">
+                    <div className="p-4 overflow-y-auto max-h-full">
                         <FileTree
                             ref={fileTreeRef}
                             onLoadChildren={handleLoadChildren}
-                            onFileClick={handleSelectDocument}
+                            onFileClick={canEdit ? handleSelectDocument : undefined}
                             showCreateButtons={false}
                             showBorder={false}
                             showDefaultActions={{ create: false, delete: false, share: false }}
+                            menuActions={dependencyMenuActions}
+                            alwaysShowMenuActions
                             minHeight="350px"
+                            renderNodeClassName={(node) => {
+                                if ((node as any).isDependency) {
+                                    return "opacity-50";
+                                }
+                                return undefined;
+                            }}
+                            renderLeafIcon={(node) => {
+                                const isDep = (node as any).isDependency;
+                                if (isDep) {
+                                    return (
+                                        <>
+                                            <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-gray-100 text-muted-foreground border-gray-300 font-normal shrink-0">
+                                                {t('linkedBadge')}
+                                            </Badge>
+                                        </>
+                                    );
+                                }
+                                return (
+                                    <File
+                                        className="h-3.5 w-3.5 shrink-0"
+                                        style={{ color: node.document_type?.color || "currentColor" }}
+                                    />
+                                );
+                            }}
                         />
                         
                         {addDependencyMutation.isPending && (
                             <div className="flex items-center gap-2 text-sm text-blue-600 mt-3 p-3 bg-blue-50 rounded-lg">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 {t('addSection.adding')}
-                            </div>
-                        )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Existing Dependencies Section */}
-                <div className="border rounded-lg bg-white shadow-sm">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
-                        <div className="flex items-center gap-2">
-                            <Link2 className="h-4 w-4 text-[#4464f7]" />
-                            <h3 className="text-sm font-medium text-gray-900">{t('currentSection.title')}</h3>
-                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                {t('currentSection.badge', { count: dependencies.length })}
-                            </Badge>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4">
-                        {dependencies.length === 0 ? (
-                            <div className="text-center py-8">
-                                <Link2 className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                                <p className="text-sm text-gray-500">{t('empty.title')}</p>
-                                <p className="text-xs text-gray-400 mt-1">{t('empty.description')}</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {dependencies.map((dependency) => (
-                                    <div key={dependency.document_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <FileText className="h-4 w-4 text-gray-600" />
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {dependency.document_name}
-                                                </span>
-                                                {dependency.section_name && (
-                                                    <span className="text-xs text-gray-500">
-                                                        {t('sectionLabel', { name: dependency.section_name })}
-                                                    </span>
-                                                )}
-                                                <Badge variant="outline" className="text-xs w-fit mt-1 bg-green-50 text-green-700 border-green-200">
-                                                    {dependency.dependency_type || 'Document'}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-2">
-                                            <HuemulButton
-                                                size="sm"
-                                                variant="outline"
-                                                icon={ExternalLink}
-                                                iconClassName="h-3 w-3"
-                                                onClick={() => { window.open(`/${orgId}/asset/${dependency.document_id}`, '_blank'); }}
-                                                className="h-7 w-7 p-0"
-                                                tooltip={t('viewDocument')}
-                                            />
-                                            {canEdit && (
-                                              <HuemulButton
-                                                  size="sm"
-                                                  variant="outline"
-                                                  icon={Trash2}
-                                                  iconClassName="h-3 w-3"
-                                                  onClick={() => handleRemoveDependency(dependency.document_id)}
-                                                  disabled={removeDependencyMutation.isPending}
-                                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                  tooltip={t('removeDependency')}
-                                              />
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         )}
                     </div>

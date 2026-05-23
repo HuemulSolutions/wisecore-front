@@ -10,19 +10,9 @@ import { useOrganization } from "@/contexts/organization-context"
 import type { CustomField } from "@/types/custom-fields"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
+import type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
 
-interface AddCustomFieldDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  entityId: string
-  entityType: "document" | "template"
-  onAdd: (data: any) => Promise<any>
-  uploadImageFn: (entityCustomFieldId: string, file: File, organizationId: string) => Promise<void>
-  sources: string[]
-  isLoadingSources: boolean
-  onImageUploadStart?: (fieldId: string) => void
-  onImageUploadComplete?: () => void
-}
+export type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
 
 export function AddCustomFieldDialog({
   isOpen,
@@ -67,7 +57,7 @@ export function AddCustomFieldDialog({
 
   // Custom field mutations for creating new custom fields
   const customFieldMutations = useCustomFieldMutations()
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -335,7 +325,7 @@ export function AddCustomFieldDialog({
           <HuemulField
             type="date"
             label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderDate')}
+            placeholder={t('common:pickDate')}
             value={value}
             onChange={(v) => setValue(String(v))}
             error={formErrors.value}

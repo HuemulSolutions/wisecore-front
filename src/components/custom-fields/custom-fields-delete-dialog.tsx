@@ -3,15 +3,10 @@
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Trash2 } from "lucide-react"
-import type { CustomField } from "@/types/custom-fields"
 import { useTranslation } from "react-i18next"
+import type { DeleteCustomFieldDialogProps } from "@/types/custom-fields-delete-dialog"
 
-interface DeleteCustomFieldDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  customField: CustomField | null
-  onConfirm: (customField: CustomField) => void
-}
+export type { DeleteCustomFieldDialogProps } from "@/types/custom-fields-delete-dialog"
 
 export function DeleteCustomFieldDialog({
   open,
@@ -19,7 +14,7 @@ export function DeleteCustomFieldDialog({
   customField,
   onConfirm,
 }: DeleteCustomFieldDialogProps) {
-  const { t } = useTranslation('custom-fields')
+  const { t } = useTranslation(['custom-fields', 'common'])
 
   const handleDelete = async () => {
     onConfirm(customField!)
@@ -54,7 +49,7 @@ export function DeleteCustomFieldDialog({
         <div className="rounded-lg border p-3 bg-muted/50">
           <div className="space-y-2 text-sm">
             <div>
-              <span className="font-medium">{t('deleteDialog.nameLabel')}:</span> {customField.name}
+              <span className="font-medium">{t('common:name')}:</span> {customField.name}
             </div>
             <div>
               <span className="font-medium">{t('deleteDialog.descriptionLabel')}:</span> {customField.description}

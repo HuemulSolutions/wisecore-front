@@ -63,7 +63,6 @@ const translations = {
       en: "Are you sure you want to delete this context? This action cannot be undone and may affect asset execution.",
       es: "¿Estás seguro de que deseas eliminar este contexto? Esta acción no se puede deshacer y puede afectar la ejecución del activo.",
     },
-    deleteButton: { en: "Delete", es: "Eliminar" },
   },
   // context-content.tsx
   content: {

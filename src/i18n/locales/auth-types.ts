@@ -7,8 +7,6 @@ const translations = {
   },
   columns: {
     type: { en: "Type", es: "Tipo" },
-    created: { en: "Created", es: "Creado" },
-    updated: { en: "Updated", es: "Actualizado" },
   },
   types: {
     internal: { en: "Internal", es: "Interno" },

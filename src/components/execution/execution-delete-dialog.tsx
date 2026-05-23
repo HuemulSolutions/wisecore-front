@@ -1,11 +1,7 @@
 import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import type { DeleteExecutionDialogProps } from "@/types/execution-delete-dialog";
 
-interface DeleteExecutionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  isProcessing: boolean;
-}
+export type { DeleteExecutionDialogProps } from "@/types/execution-delete-dialog";
 
 export function DeleteExecutionDialog({
   open,

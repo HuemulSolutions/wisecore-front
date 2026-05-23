@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import type { LLM } from "@/types/llm"
+import type { ModelCapabilitiesDialogProps } from "@/types/models-capabilities-dialog"
+export type { ModelCapabilitiesDialogProps } from "@/types/models-capabilities-dialog"
 
 const ALL_CAPABILITIES = [
   'text_input',
@@ -13,14 +14,6 @@ const ALL_CAPABILITIES = [
   'image_output',
   'tool_use',
 ] as const
-
-interface ModelCapabilitiesDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  model: LLM | null
-  isUpdating: boolean
-  onSubmit: (model: LLM, capabilities: string[]) => void
-}
 
 export function ModelCapabilitiesDialog({
   open,

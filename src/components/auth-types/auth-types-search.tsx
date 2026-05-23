@@ -3,16 +3,9 @@ import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import ProtectedComponent from "@/components/protected-component"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import type { AuthTypesSearchProps } from "@/types/auth-types-search"
 
-interface AuthTypesSearchProps {
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  authTypesCount: number
-  isLoading: boolean
-  onRefresh: () => void
-  onCreateClick: () => void
-  hasError?: boolean
-}
+export type { AuthTypesSearchProps } from "@/types/auth-types-search"
 
 export function AuthTypesSearch({ 
   searchTerm, 

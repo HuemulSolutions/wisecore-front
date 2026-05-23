@@ -15,20 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 // ─── Default labels ───────────────────────────────────────────────────────────
-const DEFAULT_LABELS: Required<HuemulFileTreeLabels> = {
-  newFile: "New file",
-  newFolder: "New folder",
-  shareLink: "Share link",
-  deleteFolder: "Delete folder",
-  deleteFile: "Delete file",
-  loading: "Loading...",
-  empty: "No files or folders",
-  createFile: "Create file",
-  createFolder: "Create folder",
-  inputPlaceholder: "Name...",
-}
 
 // ─── Props & Ref ──────────────────────────────────────────────────────────────
 export interface HuemulFileTreeProps {
@@ -60,6 +49,10 @@ export interface HuemulFileTreeProps {
   renderLeafIcon?: (node: HuemulTreeNode) => React.ReactNode
   /** Custom renderer for folder icons. */
   renderFolderIcon?: (node: HuemulTreeNode, isExpanded: boolean) => React.ReactNode
+  /** Return extra CSS classes to apply to a node row. */
+  renderNodeClassName?: (node: HuemulTreeNode) => string | undefined
+  /** Always show the menu button instead of only on hover. */
+  alwaysShowMenuActions?: boolean
   showCreateButtons?: boolean
   initialFolderId?: string | null
   showBorder?: boolean
@@ -92,6 +85,8 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       folderType = "folder",
       renderLeafIcon,
       renderFolderIcon,
+      renderNodeClassName,
+      alwaysShowMenuActions = false,
       showCreateButtons = true,
       initialFolderId = null,
       showBorder = true,
@@ -101,7 +96,20 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     },
     ref,
   ) => {
-    const labels: Required<HuemulFileTreeLabels> = { ...DEFAULT_LABELS, ...labelOverrides }
+    const { t } = useTranslation("huemul-file-tree")
+    const labels: Required<HuemulFileTreeLabels> = {
+      newFile: t("newFile"),
+      newFolder: t("newFolder"),
+      shareLink: t("shareLink"),
+      deleteFolder: t("deleteFolder"),
+      deleteFile: t("deleteFile"),
+      loading: t("loading"),
+      empty: t("empty"),
+      createFile: t("createFile"),
+      createFolder: t("createFolder"),
+      inputPlaceholder: t("inputPlaceholder"),
+      ...labelOverrides,
+    }
 
     const [nodes, setNodes] = useState<HuemulTreeNode[]>([])
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
@@ -112,6 +120,44 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     const [newNodeName, setNewNodeName] = useState("")
     const [draggedNode, setDraggedNode] = useState<string | null>(null)
     const [dragOverNode, setDragOverNode] = useState<string | null>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const dragClientYRef = useRef<number>(0)
+    const autoScrollFrameRef = useRef<number | null>(null)
+    const scrollableParentRef = useRef<HTMLElement | null>(null)
+
+    const findScrollableParent = (el: HTMLElement | null): HTMLElement | null => {
+      if (!el) return null
+      if (el.scrollHeight > el.clientHeight) return el
+      return findScrollableParent(el.parentElement)
+    }
+
+    const startAutoScroll = useCallback(() => {
+      if (autoScrollFrameRef.current !== null) return
+      const loop = () => {
+        const container = scrollableParentRef.current
+        if (!container) return
+        const rect = container.getBoundingClientRect()
+        const y = dragClientYRef.current
+        const threshold = 60
+        const maxSpeed = 12
+        if (y > rect.top && y < rect.top + threshold) {
+          const factor = 1 - (y - rect.top) / threshold
+          container.scrollTop -= maxSpeed * factor
+        } else if (y > rect.bottom - threshold && y < rect.bottom) {
+          const factor = 1 - (rect.bottom - y) / threshold
+          container.scrollTop += maxSpeed * factor
+        }
+        autoScrollFrameRef.current = requestAnimationFrame(loop)
+      }
+      autoScrollFrameRef.current = requestAnimationFrame(loop)
+    }, [])
+
+    const stopAutoScroll = useCallback(() => {
+      if (autoScrollFrameRef.current !== null) {
+        cancelAnimationFrame(autoScrollFrameRef.current)
+        autoScrollFrameRef.current = null
+      }
+    }, [])
     const [isLoading, setIsLoading] = useState(false)
     const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null)
     const [isInitialized, setIsInitialized] = useState(false)
@@ -374,11 +420,15 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         "application/wisy-context",
         JSON.stringify({ type: node.type === folderType ? "folder" : "document", id: node.id, name: node.name })
       )
+      scrollableParentRef.current = findScrollableParent(containerRef.current)
+      dragClientYRef.current = e.clientY
+      startAutoScroll()
     }
 
     const handleDragOver = (e: React.DragEvent, nodeId: string | null, nodeType?: string) => {
       e.preventDefault()
       e.stopPropagation()
+      dragClientYRef.current = e.clientY
       if (nodeType !== folderType) return
       setDragOverNode(nodeId)
       e.dataTransfer.dropEffect = "move"
@@ -393,6 +443,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       e.preventDefault()
       e.stopPropagation()
       setDragOverNode(null)
+      stopAutoScroll()
 
       if (!draggedNode || draggedNode === targetId) { setDraggedNode(null); return }
       if (targetId && isDescendant(draggedNode, targetId, nodes)) { setDraggedNode(null); return }
@@ -437,11 +488,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isActive = activeNodeId === node.id
       const isNodeLoading = loadingNodeId === node.id
 
+      const hasCustomMenuActions = menuActions.some((action) => (action.show ? action.show(node) : true))
       const hasVisibleMenuActions =
         (isFolder && showDefaultActions.create) ||
         showDefaultActions.delete ||
         showDefaultActions.share ||
-        menuActions.some((action) => (action.show ? action.show(node) : true))
+        hasCustomMenuActions
 
       return (
         <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
@@ -466,11 +518,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
               isActive && "bg-accent font-medium",
               isNodeLoading && "bg-accent/50",
+              renderNodeClassName?.(node),
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
             draggable={!node.disabled}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
-            onDragEnd={() => { setDraggedNode(null); setDragOverNode(null) }}
+            onDragEnd={() => { setDraggedNode(null); setDragOverNode(null); stopAutoScroll() }}
             onDragOver={(e) =>
               isFolder && !node.disabled ? handleDragOver(e, node.id, node.type) : e.preventDefault()
             }
@@ -507,7 +560,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               <p className={cn("text-sm truncate", isNodeLoading && "text-muted-foreground")}>{node.name}</p>
             </div>
 
-            {hasVisibleMenuActions && !node.disabled && (
+            {((hasVisibleMenuActions && !node.disabled) || (hasCustomMenuActions && node.disabled)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <HuemulButton
@@ -515,7 +568,12 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                     size="icon"
                     icon={MoreVertical}
                     iconClassName="h-4 w-4"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className={cn(
+                      "h-6 w-6 shrink-0 transition-opacity",
+                      alwaysShowMenuActions && hasCustomMenuActions
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100",
+                    )}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </DropdownMenuTrigger>
@@ -642,14 +700,15 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         )}
 
         <div
+          ref={containerRef}
           className={cn(
-            "relative rounded-lg transition-colors",
+            "relative rounded-lg transition-colors overflow-hidden",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
             dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",
           )}
           style={{ minHeight }}
-          onDragOver={(e) => handleDragOver(e, null)}
+          onDragOver={(e) => { dragClientYRef.current = e.clientY; handleDragOver(e, null) }}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, null)}
         >

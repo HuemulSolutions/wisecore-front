@@ -5,19 +5,11 @@ import {
   HuemulTable,
   type HuemulTableColumn,
   type HuemulTableAction,
-  type HuemulTablePagination,
 } from "@/huemul/components/huemul-table"
 import { Badge } from "@/components/ui/badge"
+import type { ExternalSystemsTableProps } from "@/types/external-systems-table"
 
-interface ExternalSystemsTableProps {
-  systems: ExternalSystem[]
-  onEdit: (system: ExternalSystem) => void
-  onDelete: (system: ExternalSystem) => void
-  isLoading?: boolean
-  isFetching?: boolean
-  pagination?: HuemulTablePagination
-  searchTerm?: string
-}
+export type { ExternalSystemsTableProps } from "@/types/external-systems-table"
 
 export function ExternalSystemsTable({
   systems,
@@ -33,7 +25,7 @@ export function ExternalSystemsTable({
   const columns: HuemulTableColumn<ExternalSystem>[] = [
     {
       key: "name",
-      label: t("columns.name"),
+      label: t("common:name"),
       render: (system) => (
         <span className="text-xs font-medium text-foreground">{system.name}</span>
       ),
@@ -49,7 +41,7 @@ export function ExternalSystemsTable({
     },
     {
       key: "status",
-      label: t("columns.status"),
+      label: t("common:status"),
       render: (system) => (
         <Badge
           variant={system.status === "active" ? "default" : "secondary"}
@@ -61,7 +53,7 @@ export function ExternalSystemsTable({
     },
     {
       key: "updated_at",
-      label: t("columns.updatedAt"),
+      label: t("common:updated"),
       render: (system) => (
         <span className="text-xs text-muted-foreground">
           {new Date(system.updated_at).toLocaleDateString()}

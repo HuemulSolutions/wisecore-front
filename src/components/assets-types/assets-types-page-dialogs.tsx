@@ -3,15 +3,9 @@ import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
-import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
-import { type AssetTypePageState } from "@/types/assets-types"
+import type { AssetTypePageDialogsProps } from "@/types/assets-types-page-dialogs"
 
-interface AssetTypePageDialogsProps {
-  state: AssetTypePageState
-  onCloseDialog: (dialog: keyof AssetTypePageState) => void
-  onUpdateState: (updates: Partial<AssetTypePageState>) => void
-  assetTypeMutations: ReturnType<typeof useAssetTypeMutations>
-}
+export type { AssetTypePageDialogsProps } from "@/types/assets-types-page-dialogs"
 
 export default function AssetTypePageDialogs({ 
   state, 
@@ -29,6 +23,22 @@ export default function AssetTypePageDialogs({
     await Promise.all([
       new Promise<void>((resolve, reject) => {
         assetTypeMutations.deleteAssetType.mutate(state.deletingAssetType!.document_type_id, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error)
+        })
+      }),
+      minDelay
+    ])
+  }
+
+  const handleClone = async () => {
+    if (!state.cloningAssetType) return
+
+    const minDelay = new Promise(resolve => setTimeout(resolve, 800))
+
+    await Promise.all([
+      new Promise<void>((resolve, reject) => {
+        assetTypeMutations.cloneAssetType.mutate(state.cloningAssetType!.document_type_id, {
           onSuccess: () => resolve(),
           onError: (error) => reject(error)
         })
@@ -70,6 +80,21 @@ export default function AssetTypePageDialogs({
         actionLabel={t('common:delete')}
         cancelLabel={t('common:cancel')}
         actionVariant="destructive"
+      />
+
+      {/* Clone Asset Type Dialog */}
+      <HuemulAlertDialog
+        open={!!state.cloningAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('cloningAssetType')
+          }
+        }}
+        title={t('clone.title')}
+        description={t('clone.description', { name: state.cloningAssetType?.document_type_name })}
+        onAction={handleClone}
+        actionLabel={t('clone.confirm')}
+        cancelLabel={t('common:cancel')}
       />
 
       {/* Role Permissions Dialog */}

@@ -22,7 +22,7 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 type AdvancedSection = "home" | "mass-execution" | "change-history" | "excel-export"
 
 export default function AdvancedPage() {
-  const { t } = useTranslation("advanced")
+  const { t } = useTranslation(["advanced", "common"])
   const { selectedOrganizationId } = useOrganization()
   const { isOrgAdmin, hasPermission, hasAnyPermission } = useUserPermissions()
   const navigate = useOrgNavigate()
@@ -292,8 +292,8 @@ export default function AdvancedPage() {
         onExecute={handleExport}
         isExecuting={isExporting}
         executeDisabled={exportDisabled}
-        actionLabel={t("assetSelection.export")}
-        actionLoadingLabel={t("assetSelection.exporting")}
+        actionLabel={t("common:export")}
+        actionLoadingLabel={t("common:exporting")}
         ActionIcon={Download}
       />
     </div>
@@ -376,7 +376,7 @@ export default function AdvancedPage() {
         title={t("massExecution.result.title")}
         description={t("massExecution.result.total", { count: executionResult?.total ?? 0 })}
         showCancelButton={false}
-        saveAction={{ label: t("massExecution.result.close"), closeOnSuccess: true }}
+        saveAction={{ label: t("common:close"), closeOnSuccess: true }}
         maxWidth="sm:max-w-md"
       >
         <div className="flex flex-col gap-3 py-2">

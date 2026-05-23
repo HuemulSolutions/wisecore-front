@@ -98,7 +98,6 @@ const translations = {
 
   sheetShowcase: {
     title: { en: "HuemulSheet showcase", es: "Demo de HuemulSheet" },
-    saveLabel: { en: "Save", es: "Guardar" },
     confirmLabel: { en: "Confirm", es: "Confirmar" },
     applyLabel: { en: "Apply", es: "Aplicar" },
     downloadLabel: { en: "Download", es: "Descargar" },
@@ -255,7 +254,6 @@ const translations = {
   },
 
   actions: {
-    refresh: { en: "Refresh", es: "Actualizar" },
     uploadDocument: { en: "Upload Document", es: "Subir Documento" },
     pendingReviews: { en: "Pending Reviews", es: "Revisiones Pendientes" },
     createAsset: { en: "Create Asset", es: "Crear Activo" },
@@ -268,7 +266,7 @@ const translations = {
 
   filters: {
     title: { en: "Filters", es: "Filtros" },
-    search: { en: "Search", es: "Buscar" },
+    search: { en: "Search", es: "Búsqueda" },
     searchPlaceholder: { en: "Search by name...", es: "Buscar por nombre..." },
     lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
     allLifecycleStates: { en: "All states", es: "Todos los estados" },
@@ -276,20 +274,35 @@ const translations = {
     allOwners: { en: "All owners", es: "Todos los propietarios" },
     ownerAll: { en: "All", es: "Todos" },
     ownerMe: { en: "Me", es: "Yo" },
+    ownerMeDescription: { en: "Documents you own", es: "Documentos de tu autoría" },
+    ownerScopeLabel: { en: "Quick filters", es: "Filtros rápidos" },
+    ownerUsersLabel: { en: "Specific user", es: "Usuario específico" },
+    ownerSpecific: { en: "Specific user", es: "Usuario específico" },
+    ownerSpecificPlaceholder: { en: "Search user...", es: "Buscar usuario..." },
     pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
     unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
+    documentType: { en: "Document Type", es: "Tipo de Documento" },
+    allDocumentTypes: { en: "All types", es: "Todos los tipos" },
+    expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
+    expirationDateFrom: { en: "Exp. from", es: "Exp. desde" },
+    expirationDateTo: { en: "Exp. to", es: "Exp. hasta" },
+    estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha Est. de Publicación" },
+    estimatedPublicationDateFrom: { en: "Est. pub. from", es: "Est. pub. desde" },
+    estimatedPublicationDateTo: { en: "Est. pub. to", es: "Est. pub. hasta" },
+    reviewDate: { en: "Review Date", es: "Fecha de Revisión" },
+    reviewDateFrom: { en: "Review from", es: "Revisión desde" },
+    reviewDateTo: { en: "Review to", es: "Revisión hasta" },
+    auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
+    auditDateFrom: { en: "Audit from", es: "Auditoría desde" },
+    auditDateTo: { en: "Audit to", es: "Auditoría hasta" },
     all: { en: "All", es: "Todos" },
-    yes: { en: "Yes", es: "Sí" },
-    no: { en: "No", es: "No" },
   },
 
   executionsTable: {
     title: { en: "Recent Executions", es: "Ejecuciones Recientes" },
     columns: {
-      name: { en: "Name", es: "Nombre" },
       documentName: { en: "Asset", es: "Activo" },
       version: { en: "Version", es: "Versión" },
-      status: { en: "Status", es: "Estado" },
       lifecycleState: { en: "Lifecycle", es: "Ciclo de Vida" },
       taskStatus: { en: "Task Status", es: "Estado de Tarea" },
       owner: { en: "Owner", es: "Propietario" },
@@ -305,7 +318,6 @@ const translations = {
       completed: { en: "Completed", es: "Completado" },
       failed: { en: "Failed", es: "Fallido" },
       running: { en: "Running", es: "En ejecución" },
-      pending: { en: "Pending", es: "Pendiente" },
       queued: { en: "Queued", es: "En cola" },
     },
     empty: {

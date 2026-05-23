@@ -8,8 +8,10 @@ import { useOrganization } from "@/contexts/organization-context";
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
-import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh } from "@/components/layout/nav-knowledge";
+import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/components/layout/nav-knowledge";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
 
 /**
@@ -21,6 +23,7 @@ function AssetsContent() {
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
+  const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -67,15 +70,27 @@ function AssetsContent() {
                 <div className="py-2">
                   <NavKnowledgeHeader />
                 </div>
-                <div className="flex-1 overflow-y-auto">
+                <ScrollArea className="flex-1 min-h-0" type="hover">
                   <NavKnowledgeContent />
-                </div>
+                </ScrollArea>
               </div>
             ),
             defaultSize: isWisyOpen ? 15 : 20,
             minSize: isWisyOpen ? 10 : 12,
             collapsible: true,
             collapsedSize: 0,
+            className: "overflow-hidden [scrollbar-gutter:auto]",
+            footer: {
+              content: (
+                <HuemulPagination
+                  page={page}
+                  pageSize={pageSize}
+                  hasNext={hasNext}
+                  hasPrevious={hasPrevious}
+                  onPageChange={setPage}
+                />
+              ),
+            },
           },
           {
             content: (

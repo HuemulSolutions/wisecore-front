@@ -293,7 +293,7 @@ export interface DeleteFolderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderName: string;
-  onConfirm: () => Promise<void> | void;
+  onConfirm: (deleteDocuments: boolean) => Promise<void> | void;
 }
 
 /**

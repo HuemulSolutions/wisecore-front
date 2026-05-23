@@ -16,19 +16,9 @@ import { getLLMs, getDefaultLLM } from '@/services/llms';
 import type { LLM } from '@/types/llm';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
+import type { ExecutionConfigDialogProps } from '@/types/execution-config-dialog';
 
-interface ExecutionConfigDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    mode: 'single' | 'from';
-    onExecute: (config: ExecutionConfig) => void;
-    isExecuting?: boolean;
-}
-
-export interface ExecutionConfig {
-    instructions: string;
-    llmModel: string;
-}
+export type { ExecutionConfig } from '@/types/execution-config-dialog';
 
 export default function ExecutionConfigDialog({ 
     open, 

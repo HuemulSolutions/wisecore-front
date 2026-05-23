@@ -12,15 +12,9 @@ import { Loader2, Edit2, FileEdit } from "lucide-react"
 import { useCustomFieldTemplateSources } from "@/hooks/useCustomFieldTemplates"
 import { uploadCustomFieldTemplateValueBlob } from "@/services/custom-fields-templates"
 import { useOrganization } from "@/contexts/organization-context"
-import type { CustomFieldTemplate } from "@/types/custom-fields-templates"
-
-interface EditCustomFieldTemplateDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  customFieldTemplate: CustomFieldTemplate | null
-  onUpdate: (id: string, data: any) => void
-  mode?: "content" | "configuration" // "content" solo muestra el valor, "configuration" muestra todo
-}
+import type { CustomFieldTemplate } from "@/types/custom-fields-templates";
+import type { EditCustomFieldTemplateDialogProps } from '@/types/templates-edit-custom-field-dialog';
+export type { EditCustomFieldTemplateDialogProps } from '@/types/templates-edit-custom-field-dialog';
 
 export function EditCustomFieldTemplateDialog({
   isOpen,

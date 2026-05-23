@@ -5,17 +5,13 @@ const translations = {
     searchPlaceholder: { en: "Search organizations...", es: "Buscar organizaciones..." },
   },
   columns: {
-    name: { en: "Name", es: "Nombre" },
     description: { en: "Description", es: "Descripción" },
     maxUsers: { en: "Max Users", es: "Máx. Usuarios" },
     tokenLimit: { en: "Token Limit", es: "Límite de Tokens" },
-    createdAt: { en: "Created", es: "Creado" },
     noDescription: { en: "No description", es: "Sin descripción" },
     unlimited: { en: "Unlimited", es: "Ilimitado" },
   },
   actions: {
-    edit: { en: "Edit", es: "Editar" },
-    delete: { en: "Delete", es: "Eliminar" },
     setAdmin: { en: "Set Admin", es: "Asignar Admin" },
   },
   table: {
@@ -32,7 +28,6 @@ const translations = {
     clearFilters: { en: "Clear Filters", es: "Limpiar Filtros" },
     errorLoading: { en: "Error Loading Organizations", es: "Error al cargar organizaciones" },
     errorDefault: { en: "Something went wrong while loading the organizations", es: "Algo salió mal al cargar las organizaciones" },
-    accessDenied: { en: "Access Denied", es: "Acceso Denegado" },
     accessDeniedDescription: { en: "You don't have permission to view organizations.", es: "No tienes permiso para ver las organizaciones." },
     noOrgSelected: { en: "No Organization Selected", es: "Ninguna organización seleccionada" },
     noOrgSelectedDescription: { en: "Please select an organization to view organizations.", es: "Por favor selecciona una organización para ver las organizaciones." },
@@ -99,7 +94,6 @@ const translations = {
     created: { en: "Organization created successfully", es: "Organización creada exitosamente" },
     updated: { en: "Organization updated successfully", es: "Organización actualizada exitosamente" },
     deleted: { en: "Organization deleted successfully", es: "Organización eliminada exitosamente" },
-    dataRefreshed: { en: "Data refreshed", es: "Datos actualizados" },
   },
 }
 

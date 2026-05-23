@@ -5,13 +5,9 @@ import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
-interface OtherVersionExecutionBannerProps {
-  executionId: string;
-  executionName: string;
-  onDismiss: () => void;
-  onViewVersion: () => void;
-}
+export type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
 export function OtherVersionExecutionBanner({
   executionId,

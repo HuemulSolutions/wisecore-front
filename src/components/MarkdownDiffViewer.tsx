@@ -1,4 +1,24 @@
 import { useState, useMemo, type FC } from "react";
+import type {
+  DiffType,
+  ViewMode,
+  RenderedSubMode,
+  DiffEntry,
+  DiffEntryWithLine,
+  SplitEntry,
+  UnifiedEntry,
+  ModeOption,
+  DiffLineProps,
+  SubToggleProps,
+  PanelProps,
+  SplitViewProps,
+  UnifiedViewProps,
+  RenderedViewProps,
+  RenderedDiffPanelProps,
+  MarkdownDiffViewerProps,
+  GroupedTableRow,
+} from "@/types/markdown-diff-viewer";
+export type { MarkdownDiffViewerProps } from "@/types/markdown-diff-viewer";
 
 /**
  * MarkdownDiffViewer — componente reutilizable que muestra diferencias entre dos strings markdown.
@@ -12,38 +32,6 @@ import { useState, useMemo, type FC } from "react";
  *   showModeToggle  — muestra/oculta el selector de modo (default: true)
  *   className       — clase adicional para el contenedor raíz
  */
-
-/* ─── Types ─────────────────────────────────────────────────────── */
-
-type DiffType = "eq" | "ins" | "del";
-type ViewMode = "split" | "unified" | "rendered";
-type RenderedSubMode = "split" | "unified";
-
-interface DiffEntry {
-  type: DiffType;
-  val: string;
-}
-
-interface DiffEntryWithLine extends DiffEntry {
-  n?: number;
-}
-
-interface EmptyEntry {
-  type: "empty";
-}
-
-type SplitEntry = DiffEntryWithLine | EmptyEntry;
-
-interface UnifiedEntry extends DiffEntry {
-  lo?: number;
-  ln?: number;
-  i: number;
-}
-
-interface ModeOption {
-  id: ViewMode;
-  label: string;
-}
 
 /* ─── LCS diff engine ───────────────────────────────────────────── */
 
@@ -289,17 +277,6 @@ function parseCells(row: string): string[] {
 function isTableSeparator(line: string): boolean {
   return /^\|[-| ]+\|$/.test(line);
 }
-
-interface PairedRow {
-  kind: "paired";
-  oldLine: string;
-  newLine: string;
-}
-interface SingleRow {
-  kind: "eq" | "del" | "ins";
-  line: string;
-}
-type GroupedTableRow = PairedRow | SingleRow;
 
 /**
  * Groups consecutive del/ins table rows into paired entries for cell-level comparison.
@@ -714,24 +691,6 @@ function buildSideDiffHtml(diff: DiffEntry[], side: "old" | "new"): string {
 
 /* ─── Sub-componentes base ──────────────────────────────────────── */
 
-interface LineNumberProps {
-  n?: number;
-}
-
-const LineNumber: FC<LineNumberProps> = ({ n }) => (
-  <span className="select-none w-8 flex-shrink-0 text-right pr-2 text-xs text-gray-400 tabular-nums">
-    {n ?? ""}
-  </span>
-);
-
-interface DiffLineProps {
-  type: DiffType;
-  val: string;
-  lineOld?: number;
-  lineNew?: number;
-  unified?: boolean;
-}
-
 const DiffLine: FC<DiffLineProps> = ({
   type,
   val,
@@ -739,36 +698,53 @@ const DiffLine: FC<DiffLineProps> = ({
   lineNew,
   unified = false,
 }) => {
-  const base = "flex font-mono text-xs leading-6";
-
-  const colors: Record<DiffType, string> = {
-    ins: "bg-green-50 dark:bg-green-950",
-    del: "bg-red-50 dark:bg-red-950",
+  const contentBg: Record<DiffType, string> = {
+    ins: "bg-[#e6ffec]",
+    del: "bg-[#ffebe9]",
     eq: "",
   };
-
-  const textColors: Record<DiffType, string> = {
-    ins: "text-green-800 dark:text-green-200",
-    del: "text-red-800 dark:text-red-200",
+  const gutterBg: Record<DiffType, string> = {
+    ins: "bg-[#ccffd8]",
+    del: "bg-[#ffd7d5]",
+    eq: "bg-[#f6f8fa]",
+  };
+  const textColor: Record<DiffType, string> = {
+    ins: "text-[#1a7f37]",
+    del: "text-[#82071e]",
     eq: "text-gray-800 dark:text-gray-200",
+  };
+  const prefixColor: Record<DiffType, string> = {
+    ins: "text-[#1a7f37]",
+    del: "text-[#82071e]",
+    eq: "text-gray-300",
   };
 
   const prefix = type === "ins" ? "+" : type === "del" ? "−" : " ";
 
   return (
-    <div className={`${base} ${colors[type]}`}>
-      {unified ? (
-        <>
-          <span className="select-none w-5 flex-shrink-0 text-center text-xs text-gray-400">
-            {prefix}
+    <div className={`flex font-mono text-xs leading-5 ${contentBg[type]}`}>
+      {/* Gutter */}
+      <div className={`flex shrink-0 ${gutterBg[type]} border-r border-gray-200/80`}>
+        {unified ? (
+          <>
+            <span className="select-none w-10 text-right pr-2 text-[11px] text-gray-400 tabular-nums">
+              {type !== "ins" ? (lineOld ?? "") : ""}
+            </span>
+            <span className="select-none w-10 text-right pr-2 text-[11px] text-gray-400 tabular-nums">
+              {type !== "del" ? (lineNew ?? "") : ""}
+            </span>
+          </>
+        ) : (
+          <span className="select-none w-10 text-right pr-2 text-[11px] text-gray-400 tabular-nums">
+            {(lineOld ?? lineNew) ?? ""}
           </span>
-          <LineNumber n={type !== "ins" ? lineOld : undefined} />
-          <LineNumber n={type !== "del" ? lineNew : undefined} />
-        </>
-      ) : (
-        <LineNumber n={lineOld ?? lineNew} />
-      )}
-      <span className={`flex-1 whitespace-pre-wrap break-all px-1 ${textColors[type]}`}>
+        )}
+        <span className={`select-none w-5 text-center font-medium text-[11px] ${prefixColor[type]}`}>
+          {prefix}
+        </span>
+      </div>
+      {/* Content */}
+      <span className={`flex-1 px-2 whitespace-pre-wrap break-all ${textColor[type]}`}>
         {val}
       </span>
     </div>
@@ -777,21 +753,15 @@ const DiffLine: FC<DiffLineProps> = ({
 
 /* ─── Sub-toggle reutilizable ───────────────────────────────────── */
 
-interface SubToggleProps {
-  value: string;
-  options: { id: string; label: string }[];
-  onChange: (id: string) => void;
-}
-
 const SubToggle: FC<SubToggleProps> = ({ value, options, onChange }) => (
-  <div className="flex border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-xs">
+  <div className="flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden text-xs">
     {options.map(({ id, label }) => (
       <button
         key={id}
         onClick={() => onChange(id)}
-        className={`px-3 py-1 transition-colors ${
+        className={`px-3 py-1 transition-colors border-l border-gray-200 first:border-l-0 hover:cursor-pointer ${
           value === id
-            ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
+            ? "bg-[#f6f8fa] dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
             : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
         }`}
       >
@@ -803,27 +773,16 @@ const SubToggle: FC<SubToggleProps> = ({ value, options, onChange }) => (
 
 /* ─── Vistas de código ──────────────────────────────────────────── */
 
-interface SharedViewProps {
-  oldLabel: string;
-  newLabel: string;
-}
-
-interface PanelProps {
-  lines: SplitEntry[];
-  label: string;
-  dot: string;
-}
-
 const Panel: FC<PanelProps> = ({ lines, label, dot }) => (
-  <div className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+  <div className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
       <span className={`w-2 h-2 rounded-full ${dot}`} />
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</span>
     </div>
-    <div className="p-2 overflow-x-auto">
+    <div className="overflow-x-auto">
       {lines.map((l, i) =>
         l.type === "empty" ? (
-          <div key={i} className="h-6" />
+          <div key={i} className="h-5 bg-[#f6f8fa] dark:bg-gray-900 border-r border-gray-200/80" style={{ width: '3.75rem' }} />
         ) : (
           <DiffLine
             key={i}
@@ -836,10 +795,6 @@ const Panel: FC<PanelProps> = ({ lines, label, dot }) => (
     </div>
   </div>
 );
-
-interface SplitViewProps extends SharedViewProps {
-  diff: DiffEntry[];
-}
 
 const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel }) => {
   const oldLines: SplitEntry[] = [];
@@ -868,10 +823,6 @@ const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel }) => {
   );
 };
 
-interface UnifiedViewProps extends SharedViewProps {
-  diff: DiffEntry[];
-}
-
 const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
   let oN = 1;
   let nN = 1;
@@ -883,18 +834,18 @@ const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
   });
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-      <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+      <div className="flex items-center gap-4 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-400" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">{oldLabel}</span>
+          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{oldLabel}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">{newLabel}</span>
+          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{newLabel}</span>
         </div>
       </div>
-      <div className="p-2 overflow-x-auto">
+      <div className="overflow-x-auto">
         {lines.map((l) => (
           <DiffLine
             key={l.i}
@@ -912,13 +863,6 @@ const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
 
 /* ─── Vista renderizada ─────────────────────────────────────────── */
 
-interface RenderedViewProps extends SharedViewProps {
-  diff: DiffEntry[];
-  oldContent: string;
-  newContent: string;
-  showRenderedDiffPanel: boolean;
-  showRenderedSubToggle: boolean;
-}
 const RENDERED_SUB_OPTIONS = [
   { id: "split", label: "Dividido" },
   { id: "unified", label: "Unificado" },
@@ -945,15 +889,10 @@ const DiffLegend: FC<{ oldLabel: string; newLabel: string }> = ({ oldLabel, newL
 );
 
 /** Panel de diff renderizado (usado tanto en el panel principal como en el sub-modo unificado) */
-const RenderedDiffPanel: FC<{
-  diffHtml: string;
-  title: string;
-  oldLabel: string;
-  newLabel: string;
-}> = ({ diffHtml, title, oldLabel, newLabel }) => (
-  <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-    <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{title}</span>
+const RenderedDiffPanel: FC<RenderedDiffPanelProps> = ({ diffHtml, title, oldLabel, newLabel }) => (
+  <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+    <div className="flex flex-wrap items-center gap-3 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{title}</span>
       <DiffLegend oldLabel={oldLabel} newLabel={newLabel} />
     </div>
     <div
@@ -989,8 +928,8 @@ const RenderedView: FC<RenderedViewProps> = ({
       {/* Sección inferior: solo se muestra si showRenderedSubToggle={true} */}
       {showRenderedSubToggle && (
         <>
-          <div className="flex items-center justify-between px-0.5">
-            <span className="text-xs text-gray-400 dark:text-gray-500">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
               Versiones individuales
             </span>
             <SubToggle
@@ -1010,11 +949,11 @@ const RenderedView: FC<RenderedViewProps> = ({
                 return (
                   <div
                     key={side}
-                    className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
+                    className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden"
                   >
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                       <span className={`w-2 h-2 rounded-full ${dot}`} />
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                         {label}
                       </span>
                     </div>
@@ -1051,33 +990,6 @@ const MODES: ModeOption[] = [
   { id: "rendered", label: "Renderizado" },
 ];
 
-export interface MarkdownDiffViewerProps {
-  oldContent?: string;
-  newContent?: string;
-  oldLabel?: string;
-  newLabel?: string;
-  /** Vista inicial. Default: "split" */
-  defaultMode?: ViewMode;
-  /** Muestra u oculta el selector de modo principal. Default: true */
-  showModeToggle?: boolean;
-  /**
-   * En la vista Renderizada, muestra u oculta el panel superior de "Cambios renderizados".
-   * - true  → se muestra el panel con el diff marcado.
-   * - false → solo se muestran las versiones individuales.
-   * Default: true
-   */
-  showRenderedDiffPanel?: boolean;
-  /**
-   * En la vista Renderizada, muestra u oculta la sección de versiones
-   * individuales con su sub-toggle (Dividido / Unificado).
-   * - true  → se muestran el switch y los paneles de versiones individuales.
-   * - false → solo se muestra el panel de "Cambios renderizados".
-   * Default: true
-   */
-  showRenderedSubToggle?: boolean;
-  className?: string;
-}
-
 const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
   oldContent = "",
   newContent = "",
@@ -1110,35 +1022,29 @@ const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
 
   return (
     <div className={`font-sans ${className}`}>
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      {/* Header - GitHub file header style */}
+      <div className="flex flex-wrap items-center gap-3 px-3 py-2 mb-3 bg-[#f6f8fa] border border-gray-200 dark:border-gray-700 rounded-md">
+        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
           Diferencias de versiones
         </span>
 
-        {/* Stats */}
-        <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400">
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2 h-2 rounded-sm bg-green-500" />
-            +{stats.added} añadidas
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2 h-2 rounded-sm bg-red-400" />
-            -{stats.removed} eliminadas
-          </span>
-          <span>{stats.unchanged} sin cambios</span>
+      {/* Stats - GitHub style */}
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="font-mono font-semibold text-[#1a7f37]">+{stats.added}</span>
+          <span className="font-mono font-semibold text-[#82071e]">-{stats.removed}</span>
+          <span className="text-gray-400">{stats.unchanged} sin cambios</span>
         </div>
 
         {/* Toggle principal — se oculta con showModeToggle={false} */}
         {showModeToggle && (
-          <div className="ml-auto flex border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-xs">
+          <div className="ml-auto flex border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden text-xs">
             {MODES.map(({ id, label }) => (
               <button
                 key={id}
                 onClick={() => setMode(id)}
-                className={`px-3 py-1.5 transition-colors ${
+                className={`px-3 py-1.5 transition-colors border-l border-gray-200 first:border-l-0 hover:cursor-pointer ${
                   mode === id
-                    ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
+                    ? "bg-[#f6f8fa] dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-medium"
                     : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                 }`}
               >

@@ -11,7 +11,6 @@ const translations = {
       en: "Select a functionality to view its details",
       es: "Selecciona una funcionalidad para ver sus detalles",
     },
-    name: { en: "Name", es: "Nombre" },
     description: { en: "Description", es: "Descripción" },
     partialUrl: { en: "Partial URL", es: "URL Parcial" },
     storageUrl: { en: "Storage URL", es: "URL de Almacenamiento" },

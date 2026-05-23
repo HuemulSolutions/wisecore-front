@@ -13,16 +13,7 @@ import { getUserOrganizations, addOrganization, updateOrganization, deleteOrgani
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
 import { useTranslation } from 'react-i18next'
-
-// Tipo para los dialogs de edición/eliminación (subset de UserOrganization)
-interface OrganizationDialogData {
-  id: string;
-  name: string;
-  description?: string | null;
-  db_name?: string;
-  max_users?: number | null;
-  token_limit?: number | null;
-}
+import type { OrganizationDialogData } from '@/types/organization-switcher'
 
 export function OrganizationSwitcher() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)

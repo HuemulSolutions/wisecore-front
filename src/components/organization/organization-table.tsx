@@ -1,32 +1,9 @@
 import { Edit2, Trash2, Building2, Shield } from "lucide-react"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
 import i18n from "@/i18n"
-
-export interface Organization {
-  id: string
-  name: string
-  description?: string | null
-  created_at?: string
-  updated_at?: string
-  max_users?: number | null
-  token_limit?: number | null
-}
-
-interface OrganizationTableProps {
-  organizations: Organization[]
-  onEditOrganization: (organization: Organization) => void
-  onDeleteOrganization: (organization: Organization) => void
-  onSetAdmin?: (organization: Organization) => void
-  pagination?: HuemulTablePagination
-  canUpdate?: boolean
-  canDelete?: boolean
-  canSetAdmin?: boolean
-  isRootAdmin?: boolean
-  maxHeight?: string
-  isLoading?: boolean
-  isFetching?: boolean
-}
+import type { Organization, OrganizationTableProps } from "@/types/organization-table"
+export type { Organization, OrganizationTableProps } from "@/types/organization-table"
 
 // Helper function for date formatting
 export const formatDate = (dateString: string) => {
@@ -51,13 +28,13 @@ export function OrganizationTable({
   isLoading = false,
   isFetching = false
 }: OrganizationTableProps) {
-  const { t } = useTranslation('organizations')
+  const { t } = useTranslation(['organizations', 'common'])
 
   // Define columns
   const columns: HuemulTableColumn<Organization>[] = [
     {
       key: "name",
-      label: t('columns.name'),
+      label: t('common:name'),
       render: (organization) => (
         <div className="flex items-center gap-3">
           <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -106,7 +83,7 @@ export function OrganizationTable({
     ] : []),
     {
       key: "created_at",
-      label: t('columns.createdAt'),
+      label: t('common:created'),
       render: (organization) => (
         <div className="text-xs text-muted-foreground">
           {organization.created_at ? formatDate(organization.created_at) : "N/A"}
@@ -125,13 +102,13 @@ export function OrganizationTable({
     }] : []),
     ...(canUpdate ? [{
       key: "edit" as const,
-      label: t('actions.edit'),
+      label: t('common:edit'),
       icon: Edit2,
       onClick: onEditOrganization
     }] : []),
     ...(canDelete ? [{
       key: "delete" as const,
-      label: t('actions.delete'),
+      label: t('common:delete'),
       icon: Trash2,
       onClick: onDeleteOrganization,
       destructive: true

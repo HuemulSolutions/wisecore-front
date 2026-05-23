@@ -1,28 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { HuemulField, type FetchOptionsParams, type FetchOptionsResult } from '@/huemul/components/huemul-field';
+import { HuemulField } from '@/huemul/components/huemul-field';
 import { PlusCircle } from 'lucide-react';
 import { isRootAdmin } from '@/lib/jwt-utils';
-
-interface AssetFormFieldsProps {
-  name: string;
-  description: string;
-  internalCode: string;
-  templateId: string;
-  documentTypeId: string;
-  selectedDocTypeLabel?: string;
-  selectedDocTypeColor?: string;
-  createInitialVersion: boolean;
-  onNameChange: (value: string) => void;
-  onDescriptionChange: (value: string) => void;
-  onInternalCodeChange: (value: string) => void;
-  onTemplateIdChange: (value: string) => void;
-  onDocumentTypeIdChange: (value: string) => void;
-  onCreateInitialVersionChange: (value: boolean) => void;
-  onCreateDocType?: () => void;
-  fetchTemplateOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
-  fetchDocumentTypeOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
-  disabled?: boolean;
-}
+import type { AssetFormFieldsProps } from '@/types/assets-form-fields';
+export type { AssetFormFieldsProps } from '@/types/assets-form-fields';
 
 export default function AssetFormFields({
   name,

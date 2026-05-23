@@ -8,9 +8,6 @@ const translations = {
   },
   button: {
     execute: { en: "Execute Version", es: "Ejecutar Versión" },
-    creating: { en: "Creating...", es: "Creando..." },
-    loading: { en: "Loading...", es: "Cargando..." },
-    tryAgain: { en: "Try Again", es: "Reintentar" },
     addSections: { en: "Add Sections", es: "Agregar Secciones" },
   },
   executionScope: {
@@ -192,7 +189,6 @@ const translations = {
     ofTotal: { en: " of {{total}}", es: " de {{total}}" },
     starting: { en: "Starting...", es: "Iniciando..." },
     processing: { en: "Processing...", es: "Procesando..." },
-    refresh: { en: "Refresh", es: "Actualizar" },
   },
   aiSuggestion: {
     status: {

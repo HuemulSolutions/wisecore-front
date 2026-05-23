@@ -1,7 +1,30 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 
-export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string) {
+export interface LibraryContentAsset {
+    id: string;
+    name: string;
+    document_type?: { id: string; name: string; color: string };
+    folder_id: string | null;
+    access_levels?: string[];
+}
+
+export interface LibraryContentFolder {
+    id: string;
+    name: string;
+    parent_folder_id: string | null;
+    path: string;
+    is_match: boolean;
+    is_context: boolean;
+}
+
+export interface LibraryContent {
+    assets: LibraryContentAsset[];
+    folders: LibraryContentFolder[];
+    has_next: boolean;
+}
+
+export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string): Promise<LibraryContent> {
     const folderPath = folderId || 'root';
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (search) params.set('search', search);
@@ -11,9 +34,11 @@ export async function getLibraryContent(organizationId: string, folderId?: strin
             'X-Org-Id': organizationId,
         },
     });
-    const data = await response.json();
-    console.log('Library content fetched:', data.data);
-    return data.data;
+    const raw = await response.json();
+    return {
+        ...(raw.data as Omit<LibraryContent, 'has_next'>),
+        has_next: raw.has_next ?? false,
+    };
 }
 
 
@@ -53,11 +78,12 @@ export async function editFolder(folderId: string, name: string, organizationId:
     return data?.data;
 }
 
-export async function deleteFolder(folderId: string, organizationId: string) {
+export async function deleteFolder(folderId: string, organizationId: string, deleteDocuments: boolean = false) {
     const response = await httpClient.delete(`${backendUrl}/folder/${folderId}`, {
         headers: {
             'X-Org-Id': organizationId,
         },
+        body: JSON.stringify({ delete_documents: deleteDocuments }),
     });
     const data = await response.json();
     console.log('Folder deleted:', folderId, data?.data);

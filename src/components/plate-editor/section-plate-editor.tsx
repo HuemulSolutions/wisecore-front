@@ -6,75 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Check, X, Loader2 } from 'lucide-react';
 import { PlateRichEditor, type PlateRichEditorRef } from './plate-editor';
 import { useTranslation } from 'react-i18next';
-
-/** Public ref API – mirrors PlateRichEditorRef for use in forms */
-export interface SectionPlateEditorRef {
-  getMarkdown: () => string;
-  getValue: () => Value;
-  resetContent: (markdown: string) => void;
-  resetValue: (value: Value) => void;
-}
-
-interface SectionPlateEditorProps {
-  /** Section ID for save callbacks. Optional when used as a plain form field. */
-  sectionId?: string;
-  /** Markdown content to display / edit. Defaults to empty string. */
-  content?: string;
-  /**
-   * Plate JSON nodes (stringified array) previously saved alongside the markdown.
-   * When provided, the editor is initialized from this rich JSON instead of the
-   * plain markdown, preserving comment marks and other metadata that markdown
-   * serialisation cannot carry.
-   */
-  plateContent?: string[];
-  /**
-   * Direct Plate Value for initialization. Takes priority over plateContent and
-   * content. Useful when used as a form field that already holds a Plate Value.
-   */
-  initialValue?: Value;
-  /** Whether the editor is in edit mode. Defaults to false. */
-  isEditing?: boolean;
-  /** Called when the user saves – receives (sectionId, markdownString, plateContent) */
-  onSave?: (sectionId: string, newContent: string, plateContent?: string[]) => void | Promise<void>;
-  /** Called when the user cancels editing */
-  onCancel?: () => void;
-  /** Whether a save operation is in progress */
-  isSaving?: boolean;
-  /** Optional className for the outer wrapper */
-  className?: string;
-  /** Document ID – enables discussion/comment sync when provided */
-  documentId?: string;
-  /** Section execution ID – required for creating discussions */
-  sectionExecutionId?: string;
-  /** Callback to create a new section from selected text */
-  onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
-  /**
-   * Called after any discussion mutation (create discussion, add comment reply).
-   * Receives (sectionId, markdown, plateContent) so the caller can silently
-   * persist the updated plate_content – which now contains the comment marks –
-   * without requiring the user to explicitly save the section.
-   */
-  onAutoSavePlateContent?: (sectionId: string, markdown: string, plateContent: string[]) => void;
-  /** Whether the floating toolbar comment button is enabled (default: true) */
-  enableComments?: boolean;
-  /** Whether the floating toolbar create-section button is enabled (default: true) */
-  enableCreateSection?: boolean;
-  /**
-   * When true the Save/Cancel action buttons are hidden from the toolbar.
-   * Useful when the editor is embedded inside a form that handles submission.
-   */
-  hideActions?: boolean;
-  /**
-   * CSS top offset for the sticky toolbar (e.g. '36px' when there is a fixed header
-   * above the editor in an asset section panel). Defaults to 0.
-   */
-  toolbarTopOffset?: string;
-  /**
-   * Fired on every editor change with the current raw Plate Value.
-   * Useful for form fields that store the Plate Value directly.
-   */
-  onValueChange?: (value: Value) => void;
-}
+import type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
+export type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
 
 /**
  * Ensure every element node has an iterable `children` array so Slate never crashes.

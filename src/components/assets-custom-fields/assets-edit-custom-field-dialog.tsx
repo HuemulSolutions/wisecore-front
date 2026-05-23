@@ -9,14 +9,8 @@ import { getCustomFieldDocumentSources, uploadCustomFieldDocumentValueBlob } fro
 import { useOrganization } from "@/contexts/organization-context"
 import { useQuery } from "@tanstack/react-query"
 import type { CustomFieldDocument } from "@/types/custom-fields-documents"
-
-interface EditCustomFieldAssetDialogProps {
-  isOpen: boolean
-  onClose: () => void
-  customFieldDocument: CustomFieldDocument | null
-  onUpdate: (id: string, data: any) => void
-  mode?: "content" | "configuration" // "content" solo muestra el valor, "configuration" muestra todo
-}
+import type { EditCustomFieldAssetDialogProps } from "@/types/assets-edit-custom-field-dialog"
+export type { EditCustomFieldAssetDialogProps } from "@/types/assets-edit-custom-field-dialog"
 
 export function EditCustomFieldAssetDialog({
   isOpen,

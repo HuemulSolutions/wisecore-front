@@ -133,6 +133,10 @@ interface UseChatbotProps {
 interface UseChatbotReturn {
   /** Current conversation ID (null if no active conversation) */
   conversationId: string | null;
+  /** Current conversation title */
+  conversationTitle: string | null;
+  /** Update the conversation title locally */
+  setConversationTitle: (title: string | null) => void;
   /** Messages to render — includes optimistic entries */
   messages: ChatMessage[];
   /** Latest assistant message received from polling */
@@ -202,6 +206,7 @@ export function useChatbot({
 
   // ── Core state ──────────────────────────────────────────────
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationTitle, setConversationTitle] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pendingAssistantId, setPendingAssistantId] = useState<string | null>(
     null
@@ -281,6 +286,7 @@ export function useChatbot({
       if (isFirstMessageRef.current) {
         isFirstMessageRef.current = false;
         const title = generateAutoTitle(variables.content);
+        setConversationTitle(title);
         updateConversationTitle(data.conversation_id, title).then(() => {
           queryClient.invalidateQueries({
             queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
@@ -369,6 +375,7 @@ export function useChatbot({
       // Reset all state — conversation will be created lazily on first message.
       // References are passed via the `references` prop and re-sent on every message.
       setConversationId(null);
+      setConversationTitle(null);
       setMessages([]);
       setPendingAssistantId(null);
       setWorkingContext([]);
@@ -394,6 +401,7 @@ export function useChatbot({
         const pendingAssistantMessage = getLatestPendingAssistantMessage(loadedMessages);
 
         setMessages(loadedMessages);
+        setConversationTitle(detail.title ?? null);
         setPendingAssistantId(pendingAssistantMessage?.id ?? null);
         setWorkingContext(detail.last_working_context ?? []);
         // If the conversation already has messages, it's not the first message
@@ -412,6 +420,8 @@ export function useChatbot({
 
   return {
     conversationId,
+    conversationTitle,
+    setConversationTitle,
     messages,
     assistantMessage,
     isTyping: isPolling,

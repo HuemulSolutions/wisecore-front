@@ -3,16 +3,9 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
-import type { ExternalFunctionality } from "@/types/external-functionalities"
+import type { ExternalFunctionalityDeleteDialogProps } from "@/types/external-functionality-delete-dialog"
 
-interface ExternalFunctionalityDeleteDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  organizationId: string
-  systemId: string
-  functionality: ExternalFunctionality | null
-  onDeleted?: () => void
-}
+export type { ExternalFunctionalityDeleteDialogProps } from "@/types/external-functionality-delete-dialog"
 
 export function ExternalFunctionalityDeleteDialog({
   open,

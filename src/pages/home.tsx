@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
-import { FileUp, ClipboardList, Plus, GitBranch, MessageSquare, ChevronDown, RefreshCw, ExternalLink, MessageCircle } from 'lucide-react';
+import { FileUp, ClipboardList, Plus, GitBranch, ExternalLink, MessageCircle } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulTable } from '@/huemul/components/huemul-table';
 import type { HuemulTableColumn, HuemulTableAction } from '@/huemul/components/huemul-table';
+import { HuemulFilters } from '@/huemul/components/huemul-filters';
+import { HuemulField } from '@/huemul/components/huemul-field';
 import { ImportAssetFromFileDialog } from '@/components/assets/dialogs/assets-import-from-file-dialog';
 import { CreateAssetDialog } from '@/components/assets/dialogs/assets-create-dialog';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
 import { useAllExecutions } from '@/hooks/useAllExecutions';
+import { useDocumentTypes } from '@/hooks/useDocumentTypes';
 import { useOrganization } from '@/contexts/organization-context';
+import { getUsers } from '@/services/users';
+import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
 import type { Execution, ExecutionLifecycleState } from '@/types/executions';
+import { ApiError } from '@/types/api-error';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
 
 export default function Home() {
   const { t } = useTranslation('home');
@@ -34,22 +37,105 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  // Filters
-  const [lifecycleState, setLifecycleState] = useState<string>('');
-  const [ownerScope, setOwnerScope] = useState<string>('');
-  const [hasUnresolvedComments, setHasUnresolvedComments] = useState(false);
+  // Filters — pending (UI fields) / applied (drives the query)
+  const defaultFilters = {
+    search: '',
+    lifecycleState: '',
+    ownerValue: '',
+    hasUnresolvedComments: false,
+    documentTypeId: '',
+    expirationDate: '',
+    expirationDateFrom: '',
+    expirationDateTo: '',
+    estimatedPublicationDate: '',
+    estimatedPublicationDateFrom: '',
+    estimatedPublicationDateTo: '',
+    reviewDate: '',
+    reviewDateFrom: '',
+    reviewDateTo: '',
+    auditDate: '',
+    auditDateFrom: '',
+    auditDateTo: '',
+  };
+
+  const [pendingFilters, setPendingFilters] = useState({ ...defaultFilters });
+  const [appliedFilters, setAppliedFilters] = useState({ ...defaultFilters });
+  const [sort, setSort] = useState<string | null>(null);
+
+  const hasActiveFilters =
+    !!appliedFilters.search ||
+    !!appliedFilters.lifecycleState ||
+    !!appliedFilters.ownerValue ||
+    appliedFilters.hasUnresolvedComments ||
+    !!appliedFilters.documentTypeId ||
+    !!appliedFilters.expirationDate ||
+    !!appliedFilters.expirationDateFrom ||
+    !!appliedFilters.expirationDateTo ||
+    !!appliedFilters.estimatedPublicationDate ||
+    !!appliedFilters.estimatedPublicationDateFrom ||
+    !!appliedFilters.estimatedPublicationDateTo ||
+    !!appliedFilters.reviewDate ||
+    !!appliedFilters.reviewDateFrom ||
+    !!appliedFilters.reviewDateTo ||
+    !!appliedFilters.auditDate ||
+    !!appliedFilters.auditDateFrom ||
+    !!appliedFilters.auditDateTo;
+
+  function handleApply() {
+    setAppliedFilters({ ...pendingFilters });
+    setPage(1);
+  }
+
+  function handleClear() {
+    setPendingFilters({ ...defaultFilters });
+    setAppliedFilters({ ...defaultFilters });
+    setPage(1);
+  }
+
+  const { data: documentTypesData } = useDocumentTypes();
+  const documentTypes = documentTypesData?.data ?? [];
+
+  const fetchUsers = useCallback(
+    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getUsers(selectedOrganizationId ?? undefined, p, ps, s);
+      return {
+        options: (res.data ?? []).map((u) => ({
+          value: u.id,
+          label: [u.name, u.last_name].filter(Boolean).join(' '),
+        })),
+        hasMore: res.has_next ?? false,
+      };
+    },
+    [selectedOrganizationId],
+  );
 
   const PAGE_SIZE = 20;
 
   const ALL_VALUE = '__all__';
 
-  const { data, isLoading, isFetching, refetch } = useAllExecutions(selectedOrganizationId ?? '', {
+  const { data, isLoading, isFetching, refetch, error } = useAllExecutions(selectedOrganizationId ?? '', {
     enabled: !!selectedOrganizationId,
     page,
     pageSize: PAGE_SIZE,
-    lifecycle_state: (lifecycleState || undefined) as ExecutionLifecycleState | undefined,
-    owner_scope: (ownerScope || undefined) as 'all' | 'me' | undefined,
-    has_unresolved_comments: hasUnresolvedComments || undefined,
+    search: appliedFilters.search || undefined,
+    lifecycle_state: (appliedFilters.lifecycleState || undefined) as ExecutionLifecycleState | undefined,
+    owner_scope: appliedFilters.ownerValue === '__me__' ? 'me' : undefined,
+    created_by: appliedFilters.ownerValue && appliedFilters.ownerValue !== '__me__' ? appliedFilters.ownerValue : undefined,
+    has_unresolved_comments: appliedFilters.hasUnresolvedComments || undefined,
+    document_type_id: appliedFilters.documentTypeId || undefined,
+    expiration_date: appliedFilters.expirationDate || undefined,
+    expiration_date_from: appliedFilters.expirationDateFrom || undefined,
+    expiration_date_to: appliedFilters.expirationDateTo || undefined,
+    estimated_publication_date: appliedFilters.estimatedPublicationDate || undefined,
+    estimated_publication_date_from: appliedFilters.estimatedPublicationDateFrom || undefined,
+    estimated_publication_date_to: appliedFilters.estimatedPublicationDateTo || undefined,
+    review_date: appliedFilters.reviewDate || undefined,
+    review_date_from: appliedFilters.reviewDateFrom || undefined,
+    review_date_to: appliedFilters.reviewDateTo || undefined,
+    audit_date: appliedFilters.auditDate || undefined,
+    audit_date_from: appliedFilters.auditDateFrom || undefined,
+    audit_date_to: appliedFilters.auditDateTo || undefined,
+    sort: sort || undefined,
   });
 
   const executions = data?.data ?? [];
@@ -70,11 +156,13 @@ export default function Home() {
     {
       key: 'documentName',
       label: t('executionsTable.columns.documentName'),
+      sortKey: 'document_name',
       render: (item) => <span className="font-medium">{item.document_name}</span>,
     },
     {
       key: 'unresolvedComments',
       label: t('executionsTable.columns.unresolvedComments'),
+      sortKey: 'unresolved_comments_count',
       render: (item) =>
         item.unresolved_comments_count > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
@@ -99,6 +187,7 @@ export default function Home() {
     {
       key: 'lifecycleState',
       label: t('executionsTable.columns.lifecycleState'),
+      sortKey: 'lifecycle_state',
       render: (item) => (
         <span className="text-muted-foreground">{tAssets(`lifecycle.stateLabels.${item.lifecycle_state}`)}</span>
       ),
@@ -106,6 +195,7 @@ export default function Home() {
     {
       key: 'taskStatus',
       label: t('executionsTable.columns.taskStatus'),
+      sortKey: 'task_status',
       render: (item) => (
         <span className="text-muted-foreground">{item.task_status ?? '—'}</span>
       ),
@@ -113,6 +203,7 @@ export default function Home() {
     {
       key: 'owner',
       label: t('executionsTable.columns.owner'),
+      sortKey: 'created_by_user_name',
       render: (item) => (
         <span className="text-muted-foreground">{item.created_by_user_name ?? '—'}</span>
       ),
@@ -120,6 +211,7 @@ export default function Home() {
     {
       key: 'updatedAt',
       label: t('executionsTable.columns.updatedAt'),
+      sortKey: 'updated_at',
       render: (item) => (
         <span className="text-muted-foreground" title={item.updated_at}>
           {formatRelativeTime(item.updated_at)}
@@ -129,6 +221,7 @@ export default function Home() {
     {
       key: 'expirationDate',
       label: t('executionsTable.columns.expirationDate'),
+      sortKey: 'expiration_date',
       render: (item) => (
         <span className="text-muted-foreground" title={item.expiration_date ?? undefined}>
           {item.expiration_date ? formatAbsoluteDate(item.expiration_date) : '—'}
@@ -138,6 +231,7 @@ export default function Home() {
     {
       key: 'estimatedPublicationDate',
       label: t('executionsTable.columns.estimatedPublicationDate'),
+      sortKey: 'estimated_publication_date',
       render: (item) => (
         <span className="text-muted-foreground" title={item.estimated_publication_date ?? undefined}>
           {item.estimated_publication_date ? formatAbsoluteDate(item.estimated_publication_date) : '—'}
@@ -147,6 +241,7 @@ export default function Home() {
     {
       key: 'reviewDate',
       label: t('executionsTable.columns.reviewDate'),
+      sortKey: 'review_date',
       render: (item) => (
         <span className="text-muted-foreground" title={item.review_date ?? undefined}>
           {item.review_date ? formatAbsoluteDate(item.review_date) : '—'}
@@ -156,6 +251,7 @@ export default function Home() {
     {
       key: 'auditDate',
       label: t('executionsTable.columns.auditDate'),
+      sortKey: 'audit_date',
       render: (item) => (
         <span className="text-muted-foreground" title={item.audit_date ?? undefined}>
           {item.audit_date ? formatAbsoluteDate(item.audit_date) : '—'}
@@ -194,73 +290,136 @@ export default function Home() {
           content: (
             <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
               {/* Filters */}
-              <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="shrink-0">
-                <div className="flex items-center justify-between mb-3">
-                  <CollapsibleTrigger className="flex items-center gap-1 text-sm font-medium text-foreground hover:cursor-pointer">
-                    <ChevronDown
-                      className={cn('h-4 w-4 transition-transform duration-200', !filtersOpen && '-rotate-90')}
-                    />
-                    {t('filters.title')}
-                  </CollapsibleTrigger>
-                  <button
-                    type="button"
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground hover:text-foreground hover:bg-accent hover:cursor-pointer transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} />
-                    {t('actions.refresh')}
-                  </button>
-                </div>
-                <CollapsibleContent>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select
-                      value={lifecycleState || ALL_VALUE}
-                      onValueChange={(v) => { setLifecycleState(v === ALL_VALUE ? '' : v); setPage(1); }}
-                    >
-                      <SelectTrigger className="h-8 w-auto gap-1 rounded-md border-border bg-background px-3 text-sm shadow-none hover:cursor-pointer hover:bg-accent">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ALL_VALUE}>{t('filters.allLifecycleStates')}</SelectItem>
-                        <SelectItem value="draft">{tAssets('lifecycle.stateLabels.draft')}</SelectItem>
-                        <SelectItem value="in_review">{tAssets('lifecycle.stateLabels.in_review')}</SelectItem>
-                        <SelectItem value="in_approval">{tAssets('lifecycle.stateLabels.in_approval')}</SelectItem>
-                        <SelectItem value="approved">{tAssets('lifecycle.stateLabels.approved')}</SelectItem>
-                        <SelectItem value="published">{tAssets('lifecycle.stateLabels.published')}</SelectItem>
-                        <SelectItem value="archived">{tAssets('lifecycle.stateLabels.archived')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <HuemulFilters
+                title={t('filters.title')}
+                open={filtersOpen}
+                onOpenChange={setFiltersOpen}
+                onRefresh={() => refetch()}
+                isRefreshing={isFetching}
+                onApply={handleApply}
+                onClear={handleClear}
+                hasActiveFilters={hasActiveFilters}
+              >
+                <HuemulField
+                  type="text"
+                  label={t('filters.search')}
+                  value={pendingFilters.search}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, search: String(v ?? '') }))}
+                  placeholder={t('filters.searchPlaceholder')}
+                  className="w-auto"
+                  inputClassName="w-48 h-8 text-xs"
+                />
 
-                    <Select
-                      value={ownerScope || ALL_VALUE}
-                      onValueChange={(v) => { setOwnerScope(v === ALL_VALUE ? '' : v); setPage(1); }}
-                    >
-                      <SelectTrigger className="h-8 w-auto gap-1 rounded-md border-border bg-background px-3 text-sm shadow-none hover:cursor-pointer hover:bg-accent">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ALL_VALUE}>{t('filters.allOwners')}</SelectItem>
-                        <SelectItem value="me">{t('filters.ownerMe')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <HuemulField
+                  type="select"
+                  label={t('filters.lifecycleState')}
+                  value={pendingFilters.lifecycleState || ALL_VALUE}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, lifecycleState: v === ALL_VALUE ? '' : String(v) }))}
+                  options={[
+                    { value: ALL_VALUE, label: t('filters.allLifecycleStates') },
+                    { value: 'draft', label: tAssets('lifecycle.stateLabels.draft') },
+                    { value: 'in_review', label: tAssets('lifecycle.stateLabels.in_review') },
+                    { value: 'in_approval', label: tAssets('lifecycle.stateLabels.in_approval') },
+                    { value: 'approved', label: tAssets('lifecycle.stateLabels.approved') },
+                    { value: 'published', label: tAssets('lifecycle.stateLabels.published') },
+                    { value: 'archived', label: tAssets('lifecycle.stateLabels.archived') },
+                  ]}
+                  selectSize="xs"
+                  className="w-auto"
+                  inputClassName="w-44 h-8 text-xs"
+                />
 
-                    <button
-                      type="button"
-                      onClick={() => { setHasUnresolvedComments((v) => !v); setPage(1); }}
-                      className={cn(
-                        'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium hover:cursor-pointer transition-colors',
-                        hasUnresolvedComments
-                          ? 'border-yellow-400 bg-yellow-50 text-yellow-800 dark:border-yellow-500 dark:bg-yellow-950 dark:text-yellow-200'
-                          : 'border-border bg-background text-muted-foreground hover:bg-accent',
-                      )}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      {t('filters.unresolvedComments')}
-                    </button>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+                <HuemulField
+                  type="select"
+                  label={t('filters.documentType')}
+                  value={pendingFilters.documentTypeId || ALL_VALUE}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, documentTypeId: v === ALL_VALUE ? '' : String(v) }))}
+                  options={[
+                    { value: ALL_VALUE, label: t('filters.allDocumentTypes') },
+                    ...documentTypes.map((dt) => ({ value: dt.id, label: dt.name })),
+                  ]}
+                  selectSize="xs"
+                  className="w-auto"
+                  inputClassName="w-44 h-8 text-xs"
+                />
+
+                <HuemulField
+                  type="async-select"
+                  label={t('filters.ownerScope')}
+                  placeholder={t('filters.allOwners')}
+                  value={pendingFilters.ownerValue}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, ownerValue: v ? String(v) : '' }))}
+                  asyncStaticOptions={[{ value: '__me__', label: t('filters.ownerMe'), description: t('filters.ownerMeDescription') }]}
+                  asyncStaticOptionsLabel={t('filters.ownerScopeLabel')}
+                  asyncResultsLabel={t('filters.ownerUsersLabel')}
+                  fetchOptions={fetchUsers}
+                  pageSize={20}
+                  className="w-auto"
+                  inputClassName="w-44 h-8 text-xs"
+                />
+
+                <div className="w-px h-8 bg-border self-end" />
+
+                <HuemulField
+                  type="date-range"
+                  label={t('filters.expirationDate')}
+                  dateValue={pendingFilters.expirationDate}
+                  dateRangeFrom={pendingFilters.expirationDateFrom}
+                  dateRangeTo={pendingFilters.expirationDateTo}
+                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, expirationDate: v, expirationDateFrom: '', expirationDateTo: '' }))}
+                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, expirationDate: '', expirationDateFrom: from, expirationDateTo: to }))}
+                  className="w-auto"
+                  inputClassName="w-52 h-8 text-xs"
+                />
+
+                <HuemulField
+                  type="date-range"
+                  label={t('filters.estimatedPublicationDate')}
+                  dateValue={pendingFilters.estimatedPublicationDate}
+                  dateRangeFrom={pendingFilters.estimatedPublicationDateFrom}
+                  dateRangeTo={pendingFilters.estimatedPublicationDateTo}
+                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, estimatedPublicationDate: v, estimatedPublicationDateFrom: '', estimatedPublicationDateTo: '' }))}
+                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, estimatedPublicationDate: '', estimatedPublicationDateFrom: from, estimatedPublicationDateTo: to }))}
+                  className="w-auto"
+                  inputClassName="w-52 h-8 text-xs"
+                />
+
+                <HuemulField
+                  type="date-range"
+                  label={t('filters.reviewDate')}
+                  dateValue={pendingFilters.reviewDate}
+                  dateRangeFrom={pendingFilters.reviewDateFrom}
+                  dateRangeTo={pendingFilters.reviewDateTo}
+                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, reviewDate: v, reviewDateFrom: '', reviewDateTo: '' }))}
+                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, reviewDate: '', reviewDateFrom: from, reviewDateTo: to }))}
+                  className="w-auto"
+                  inputClassName="w-52 h-8 text-xs"
+                />
+
+                <HuemulField
+                  type="date-range"
+                  label={t('filters.auditDate')}
+                  dateValue={pendingFilters.auditDate}
+                  dateRangeFrom={pendingFilters.auditDateFrom}
+                  dateRangeTo={pendingFilters.auditDateTo}
+                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, auditDate: v, auditDateFrom: '', auditDateTo: '' }))}
+                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, auditDate: '', auditDateFrom: from, auditDateTo: to }))}
+                  className="w-auto"
+                  inputClassName="w-52 h-8 text-xs"
+                />
+
+                <div className="w-px h-8 bg-border self-end" />
+
+                <HuemulField
+                  type="switch"
+                  label={t('filters.unresolvedComments')}
+                  inline={false}
+                  value={pendingFilters.hasUnresolvedComments}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, hasUnresolvedComments: Boolean(v) }))}
+                  className="w-auto"
+                  controlClassName="h-8 flex items-center"
+                />
+              </HuemulFilters>
 
               {!isLoading && (
                 <p className="shrink-0 text-sm text-muted-foreground -mt-2">
@@ -279,6 +438,17 @@ export default function Home() {
                   actionsMode="inline"
                   className="h-full"
                   maxHeight=""
+                  sort={sort}
+                  onSortChange={(s) => { setSort(s); setPage(1); }}
+                  error={error as Error | null}
+                  onRetry={() => {
+                    if (ApiError.isApiError(error) && error.code === 'INVALID_SORT') {
+                      setSort(null);
+                      setPage(1);
+                    } else {
+                      refetch();
+                    }
+                  }}
                   emptyState={{
                     icon: GitBranch,
                     title: t('executionsTable.empty.title'),

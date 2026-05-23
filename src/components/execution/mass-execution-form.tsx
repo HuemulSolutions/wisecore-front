@@ -10,29 +10,9 @@ import { HuemulField } from "@/huemul/components/huemul-field"
 import type { HuemulFieldOption } from "@/huemul/components/huemul-field"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import type { EditType, ExecutionMode, MassExecutionConfig, TemplateSection, StepHeaderProps, SelectionCardProps } from "@/types/mass-execution-form"
 
-type EditType = "execute-ai" | "edit-ai" | "manual"
-type ExecutionMode = "single" | "from" | "review" | "save"
-
-export interface MassExecutionConfig {
-  templateId: string
-  sectionId: string
-  editType: EditType
-  llmId: string
-  instructions: string
-  executionMode: ExecutionMode
-}
-
-interface TemplateSection {
-  id: string
-  name: string
-  order: number
-}
-
-interface StepHeaderProps {
-  step: number
-  label: string
-}
+export type { MassExecutionConfig } from "@/types/mass-execution-form"
 
 function StepHeader({ step, label }: StepHeaderProps) {
   return (
@@ -43,14 +23,6 @@ function StepHeader({ step, label }: StepHeaderProps) {
       <span className="text-sm font-medium text-foreground">{label}</span>
     </div>
   )
-}
-
-interface SelectionCardProps {
-  selected: boolean
-  onClick: () => void
-  icon: React.ElementType
-  title: string
-  description: string
 }
 
 function SelectionCard({ selected, onClick, icon: Icon, title, description }: SelectionCardProps) {

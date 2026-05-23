@@ -1,16 +1,9 @@
 import { Network, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
+import type { ExternalSystemsPageHeaderProps } from "@/types/external-systems-page-header"
 
-interface ExternalSystemsPageHeaderProps {
-  systemsCount: number
-  searchValue: string
-  onSearchChange: (value: string) => void
-  isLoading: boolean
-  onRefresh: () => void
-  onCreateClick: () => void
-  hasError?: boolean
-}
+export type { ExternalSystemsPageHeaderProps } from "@/types/external-systems-page-header"
 
 export function ExternalSystemsPageHeader({
   systemsCount,

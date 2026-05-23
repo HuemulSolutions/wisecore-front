@@ -21,15 +21,7 @@ import {
   SetOrganizationAdminDialog,
   type Organization
 } from "@/components/organization"
-
-interface OrganizationPageState {
-  searchTerm: string
-  selectedOrganizations: Set<string>
-  editingOrganization: Organization | null
-  showCreateDialog: boolean
-  deletingOrganization: Organization | null
-  settingAdminOrganization: Organization | null
-}
+import type { OrganizationPageState } from "@/types/global-admin-organizations-section"
 
 export function GlobalAdminOrganizationsSection() {
   const { t } = useTranslation(['organizations', 'global-admin'])

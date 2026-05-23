@@ -5,13 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { Button } from '@/components/ui/button';
+import type { SectionRegenerationFeedbackProps } from '@/types/section-regeneration-feedback';
 
-interface SectionRegenerationFeedbackProps {
-  sectionIndex: number;
-  executionId: string;
-  executionMode: 'single' | 'from';
-  totalSections: number;
-}
+export type { SectionRegenerationFeedbackProps } from '@/types/section-regeneration-feedback';
 
 export function SectionRegenerationFeedback({
   sectionIndex,
@@ -21,7 +17,7 @@ export function SectionRegenerationFeedback({
 }: SectionRegenerationFeedbackProps) {
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
-  const { t } = useTranslation('execute');
+  const { t } = useTranslation(['execute', 'common']);
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
 
   // Poll execution status
@@ -91,7 +87,7 @@ export function SectionRegenerationFeedback({
           className="hover:cursor-pointer text-xs"
         >
           <RefreshCw className="h-3 w-3 mr-1" />
-          {t('sectionRegeneration.refresh')}
+          {t('common:refresh')}
         </Button>
       </div>
     </div>

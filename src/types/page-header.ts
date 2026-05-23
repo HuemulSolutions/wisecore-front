@@ -52,4 +52,6 @@ export interface PageHeaderProps {
   hasError?: boolean
   /** Custom content to render after badges/buttons */
   children?: ReactNode
+  /** Extra className on the outer wrapper (overrides default mb-6) */
+  className?: string
 }

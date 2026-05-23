@@ -26,6 +26,7 @@ export default function AssetTypesPage() {
     editingAssetType: null,
     showCreateDialog: false,
     deletingAssetType: null,
+    cloningAssetType: null,
     rolePermissionsAssetType: null,
     lifecycleAssetType: null
   })
@@ -99,6 +100,10 @@ export default function AssetTypesPage() {
     updateState({ deletingAssetType: assetType })
   }
 
+  const handleCloneAssetType = (assetType: AssetTypeWithRoles) => {
+    updateState({ cloningAssetType: assetType })
+  }
+
   const handleLifecycle = (assetType: AssetTypeWithRoles) => {
     updateState({ lifecycleAssetType: assetType })
   }
@@ -140,6 +145,7 @@ export default function AssetTypesPage() {
                 assetTypes={assetTypes}
                 onEditAssetType={handleEditAssetType}
                 onDeleteAssetType={handleDeleteAssetType}
+                onCloneAssetType={handleCloneAssetType}
                 onLifecycle={handleLifecycle}
                 canUpdate={canUpdateDocumentType}
                 canDelete={canDeleteDocumentType}

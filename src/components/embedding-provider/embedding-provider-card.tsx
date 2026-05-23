@@ -2,32 +2,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { CheckCircle, Circle, ChevronUp, ChevronDown, Settings } from "lucide-react"
+import { CheckCircle, Circle, ChevronUp, ChevronDown, Settings, Loader2, Zap } from "lucide-react"
 import { ProviderActions } from "@/components/llm-provider/provider-actions"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import type { EmbeddingProviderCardProps } from "@/types/embedding-provider-card"
 
-type EmbeddingProviderCardData = {
-  id: string
-  name: string
-  display_name?: string
-  isConfigured: boolean
-}
-
-interface EmbeddingProviderCardProps {
-  provider: EmbeddingProviderCardData
-  isOpen: boolean
-  onToggle: (open: boolean) => void
-  onEditProvider: (provider: EmbeddingProviderCardData) => void
-  onDeleteProvider: (provider: EmbeddingProviderCardData) => void
-  onConfigureProvider: (provider: EmbeddingProviderCardData) => void
-  isDeleting: boolean
-  openDropdowns: { [key: string]: boolean }
-  onDropdownChange: (key: string, open: boolean) => void
-  canCreateProvider: boolean
-  canUpdateProvider: boolean
-  canDeleteProvider: boolean
-}
+export type { EmbeddingProviderCardData, EmbeddingProviderCardProps } from "@/types/embedding-provider-card"
 
 export function EmbeddingProviderCard({
   provider,
@@ -36,6 +17,8 @@ export function EmbeddingProviderCard({
   onEditProvider,
   onDeleteProvider,
   onConfigureProvider,
+  onTestProvider,
+  isTestingProvider,
   isDeleting,
   openDropdowns,
   onDropdownChange,
@@ -81,18 +64,39 @@ export function EmbeddingProviderCard({
 
           <div className="flex items-center gap-2 mr-1">
             {provider.isConfigured ? (
-              (canUpdateProvider || canDeleteProvider) && (
-                <ProviderActions
-                  provider={provider}
-                  onEdit={onEditProvider}
-                  onDelete={onDeleteProvider}
-                  isDeleting={isDeleting}
-                  dropdownOpen={openDropdowns[`embedding-provider-${provider.id}`] || false}
-                  onDropdownChange={(open) => onDropdownChange(`embedding-provider-${provider.id}`, open)}
-                  canUpdate={canUpdateProvider}
-                  canDelete={canDeleteProvider}
-                />
-              )
+              <>
+                {onTestProvider && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hover:cursor-pointer h-7 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onTestProvider()
+                    }}
+                    disabled={isTestingProvider}
+                  >
+                    {isTestingProvider ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Zap className="h-3 w-3" />
+                    )}
+                    <span className="ml-1">{t('modelActions.testConnection')}</span>
+                  </Button>
+                )}
+                {(canUpdateProvider || canDeleteProvider) && (
+                  <ProviderActions
+                    provider={provider}
+                    onEdit={onEditProvider}
+                    onDelete={onDeleteProvider}
+                    isDeleting={isDeleting}
+                    dropdownOpen={openDropdowns[`embedding-provider-${provider.id}`] || false}
+                    onDropdownChange={(open) => onDropdownChange(`embedding-provider-${provider.id}`, open)}
+                    canUpdate={canUpdateProvider}
+                    canDelete={canDeleteProvider}
+                  />
+                )}
+              </>
             ) : (
               canCreateProvider && (
                 <HuemulButton

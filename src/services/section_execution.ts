@@ -175,3 +175,44 @@ export async function updateReviewStatus(
         { headers }
     );
 }
+
+// ─── Section History ──────────────────────────────────────────────────────────
+
+export type SectionHistoryChangeType = 'manual' | 'modify_ai';
+
+export interface SectionHistoryEntry {
+    id: string;
+    section_execution_id: string;
+    document_id: string;
+    execution_id: string;
+    section_id: string;
+    change_type: SectionHistoryChangeType;
+    user_instruction: string | null;
+    lifecycle_step_id: string | null;
+    previous_text: string | null;
+    new_text: string;
+    created_at: string;
+    created_by: string | null;
+}
+
+export interface SectionHistoryResponse {
+    section_execution_id: string;
+    total: number;
+    items: SectionHistoryEntry[];
+}
+
+export async function getSectionExecutionHistory(
+    sectionExecutionId: string,
+    organizationId?: string
+): Promise<SectionHistoryResponse> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    const response = await httpClient.get(
+        `${backendUrl}/section_executions/${sectionExecutionId}/history`,
+        { headers }
+    );
+    const data = await response.json();
+    return data.data as SectionHistoryResponse;
+}

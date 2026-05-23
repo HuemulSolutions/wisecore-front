@@ -1,18 +1,11 @@
 import { Badge } from "@/components/ui/badge"
 import { Edit2, Trash2, FileText } from "lucide-react"
 import type { CustomField } from "@/types/custom-fields"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
+import type { CustomFieldTableProps } from "@/types/custom-fields-table"
 
-interface CustomFieldTableProps {
-  customFields: CustomField[]
-  onEditCustomField: (customField: CustomField) => void
-  onDeleteCustomField: (customField: CustomField) => void
-  pagination?: HuemulTablePagination
-  canManage?: boolean
-  isLoading?: boolean
-  isFetching?: boolean
-}
+export type { CustomFieldTableProps } from "@/types/custom-fields-table"
 
 export function CustomFieldTable({
   customFields,
@@ -23,7 +16,7 @@ export function CustomFieldTable({
   isLoading = false,
   isFetching = false
 }: CustomFieldTableProps) {
-  const { t, i18n } = useTranslation('custom-fields')
+  const { t, i18n } = useTranslation(['custom-fields', 'common'])
 
   const formatDataType = (dataType: string) => {
     const key = dataType as keyof object
@@ -34,7 +27,7 @@ export function CustomFieldTable({
   const columns: HuemulTableColumn<CustomField>[] = [
     {
       key: "name",
-      label: t('columns.name'),
+      label: t('common:name'),
       render: (customField) => (
         <div className="flex flex-col">
           <span className="text-xs font-medium text-foreground">{customField.name}</span>
@@ -73,7 +66,7 @@ export function CustomFieldTable({
     },
     {
       key: "created",
-      label: t('columns.created'),
+      label: t('common:created'),
       render: (customField) => (
         <span className="text-xs text-foreground">
           {new Date(customField.created_at).toLocaleDateString(i18n.language, {

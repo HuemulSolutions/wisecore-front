@@ -1,11 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import type { RemoveDependencyDialogProps } from "@/types/dependency-delete-dialog"
 
-interface RemoveDependencyDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onAction: () => Promise<void>
-}
+export type { RemoveDependencyDialogProps } from "@/types/dependency-delete-dialog"
 
 export function RemoveDependencyDialog({
   open,

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   Bot,
@@ -9,6 +9,10 @@ import {
   Plus,
   Clock,
   Loader2,
+  Pencil,
+  Trash2,
+  Check,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,8 +30,12 @@ import {
 import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
 import { WisyContextChips } from './wisy-context-chips';
+import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { useChatbotContext } from '@/contexts/chatbot-context';
 import { useGlobalPanel } from '@/contexts/global-panel-context';
+import { useOrganization } from '@/contexts/organization-context';
+import { chatbotQueryKeys } from '@/hooks/use-chatbot';
+import { updateConversationTitle, archiveConversation } from '@/services/chatbot';
 import { getDefaultLLM, getLLMs } from '@/services/llms';
 
 // ========================================
@@ -38,14 +46,166 @@ function WelcomeMessage() {
   const { t } = useTranslation('chatbot');
   return (
     <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-      <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center mb-4">
-        <Sparkles className="w-6 h-6 text-primary" />
+      <div className="wisy-welcome-gradient w-16 h-16 rounded-2xl flex items-center justify-center mb-5 wisy-avatar-glow">
+        <Sparkles className="w-7 h-7 text-primary wisy-sparkle-pulse" />
       </div>
-      <p className="text-sm font-medium text-foreground mb-1">{t('wisy.welcome')}</p>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm font-semibold text-foreground mb-1.5">{t('wisy.welcome')}</p>
+      <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
         {t('wisy.welcomeSubtext')}
       </p>
     </div>
+  );
+}
+
+// ========================================
+// Session bar (active conversation info)
+// ========================================
+
+function SessionBar({
+  conversationId,
+  title,
+  onTitleChanged,
+  onDeleted,
+}: {
+  conversationId: string;
+  title: string | null;
+  onTitleChanged: (title: string) => void;
+  onDeleted: () => void;
+}) {
+  const { t } = useTranslation(['chatbot', 'common']);
+  const queryClient = useQueryClient();
+  const { selectedOrganizationId } = useOrganization();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const displayTitle = title || t('conversations.defaultTitle');
+
+  const renameMutation = useMutation({
+    mutationFn: (newTitle: string) => updateConversationTitle(conversationId, newTitle),
+    onSuccess: (_data, newTitle) => {
+      onTitleChanged(newTitle);
+      queryClient.invalidateQueries({
+        queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
+      });
+    },
+  });
+
+  const startEditing = useCallback(() => {
+    setEditValue(title || '');
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [title]);
+
+  const confirmRename = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== title) {
+      renameMutation.mutate(trimmed);
+    }
+    setIsEditing(false);
+  }, [editValue, title, renameMutation]);
+
+  const cancelEditing = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    await archiveConversation(conversationId);
+    queryClient.invalidateQueries({
+      queryKey: chatbotQueryKeys.conversations(selectedOrganizationId),
+    });
+    onDeleted();
+  }, [conversationId, queryClient, selectedOrganizationId, onDeleted]);
+
+  return (
+    <>
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-muted/20 shrink-0 min-h-[32px]">
+        <MessageCircle className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+
+        {isEditing ? (
+          <div className="flex-1 flex items-center gap-1 min-w-0">
+            <input
+              ref={inputRef}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmRename();
+                if (e.key === 'Escape') cancelEditing();
+              }}
+              className="flex-1 min-w-0 text-xs bg-transparent outline-none border-b border-primary/40 py-0.5"
+              placeholder={t('conversations.defaultTitle')}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={confirmRename}
+              className="h-5 w-5 p-0 text-green-600 hover:bg-green-50 hover:cursor-pointer shrink-0"
+            >
+              <Check className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={cancelEditing}
+              className="h-5 w-5 p-0 text-muted-foreground hover:bg-muted hover:cursor-pointer shrink-0"
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <span className="flex-1 text-xs font-medium text-foreground truncate">
+              {displayTitle}
+            </span>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={startEditing}
+                  disabled={renameMutation.isPending}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground hover:cursor-pointer shrink-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t('conversations.renameTooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDeleteOpen(true)}
+                  className="h-5 w-5 p-0 text-muted-foreground hover:text-red-600 hover:cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t('conversations.deleteTooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
+      </div>
+
+      <HuemulAlertDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t('conversations.deleteTitle')}
+        description={t('conversations.deleteDescription')}
+        actionLabel={t('common:delete')}
+        cancelLabel={t('common:cancel')}
+        onAction={handleDelete}
+      />
+    </>
   );
 }
 
@@ -55,7 +215,7 @@ function WelcomeMessage() {
 
 export function WisyPanel() {
   const endRef = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation('chatbot');
+  const { t } = useTranslation(['chatbot', 'common']);
   const { closePanel } = useGlobalPanel();
   const [isDragOver, setIsDragOver] = useState(false);
   const {
@@ -66,6 +226,8 @@ export function WisyPanel() {
     selectedLlmId,
     setSelectedLlmId,
     conversationId,
+    conversationTitle,
+    setConversationTitle,
     messages,
     isTyping,
     sendMessage,
@@ -184,10 +346,12 @@ export function WisyPanel() {
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">{t('wisy.name')}</span>
+      <div className="wisy-header-gradient flex items-center justify-between px-3 py-2.5 border-b border-primary/10 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center wisy-avatar-glow">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">{t('wisy.name')}</span>
         </div>
         <div className="flex items-center gap-0.5">
           {/* History toggle */}
@@ -241,7 +405,7 @@ export function WisyPanel() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>{t('actions.close')}</p>
+              <p>{t('common:close')}</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -260,6 +424,16 @@ export function WisyPanel() {
       ) : (
         // ── Chat view ─────────────────────────────────────────
         <>
+          {/* Session bar */}
+          {conversationId && (
+            <SessionBar
+              conversationId={conversationId}
+              title={conversationTitle}
+              onTitleChanged={(newTitle) => setConversationTitle(newTitle)}
+              onDeleted={handleNewConversation}
+            />
+          )}
+
           {/* Drop overlay */}
           {isDragOver && (
             <div className="flex items-center justify-center py-3 px-4 bg-primary/5 border-b border-primary/20 text-primary text-xs font-medium">
@@ -269,7 +443,7 @@ export function WisyPanel() {
 
           {/* Messages area */}
           <div
-            className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+            className="wisy-chat-bg flex-1 overflow-y-auto px-4 py-4 space-y-4"
             aria-live="polite"
           >
             {isLoadingConversation ? (
@@ -287,7 +461,7 @@ export function WisyPanel() {
           </div>
 
           {/* Input area */}
-          <div className="border-t border-border bg-background px-4 py-3 shrink-0">
+          <div className="border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 shrink-0">
             {/* Working context chips + current page badge */}
             <WisyContextChips
               items={workingContextItems}
@@ -304,7 +478,7 @@ export function WisyPanel() {
                 placeholder={t('input.placeholder')}
                 disabled={isInputDisabled}
                 rows={1}
-                className="flex-1 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm resize-none overflow-hidden min-h-[36px] max-h-28 bg-background transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-3 py-2 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm resize-none overflow-hidden min-h-[36px] max-h-28 bg-muted/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/50"
                 style={{
                   height: 'auto',
                   minHeight: '36px',
@@ -319,7 +493,7 @@ export function WisyPanel() {
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim() || isInputDisabled}
                 size="sm"
-                className="hover:cursor-pointer disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 h-[36px] min-w-[36px] transition-all"
+                className="hover:cursor-pointer disabled:opacity-50 disabled:hover:cursor-not-allowed flex-shrink-0 h-[36px] min-w-[36px] rounded-xl bg-primary shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -337,7 +511,7 @@ export function WisyPanel() {
                   className="h-7 min-w-[120px] max-w-[160px] border-transparent bg-transparent px-2 text-[11px] text-muted-foreground shadow-none transition-colors hover:cursor-pointer hover:border-border hover:bg-accent/50 focus:ring-ring/15 disabled:hover:cursor-not-allowed"
                 >
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <SelectValue placeholder={isLoadingLlms ? t('model.loading') : t('model.selectModel')} />
+                    <SelectValue placeholder={isLoadingLlms ? t('common:loading') : t('model.selectModel')} />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="border-border bg-popover">

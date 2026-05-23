@@ -16,7 +16,7 @@ import {
 const PAGE_SIZE = 20
 
 export function ChangeHistoryPanel() {
-  const { t } = useTranslation("advanced")
+  const { t } = useTranslation(["advanced", "common"])
   const { selectedOrganizationId } = useOrganization()
   const buildPath = useOrgPath()
 
@@ -160,7 +160,7 @@ export function ChangeHistoryPanel() {
         {!isLoading && isFetching && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
-            {t("changeHistory.loading")}
+            {t("common:loading")}
           </div>
         )}
 
@@ -315,7 +315,7 @@ export function ChangeHistoryPanel() {
               disabled={!hasPrevious}
               className="hover:cursor-pointer"
             >
-              {t("changeHistory.previous")}
+              {t("common:previous")}
             </Button>
             <Button
               variant="outline"
@@ -324,7 +324,7 @@ export function ChangeHistoryPanel() {
               disabled={!hasNext}
               className="hover:cursor-pointer"
             >
-              {t("changeHistory.next")}
+              {t("common:next")}
             </Button>
           </div>
         </div>

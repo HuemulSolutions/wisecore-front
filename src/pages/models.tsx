@@ -29,6 +29,7 @@ import {
   createEmbeddingProvider,
   updateEmbeddingProvider,
   deleteEmbeddingProvider,
+  testEmbeddingProviderConnection,
 } from '@/services/embedding-provider'
 import { 
   ModelsHeader,
@@ -80,6 +81,7 @@ export default function Models() {
   const [isDeletingEmbeddingProvider, setIsDeletingEmbeddingProvider] = useState(false)
   const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
   const [capabilitiesModel, setCapabilitiesModel] = useState<LLM | null>(null)
+  const [isTestingEmbeddingProvider, setIsTestingEmbeddingProvider] = useState(false)
 
   // Verificar permisos
   const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
@@ -235,6 +237,14 @@ export default function Models() {
       queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] })
       queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] })
       setDeletingEmbeddingProvider(null)
+    },
+  })
+
+  const testEmbeddingProviderMutation = useMutation({
+    mutationFn: testEmbeddingProviderConnection,
+    meta: { successMessage: t('toast.connectionSuccessful') },
+    onSettled: () => {
+      setIsTestingEmbeddingProvider(false)
     },
   })
 
@@ -440,6 +450,11 @@ export default function Models() {
 
   const handleConfigureEmbeddingProvider = (provider: any) => {
     setEditingEmbeddingProvider(provider)
+  }
+
+  const handleTestEmbeddingProvider = () => {
+    setIsTestingEmbeddingProvider(true)
+    testEmbeddingProviderMutation.mutate()
   }
 
   const handleEditEmbeddingProvider = (provider: any) => {
@@ -721,6 +736,8 @@ export default function Models() {
                   onEditProvider={handleEditEmbeddingProvider}
                   onDeleteProvider={handleDeleteEmbeddingProvider}
                   onConfigureProvider={handleConfigureEmbeddingProvider}
+                  onTestProvider={provider.isConfigured ? handleTestEmbeddingProvider : undefined}
+                  isTestingProvider={isTestingEmbeddingProvider}
                   isDeleting={isDeletingEmbeddingProvider}
                   openDropdowns={openDropdowns}
                   onDropdownChange={(key, open) => {

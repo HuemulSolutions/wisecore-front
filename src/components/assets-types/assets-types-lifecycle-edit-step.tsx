@@ -30,26 +30,9 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { LifecycleStep } from "@/services/lifecycle"
+import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets-types-lifecycle-edit-step'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface EditStepCardData {
-  id: string
-  name: string
-  hasSla: boolean
-  slaValue: string
-  slaUnit: string
-  accessType: "all" | "owner" | "custom" | "custom_owner"
-  ownerCanExecute: boolean
-  roleIds: string[]
-  roleNames: Record<string, string>
-}
-
-export interface EditStepContentProps {
-  documentTypeId: string
-  stepType: string
-  onEditingChange?: (isEditing: boolean) => void
-}
+export type { EditStepCardData, EditStepContentProps } from '@/types/assets-types-lifecycle-edit-step'
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -71,23 +54,9 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
 
 // ─── EditStepCard ─────────────────────────────────────────────────────────────
 
-interface EditStepCardProps {
-  card: EditStepCardData
-  stepType: string
-  slaUnitOptions: { value: string; label: string }[]
-  allRoles: { id: string; name: string }[]
-  onChange: (updated: Partial<EditStepCardData>) => void
-  onDelete: () => void
-  onSave: () => Promise<void>
-  t: (key: string) => string
-  isDeleting: boolean
-  canDelete: boolean
-  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
-  onEditingChange?: (isEditing: boolean) => void
-}
-
 function EditStepCard({
   card,
+  stepType,
   slaUnitOptions,
   allRoles,
   onChange,
@@ -106,6 +75,7 @@ function EditStepCard({
   const assignedRoles = allRoles.filter((r) => card.roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !card.roleIds.includes(r.id))
   const ro = !isEditing
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const handleCheckClick = async () => {
     if (isEditing) {
@@ -169,7 +139,7 @@ function EditStepCard({
           <>
             <HuemulButton
               icon={Ban}
-              label={t("lifecycle.cancel")}
+              label={t("common:cancel")}
               variant="ghost"
               onClick={handleCancel}
               disabled={isSaving}
@@ -177,7 +147,7 @@ function EditStepCard({
             />
             <HuemulButton
               icon={Save}
-              label={t("lifecycle.save")}
+              label={t("common:save")}
               variant="default"
               onClick={handleCheckClick}
               loading={isSaving}
@@ -187,7 +157,7 @@ function EditStepCard({
         ) : (
           <HuemulButton
             icon={Pencil}
-            label={t("lifecycle.edit")}
+            label={t("common:edit")}
             variant="ghost"
             onClick={handleCheckClick}
             className="text-muted-foreground"
@@ -254,7 +224,7 @@ function EditStepCard({
       {/* Allow anyone switch */}
       <HuemulField
         type="switch"
-        label={t("lifecycle.allowAnyoneLabel")}
+        label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
         name={`access-all-${card.id}`}
         value={card.accessType === "all"}
         onChange={(v) => {
@@ -273,7 +243,7 @@ function EditStepCard({
         <>
           <HuemulField
             type="switch"
-            label={t("lifecycle.ownerCanExecuteLabel")}
+            label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
             name={`access-owner-${card.id}`}
             value={card.ownerCanExecute}
             onChange={(v) => {
@@ -290,7 +260,7 @@ function EditStepCard({
 
           <HuemulField
             type="combobox"
-            label={t("lifecycle.addRole")}
+            label={t("lifecycle.addRole", { action: stepAction })}
             name={`role-${card.id}`}
             placeholder={t("lifecycle.addRolePlaceholder")}
             value=""
@@ -375,7 +345,7 @@ function SortableEditStepCard(
 // ─── EditStepContent ──────────────────────────────────────────────────────────
 
 export function EditStepContent({ documentTypeId, stepType, onEditingChange }: EditStepContentProps) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
@@ -383,6 +353,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
     documentTypeId,
     stepType
   )
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const allRoles = rolesData?.data ?? []
   const slaUnitOptions = (slaUnitsData?.data ?? []).map((u) => ({
@@ -578,7 +549,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
         title={t("lifecycle.addGroupTitle")}
         maxWidth="sm:max-w-md"
         saveAction={{
-          label: t("lifecycle.add"),
+          label: t("common:add"),
           onClick: handleAddGroup,
           closeOnSuccess: true,
         }}
@@ -637,7 +608,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
           {stepType !== "review" && stepType !== "approve" && (
             <HuemulField
               type="switch"
-              label={t("lifecycle.allowAnyoneLabel")}
+              label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
               name="new-group-access-all"
               value={newGroupAccessType === "all"}
               onChange={(v) => {
@@ -653,7 +624,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
             <>
               <HuemulField
                 type="switch"
-                label={t("lifecycle.ownerCanExecuteLabel")}
+                label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
                 name="new-group-access-owner"
                 value={newGroupOwnerCanExecute}
                 onChange={(v) => setNewGroupOwnerCanExecute(Boolean(v))}
@@ -662,7 +633,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
 
               <HuemulField
                 type="combobox"
-                label={t("lifecycle.addRole")}
+                label={t("lifecycle.addRole", { action: stepAction })}
                 name="new-group-role"
                 placeholder={t("lifecycle.addRolePlaceholder")}
                 value=""

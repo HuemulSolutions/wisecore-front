@@ -10,11 +10,8 @@ import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { getTemplateById } from "@/services/templates";
-
-interface AssetEmptyContentProps {
-  currentFolderId: string | undefined;
-  onPreserveScroll?: () => void;
-}
+import type { AssetEmptyContentProps } from "@/types/assets-empty-content";
+export type { AssetEmptyContentProps } from "@/types/assets-empty-content";
 
 /**
  * Lightweight component rendered when no asset is selected.

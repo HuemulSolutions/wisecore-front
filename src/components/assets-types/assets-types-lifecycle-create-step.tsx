@@ -8,18 +8,9 @@ import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { CreateStepContentProps } from '@/types/assets-types-lifecycle-create-step'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface CreateStepContentProps {
-  documentTypeId: string
-  stepType: string
-  hasSla?: boolean
-  hasValidity?: boolean
-  noOwner?: boolean
-  useAllOrCustomOwner?: boolean
-  onEditingChange?: (isEditing: boolean) => void
-}
+export type { CreateStepContentProps } from '@/types/assets-types-lifecycle-create-step'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -32,11 +23,12 @@ export function CreateStepContent({
   useAllOrCustomOwner = false,
   onEditingChange,
 }: CreateStepContentProps) {
-  const { t } = useTranslation("asset-types")
+  const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { updateStep } = useLifecycleMutations(documentTypeId, stepType)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
+  const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
   const step = data?.data?.steps?.[0] ?? null
   const allRoles = rolesData?.data ?? []
@@ -174,14 +166,14 @@ export function CreateStepContent({
             <>
               <HuemulButton
                 icon={Ban}
-                label={t("lifecycle.cancel")}
+                label={t("common:cancel")}
                 variant="ghost"
                 onClick={handleCancel}
                 className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               />
               <HuemulButton
                 icon={Save}
-                label={t("lifecycle.save")}
+                label={t("common:save")}
                 variant="default"
                 onClick={async () => await saveFnRef.current?.()}
                 loading={updateStep.isPending}
@@ -190,7 +182,7 @@ export function CreateStepContent({
           ) : (
             <HuemulButton
               icon={Pencil}
-              label={t("lifecycle.edit")}
+              label={t("common:edit")}
               variant="ghost"
               onClick={handleEdit}
               className="text-muted-foreground"
@@ -203,7 +195,7 @@ export function CreateStepContent({
       <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4">
         <HuemulField
           type="switch"
-          label={t("lifecycle.allowAnyoneLabel")}
+          label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
           name={`access-all-${stepType}`}
           value={accessType === "all"}
           onChange={(v) => {
@@ -228,7 +220,7 @@ export function CreateStepContent({
             <div className="h-px bg-border" />
             <HuemulField
               type="switch"
-              label={t("lifecycle.ownerCanExecuteLabel")}
+              label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
               name={`access-owner-${stepType}`}
               value={ownerCanExecute}
               onChange={(v) => {
@@ -258,7 +250,7 @@ export function CreateStepContent({
       {(useAllOrCustomOwner ? accessType !== "all" : (accessType === "custom" || accessType === "custom_owner")) && (
         <HuemulField
           type="combobox"
-          label={t("lifecycle.addRole")}
+          label={t("lifecycle.addRole", { action: stepAction })}
           name="add-role-create"
           placeholder={t("lifecycle.addRolePlaceholder")}
           value=""

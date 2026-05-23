@@ -10,10 +10,9 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { authService } from "@/services/auth"
 import { getErrorMessage } from "@/lib/error-utils"
 import packageJson from "../../../package.json"
+import type { LoginFormProps } from "@/types/auth"
 
-interface LoginFormProps extends React.ComponentProps<"div"> {
-  onCodeRequested?: (email: string) => void
-}
+export type { LoginFormProps } from "@/types/auth"
 
 export function LoginForm({
   className,
@@ -21,7 +20,7 @@ export function LoginForm({
   ...props
 }: LoginFormProps) {
   const [email, setEmail] = useState("")
-  const { t } = useTranslation('auth')
+  const { t } = useTranslation(['auth', 'common'])
 
   const requestCodeMutation = useMutation({
     mutationFn: (email: string) =>
@@ -48,7 +47,7 @@ export function LoginForm({
           </div>
           <HuemulField
             type="email"
-            label={t('login.email')}
+            label={t('common:email')}
             name="email"
             placeholder={t('login.emailPlaceholder')}
             value={email}

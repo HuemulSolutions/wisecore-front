@@ -8,12 +8,9 @@ import { useExecutionPolling } from '@/hooks/useExecutionPolling';
 import { useOrganization } from '@/contexts/organization-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import type { ExecutionStatusBannerProps } from '@/types/execution-status-banner';
 
-interface ExecutionStatusBannerProps {
-  executionId: string | null;
-  onExecutionComplete?: (completedExecutionId?: string) => void;
-  className?: string;
-}
+export type { ExecutionStatusBannerProps } from '@/types/execution-status-banner';
 
 export function ExecutionStatusBanner({
   executionId,

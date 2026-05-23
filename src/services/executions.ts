@@ -4,20 +4,65 @@ import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams } from "@/types/executions";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 
+/** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
+function toDateParam(value: string): string {
+  return value.slice(0, 10);
+}
+
 export async function getAllExecutions(
   organizationId: string,
   params: GetExecutionsParams = {},
 ): Promise<ExecutionsResponse> {
-  const { page = 1, page_size = 100, search, has_pending_ai_suggestion, lifecycle_state, owner_scope, has_unresolved_comments } = params
+  const {
+    page = 1,
+    page_size = 100,
+    search,
+    created_by,
+    has_pending_ai_suggestion,
+    lifecycle_state,
+    owner_scope,
+    has_unresolved_comments,
+    expiration_date,
+    expiration_date_from,
+    expiration_date_to,
+    estimated_publication_date,
+    estimated_publication_date_from,
+    estimated_publication_date_to,
+    review_date,
+    review_date_from,
+    review_date_to,
+    audit_date,
+    audit_date_from,
+    audit_date_to,
+    template_id,
+    document_type_id,
+    sort,
+  } = params
   const query = new URLSearchParams({
     page: page.toString(),
     page_size: page_size.toString(),
   })
   if (search?.trim()) query.set('search', search.trim())
+  if (created_by) query.set('created_by', created_by)
   if (has_pending_ai_suggestion != null) query.set('has_pending_ai_suggestion', has_pending_ai_suggestion.toString())
   if (lifecycle_state) query.set('lifecycle_state', lifecycle_state)
   if (owner_scope) query.set('owner_scope', owner_scope)
   if (has_unresolved_comments != null) query.set('has_unresolved_comments', has_unresolved_comments.toString())
+  if (expiration_date) query.set('expiration_date', toDateParam(expiration_date))
+  if (expiration_date_from) query.set('expiration_date_from', toDateParam(expiration_date_from))
+  if (expiration_date_to) query.set('expiration_date_to', toDateParam(expiration_date_to))
+  if (estimated_publication_date) query.set('estimated_publication_date', toDateParam(estimated_publication_date))
+  if (estimated_publication_date_from) query.set('estimated_publication_date_from', toDateParam(estimated_publication_date_from))
+  if (estimated_publication_date_to) query.set('estimated_publication_date_to', toDateParam(estimated_publication_date_to))
+  if (review_date) query.set('review_date', toDateParam(review_date))
+  if (review_date_from) query.set('review_date_from', toDateParam(review_date_from))
+  if (review_date_to) query.set('review_date_to', toDateParam(review_date_to))
+  if (audit_date) query.set('audit_date', toDateParam(audit_date))
+  if (audit_date_from) query.set('audit_date_from', toDateParam(audit_date_from))
+  if (audit_date_to) query.set('audit_date_to', toDateParam(audit_date_to))
+  if (template_id) query.set('template_id', template_id)
+  if (document_type_id) query.set('document_type_id', document_type_id)
+  if (sort) query.set('sort', sort)
   const response = await httpClient.get(`${backendUrl}/execution/?${query}`, {
     headers: { 'X-Org-Id': organizationId },
   })

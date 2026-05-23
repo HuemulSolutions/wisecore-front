@@ -10,10 +10,8 @@ import {
   deleteCustomFieldDocument,
 } from '@/services/custom-fieldds-documents';
 import { useTranslation } from 'react-i18next';
-
-interface UseCustomFieldMutationsProps {
-  selectedFileId?: string;
-}
+import type { UseCustomFieldMutationsProps } from '@/types/use-custom-field-mutations';
+export type { UseCustomFieldMutationsProps } from '@/types/use-custom-field-mutations';
 
 export function useCustomFieldMutations({ selectedFileId }: UseCustomFieldMutationsProps) {
   const queryClient = useQueryClient();

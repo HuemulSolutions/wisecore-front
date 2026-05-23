@@ -11,6 +11,49 @@ export type { ImperativePanelHandle }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * Configuration for an optional header or footer section within a column.
+ */
+export interface HuemulColumnSection {
+  /** Content to render inside this section. */
+  content: React.ReactNode
+  /** Controls section visibility. Defaults to `true`. */
+  show?: boolean
+  /**
+   * When `true`, this section becomes a `ResizablePanel` separated from the
+   * adjacent content by a drag handle.
+   * When `false` (default) it is a fixed-height strip.
+   */
+  resizable?: boolean
+  /**
+   * Initial size as a percentage (0–100).
+   * Only used when `resizable` is `true`.
+   */
+  defaultSize?: number
+  /** Minimum size constraint (%). Only used when `resizable` is `true`. */
+  minSize?: number
+  /** Maximum size constraint (%). Only used when `resizable` is `true`. */
+  maxSize?: number
+  /**
+   * When `true`, the panel can collapse to `collapsedSize` (default `0`).
+   * Only used when `resizable` is `true`.
+   */
+  collapsible?: boolean
+  /** Size (%) the panel snaps to when collapsed. Defaults to `0`. */
+  collapsedSize?: number
+  /** Called when the panel collapses. */
+  onCollapse?: () => void
+  /** Called when the panel expands. */
+  onExpand?: () => void
+  /**
+   * Imperative ref — lets you call `ref.current.collapse()` / `expand()`.
+   * Only used when `resizable` is `true`.
+   */
+  panelRef?: React.RefObject<ImperativePanelHandle | null>
+  /** Optional className forwarded to the section wrapper. */
+  className?: string
+}
+
 export interface HuemulPageLayoutColumn {
   /** Content to render inside this column. */
   content: React.ReactNode
@@ -56,6 +99,10 @@ export interface HuemulPageLayoutColumn {
   resizable?: boolean
   /** Optional className forwarded to the ResizablePanel. */
   className?: string
+  /** Optional header section rendered above the column content. */
+  header?: HuemulColumnSection
+  /** Optional footer section rendered below the column content. */
+  footer?: HuemulColumnSection
 }
 
 export interface HuemulPageLayoutProps {
@@ -123,6 +170,126 @@ function normalise(visible: HuemulPageLayoutColumn[]): (HuemulPageLayoutColumn &
   return visible.map((c) => (c.defaultSize != null ? { ...c, defaultSize: c.defaultSize } : { ...c, defaultSize: each }))
 }
 
+// ─── Column-section helpers ───────────────────────────────────────────────────
+
+/** Returns true if the column has at least one visible header or footer section. */
+function hasColumnSections(col: HuemulPageLayoutColumn): boolean {
+  return (
+    (col.header != null && col.header.show !== false) ||
+    (col.footer != null && col.footer.show !== false)
+  )
+}
+
+/** Renders the inner content of a column, including optional header/footer sections. */
+function renderColumnInner(
+  col: HuemulPageLayoutColumn & { defaultSize: number },
+  withHandle: boolean,
+): React.ReactNode {
+  const showHeader = col.header != null && col.header.show !== false
+  const showFooter = col.footer != null && col.footer.show !== false
+
+  if (!showHeader && !showFooter) {
+    return col.content
+  }
+
+  const header = showHeader ? col.header! : null
+  const footer = showFooter ? col.footer! : null
+  const hasResizableHeader = header?.resizable === true
+  const hasResizableFooter = footer?.resizable === true
+
+  // ── All fixed (no resizable sections) ──────────────────────────────────────
+  if (!hasResizableHeader && !hasResizableFooter) {
+    return (
+      <div className="flex flex-col h-full overflow-hidden">
+        {header && (
+          <div className={cn("shrink-0", header.className)}>
+            {header.content}
+          </div>
+        )}
+        <div className="flex-1 min-h-0 overflow-auto">
+          {col.content}
+        </div>
+        {footer && (
+          <div className={cn("shrink-0", footer.className)}>
+            {footer.content}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── At least one resizable section ─────────────────────────────────────────
+  type SectionEntry = {
+    key: string
+    content: React.ReactNode
+    sec: HuemulColumnSection | null
+    rawSize: number | undefined
+  }
+
+  const entries: SectionEntry[] = []
+  if (hasResizableHeader) entries.push({ key: "header", content: header!.content, sec: header!, rawSize: header!.defaultSize })
+  entries.push({ key: "content", content: col.content, sec: null, rawSize: undefined })
+  if (hasResizableFooter) entries.push({ key: "footer", content: footer!.content, sec: footer!, rawSize: footer!.defaultSize })
+
+  // Normalise sizes within the panel group
+  const specifiedTotal = entries.filter((e) => e.rawSize != null).reduce((s, e) => s + e.rawSize!, 0)
+  const unspecifiedCount = entries.filter((e) => e.rawSize == null).length
+  const eachUnspecified = unspecifiedCount > 0 ? Math.max(0, 100 - specifiedTotal) / unspecifiedCount : 0
+
+  const panelGroup = (
+    <ResizablePanelGroup direction="vertical" className="h-full">
+      {entries.map((entry, i) => {
+        const sec = entry.sec
+        const defaultSize = entry.rawSize != null ? entry.rawSize : eachUnspecified
+        return (
+          <React.Fragment key={entry.key}>
+            {i > 0 && <ResizableHandle withHandle={withHandle} />}
+            <ResizablePanel
+              ref={sec?.panelRef}
+              defaultSize={defaultSize}
+              minSize={sec?.minSize}
+              maxSize={sec?.maxSize}
+              collapsible={sec?.collapsible}
+              collapsedSize={sec?.collapsedSize ?? (sec?.collapsible ? 0 : undefined)}
+              onCollapse={sec?.onCollapse}
+              onExpand={sec?.onExpand}
+              className={cn("overflow-auto", sec?.className)}
+            >
+              {entry.content}
+            </ResizablePanel>
+          </React.Fragment>
+        )
+      })}
+    </ResizablePanelGroup>
+  )
+
+  // Wrap in fixed strips if needed (mixed: some resizable, some fixed)
+  const hasFixedHeader = header != null && !header.resizable
+  const hasFixedFooter = footer != null && !footer.resizable
+
+  if (!hasFixedHeader && !hasFixedFooter) {
+    return panelGroup
+  }
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {hasFixedHeader && (
+        <div className={cn("shrink-0", header!.className)}>
+          {header!.content}
+        </div>
+      )}
+      <div className="flex-1 min-h-0">
+        {panelGroup}
+      </div>
+      {hasFixedFooter && (
+        <div className={cn("shrink-0", footer!.className)}>
+          {footer!.content}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -179,8 +346,14 @@ export function HuemulPageLayout({
       <div className={cn("flex-1 min-h-0 overflow-hidden", bodyClassName)}>
         {normalizedColumns.length === 0 ? null : normalizedColumns.length === 1 ? (
           /* Single column — no resizable overhead */
-          <div className={cn("h-full overflow-auto", normalizedColumns[0].className)}>
-            {normalizedColumns[0].content}
+          <div className={cn(
+            "h-full",
+            hasColumnSections(normalizedColumns[0])
+              ? "overflow-hidden"
+              : "overflow-auto flex flex-col",
+            normalizedColumns[0].className,
+          )}>
+            {renderColumnInner(normalizedColumns[0], withHandle)}
           </div>
         ) : (
           <ResizablePanelGroup direction={direction} className="h-full">
@@ -204,9 +377,14 @@ export function HuemulPageLayout({
                   collapsedSize={col.collapsedSize ?? (col.collapsible ? 0 : undefined)}
                   onCollapse={col.onCollapse}
                   onExpand={col.onExpand}
-                  className={cn("overflow-auto", col.className)}
+                  className={cn(
+                    hasColumnSections(col)
+                      ? "overflow-hidden"
+                      : "overflow-auto",
+                    col.className,
+                  )}
                 >
-                  {col.content}
+                  {renderColumnInner(col, withHandle)}
                 </ResizablePanel>
               </React.Fragment>
             ))}

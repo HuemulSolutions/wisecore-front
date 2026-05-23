@@ -7,17 +7,11 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
 import { ExternalFunctionalityForm } from "./external-functionality-form"
 import type {
-  ExternalFunctionality,
   UpdateExternalFunctionalityRequest,
 } from "@/types/external-functionalities"
+import type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionality-edit-dialog"
 
-interface ExternalFunctionalityEditDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  organizationId: string
-  systemId: string
-  functionality: ExternalFunctionality | null
-}
+export type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionality-edit-dialog"
 
 export function ExternalFunctionalityEditDialog({
   open,

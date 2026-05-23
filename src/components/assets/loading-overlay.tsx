@@ -1,10 +1,6 @@
+import type { LoadingOverlayProps } from "@/types/loading-overlay";
 import { Folder as FolderIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
-interface LoadingOverlayProps {
-  message?: string;
-  subtitle?: string;
-}
 
 /**
  * Loading overlay component that displays a centered loading animation

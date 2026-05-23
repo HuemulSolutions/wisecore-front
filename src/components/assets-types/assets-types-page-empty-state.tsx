@@ -1,12 +1,10 @@
 import { Package } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import type { AssetTypePageEmptyStateProps } from "@/types/assets-types-page-empty-state"
 
-interface EmptyStateProps {
-  type: 'access-denied' | 'error'
-  message?: string
-}
+export type { AssetTypePageEmptyStateProps } from "@/types/assets-types-page-empty-state"
 
-export default function AssetTypePageEmptyState({ type, message }: EmptyStateProps) {
+export default function AssetTypePageEmptyState({ type, message }: AssetTypePageEmptyStateProps) {
   const { t } = useTranslation(['asset-types', 'common'])
 
   if (type === 'access-denied') {

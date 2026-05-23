@@ -6,16 +6,9 @@ import { getAiSuggestion } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import type { AiSuggestionFeedbackProps } from '@/types/ai-suggestion-feedback';
 
-interface AiSuggestionFeedbackProps {
-  sectionExecutionId: string;
-  onCompleted: (content: string) => void;
-  onFailed?: () => void;
-  onDismiss?: () => void;
-  /** Called when the user clicks "View Suggestion" in the completed state. */
-  onViewSuggestion?: (content: string) => void;
-  className?: string;
-}
+export type { AiSuggestionFeedbackProps } from '@/types/ai-suggestion-feedback';
 
 export function AiSuggestionFeedback({
   sectionExecutionId,

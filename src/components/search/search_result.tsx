@@ -4,23 +4,8 @@ import { FileText, ChevronDown, ChevronUp, Play, Hash } from "lucide-react";
 import { useState } from "react";
 import Markdown from "@/components/ui/markdown";
 import { ExecutionInfoSheet } from "@/components/execution/execution-info-sheet";
-
-interface SearchResultSection {
-  section_execution_id: string;
-  section_execution_name: string;
-  content: string;
-}
-
-interface SearchResultDocument {
-  document_id: string;
-  execution_id: string;
-  document_name: string;
-  sections: SearchResultSection[];
-}
-
-interface SearchResultProps {
-  documents: SearchResultDocument[];
-}
+import type { SearchResultProps } from '@/types/search-result';
+export type { SearchResultProps } from '@/types/search-result';
 
 export default function SearchResult({
   documents = [],

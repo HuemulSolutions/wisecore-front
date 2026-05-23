@@ -1,14 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
-
-interface DeleteSectionExecutionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  sectionExecution: {
-    name?: string;
-  };
-  onAction: () => Promise<void>;
-}
+import type { DeleteSectionExecutionDialogProps } from "@/types/assets-delete-section-execution-dialog";
+export type { DeleteSectionExecutionDialogProps } from "@/types/assets-delete-section-execution-dialog";
 
 export function DeleteSectionExecutionDialog({
   open,
