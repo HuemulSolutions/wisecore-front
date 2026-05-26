@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { SectionForm } from "@/components/sections/sections-form";
 import type { AddSectionExecutionRequest } from "@/services/section_execution";
-import type { AddSectionExecutionFormProps } from '@/types/sections-execution-add-form';
-export type { AddSectionExecutionFormProps } from '@/types/sections-execution-add-form';
+import type { AddSectionExecutionFormProps } from '@/types/sections';
+export type { AddSectionExecutionFormProps } from '@/types/sections';
 
 export function AddSectionExecutionForm({ 
   onSubmit, 

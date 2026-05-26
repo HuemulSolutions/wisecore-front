@@ -4,8 +4,8 @@ import { Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
-import type { RenameVersionDialogProps } from '@/types/assets-rename-version-dialog';
-export type { RenameVersionDialogProps } from '@/types/assets-rename-version-dialog';
+import type { RenameVersionDialogProps } from '@/types/assets';
+export type { RenameVersionDialogProps } from '@/types/assets';
 
 export function RenameVersionDialog({
   open,

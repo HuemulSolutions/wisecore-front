@@ -8,10 +8,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableDialog } from "@/components/ui/reusable-dialog";
-import type { CustomFieldDocument } from "@/types/custom-fields-documents";
-import type { CustomFieldsListProps } from "@/types/assets-custom-fields-list";
-export type { CustomFieldsListProps } from "@/types/assets-custom-fields-list";
+import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import type { CustomFieldDocument } from '@/types/custom-fields';
+import type { CustomFieldsListProps } from '@/types/assets';
+export type { CustomFieldsListProps } from '@/types/assets';
 import { useTranslation } from "react-i18next";
 
 export function CustomFieldsList({ 
@@ -313,12 +313,13 @@ export function CustomFieldsList({
       </div>
 
       {/* Image preview dialog */}
-      <ReusableDialog
+      <HuemulDialog
         open={imageDialogOpen}
         onOpenChange={setImageDialogOpen}
         title={selectedImage?.name || t('customFieldsList.imagePreview')}
-        maxWidth="2xl"
-        maxHeight="90vh"
+        maxWidth="sm:max-w-2xl"
+        maxHeight="max-h-[90vh]"
+        showFooter={false}
       >
         <div className="flex justify-center">
           {selectedImage && (
@@ -329,7 +330,7 @@ export function CustomFieldsList({
             />
           )}
         </div>
-      </ReusableDialog>
+      </HuemulDialog>
     </div>
   );
 }

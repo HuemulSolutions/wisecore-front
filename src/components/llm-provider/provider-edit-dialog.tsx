@@ -3,9 +3,8 @@ import { Edit } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { CreateLLMProviderRequest } from "@/types/llm-provider"
-import type { EditProviderDialogProps } from "@/types/provider-edit-dialog"
-export type { EditProviderDialogProps } from "@/types/provider-edit-dialog"
+import type { CreateLLMProviderRequest, EditProviderDialogProps } from "@/types/llm-provider"
+export type { EditProviderDialogProps } from "@/types/llm-provider"
 
 export function EditProviderDialog({
   open,

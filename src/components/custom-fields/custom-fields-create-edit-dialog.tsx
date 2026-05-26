@@ -7,9 +7,9 @@ import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form
 import { useTranslation } from "react-i18next"
 
 import { useCustomFieldDataTypes } from "@/hooks/useCustomFields"
-import type { CreateEditCustomFieldDialogProps } from "@/types/custom-fields-create-edit-dialog"
+import type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
-export type { CreateEditCustomFieldDialogProps } from "@/types/custom-fields-create-edit-dialog"
+export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
 export function CreateEditCustomFieldDialog({
   open,

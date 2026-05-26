@@ -9,7 +9,7 @@ import type {
   CustomFieldDocument,
   CreateCustomFieldDocumentRequest,
   UpdateCustomFieldDocumentRequest,
-} from "@/types/custom-fields-documents";
+} from '@/types/custom-fields';
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {

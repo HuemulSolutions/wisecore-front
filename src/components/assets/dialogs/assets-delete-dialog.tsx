@@ -1,5 +1,5 @@
 import { memo } from "react"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import type { DeleteDocumentDialogProps } from "@/types/assets"
 import { useTranslation } from "react-i18next"
 
@@ -8,19 +8,17 @@ export const DeleteDocumentDialog = memo(function DeleteDocumentDialog({
   onOpenChange,
   documentName,
   onConfirm,
-  isDeleting = false,
 }: DeleteDocumentDialogProps) {
   const { t } = useTranslation(["assets", "common"]);
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
       title={t('deleteDocument.title')}
       description={t('deleteDocument.description', { name: documentName })}
-      onConfirm={onConfirm}
-      confirmLabel={t('common:delete')}
-      isProcessing={isDeleting}
-      variant="destructive"
+      onAction={async () => { onConfirm(); }}
+      actionLabel={t('common:delete')}
+      actionVariant="destructive"
     />
   )
 })

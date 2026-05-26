@@ -2,8 +2,8 @@ import { FileStack, RefreshCw, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Card } from "@/components/ui/card"
-import type { AssetTypeContentEmptyStateProps } from "@/types/assets-types-content-empty-state"
-export type { AssetTypeContentEmptyStateProps } from "@/types/assets-types-content-empty-state"
+import type { AssetTypeContentEmptyStateProps } from '@/types/assets'
+export type { AssetTypeContentEmptyStateProps } from '@/types/assets'
 
 export function AssetTypeContentEmptyState({ 
   type, 

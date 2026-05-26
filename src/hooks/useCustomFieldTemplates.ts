@@ -8,7 +8,7 @@ import {
   deleteCustomFieldTemplate,
   uploadCustomFieldTemplateValueBlob,
 } from "@/services/custom-fields-templates"
-import type { UpdateCustomFieldTemplateRequest } from "@/types/custom-fields-templates"
+import type { UpdateCustomFieldTemplateRequest } from '@/types/custom-fields'
 import { useOrganization } from "@/contexts/organization-context"
 
 // Query keys

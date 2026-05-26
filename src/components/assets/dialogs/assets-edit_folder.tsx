@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { Edit3 } from "lucide-react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { editFolder } from "@/services/folders"
 import { toast } from "sonner"
 import { useOrganizationId } from "@/hooks/use-organization"
@@ -46,9 +46,7 @@ export default function EditFolder({
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSubmit = () => {
     if (!name.trim()) {
       toast.error(t('editFolder.emptyNameError'))
       return
@@ -64,32 +62,31 @@ export default function EditFolder({
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
       title={t('editFolder.title')}
       description={t('editFolder.description', { name: currentName })}
       icon={Edit3}
-      maxWidth="md"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={() => onOpenChange(false)}
-      submitLabel={t('editFolder.submitLabel')}
+      maxWidth="sm:max-w-md"
+      maxHeight="max-h-[90vh]"
       cancelLabel={t('common:cancel')}
-      isSubmitting={editFolderMutation.isPending}
-      isValid={!!name.trim()}
-      formId="edit-folder-form"
+      saveAction={{
+        label: t('editFolder.submitLabel'),
+        onClick: handleSubmit,
+        disabled: !name.trim(),
+        loading: editFolderMutation.isPending,
+        closeOnSuccess: false,
+      }}
     >
-      <form id="edit-folder-form" onSubmit={handleSubmit}>
-        <NameDescriptionFields
-          name={name}
-          onNameChange={setName}
-          nameLabel={t('editFolder.nameLabel')}
-          namePlaceholder={t('editFolder.namePlaceholder')}
-          disabled={editFolderMutation.isPending}
-          includeDescription={false}
-        />
-      </form>
-    </ReusableDialog>
+      <NameDescriptionFields
+        name={name}
+        onNameChange={setName}
+        nameLabel={t('editFolder.nameLabel')}
+        namePlaceholder={t('editFolder.namePlaceholder')}
+        disabled={editFolderMutation.isPending}
+        includeDescription={false}
+      />
+    </HuemulDialog>
   )
 }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { type LucideIcon, Loader2, AlertTriangle, Check } from "lucide-react";
+import { Loader2, AlertTriangle, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,49 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type ActionState = "idle" | "loading" | "success";
-
-export interface HuemulAlertDialogProps {
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the dialog requests to open or close */
-  onOpenChange: (open: boolean) => void;
-
-  // ── Header ──────────────────────────────────────────────────────────────
-  /** Dialog title (default: "Are you sure?") */
-  title?: string;
-  /** Optional description below the title */
-  description?: React.ReactNode;
-  /** Optional icon rendered to the left of the title (default: AlertTriangle) */
-  icon?: LucideIcon;
-  /** Icon className overrides (e.g. size, color) */
-  iconClassName?: string;
-
-  // ── Action ──────────────────────────────────────────────────────────────
-  /** Label for the destructive action button (default: "Delete") */
-  actionLabel?: string;
-  /** Async handler executed when the action button is clicked */
-  onAction: () => Promise<void>;
-  /** Button variant for the action button (default: "destructive") */
-  actionVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  /** Optional icon for the action button */
-  actionIcon?: LucideIcon;
-
-  // ── Cancel ──────────────────────────────────────────────────────────────
-  /** Label for the cancel button (default: "Cancel") */
-  cancelLabel?: string;
-
-  // ── Timing ──────────────────────────────────────────────────────────────
-  /** Delay in ms to keep the success state visible before closing (default: 600) */
-  successDelay?: number;
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  /** Additional className on AlertDialogContent */
-  className?: string;
-}
+import type { ActionState, HuemulAlertDialogProps } from "@/types/huemul";
+export type { HuemulAlertDialogProps } from "@/types/huemul";
 
 // ── Component ──────────────────────────────────────────────────────────────
 

@@ -18,8 +18,8 @@ import { TemplateEmptyState } from "./templates-empty-state";
 import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { TemplateDocxList } from "./templates-docx-list";
-import type { TemplateContentProps } from '@/types/templates-content';
-export type { TemplateContentProps } from '@/types/templates-content';
+import type { TemplateContentProps } from '@/types/templates';
+export type { TemplateContentProps } from '@/types/templates';
 
 export function TemplateContent({ 
   selectedTemplate, 

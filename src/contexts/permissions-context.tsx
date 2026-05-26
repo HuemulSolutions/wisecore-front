@@ -1,28 +1,10 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import { 
   getCurrentUserInfo,
   type Permission 
 } from '@/lib/jwt-utils';
-
-export interface PermissionsContextType {
-  // Estado actual
-  permissions: string[];
-  roles: string[];
-  isRootAdmin: boolean;
-  isOrgAdmin: boolean;
-  isLoading: boolean;
-  
-  // Funciones de verificación
-  hasPermission: (permission: Permission | string) => boolean;
-  hasAnyPermission: (permissions: (Permission | string)[]) => boolean;
-  hasAllPermissions: (permissions: (Permission | string)[]) => boolean;
-  hasRole: (roleId: string) => boolean;
-  hasAnyRole: (roleIds: string[]) => boolean;
-  
-  // Funciones de utilidad
-  refreshPermissions: (forceClean?: boolean) => void;
-}
+import type { PermissionsContextType, PermissionsProviderProps } from '@/types/permissions-context'
+export type { PermissionsContextType }
 
 const PermissionsContext = createContext<PermissionsContextType | undefined>(undefined);
 
@@ -33,10 +15,6 @@ export const usePermissions = () => {
   }
   return context;
 };
-
-interface PermissionsProviderProps {
-  children: ReactNode;
-}
 
 export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   const [permissions, setPermissions] = useState<string[]>([]);

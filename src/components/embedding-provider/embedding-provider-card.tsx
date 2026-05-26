@@ -6,9 +6,9 @@ import { CheckCircle, Circle, ChevronUp, ChevronDown, Settings, Loader2, Zap } f
 import { ProviderActions } from "@/components/llm-provider/provider-actions"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import type { EmbeddingProviderCardProps } from "@/types/embedding-provider-card"
+import type { EmbeddingProviderCardProps } from "@/types/embedding-provider"
 
-export type { EmbeddingProviderCardData, EmbeddingProviderCardProps } from "@/types/embedding-provider-card"
+export type { EmbeddingProviderCardData, EmbeddingProviderCardProps } from "@/types/embedding-provider"
 
 export function EmbeddingProviderCard({
   provider,

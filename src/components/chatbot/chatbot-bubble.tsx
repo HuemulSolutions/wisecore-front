@@ -1,10 +1,9 @@
 import Markdown from '@/components/ui/markdown';
 import { AlertCircle, Loader2, FileText, FolderClosed, Zap, Sparkles, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { WorkingContextItem } from '@/types/chatbot';
-import type { MessageBubbleProps } from '@/types/chatbot-bubble';
+import type { WorkingContextItem, MessageBubbleProps } from '@/types/chatbot';
 
-export type { MessageBubbleProps } from '@/types/chatbot-bubble';
+export type { MessageBubbleProps } from '@/types/chatbot';
 
 // ========================================
 // Typing indicator (animated dots)

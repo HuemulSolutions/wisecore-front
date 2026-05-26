@@ -1,59 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { PropsWithChildren } from 'react';
 import { useChatbot } from '@/hooks/use-chatbot';
-import type { ChatMessage, ConversationReference, WorkingContextItem } from '@/types/chatbot';
-
-export type ChatView = 'chat' | 'history';
-
-export interface ChatbotContextValue {
-  references?: ConversationReference[];
-  setReferences: (references?: ConversationReference[]) => void;
-  registerReferenceSource: (sourceKey: string, references?: ConversationReference[], priority?: number) => void;
-  unregisterReferenceSource: (sourceKey: string) => void;
-  /** User-managed working context items (drag-drop, badge, etc.) */
-  workingContextItems: WorkingContextItem[];
-  addWorkingContextItem: (item: WorkingContextItem) => void;
-  removeWorkingContextItem: (type: string, id: string) => void;
-  clearWorkingContextItems: () => void;
-  /** Current page context item (for the "add to context" badge) */
-  currentPageContext: WorkingContextItem | null;
-  setCurrentPageContext: (item: WorkingContextItem | null) => void;
-  isOpen: boolean;
-  setIsOpen: (isOpen: boolean) => void;
-  isExpanded: boolean;
-  setIsExpanded: (isExpanded: boolean) => void;
-  inputValue: string;
-  setInputValue: (value: string) => void;
-  view: ChatView;
-  setView: (view: ChatView) => void;
-  selectedLlmId?: string;
-  setSelectedLlmId: (llmId?: string) => void;
-  conversationId: string | null;
-  conversationTitle: string | null;
-  setConversationTitle: (title: string | null) => void;
-  messages: ChatMessage[];
-  assistantMessage: ChatMessage | null;
-  isTyping: boolean;
-  sendMessage: (content: string) => void;
-  startNewConversation: () => void;
-  loadConversation: (conversationId: string) => void;
-  isSending: boolean;
-  isLoadingConversation: boolean;
-}
-
-interface ChatbotProviderProps extends PropsWithChildren {
-  executionId?: string;
-  documentId?: string;
-  initialReferences?: ConversationReference[];
-}
+import type { ConversationReference, WorkingContextItem } from '@/types/chatbot';
+import type {
+  ChatView,
+  ChatbotContextValue,
+  ChatbotProviderProps,
+  ReferenceSourceState,
+  UseChatbotScreenContextOptions,
+} from '@/types/chatbot'
+export type { ChatView, ChatbotContextValue }
 
 const ChatbotContext = createContext<ChatbotContextValue | undefined>(undefined);
-
-interface ReferenceSourceState {
-  references?: ConversationReference[];
-  priority: number;
-  order: number;
-}
 
 function buildReferences(
   executionId?: string,
@@ -235,13 +192,6 @@ export function useChatbotContext() {
 
 export function useOptionalChatbotContext() {
   return useContext(ChatbotContext);
-}
-
-interface UseChatbotScreenContextOptions {
-  sourceKey: string;
-  references?: ConversationReference[];
-  enabled?: boolean;
-  priority?: number;
 }
 
 export function useChatbotScreenContext({

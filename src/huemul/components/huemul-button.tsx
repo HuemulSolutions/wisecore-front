@@ -1,72 +1,18 @@
 import * as React from "react";
-import { type LucideIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { type VariantProps } from "class-variance-authority";
 import { lifecycleAllows } from "@/hooks/useDocumentAccess";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import type { LifecyclePermissions } from "@/types/assets";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulButtonProps
-  extends Omit<React.ComponentProps<"button">, "onClick">,
-    VariantProps<typeof buttonVariants> {
-  /** Button text — omit for icon-only buttons */
-  label?: string;
-  /** Lucide icon component */
-  icon?: LucideIcon;
-  /** Icon placement relative to the label (default: "left") */
-  iconPosition?: "left" | "right";
-  /** Additional className applied to the icon */
-  iconClassName?: string;
-
-  // ── Loading ─────────────────────────────────────────────────────────────
-  /**
-   * Controlled loading state.
-   * When true the button shows a spinner and is disabled.
-   * If `onClick` returns a Promise, loading is managed automatically.
-   */
-  loading?: boolean;
-
-  // ── Async click ─────────────────────────────────────────────────────────
-  /**
-   * Click handler — can return a Promise.
-   * While the promise is pending the button shows a spinner automatically.
-   */
-  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
-
-  // ── Tooltip ─────────────────────────────────────────────────────────────
-  /** Tooltip text — useful for icon-only buttons */
-  tooltip?: string;
-  /** Tooltip placement (default: "top") */
-  tooltipSide?: "top" | "right" | "bottom" | "left";
-
-  // ── Slot ────────────────────────────────────────────────────────────────
-  /** Render as child (Radix Slot) */
-  asChild?: boolean;
-
-  // ── Permission guard ────────────────────────────────────────────────────
-  /** Required access level(s) to gate this button (e.g. "edit", ["edit", "create"]) */
-  requiredAccess?: string | string[];
-  /** When true ALL required access levels must be present (default: false = any) */
-  requireAll?: boolean;
-  /** Also verify the user's global CRUD permissions for the given resource */
-  checkGlobalPermissions?: boolean;
-  /** Resource name for global permission check (e.g. "asset", "folder") */
-  resource?: string;
-  /** Lifecycle permissions from the document content — when provided, the button is also gated by these */
-  lifecyclePermissions?: LifecyclePermissions;
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
+import type { HuemulButtonProps } from "@/types/huemul";
+export type { HuemulButtonProps } from "@/types/huemul";
 
 export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProps>(
   function HuemulButton(

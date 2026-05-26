@@ -4,19 +4,8 @@ import { PageHeader } from "@/huemul/components/huemul-page-header"
 import ProtectedComponent from "@/components/protected-component"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-interface UserPageHeaderProps {
-  userCount: number
-  onCreateUser: () => void
-  onRefresh: () => void
-  isLoading: boolean
-  hasError?: boolean
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  filterStatus: string
-  onStatusFilterChange: (value: string) => void
-  canCreate?: boolean
-}
+import type { UserPageHeaderProps } from '@/types/users';
+export type { UserPageHeaderProps } from '@/types/users';
 
 export default function UserPageHeader({ 
   userCount, 

@@ -20,8 +20,8 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { handleApiError } from "@/lib/error-utils";
-import type { ExecuteSheetProps } from "@/types/assets-execute-sheet";
-export type { ExecuteSheetProps } from "@/types/assets-execute-sheet";
+import type { ExecuteSheetProps } from '@/types/assets';
+export type { ExecuteSheetProps } from '@/types/assets';
 
 export function ExecuteSheet({
   selectedFile,

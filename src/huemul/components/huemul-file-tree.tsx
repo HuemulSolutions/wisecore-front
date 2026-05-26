@@ -1,7 +1,9 @@
 "use client"
 
 import type React from "react"
-import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from "@/types/huemul-tree"
+import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from "@/types/huemul"
+import type { HuemulFileTreeProps, HuemulFileTreeRef } from "@/types/huemul"
+export type { HuemulFileTreeProps, HuemulFileTreeRef }
 
 import { useState, useCallback, useEffect, useImperativeHandle, forwardRef, useRef } from "react"
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, Plus, RefreshCw, MoreVertical, Trash2, Share } from "lucide-react"
@@ -18,52 +20,6 @@ import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 // ─── Default labels ───────────────────────────────────────────────────────────
-
-// ─── Props & Ref ──────────────────────────────────────────────────────────────
-export interface HuemulFileTreeProps {
-  onLoadChildren?: (folderId: string | null) => Promise<HuemulTreeNode[]>
-  onCreateFile?: (parentId: string | null, name: string) => Promise<void>
-  onCreateFolder?: (parentId: string | null, name: string) => Promise<void>
-  onDelete?: (nodeId: string, nodeType: string) => Promise<void>
-  onShare?: (nodeId: string) => Promise<void>
-  onMoveFolder?: (folderId: string, parentFolderId: string | null) => Promise<void>
-  onMoveFile?: (documentId: string, folderId: string | null) => Promise<void>
-  onFileClick?: (node: HuemulTreeNode) => void | Promise<void>
-  onFolderClick?: (node: HuemulTreeNode) => void | Promise<void>
-  activeNodeId?: string | null
-  menuActions?: HuemulTreeMenuAction[]
-  showDefaultActions?: {
-    create?: boolean
-    delete?: boolean
-    share?: boolean
-  }
-  customDialogs?: {
-    createFile?: (parentId: string | null, onSuccess: () => void) => React.ReactNode
-    createFolder?: (parentId: string | null, onSuccess: () => void) => React.ReactNode
-    delete?: (nodeId: string, nodeType: string, onSuccess: () => void) => React.ReactNode
-    share?: (nodeId: string, onSuccess: () => void) => React.ReactNode
-  }
-  /** Which `node.type` value is treated as a folder. Defaults to "folder". */
-  folderType?: string
-  /** Custom renderer for leaf (non-folder) node icons. */
-  renderLeafIcon?: (node: HuemulTreeNode) => React.ReactNode
-  /** Custom renderer for folder icons. */
-  renderFolderIcon?: (node: HuemulTreeNode, isExpanded: boolean) => React.ReactNode
-  /** Return extra CSS classes to apply to a node row. */
-  renderNodeClassName?: (node: HuemulTreeNode) => string | undefined
-  /** Always show the menu button instead of only on hover. */
-  alwaysShowMenuActions?: boolean
-  showCreateButtons?: boolean
-  initialFolderId?: string | null
-  showBorder?: boolean
-  showRefreshButton?: boolean
-  minHeight?: string
-  labels?: HuemulFileTreeLabels
-}
-
-export interface HuemulFileTreeRef {
-  refresh: () => Promise<void>
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>(

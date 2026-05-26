@@ -15,8 +15,8 @@ import {
 } from '@/services/executions';
 import { createSectionExecution } from '@/services/section_execution';
 import { useTranslation } from 'react-i18next';
-import type { UseDocumentMutationsProps } from '@/types/use-document-mutations';
-export type { UseDocumentMutationsProps } from '@/types/use-document-mutations';
+import type { UseDocumentMutationsProps } from '@/types/assets';
+export type { UseDocumentMutationsProps } from '@/types/assets';
 
 export function useDocumentMutations({ 
   selectedFileId, 

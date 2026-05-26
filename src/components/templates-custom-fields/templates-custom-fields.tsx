@@ -8,9 +8,9 @@ import { CustomFieldTemplateTable } from "./templates-custom-field-table"
 import { CustomFieldTemplateEmptyState } from "./templates-custom-field-empty-state"
 import { AddCustomFieldTemplateDialog } from "./templates-custom-field-add-dialog"
 import { EditCustomFieldTemplateDialog } from "./templates-edit-custom-field-dialog"
-import type { CustomFieldTemplate } from "@/types/custom-fields-templates"
-import type { TemplateCustomFieldsProps } from '@/types/templates-custom-fields';
-export type { TemplateCustomFieldsProps } from '@/types/templates-custom-fields';
+import type { CustomFieldTemplate } from '@/types/custom-fields'
+import type { TemplateCustomFieldsProps } from '@/types/templates';
+export type { TemplateCustomFieldsProps } from '@/types/templates';
 
 export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)

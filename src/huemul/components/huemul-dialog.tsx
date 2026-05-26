@@ -1,5 +1,5 @@
 import * as React from "react";
-import { type LucideIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,77 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulDialogFooterAction {
-  /** Button label */
-  label: string;
-  /** Click handler — can be async; the button will show a loader until it resolves */
-  onClick?: () => void | Promise<void>;
-  /** Button variant (defaults to "default") */
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  /** Disable the button */
-  disabled?: boolean;
-  /** Show a loading spinner / disable while loading (external control) */
-  loading?: boolean;
-  /** Optional icon to render inside the button */
-  icon?: LucideIcon;
-  /** Auto-close the dialog after a successful async click (default: true for saveAction, false for extraActions) */
-  closeOnSuccess?: boolean;
-}
-
-export interface HuemulDialogProps {
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the dialog requests to open or close */
-  onOpenChange: (open: boolean) => void;
-
-  // ── Header ──────────────────────────────────────────────────────────────
-  /** Dialog title (required) */
-  title: string;
-  /** Optional description below the title */
-  description?: string;
-  /** Optional icon rendered to the left of the title */
-  icon?: LucideIcon;
-  /** Icon className overrides (e.g. size, color) */
-  iconClassName?: string;
-
-  // ── Close button ────────────────────────────────────────────────────────
-  /** Show the X close button in the top-right corner (default: true) */
-  showCloseButton?: boolean;
-
-  // ── Loading ─────────────────────────────────────────────────────────────
-  /** Show a skeleton loader in the body while content is loading (default: false) */
-  bodyLoading?: boolean;
-
-  // ── Footer ──────────────────────────────────────────────────────────────
-  /** Show the sticky footer (default: true) */
-  showFooter?: boolean;
-  /** Show a Cancel button in the footer (default: true when footer visible) */
-  showCancelButton?: boolean;
-  /** Label for the cancel button (default: "Cancel") */
-  cancelLabel?: string;
-  /** Primary save / confirm action */
-  saveAction?: HuemulDialogFooterAction;
-  /** Extra action buttons rendered between cancel and save */
-  extraActions?: HuemulDialogFooterAction[];
-
-  /** Delay in ms before auto-closing the dialog after a successful async action (default: 500) */
-  closeDelay?: number;
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  /** Max-width class (default: "sm:max-w-lg") */
-  maxWidth?: string;
-  /** Max-height class (default: "max-h-[85vh]") */
-  maxHeight?: string;
-  /** Additional className on DialogContent */
-  className?: string;
-  /** Body content */
-  children: React.ReactNode;
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
+import type { HuemulDialogFooterAction, HuemulDialogProps } from "@/types/huemul";
+export type { HuemulDialogFooterAction, HuemulDialogProps } from "@/types/huemul";
 
 export function HuemulDialog({
   open,
@@ -237,7 +168,7 @@ export function HuemulDialog({
                   key={action.label}
                   variant={action.variant ?? "secondary"}
                   disabled={action.disabled || isLoading}
-                  className="hover:cursor-pointer"
+                  className={cn("hover:cursor-pointer", action.className)}
                   onClick={() =>
                     handleActionClick(
                       action,
@@ -260,7 +191,7 @@ export function HuemulDialog({
               <Button
                 variant={saveAction.variant ?? "default"}
                 disabled={saveAction.disabled || saveAction.loading || saveLoading}
-                className="hover:cursor-pointer"
+                className={cn("hover:cursor-pointer", saveAction.className)}
                 onClick={() =>
                   handleActionClick(saveAction, setSaveLoading, true)
                 }

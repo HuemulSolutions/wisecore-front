@@ -16,8 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
-import type { SectionFormProps } from '@/types/sections-form';
-export type { SectionFormProps } from '@/types/sections-form';
+import type { SectionFormProps } from '@/types/sections';
+export type { SectionFormProps } from '@/types/sections';
 
 export function SectionForm({ 
   mode,

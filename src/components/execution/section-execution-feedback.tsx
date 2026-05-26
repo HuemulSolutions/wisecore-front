@@ -7,9 +7,9 @@ import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { SectionExecutionFeedbackProps } from '@/types/section-execution-feedback';
+import type { SectionExecutionFeedbackProps } from '@/types/sections';
 
-export type { SectionExecutionFeedbackProps } from '@/types/section-execution-feedback';
+export type { SectionExecutionFeedbackProps } from '@/types/sections';
 
 export function SectionExecutionFeedback({
   executionId,

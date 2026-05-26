@@ -7,9 +7,9 @@ import { HuemulField } from "@/huemul/components/huemul-field";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
 import { Plus, Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/error-utils";
-import type { CreateDocumentTypeProps } from '@/types/assets-types-create'
+import type { CreateDocumentTypeProps } from '@/types/assets'
 
-export type { CreateDocumentTypeProps } from '@/types/assets-types-create'
+export type { CreateDocumentTypeProps } from '@/types/assets'
 
 export default function CreateDocumentType({ 
   trigger, 

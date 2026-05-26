@@ -5,8 +5,8 @@ import { Plus } from "lucide-react"
 import { usePermissions, useRoleMutations } from "@/hooks/useRbac"
 import PermissionSelector from "./roles-permission-selector"
 import RoleFormFields from "./roles-form-fields"
-import type { CreateRoleSheetProps } from '@/types/roles-create-sheet'
-export type { CreateRoleSheetProps } from '@/types/roles-create-sheet'
+import type { CreateRoleSheetProps } from '@/types/roles'
+export type { CreateRoleSheetProps } from '@/types/roles'
 
 export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])

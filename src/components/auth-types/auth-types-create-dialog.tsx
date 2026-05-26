@@ -7,9 +7,9 @@ import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useAuthTypeMutations, useAuthTypeTypes } from "@/hooks/useAuthTypes"
 import type { CreateAuthTypeRequest } from "@/services/auth-types"
 import { Plus } from "lucide-react"
-import type { CreateAuthTypeDialogProps } from "@/types/auth-types-create-dialog"
+import type { CreateAuthTypeDialogProps } from '@/types/auth-types'
 
-export type { CreateAuthTypeDialogProps } from "@/types/auth-types-create-dialog"
+export type { CreateAuthTypeDialogProps } from '@/types/auth-types'
 
 export function CreateAuthTypeDialog({ open, onOpenChange }: CreateAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])

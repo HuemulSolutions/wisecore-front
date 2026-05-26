@@ -17,7 +17,7 @@ import { useDocumentTypes } from '@/hooks/useDocumentTypes';
 import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
-import type { Execution, ExecutionLifecycleState } from '@/types/executions';
+import type { Execution, ExecutionLifecycleState } from '@/types/execution';
 import { ApiError } from '@/types/api-error';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
 

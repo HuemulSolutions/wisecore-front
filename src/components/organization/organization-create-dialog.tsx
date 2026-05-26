@@ -3,8 +3,8 @@ import { Plus } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
-import type { CreateOrganizationDialogProps } from '@/types/organization-create-dialog';
-export type { CreateOrganizationDialogProps } from '@/types/organization-create-dialog';
+import type { CreateOrganizationDialogProps } from '@/types/organizations';
+export type { CreateOrganizationDialogProps } from '@/types/organizations';
 
 export function CreateOrganizationDialog({
   open,

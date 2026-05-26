@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import type { DeleteSectionDialogProps } from "@/types/assets-delete-section-dialog"
-export type { DeleteSectionDialogProps } from "@/types/assets-delete-section-dialog"
+import type { DeleteSectionDialogProps } from '@/types/assets'
+export type { DeleteSectionDialogProps } from '@/types/assets'
 
 export function DeleteSectionDialog({
   open,

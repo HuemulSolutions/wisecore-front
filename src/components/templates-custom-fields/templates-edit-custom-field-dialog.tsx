@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
-import { Button } from "@/components/ui/button"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,9 +11,9 @@ import { Loader2, Edit2, FileEdit } from "lucide-react"
 import { useCustomFieldTemplateSources } from "@/hooks/useCustomFieldTemplates"
 import { uploadCustomFieldTemplateValueBlob } from "@/services/custom-fields-templates"
 import { useOrganization } from "@/contexts/organization-context"
-import type { CustomFieldTemplate } from "@/types/custom-fields-templates";
-import type { EditCustomFieldTemplateDialogProps } from '@/types/templates-edit-custom-field-dialog';
-export type { EditCustomFieldTemplateDialogProps } from '@/types/templates-edit-custom-field-dialog';
+import type { CustomFieldTemplate } from '@/types/custom-fields';
+import type { EditCustomFieldTemplateDialogProps } from '@/types/templates';
+export type { EditCustomFieldTemplateDialogProps } from '@/types/templates';
 
 export function EditCustomFieldTemplateDialog({
   isOpen,
@@ -318,32 +317,22 @@ export function EditCustomFieldTemplateDialog({
       }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={isOpen}
       onOpenChange={closeDialog}
       title={dialogConfig.title}
       description={dialogConfig.description}
       icon={dialogConfig.icon}
-      maxWidth="lg"
-      maxHeight="90vh"
-      footer={
-        <>
-          <Button 
-            variant="outline"
-            onClick={closeDialog}
-            className="hover:cursor-pointer"
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={!isValid}
-            className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer"
-          >
-            {dialogConfig.submitLabel}
-          </Button>
-        </>
-      }
+      maxWidth="sm:max-w-lg"
+      maxHeight="max-h-[90vh]"
+      cancelLabel="Cancel"
+      saveAction={{
+        label: dialogConfig.submitLabel,
+        onClick: handleSubmit,
+        disabled: !isValid,
+        closeOnSuccess: false,
+        className: "bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer",
+      }}
     >
       <div className="space-y-6">
         {/* Custom Field Info (Read-only) */}
@@ -453,6 +442,6 @@ export function EditCustomFieldTemplateDialog({
             </div>
           )}
         </div>
-    </ReusableDialog>
+    </HuemulDialog>
   )
 }

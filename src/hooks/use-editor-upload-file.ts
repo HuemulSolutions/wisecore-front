@@ -2,14 +2,8 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/organization-context';
 import { uploadMedia, getMediaDownloadUrl } from '@/services/media';
-
-export interface EditorUploadedFile {
-  url: string;
-  name: string;
-  size: number;
-  type: string;
-  mediaId: string;
-}
+import type { EditorUploadedFile } from '@/types/editor'
+export type { EditorUploadedFile }
 
 /**
  * Hook for uploading files from the Plate rich-text editor.

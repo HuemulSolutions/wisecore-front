@@ -1,32 +1,8 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse } from "@/types/assets";
 
-interface SyncedDocumentResult {
-  document_id: string;
-  document_name: string;
-  sections_created: number;
-  sections_updated: number;
-  sections_deleted: number;
-  custom_sections_preserved: number;
-}
-
-interface SyncDocumentsFromTemplateResponse {
-  template_id: string;
-  template_name: string;
-  synced_documents: SyncedDocumentResult[];
-  total_documents_synced: number;
-  errors: string[];
-}
-
-interface SyncTemplateFromDocumentResponse {
-  template_id: string;
-  template_name: string;
-  document_id: string;
-  document_name: string;
-  sections_created: number;
-  sections_updated: number;
-  sections_deleted: number;
-}
+export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse };
 
 export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
   const url = new URL(`${backendUrl}/documents/`);
@@ -226,18 +202,6 @@ export async function syncTemplateFromDocument(
   return data.data;
 }
 
-export interface ImportDocumentFromFileParams {
-  name: string;
-  description?: string;
-  internal_code?: string;
-  document_type_id: string;
-  section_separator?: 'h1' | 'h2' | 'h3';
-  force_import?: boolean;
-  folder_id?: string | null;
-  file: File;
-  organizationId: string;
-}
-
 export async function importDocumentFromFile(params: ImportDocumentFromFileParams) {
   const url = new URL(`${backendUrl}/documents/import-from-file`);
   url.searchParams.append('name', params.name);
@@ -287,42 +251,6 @@ export async function rejectDocumentLifecycle(documentId: string, organizationId
 }
 
 // --- Pending AI suggestions ---
-
-export interface PendingAiSuggestionSection {
-  section_execution_id: string
-  section_id: string
-  section_name: string
-}
-
-export interface PendingAiSuggestionExecution {
-  execution_id: string
-  execution_name: string
-  pending_ai_suggestion_count: number
-  pending_ai_suggestion_sections: PendingAiSuggestionSection[]
-}
-
-export interface DocumentWithPendingChanges {
-  id: string
-  name: string
-  internal_code: string | null
-  updated_at: string
-  updated_by: string | null
-  document_type: {
-    id: string
-    name: string
-    color: string
-  }
-  template_name: string
-  has_pending_ai_suggestion: boolean
-  pending_ai_suggestion_executions: PendingAiSuggestionExecution[]
-}
-
-export interface PendingChangesResponse {
-  data: DocumentWithPendingChanges[]
-  page: number
-  page_size: number
-  has_next: boolean
-}
 
 export async function getDocumentsWithPendingChanges(
   organizationId: string,

@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog";
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
@@ -39,7 +39,7 @@ import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
-import type { CustomFieldDocument } from "@/types/custom-fields-documents";
+import type { CustomFieldDocument } from '@/types/custom-fields';
 import { AddCustomFieldDocumentDialog } from "@/components/assets-custom-fields/assets-add-custom-field-dialog";
 import { EditCustomFieldAssetDialog } from "@/components/assets-custom-fields/assets-edit-custom-field-dialog";
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
@@ -1646,16 +1646,6 @@ export function AssetContent({
     }
   };
 
-  // Handle delete confirmation
-  const handleDeleteConfirm = () => {
-    if (deleteType === 'document') {
-      handleDeleteDocument();
-    } else if (deleteType === 'execution') {
-      deleteExecutionMutation.mutate();
-    }
-    closeDeleteDialog();
-  };
-
   const handleDeleteDocument = async () => {
     if (selectedFile) {
       try {
@@ -1681,24 +1671,6 @@ export function AssetContent({
         toast.error(t('mutations.documentDeleteFailed'));
       }
     }
-  };
-
-  // Handle clone confirmation
-  const handleCloneConfirm = () => {
-    cloneMutation.mutate();
-    closeCloneDialog();
-  };
-
-  // Handle approve confirmation
-  const handleApproveConfirm = () => {
-    approveMutation.mutate();
-    closeApproveDialog();
-  };
-
-  // Handle disapprove confirmation
-  const handleDisapproveConfirm = () => {
-    disapproveMutation.mutate();
-    closeDisapproveDialog();
   };
 
   // Open edit dialog and prefill values
@@ -3531,9 +3503,9 @@ export function AssetContent({
       />
 
       {/* Delete Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={isDeleteDialogOpen}
-        onOpenChange={(open) => !deleteExecutionMutation.isPending && handleDeleteDialogChange(open)}
+        onOpenChange={handleDeleteDialogChange}
         title={deleteType === 'execution' ? t('content.deleteVersionTitle') : t('content.deleteDocumentTitle')}
         description={
           deleteType === 'execution' ? (
@@ -3548,16 +3520,21 @@ export function AssetContent({
             t('content.deleteDocumentDescription', { name: selectedFile?.name })
           )
         }
-        onConfirm={handleDeleteConfirm}
-        confirmLabel={t('content.deleteConfirm')}
-        isProcessing={deleteExecutionMutation.isPending}
-        variant="destructive"
+        onAction={async () => {
+          if (deleteType === 'document') {
+            await handleDeleteDocument();
+          } else {
+            await deleteExecutionMutation.mutateAsync();
+          }
+        }}
+        actionLabel={t('content.deleteConfirm')}
+        actionVariant="destructive"
       />
 
       {/* Clone Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={isCloneDialogOpen}
-        onOpenChange={(open) => !cloneMutation.isPending && handleCloneDialogChange(open)}
+        onOpenChange={handleCloneDialogChange}
         title={t('content.cloneExecutionTitle')}
         description={
           selectedExecutionInfo ? (
@@ -3566,16 +3543,15 @@ export function AssetContent({
             t('content.cloneExecutionFallback')
           )
         }
-        onConfirm={handleCloneConfirm}
-        confirmLabel={t('content.cloneConfirm')}
-        isProcessing={cloneMutation.isPending}
-        variant="default"
+        onAction={() => cloneMutation.mutateAsync()}
+        actionLabel={t('content.cloneConfirm')}
+        actionVariant="default"
       />
 
       {/* Approve Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={isApproveDialogOpen}
-        onOpenChange={(open) => !approveMutation.isPending && !approvingExecutionId && handleApproveDialogChange(open)}
+        onOpenChange={handleApproveDialogChange}
         title={t('content.approveExecutionTitle')}
         description={
           selectedExecutionInfo ? (
@@ -3584,16 +3560,15 @@ export function AssetContent({
             t('content.approveExecutionFallback')
           )
         }
-        onConfirm={handleApproveConfirm}
-        confirmLabel={t('content.approveConfirm')}
-        isProcessing={approveMutation.isPending || !!approvingExecutionId}
-        variant="default"
+        onAction={() => approveMutation.mutateAsync()}
+        actionLabel={t('content.approveConfirm')}
+        actionVariant="default"
       />
 
       {/* Disapprove Confirmation AlertDialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={isDisapproveDialogOpen}
-        onOpenChange={(open) => !disapproveMutation.isPending && handleDisapproveDialogChange(open)}
+        onOpenChange={handleDisapproveDialogChange}
         title={t('content.disapproveTitle')}
         description={
           selectedExecutionInfo ? (
@@ -3602,10 +3577,9 @@ export function AssetContent({
             t('content.disapproveFallback')
           )
         }
-        onConfirm={handleDisapproveConfirm}
-        confirmLabel={t('content.convertToDraft')}
-        isProcessing={disapproveMutation.isPending}
-        variant="destructive"
+        onAction={() => disapproveMutation.mutateAsync()}
+        actionLabel={t('content.convertToDraft')}
+        actionVariant="destructive"
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
@@ -3756,19 +3730,16 @@ export function AssetContent({
       />
 
       {/* Delete Custom Field Document Confirmation Dialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={isDeleteCustomFieldDocumentDialogOpen}
         onOpenChange={(open) => {
-          if (!open && !isDeletingCustomFieldDocument) {
-            handleCancelDeleteCustomFieldDocument();
-          }
+          if (!open) handleCancelDeleteCustomFieldDocument();
         }}
         title={t('content.deleteCustomFieldTitle')}
         description={t('content.deleteCustomFieldDescription', { name: customFieldDocumentToDelete?.name })}
-        onConfirm={handleConfirmDeleteCustomFieldDocument}
-        confirmLabel={t('content.deleteCustomFieldConfirm')}
-        isProcessing={isDeletingCustomFieldDocument}
-        variant="destructive"
+        onAction={handleConfirmDeleteCustomFieldDocument}
+        actionLabel={t('content.deleteCustomFieldConfirm')}
+        actionVariant="destructive"
       />
 
       {/* Create Template from Document Dialog */}

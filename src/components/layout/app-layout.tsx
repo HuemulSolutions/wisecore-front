@@ -208,6 +208,7 @@ export default function AppLayout() {
     canAccessAssets,
     canAccessTemplates,
     canAccessSectionExecutions,
+    canAccessCanvas,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -370,7 +371,7 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin
+  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
@@ -603,6 +604,13 @@ export default function AppLayout() {
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/custom-fields")} className="hover:cursor-pointer">
                               {t('settings.customFields')}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {(canAccessCanvas || isOrgAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/canvas")} className="hover:cursor-pointer">
+                              {t('settings.canvas')}
                             </Link>
                           </DropdownMenuItem>
                         )}

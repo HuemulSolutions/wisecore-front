@@ -2,8 +2,8 @@ import { Edit2, Trash2, Building2, Shield } from "lucide-react"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
 import i18n from "@/i18n"
-import type { Organization, OrganizationTableProps } from "@/types/organization-table"
-export type { Organization, OrganizationTableProps } from "@/types/organization-table"
+import type { Organization, OrganizationTableProps } from "@/types/organizations"
+export type { Organization, OrganizationTableProps } from "@/types/organizations"
 
 // Helper function for date formatting
 export const formatDate = (dateString: string) => {

@@ -4,11 +4,12 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import type { Tab, ExternalSystemDetailProps } from "@/types/external-systems-detail"
+import type { ExternalSystemDetailProps } from "@/types/external-systems"
+import type { ExternalSystemDetailTab as Tab } from "@/types/external-systems"
 import { ExternalSystemParamsTab } from "./external-system-params-tab"
 import { ExternalSystemSecretsTab } from "./external-system-secrets-tab"
 
-export type { ExternalSystemDetailProps } from "@/types/external-systems-detail"
+export type { ExternalSystemDetailProps } from "@/types/external-systems"
 
 export function ExternalSystemDetail({ system, organizationId = "", onAddFunctionality, onEdit, onDelete }: ExternalSystemDetailProps) {
   const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
@@ -146,3 +147,4 @@ function DetailField({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
+

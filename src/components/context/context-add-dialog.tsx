@@ -7,9 +7,9 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog";
 import { addTextContext } from "@/services/context";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
-import type { AddContextDialogProps } from "@/types/context-add-dialog";
+import type { AddContextDialogProps } from '@/types/context';
 
-export type { AddContextDialogProps } from "@/types/context-add-dialog";
+export type { AddContextDialogProps } from '@/types/context';
 
 export function AddContextDialog({
   documentId,

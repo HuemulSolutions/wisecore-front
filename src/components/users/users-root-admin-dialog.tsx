@@ -3,17 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { Shield } from "lucide-react"
-import { type User } from "@/types/users"
+import type { RootAdminDialogProps } from '@/types/users'
+export type { RootAdminDialogProps } from '@/types/users'
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
 
-interface RootAdminDialogProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onConfirm: (userId: string, isRootAdmin: boolean) => void
-  isLoading?: boolean
-}
 
 export default function RootAdminDialog({
   user,

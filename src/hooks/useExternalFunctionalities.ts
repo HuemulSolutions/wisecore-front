@@ -53,18 +53,8 @@ export const externalFunctionalityQueryKeys = {
     ] as const,
 }
 
-// ─── List query ───────────────────────────────────────────────────────────────
-
-export interface UseExternalFunctionalitiesOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  search?: string
-  httpMethod?: ExternalFunctionalityHttpMethod
-  executionType?: ExternalFunctionalityExecutionType
-  functionalityClass?: ExternalFunctionalityClass
-  objective?: ExternalFunctionalityObjective
-}
+import type { UseExternalFunctionalitiesOptions } from '@/types/external-functionalities'
+export type { UseExternalFunctionalitiesOptions }
 
 export function useExternalFunctionalities(
   organizationId: string,

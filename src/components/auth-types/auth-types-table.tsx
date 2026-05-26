@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next"
 import type { AuthType } from "@/services/auth-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import type { AuthTypesTableProps } from "@/types/auth-types-table"
+import type { AuthTypesTableProps } from '@/types/auth-types'
 
-export type { AuthTypesTableProps } from "@/types/auth-types-table"
+export type { AuthTypesTableProps } from '@/types/auth-types'
 
 export function AuthTypesTable({ 
   authTypes, 

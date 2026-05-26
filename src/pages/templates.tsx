@@ -10,11 +10,7 @@ import { TemplatesSidebar } from "@/components/templates/templates-sidebar";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 
-interface TemplateItem {
-  id: string;
-  name: string;
-  description?: string;
-}
+import type { TemplateItem } from "@/types/templates"
 
 export default function Templates() {
   const queryClient = useQueryClient();

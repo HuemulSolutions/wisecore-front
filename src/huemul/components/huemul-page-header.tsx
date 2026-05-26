@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next"
 import { useState, useEffect, useRef } from "react"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cn } from "@/lib/utils"
-import type { PageHeaderProps } from "@/types/page-header"
+import type { PageHeaderProps } from "@/types/huemul"
 
-export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/page-header"
+export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/huemul"
 
 export function PageHeader({
   icon: Icon,

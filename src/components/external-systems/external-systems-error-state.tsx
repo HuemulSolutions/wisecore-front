@@ -1,9 +1,9 @@
 import { RefreshCw } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import type { ExternalSystemsErrorStateProps } from "@/types/external-systems-error-state"
+import type { ExternalSystemsErrorStateProps } from "@/types/external-systems"
 
-export type { ExternalSystemsErrorStateProps } from "@/types/external-systems-error-state"
+export type { ExternalSystemsErrorStateProps } from "@/types/external-systems"
 
 export function ExternalSystemsErrorState({ error, onRetry }: ExternalSystemsErrorStateProps) {
   const { t } = useTranslation(["external-systems", "common"])
@@ -27,3 +27,4 @@ export function ExternalSystemsErrorState({ error, onRetry }: ExternalSystemsErr
     </div>
   )
 }
+

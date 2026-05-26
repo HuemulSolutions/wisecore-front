@@ -1,7 +1,7 @@
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useTranslation } from "react-i18next"
-import type { DeleteProviderDialogProps } from "@/types/provider-delete-dialog"
-export type { DeleteProviderDialogProps } from "@/types/provider-delete-dialog"
+import type { DeleteProviderDialogProps } from "@/types/llm-provider"
+export type { DeleteProviderDialogProps } from "@/types/llm-provider"
 
 export function DeleteProviderDialog({
   open,

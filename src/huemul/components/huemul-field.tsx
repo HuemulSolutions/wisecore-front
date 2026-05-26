@@ -1,10 +1,31 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { type LucideIcon, HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
+import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ar, de, enUS, es, fr, it, ja, ptBR, zhCN, type Locale } from "date-fns/locale";
-import type { Value } from "platejs";
 import { tokenize, tokenStyle } from "./json-viewer";
+import type {
+  HuemulFieldType,
+  HuemulFieldOption,
+  HuemulFieldOptionGroup,
+  AsyncSelectOption,
+  FetchOptionsParams,
+  FetchOptionsResult,
+  HuemulFieldLabelAction,
+  HuemulFieldProps,
+  HuemulFieldGroupProps,
+} from "@/types/huemul"
+export type {
+  HuemulFieldType,
+  HuemulFieldOption,
+  HuemulFieldOptionGroup,
+  AsyncSelectOption,
+  FetchOptionsParams,
+  FetchOptionsResult,
+  HuemulFieldLabelAction,
+  HuemulFieldProps,
+  HuemulFieldGroupProps,
+}
 
 import SectionPlateEditor from "@/components/plate-editor/section-plate-editor";
 
@@ -55,219 +76,6 @@ function getBrowserDateLocale(): Locale {
     ?? DATE_FNS_LOCALE_MAP[lang.split('-')[0]]
     ?? enUS;
 }
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export type HuemulFieldType =
-  | "text"
-  | "email"
-  | "password"
-  | "number"
-  | "tel"
-  | "url"
-  | "time"
-  | "datetime"
-  | "textarea"
-  | "select"
-  | "checkbox"
-  | "switch"
-  | "file"
-  | "combobox"
-  | "color"
-  | "date"
-  | "date-range"
-  | "radio"
-  | "richtext"
-  | "async-select"
-  | "json";
-
-export interface HuemulFieldOption {
-  /** Display label */
-  label: string;
-  /** Underlying value */
-  value: string;
-  /** Optional description shown below the label in combobox items */
-  description?: string;
-  /** Optional icon for each option */
-  icon?: LucideIcon;
-  /** Optional hex color — renders a filled circle before the label */
-  color?: string;
-}
-
-// ── Grouped Select types ─────────────────────────────────────────────────
-
-/** A group of options for the grouped select type */
-export interface HuemulFieldOptionGroup {
-  /** Label shown as the group header (non-selectable) */
-  groupLabel: string;
-  /** If provided, the group header is also a selectable item with this value */
-  groupValue?: string;
-  /** Options nested under this group */
-  options: HuemulFieldOption[];
-}
-
-// ── Async Select types ────────────────────────────────────────────────────
-
-export interface AsyncSelectOption {
-  value: string;
-  label: string;
-  color?: string;
-  /** Optional description shown below the label */
-  description?: string;
-}
-
-export interface FetchOptionsParams {
-  search: string;
-  page: number;
-  pageSize: number;
-}
-
-export interface FetchOptionsResult {
-  options: AsyncSelectOption[];
-  hasMore: boolean;
-  totalCount?: number;
-}
-
-export interface HuemulFieldLabelAction {
-  /** Icon to render */
-  icon: LucideIcon;
-  /** Click handler */
-  onClick: () => void;
-  /** Tooltip text on hover */
-  tooltip?: string;
-}
-
-export interface HuemulFieldProps {
-  // ── Core ──────────────────────────────────────────────────────────────
-  /** Input type (default: "text") */
-  type?: HuemulFieldType;
-  /** Field label */
-  label: string;
-  /** HTML name attribute */
-  name?: string;
-  /** HTML id attribute — auto-generated from name/label if omitted */
-  id?: string;
-
-  // ── Required ──────────────────────────────────────────────────────────
-  /** Show required indicator (asterisk) next to the label */
-  required?: boolean;
-
-  // ── Help ──────────────────────────────────────────────────────────────
-  /** Help text shown in a tooltip when clicking the help icon */
-  helpText?: string;
-
-  // ── Label action ──────────────────────────────────────────────────────
-  /** Action button rendered to the right of the label row */
-  labelAction?: HuemulFieldLabelAction;
-
-  // ── Value ─────────────────────────────────────────────────────────────
-  /** Current value (string | number for inputs, boolean for checkbox/switch) */
-  value?: string | number | boolean;
-  /** Change handler — receives the new value */
-  onChange?: (value: string | number | boolean) => void;
-
-  // ── Field props ───────────────────────────────────────────────────────
-  /** Placeholder text */
-  placeholder?: string;
-  /** Description / helper text below the field */
-  description?: string;
-  /** Error message — puts the field in an invalid state */
-  error?: string;
-  /** Disable the field */
-  disabled?: boolean;
-  /** Read-only */
-  readOnly?: boolean;
-
-  // ── Select / Combobox ─────────────────────────────────────────────────
-  /** Options for select or combobox types */
-  options?: HuemulFieldOption[];
-  /** Grouped options for select type — renders SelectGroups with headers */
-  groupedOptions?: HuemulFieldOptionGroup[];
-
-  // ── File ──────────────────────────────────────────────────────────────
-  /** Accept attribute for file inputs (e.g. "image/*,.pdf") */
-  accept?: string;
-  /** Allow multiple files */
-  multiple?: boolean;
-  /** Called with the selected FileList (use this to access actual File objects) */
-  onFileChange?: (files: FileList | null) => void;
-
-  // ── Textarea ──────────────────────────────────────────────────────────
-  /** Number of visible rows for textarea (default: 3) */
-  rows?: number;
-
-  // ── Number ────────────────────────────────────────────────────────────
-  /** Minimum value for number inputs */
-  min?: number;
-  /** Maximum value for number inputs */
-  max?: number;
-  /** Step for number inputs */
-  step?: number;
-
-  // ── Checkbox / Switch ─────────────────────────────────────────────────
-  /** Label for checkbox / switch placed inline after the control */
-  checkLabel?: string;
-
-  // ── Rich text ─────────────────────────────────────────────────────────
-  /** Current Plate editor value (for richtext type) */
-  richTextValue?: Value;
-  /** Change handler for richtext type — receives Plate Value nodes */
-  onRichTextChange?: (value: Value) => void;
-  /** Minimum height for the rich text editor */
-  richTextMinHeight?: string;
-  /** "From" value for date-range type (ISO date string) */
-  dateRangeFrom?: string;
-  /** "To" value for date-range type (ISO date string) */
-  dateRangeTo?: string;
-  /** Change handler for date-range - called with (from, to) ISO strings */
-  onDateRangeChange?: (from: string, to: string) => void;
-  /** Single-date value for date-range type in "single" mode (ISO date string) */
-  dateValue?: string;
-  /** Change handler for date-range in "single" mode */
-  onDateChange?: (value: string) => void;
-
-  // ── Layout ────────────────────────────────────────────────────────────
-  /** Force the control to render stacked (label above, control below) even for switch/checkbox. Defaults to true for switch/checkbox. */
-  inline?: boolean;
-  /** When inline=true (switch/checkbox), render label before the control instead of after. */
-  labelFirst?: boolean;
-  /** Additional className on the outermost wrapper */
-  className?: string;
-  /** Additional className on the input / control element */
-  inputClassName?: string;
-  /** Auto-focus */
-  autoFocus?: boolean;
-  /** Autocomplete hint */
-  autoComplete?: string;
-  // ── Async Select ──────────────────────────────────────────────────────────
-  /** Async fetch function for async-select type */
-  fetchOptions?: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
-  /** Page size for async-select pagination (default: 10) */
-  pageSize?: number;
-  /** Debounce delay in ms for async-select search (default: 300) */
-  debounceMs?: number;
-  /** Pre-selected label for async-select — shown when value is set but options haven't loaded yet */
-  selectedLabel?: string;
-  /** Pre-selected color for async-select — shown alongside selectedLabel before options load */
-  selectedColor?: string;
-  /** Static options always pinned at the top of an async-select, above fetched results */
-  asyncStaticOptions?: AsyncSelectOption[];
-  /** Non-clickable section label shown above the static options */
-  asyncStaticOptionsLabel?: string;
-  /** Non-clickable section label shown above the async results */
-  asyncResultsLabel?: string;
-
-  // ── Select size ──────────────────────────────────────────────────────────
-  /** Size variant passed to the SelectTrigger. Use "xs" for compact inline usage (no forced height). */
-  selectSize?: "sm" | "default" | "xs";
-
-  // ── Control wrapper ──────────────────────────────────────────────────────
-  /** Additional className on the div wrapping the control element (useful for height alignment in flex rows) */
-  controlClassName?: string;
-
-  // ── Slot ─────────────────────────────────────────────────────────────────
-  /** Optional content rendered below the control (e.g. tag list) */
-  children?: React.ReactNode;}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -2034,21 +1842,6 @@ export function HuemulField({
       )}
     </div>
   );
-}
-
-// ── FieldGroup helper ──────────────────────────────────────────────────────
-
-export interface HuemulFieldGroupProps {
-  /** Group title (rendered as a legend) */
-  title?: string;
-  /** Optional description */
-  description?: string;
-  /** Gap between fields (default: "gap-5") */
-  gap?: string;
-  /** Additional className */
-  className?: string;
-  /** Children (HuemulField components) */
-  children: React.ReactNode;
 }
 
 export function HuemulFieldGroup({

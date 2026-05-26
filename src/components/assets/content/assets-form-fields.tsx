@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { PlusCircle } from 'lucide-react';
 import { isRootAdmin } from '@/lib/jwt-utils';
-import type { AssetFormFieldsProps } from '@/types/assets-form-fields';
-export type { AssetFormFieldsProps } from '@/types/assets-form-fields';
+import type { AssetFormFieldsProps } from '@/types/assets';
+export type { AssetFormFieldsProps } from '@/types/assets';
 
 export default function AssetFormFields({
   name,

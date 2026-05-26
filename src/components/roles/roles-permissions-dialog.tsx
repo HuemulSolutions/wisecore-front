@@ -7,8 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Shield } from "lucide-react"
 import { useDocumentTypeRolesAccessLevels, useRoleDocumentTypeMutations } from "@/hooks/useRoleDocumentType"
-import type { RolePermissionsDialogProps } from '@/types/roles-permissions-dialog'
-export type { RolePermissionsDialogProps } from '@/types/roles-permissions-dialog'
+import type { RolePermissionsDialogProps } from '@/types/roles'
+export type { RolePermissionsDialogProps } from '@/types/roles'
 
 export default function RolePermissionsDialog({
   documentType,

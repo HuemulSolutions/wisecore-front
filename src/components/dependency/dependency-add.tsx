@@ -21,9 +21,9 @@ import { useOrganization } from "@/contexts/organization-context";
 import { useEffectiveOrgId } from "@/hooks/useOrgRouter";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/error-utils";
-import type { Dependency, DocumentType, AddDependencySheetProps } from "@/types/dependency-add";
+import type { Dependency, DocumentType, AddDependencySheetProps } from "@/types/dependency/sheets";
 
-export type { AddDependencySheetProps } from "@/types/dependency-add";
+export type { AddDependencySheetProps } from "@/types/dependency/sheets";
 
 export default function AddDependencySheet({ id, isSheetOpen = true, canEdit = true }: AddDependencySheetProps) {
     const { t } = useTranslation('dependencies')

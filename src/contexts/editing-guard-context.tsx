@@ -1,18 +1,8 @@
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-
-interface EditingGuardContextValue {
-  /** Whether a section is currently being edited */
-  isSectionEditing: boolean
-  /** Report editing state from a section */
-  setIsSectionEditing: (editing: boolean) => void
-  /**
-   * Wrap an action so it's guarded by unsaved-changes check.
-   * If editing, shows alert. If not, runs the action immediately.
-   */
-  guardedAction: (action: () => void) => void
-}
+import type { EditingGuardContextValue } from "@/types/editing-guard-context"
+export type { EditingGuardContextValue }
 
 const EditingGuardContext = createContext<EditingGuardContextValue | null>(null)
 

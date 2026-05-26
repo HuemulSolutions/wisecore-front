@@ -7,9 +7,9 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
 import { ExternalFunctionalityForm, type ExternalFunctionalityFormData } from "./external-functionality-form"
 import type { CreateExternalFunctionalityRequest } from "@/types/external-functionalities"
-import type { ExternalFunctionalityCreateDialogProps } from "@/types/external-functionality-create-dialog"
+import type { ExternalFunctionalityCreateDialogProps } from "@/types/external-functionalities"
 
-export type { ExternalFunctionalityCreateDialogProps } from "@/types/external-functionality-create-dialog"
+export type { ExternalFunctionalityCreateDialogProps } from "@/types/external-functionalities"
 
 const INITIAL_FORM: CreateExternalFunctionalityRequest = {
   name: "",
