@@ -23,6 +23,7 @@ import CanvasPage from "./pages/canvas";
 import GlobalAdminPage from "./pages/global-admin";
 import AdvancedPage from "./pages/advanced";
 import ExternalSystemsPage from "./pages/external-systems";
+import DocumentTypeRelationshipsPage from "./pages/document-type-relationships";
 import { RootRedirect } from "./components/organization/root-redirect";
 import HuemulLayoutDemoPage from "./pages/huemul-layout-demo";
 
@@ -129,6 +130,11 @@ export default function App() {
             <Route path="external-systems" element={
               <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
                 <ExternalSystemsPage />
+              </PermissionProtectedRoute>
+            } />
+            <Route path="asset-type-relationships" element={
+              <PermissionProtectedRoute permissions={["asset_type:r", "asset_type:l"]}>
+                <DocumentTypeRelationshipsPage />
               </PermissionProtectedRoute>
             } />
           </Route>

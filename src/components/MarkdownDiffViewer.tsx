@@ -1,4 +1,5 @@
 import { useState, useMemo, type FC } from "react";
+import { Copy, Check } from "lucide-react";
 import type {
   DiffType,
   ViewMode,
@@ -773,30 +774,35 @@ const SubToggle: FC<SubToggleProps> = ({ value, options, onChange }) => (
 
 /* ─── Vistas de código ──────────────────────────────────────────── */
 
-const Panel: FC<PanelProps> = ({ lines, label, dot }) => (
-  <div className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-      <span className={`w-2 h-2 rounded-full ${dot}`} />
-      <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</span>
+const Panel: FC<PanelProps> = ({ lines, label, dot, rawContent }) => {
+  return (
+    <div className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f6f8fa] dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+        <span className={`w-2 h-2 rounded-full ${dot}`} />
+        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{label}</span>
+        {rawContent !== undefined && (
+          <CopyButton content={rawContent} />
+        )}
+      </div>
+      <div className="overflow-x-auto">
+        {lines.map((l, i) =>
+          l.type === "empty" ? (
+            <div key={i} className="h-5 bg-[#f6f8fa] dark:bg-gray-900 border-r border-gray-200/80" style={{ width: '3.75rem' }} />
+          ) : (
+            <DiffLine
+              key={i}
+              type={(l as DiffEntryWithLine).type}
+              val={(l as DiffEntryWithLine).val!}
+              lineOld={(l as DiffEntryWithLine).n}
+            />
+          )
+        )}
+      </div>
     </div>
-    <div className="overflow-x-auto">
-      {lines.map((l, i) =>
-        l.type === "empty" ? (
-          <div key={i} className="h-5 bg-[#f6f8fa] dark:bg-gray-900 border-r border-gray-200/80" style={{ width: '3.75rem' }} />
-        ) : (
-          <DiffLine
-            key={i}
-            type={(l as DiffEntryWithLine).type}
-            val={(l as DiffEntryWithLine).val!}
-            lineOld={(l as DiffEntryWithLine).n}
-          />
-        )
-      )}
-    </div>
-  </div>
-);
+  );
+};
 
-const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel }) => {
+const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel, oldContent, newContent }) => {
   const oldLines: SplitEntry[] = [];
   const newLines: SplitEntry[] = [];
   let oN = 1;
@@ -817,13 +823,23 @@ const SplitView: FC<SplitViewProps> = ({ diff, oldLabel, newLabel }) => {
 
   return (
     <div className="flex gap-3">
-      <Panel lines={oldLines} label={oldLabel} dot="bg-red-400" />
-      <Panel lines={newLines} label={newLabel} dot="bg-green-500" />
+      <Panel lines={oldLines} label={oldLabel} dot="bg-red-400" rawContent={oldContent} />
+      <Panel lines={newLines} label={newLabel} dot="bg-green-500" rawContent={newContent} />
     </div>
   );
 };
 
-const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
+const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel, oldContent, newContent }) => {
+  const [copiedOld, setCopiedOld] = useState(false);
+  const [copiedNew, setCopiedNew] = useState(false);
+
+  const handleCopy = (content: string, setCopied: (v: boolean) => void) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   let oN = 1;
   let nN = 1;
 
@@ -839,10 +855,24 @@ const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-400" />
           <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{oldLabel}</span>
+          <button
+            onClick={() => handleCopy(oldContent, setCopiedOld)}
+            title="Copy previous content"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hover:cursor-pointer transition-colors"
+          >
+            {copiedOld ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+          </button>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500" />
           <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">{newLabel}</span>
+          <button
+            onClick={() => handleCopy(newContent, setCopiedNew)}
+            title="Copy new content"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hover:cursor-pointer transition-colors"
+          >
+            {copiedNew ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+          </button>
         </div>
       </div>
       <div className="overflow-x-auto">
@@ -858,6 +888,29 @@ const UnifiedView: FC<UnifiedViewProps> = ({ diff, oldLabel, newLabel }) => {
         ))}
       </div>
     </div>
+  );
+};
+
+/* ─── Copy button helper ────────────────────────────────────────── */
+
+const CopyButton: FC<{ content: string }> = ({ content }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      title="Copy content"
+      className="ml-auto p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 hover:cursor-pointer transition-colors"
+    >
+      {copied
+        ? <Check className="h-3.5 w-3.5 text-green-500" />
+        : <Copy className="h-3.5 w-3.5 text-gray-400" />}
+    </button>
   );
 };
 
@@ -906,6 +959,8 @@ const RenderedView: FC<RenderedViewProps> = ({
   diff,
   oldLabel,
   newLabel,
+  oldContent,
+  newContent,
   showRenderedDiffPanel,
   showRenderedSubToggle,
 }) => {
@@ -946,6 +1001,7 @@ const RenderedView: FC<RenderedViewProps> = ({
                 const label = side === "old" ? oldLabel : newLabel;
                 const dot   = side === "old" ? "bg-red-400" : "bg-green-500";
                 const html  = buildSideDiffHtml(diff, side);
+                const content = side === "old" ? oldContent : newContent;
                 return (
                   <div
                     key={side}
@@ -956,6 +1012,7 @@ const RenderedView: FC<RenderedViewProps> = ({
                       <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
                         {label}
                       </span>
+                      <CopyButton content={content} />
                     </div>
                     <div
                       className="p-4 text-gray-800 dark:text-gray-200"
@@ -1057,10 +1114,10 @@ const MarkdownDiffViewer: FC<MarkdownDiffViewerProps> = ({
 
       {/* Content */}
       {mode === "split" && (
-        <SplitView diff={diff} oldLabel={oldLabel} newLabel={newLabel} />
+        <SplitView diff={diff} oldLabel={oldLabel} newLabel={newLabel} oldContent={oldContent} newContent={newContent} />
       )}
       {mode === "unified" && (
-        <UnifiedView diff={diff} oldLabel={oldLabel} newLabel={newLabel} />
+        <UnifiedView diff={diff} oldLabel={oldLabel} newLabel={newLabel} oldContent={oldContent} newContent={newContent} />
       )}
       {mode === "rendered" && (
         <RenderedView
