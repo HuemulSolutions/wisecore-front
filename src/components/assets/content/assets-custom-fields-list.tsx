@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -78,16 +78,20 @@ export function CustomFieldsList({
 
   if (!customFields || customFields.length === 0) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{t('customFieldsList.noCustomFields')}</p>
-          {canEdit && (
-            <Button size="sm" variant="outline" onClick={onAdd} className="hover:cursor-pointer">
-              <Plus className="h-4 w-4 mr-2" />
-              {t('customFieldsList.addField')}
-            </Button>
-          )}
+      <div className="flex flex-col items-center justify-center py-10 px-4 text-center gap-4">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted">
+          <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
         </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">{t('customFieldsList.noCustomFields')}</p>
+          <p className="text-xs text-muted-foreground">{t('customFieldsList.noCustomFieldsHint')}</p>
+        </div>
+        {canEdit && (
+          <Button size="sm" onClick={onAdd} className="hover:cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            {t('customFieldsList.addField')}
+          </Button>
+        )}
       </div>
     );
   }
