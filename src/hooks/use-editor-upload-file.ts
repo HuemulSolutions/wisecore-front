@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/organization-context';
-import { uploadMedia, getMediaDownloadUrl } from '@/services/media';
+import { uploadMedia } from '@/services/media';
 import type { EditorUploadedFile } from '@/types/editor'
 export type { EditorUploadedFile }
 
@@ -50,14 +50,10 @@ export function useEditorUploadFile() {
       });
 
       clearProgressInterval();
-      setProgress(95);
-
-      const downloadUrl = await getMediaDownloadUrl(selectedOrganizationId, media.id);
-
       setProgress(100);
 
       const result: EditorUploadedFile = {
-        url: downloadUrl,
+        url: `{{MEDIA:${media.id}}}`,
         name: file.name,
         size: file.size,
         type: file.type,

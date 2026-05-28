@@ -8,8 +8,6 @@ import { ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
 
-import { useOrganization } from '@/contexts/organization-context';
-import { useMediaDownloadUrl } from '@/hooks/useMedia';
 import { cn } from '@/lib/utils';
 
 import { Caption, CaptionTextarea } from './caption';
@@ -31,20 +29,9 @@ export const ImageElement = withHOC(
       element: props.element,
     });
 
-    const { selectedOrganizationId } = useOrganization();
-
-    // Only call the API when we have an explicit mediaId stored in the node.
-    // The blob-URL UUID fallback was producing 404s because the blob filename
-    // UUID does not necessarily match the backend media ID.
-    const resolvedMediaId = element.mediaId;
-
-    const { data: freshUrl } = useMediaDownloadUrl(
-      selectedOrganizationId ?? '',
-      resolvedMediaId ?? '',
-    );
-
-    // Use the fresh backend URL when available; otherwise fall back to element.url
-    const displayUrl = resolvedMediaId && freshUrl ? freshUrl : element.url;
+    // Use the URL stored in the element directly.
+    // The backend resolves {{MEDIA:GUID}} tokens to real URLs when serving content.
+    const displayUrl = element.url;
 
     return (
       <MediaToolbar plugin={ImagePlugin}>
