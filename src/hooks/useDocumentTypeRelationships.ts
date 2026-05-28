@@ -17,6 +17,7 @@ import type {
   UpdateDocumentTypeRelationshipRequest,
   CreateRelationshipAttributeRequest,
   UpdateRelationshipAttributeRequest,
+  UseDocumentTypeRelationshipsOptions,
 } from '@/types/document-type-relationships'
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
@@ -24,13 +25,14 @@ import type {
 export const documentTypeRelationshipQueryKeys = {
   all: ['document-type-relationships'] as const,
   listBase: () => [...documentTypeRelationshipQueryKeys.all, 'list'] as const,
-  list: (organizationId: string, page: number, pageSize: number, search?: string) =>
+  list: (organizationId: string, page: number, pageSize: number, search?: string, documentTypeId?: string) =>
     [
       ...documentTypeRelationshipQueryKeys.listBase(),
       organizationId,
       page,
       pageSize,
       search ?? '',
+      documentTypeId ?? '',
     ] as const,
   detail: (organizationId: string, relationshipId: string) =>
     [...documentTypeRelationshipQueryKeys.all, 'detail', organizationId, relationshipId] as const,
@@ -45,15 +47,6 @@ export const documentTypeRelationshipQueryKeys = {
       attributeId,
     ] as const,
   attributeTypes: () => [...documentTypeRelationshipQueryKeys.all, 'attribute-types'] as const,
-}
-
-// ─── Options ──────────────────────────────────────────────────────────────────
-
-export interface UseDocumentTypeRelationshipsOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  search?: string
 }
 
 // ─── Attribute types query ─────────────────────────────────────────────────────
@@ -74,12 +67,12 @@ export function useDocumentTypeRelationships(
   organizationId: string,
   options: UseDocumentTypeRelationshipsOptions = {},
 ) {
-  const { enabled = true, page = 1, pageSize = 100, search } = options
+  const { enabled = true, page = 1, pageSize = 100, search, documentTypeId } = options
 
   return useQuery({
-    queryKey: documentTypeRelationshipQueryKeys.list(organizationId, page, pageSize, search),
+    queryKey: documentTypeRelationshipQueryKeys.list(organizationId, page, pageSize, search, documentTypeId),
     queryFn: () =>
-      getDocumentTypeRelationships(organizationId, { page, page_size: pageSize, search }),
+      getDocumentTypeRelationships(organizationId, { page, page_size: pageSize, search, document_type_id: documentTypeId }),
     enabled: enabled && !!organizationId,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
