@@ -49,7 +49,7 @@ export interface HuemulFieldLabelAction {
 
 export interface HuemulFieldProps {
   type?: HuemulFieldType;
-  label: string;
+  label?: string;
   name?: string;
   id?: string;
   required?: boolean;

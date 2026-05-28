@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, GitMerge, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -15,6 +15,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -581,100 +582,159 @@ export default function AppLayout() {
               </Tooltip>
               
               {/* Settings dropdown */}
-              {hasSettingsAccess && (
+              {hasSettingsAccess && (() => {
+                const currentPath = stripOrgPrefix(location.pathname)
+                const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
+                const isAnySettingsActive = [
+                  '/asset-types', '/custom-fields', '/asset-type-relationships', '/canvas',
+                  '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
+                ].some(isSettingsActive)
+
+                const settingsItemClass = (path: string) => cn(
+                  'hover:cursor-pointer flex items-center gap-2',
+                  isSettingsActive(path) && 'bg-accent text-accent-foreground font-medium'
+                )
+                const settingsIconClass = (path: string) => cn(
+                  'h-4 w-4 shrink-0',
+                  isSettingsActive(path) ? 'text-accent-foreground' : 'text-muted-foreground'
+                )
+
+                return (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:cursor-pointer">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        'h-8 w-8 p-0 hover:cursor-pointer',
+                        isAnySettingsActive && 'bg-accent text-accent-foreground'
+                      )}
+                    >
                       <Settings className="h-4 w-4" />
                       <span className="sr-only">{t('header.settingsMenuSrOnly')}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-52">
                     {hasAssetManagementAccess && (
-                      <>
-                        <DropdownMenuLabel>{t('settings.assetManagement')}</DropdownMenuLabel>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+                          {t('settings.assetManagement')}
+                        </DropdownMenuLabel>
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/asset-types")} className="hover:cursor-pointer">
-                              {t('settings.assetTypes')}
+                            <Link to={buildPath("/asset-types")} className={settingsItemClass('/asset-types')}>
+                              <FileStack className={settingsIconClass('/asset-types')} />
+                              <span className="flex-1">{t('settings.assetTypes')}</span>
+                              {isSettingsActive('/asset-types') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/custom-fields")} className="hover:cursor-pointer">
-                              {t('settings.customFields')}
+                            <Link to={buildPath("/custom-fields")} className={settingsItemClass('/custom-fields')}>
+                              <Settings2 className={settingsIconClass('/custom-fields')} />
+                              <span className="flex-1">{t('settings.customFields')}</span>
+                              {isSettingsActive('/custom-fields') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {(canAccessDocumentTypes || isOrgAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/asset-type-relationships")} className={settingsItemClass('/asset-type-relationships')}>
+                              <GitMerge className={settingsIconClass('/asset-type-relationships')} />
+                              <span className="flex-1">{t('settings.assetTypeRelationships')}</span>
+                              {isSettingsActive('/asset-type-relationships') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessCanvas || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/canvas")} className="hover:cursor-pointer">
-                              {t('settings.canvas')}
+                            <Link to={buildPath("/canvas")} className={settingsItemClass('/canvas')}>
+                              <LayoutPanelTop className={settingsIconClass('/canvas')} />
+                              <span className="flex-1">{t('settings.canvas')}</span>
+                              {isSettingsActive('/canvas') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {hasAdministrationAccess && <DropdownMenuSeparator />}
-                      </>
+                      </DropdownMenuGroup>
                     )}
+
+                    {hasAssetManagementAccess && hasAdministrationAccess && <DropdownMenuSeparator />}
                     
                     {hasAdministrationAccess && (
-                      <>
-                        <DropdownMenuLabel>{t('settings.administration')}</DropdownMenuLabel>
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+                          {t('settings.administration')}
+                        </DropdownMenuLabel>
                         {(canAccessOrganizations || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/organizations")} className="hover:cursor-pointer">
-                              {t('settings.organizations')}
+                            <Link to={buildPath("/organizations")} className={settingsItemClass('/organizations')}>
+                              <Building2 className={settingsIconClass('/organizations')} />
+                              <span className="flex-1">{t('settings.organizations')}</span>
+                              {isSettingsActive('/organizations') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {isRootAdmin && (
                           <DropdownMenuItem asChild>
-                            <Link to="/global-admin" className="hover:cursor-pointer">
-                              {t('settings.globalAdminSettings')}
+                            <Link to="/global-admin" className={settingsItemClass('/global-admin')}>
+                              <ShieldCheck className={settingsIconClass('/global-admin')} />
+                              <span className="flex-1">{t('settings.globalAdminSettings')}</span>
+                              {isSettingsActive('/global-admin') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessUsers || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/users")} className="hover:cursor-pointer">
-                              {t('settings.users')}
+                            <Link to={buildPath("/users")} className={settingsItemClass('/users')}>
+                              <Users className={settingsIconClass('/users')} />
+                              <span className="flex-1">{t('settings.users')}</span>
+                              {isSettingsActive('/users') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessRoles || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/roles")} className="hover:cursor-pointer">
-                              {t('settings.roles')}
+                            <Link to={buildPath("/roles")} className={settingsItemClass('/roles')}>
+                              <Shield className={settingsIconClass('/roles')} />
+                              <span className="flex-1">{t('settings.roles')}</span>
+                              {isSettingsActive('/roles') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessModels || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/models")} className="hover:cursor-pointer">
-                              {t('settings.models')}
+                            <Link to={buildPath("/models")} className={settingsItemClass('/models')}>
+                              <Blocks className={settingsIconClass('/models')} />
+                              <span className="flex-1">{t('settings.models')}</span>
+                              {isSettingsActive('/models') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessDocumentTypes || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/auth-types")} className="hover:cursor-pointer">
-                              {t('settings.authTypes')}
+                            <Link to={buildPath("/auth-types")} className={settingsItemClass('/auth-types')}>
+                              <Shield className={settingsIconClass('/auth-types')} />
+                              <span className="flex-1">{t('settings.authTypes')}</span>
+                              {isSettingsActive('/auth-types') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
                         {(canAccessUsers || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
-                            <Link to={buildPath("/external-systems")} className="hover:cursor-pointer">
-                              {t('settings.externalSystems')}
+                            <Link to={buildPath("/external-systems")} className={settingsItemClass('/external-systems')}>
+                              <Network className={settingsIconClass('/external-systems')} />
+                              <span className="flex-1">{t('settings.externalSystems')}</span>
+                              {isSettingsActive('/external-systems') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
-                      </>
+                      </DropdownMenuGroup>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
+                )
+              })()}
 
               {/* User menu (initials only) */}
               {user && (

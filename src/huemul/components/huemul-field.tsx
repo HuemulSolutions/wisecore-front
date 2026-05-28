@@ -818,6 +818,18 @@ function AsyncSelectField({
     setSearch(e.target.value);
   };
 
+  // Debounce: auto-search 300 ms after the user stops typing
+  React.useEffect(() => {
+    if (isInitialMount.current) return;
+    const timer = setTimeout(() => {
+      setPage(1);
+      setHasMore(true);
+      loadOptions(search, 1, false);
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
