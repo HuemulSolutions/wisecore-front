@@ -19,7 +19,7 @@ export interface AiSuggestionStatus {
 
 export type ReviewStatus = 'editing' | 'reviewing' | 'finished';
 
-export type SectionHistoryChangeType = 'manual' | 'modify_ai';
+export type SectionHistoryChangeType = 'manual' | 'modify_ai' | 'run_ai';
 
 export interface SectionHistoryEntry {
   id: string;

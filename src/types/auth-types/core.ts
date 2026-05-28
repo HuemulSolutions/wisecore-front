@@ -1,7 +1,15 @@
+export type AuthTypeKind = 'internal' | 'entra' | 'saml2';
+
+export interface Saml2Params {
+  client_id: string;
+  tenant_id: string;
+  request_url: string;
+}
+
 export interface AuthType {
   id: string;
   name: string;
-  type: 'internal' | 'entra';
+  type: AuthTypeKind;
   params: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -9,13 +17,13 @@ export interface AuthType {
 
 export interface CreateAuthTypeRequest {
   name: string;
-  type: 'internal' | 'entra';
+  type: AuthTypeKind;
   params?: Record<string, unknown> | null;
 }
 
 export interface UpdateAuthTypeRequest {
   name: string;
-  type: 'internal' | 'entra';
+  type: AuthTypeKind;
   params?: Record<string, unknown> | null;
 }
 
