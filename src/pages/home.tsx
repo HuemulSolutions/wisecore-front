@@ -95,6 +95,19 @@ export default function Home() {
   const { data: documentTypesData } = useDocumentTypes();
   const documentTypes = documentTypesData?.data ?? [];
 
+  const fetchDocumentTypes = useCallback(
+    async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const filtered = s
+        ? documentTypes.filter((dt) => dt.name.toLowerCase().includes(s.toLowerCase()))
+        : documentTypes;
+      return {
+        options: filtered.map((dt) => ({ value: dt.id, label: dt.name, color: dt.color })),
+        hasMore: false,
+      };
+    },
+    [documentTypes],
+  );
+
   const fetchUsers = useCallback(
     async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
       const res = await getUsers(selectedOrganizationId ?? undefined, p, ps, s);
@@ -330,15 +343,13 @@ export default function Home() {
                 />
 
                 <HuemulField
-                  type="select"
+                  type="async-select"
                   label={t('filters.documentType')}
-                  value={pendingFilters.documentTypeId || ALL_VALUE}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, documentTypeId: v === ALL_VALUE ? '' : String(v) }))}
-                  options={[
-                    { value: ALL_VALUE, label: t('filters.allDocumentTypes') },
-                    ...documentTypes.map((dt) => ({ value: dt.id, label: dt.name })),
-                  ]}
-                  selectSize="xs"
+                  placeholder={t('filters.allDocumentTypes')}
+                  value={pendingFilters.documentTypeId}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, documentTypeId: v ? String(v) : '' }))}
+                  fetchOptions={fetchDocumentTypes}
+                  pageSize={50}
                   className="w-auto"
                   inputClassName="w-44 h-8 text-xs"
                 />

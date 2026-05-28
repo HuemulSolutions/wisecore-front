@@ -22,8 +22,12 @@ const getHeaders = (): Record<string, string> => {
 };
 
 // Get all document types
-export const getDocumentTypes = async (): Promise<DocumentTypesResponse> => {
-  const response = await httpClient.fetch(`${backendUrl}/document_types/`, {
+export const getDocumentTypes = async (params?: { search?: string }): Promise<DocumentTypesResponse> => {
+  const query = new URLSearchParams()
+  if (params?.search?.trim()) query.set('search', params.search.trim())
+  const qs = query.toString()
+
+  const response = await httpClient.fetch(`${backendUrl}/document_types/${qs ? `?${qs}` : ''}`, {
     method: 'GET',
     headers: getHeaders(),
   });
