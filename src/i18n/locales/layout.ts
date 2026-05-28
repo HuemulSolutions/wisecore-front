@@ -16,6 +16,7 @@ const translations = {
   settings: {
     assetManagement: { en: "Asset Management", es: "Gestión de Activos" },
     assetTypes: { en: "Asset Types", es: "Tipos de Activo" },
+    assetTypeRelationships: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
     canvas: { en: "Canvas", es: "Canvas" },
     administration: { en: "Administration", es: "Administración" },
