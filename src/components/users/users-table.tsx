@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import i18n from "@/i18n"
 import { Trash2, Check, X, Edit, Shield, Users, Building, UserPlus, ShieldCheck } from "lucide-react"
 import { type User } from "@/types/users"
-import { type UseMutationResult } from "@tanstack/react-query"
-import { HuemulTable, type HuemulTableColumn, type HuemulTableAction, type HuemulTablePagination } from "@/huemul/components/huemul-table"
+import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import type { UserTableProps } from '@/types/users'
+export type { UserTableProps } from '@/types/users'
 
 // Helper functions
 export const formatDate = (dateString: string) => {
@@ -46,30 +47,6 @@ export const translateStatus = (status: string) => {
     default:
       return status
   }
-}
-
-interface UserTableProps {
-  users: User[]
-  selectedUsers: Set<string>
-  onUserSelection: (userId: string) => void
-  onSelectAll: () => void
-  onEditUser: (user: User) => void
-  onViewOrganizations: (user: User) => void
-  onAssignRoles: (user: User) => void
-  onDeleteUser: (user: User) => void
-  onManageRootAdmin: (user: User) => void
-  onMakeOrganizationAdmin?: (user: User) => void
-  isCurrentUserRootAdmin?: boolean
-  userMutations: {
-    approveUser: UseMutationResult<any, any, string, unknown>
-    rejectUser: UseMutationResult<any, any, string, unknown>
-    deleteUser: UseMutationResult<any, any, string, unknown>
-  }
-  pagination?: HuemulTablePagination
-  canUpdate?: boolean
-  canDelete?: boolean
-  isLoading?: boolean
-  isFetching?: boolean
 }
 
 export default function UserTable({

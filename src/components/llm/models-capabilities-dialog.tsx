@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import type { ModelCapabilitiesDialogProps } from "@/types/models-capabilities-dialog"
-export type { ModelCapabilitiesDialogProps } from "@/types/models-capabilities-dialog"
+import type { ModelCapabilitiesDialogProps } from "@/types/models"
+export type { ModelCapabilitiesDialogProps } from "@/types/models"
 
 const ALL_CAPABILITIES = [
   'text_input',

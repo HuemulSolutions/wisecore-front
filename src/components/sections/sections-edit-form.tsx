@@ -1,6 +1,6 @@
 import { SectionForm } from "@/components/sections/sections-form";
-import type { EditSectionFormProps } from '@/types/sections-edit-form';
-export type { EditSectionFormProps } from '@/types/sections-edit-form';
+import type { EditSectionFormProps } from '@/types/sections';
+export type { EditSectionFormProps } from '@/types/sections';
 
 export function EditSectionForm({ 
   item, 

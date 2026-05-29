@@ -2,8 +2,8 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreVertical, Shield, Trash2, UserPlus, Loader2 } from "lucide-react"
-import type { RoleActionsProps } from '@/types/roles-actions'
-export type { RoleActionsProps } from '@/types/roles-actions'
+import type { RoleActionsProps } from '@/types/roles'
+export type { RoleActionsProps } from '@/types/roles'
 
 export default function RoleActions({ role, isLoadingUsers = false, onAssignToUsers, onEdit, onDelete }: RoleActionsProps) {
   const { t } = useTranslation('roles')

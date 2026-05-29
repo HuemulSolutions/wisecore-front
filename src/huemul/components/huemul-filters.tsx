@@ -6,47 +6,8 @@ import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HuemulButton } from "./huemul-button";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulFiltersProps {
-  /** Filter fields to render inside the collapsible area. */
-  children: React.ReactNode;
-
-  /** Section title (default: key "huemulFilters.title" or "Filters"). */
-  title?: string;
-
-  /** Whether the section starts expanded (default: true). */
-  defaultOpen?: boolean;
-
-  /** Controlled open state. Use together with `onOpenChange` for external control. */
-  open?: boolean;
-
-  /** Called when the open state changes (controlled mode). */
-  onOpenChange?: (open: boolean) => void;
-
-  // ── Refresh ──────────────────────────────────────────────────────────────
-  /** Called when the user clicks the refresh button. When omitted the button is hidden. */
-  onRefresh?: () => void;
-
-  /** When `true` the refresh icon spins and the button is disabled. */
-  isRefreshing?: boolean;
-
-  // ── Apply / Clear ────────────────────────────────────────────────────────
-  /** Called when the user clicks the "Apply" button. When omitted the button is hidden. */
-  onApply?: () => void;
-
-  /** Called when the user clicks the "Clear" button. When omitted the button is hidden. */
-  onClear?: () => void;
-
-  /**
-   * When `true` the Clear button is shown (only relevant when `onClear` is provided).
-   * Typically set to `true` when at least one filter has a non-default value.
-   */
-  hasActiveFilters?: boolean;
-
-  /** Extra className on the root wrapper. */
-  className?: string;
-}
+import type { HuemulFiltersProps } from "@/types/huemul"
+export type { HuemulFiltersProps }
 
 // ── Component ──────────────────────────────────────────────────────────────
 

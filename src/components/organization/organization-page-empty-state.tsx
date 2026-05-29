@@ -1,7 +1,7 @@
 import { ShieldAlert, Building2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import type { OrganizationPageEmptyStateProps } from "@/types/organization-page-empty-state"
-export type { OrganizationPageEmptyStateProps } from "@/types/organization-page-empty-state"
+import type { OrganizationPageEmptyStateProps } from "@/types/organizations"
+export type { OrganizationPageEmptyStateProps } from "@/types/organizations"
 
 export function OrganizationPageEmptyState({ type }: OrganizationPageEmptyStateProps) {
   const { t } = useTranslation(['organizations', 'common'])

@@ -3,9 +3,9 @@ import { Badge } from "@/components/ui/badge"
 import { Edit2, Trash2, FileStack, Activity, Copy } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
-import type { AssetTypeTableProps } from "@/types/assets-types-table"
+import type { AssetTypeTableProps } from '@/types/assets'
 
-export type { AssetTypeTableProps } from "@/types/assets-types-table"
+export type { AssetTypeTableProps } from '@/types/assets'
 
 // Helper functions
 export const formatDate = (dateString: string) => {

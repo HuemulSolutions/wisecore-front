@@ -4,8 +4,8 @@ import { SectionContentDialog } from "./search-section-content-dialog";
 import Markdown from "@/components/ui/markdown";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { useTranslation } from "react-i18next";
-import type { SectionResultProps } from '@/types/search-section-result';
-export type { SectionResultProps } from '@/types/search-section-result';
+import type { SectionResultProps } from '@/types/search';
+export type { SectionResultProps } from '@/types/search';
 
 export function SectionResult({ section, index }: SectionResultProps) {
   const { t } = useTranslation('search');

@@ -18,8 +18,8 @@ import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
-import type { SectionExecutionProps } from '@/types/sections-execution';
-export type { SectionExecutionProps } from '@/types/sections-execution';
+import type { SectionExecutionProps } from '@/types/sections';
+export type { SectionExecutionProps } from '@/types/sections';
 
 export default function SectionExecution({ sectionExecution, onUpdate, readyToEdit }: SectionExecutionProps) {
     const { selectedOrganizationId } = useOrganization();

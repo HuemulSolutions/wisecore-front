@@ -1,27 +1,9 @@
 import { backendUrl } from '@/config';
 import { httpClient } from '@/lib/http-client';
-import type { User } from '@/contexts/auth-context';
+import type { User } from '@/types';
+import type { RequestCodeRequest, VerifyCodeRequest, UpdateUserRequest, AuthResponse } from '@/types/auth';
 
-export interface RequestCodeRequest {
-  email: string;
-  purpose: 'login';
-}
-
-export interface VerifyCodeRequest {
-  email: string;
-  code: string;
-}
-
-export interface UpdateUserRequest {
-  name: string;
-  last_name: string;
-  birthdate?: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+export type { RequestCodeRequest, VerifyCodeRequest, UpdateUserRequest, AuthResponse };
 
 class AuthService {
   private baseUrl = `${backendUrl}/auth`;

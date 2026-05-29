@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { FileCode } from 'lucide-react';
-import { ReusableDialog } from '@/components/ui/reusable-dialog';
+import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import NameDescriptionFields from '@/components/assets/content/name-description-fields';
 import { useTranslation } from 'react-i18next';
-import type { CreateTemplateDialogProps } from '@/types/assets-create-template-dialog';
-export type { CreateTemplateDialogProps } from '@/types/assets-create-template-dialog';
+import type { CreateTemplateDialogProps } from '@/types/assets';
+export type { CreateTemplateDialogProps } from '@/types/assets';
 
 export function CreateTemplateDialog({
   open,
@@ -22,8 +22,7 @@ export function CreateTemplateDialog({
     }
   }, [open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (formData.name.trim()) {
       onSubmit({
         name: formData.name.trim(),
@@ -35,35 +34,37 @@ export function CreateTemplateDialog({
   const isValid = formData.name.trim().length > 0;
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
       title={t('createTemplate.title')}
       description={t('createTemplate.description')}
       icon={FileCode}
-      maxWidth="md"
-      maxHeight="90vh"
-      formId="create-template-form"
-      isValid={isValid}
-      isSubmitting={isPending}
-      submitLabel={t('createTemplate.submitLabel')}
+      maxWidth="sm:max-w-md"
+      maxHeight="max-h-[90vh]"
+      cancelLabel={t('common:cancel')}
+      saveAction={{
+        label: t('createTemplate.submitLabel'),
+        onClick: handleSubmit,
+        disabled: !isValid,
+        loading: isPending,
+        closeOnSuccess: false,
+      }}
     >
-      <form id="create-template-form" onSubmit={handleSubmit} className="space-y-4">
-        <NameDescriptionFields
-          name={formData.name}
-          description={formData.description}
-          onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
-          onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
-          nameLabel={t('createTemplate.nameLabel')}
-          descriptionLabel={t('createTemplate.descriptionLabel')}
-          namePlaceholder={t('createTemplate.namePlaceholder')}
-          descriptionPlaceholder={t('createTemplate.descriptionPlaceholder')}
-          disabled={isPending}
-          nameRequired={true}
-          descriptionRequired={false}
-          useTextarea={true}
-        />
-      </form>
-    </ReusableDialog>
+      <NameDescriptionFields
+        name={formData.name}
+        description={formData.description}
+        onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
+        onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
+        nameLabel={t('createTemplate.nameLabel')}
+        descriptionLabel={t('createTemplate.descriptionLabel')}
+        namePlaceholder={t('createTemplate.namePlaceholder')}
+        descriptionPlaceholder={t('createTemplate.descriptionPlaceholder')}
+        disabled={isPending}
+        nameRequired={true}
+        descriptionRequired={false}
+        useTextarea={true}
+      />
+    </HuemulDialog>
   );
 }

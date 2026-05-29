@@ -7,8 +7,8 @@ import { ProviderActions } from "./provider-actions"
 import { ModelsTable } from "@/components/llm/models-table"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import type { ProviderCardProps } from "@/types/provider-card"
-export type { ProviderCardProps } from "@/types/provider-card"
+import type { ProviderCardProps } from "@/types/llm-provider"
+export type { ProviderCardProps } from "@/types/llm-provider"
 
 export function ProviderCard({
   provider,

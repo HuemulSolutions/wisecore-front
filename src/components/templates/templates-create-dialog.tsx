@@ -7,8 +7,8 @@ import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
 import { getErrorMessage } from "@/lib/error-utils";
-import type { CreateTemplateDialogProps } from '@/types/templates-create-dialog';
-export type { CreateTemplateDialogProps } from '@/types/templates-create-dialog';
+import type { CreateTemplateDialogProps } from '@/types/templates';
+export type { CreateTemplateDialogProps } from '@/types/templates';
 
 export function CreateTemplateDialog({
   open,

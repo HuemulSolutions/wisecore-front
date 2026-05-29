@@ -3,9 +3,9 @@ import { Settings, Edit } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { EmbeddingProviderEditDialogProps } from "@/types/embedding-provider-edit-dialog"
+import type { EmbeddingProviderEditDialogProps } from "@/types/embedding-provider"
 
-export type { EmbeddingProviderEditDialogProps } from "@/types/embedding-provider-edit-dialog"
+export type { EmbeddingProviderEditDialogProps } from "@/types/embedding-provider"
 
 export function EmbeddingProviderEditDialog({
   open,

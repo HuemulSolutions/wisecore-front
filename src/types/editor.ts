@@ -5,3 +5,25 @@ export interface EditorProps {
   onCancel: () => void
   isSaving?: boolean
 }
+
+import type { OurFileRouter } from '@/lib/uploadthing'
+import type { ClientUploadedFileData, UploadFilesOptions } from 'uploadthing/types'
+
+export interface EditorUploadedFile {
+  url: string
+  name: string
+  size: number
+  type: string
+  mediaId: string
+}
+
+export type UploadedFile<T = unknown> = ClientUploadedFileData<T>
+
+export interface UseUploadFileProps
+  extends Pick<
+    UploadFilesOptions<OurFileRouter['editorUploader']>,
+    'headers' | 'onUploadBegin' | 'onUploadProgress' | 'skipPolling'
+  > {
+  onUploadComplete?: (file: UploadedFile) => void
+  onUploadError?: (error: unknown) => void
+}

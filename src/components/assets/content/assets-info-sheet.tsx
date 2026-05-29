@@ -8,8 +8,8 @@ import {
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
 import { formatApiDateTime } from "@/lib/utils";
-import type { AssetsInfoSheetProps } from "@/types/assets-info-sheet";
-export type { AssetsInfoSheetProps } from "@/types/assets-info-sheet";
+import type { AssetsInfoSheetProps } from '@/types/assets';
+export type { AssetsInfoSheetProps } from '@/types/assets';
 
 const STAGE_COLORS: Record<string, string> = {
   create: "bg-purple-100 text-purple-700",

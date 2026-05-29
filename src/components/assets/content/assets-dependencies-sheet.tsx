@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import AddDependencySheet from "@/components/dependency/dependency-add";
-import type { DependenciesSheetProps } from "@/types/assets-dependencies-sheet";
-export type { DependenciesSheetProps } from "@/types/assets-dependencies-sheet";
+import type { DependenciesSheetProps } from '@/types/assets';
+export type { DependenciesSheetProps } from '@/types/assets';
 
 export function DependenciesSheet({
   selectedFile,

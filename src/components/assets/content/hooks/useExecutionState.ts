@@ -4,8 +4,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { UseExecutionStateProps } from '@/types/use-execution-state';
-export type { UseExecutionStateProps } from '@/types/use-execution-state';
+import type { UseExecutionStateProps } from '@/types/execution';
+export type { UseExecutionStateProps } from '@/types/execution';
 
 export function useExecutionState({
   selectedFileId,

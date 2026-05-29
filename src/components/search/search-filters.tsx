@@ -8,8 +8,8 @@ import type { SearchType } from "@/services/search";
 import { useTranslation } from "react-i18next";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/huemul/components/huemul-field";
 import { useOrganization } from "@/contexts/organization-context";
-import type { SearchFilterValues, SearchFiltersProps } from '@/types/search-filters';
-export type { SearchFilterValues, SearchFiltersProps } from '@/types/search-filters';
+import type { SearchFilterValues, SearchFiltersProps } from '@/types/search';
+export type { SearchFilterValues, SearchFiltersProps } from '@/types/search';
 
 function countActiveFilters(f: SearchFilterValues): number {
   let count = 0;
@@ -66,7 +66,7 @@ export function SearchFilters({ organizationId, searchType, onSearchTypeChange, 
     async ({ search, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
       const res = await getAssetTypes(page, pageSize, search);
       return {
-        options: (res.data ?? []).map((at) => ({ value: at.id, label: at.name, color: at.color })),
+        options: (res.data ?? []).map((at) => ({ value: at.id, label: at.name, color: at.color ?? undefined })),
         hasMore: res.has_next ?? false,
       };
     },

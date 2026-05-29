@@ -7,9 +7,9 @@ import {
   type HuemulTableAction,
 } from "@/huemul/components/huemul-table"
 import { Badge } from "@/components/ui/badge"
-import type { ExternalSystemsTableProps } from "@/types/external-systems-table"
+import type { ExternalSystemsTableProps } from "@/types/external-systems"
 
-export type { ExternalSystemsTableProps } from "@/types/external-systems-table"
+export type { ExternalSystemsTableProps } from "@/types/external-systems"
 
 export function ExternalSystemsTable({
   systems,
@@ -97,3 +97,4 @@ export function ExternalSystemsTable({
     />
   )
 }
+

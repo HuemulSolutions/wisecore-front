@@ -27,8 +27,8 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
-import type { SectionExecutionProps } from '@/types/assets-section';
-export type { SectionExecutionProps } from '@/types/assets-section';
+import type { SectionExecutionProps } from '@/types/assets';
+export type { SectionExecutionProps } from '@/types/assets';
 
 function SectionExecutionInner({ 
     sectionExecution, 

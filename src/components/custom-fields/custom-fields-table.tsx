@@ -1,11 +1,9 @@
 import { Badge } from "@/components/ui/badge"
 import { Edit2, Trash2, FileText } from "lucide-react"
-import type { CustomField } from "@/types/custom-fields"
+import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
+export type { CustomFieldTableProps } from '@/types/custom-fields'
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
-import type { CustomFieldTableProps } from "@/types/custom-fields-table"
-
-export type { CustomFieldTableProps } from "@/types/custom-fields-table"
 
 export function CustomFieldTable({
   customFields,

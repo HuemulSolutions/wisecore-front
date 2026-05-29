@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { createTemplateFromDocument } from '@/services/assets';
-import type { CreateTemplateFromDocumentDialogProps } from '@/types/assets-create-template-from-document-dialog';
-export type { CreateTemplateFromDocumentDialogProps } from '@/types/assets-create-template-from-document-dialog';
+import type { CreateTemplateFromDocumentDialogProps } from '@/types/assets';
+export type { CreateTemplateFromDocumentDialogProps } from '@/types/assets';
 
 export function CreateTemplateFromDocumentDialog({
   open,

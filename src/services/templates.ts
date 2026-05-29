@@ -1,15 +1,8 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse } from "@/types/templates";
 
-export interface TemplatesResponse {
-  data: { id: string; name: string; description?: string }[];
-  page: number;
-  page_size: number;
-  has_next: boolean;
-  total?: number;
-  transaction_id: string;
-  timestamp: string;
-}
+export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse };
 
 export async function getAllTemplates(organizationId: string, search?: string, page: number = 1, pageSize: number = 100): Promise<TemplatesResponse> {
     const params = new URLSearchParams({
@@ -109,41 +102,6 @@ export async function generateTemplateSections(templateId: string, organizationI
     const data = await response.json();
     console.log('Template sections generated:', data.data);
     return data.data;
-}
-
-export interface ChildDocumentExecution {
-    id: string;
-    name: string;
-    version: string | null;
-}
-
-export interface ChildDocument {
-    id: string;
-    name: string;
-    description: string;
-    internal_code: string | null;
-    asset_kind: string | null;
-    access_level: string;
-    folder_id: string;
-    document_type_id: string;
-    created_at: string;
-    updated_at: string;
-    executions: ChildDocumentExecution[];
-}
-
-export interface ChildDocumentFolder {
-    folder_id: string;
-    folder_name: string;
-    documents: ChildDocument[];
-}
-
-export interface ChildDocumentsResponse {
-    data: ChildDocumentFolder[];
-    transaction_id: string;
-    page: number;
-    page_size: number;
-    has_next: boolean;
-    timestamp: string;
 }
 
 export async function getTemplateChildDocuments(

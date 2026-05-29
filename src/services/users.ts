@@ -6,16 +6,9 @@ import type {
   UserOrganizationsResponse,
   AssignUserToOrganizationData,
   UpdateUserData,
-  CreateUserData
+  CreateUserData,
+  GlobalUsersResponse
 } from '@/types/users';
-
-interface GlobalUsersResponse {
-  data: User[]
-  page: number
-  page_size: number
-  has_next: boolean
-  total?: number
-}
 
 // Get all users with roles
 export const getUsers = async (organizationId?: string, page: number = 1, pageSize: number = 100, search?: string): Promise<UsersResponse> => {

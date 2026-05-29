@@ -15,9 +15,9 @@ import {
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import type { Conversation } from '@/types/chatbot';
-import type { ConversationListProps } from '@/types/conversation-list';
+import type { ConversationListProps } from '@/types/chatbot';
 
-export type { ConversationListProps } from '@/types/conversation-list';
+export type { ConversationListProps } from '@/types/chatbot';
 
 // ========================================
 // Empty state

@@ -1,6 +1,6 @@
 import { SectionForm } from "@/components/sections/sections-form";
-import type { AddSectionFormSheetProps } from '@/types/sections-add-form-sheet';
-export type { AddSectionFormSheetProps } from '@/types/sections-add-form-sheet';
+import type { AddSectionFormSheetProps } from '@/types/sections';
+export type { AddSectionFormSheetProps } from '@/types/sections';
 
 export function AddSectionFormSheet({ 
   documentId, 

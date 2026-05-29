@@ -1,10 +1,7 @@
 import { Building, Shield } from "lucide-react"
 import { useTranslation } from 'react-i18next'
-
-interface EmptyStateProps {
-  type: 'access-denied' | 'no-organization' | 'error'
-  message?: string
-}
+import type { EmptyStateProps } from '@/types/users/components';
+export type { EmptyStateProps as UserPageEmptyStateProps } from '@/types/users/components';
 
 export default function UserPageEmptyState({ type, message }: EmptyStateProps) {
   const { t } = useTranslation(['users', 'common'])

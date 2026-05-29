@@ -1,4 +1,5 @@
-import { History, Bot, FileEdit, AlertCircle, GitCompare } from 'lucide-react';
+import { History, Bot, FileEdit, AlertCircle, GitCompare, Zap, Copy, Check } from 'lucide-react';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
@@ -48,39 +49,27 @@ const CHANGE_TYPE_CONFIG: Record<
         badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
         dotClass: 'bg-purple-400',
     },
+    run_ai: {
+        icon: Zap,
+        iconColorClass: 'text-amber-500',
+        activeBgClass: 'bg-amber-50',
+        activeTextClass: 'text-amber-700',
+        activeBorderClass: 'border-l-amber-500',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+        dotClass: 'bg-amber-400',
+    },
 };
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60_000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago · ${timeStr}`;
-    if (diffDays < 7) {
-        return `${date.toLocaleDateString(undefined, { weekday: 'short' })} ${timeStr}`;
-    }
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
 
 // ── Left panel list item ───────────────────────────────────────────────────
 
 function HistoryListItem({
     entry,
-    index,
+    displayNumber,
     isSelected,
     onClick,
 }: {
     entry: SectionHistoryEntry;
-    index: number;
+    displayNumber: number;
     isSelected: boolean;
     onClick: () => void;
 }) {
@@ -105,20 +94,20 @@ function HistoryListItem({
                     'text-xs font-medium truncate',
                     isSelected ? config.activeTextClass : 'text-gray-700',
                 )}>
-                    {t(`history.changeType.${entry.change_type}`)} #{index + 1}
+                    {t(`history.changeType.${entry.change_type}`)} #{displayNumber}
                 </span>
             </div>
 
-            {/* Row 2: instruction or date */}
+            {/* Row 2: instruction preview */}
             {entry.user_instruction ? (
-                <p className="mt-0.5 text-[11px] text-muted-foreground italic truncate pl-5">
+                <p className="mt-0.5 text-[11px] text-muted-foreground italic line-clamp-2 pl-5">
                     "{entry.user_instruction}"
                 </p>
             ) : null}
 
             {/* Row 3: date */}
             <p className={cn('mt-0.5 text-[10px] pl-5', isSelected ? config.activeTextClass : 'text-muted-foreground')}>
-                {formatDate(entry.created_at)}
+                {formatRelativeTime(entry.created_at)}
             </p>
         </button>
     );
@@ -180,6 +169,14 @@ export function SectionHistorySheet({
     const { t } = useTranslation('assets');
     const { selectedOrganizationId } = useOrganization();
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['section-history', sectionExecutionId],
@@ -249,7 +246,7 @@ export function SectionHistorySheet({
                                     <HistoryListItem
                                         key={entry.id}
                                         entry={entry}
-                                        index={index}
+                                        displayNumber={items.length - index}
                                         isSelected={entry.id === effectiveSelectedId}
                                         onClick={() => setSelectedId(entry.id)}
                                     />
@@ -268,16 +265,30 @@ export function SectionHistorySheet({
                                 variant="outline"
                                 className={cn('text-[11px] px-1.5 py-0 font-medium leading-5', selectedConfig.badgeClass)}
                             >
-                                {t(`history.changeType.${selectedEntry.change_type}`)} #{selectedIndex + 1}
+                                {t(`history.changeType.${selectedEntry.change_type}`)} #{items.length - selectedIndex}
                             </Badge>
-                            {selectedEntry.user_instruction && (
-                                <span className="text-xs text-muted-foreground italic truncate">
-                                    "{selectedEntry.user_instruction}"
-                                </span>
-                            )}
                             <span className="ml-auto text-[11px] text-muted-foreground shrink-0">
-                                {formatDate(selectedEntry.created_at)}
+                                {formatRelativeTime(selectedEntry.created_at)}
                             </span>
+                        </div>
+                    )}
+
+                    {/* Instruction block */}
+                    {selectedEntry?.user_instruction && (
+                        <div className="px-5 py-3 border-b bg-amber-50/60 dark:bg-amber-950/20 flex items-start gap-3 shrink-0">
+                            <span className="text-amber-500 mt-0.5 shrink-0 text-base leading-none select-none">“”</span>
+                            <p className="flex-1 text-xs text-foreground/80 italic leading-relaxed">
+                                {selectedEntry.user_instruction}
+                            </p>
+                            <button
+                                onClick={() => handleCopy(selectedEntry.user_instruction!)}
+                                title={t('history.copyInstruction')}
+                                className="shrink-0 p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:cursor-pointer transition-colors"
+                            >
+                                {copied
+                                    ? <Check className="h-3.5 w-3.5 text-green-500" />
+                                    : <Copy className="h-3.5 w-3.5 text-amber-500" />}
+                            </button>
                         </div>
                     )}
 

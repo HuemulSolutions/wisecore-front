@@ -4,16 +4,18 @@ import { getDocumentTypes, createDocumentType, deleteDocumentType } from "@/serv
 // Query keys
 export const documentTypeQueryKeys = {
   all: ['document-types'] as const,
-  list: () => [...documentTypeQueryKeys.all, 'list'] as const,
+  list: (search?: string) => [...documentTypeQueryKeys.all, 'list', search ?? ''] as const,
 }
 
 // Hook for fetching document types
-export function useDocumentTypes() {
+export function useDocumentTypes(options?: { search?: string }) {
+  const { search } = options ?? {}
   return useQuery({
-    queryKey: documentTypeQueryKeys.list(),
-    queryFn: getDocumentTypes,
+    queryKey: documentTypeQueryKeys.list(search),
+    queryFn: () => getDocumentTypes({ search }),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0,
+    placeholderData: (prev) => prev,
   })
 }
 

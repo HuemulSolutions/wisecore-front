@@ -4,8 +4,8 @@ import { FileText, ChevronDown, ChevronUp, Play, Hash } from "lucide-react";
 import { useState } from "react";
 import Markdown from "@/components/ui/markdown";
 import { ExecutionInfoSheet } from "@/components/execution/execution-info-sheet";
-import type { SearchResultProps } from '@/types/search-result';
-export type { SearchResultProps } from '@/types/search-result';
+import type { SearchResultProps } from '@/types/search';
+export type { SearchResultProps } from '@/types/search';
 
 export default function SearchResult({
   documents = [],

@@ -5,7 +5,7 @@ export { default as AssetTypePageSkeleton } from './assets-types-page-skeleton'
 export { default as AssetTypePageEmptyState } from './assets-types-page-empty-state'
 export { default as AssetTypePageDialogs } from './assets-types-page-dialogs'
 export { AssetTypeContentEmptyState } from './assets-types-content-empty-state'
-export type { AssetTypePageState, AssetTypePageActions } from '@/types/assets-types'
+export type { AssetTypePageState, AssetTypePageActions } from '@/types/assets'
 
 // Re-export utility functions
 export { formatDate } from './assets-types-table'

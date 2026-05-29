@@ -30,9 +30,9 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { LifecycleStep } from "@/services/lifecycle"
-import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets-types-lifecycle-edit-step'
+import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets'
 
-export type { EditStepCardData, EditStepContentProps } from '@/types/assets-types-lifecycle-edit-step'
+export type { EditStepCardData, EditStepContentProps } from '@/types/assets'
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 

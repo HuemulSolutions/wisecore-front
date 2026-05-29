@@ -1,6 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import type { UserOrganization } from "@/types/users";
+import type { OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse } from '@/types/organizations';
+
+export type { OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse };
 
 export async function getUserOrganizations(userId: string): Promise<UserOrganization[]> {
   console.log('getUserOrganizations called for userId:', userId);
@@ -79,33 +82,6 @@ export async function updateOrganization(
 export async function deleteOrganization(organizationId: string) {
   await httpClient.delete(`${backendUrl}/organizations/${organizationId}`);
   console.log('Organization deleted:', organizationId);
-}
-
-// Types for organization users
-export interface OrganizationUser {
-  id: string;
-  email: string;
-  name: string;
-  last_name: string;
-  status: string;
-  is_org_admin: boolean;
-}
-
-export interface OrganizationUsersResponse {
-  transaction_id: string;
-  data: OrganizationUser[];
-  page: number;
-  page_size: number;
-  has_next: boolean;
-}
-
-export interface SetOrganizationAdminResponse {
-  transaction_id: string;
-  data: {
-    organization_id: string;
-    user_id: string;
-    message: string;
-  };
 }
 
 // Get users of a specific organization (root admin only)

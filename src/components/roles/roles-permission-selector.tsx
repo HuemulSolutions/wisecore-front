@@ -9,8 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Search, Shield, Users, Database, FileText, Settings, Brain, Lock, ChevronDown, ChevronRight, CheckSquare, Square } from "lucide-react"
 import { type Permission, type PermissionWithStatus } from "@/services/rbac"
-import type { PermissionSelectorProps } from '@/types/roles-permission-selector'
-export type { PermissionSelectorProps } from '@/types/roles-permission-selector'
+import type { PermissionSelectorProps } from '@/types/roles'
+export type { PermissionSelectorProps } from '@/types/roles'
 
 // Permission categories for better organization
 const getPermissionCategory = (permission: string) => {

@@ -8,9 +8,9 @@ import { Loader2, Edit2, FileEdit } from "lucide-react"
 import { getCustomFieldDocumentSources, uploadCustomFieldDocumentValueBlob } from "@/services/custom-fieldds-documents"
 import { useOrganization } from "@/contexts/organization-context"
 import { useQuery } from "@tanstack/react-query"
-import type { CustomFieldDocument } from "@/types/custom-fields-documents"
-import type { EditCustomFieldAssetDialogProps } from "@/types/assets-edit-custom-field-dialog"
-export type { EditCustomFieldAssetDialogProps } from "@/types/assets-edit-custom-field-dialog"
+import type { CustomFieldDocument } from '@/types/custom-fields'
+import type { EditCustomFieldAssetDialogProps } from '@/types/assets'
+export type { EditCustomFieldAssetDialogProps } from '@/types/assets'
 
 export function EditCustomFieldAssetDialog({
   isOpen,

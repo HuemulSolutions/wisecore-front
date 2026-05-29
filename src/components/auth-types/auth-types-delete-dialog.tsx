@@ -3,9 +3,9 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useAuthTypeMutations } from "@/hooks/useAuthTypes"
-import type { DeleteAuthTypeDialogProps } from "@/types/auth-types-delete-dialog"
+import type { DeleteAuthTypeDialogProps } from '@/types/auth-types'
 
-export type { DeleteAuthTypeDialogProps } from "@/types/auth-types-delete-dialog"
+export type { DeleteAuthTypeDialogProps } from '@/types/auth-types'
 
 export function DeleteAuthTypeDialog({ open, onOpenChange, authType }: DeleteAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])

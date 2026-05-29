@@ -3,9 +3,9 @@ import { Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulDialog } from "@/huemul/components/huemul-dialog";
-import type { EditContextDialogProps } from "@/types/context-edit-dialog";
+import type { EditContextDialogProps } from '@/types/context';
 
-export type { EditContextDialogProps } from "@/types/context-edit-dialog";
+export type { EditContextDialogProps } from '@/types/context';
 
 export function EditContextDialog({
   open,

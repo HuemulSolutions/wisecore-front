@@ -13,7 +13,7 @@ import { getUserOrganizations, addOrganization, updateOrganization, deleteOrgani
 import { useOrganization } from '@/contexts/organization-context'
 import { useAuth } from '@/contexts/auth-context'
 import { useTranslation } from 'react-i18next'
-import type { OrganizationDialogData } from '@/types/organization-switcher'
+import type { OrganizationDialogData } from '@/types/organizations'
 
 export function OrganizationSwitcher() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)

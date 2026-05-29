@@ -2,19 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useEffect } from 'react';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganizationId } from '@/hooks/use-organization';
-
-interface ExecutionStatus {
-  id: string;
-  status: string;
-  [key: string]: any;
-}
-
-interface UseExecutionPollingProps {
-  executionId: string | null;
-  enabled?: boolean;
-  pollingInterval?: number;
-  onStatusChange?: (status: string, execution: ExecutionStatus) => void;
-}
+import type { ExecutionPollingData, UseExecutionPollingProps } from '@/types/execution'
 
 export function useExecutionPolling({ 
   executionId, 
@@ -26,14 +14,14 @@ export function useExecutionPolling({
   const selectedOrganizationId = useOrganizationId();
   const previousStatusRef = useRef<string | null>(null);
 
-  const { data: execution, isLoading, error, refetch } = useQuery<ExecutionStatus>({
+  const { data: execution, isLoading, error, refetch } = useQuery<ExecutionPollingData>({
     queryKey: ['execution-status', executionId],
     queryFn: () => getExecutionStatus(executionId!, selectedOrganizationId!),
     enabled: enabled && !!executionId && !!selectedOrganizationId,
     refetchInterval: (query) => {
       try {
         // Stop polling if execution is completed or failed
-        const executionData = query.state.data as ExecutionStatus;
+        const executionData = query.state.data as ExecutionPollingData;
         if (executionData?.status === 'completed' || executionData?.status === 'failed' || executionData?.status === 'approved' || executionData?.status === 'import_failed') {
           return false;
         }

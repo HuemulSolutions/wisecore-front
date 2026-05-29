@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import AddContext from "@/components/context/context-add";
-import type { ContextSheetProps } from "@/types/assets-context-sheet";
-export type { ContextSheetProps } from "@/types/assets-context-sheet";
+import type { ContextSheetProps } from '@/types/assets';
+export type { ContextSheetProps } from '@/types/assets';
 
 export function ContextSheet({
   selectedFile,

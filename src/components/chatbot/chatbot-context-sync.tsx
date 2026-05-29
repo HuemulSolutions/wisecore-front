@@ -1,9 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useChatbotScreenContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
-import type { ConversationReference, WorkingContextItem } from '@/types/chatbot';
-import type { ChatbotContextSyncProps } from '@/types/chatbot-context-sync';
+import type { ConversationReference, WorkingContextItem, ChatbotContextSyncProps } from '@/types/chatbot';
 
-export type { ChatbotContextSyncProps } from '@/types/chatbot-context-sync';
+export type { ChatbotContextSyncProps } from '@/types/chatbot';
 
 export function ChatbotContextSync({
   sourceKey,

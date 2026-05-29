@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import type { DeleteFolderDialogProps } from "@/types/assets"
@@ -46,14 +46,13 @@ export function DeleteFolderDialog({
   )
 
   return (
-    <ReusableAlertDialog
+    <HuemulAlertDialog
       open={open}
       onOpenChange={onOpenChange}
       title={t('deleteFolder.title')}
       description={description}
-      onConfirm={handleConfirm}
-      confirmLabel={t('common:delete')}
-      isProcessing={isDeleting}
+      onAction={handleConfirm}
+      actionLabel={t('common:delete')}
     />
   )
 }

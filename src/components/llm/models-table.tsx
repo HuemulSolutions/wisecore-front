@@ -2,8 +2,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ModelActions } from "./models-actions"
 import { useTranslation } from "react-i18next"
-import type { ModelsTableProps } from "@/types/models-table"
-export type { ModelsTableProps } from "@/types/models-table"
+import type { ModelsTableProps } from "@/types/models"
+export type { ModelsTableProps } from "@/types/models"
 
 export function ModelsTable({ 
   models, 

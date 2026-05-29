@@ -1,8 +1,8 @@
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
-import type { CustomFieldFormFieldsProps } from '@/types/custom-fields-form-fields';
+import type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
 
-export type { CustomFieldFormFieldsProps } from '@/types/custom-fields-form-fields';
+export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
 
 export default function CustomFieldFormFields({
   name,

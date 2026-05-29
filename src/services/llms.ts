@@ -1,9 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { LLM, CreateLLMRequest } from "@/types/llm";
+import type { LLM, CreateLLMRequest } from "@/types/models";
 
 // Re-export types for backward compatibility
-export type { LLM, CreateLLMRequest } from "@/types/llm";
+export type { LLM, CreateLLMRequest } from "@/types/models";
 export type {
   LLMProvider,
   SupportedProvider,

@@ -3,9 +3,9 @@
 import { Plus, Settings2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useTranslation } from "react-i18next"
-import type { CustomFieldPageHeaderProps } from "@/types/custom-fields-page-header"
+import type { CustomFieldPageHeaderProps } from '@/types/custom-fields'
 
-export type { CustomFieldPageHeaderProps } from "@/types/custom-fields-page-header"
+export type { CustomFieldPageHeaderProps } from '@/types/custom-fields'
 
 export function CustomFieldPageHeader({
   customFieldCount,

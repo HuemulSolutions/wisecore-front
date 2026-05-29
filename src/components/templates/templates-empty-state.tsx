@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { List, Plus, Sparkles } from "lucide-react";
-import type { TemplateEmptyStateProps } from '@/types/templates-empty-state';
-export type { TemplateEmptyStateProps } from '@/types/templates-empty-state';
+import type { TemplateEmptyStateProps } from '@/types/templates';
+export type { TemplateEmptyStateProps } from '@/types/templates';
 
 export function TemplateEmptyState({
   isGenerating,

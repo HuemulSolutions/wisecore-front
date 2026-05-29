@@ -1,8 +1,8 @@
 import { AddCustomFieldDialog } from "@/components/custom-fields/add-custom-field-dialog"
 import { useCustomFieldTemplateSources } from "@/hooks/useCustomFieldTemplates"
 import { uploadCustomFieldTemplateValueBlob } from "@/services/custom-fields-templates"
-import type { AddCustomFieldTemplateDialogProps } from '@/types/templates-custom-field-add-dialog';
-export type { AddCustomFieldTemplateDialogProps } from '@/types/templates-custom-field-add-dialog';
+import type { AddCustomFieldTemplateDialogProps } from '@/types/templates';
+export type { AddCustomFieldTemplateDialogProps } from '@/types/templates';
 
 export function AddCustomFieldTemplateDialog({
   isOpen,

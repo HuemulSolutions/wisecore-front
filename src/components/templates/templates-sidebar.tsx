@@ -26,8 +26,8 @@ import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
 import type { TemplateItem } from '@/types/templates';
-import type { TemplatesSidebarProps } from '@/types/templates-sidebar';
-export type { TemplatesSidebarProps } from '@/types/templates-sidebar';
+import type { TemplatesSidebarProps } from '@/types/templates';
+export type { TemplatesSidebarProps } from '@/types/templates';
 
 export function TemplatesSidebar({
   templates,

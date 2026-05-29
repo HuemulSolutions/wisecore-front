@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { HuemulField } from '@/huemul/components/huemul-field';
-import type { DocumentTypeFormFieldsProps } from '@/types/assets-types-form-fields'
+import type { DocumentTypeFormFieldsProps } from '@/types/assets'
 
-export type { DocumentTypeFormFieldsProps } from '@/types/assets-types-form-fields'
+export type { DocumentTypeFormFieldsProps } from '@/types/assets'
 
 export default function DocumentTypeFormFields({
   name,

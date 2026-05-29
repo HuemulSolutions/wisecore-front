@@ -3,10 +3,10 @@ import { useSortable } from "@dnd-kit/sortable";
 import Section from "./sections";
 import { GripVertical } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import type { SortableSectionProps } from "@/types/sortable-section";
+import type { SortableSectionProps } from "@/types/sections";
 
 export type { SortableSectionItem } from "@/types/sections";
-export type { SortableSectionProps } from "@/types/sortable-section";
+export type { SortableSectionProps } from "@/types/sections";
 
 export default function SortableSection({ item, existingSections, onSave, onDelete }: SortableSectionProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });

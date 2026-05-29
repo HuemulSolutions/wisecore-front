@@ -1,8 +1,8 @@
 import { AddCustomFieldDialog } from "@/components/custom-fields/add-custom-field-dialog"
 import { getCustomFieldDocumentSources, uploadCustomFieldDocumentValueBlob } from "@/services/custom-fieldds-documents"
 import { useQuery } from "@tanstack/react-query"
-import type { AddCustomFieldDocumentDialogProps } from "@/types/assets-add-custom-field-dialog"
-export type { AddCustomFieldDocumentDialogProps } from "@/types/assets-add-custom-field-dialog"
+import type { AddCustomFieldDocumentDialogProps } from '@/types/assets'
+export type { AddCustomFieldDocumentDialogProps } from '@/types/assets'
 
 export function AddCustomFieldDocumentDialog({
   isOpen,

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import type { RoleFormFieldsProps } from '@/types/roles-form-fields'
-export type { RoleFormFieldsProps } from '@/types/roles-form-fields'
+import type { RoleFormFieldsProps } from '@/types/roles'
+export type { RoleFormFieldsProps } from '@/types/roles'
 
 export default function RoleFormFields({
   name,

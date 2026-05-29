@@ -2,8 +2,8 @@ import { Pencil } from 'lucide-react';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { useTranslation } from 'react-i18next';
-import type { EditOrganizationDialogProps } from '@/types/organization-edit-dialog';
-export type { EditOrganizationDialogProps } from '@/types/organization-edit-dialog';
+import type { EditOrganizationDialogProps } from '@/types/organizations';
+export type { EditOrganizationDialogProps } from '@/types/organizations';
 
 export function EditOrganizationDialog({
   open,

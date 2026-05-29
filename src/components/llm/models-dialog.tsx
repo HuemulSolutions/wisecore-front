@@ -5,8 +5,8 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import type { ModelDialogProps } from "@/types/models-dialog"
-export type { ModelDialogProps } from "@/types/models-dialog"
+import type { ModelDialogProps } from "@/types/models"
+export type { ModelDialogProps } from "@/types/models"
 
 const ALL_CAPABILITIES = [
   'text_input',

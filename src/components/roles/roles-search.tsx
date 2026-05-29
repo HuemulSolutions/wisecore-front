@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { Shield, Plus } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import type { RolesSearchProps } from '@/types/roles-search'
-export type { RolesSearchProps } from '@/types/roles-search'
+import type { RolesSearchProps } from '@/types/roles'
+export type { RolesSearchProps } from '@/types/roles'
 
 export function RolesSearch({
   searchTerm,

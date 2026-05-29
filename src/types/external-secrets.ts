@@ -37,3 +37,10 @@ export interface UpdateExternalSecretRequest {
   name?: string
   secret_value?: string
 }
+
+export interface UseExternalSecretsOptions {
+  enabled?: boolean
+  page?: number
+  pageSize?: number
+  search?: string
+}

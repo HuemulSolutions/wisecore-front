@@ -28,8 +28,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { parseApiDate, formatDate } from "@/lib/utils";
 import type { DocxTemplate } from "@/types/docx-templates";
-import type { DocxTemplateCardProps, TemplateDocxListProps } from '@/types/templates-docx-list';
-export type { TemplateDocxListProps } from '@/types/templates-docx-list';
+import type { DocxTemplateCardProps, TemplateDocxListProps } from '@/types/templates';
+export type { TemplateDocxListProps } from '@/types/templates';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

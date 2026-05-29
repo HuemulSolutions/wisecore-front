@@ -2,8 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { deleteTemplate } from "@/services/templates";
-import type { DeleteTemplateDialogProps } from '@/types/templates-delete-dialog';
-export type { DeleteTemplateDialogProps } from '@/types/templates-delete-dialog';
+import type { DeleteTemplateDialogProps } from '@/types/templates';
+export type { DeleteTemplateDialogProps } from '@/types/templates';
 
 export function DeleteTemplateDialog({
   open,

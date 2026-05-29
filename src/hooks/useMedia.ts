@@ -44,28 +44,8 @@ export const mediaQueryKeys = {
     [...mediaQueryKeys.all, 'download', organizationId, mediaId, versionNumber ?? 'current'] as const,
 }
 
-// ─── Options ──────────────────────────────────────────────────────────────────
-
-export interface UseMediaListOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  mediaType?: string | null
-  parentId?: string | null
-}
-
-export interface UseMediaPickerOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  mediaType?: string | null
-}
-
-export interface UseMediaVersionsOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-}
+import type { UseMediaListOptions, UseMediaPickerOptions, UseMediaVersionsOptions } from '@/types/media'
+export type { UseMediaListOptions, UseMediaPickerOptions, UseMediaVersionsOptions }
 
 // ─── List query ───────────────────────────────────────────────────────────────
 
