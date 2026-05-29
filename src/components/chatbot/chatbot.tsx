@@ -28,7 +28,7 @@ import {
 import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
 import { ChatbotProvider, useChatbotContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
-import { getDefaultLLM, getLLMs } from '@/services/llms';
+import { getDefaultLLM, getAllLLMs } from '@/services/llms';
 
 import type { ChatbotProps } from '@/types/chatbot';
 
@@ -82,7 +82,7 @@ function ChatbotContent() {
 
   const { data: llms = [], isLoading: isLoadingLlms } = useQuery({
     queryKey: ['llms'],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
     enabled: isOpen,
     staleTime: 5 * 60 * 1000,
   });
@@ -97,6 +97,7 @@ function ChatbotContent() {
 
   useEffect(() => {
     if (!isOpen) return;
+    if (isLoadingDefaultLLM) return;
 
     const hasSelectedModel =
       selectedLlmId !== undefined && llms.some((llm) => llm.id === selectedLlmId);
@@ -108,7 +109,7 @@ function ChatbotContent() {
     if (nextLlmId) {
       setSelectedLlmId(nextLlmId);
     }
-  }, [defaultLLM?.id, isOpen, llms, selectedLlmId, setSelectedLlmId]);
+  }, [defaultLLM?.id, isOpen, isLoadingDefaultLLM, llms, selectedLlmId, setSelectedLlmId]);
 
   // ── Auto-scroll on new messages ─────────────────────────────
   useEffect(() => {

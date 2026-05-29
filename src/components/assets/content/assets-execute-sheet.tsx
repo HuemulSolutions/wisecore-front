@@ -15,7 +15,7 @@ import {
   getExecutionById, 
   executeDocument 
 } from "@/services/executions";
-import { getLLMs, getDefaultLLM } from "@/services/llms";
+import { getAllLLMs, getDefaultLLM } from "@/services/llms";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
@@ -72,7 +72,7 @@ export function ExecuteSheet({
   // Query para obtener LLMs (lazy loading: only when sheet is open)
   const { data: llms } = useQuery({
     queryKey: ["llms"],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
     enabled: isOpen, // Only fetch when sheet is actually open
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
