@@ -1,8 +1,8 @@
 import { Plus, RefreshCw, AlertCircle, Building2 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useTranslation } from "react-i18next"
-import type { OrganizationContentEmptyStateProps } from "@/types/organization-content-empty-state"
-export type { OrganizationContentEmptyStateProps } from "@/types/organization-content-empty-state"
+import type { OrganizationContentEmptyStateProps } from "@/types/organizations"
+export type { OrganizationContentEmptyStateProps } from "@/types/organizations"
 
 export function OrganizationContentEmptyState({
   type,

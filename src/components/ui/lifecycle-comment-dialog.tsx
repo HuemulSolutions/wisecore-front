@@ -2,22 +2,8 @@ import { useState, useEffect } from "react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import type { LucideIcon } from "lucide-react"
-
-interface LifecycleCommentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description: string
-  onConfirm: (comment: string) => void
-  confirmLabel?: string
-  cancelLabel?: string
-  commentLabel?: string
-  commentPlaceholder?: string
-  isProcessing?: boolean
-  variant?: "default" | "destructive"
-  icon?: LucideIcon
-}
+import type { LifecycleCommentDialogProps } from '@/types/lifecycle'
+export type { LifecycleCommentDialogProps } from '@/types/lifecycle'
 
 export function LifecycleCommentDialog({
   open,

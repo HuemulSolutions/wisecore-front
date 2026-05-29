@@ -4,9 +4,9 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import type { DeleteCustomFieldDialogProps } from "@/types/custom-fields-delete-dialog"
+import type { DeleteCustomFieldDialogProps } from '@/types/custom-fields'
 
-export type { DeleteCustomFieldDialogProps } from "@/types/custom-fields-delete-dialog"
+export type { DeleteCustomFieldDialogProps } from '@/types/custom-fields'
 
 export function DeleteCustomFieldDialog({
   open,

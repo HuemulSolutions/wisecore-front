@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { lifecycleAllows } from '@/hooks/useDocumentAccess'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
-import type { DocumentAccessControlProps, DocumentActionButtonProps } from '@/types/assets-access-control'
-export type { DocumentAccessControlProps, DocumentActionButtonProps } from '@/types/assets-access-control'
+import type { DocumentAccessControlProps, DocumentActionButtonProps } from '@/types/assets'
+export type { DocumentAccessControlProps, DocumentActionButtonProps } from '@/types/assets'
 
 /**
  * Componente que controla la visibilidad de elementos basándose en access levels del documento

@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Plus, Shield } from "lucide-react"
-import type { RolesEmptyStateProps } from '@/types/roles-empty-state'
-export type { RolesEmptyStateProps } from '@/types/roles-empty-state'
+import type { RolesEmptyStateProps } from '@/types/roles'
+export type { RolesEmptyStateProps } from '@/types/roles'
 
 export default function RolesEmptyState({ hasSearchTerm, onCreateRole }: RolesEmptyStateProps) {
   const { t } = useTranslation('roles')

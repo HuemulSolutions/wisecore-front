@@ -8,9 +8,9 @@ import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { CreateStepContentProps } from '@/types/assets-types-lifecycle-create-step'
+import type { CreateStepContentProps } from '@/types/assets'
 
-export type { CreateStepContentProps } from '@/types/assets-types-lifecycle-create-step'
+export type { CreateStepContentProps } from '@/types/assets'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

@@ -240,14 +240,17 @@ const translations = {
     noChanges: { en: "No content changes detected.", es: "No se detectaron cambios en el contenido." },
     listHeader: { en: "Changes", es: "Cambios" },
     selectEntry: { en: "Select a change on the left to view the diff.", es: "Selecciona un cambio a la izquierda para ver el diff." },
+    copyInstruction: { en: "Copy prompt", es: "Copiar prompt" },
     changeType: {
       manual: { en: "Manual edit", es: "Edición manual" },
       modify_ai: { en: "AI edit", es: "Edición IA" },
+      run_ai: { en: "AI run", es: "Ejecución IA" },
     },
   },
   customFieldsList: {
     addField: { en: "Add Field", es: "Agregar Campo" },
-    noCustomFields: { en: "No custom fields available", es: "No hay campos personalizados disponibles" },
+    noCustomFields: { en: "No custom fields yet", es: "Aún no hay campos personalizados" },
+    noCustomFieldsHint: { en: "Add custom fields to enrich this document with structured data.", es: "Agrega campos personalizados para enriquecer este documento con datos estructurados." },
     empty: { en: "Empty", es: "Vacío" },
     image: { en: "Image", es: "Imagen" },
     errorLoadingImage: { en: "Error loading image", es: "Error al cargar la imagen" },

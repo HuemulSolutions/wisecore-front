@@ -3,9 +3,9 @@ import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
-import type { AssetTypePageDialogsProps } from "@/types/assets-types-page-dialogs"
+import type { AssetTypePageDialogsProps } from '@/types/assets'
 
-export type { AssetTypePageDialogsProps } from "@/types/assets-types-page-dialogs"
+export type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export default function AssetTypePageDialogs({ 
   state, 

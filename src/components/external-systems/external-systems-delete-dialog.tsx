@@ -3,9 +3,9 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useExternalSystemMutations } from "@/hooks/useExternalSystems"
-import type { ExternalSystemDeleteDialogProps } from "@/types/external-systems-delete-dialog"
+import type { ExternalSystemDeleteDialogProps } from "@/types/external-systems"
 
-export type { ExternalSystemDeleteDialogProps } from "@/types/external-systems-delete-dialog"
+export type { ExternalSystemDeleteDialogProps } from "@/types/external-systems"
 
 export function ExternalSystemDeleteDialog({
   open,
@@ -41,3 +41,4 @@ export function ExternalSystemDeleteDialog({
     />
   )
 }
+

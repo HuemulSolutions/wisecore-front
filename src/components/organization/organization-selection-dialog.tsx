@@ -19,8 +19,8 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useTranslation } from 'react-i18next';
 import ProtectedComponent from '../protected-component';
 import type { UserOrganization } from '@/types/users';
-import type { OrganizationSelectionDialogProps } from '@/types/organization-selection-dialog';
-export type { OrganizationSelectionDialogProps } from '@/types/organization-selection-dialog';
+import type { OrganizationSelectionDialogProps } from '@/types/organizations';
+export type { OrganizationSelectionDialogProps } from '@/types/organizations';
 
 export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrganizationId }: OrganizationSelectionDialogProps) {
   const [selectedOrgId, setSelectedOrgId] = useState<string>(preselectedOrganizationId || '');

@@ -2,9 +2,9 @@
 
 import { CreateEditCustomFieldDialog } from "./custom-fields-create-edit-dialog"
 import { DeleteCustomFieldDialog } from "./custom-fields-delete-dialog"
-import type { CustomFieldPageDialogsProps } from "@/types/custom-fields-page-dialogs"
+import type { CustomFieldPageDialogsProps } from '@/types/custom-fields'
 
-export type { CustomFieldPageDialogsProps } from "@/types/custom-fields-page-dialogs"
+export type { CustomFieldPageDialogsProps } from '@/types/custom-fields'
 
 export function CustomFieldPageDialogs({
   state,

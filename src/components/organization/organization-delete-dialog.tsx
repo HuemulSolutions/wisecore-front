@@ -1,8 +1,8 @@
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { DeleteOrganizationDialogProps } from '@/types/organization-delete-dialog';
-export type { DeleteOrganizationDialogProps } from '@/types/organization-delete-dialog';
+import type { DeleteOrganizationDialogProps } from '@/types/organizations';
+export type { DeleteOrganizationDialogProps } from '@/types/organizations';
 
 export function DeleteOrganizationDialog({
   open,

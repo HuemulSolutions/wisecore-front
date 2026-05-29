@@ -17,7 +17,7 @@ import {
   Trash2
 } from "lucide-react";
 import EditSection from "./sections-edit";
-import type { Props } from '@/types/sections';
+import type { SectionComponentProps as Props } from '@/types/sections';
 
 export default function Section({ item, existingSections, onSave, onDelete }: Props ) {
   const [isExpanded, setIsExpanded] = useState(false);

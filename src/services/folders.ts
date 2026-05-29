@@ -1,28 +1,8 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import type { LibraryContentAsset, LibraryContentFolder, LibraryContent } from "@/types/folders";
 
-export interface LibraryContentAsset {
-    id: string;
-    name: string;
-    document_type?: { id: string; name: string; color: string };
-    folder_id: string | null;
-    access_levels?: string[];
-}
-
-export interface LibraryContentFolder {
-    id: string;
-    name: string;
-    parent_folder_id: string | null;
-    path: string;
-    is_match: boolean;
-    is_context: boolean;
-}
-
-export interface LibraryContent {
-    assets: LibraryContentAsset[];
-    folders: LibraryContentFolder[];
-    has_next: boolean;
-}
+export type { LibraryContentAsset, LibraryContentFolder, LibraryContent };
 
 export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string): Promise<LibraryContent> {
     const folderPath = folderId || 'root';

@@ -25,28 +25,8 @@ function buildPageRange(page: number, totalPages: number): (number | "…")[] {
   return result
 }
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulPaginationProps {
-  /** Current page (1-indexed) */
-  page: number
-  /** Items per page */
-  pageSize: number
-  /** Total items across all pages — enables full pagination with first/last buttons and page chips */
-  totalItems?: number
-  /** Cursor-based: is there a next page? */
-  hasNext?: boolean
-  /** Cursor-based: is there a previous page? */
-  hasPrevious?: boolean
-  /** Page change handler */
-  onPageChange: (page: number) => void
-  /** Page size change handler — renders the items-per-page selector when provided */
-  onPageSizeChange?: (size: number) => void
-  /** Available options for the items-per-page selector (default: [100, 200, 500]) */
-  pageSizeOptions?: number[]
-  /** Additional className for the outer wrapper */
-  className?: string
-}
+import type { HuemulPaginationProps } from "@/types/huemul"
+export type { HuemulPaginationProps }
 
 // ── Component ──────────────────────────────────────────────────────────────
 

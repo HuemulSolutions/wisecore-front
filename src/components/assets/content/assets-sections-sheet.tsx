@@ -5,8 +5,8 @@ import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown }
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { useOrganization } from "@/contexts/organization-context";
-import type { SectionSheetProps, SectionsConfigExecution, SectionsConfigResponse } from "@/types/assets-sections-sheet";
-export type { SectionSheetProps } from "@/types/assets-sections-sheet";
+import type { SectionSheetProps, SectionsConfigExecution, SectionsConfigResponse } from '@/types/assets';
+export type { SectionSheetProps } from '@/types/assets';
 import {
   Select,
   SelectContent,

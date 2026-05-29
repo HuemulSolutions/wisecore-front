@@ -14,9 +14,9 @@ import type { HuemulTableColumn } from "@/huemul/components/huemul-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ExternalSecret } from "@/types/external-secrets"
-import type { ExternalSystemSecretsTabProps, EditingState, AddFormState } from "@/types/external-system-secrets-tab"
+import type { ExternalSystemSecretsTabProps, ExternalSystemSecretsEditingState as EditingState, ExternalSystemSecretsAddFormState as AddFormState } from "@/types/external-systems"
 
-export type { ExternalSystemSecretsTabProps } from "@/types/external-system-secrets-tab"
+export type { ExternalSystemSecretsTabProps } from "@/types/external-systems"
 
 const PAGE_SIZE = 20
 
@@ -366,3 +366,4 @@ export function ExternalSystemSecretsTab({
     </>
   )
 }
+

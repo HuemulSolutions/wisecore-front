@@ -14,9 +14,9 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CreateStepContent } from "./assets-types-lifecycle-create-step"
 import { EditStepContent } from "./assets-types-lifecycle-edit-step"
-import type { DefaultStepContentProps, StepContentProps, AssetTypeLifecycleDialogProps } from '@/types/assets-types-lifecycle-dialog'
+import type { DefaultStepContentProps, StepContentProps, AssetTypeLifecycleDialogProps } from '@/types/assets'
 
-export type { AssetTypeLifecycleDialogProps } from '@/types/assets-types-lifecycle-dialog'
+export type { AssetTypeLifecycleDialogProps } from '@/types/assets'
 
 // Handles all step types that are not "create" or "edit" (review, approve, etc.)
 

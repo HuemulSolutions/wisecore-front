@@ -1,8 +1,8 @@
 import { Package } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import type { AssetTypePageEmptyStateProps } from "@/types/assets-types-page-empty-state"
+import type { AssetTypePageEmptyStateProps } from '@/types/assets'
 
-export type { AssetTypePageEmptyStateProps } from "@/types/assets-types-page-empty-state"
+export type { AssetTypePageEmptyStateProps } from '@/types/assets'
 
 export default function AssetTypePageEmptyState({ type, message }: AssetTypePageEmptyStateProps) {
   const { t } = useTranslation(['asset-types', 'common'])

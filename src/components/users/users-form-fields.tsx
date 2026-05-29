@@ -1,24 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { HuemulField } from "@/huemul/components/huemul-field"
-
-interface UserFormFieldsProps {
-  name: string
-  lastName: string
-  email: string
-  birthDay?: string
-  birthMonth?: string
-  onNameChange: (name: string) => void
-  onLastNameChange: (lastName: string) => void
-  onEmailChange: (email: string) => void
-  onBirthDayChange?: (day: string) => void
-  onBirthMonthChange?: (month: string) => void
-  onFileChange?: (files: FileList | null) => void
-  includeBirthday?: boolean
-  includePhoto?: boolean
-  disabled?: boolean
-  errors?: Record<string, string>
-  emailReadOnly?: boolean
-}
+import type { UserFormFieldsProps } from '@/types/users'
+export type { UserFormFieldsProps } from '@/types/users'
 
 const days = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),

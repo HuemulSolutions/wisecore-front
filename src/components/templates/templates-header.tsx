@@ -2,8 +2,8 @@ import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Button } from "@/components/ui/button";
 import { Plus, List, RefreshCw, Info } from "lucide-react";
-import type { TemplateHeaderProps } from '@/types/templates-header';
-export type { TemplateHeaderProps } from '@/types/templates-header';
+import type { TemplateHeaderProps } from '@/types/templates';
+export type { TemplateHeaderProps } from '@/types/templates';
 
 export function TemplateHeader({
   templateName,

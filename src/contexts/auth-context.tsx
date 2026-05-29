@@ -1,21 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
 import type { User } from '@/types/users';
+import type { AuthContextType, AuthProviderProps } from '@/types/auth'
+export type { AuthContextType }
 
 // Re-export User type for external consumption
 export type { User };
-
-export interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (token: string, user: User) => void;
-  logout: () => void;
-  updateUser: (user: User) => void;
-}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -27,9 +18,6 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);

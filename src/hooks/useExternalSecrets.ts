@@ -35,14 +35,8 @@ export const externalSecretQueryKeys = {
     ] as const,
 }
 
-// ─── Options ──────────────────────────────────────────────────────────────────
-
-export interface UseExternalSecretsOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  search?: string
-}
+import type { UseExternalSecretsOptions } from '@/types/external-secrets'
+export type { UseExternalSecretsOptions }
 
 // ─── List query ───────────────────────────────────────────────────────────────
 

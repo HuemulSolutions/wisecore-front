@@ -1,23 +1,6 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import type { ReactNode } from 'react';
-
-interface ExpandedFoldersContextType {
-  expandedFolders: Set<string>;
-  toggleFolder: (folderId: string) => void;
-  expandFolder: (folderId: string) => void;
-  collapseFolder: (folderId: string) => void;
-  isExpanded: (folderId: string) => boolean;
-  clearExpanded: () => void;
-  // Para manejar la re-expansión automática después de refresh
-  reExpandFolders: (folderIds: string[], loadChildren: (folderId: string) => Promise<any>, onChildrenLoaded?: (folderId: string, children: any[]) => void) => Promise<void>;
-  // Para obtener la lista de carpetas expandidas que necesitan recargarse
-  getExpandedFolderIds: () => string[];
-  // Flag para indicar si está en proceso de re-expansión
-  isReExpanding: boolean;
-  // Para registrar callbacks de cuando se cargan children
-  registerChildrenLoadedCallback: (folderId: string, callback: (children: any[]) => void) => void;
-  unregisterChildrenLoadedCallback: (folderId: string) => void;
-}
+import type { ExpandedFoldersContextType, ExpandedFoldersProviderProps } from '@/types/assets'
+export type { ExpandedFoldersContextType }
 
 const ExpandedFoldersContext = createContext<ExpandedFoldersContextType | undefined>(undefined);
 
@@ -28,10 +11,6 @@ export const useExpandedFolders = () => {
   }
   return context;
 };
-
-interface ExpandedFoldersProviderProps {
-  children: ReactNode;
-}
 
 export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderProps) => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());

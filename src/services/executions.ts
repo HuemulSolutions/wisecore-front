@@ -1,8 +1,10 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { ApiError } from "@/types/api-error";
-import type { ExecutionsResponse, GetExecutionsParams } from "@/types/executions";
+import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
+
+export type { RollbackTarget, RollbackStep, RollbackTargetsResponse };
 
 /** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
 function toDateParam(value: string): string {
@@ -404,27 +406,6 @@ export async function advanceExecutionLifecycle(executionId: string, organizatio
     });
     const data = await response.json();
     return data.data;
-}
-
-export interface RollbackTarget {
-    id: string;
-    value: string;
-    display_name: string;
-}
-
-export interface RollbackStep {
-    step_id: string;
-    name: string;
-    type: string;
-    order: number;
-    lifecycle_state: string;
-}
-
-export interface RollbackTargetsResponse {
-    execution_id: string;
-    current_state: string;
-    states: RollbackTarget[];
-    steps: RollbackStep[];
 }
 
 export async function getRollbackTargets(executionId: string, organizationId: string): Promise<RollbackTargetsResponse> {

@@ -16,9 +16,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { ExternalParameter, ExternalParameterType } from "@/types/external-parameters"
-import type { ExternalSystemParamsTabProps, EditingState, AddFormState } from "@/types/external-system-params-tab"
+import type { ExternalSystemParamsTabProps, ExternalSystemParamsEditingState as EditingState, ExternalSystemParamsAddFormState as AddFormState } from "@/types/external-systems"
 
-export type { ExternalSystemParamsTabProps } from "@/types/external-system-params-tab"
+export type { ExternalSystemParamsTabProps } from "@/types/external-systems"
 
 const PAGE_SIZE = 20
 
@@ -378,3 +378,4 @@ export function ExternalSystemParamsTab({
     </>
   )
 }
+

@@ -4,13 +4,8 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { UserPlus } from "lucide-react"
 import { useUserMutations } from "@/hooks/useUsers"
 import UserFormFields from "@/components/users/users-form-fields"
-
-interface CreateUserDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-  addToOrganization?: boolean
-}
+import type { CreateUserDialogProps } from '@/types/users';
+export type { CreateUserDialogProps } from '@/types/users';
 
 export default function CreateUserDialog({ 
   open, 

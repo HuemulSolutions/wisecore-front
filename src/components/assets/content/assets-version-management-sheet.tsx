@@ -14,8 +14,8 @@ import { getExecutionById, updateExecutionName, updateExecutionBusinessDates } f
 import { formatApiDateTime, parseApiDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-import type { ExecutionSummary, VersionManagementSheetProps, EditFormState, ExecutionDetailProps } from '@/types/assets-version-management-sheet';
-export type { VersionManagementSheetProps } from '@/types/assets-version-management-sheet';
+import type { ExecutionSummary, VersionManagementSheetProps, EditFormState, ExecutionDetailProps } from '@/types/assets';
+export type { VersionManagementSheetProps } from '@/types/assets';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

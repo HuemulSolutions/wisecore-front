@@ -12,9 +12,9 @@ import {
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ConfigStepContentProps } from '@/types/assets-types-lifecycle-config-step'
+import type { ConfigStepContentProps } from '@/types/assets'
 
-export type { ConfigStepContentProps } from '@/types/assets-types-lifecycle-config-step'
+export type { ConfigStepContentProps } from '@/types/assets'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

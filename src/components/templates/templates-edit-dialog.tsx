@@ -6,8 +6,8 @@ import { HuemulField } from "@/huemul/components/huemul-field";
 import { updateTemplate } from "@/services/templates";
 import { Edit3 } from "lucide-react";
 import { withRefresh } from "@/lib/query-utils";
-import type { EditTemplateDialogProps } from '@/types/templates-edit-dialog';
-export type { EditTemplateDialogProps } from '@/types/templates-edit-dialog';
+import type { EditTemplateDialogProps } from '@/types/templates';
+export type { EditTemplateDialogProps } from '@/types/templates';
 
 export function EditTemplateDialog({
   open,

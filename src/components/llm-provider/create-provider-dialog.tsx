@@ -3,9 +3,8 @@ import { Blocks, ExternalLink } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
-import type { CreateLLMProviderRequest } from "@/types/llm-provider"
-import type { CreateProviderDialogProps } from "@/types/create-provider-dialog"
-export type { CreateProviderDialogProps } from "@/types/create-provider-dialog"
+import type { CreateLLMProviderRequest, CreateProviderDialogProps } from "@/types/llm-provider"
+export type { CreateProviderDialogProps } from "@/types/llm-provider"
 
 export function CreateProviderDialog({
   open,

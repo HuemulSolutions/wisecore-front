@@ -36,15 +36,8 @@ export const externalSystemQueryKeys = {
     ] as const,
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-export interface UseExternalSystemsOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  search?: string
-  status?: ExternalSystemStatus
-}
+import type { UseExternalSystemsOptions } from '@/types/external-systems'
+export type { UseExternalSystemsOptions }
 
 export function useExternalSystems(
   organizationId: string,

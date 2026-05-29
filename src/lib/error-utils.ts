@@ -1,19 +1,7 @@
 import { toast } from 'sonner';
 import { ApiError } from '@/types/api-error';
-
-/**
- * Options for handleApiError
- */
-export interface HandleApiErrorOptions {
-  /** Custom fallback message if error.message is not available */
-  fallbackMessage?: string;
-  /** Whether to show a toast notification (default: true) */
-  showToast?: boolean;
-  /** Whether to show the error detail as toast description (default: true) */
-  showDescription?: boolean;
-  /** Custom handler for specific error codes */
-  onErrorCode?: (code: string) => boolean; // Return true to prevent default handling
-}
+import type { HandleApiErrorOptions } from '@/types/error-utils'
+export type { HandleApiErrorOptions }
 
 /**
  * Centralized error handler for API errors

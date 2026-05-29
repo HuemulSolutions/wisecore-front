@@ -7,9 +7,9 @@ import { getTemplateChildDocuments } from "@/services/templates"
 import type { ChildDocumentFolder, ChildDocument } from "@/services/templates"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
-import type { AssetSelectionPanelProps, FolderGroupProps, DocumentRowProps, ExecutionRowProps } from "@/types/asset-selection-panel"
+import type { AssetSelectionPanelProps, FolderGroupProps, DocumentRowProps, ExecutionRowProps } from '@/types/assets'
 
-export type { AssetSelectionPanelProps } from "@/types/asset-selection-panel"
+export type { AssetSelectionPanelProps } from '@/types/assets'
 
 export function AssetSelectionPanel({ templateId, onExecute, isExecuting, executeDisabled, selectionKey, actionLabel, actionLoadingLabel, ActionIcon }: AssetSelectionPanelProps) {
   const { t } = useTranslation(["advanced", "common"])

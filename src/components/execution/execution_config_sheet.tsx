@@ -12,9 +12,9 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Settings, Sparkles, Info, Loader2 } from "lucide-react";
-import type { ExecutionConfigSheetProps } from "@/types/execution-config-sheet";
+import type { ExecutionConfigSheetProps } from "@/types/execution";
 
-export type { ExecutionConfigSheetProps } from "@/types/execution-config-sheet";
+export type { ExecutionConfigSheetProps } from "@/types/execution";
 
 export function ExecutionConfigSheet({
   instructions,

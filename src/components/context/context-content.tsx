@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import Markdown from '../ui/markdown';
-import type { ContextDisplayProps } from '@/types/context-content';
+import type { ContextDisplayProps } from '@/types/context';
 
-export type { ContextDisplayProps } from '@/types/context-content';
+export type { ContextDisplayProps } from '@/types/context';
 
 export const ContextDisplay: React.FC<ContextDisplayProps> = ({
   item,

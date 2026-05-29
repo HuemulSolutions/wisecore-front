@@ -2,12 +2,10 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type { EventSourceMessage } from "@microsoft/fetch-event-source";
+import type { SSEEvent, GenerateStreamParams, GenerateWorkerParams, ExecuteGenerationParams, FixSectionParams, RedactPromptParams, ChatbotParams } from "@/types/generate";
 
 // Generic SSE streaming helper to avoid duplication
 // Unifies error handling, queueing and closing logic
-// Types
- type SSEErrorEvent = { event: "error"; data: string };
- type SSEEvent = EventSourceMessage | SSEErrorEvent;
 
 async function* ssePostStream(
   url: string,
@@ -95,18 +93,6 @@ async function* ssePostStream(
 }
 
 
-interface GenerateStreamParams {
-    documentId: string;
-    executionId: string;
-    userInstructions?: string;
-    organizationId: string;
-    signal?: AbortSignal;
-    onData: (text: string) => void;
-    onInfo: (sectionId: string) => void;
-    onError: (error: Event) => void;
-    onClose: () => void;
-}
-
 async function* fetchGeneration(
   documentId: string,
   executionId: string,
@@ -129,16 +115,6 @@ async function* fetchGeneration(
 
 
 // New interface for the worker-based generation
-interface GenerateWorkerParams {
-    documentId: string;
-    executionId: string;
-    instructions?: string;
-    startSectionId?: string;
-    singleSectionMode?: boolean;
-    organizationId: string;
-}
-
-// New function for worker-based generation (no streaming)
 export const generateDocumentWorker = async (params: GenerateWorkerParams): Promise<void> => {
     if (!params) {
         throw new TypeError("generateDocumentWorker: parameter 'params' is undefined. You must pass an object with the required properties.");
@@ -263,17 +239,6 @@ export const generateFirstSection = async (
         organizationId,
     });
 };
-
-// New execution interface for the /execution/generate endpoint
-interface ExecuteGenerationParams {
-    documentId: string;
-    executionId: string;
-    sectionId?: string;
-    mode: 'single' | 'from';
-    instructions?: string;
-    llmModel: string;
-    organizationId: string;
-}
 
 /**
  * Execute generation using the new /execution/generate endpoint
@@ -402,35 +367,6 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
     }
 }
 
-
-interface FixSectionParams {
-    instructions: string;
-    content: string;
-    organizationId: string;
-    onData: (text: string) => void;
-    onError: (error: Event) => void;
-    onClose: () => void;
-}
-
-interface RedactPromptParams {
-    name: string;
-    content?: string;
-    organizationId: string;
-    onData: (text: string) => void;
-    onError: (error: Event) => void;
-    onClose: () => void;
-}
-
-interface ChatbotParams {
-    executionId: string;
-    user_message: string;
-    threadId?: string;
-    organizationId: string;
-    onData: (text: string) => void;
-    onThreadId: (threadId: string) => void;
-    onError: (error: Event) => void;
-    onClose: () => void;
-}
 
 async function* fetchFixSection(
   instructions: string,

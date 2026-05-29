@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { JsonViewer } from "@/huemul/components/json-viewer"
 import { cn } from "@/lib/utils"
-import type { Tab, ExternalFunctionalityDetailProps } from "@/types/external-functionality-detail"
+import type { ExternalFunctionalityDetailProps } from "@/types/external-functionalities"
+import type { ExternalFunctionalityTab as Tab } from "@/types/external-functionalities"
 import { ExternalFunctionalityParamsTab } from "./external-functionality-params-tab"
 
-export type { ExternalFunctionalityDetailProps } from "@/types/external-functionality-detail"
+export type { ExternalFunctionalityDetailProps } from "@/types/external-functionalities"
 
 const methodColors: Record<string, string> = {
   GET: "bg-blue-500/10 text-blue-600 dark:text-blue-400",

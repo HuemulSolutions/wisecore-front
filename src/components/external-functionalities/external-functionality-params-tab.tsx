@@ -16,9 +16,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { ExternalParameter, ExternalParameterType } from "@/types/external-parameters"
-import type { ExternalFunctionalityParamsTabProps, EditingState, AddFormState } from "@/types/external-functionality-params-tab"
+import type { ExternalFunctionalityParamsTabProps, ExternalFunctionalityParamsEditingState as EditingState, ExternalFunctionalityParamsAddFormState as AddFormState } from "@/types/external-functionalities"
 
-export type { ExternalFunctionalityParamsTabProps } from "@/types/external-functionality-params-tab"
+export type { ExternalFunctionalityParamsTabProps } from "@/types/external-functionalities"
 
 const PAGE_SIZE = 20
 

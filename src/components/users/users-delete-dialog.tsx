@@ -1,13 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import { type User } from "@/types/users"
-
-interface UserDeleteDialogProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onAction: () => Promise<void>
-}
+import type { UserDeleteDialogProps } from '@/types/users'
+export type { UserDeleteDialogProps } from '@/types/users'
 
 export default function UserDeleteDialog({
   user,

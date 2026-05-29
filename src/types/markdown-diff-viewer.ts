@@ -51,14 +51,19 @@ export interface PanelProps {
   lines: SplitEntry[];
   label: string;
   dot: string;
+  rawContent?: string;
 }
 
 export interface SplitViewProps extends SharedViewProps {
   diff: DiffEntry[];
+  oldContent: string;
+  newContent: string;
 }
 
 export interface UnifiedViewProps extends SharedViewProps {
   diff: DiffEntry[];
+  oldContent: string;
+  newContent: string;
 }
 
 export interface RenderedViewProps extends SharedViewProps {

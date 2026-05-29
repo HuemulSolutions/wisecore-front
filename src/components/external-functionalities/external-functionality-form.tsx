@@ -8,9 +8,9 @@ import type {
   ExternalFunctionalityClass,
   ExternalFunctionalityObjective,
 } from "@/types/external-functionalities"
-import type { ExternalFunctionalityFormProps } from "@/types/external-functionality-form"
+import type { ExternalFunctionalityFormProps } from "@/types/external-functionalities"
 
-export type { ExternalFunctionalityFormData, ExternalFunctionalityFormProps } from "@/types/external-functionality-form"
+export type { ExternalFunctionalityFormData, ExternalFunctionalityFormProps } from "@/types/external-functionalities"
 
 export function ExternalFunctionalityForm({ formData, onChange }: ExternalFunctionalityFormProps) {
   const { t } = useTranslation(["external-functionalities", "common"])

@@ -3,8 +3,8 @@ import { PlusCircle } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet"
 import { useTranslation } from "react-i18next"
-import type { AddSectionDialogProps } from "@/types/assets-add-section-dialog"
-export type { AddSectionDialogProps } from "@/types/assets-add-section-dialog"
+import type { AddSectionDialogProps } from '@/types/assets'
+export type { AddSectionDialogProps } from '@/types/assets'
 
 export function AddSectionDialog({
   open,

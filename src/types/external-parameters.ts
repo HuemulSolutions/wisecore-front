@@ -46,3 +46,11 @@ export interface UpdateExternalParameterRequest {
   name?: string
   value?: string
 }
+
+export interface UseExternalParametersOptions {
+  enabled?: boolean
+  page?: number
+  pageSize?: number
+  search?: string
+  paramType?: ExternalParameterType
+}
