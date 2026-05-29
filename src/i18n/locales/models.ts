@@ -155,7 +155,7 @@ const translations = {
   defaultBanner: {
     label: { en: "Organization Default Model", es: "Modelo Predeterminado de la Organización" },
     via: { en: "via", es: "via" },
-    changeDefault: { en: "Change Default", es: "Cambiar Default" },
+    changeDefault: { en: "Change Default", es: "Cambiar Predeterminado" },
     noDefault: { en: "No default model configured", es: "Sin modelo predeterminado configurado" },
   },
   changeDefaultDialog: {
