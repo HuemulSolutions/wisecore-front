@@ -163,6 +163,7 @@ const translations = {
       generating: { en: "generating", es: "generando" },
       completed: { en: "completed", es: "completado" },
       processing: { en: "processing", es: "procesando" },
+      failed: { en: "failed", es: "fallida" },
     },
     description: {
       pendingSingle: { en: "This section is queued for regeneration", es: "Esta sección está en cola para regeneración" },
@@ -172,6 +173,7 @@ const translations = {
       doneSingle: { en: "This section has been successfully regenerated. Click dismiss to remove this message.", es: "Esta sección se ha regenerado exitosamente. Haz clic en descartar para quitar este mensaje." },
       doneFrom: { en: "This section has been regenerated. Click dismiss to remove this message.", es: "Esta sección se ha regenerado. Haz clic en descartar para quitar este mensaje." },
       default: { en: "Section is being processed", es: "La sección se está procesando" },
+      failed: { en: "The section regeneration failed. Please try again.", es: "La regeneración de la sección falló. Por favor intenta de nuevo." },
     },
     sectionIs: { en: "Section is {{status}}", es: "La sección está {{status}}" },
     refreshStatus: { en: "Refresh status", es: "Actualizar estado" },

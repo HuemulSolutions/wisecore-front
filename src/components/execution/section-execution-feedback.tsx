@@ -26,6 +26,7 @@ export function SectionExecutionFeedback({
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
   const [hasShownCompletedToast, setHasShownCompletedToast] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [executionFailed, setExecutionFailed] = useState(false);
 
   console.log('🎯 SectionExecutionFeedback rendered with:', { 
     executionId, 
@@ -159,6 +160,7 @@ export function SectionExecutionFeedback({
       if (!hasShownCompletedToast) {
         if (overallStatus === 'failed') {
           console.log('❌ Section execution failed!');
+          setExecutionFailed(true);
           toast.error(t('sectionFeedback.toast.failed'));
           setHasShownCompletedToast(true);
           onComplete?.();
@@ -206,6 +208,16 @@ export function SectionExecutionFeedback({
   }
 
   const getStatusDisplay = () => {
+    if (executionFailed) {
+      return {
+        icon: <XCircle className="h-5 w-5 text-red-600" />,
+        text: t('sectionFeedback.status.failed'),
+        description: t('sectionFeedback.description.failed'),
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
+        textColor: 'text-red-800'
+      };
+    }
     switch (currentSectionStatus.status) {
       case 'pending':
         return {
@@ -276,7 +288,7 @@ export function SectionExecutionFeedback({
           </div>
         </div>
         <div className="flex items-center space-x-2 ml-4">
-          {(currentSectionStatus.status === 'running' || currentSectionStatus.status === 'pending' || currentSectionStatus.status === 'generating') && (
+          {!executionFailed && (currentSectionStatus.status === 'running' || currentSectionStatus.status === 'pending' || currentSectionStatus.status === 'generating') && (
             <Button
               variant="ghost"
               size="sm"
