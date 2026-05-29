@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Plus } from 'lucide-react'
+import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
-import { handleApiError } from '@/lib/error-utils'
+import { HuemulTable } from '@/huemul/components/huemul-table'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout'
 import { 
@@ -13,7 +17,6 @@ import {
   createProvider, 
   updateProvider, 
   deleteProvider,
-  getProvider,
 } from '@/services/llm-provider'
 import { 
   getLLMs, 
@@ -38,20 +41,26 @@ import {
   ModelDialog,
   DeleteModelDialog,
   ModelCapabilitiesDialog,
+  ModelsDefaultBanner,
+  ChangeDefaultModelDialog,
 } from '@/components/llm'
 import {
-  ProviderCard,
   EditProviderDialog,
   DeleteProviderDialog,
   CreateProviderDialog,
 } from '@/components/llm-provider'
 import {
-  EmbeddingProviderCard,
   EmbeddingProviderEditDialog,
 } from '@/components/embedding-provider'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import type { LLM, CreateLLMRequest } from '@/types/models'
 import type { CreateLLMProviderRequest } from '@/types/llm-provider'
+
+function getProviderColor(name: string) {
+  const colors = ['bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500', 'bg-rose-500']
+  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return colors[hash % colors.length]
+}
 
 export default function Models() {
   const queryClient = useQueryClient()
@@ -60,28 +69,26 @@ export default function Models() {
     hasPermission, 
     hasAnyPermission,
     isOrgAdmin,
-    isRootAdmin,
     isLoading: isLoadingPermissions 
   } = useUserPermissions()
   
   // State management
-  const [openProviders, setOpenProviders] = useState<string[]>([])
-  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
   const [editingProvider, setEditingProvider] = useState<any>(null)
   const [deletingProvider, setDeletingProvider] = useState<any>(null)
   const [editingModel, setEditingModel] = useState<LLM | null>(null)
   const [deletingModel, setDeletingModel] = useState<LLM | null>(null)
   const [isCreateModelOpen, setIsCreateModelOpen] = useState(false)
-  const [selectedProviderId, setSelectedProviderId] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [testingModelId, setTestingModelId] = useState<string | null>(null)
-  const [openEmbeddingProviders, setOpenEmbeddingProviders] = useState<string[]>([])
   const [editingEmbeddingProvider, setEditingEmbeddingProvider] = useState<any>(null)
   const [deletingEmbeddingProvider, setDeletingEmbeddingProvider] = useState<any>(null)
   const [isDeletingEmbeddingProvider, setIsDeletingEmbeddingProvider] = useState(false)
   const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
   const [capabilitiesModel, setCapabilitiesModel] = useState<LLM | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [isTestingEmbeddingProvider, setIsTestingEmbeddingProvider] = useState(false)
+  const [testingModelId, setTestingModelId] = useState<string | null>(null)
+  const [isChangeDefaultOpen, setIsChangeDefaultOpen] = useState(false)
 
   // Verificar permisos
   const canListProviders = isOrgAdmin || hasAnyPermission(['llm_provider:l', 'llm_provider:r'])
@@ -108,12 +115,13 @@ export default function Models() {
     enabled: canListProviders,
   })
 
-  const { data: llms = [], isLoading: loadingLLMs, error: errorLLMs } = useQuery({
-    queryKey: ['llms'],
-    queryFn: getLLMs,
+  const { data: llmsResponse, isLoading: loadingLLMs, isFetching: fetchingLLMs, error: errorLLMs } = useQuery({
+    queryKey: ['llms', page, pageSize],
+    queryFn: () => getLLMs(page, pageSize),
     retry: 0,
-    enabled: canListModels && openProviders.length > 0, // Solo cargar cuando hay providers abiertos y tiene permisos
+    enabled: canListModels,
   })
+  const llms: LLM[] = llmsResponse?.data || []
 
   const { data: embeddingSupportedResponse, error: errorEmbeddingSupportedProviders } = useQuery({
     queryKey: ['embeddingSupportedProviders'],
@@ -205,9 +213,6 @@ export default function Models() {
   const testLLMConnectionMutation = useMutation({
     mutationFn: testLLMConnection,
     meta: { successMessage: t('toast.connectionSuccessful') },
-    onSettled: () => {
-      setTestingModelId(null)
-    },
   })
 
   const createEmbeddingProviderMutation = useMutation({
@@ -248,9 +253,7 @@ export default function Models() {
     },
   })
 
-  // Process providers - split into organization and managed
-  const orgProviders = allProvidersList.filter((p: any) => !p.is_managed).map((p: any) => ({ ...p, isConfigured: true }))
-  const managedProviders = allProvidersList.filter((p: any) => p.is_managed).map((p: any) => ({ ...p, isConfigured: true }))
+
 
   const getEmbeddingRequiredFields = (providerName: string) => {
     if (providerName === 'azure_openai') {
@@ -288,9 +291,10 @@ export default function Models() {
   })
 
   // Helper functions
-  const getProviderModels = (providerId: string) => {
-    return (llms as LLM[]).filter((llm) => llm.provider_id === providerId)
-  }
+  const defaultModel = llms.find((llm) => llm.is_default)
+  const defaultModelProvider = defaultModel
+    ? allProvidersList.find((p: any) => p.id === defaultModel.provider_id)
+    : undefined
 
   // Event handlers
   const handleUpdateProvider = (data: CreateLLMProviderRequest) => {
@@ -298,42 +302,31 @@ export default function Models() {
     updateProviderMutation.mutate({ id: editingProvider.id, data })
   }
 
-  const handleCreateModel = (data: { name: string; internal_name: string; capabilities: string[] }) => {
+  const handleCreateModel = (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => {
     const payload: CreateLLMRequest = {
-      ...data,
-      provider_id: selectedProviderId,
+      name: data.name,
+      internal_name: data.internal_name,
+      capabilities: data.capabilities,
+      provider_id: data.provider_id ?? '',
     }
     createLLMMutation.mutate(payload)
   }
 
-  const handleUpdateModel = (data: { name: string; internal_name: string; capabilities: string[] }) => {
+  const handleUpdateModel = (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => {
     if (!editingModel) return
-    updateLLMMutation.mutate({ id: editingModel.id, data: { ...data, provider_id: editingModel.provider_id } })
+    updateLLMMutation.mutate({ id: editingModel.id, data: { name: data.name, internal_name: data.internal_name, capabilities: data.capabilities, provider_id: editingModel.provider_id } })
   }
 
   const handleEditModel = (model: LLM) => {
-    // Close dropdown after opening dialog
-    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
-    // Delay to allow dropdown to close before dialog opens
-    setTimeout(() => {
-      setEditingModel(model)
-    }, 0)
+    setEditingModel(model)
   }
 
   const handleDeleteModel = (model: LLM) => {
-    // Close dropdown after opening dialog
-    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
-    // Delay to allow dropdown to close before dialog opens
-    setTimeout(() => {
-      setDeletingModel(model)
-    }, 0)
+    setDeletingModel(model)
   }
 
   const handleCapabilitiesModel = (model: LLM) => {
-    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
-    setTimeout(() => {
-      setCapabilitiesModel(model)
-    }, 0)
+    setCapabilitiesModel(model)
   }
 
   const handleCapabilitiesSubmit = (model: LLM, capabilities: string[]) => {
@@ -362,63 +355,11 @@ export default function Models() {
     })
   }
 
-  const handleDefaultChange = (llmId: string, isDefault: boolean) => {
-    if (isDefault) {
-      setDefaultMutation.mutate(llmId)
-    }
-  }
-
   const handleTestModel = (model: LLM) => {
-    // Close dropdown after opening test
-    setOpenDropdowns(prev => ({ ...prev, [`model-${model.id}`]: false }))
     setTestingModelId(model.id)
-    testLLMConnectionMutation.mutate(model.id)
-  }
-
-  // Handle provider edit
-  const handleEditProvider = async (provider: any) => {
-    // Close dropdown (for mobile)
-    setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
-    try {
-      // Fetch provider details from the API
-      const providerDetails = await getProvider(provider.id)
-      
-      // Look up required fields from supported providers using type
-      const supportedProvider = (supportedProviders as any[]).find((sp: any) => sp.type === provider.type)
-      
-      const editProvider: any = {
-        ...provider,
-        providerKey: provider.type,
-        api_key: supportedProvider?.requires_api_key === true,
-        endpoint: supportedProvider?.requires_endpoint === true,
-        deployment: supportedProvider?.requires_deployment === true,
-      }
-      
-      // Add the actual values from API
-      if (providerDetails.key !== undefined) {
-        editProvider.key = providerDetails.key
-      }
-      if (providerDetails.endpoint !== undefined) {
-        editProvider.endpointValue = providerDetails.endpoint
-      }
-      if (providerDetails.deployment !== undefined) {
-        editProvider.deploymentValue = providerDetails.deployment
-      }
-      
-      setEditingProvider(editProvider)
-    } catch (error) {
-      handleApiError(error, { fallbackMessage: t('errors.failedToLoadProviderDetails') })
-    }
-  }
-
-  // Handle provider delete
-  const handleDeleteProvider = (provider: any) => {
-    // Close dropdown after opening dialog
-    setOpenDropdowns(prev => ({ ...prev, [`provider-${provider.id}`]: false }))
-    // Delay to allow dropdown to close before dialog opens
-    setTimeout(() => {
-      setDeletingProvider(provider)
-    }, 0)
+    testLLMConnectionMutation.mutate(model.id, {
+      onSettled: () => setTestingModelId(null),
+    })
   }
 
   const confirmDeleteProvider = async () => {
@@ -432,22 +373,6 @@ export default function Models() {
     })
   }
 
-  const handleConfigureProvider = (provider: any) => {
-    const supportedProvider = (supportedProviders as any[]).find((sp: any) => sp.type === provider.type)
-    setEditingProvider({
-      ...provider,
-      providerKey: provider.type,
-      api_key: supportedProvider?.requires_api_key === true,
-      endpoint: supportedProvider?.requires_endpoint === true,
-      deployment: supportedProvider?.requires_deployment === true,
-    })
-  }
-
-  const handleCreateModelForProvider = (providerId: string) => {
-    setSelectedProviderId(providerId)
-    setIsCreateModelOpen(true)
-  }
-
   const handleConfigureEmbeddingProvider = (provider: any) => {
     setEditingEmbeddingProvider(provider)
   }
@@ -458,27 +383,19 @@ export default function Models() {
   }
 
   const handleEditEmbeddingProvider = (provider: any) => {
-    setOpenDropdowns(prev => ({ ...prev, [`embedding-provider-${provider.id}`]: false }))
-    setTimeout(() => {
-      setEditingEmbeddingProvider(provider)
-    }, 0)
+    setEditingEmbeddingProvider(provider)
   }
 
   const handleDeleteEmbeddingProvider = (provider: any) => {
-    setOpenDropdowns(prev => ({ ...prev, [`embedding-provider-${provider.id}`]: false }))
-    setTimeout(() => {
-      setDeletingEmbeddingProvider(provider)
-    }, 0)
+    setDeletingEmbeddingProvider(provider)
   }
 
   const handleUpsertEmbeddingProvider = (data: { name: string; key?: string; endpoint?: string; deployment?: string }) => {
     if (!editingEmbeddingProvider) return
-
     if (editingEmbeddingProvider.isConfigured) {
       updateEmbeddingProviderMutation.mutate(data as any)
       return
     }
-
     createEmbeddingProviderMutation.mutate(data as any)
   }
 
@@ -498,10 +415,6 @@ export default function Models() {
     }
   }
 
-  const closeAllDropdowns = () => {
-    setOpenDropdowns({})
-  }
-
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
@@ -517,13 +430,6 @@ export default function Models() {
       setIsRefreshing(false)
     }
   }
-
-  // Handle clicks outside dropdowns to close them
-  useEffect(() => {
-    const handleClickOutside = () => closeAllDropdowns()
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [])
 
   // Mostrar loading mientras se cargan permisos o proveedores
   if (isLoadingPermissions || loadingProviders) {
@@ -557,203 +463,321 @@ export default function Models() {
           <ModelsHeader 
             onRefresh={handleRefresh}
             configuredProviders={hasError ? 0 : allProvidersList.length}
-            totalModels={hasError ? 0 : (llms as LLM[]).length}
+            totalModels={hasError ? 0 : llms.length}
             isLoading={isRefreshing}
           />
         }
-        headerClassName="p-6 pb-0"
+        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
         columns={[
           {
             content: (
-              <Tabs defaultValue="models">
-        <TabsList>
+              <Tabs defaultValue="models" className="w-full flex-1 min-h-0">
+        <TabsList className="shrink-0">
           <TabsTrigger value="models" className="hover:cursor-pointer">{t('tabs.models')}</TabsTrigger>
           <TabsTrigger value="embeddings" className="hover:cursor-pointer">{t('tabs.embeddings')}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="models">
-          {/* Show error state in content area */}
+        <TabsContent value="models" className="mt-4 min-h-0 flex flex-col">
+          {/* Default model banner */}
+          {!hasError && defaultModel && (
+            <div className="mb-4 shrink-0">
+              <ModelsDefaultBanner
+                defaultModel={defaultModel}
+                providerName={defaultModelProvider?.name}
+                onChangeDefault={() => setIsChangeDefaultOpen(true)}
+                canUpdateModel={canUpdateModel}
+              />
+            </div>
+          )}
+
           {hasError ? (
-            <ModelsContentEmptyState 
-              type="error" 
-              message={errorMessage} 
+            <ModelsContentEmptyState
+              type="error"
+              message={errorMessage}
               onRetry={handleRefresh}
             />
           ) : (
-            <div className="space-y-6">
-              {!allProvidersList.length ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-foreground">{t('sections.orgProviders')}</h3>
-                    {canCreateProvider && (
-                      <HuemulButton
-                        icon={Plus}
-                        label={t('actions.newProvider')}
-                        size="sm"
-                        onClick={() => setIsCreateProviderOpen(true)}
-                      />
-                    )}
-                  </div>
-                  <ModelsContentEmptyState type="empty" />
-                </div>
-              ) : (
-                <>
-              {/* Organization Providers */}
-              {orgProviders.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-foreground">{t('sections.orgProviders')}</h3>
-                      <p className="text-xs text-muted-foreground">{t('sections.orgProvidersDesc')}</p>
-                    </div>
-                    {canCreateProvider && (
-                      <HuemulButton
-                        icon={Plus}
-                        label={t('actions.newProvider')}
-                        size="sm"
-                        onClick={() => setIsCreateProviderOpen(true)}
-                      />
-                    )}
-                  </div>
-                  {orgProviders.map((provider: any) => (
-                    <ProviderCard
-                      key={provider.id}
-                      provider={provider}
-                      models={getProviderModels(provider.id)}
-                      isOpen={openProviders.includes(provider.id)}
-                      onToggle={(open) => {
-                        if (open) {
-                          setOpenProviders(prev => [...prev, provider.id])
-                        } else {
-                          setOpenProviders(prev => prev.filter(id => id !== provider.id))
-                        }
-                      }}
-                      onEditProvider={handleEditProvider}
-                      onDeleteProvider={handleDeleteProvider}
-                      onConfigureProvider={handleConfigureProvider}
-                      onCreateModel={handleCreateModelForProvider}
-                      onEditModel={handleEditModel}
-                      onDeleteModel={handleDeleteModel}
-                      onTestModel={handleTestModel}
-                      onCapabilitiesModel={handleCapabilitiesModel}
-                      onDefaultChange={handleDefaultChange}
-                      isDeleting={deleteProviderMutation.isPending}
-                      isDeletingModel={deleteLLMMutation.isPending}
-                      testingModelId={testingModelId}
-                      isLoadingModels={loadingLLMs}
-                      modelsError={errorLLMs}
-                      openDropdowns={openDropdowns}
-                      onDropdownChange={(key, open) => {
-                        setOpenDropdowns(prev => ({ ...prev, [key]: open }))
-                      }}
-                      canCreateProvider={canCreateProvider}
-                      canUpdateProvider={canUpdateProvider}
-                      canDeleteProvider={canDeleteProvider}
-                      canCreateModel={canCreateModel}
-                      canUpdateModel={canUpdateModel}
-                      canDeleteModel={canDeleteModel}
-                    />
-                  ))}
-                </div>
-              )}
-              
-              {managedProviders.length > 0 && (
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">{t('sections.managedProviders')}</h3>
-                    <p className="text-xs text-muted-foreground">{t('sections.managedProvidersDesc')}</p>
-                  </div>
-                  {managedProviders.map((provider: any) => (
-                    <ProviderCard
-                      key={provider.id}
-                      provider={provider}
-                      models={getProviderModels(provider.id)}
-                      isOpen={openProviders.includes(provider.id)}
-                      onToggle={(open) => {
-                        if (open) {
-                          setOpenProviders(prev => [...prev, provider.id])
-                        } else {
-                          setOpenProviders(prev => prev.filter(id => id !== provider.id))
-                        }
-                      }}
-                      onEditProvider={handleEditProvider}
-                      onDeleteProvider={handleDeleteProvider}
-                      onConfigureProvider={handleConfigureProvider}
-                      onCreateModel={handleCreateModelForProvider}
-                      onEditModel={handleEditModel}
-                      onDeleteModel={handleDeleteModel}
-                      onTestModel={handleTestModel}
-                      onCapabilitiesModel={handleCapabilitiesModel}
-                      onDefaultChange={handleDefaultChange}
-                      isDeleting={deleteProviderMutation.isPending}
-                      isDeletingModel={deleteLLMMutation.isPending}
-                      testingModelId={testingModelId}
-                      isLoadingModels={loadingLLMs}
-                      modelsError={errorLLMs}
-                      openDropdowns={openDropdowns}
-                      onDropdownChange={(key, open) => {
-                        setOpenDropdowns(prev => ({ ...prev, [key]: open }))
-                      }}
-                      canCreateProvider={false}
-                      canUpdateProvider={isRootAdmin}
-                      canDeleteProvider={isRootAdmin}
-                      canCreateModel={canCreateModel}
-                      canUpdateModel={canUpdateModel}
-                      canDeleteModel={canDeleteModel}
-                    />
-                  ))}
-                </div>
-              )}
-                </>
-              )}
+            <div className="flex flex-col gap-4 flex-1 min-h-0">
+              <div className="flex items-center justify-end gap-2 shrink-0">
+                {canCreateProvider && (
+                  <HuemulButton
+                    icon={Plus}
+                    label={t('actions.newProvider')}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsCreateProviderOpen(true)}
+                  />
+                )}
+                {canCreateModel && allProvidersList.length > 0 && (
+                  <HuemulButton
+                    icon={Plus}
+                    label={t('actions.addModel')}
+                    size="sm"
+                    onClick={() => setIsCreateModelOpen(true)}
+                  />
+                )}
+              </div>
+
+              <HuemulTable
+                data={llms}
+                columns={[
+                  {
+                    key: 'name',
+                    label: t('table.displayName'),
+                    render: (model) => (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { if (!model.is_default) setDefaultMutation.mutate(model.id) }}
+                          disabled={model.is_default || setDefaultMutation.isPending}
+                          className={cn(
+                            'shrink-0 transition-colors hover:cursor-pointer',
+                            model.is_default
+                              ? 'text-yellow-400 cursor-default'
+                              : 'text-muted-foreground/30 hover:text-yellow-400'
+                          )}
+                        >
+                          <Star className={cn('h-4 w-4', model.is_default && 'fill-yellow-400')} />
+                        </button>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium text-foreground">{model.name}</span>
+                          {model.is_default && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-400">
+                              {t('table.default')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'internal_name',
+                    label: t('table.technicalName'),
+                    render: (model) => (
+                      <span className="font-mono text-xs text-muted-foreground">{model.internal_name}</span>
+                    ),
+                  },
+                  {
+                    key: 'provider',
+                    label: t('table.provider'),
+                    render: (model) => {
+                      const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
+                      if (!provider) return <span className="text-muted-foreground">—</span>
+                      return (
+                        <div className="flex items-center gap-2">
+                          <div className={cn('h-6 w-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0', getProviderColor(provider.name))}>
+                            {provider.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm">{provider.name}</span>
+                        </div>
+                      )
+                    },
+                  },
+                  {
+                    key: 'capabilities',
+                    label: t('table.capabilities'),
+                    render: (model) => (
+                      <div className="flex flex-wrap gap-1">
+                        {(model.capabilities ?? []).map((cap) => (
+                          <Badge key={cap} variant="secondary" className="text-xs py-0 px-1.5">
+                            {t(`capabilitiesDialog.capabilities.${cap}`)}
+                          </Badge>
+                        ))}
+                      </div>
+                    ),
+                  },
+                ]}
+                actionsMode="inline"
+                actions={[
+                  {
+                    key: 'test',
+                    label: t('modelActions.testConnection'),
+                    icon: Radio,
+                    onClick: handleTestModel,
+                    isLoading: (model) => testingModelId === model.id,
+                    disabled: (model) => testingModelId !== null && testingModelId !== model.id,
+                  },
+                  ...(canUpdateModel ? [{
+                    key: 'edit',
+                    label: t('modelActions.editModel'),
+                    icon: Edit,
+                    onClick: handleEditModel,
+                  }, {
+                    key: 'capabilities',
+                    label: t('modelActions.capabilities'),
+                    icon: Settings,
+                    onClick: handleCapabilitiesModel,
+                  }] : []),
+                  ...(canDeleteModel ? [{
+                    key: 'delete',
+                    label: t('modelActions.deleteModel'),
+                    icon: Trash2,
+                    onClick: handleDeleteModel,
+                    destructive: true,
+                  }] : []),
+                ]}
+                getRowKey={(model) => model.id}
+                getRowClassName={(model) => model.is_default ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}
+                isLoading={loadingLLMs}
+                isFetching={fetchingLLMs}
+                error={errorLLMs as Error | null}
+                onRetry={handleRefresh}
+                emptyState={{ title: t('emptyState.noModels') }}
+                pagination={{
+                  page: llmsResponse?.page ?? page,
+                  pageSize: llmsResponse?.page_size ?? pageSize,
+                  hasNext: llmsResponse?.has_next,
+                  hasPrevious: (llmsResponse?.page ?? page) > 1,
+                  onPageChange: (newPage) => setPage(newPage),
+                  onPageSizeChange: (newPageSize) => {
+                    setPageSize(newPageSize)
+                    setPage(1)
+                  },
+                  pageSizeOptions: [10, 25, 50, 100],
+                }}
+              />
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="embeddings">
+        <TabsContent value="embeddings" className="mt-4 min-h-0 overflow-auto">
           {hasEmbeddingError ? (
             <ModelsContentEmptyState
               type="error"
               message={t('errors.failedToLoadEmbeddings')}
               onRetry={handleRefresh}
             />
-          ) : !combinedEmbeddingProviders.length ? (
-            <ModelsContentEmptyState type="empty" />
           ) : (
-            <div className="space-y-3">
-              {combinedEmbeddingProviders.map((provider: any) => (
-                <EmbeddingProviderCard
-                  key={provider.id}
-                  provider={provider}
-                  isOpen={openEmbeddingProviders.includes(provider.id)}
-                  onToggle={(open) => {
-                    if (open) {
-                      setOpenEmbeddingProviders(prev => [...prev, provider.id])
-                    } else {
-                      setOpenEmbeddingProviders(prev => prev.filter(id => id !== provider.id))
-                    }
-                  }}
-                  onEditProvider={handleEditEmbeddingProvider}
-                  onDeleteProvider={handleDeleteEmbeddingProvider}
-                  onConfigureProvider={handleConfigureEmbeddingProvider}
-                  onTestProvider={provider.isConfigured ? handleTestEmbeddingProvider : undefined}
-                  isTestingProvider={isTestingEmbeddingProvider}
-                  isDeleting={isDeletingEmbeddingProvider}
-                  openDropdowns={openDropdowns}
-                  onDropdownChange={(key, open) => {
-                    setOpenDropdowns(prev => ({ ...prev, [key]: open }))
-                  }}
-                  canCreateProvider={canCreateProvider}
-                  canUpdateProvider={canUpdateProvider}
-                  canDeleteProvider={canDeleteProvider}
-                />
+            <div className="space-y-6">
+              {/* Info banner */}
+              <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500">
+                  <Timer className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">{t('embeddingCard.infoBannerTitle')}</p>
+                  <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-300">{t('embeddingCard.infoBannerSubtitle')}</p>
+                </div>
+              </div>
+
+              {/* Active provider */}
+              {combinedEmbeddingProviders.filter((p: any) => p.isConfigured).map((provider: any) => (
+                <div key={provider.id} className="rounded-lg border border-green-200 bg-card dark:border-green-800">
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold text-white', getProviderColor(provider.name))}>
+                          {(provider.display_name || provider.name).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground">{provider.display_name || provider.name}</h3>
+                            <Badge className="border-green-200 bg-green-100/80 px-1.5 py-0.5 text-[10px] text-green-700 dark:border-green-700 dark:bg-green-900/40 dark:text-green-300">
+                              {t('embeddingCard.activeConfiguredBadge')}
+                            </Badge>
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{t('embeddingCard.activeDescription')}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {canUpdateProvider && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs hover:cursor-pointer"
+                            onClick={() => handleTestEmbeddingProvider()}
+                            disabled={isTestingEmbeddingProvider}
+                          >
+                            {isTestingEmbeddingProvider ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Radio className="h-3 w-3" />
+                            )}
+                            {t('modelActions.testConnection')}
+                          </Button>
+                        )}
+                        {canUpdateProvider && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs hover:cursor-pointer"
+                            onClick={() => handleEditEmbeddingProvider(provider)}
+                          >
+                            <Edit className="h-3 w-3" />
+                            {t('embeddingCard.editProvider')}
+                          </Button>
+                        )}
+                        {canDeleteProvider && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:cursor-pointer hover:text-destructive"
+                            onClick={() => handleDeleteEmbeddingProvider(provider)}
+                            disabled={isDeletingEmbeddingProvider}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <Separator className="my-4" />
+                    <div className="grid grid-cols-4 gap-6">
+                      {[
+                        { label: t('embeddingCard.statsEmbeddingModel'), value: provider.deploymentValue || provider.key ? (provider.deploymentValue ?? '—') : '—' },
+                        { label: t('embeddingCard.statsDimensions'), value: '—' },
+                        { label: t('embeddingCard.statsIndexedDocs'), value: '—' },
+                        { label: t('embeddingCard.statsLastSync'), value: '—' },
+                      ].map(({ label, value }) => (
+                        <div key={label}>
+                          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{label}</p>
+                          <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               ))}
+
+              {/* Other available providers */}
+              {combinedEmbeddingProviders.filter((p: any) => !p.isConfigured).length > 0 && (
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">{t('embeddingCard.otherProvidersTitle')}</h4>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{t('embeddingCard.otherProvidersSubtitle')}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {combinedEmbeddingProviders.filter((p: any) => !p.isConfigured).map((provider: any) => (
+                      <div key={provider.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white', getProviderColor(provider.name))}>
+                            {(provider.display_name || provider.name).charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{provider.display_name || provider.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{t('embeddingCard.notConfiguredLabel')}</p>
+                          </div>
+                        </div>
+                        {canCreateProvider && (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1.5 bg-[#4464f7] text-xs text-white hover:cursor-pointer hover:bg-[#3451e6]"
+                            onClick={() => handleConfigureEmbeddingProvider(provider)}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                            {t('common:configure')}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
       </Tabs>
             ),
-            className: "p-6 pt-0",
+            className: "p-6 md:p-8 pt-0 md:pt-0",
           },
         ]}
       />
@@ -796,6 +820,7 @@ export default function Models() {
           }
         }}
         model={editingModel}
+        providers={!editingModel ? allProvidersList.map((p: any) => ({ id: p.id, name: p.name })) : undefined}
         isCreating={createLLMMutation.isPending}
         isUpdating={updateLLMMutation.isPending}
         onSubmit={editingModel ? handleUpdateModel : handleCreateModel}
@@ -837,6 +862,21 @@ export default function Models() {
         model={capabilitiesModel}
         isUpdating={updateLLMMutation.isPending}
         onSubmit={handleCapabilitiesSubmit}
+      />
+
+      {/* Change Default Model Dialog */}
+      <ChangeDefaultModelDialog
+        open={isChangeDefaultOpen}
+        onOpenChange={setIsChangeDefaultOpen}
+        models={llms}
+        providers={allProvidersList.map((p: any) => ({ id: p.id, name: p.name }))}
+        currentDefaultId={defaultModel?.id}
+        isUpdating={setDefaultMutation.isPending}
+        onSubmit={(modelId) => {
+          setDefaultMutation.mutate(modelId, {
+            onSuccess: () => setIsChangeDefaultOpen(false),
+          })
+        }}
       />
     </>
   )

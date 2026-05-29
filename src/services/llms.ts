@@ -1,9 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { LLM, CreateLLMRequest } from "@/types/models";
+import type { LLM, LLMsResponse, CreateLLMRequest } from "@/types/models";
 
 // Re-export types for backward compatibility
-export type { LLM, CreateLLMRequest } from "@/types/models";
+export type { LLM, LLMsResponse, CreateLLMRequest } from "@/types/models";
 export type {
   LLMProvider,
   SupportedProvider,
@@ -22,10 +22,19 @@ export {
   deleteProvider,
 } from "@/services/llm-provider";
 
-export async function getLLMs(): Promise<LLM[]> {
-    const response = await httpClient.get(`${backendUrl}/llms/`);
-    const data = await response.json();
-    return data.data || data;
+export async function getLLMs(page: number = 1, pageSize: number = 10): Promise<LLMsResponse> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+    });
+    const response = await httpClient.get(`${backendUrl}/llms/?${params.toString()}`);
+    return response.json();
+}
+
+/** Fetches all LLMs as a flat array (non-paginated helper for internal components). */
+export async function getAllLLMs(): Promise<LLM[]> {
+    const response = await getLLMs(1, 1000);
+    return response.data ?? [];
 }
 
 export async function createLLM(llm: CreateLLMRequest): Promise<LLM> {

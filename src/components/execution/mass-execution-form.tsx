@@ -5,7 +5,7 @@ import { Bot, PenLine, Play, FastForward, Eye, Save, Loader2 } from "lucide-reac
 import { cn } from "@/lib/utils"
 import { useOrganization } from "@/contexts/organization-context"
 import { getAllTemplates, getTemplateById } from "@/services/templates"
-import { getLLMs, getDefaultLLM } from "@/services/llms"
+import { getAllLLMs, getDefaultLLM } from "@/services/llms"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import type { HuemulFieldOption } from "@/huemul/components/huemul-field"
 import { Textarea } from "@/components/ui/textarea"
@@ -73,10 +73,10 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
 
   const { data: availableLLMs = [], isLoading: isLoadingLLMs } = useQuery({
     queryKey: ["llms"],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
   })
 
-  const { data: defaultLLM } = useQuery({
+  const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
     queryKey: ["llms", "default"],
     queryFn: getDefaultLLM,
     retry: false,
@@ -107,12 +107,13 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
   // Set initial llmId from default LLM (only once)
   useEffect(() => {
     if (llmId) return
+    if (isLoadingDefaultLLM) return
     if (defaultLLM?.id) {
       setLlmId(defaultLLM.id)
     } else if (availableLLMs.length > 0) {
       setLlmId(availableLLMs[0].id)
     }
-  }, [defaultLLM, availableLLMs, llmId])
+  }, [defaultLLM, availableLLMs, llmId, isLoadingDefaultLLM])
 
   const showLlmModel = editType === "execute-ai"
   const showAiOptions = editType === "execute-ai" || editType === "edit-ai"
