@@ -13,3 +13,10 @@ export interface CreateLLMRequest {
   provider_id: string;
   capabilities: string[];
 }
+
+export interface LLMsResponse {
+  data: LLM[];
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}

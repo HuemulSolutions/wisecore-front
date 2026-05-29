@@ -22,6 +22,8 @@ export interface HuemulTableAction<T> {
   destructive?: boolean
   className?: string
   show?: (item: T) => boolean
+  isLoading?: (item: T) => boolean
+  disabled?: (item: T) => boolean
 }
 
 export interface HuemulTableEmptyState {
@@ -47,6 +49,7 @@ export interface HuemulTableProps<T> {
   actions?: HuemulTableAction<T>[]
   actionsMode?: HuemulTableActionsMode
   getRowKey: (item: T) => string
+  getRowClassName?: (item: T) => string
   emptyState?: HuemulTableEmptyState
   pagination?: HuemulTablePagination
   isLoading?: boolean

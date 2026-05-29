@@ -54,6 +54,7 @@ export function useEditorUploadFile() {
 
       const result: EditorUploadedFile = {
         url: `{{MEDIA:${media.id}}}`,
+        previewUrl: media.current_version?.download_url,
         name: file.name,
         size: file.size,
         type: file.type,

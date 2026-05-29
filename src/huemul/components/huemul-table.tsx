@@ -1,5 +1,5 @@
 import * as React from "react"
-import { MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw } from "lucide-react"
+import { MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw, Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import type {
@@ -46,6 +46,7 @@ export function HuemulTable<T>({
   actions,
   actionsMode = "dropdown",
   getRowKey,
+  getRowClassName,
   emptyState,
   pagination,
   isLoading = false,
@@ -201,9 +202,10 @@ export function HuemulTable<T>({
               : data.map((item) => {
                   const key = getRowKey(item)
                   const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
+                  const rowExtraClass = getRowClassName?.(item) ?? ''
 
                   return (
-                    <TableRow key={key} className="group bg-background hover:bg-muted/30">
+                    <TableRow key={key} className={cn("group", rowExtraClass || "bg-background hover:bg-muted/30")}>
                       {columns.map((col) => (
                         <TableCell
                           key={col.key}
@@ -222,24 +224,28 @@ export function HuemulTable<T>({
                       ))}
 
                       {hasActions && (
-                        <TableCell className="px-4 py-3 text-right whitespace-nowrap sticky right-0 z-10 bg-background group-hover:bg-muted/30 border-l border-border">
+                        <TableCell className={cn("px-4 py-3 text-right whitespace-nowrap sticky right-0 z-10 border-l border-border", rowExtraClass || "bg-background group-hover:bg-muted/30")}>
                           {actionsMode === "inline" ? (
                             // ── Inline icon buttons ──
                             <div className="flex items-center justify-end gap-1">
                               {visibleActions.map((action) => {
                                 const ActionIcon = action.icon
+                                const loading = action.isLoading?.(item) ?? false
+                                const disabled = loading || (action.disabled?.(item) ?? false)
                                 return (
                                   <HuemulButton
                                     key={action.key}
                                     variant="ghost"
                                     size="sm"
-                                    icon={ActionIcon}
+                                    icon={loading ? Loader2 : ActionIcon}
                                     tooltip={action.label}
                                     tooltipSide="top"
-                                    onClick={() => action.onClick(item)}
+                                    onClick={() => { if (!disabled) action.onClick(item) }}
+                                    disabled={disabled}
                                     className={cn(
                                       "h-7 w-7 p-0",
-                                      action.destructive && "text-destructive hover:text-destructive hover:bg-destructive/10",
+                                      loading && "[&_svg]:animate-spin text-muted-foreground",
+                                      action.destructive && !disabled && "text-destructive hover:text-destructive hover:bg-destructive/10",
                                       action.className
                                     )}
                                   />

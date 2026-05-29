@@ -36,7 +36,7 @@ import { useGlobalPanel } from '@/contexts/global-panel-context';
 import { useOrganization } from '@/contexts/organization-context';
 import { chatbotQueryKeys } from '@/hooks/use-chatbot';
 import { updateConversationTitle, archiveConversation } from '@/services/chatbot';
-import { getDefaultLLM, getLLMs } from '@/services/llms';
+import { getDefaultLLM, getAllLLMs } from '@/services/llms';
 
 // ========================================
 // Welcome empty state
@@ -277,7 +277,7 @@ export function WisyPanel() {
 
   const { data: llms = [], isLoading: isLoadingLlms } = useQuery({
     queryKey: ['llms'],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -289,6 +289,8 @@ export function WisyPanel() {
   });
 
   useEffect(() => {
+    if (isLoadingDefaultLLM) return;
+
     const hasSelectedModel =
       selectedLlmId !== undefined && llms.some((llm) => llm.id === selectedLlmId);
 
@@ -299,7 +301,7 @@ export function WisyPanel() {
     if (nextLlmId) {
       setSelectedLlmId(nextLlmId);
     }
-  }, [defaultLLM?.id, llms, selectedLlmId, setSelectedLlmId]);
+  }, [defaultLLM?.id, llms, selectedLlmId, setSelectedLlmId, isLoadingDefaultLLM]);
 
   // ── Auto-scroll on new messages ─────────────────────────────
   useEffect(() => {
