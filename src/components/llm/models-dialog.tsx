@@ -21,6 +21,7 @@ export function ModelDialog({
   onOpenChange,
   model,
   providerName,
+  providers,
   isCreating,
   isUpdating,
   onSubmit
@@ -30,6 +31,7 @@ export function ModelDialog({
   const [displayName, setDisplayName] = useState('')
   const [technicalName, setTechnicalName] = useState('')
   const [capabilities, setCapabilities] = useState<string[]>(['text_input'])
+  const [selectedProviderId, setSelectedProviderId] = useState('')
 
   useEffect(() => {
     if (model && open) {
@@ -43,8 +45,15 @@ export function ModelDialog({
       setDisplayName('')
       setTechnicalName('')
       setCapabilities(['text_input'])
+      setSelectedProviderId(providers?.[0]?.id ?? '')
     }
   }, [open])
+
+  useEffect(() => {
+    if (open && !isEdit && providers && providers.length > 0 && !selectedProviderId) {
+      setSelectedProviderId(providers[0].id)
+    }
+  }, [open, isEdit, providers])
 
   const toggleCapability = (cap: string) => {
     setCapabilities((prev) =>
@@ -55,17 +64,22 @@ export function ModelDialog({
   const isSubmitting = isCreating || isUpdating
 
   const handleSave = () => {
-    onSubmit({ name: displayName, internal_name: technicalName, capabilities })
+    onSubmit({ name: displayName, internal_name: technicalName, capabilities, provider_id: selectedProviderId || undefined })
   }
 
-  const isFormValid = displayName.trim() !== '' && technicalName.trim() !== '' && (!isEdit ? capabilities.length > 0 : true)
+  const resolvedProviderName = providerName ?? providers?.find(p => p.id === selectedProviderId)?.name
+
+  const isFormValid =
+    displayName.trim() !== '' &&
+    technicalName.trim() !== '' &&
+    (!isEdit ? capabilities.length > 0 && (!!providerName || !!selectedProviderId) : true)
 
   return (
     <HuemulDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? t('modelDialog.editTitle', { name: model?.name }) : t('modelDialog.createTitle', { provider: providerName })}
-      description={isEdit ? t('modelDialog.editDescription') : t('modelDialog.createDescription', { provider: providerName })}
+      title={isEdit ? t('modelDialog.editTitle', { name: model?.name }) : t('modelDialog.createTitle', { provider: resolvedProviderName ?? '' })}
+      description={isEdit ? t('modelDialog.editDescription') : t('modelDialog.createDescription', { provider: resolvedProviderName ?? '' })}
       icon={isEdit ? Edit : Plus}
       saveAction={{
         label: isSubmitting
@@ -78,6 +92,19 @@ export function ModelDialog({
       }}
     >
       <HuemulFieldGroup gap="gap-4">
+        {!isEdit && providers && providers.length > 0 && (
+          <HuemulField
+            label={t('modelDialog.providerLabel')}
+            name="provider"
+            type="select"
+            value={selectedProviderId}
+            onChange={(v) => setSelectedProviderId(String(v))}
+            options={providers.map(p => ({ label: p.name, value: p.id }))}
+            placeholder={t('modelDialog.providerPlaceholder')}
+            disabled={isSubmitting}
+            required
+          />
+        )}
         <HuemulField
           label={t('modelDialog.displayNameLabel')}
           name="displayName"

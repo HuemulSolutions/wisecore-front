@@ -36,7 +36,7 @@ import { useGlobalPanel } from '@/contexts/global-panel-context';
 import { useOrganization } from '@/contexts/organization-context';
 import { chatbotQueryKeys } from '@/hooks/use-chatbot';
 import { updateConversationTitle, archiveConversation } from '@/services/chatbot';
-import { getDefaultLLM, getLLMs } from '@/services/llms';
+import { getDefaultLLM, getAllLLMs } from '@/services/llms';
 
 // ========================================
 // Welcome empty state
@@ -277,7 +277,7 @@ export function WisyPanel() {
 
   const { data: llms = [], isLoading: isLoadingLlms } = useQuery({
     queryKey: ['llms'],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
     staleTime: 5 * 60 * 1000,
   });
 

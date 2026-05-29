@@ -20,7 +20,8 @@ export interface ModelDialogProps {
   onOpenChange: (open: boolean) => void
   model?: LLM | null
   providerName?: string
+  providers?: { id: string; name: string }[]
   isCreating: boolean
   isUpdating: boolean
-  onSubmit: (data: { name: string; internal_name: string; capabilities: string[] }) => void
+  onSubmit: (data: { name: string; internal_name: string; capabilities: string[]; provider_id?: string }) => void
 }

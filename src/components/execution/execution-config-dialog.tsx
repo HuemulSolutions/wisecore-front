@@ -10,7 +10,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Play, FastForward, Loader2 } from 'lucide-react';
-import { getLLMs, getDefaultLLM } from '@/services/llms';
+import { getAllLLMs, getDefaultLLM } from '@/services/llms';
 import type { LLM } from '@/types/models';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
@@ -41,7 +41,7 @@ export default function ExecutionConfigDialog({
     const loadLLMs = async () => {
         try {
             setIsLoadingLLMs(true);
-            const llms = await getLLMs();
+            const llms = await getAllLLMs();
             setAvailableLLMs(llms);
             
             // Try to set default LLM

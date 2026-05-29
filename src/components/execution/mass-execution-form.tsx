@@ -5,7 +5,7 @@ import { Bot, PenLine, Play, FastForward, Eye, Save, Loader2 } from "lucide-reac
 import { cn } from "@/lib/utils"
 import { useOrganization } from "@/contexts/organization-context"
 import { getAllTemplates, getTemplateById } from "@/services/templates"
-import { getLLMs, getDefaultLLM } from "@/services/llms"
+import { getAllLLMs, getDefaultLLM } from "@/services/llms"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import type { HuemulFieldOption } from "@/huemul/components/huemul-field"
 import { Textarea } from "@/components/ui/textarea"
@@ -73,7 +73,7 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
 
   const { data: availableLLMs = [], isLoading: isLoadingLLMs } = useQuery({
     queryKey: ["llms"],
-    queryFn: getLLMs,
+    queryFn: getAllLLMs,
   })
 
   const { data: defaultLLM } = useQuery({
