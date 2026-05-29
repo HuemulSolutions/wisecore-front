@@ -3,6 +3,18 @@ export interface LLM {
   name: string;
   internal_name: string;
   provider_id: string;
+  provider_name?: string;
+  provider?: {
+    id: string;
+    name: string;
+    type: string;
+    is_managed: boolean;
+    key?: string;
+    endpoint?: string;
+    deployment?: string;
+    created_at?: string;
+    updated_at?: string;
+  };
   is_default?: boolean;
   capabilities?: string[];
 }
