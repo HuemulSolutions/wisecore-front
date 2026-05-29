@@ -115,6 +115,7 @@ export const PlaceholderElement = withHOC(
           placeholderId: element.id as string,
           type: element.mediaType!,
           url: uploadedFile.url,
+          ...(uploadedFile.previewUrl ? { previewUrl: uploadedFile.previewUrl } : {}),
         };
 
         editor.tf.insertNodes(node, { at: path });

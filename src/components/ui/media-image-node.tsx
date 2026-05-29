@@ -23,15 +23,15 @@ export const ImageElement = withHOC(
   function ImageElement(props: PlateElementProps<TImageElement>) {
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
-    const element = props.element as TImageElement & { mediaId?: string };
+    const element = props.element as TImageElement & { mediaId?: string; previewUrl?: string };
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,
     });
 
-    // Use the URL stored in the element directly.
-    // The backend resolves {{MEDIA:GUID}} tokens to real URLs when serving content.
-    const displayUrl = element.url;
+    // previewUrl is the actual download URL stored at upload time for in-editor display.
+    // url may be a {{MEDIA:GUID}} token (resolved by the backend when serving saved content).
+    const displayUrl = element.previewUrl || element.url;
 
     return (
       <MediaToolbar plugin={ImagePlugin}>

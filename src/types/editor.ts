@@ -11,6 +11,8 @@ import type { ClientUploadedFileData, UploadFilesOptions } from 'uploadthing/typ
 
 export interface EditorUploadedFile {
   url: string
+  /** Actual download URL for in-editor preview. url contains the {{MEDIA:uuid}} token. */
+  previewUrl?: string
   name: string
   size: number
   type: string
