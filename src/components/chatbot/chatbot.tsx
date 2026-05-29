@@ -97,6 +97,7 @@ function ChatbotContent() {
 
   useEffect(() => {
     if (!isOpen) return;
+    if (isLoadingDefaultLLM) return;
 
     const hasSelectedModel =
       selectedLlmId !== undefined && llms.some((llm) => llm.id === selectedLlmId);
@@ -108,7 +109,7 @@ function ChatbotContent() {
     if (nextLlmId) {
       setSelectedLlmId(nextLlmId);
     }
-  }, [defaultLLM?.id, isOpen, llms, selectedLlmId, setSelectedLlmId]);
+  }, [defaultLLM?.id, isOpen, isLoadingDefaultLLM, llms, selectedLlmId, setSelectedLlmId]);
 
   // ── Auto-scroll on new messages ─────────────────────────────
   useEffect(() => {

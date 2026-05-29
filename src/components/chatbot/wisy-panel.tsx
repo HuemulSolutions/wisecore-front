@@ -289,6 +289,8 @@ export function WisyPanel() {
   });
 
   useEffect(() => {
+    if (isLoadingDefaultLLM) return;
+
     const hasSelectedModel =
       selectedLlmId !== undefined && llms.some((llm) => llm.id === selectedLlmId);
 
@@ -299,7 +301,7 @@ export function WisyPanel() {
     if (nextLlmId) {
       setSelectedLlmId(nextLlmId);
     }
-  }, [defaultLLM?.id, llms, selectedLlmId, setSelectedLlmId]);
+  }, [defaultLLM?.id, llms, selectedLlmId, setSelectedLlmId, isLoadingDefaultLLM]);
 
   // ── Auto-scroll on new messages ─────────────────────────────
   useEffect(() => {

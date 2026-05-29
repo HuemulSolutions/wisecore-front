@@ -76,7 +76,7 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
     queryFn: getAllLLMs,
   })
 
-  const { data: defaultLLM } = useQuery({
+  const { data: defaultLLM, isLoading: isLoadingDefaultLLM } = useQuery({
     queryKey: ["llms", "default"],
     queryFn: getDefaultLLM,
     retry: false,
@@ -107,12 +107,13 @@ export function MassExecutionForm({ onTemplateChange, onConfigChange }: { onTemp
   // Set initial llmId from default LLM (only once)
   useEffect(() => {
     if (llmId) return
+    if (isLoadingDefaultLLM) return
     if (defaultLLM?.id) {
       setLlmId(defaultLLM.id)
     } else if (availableLLMs.length > 0) {
       setLlmId(availableLLMs[0].id)
     }
-  }, [defaultLLM, availableLLMs, llmId])
+  }, [defaultLLM, availableLLMs, llmId, isLoadingDefaultLLM])
 
   const showLlmModel = editType === "execute-ai"
   const showAiOptions = editType === "execute-ai" || editType === "edit-ai"
