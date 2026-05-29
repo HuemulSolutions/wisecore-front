@@ -1,5 +1,5 @@
 import * as React from "react";
-import { type LucideIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,75 +12,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface HuemulSheetAction {
-  /** Button label */
-  label: string;
-  /** Click handler — can be async; the button will show a loader until it resolves */
-  onClick?: () => void | Promise<void>;
-  /** Button variant (defaults to "default") */
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  /** Disable the button */
-  disabled?: boolean;
-  /** Show a loading spinner / disable while loading (external control) */
-  loading?: boolean;
-  /** Optional icon to render inside the button */
-  icon?: LucideIcon;
-  /** Auto-close the sheet after a successful async click (default: true for saveAction, false for extraActions) */
-  closeOnSuccess?: boolean;
-  /** Where to render the button: "header" or "footer" (default: "footer") */
-  position?: "header" | "footer";
-}
-
-export interface HuemulSheetProps {
-  /** Controlled open state */
-  open: boolean;
-  /** Called when the sheet requests to open or close */
-  onOpenChange: (open: boolean) => void;
-
-  // ── Header ──────────────────────────────────────────────────────────────
-  /** Sheet title (required) */
-  title: string;
-  /** Optional description below the title */
-  description?: string;
-  /** Optional icon rendered to the left of the title */
-  icon?: LucideIcon;
-  /** Icon className overrides (e.g. size, color) */
-  iconClassName?: string;
-
-  // ── Loading ─────────────────────────────────────────────────────────────
-  /** Show a skeleton loader in the body while content is loading (default: false) */
-  bodyLoading?: boolean;
-
-  // ── Footer ──────────────────────────────────────────────────────────────
-  /** Show the sticky footer (default: true) */
-  showFooter?: boolean;
-  /** Show a Cancel button in the footer (default: true when footer visible) */
-  showCancelButton?: boolean;
-  /** Label for the cancel button (default: "Cancel") */
-  cancelLabel?: string;
-  /** Primary save / confirm action */
-  saveAction?: HuemulSheetAction;
-  /** Extra action buttons — each can specify its position ("header" | "footer") */
-  extraActions?: HuemulSheetAction[];
-
-  /** Delay in ms before auto-closing the sheet after a successful async action (default: 500) */
-  closeDelay?: number;
-
-  // ── Layout ──────────────────────────────────────────────────────────────
-  /** Side from which the sheet slides in (default: "right") */
-  side?: "top" | "right" | "bottom" | "left";
-  /** Width class override (default: "sm:max-w-md") */
-  maxWidth?: string;
-  /** Additional className on SheetContent */
-  className?: string;
-  /** Custom React node rendered in the header row (right-aligned, after title) */
-  headerExtra?: React.ReactNode;
-  /** Body content */
-  children: React.ReactNode;
-}
+import type { HuemulSheetAction, HuemulSheetProps } from "@/types/huemul"
+export type { HuemulSheetAction, HuemulSheetProps }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

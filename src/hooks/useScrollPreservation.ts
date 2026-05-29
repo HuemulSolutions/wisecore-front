@@ -1,11 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-
-interface UseScrollPreservationReturn {
-  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
-  saveScrollPosition: () => void;
-  restoreScrollPosition: () => void;
-  preserveScroll: () => void;
-}
+import type { UseScrollPreservationReturn } from "@/types/huemul"
 
 /**
  * Hook to manage scroll position preservation during content updates

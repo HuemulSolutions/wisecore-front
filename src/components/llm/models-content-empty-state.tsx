@@ -2,8 +2,8 @@ import { Settings, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useTranslation } from "react-i18next"
-import type { ModelsContentEmptyStateProps } from "@/types/models-content-empty-state"
-export type { ModelsContentEmptyStateProps } from "@/types/models-content-empty-state"
+import type { ModelsContentEmptyStateProps } from "@/types/models"
+export type { ModelsContentEmptyStateProps } from "@/types/models"
 
 export function ModelsContentEmptyState({ type, message, onRetry }: ModelsContentEmptyStateProps) {
   const { t } = useTranslation('models')

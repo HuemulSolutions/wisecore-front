@@ -6,10 +6,22 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useAuthTypeMutations, useAuthTypeTypes } from "@/hooks/useAuthTypes"
 import type { UpdateAuthTypeRequest } from "@/services/auth-types"
+import type { AuthTypeKind, Saml2Params } from "@/types/auth-types"
 import { Edit } from "lucide-react"
-import type { EditAuthTypeDialogProps } from "@/types/auth-types-edit-dialog"
+import type { EditAuthTypeDialogProps } from '@/types/auth-types'
 
-export type { EditAuthTypeDialogProps } from "@/types/auth-types-edit-dialog"
+export type { EditAuthTypeDialogProps } from '@/types/auth-types'
+
+const EMPTY_SAML2: Saml2Params = { client_id: "", tenant_id: "", request_url: "" }
+
+function extractSaml2Params(params: Record<string, unknown> | null): Saml2Params {
+  if (!params) return EMPTY_SAML2
+  return {
+    client_id: (params.client_id as string) ?? "",
+    tenant_id: (params.tenant_id as string) ?? "",
+    request_url: (params.request_url as string) ?? "",
+  }
+}
 
 export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTypeDialogProps) {
   const { t } = useTranslation(['auth-types', 'common'])
@@ -18,9 +30,12 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
     type: "internal",
     params: null,
   })
+  const [saml2Params, setSaml2Params] = useState<Saml2Params>(EMPTY_SAML2)
 
   const { data: authTypeTypes } = useAuthTypeTypes(open && !!authType)
   const { updateAuthType } = useAuthTypeMutations()
+
+  const isSaml2 = formData.type === "saml2"
 
   useEffect(() => {
     if (authType && open) {
@@ -29,14 +44,20 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
         type: authType.type,
         params: authType.params,
       })
+      setSaml2Params(authType.type === "saml2" ? extractSaml2Params(authType.params) : EMPTY_SAML2)
     }
   }, [authType, open])
 
   const handleSubmit = async () => {
     if (!authType) return
 
+    const payload: UpdateAuthTypeRequest = {
+      ...formData,
+      params: isSaml2 ? (saml2Params as unknown as Record<string, unknown>) : null,
+    }
+
     await new Promise<void>((resolve, reject) => {
-      updateAuthType.mutate({ id: authType.id, data: formData }, {
+      updateAuthType.mutate({ id: authType.id, data: payload }, {
         onSuccess: () => resolve(),
         onError: (error) => reject(error)
       })
@@ -47,9 +68,13 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleSaml2Change = (field: keyof Saml2Params, value: string) => {
+    setSaml2Params(prev => ({ ...prev, [field]: value }))
+  }
+
   const typeOptions = (authTypeTypes ?? []).map((type) => ({
     value: type,
-    label: type === "internal" ? t('types.internal') : type === "entra" ? t('types.entra') : type,
+    label: type === "internal" ? t('types.internal') : type === "entra" ? t('types.entra') : type === "saml2" ? t('types.saml2') : type,
   }))
 
   return (
@@ -58,7 +83,7 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
       onOpenChange={onOpenChange}
       title={t('editDialog.title')}
       icon={Edit}
-      maxWidth="sm:max-w-sm"
+      maxWidth="sm:max-w-lg"
       maxHeight="max-h-[90vh]"
       saveAction={{
         label: t('common:update'),
@@ -80,9 +105,37 @@ export function EditAuthTypeDialog({ open, onOpenChange, authType }: EditAuthTyp
           name="type"
           value={formData.type}
           options={typeOptions}
-          onChange={(value) => handleInputChange("type", value as "internal" | "entra")}
+          onChange={(value) => handleInputChange("type", value as AuthTypeKind)}
           placeholder={t('editDialog.typePlaceholder')}
         />
+        {isSaml2 && (
+          <>
+            <HuemulField
+              label={t('saml2.clientId')}
+              name="client_id"
+              value={saml2Params.client_id}
+              onChange={(value) => handleSaml2Change("client_id", value as string)}
+              placeholder={t('saml2.clientIdPlaceholder')}
+              required
+            />
+            <HuemulField
+              label={t('saml2.tenantId')}
+              name="tenant_id"
+              value={saml2Params.tenant_id}
+              onChange={(value) => handleSaml2Change("tenant_id", value as string)}
+              placeholder={t('saml2.tenantIdPlaceholder')}
+              required
+            />
+            <HuemulField
+              label={t('saml2.url')}
+              name="request_url"
+              value={saml2Params.request_url}
+              onChange={(value) => handleSaml2Change("request_url", value as string)}
+              placeholder={t('saml2.urlPlaceholder')}
+              required
+            />
+          </>
+        )}
       </HuemulFieldGroup>
     </HuemulDialog>
   )

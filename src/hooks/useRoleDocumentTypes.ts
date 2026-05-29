@@ -1,12 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useOrganization } from "@/contexts/organization-context"
 import { getDocumentTypesWithInfo } from "@/services/role-document-type"
-
-interface DocumentTypeForRole {
-  id: string
-  name: string
-  color?: string
-}
+import type { DocumentTypeForRole } from "@/types/roles"
 
 /**
  * Hook to fetch document types that the current user can create.

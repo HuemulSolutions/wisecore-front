@@ -3,8 +3,8 @@ import Markdown from "@/components/ui/markdown";
 import { FileText } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { SectionContentDialogProps } from '@/types/search-section-content-dialog';
-export type { SectionContentDialogProps } from '@/types/search-section-content-dialog';
+import type { SectionContentDialogProps } from '@/types/search';
+export type { SectionContentDialogProps } from '@/types/search';
 
 export function SectionContentDialog({
   open,

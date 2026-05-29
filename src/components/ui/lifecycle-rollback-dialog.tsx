@@ -5,15 +5,8 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { Undo2 } from "lucide-react"
 import type { RollbackTargetsResponse } from "@/services/executions"
-
-interface LifecycleRollbackDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  executionId: string | null
-  organizationId: string
-  onConfirm: (options: { comment: string; target_state?: string; target_step_id?: string }) => void
-  isProcessing?: boolean
-}
+import type { LifecycleRollbackDialogProps } from '@/types/lifecycle'
+export type { LifecycleRollbackDialogProps } from '@/types/lifecycle'
 
 export function LifecycleRollbackDialog({
   open,

@@ -1,6 +1,5 @@
-﻿import * as React from "react";
-import { useState, useContext, createContext } from "react";
-import { type LucideIcon, Copy, Check } from "lucide-react";
+﻿import { useState, useContext, createContext } from "react";
+import { Copy, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -11,74 +10,26 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type {
+  InfoLayout,
+  HuemulInfoItemVariant,
+  HuemulInfoItemProps,
+  HuemulInfoGroupProps,
+  HuemulInfoSectionProps,
+  HuemulInfoDisplayProps,
+} from "@/types/huemul"
+export type {
+  InfoLayout,
+  HuemulInfoItemVariant,
+  HuemulInfoItemProps,
+  HuemulInfoGroupProps,
+  HuemulInfoSectionProps,
+  HuemulInfoDisplayProps,
+}
 
 // ── Layout context ─────────────────────────────────────────────────────────
 
-type InfoLayout = "vertical" | "horizontal";
 const InfoLayoutContext = createContext<InfoLayout>("vertical");
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export type HuemulInfoItemVariant = "text" | "mono" | "badge";
-
-export interface HuemulInfoItemProps {
-  /** Field label */
-  label: string;
-  /** Value — string/number rendered automatically; ReactNode for custom content */
-  value?: string | number | React.ReactNode;
-  /** Lucide icon shown to the left (only used in vertical layout) */
-  icon?: LucideIcon;
-  /**
-   * How the value is rendered:
-   * - `"text"` (default) — plain text
-   * - `"mono"` — monospace code block, truncated, with optional copy
-   * - `"badge"` — Badge component
-   */
-  variant?: HuemulInfoItemVariant;
-  /** Badge variant when `variant="badge"` (default: "secondary") */
-  badgeVariant?: "default" | "secondary" | "destructive" | "outline";
-  /** Show copy button (string/number values only) */
-  copyable?: boolean;
-  /** Placeholder shown when value is empty/undefined/null (default: "—") */
-  emptyText?: string;
-  /** When true and value is empty/null/undefined, render nothing */
-  hideWhenEmpty?: boolean;
-  /** Override layout from context: "vertical" (label above value) | "horizontal" (label left, value right) */
-  layout?: InfoLayout;
-  /** Additional className on the root element */
-  className?: string;
-}
-
-export interface HuemulInfoGroupProps {
-  /** Section heading with separator divider (vertical layout) */
-  label?: string;
-  /** Pre-defined list of items */
-  items?: HuemulInfoItemProps[];
-  /** Custom children */
-  children?: React.ReactNode;
-  /** Additional className */
-  className?: string;
-}
-
-export interface HuemulInfoSectionProps {
-  /** Card title shown in the section header */
-  title: string;
-  /** Pre-defined list of items */
-  items?: HuemulInfoItemProps[];
-  /** Custom children rendered inside the card body */
-  children?: React.ReactNode;
-  /** Additional className on the card wrapper */
-  className?: string;
-}
-
-export interface HuemulInfoDisplayProps {
-  /** Groups of fields to display */
-  groups?: HuemulInfoGroupProps[];
-  /** Render groups/sections as children directly */
-  children?: React.ReactNode;
-  /** Additional className on the wrapper */
-  className?: string;
-}
 
 // ── Internal helpers ───────────────────────────────────────────────────────
 

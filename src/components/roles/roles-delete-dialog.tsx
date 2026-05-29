@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
-import type { DeleteRoleDialogProps } from '@/types/roles-delete-dialog'
-export type { DeleteRoleDialogProps } from '@/types/roles-delete-dialog'
+import type { DeleteRoleDialogProps } from '@/types/roles'
+export type { DeleteRoleDialogProps } from '@/types/roles'
 
 export function DeleteRoleDialog({ open, onOpenChange, role, onConfirm }: DeleteRoleDialogProps) {
   const { t } = useTranslation('roles')

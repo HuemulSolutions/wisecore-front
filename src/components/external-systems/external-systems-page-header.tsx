@@ -1,9 +1,9 @@
 import { Network, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import type { ExternalSystemsPageHeaderProps } from "@/types/external-systems-page-header"
+import type { ExternalSystemsPageHeaderProps } from "@/types/external-systems"
 
-export type { ExternalSystemsPageHeaderProps } from "@/types/external-systems-page-header"
+export type { ExternalSystemsPageHeaderProps } from "@/types/external-systems"
 
 export function ExternalSystemsPageHeader({
   systemsCount,
@@ -41,3 +41,4 @@ export function ExternalSystemsPageHeader({
     />
   )
 }
+

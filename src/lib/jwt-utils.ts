@@ -1,45 +1,6 @@
 import { httpClient } from '@/lib/http-client';
-
-// Interfaces para los payloads de los JWT tokens
-export interface LoginTokenPayload {
-  sub: string; // user id
-  email: string;
-  name: string;
-  last_name: string;
-  is_root_admin: boolean;
-  exp: number;
-}
-
-export interface OrganizationTokenPayload {
-  sub: string; // user id
-  email: string;
-  roles: string[];
-  permissions: string[];
-  is_root_admin: boolean;
-  is_org_admin: boolean;
-  exp: number;
-}
-
-// Tipos de permisos disponibles
-export type PermissionAction = 'c' | 'r' | 'u' | 'd' | 'l';
-export type PermissionResource = 
-  | 'organization'
-  | 'user'
-  | 'asset'
-  | 'folder'
-  | 'context'
-  | 'asset_type'
-  | 'docx_template'
-  | 'template'
-  | 'template_section'
-  | 'section'
-  | 'section_execution'
-  | 'version'
-  | 'llm_provider'
-  | 'llm'
-  | 'rbac';
-
-export type Permission = `${PermissionResource}:${PermissionAction}`;
+import type { LoginTokenPayload, OrganizationTokenPayload, PermissionAction, PermissionResource, Permission } from '@/types/jwt-utils';
+export type { LoginTokenPayload, OrganizationTokenPayload, PermissionAction, PermissionResource, Permission };
 
 /**
  * Decodifica un JWT token sin verificar la firma (solo para extraer payload)

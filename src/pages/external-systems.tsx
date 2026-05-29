@@ -10,7 +10,7 @@ import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulFileTree, type HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul-tree"
+import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul"
 import type { ExternalSystem } from "@/types/external-systems"
 import type { ExternalFunctionality } from "@/types/external-functionalities"
 import { getExternalFunctionalities } from "@/services/external-functionalities"
@@ -29,21 +29,7 @@ import {
   ExternalFunctionalityDeleteDialog,
 } from "@/components/external-functionalities"
 
-interface PageState {
-  searchTerm: string
-  isSearchOpen: boolean
-  selectedSystem: ExternalSystem | null
-  selectedFunctionality: ExternalFunctionality | null
-  showCreateDialog: boolean
-  editingSystem: ExternalSystem | null
-  deletingSystem: ExternalSystem | null
-  showCreateFunctionalityDialog: boolean
-  createFunctionalitySystemId: string | null
-  editingFunctionality: ExternalFunctionality | null
-  editingFunctionalitySystemId: string | null
-  deletingFunctionality: ExternalFunctionality | null
-  deletingFunctionalitySystemId: string | null
-}
+import type { ExternalSystemsPageState } from "@/types/external-systems"
 
 export default function ExternalSystemsPage() {
   const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
@@ -67,7 +53,7 @@ export default function ExternalSystemsPage() {
   const canEditFunctionality   = isOrgAdmin || hasPermission("external_functionality:u" as never)
   const canDeleteFunctionality = isOrgAdmin || hasPermission("external_functionality:d" as never)
 
-  const [state, setState] = useState<PageState>({
+  const [state, setState] = useState<ExternalSystemsPageState>({
     searchTerm: "",
     isSearchOpen: false,
     selectedSystem: null,

@@ -114,3 +114,24 @@ export interface PatchMediaRequest {
 export interface UploadMediaVersionRequest {
   file: File
 }
+
+export interface UseMediaListOptions {
+  enabled?: boolean
+  page?: number
+  pageSize?: number
+  mediaType?: string | null
+  parentId?: string | null
+}
+
+export interface UseMediaPickerOptions {
+  enabled?: boolean
+  page?: number
+  pageSize?: number
+  mediaType?: string | null
+}
+
+export interface UseMediaVersionsOptions {
+  enabled?: boolean
+  page?: number
+  pageSize?: number
+}

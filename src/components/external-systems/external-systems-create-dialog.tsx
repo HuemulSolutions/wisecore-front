@@ -7,9 +7,9 @@ import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useExternalSystemMutations } from "@/hooks/useExternalSystems"
 import type { CreateExternalSystemRequest, ExternalSystemStatus } from "@/types/external-systems"
-import type { ExternalSystemCreateDialogProps } from "@/types/external-systems-create-dialog"
+import type { ExternalSystemCreateDialogProps } from "@/types/external-systems"
 
-export type { ExternalSystemCreateDialogProps } from "@/types/external-systems-create-dialog"
+export type { ExternalSystemCreateDialogProps } from "@/types/external-systems"
 
 const INITIAL_FORM: CreateExternalSystemRequest = {
   name: "",
@@ -91,3 +91,4 @@ export function ExternalSystemCreateDialog({
     </HuemulDialog>
   )
 }
+

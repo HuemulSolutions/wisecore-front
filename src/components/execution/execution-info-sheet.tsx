@@ -16,9 +16,9 @@ import SectionExecution from "@/components/sections/sections_execution";
 import { TableOfContents } from "@/components/assets/content/assets-table-of-contents";
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { useOrganization } from "@/contexts/organization-context";
-import type { ExecutionInfoSheetProps } from "@/types/execution-info-sheet";
+import type { ExecutionInfoSheetProps } from "@/types/execution";
 
-export type { ExecutionInfoSheetProps } from "@/types/execution-info-sheet";
+export type { ExecutionInfoSheetProps } from "@/types/execution";
 
 export function ExecutionInfoSheet({
   isOpen,

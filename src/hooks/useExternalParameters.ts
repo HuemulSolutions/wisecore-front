@@ -84,15 +84,8 @@ export const externalParameterQueryKeys = {
     ] as const,
 }
 
-// ─── Options ──────────────────────────────────────────────────────────────────
-
-export interface UseExternalParametersOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-  search?: string
-  paramType?: ExternalParameterType
-}
+import type { UseExternalParametersOptions } from '@/types/external-parameters'
+export type { UseExternalParametersOptions }
 
 // ─── List query ───────────────────────────────────────────────────────────────
 

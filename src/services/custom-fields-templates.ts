@@ -9,7 +9,7 @@ import type {
   CustomFieldTemplate,
   CreateCustomFieldTemplateRequest,
   UpdateCustomFieldTemplateRequest,
-} from "@/types/custom-fields-templates";
+} from '@/types/custom-fields';
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {

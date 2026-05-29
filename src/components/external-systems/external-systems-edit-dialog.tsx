@@ -10,9 +10,9 @@ import type {
   UpdateExternalSystemRequest,
   ExternalSystemStatus,
 } from "@/types/external-systems"
-import type { ExternalSystemEditDialogProps } from "@/types/external-systems-edit-dialog"
+import type { ExternalSystemEditDialogProps } from "@/types/external-systems"
 
-export type { ExternalSystemEditDialogProps } from "@/types/external-systems-edit-dialog"
+export type { ExternalSystemEditDialogProps } from "@/types/external-systems"
 
 export function ExternalSystemEditDialog({
   open,
@@ -97,3 +97,4 @@ export function ExternalSystemEditDialog({
     </HuemulDialog>
   )
 }
+

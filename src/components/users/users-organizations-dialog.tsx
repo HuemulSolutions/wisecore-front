@@ -9,17 +9,13 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building, Plus, Trash2 } from "lucide-react"
 import { useUserOrganizations } from "@/hooks/useUsers"
-import { type User, type UserOrganization } from "@/types/users"
+import { type UserOrganization } from "@/types/users"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { assignUserToOrganization, removeUserFromOrganization } from "@/services/users"
 import { getAllOrganizations } from "@/services/organizations"
 import { type Organization } from "@/components/organization"
-
-interface UserOrganizationsDialogProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
+import type { UserOrganizationsDialogProps } from '@/types/users'
+export type { UserOrganizationsDialogProps } from '@/types/users'
 
 export default function UserOrganizationsDialog({ user, open, onOpenChange }: UserOrganizationsDialogProps) {
   const { t } = useTranslation(['users'])

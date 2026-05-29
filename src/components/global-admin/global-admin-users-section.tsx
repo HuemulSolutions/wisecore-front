@@ -27,7 +27,7 @@ import {
   formatDate,
   getStatusColor,
 } from "@/components/users"
-import type { GlobalUsersResponse } from "@/types/global-admin-users-section"
+import type { GlobalUsersResponse } from "@/types/global-admin/components"
 
 export function GlobalAdminUsersSection() {
   const { t } = useTranslation(['users', 'global-admin', 'common'])

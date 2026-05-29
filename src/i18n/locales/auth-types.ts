@@ -11,6 +11,15 @@ const translations = {
   types: {
     internal: { en: "Internal", es: "Interno" },
     entra: { en: "Entra ID (SAML2)", es: "Entra ID (SAML2)" },
+    saml2: { en: "SAML2", es: "SAML2" },
+  },
+  saml2: {
+    clientId: { en: "Client ID", es: "Client ID" },
+    clientIdPlaceholder: { en: "Enter client ID", es: "Ingrese el Client ID" },
+    tenantId: { en: "Tenant ID", es: "Tenant ID" },
+    tenantIdPlaceholder: { en: "Enter tenant ID", es: "Ingrese el Tenant ID" },
+    url: { en: "URL", es: "URL" },
+    urlPlaceholder: { en: "Enter URL", es: "Ingrese la URL" },
   },
   actions: {
     editAuthType: { en: "Edit Auth Type", es: "Editar Tipo de Autenticación" },

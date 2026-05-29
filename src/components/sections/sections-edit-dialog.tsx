@@ -5,8 +5,8 @@ import { Edit3 } from "lucide-react"
 
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { EditSectionForm } from "@/components/sections/sections-edit-form"
-import type { ItemForBackend, EditSectionDialogProps } from '@/types/sections-edit-dialog'
-export type { EditSectionDialogProps } from '@/types/sections-edit-dialog'
+import type { ItemForBackend, EditSectionDialogProps } from '@/types/sections'
+export type { EditSectionDialogProps } from '@/types/sections'
 
 export function EditSectionDialog({ 
   open, 

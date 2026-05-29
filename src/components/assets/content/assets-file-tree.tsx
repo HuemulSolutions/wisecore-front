@@ -1,10 +1,10 @@
 ﻿"use client"
 
 import type { FileNode } from "@/types/assets"
-import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul-tree"
+import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul"
 import type { HuemulFileTreeProps } from "@/huemul/components/huemul-file-tree"
-import type { FileTreeProps, FileTreeRef } from "@/types/assets-file-tree"
-export type { FileTreeProps, FileTreeRef } from "@/types/assets-file-tree"
+import type { AssetFileTreeProps, FileTreeRef } from '@/types/assets'
+export type { AssetFileTreeProps as FileTreeProps, FileTreeRef } from '@/types/assets'
 
 import { forwardRef, useCallback, useMemo } from "react"
 import { File } from "lucide-react"
@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next"
  * - Renders document_type color in leaf icons via renderLeafIcon.
  * - Passes translated labels from the "assets" i18n namespace.
  */
-export const FileTree = forwardRef<FileTreeRef, FileTreeProps>(
+export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
   (
     {
       onLoadChildren,

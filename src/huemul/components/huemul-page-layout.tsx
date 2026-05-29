@@ -6,136 +6,14 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
+import type {
+  HuemulColumnSection,
+  HuemulPageLayoutColumn,
+  HuemulPageLayoutProps,
+} from "@/types/huemul"
 
 export type { ImperativePanelHandle }
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/**
- * Configuration for an optional header or footer section within a column.
- */
-export interface HuemulColumnSection {
-  /** Content to render inside this section. */
-  content: React.ReactNode
-  /** Controls section visibility. Defaults to `true`. */
-  show?: boolean
-  /**
-   * When `true`, this section becomes a `ResizablePanel` separated from the
-   * adjacent content by a drag handle.
-   * When `false` (default) it is a fixed-height strip.
-   */
-  resizable?: boolean
-  /**
-   * Initial size as a percentage (0–100).
-   * Only used when `resizable` is `true`.
-   */
-  defaultSize?: number
-  /** Minimum size constraint (%). Only used when `resizable` is `true`. */
-  minSize?: number
-  /** Maximum size constraint (%). Only used when `resizable` is `true`. */
-  maxSize?: number
-  /**
-   * When `true`, the panel can collapse to `collapsedSize` (default `0`).
-   * Only used when `resizable` is `true`.
-   */
-  collapsible?: boolean
-  /** Size (%) the panel snaps to when collapsed. Defaults to `0`. */
-  collapsedSize?: number
-  /** Called when the panel collapses. */
-  onCollapse?: () => void
-  /** Called when the panel expands. */
-  onExpand?: () => void
-  /**
-   * Imperative ref — lets you call `ref.current.collapse()` / `expand()`.
-   * Only used when `resizable` is `true`.
-   */
-  panelRef?: React.RefObject<ImperativePanelHandle | null>
-  /** Optional className forwarded to the section wrapper. */
-  className?: string
-}
-
-export interface HuemulPageLayoutColumn {
-  /** Content to render inside this column. */
-  content: React.ReactNode
-  /**
-   * Initial size as a percentage (0–100).
-   * Columns without an explicit size share the remaining space equally.
-   */
-  defaultSize?: number
-  /** Minimum size constraint (percentage). */
-  minSize?: number
-  /** Maximum size constraint (percentage). */
-  maxSize?: number
-  /**
-   * Controls column visibility.
-   * Pass a boolean or any expression — falsy removes the column from the layout.
-   * Defaults to `true`.
-   */
-  show?: boolean
-  /**
-   * When `true`, the panel can be dragged all the way to 0 (fully hidden).
-   * Use together with `panelRef` to also collapse/expand programmatically.
-   */
-  collapsible?: boolean
-  /**
-   * Size (%) the panel snaps to when collapsed. Defaults to `0`.
-   * Only relevant when `collapsible` is `true`.
-   */
-  collapsedSize?: number
-  /** Called when the panel collapses to its `collapsedSize`. */
-  onCollapse?: () => void
-  /** Called when the panel expands from its `collapsedSize`. */
-  onExpand?: () => void
-  /**
-   * Imperative ref to the underlying panel — lets you call
-   * `ref.current.collapse()` / `ref.current.expand()` programmatically.
-   */
-  panelRef?: React.RefObject<ImperativePanelHandle | null>
-  /**
-   * Whether this column can be resized by dragging the adjacent handle.
-   * When `false`, the resize handle next to this column is disabled.
-   * Defaults to `true`.
-   */
-  resizable?: boolean
-  /** Optional className forwarded to the ResizablePanel. */
-  className?: string
-  /** Optional header section rendered above the column content. */
-  header?: HuemulColumnSection
-  /** Optional footer section rendered below the column content. */
-  footer?: HuemulColumnSection
-}
-
-export interface HuemulPageLayoutProps {
-  /**
-   * Full-width header rendered above the columns.
-   * Only shown when both `header` is provided and `showHeader` is true.
-   */
-  header?: React.ReactNode
-  /** Toggle header visibility. Defaults to `true`. */
-  showHeader?: boolean
-  /**
-   * Column definitions (1–3 columns supported).
-   * Use the `show` prop on each column to conditionally display it.
-   */
-  columns: HuemulPageLayoutColumn[]
-  /** Extra className on the outer flex-col wrapper. */
-  className?: string
-  /** Extra className on the header strip. */
-  headerClassName?: string
-  /** Extra className on the columns area (below the header). */
-  bodyClassName?: string
-  /**
-   * When `true`, a visible grip icon appears on every resize handle.
-   * Defaults to `false`.
-   */
-  withHandle?: boolean
-  /**
-   * Direction of the panel group.
-   * - `"horizontal"` (default): panels are side-by-side columns.
-   * - `"vertical"`: panels are stacked rows.
-   */
-  direction?: "horizontal" | "vertical"
-}
+export type { HuemulColumnSection, HuemulPageLayoutColumn, HuemulPageLayoutProps }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

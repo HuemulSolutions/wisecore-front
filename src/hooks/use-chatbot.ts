@@ -118,44 +118,7 @@ function buildWorkingContext(
 // Hook
 // ========================================
 
-interface UseChatbotProps {
-  /**
-   * References representing the user's current context (document/execution).
-   * Merged with stored working_context and sent as working_context on each turn.
-   */
-  references?: ConversationReference[];
-  /** Optional LLM selected for the next message to send. */
-  selectedLlmId?: string;
-  /** Explicit working context items added by the user (drag-drop, badge, etc.). */
-  workingContextItems?: WorkingContextItem[];
-}
-
-interface UseChatbotReturn {
-  /** Current conversation ID (null if no active conversation) */
-  conversationId: string | null;
-  /** Current conversation title */
-  conversationTitle: string | null;
-  /** Update the conversation title locally */
-  setConversationTitle: (title: string | null) => void;
-  /** Messages to render — includes optimistic entries */
-  messages: ChatMessage[];
-  /** Latest assistant message received from polling */
-  assistantMessage: ChatMessage | null;
-  /** True while the assistant is generating a response (polling active) */
-  isTyping: boolean;
-
-  /** Send a user message. Creates a conversation first if needed. */
-  sendMessage: (content: string) => void;
-  /** Start a fresh conversation, clearing current state */
-  startNewConversation: () => void;
-  /** Load an existing conversation by ID */
-  loadConversation: (conversationId: string) => void;
-
-  /** True while the sendMessage mutation is in-flight */
-  isSending: boolean;
-  /** True while loading an existing conversation's messages */
-  isLoadingConversation: boolean;
-}
+import type { UseChatbotProps, UseChatbotReturn } from '@/types/chatbot'
 
 export function useChatbot({
   references,

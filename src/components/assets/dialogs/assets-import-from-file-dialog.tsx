@@ -15,8 +15,8 @@ import { toast } from "sonner"
 import { ApiError } from "@/types/api-error"
 import { handleApiError } from "@/lib/error-utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
-import type { ImportAssetFromFileDialogProps } from "@/types/assets-import-from-file-dialog"
-export type { ImportAssetFromFileDialogProps } from "@/types/assets-import-from-file-dialog"
+import type { ImportAssetFromFileDialogProps } from '@/types/assets'
+export type { ImportAssetFromFileDialogProps } from '@/types/assets'
 
 export function ImportAssetFromFileDialog({
   open,

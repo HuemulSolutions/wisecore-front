@@ -10,8 +10,8 @@ import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { getTemplateById } from "@/services/templates";
-import type { AssetEmptyContentProps } from "@/types/assets-empty-content";
-export type { AssetEmptyContentProps } from "@/types/assets-empty-content";
+import type { AssetEmptyContentProps } from '@/types/assets';
+export type { AssetEmptyContentProps } from '@/types/assets';
 
 /**
  * Lightweight component rendered when no asset is selected.

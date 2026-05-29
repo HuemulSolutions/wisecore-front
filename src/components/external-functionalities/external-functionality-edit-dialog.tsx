@@ -9,9 +9,9 @@ import { ExternalFunctionalityForm } from "./external-functionality-form"
 import type {
   UpdateExternalFunctionalityRequest,
 } from "@/types/external-functionalities"
-import type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionality-edit-dialog"
+import type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionalities"
 
-export type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionality-edit-dialog"
+export type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionalities"
 
 export function ExternalFunctionalityEditDialog({
   open,

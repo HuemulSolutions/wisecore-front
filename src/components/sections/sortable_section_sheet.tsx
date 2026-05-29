@@ -25,10 +25,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
-import type { SortableSectionSheetProps, DeleteMode } from "@/types/sortable-section-sheet";
+import type { SortableSectionSheetProps, DeleteMode } from "@/types/sections";
 
 export type { SortableSectionSheetItem } from "@/types/sections";
-export type { SortableSectionSheetProps } from "@/types/sortable-section-sheet";
+export type { SortableSectionSheetProps } from "@/types/sections";
 
 export default function SortableSectionSheet({
   item,

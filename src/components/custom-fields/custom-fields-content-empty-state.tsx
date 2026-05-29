@@ -4,9 +4,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { AlertTriangle, RefreshCw, Plus, Search } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useTranslation } from "react-i18next"
-import type { CustomFieldContentEmptyStateProps } from "@/types/custom-fields-content-empty-state"
+import type { CustomFieldContentEmptyStateProps } from '@/types/custom-fields'
 
-export type { CustomFieldContentEmptyStateProps } from "@/types/custom-fields-content-empty-state"
+export type { CustomFieldContentEmptyStateProps } from '@/types/custom-fields'
 
 export function CustomFieldContentEmptyState({
   type,

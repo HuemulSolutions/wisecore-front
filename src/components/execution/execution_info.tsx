@@ -10,9 +10,9 @@ import { useState } from 'react';
 import { DeleteExecutionDialog } from './execution-delete-dialog';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
-import type { ExecutionInfoProps } from '@/types/execution-info';
+import type { ExecutionInfoProps } from '@/types/execution';
 
-export type { ExecutionInfoProps } from '@/types/execution-info';
+export type { ExecutionInfoProps } from '@/types/execution';
 
 export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoProps) {
     const navigate = useOrgNavigate();

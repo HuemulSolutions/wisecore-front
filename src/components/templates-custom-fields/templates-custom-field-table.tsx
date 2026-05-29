@@ -4,12 +4,12 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
-import { ReusableAlertDialog } from "@/components/ui/reusable-alert-dialog"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { Edit2, Trash2, FileEdit } from "lucide-react"
-import type { CustomFieldTemplate } from "@/types/custom-fields-templates";
-import type { CustomFieldTemplateTableProps } from '@/types/templates-custom-field-table';
-export type { CustomFieldTemplateTableProps } from '@/types/templates-custom-field-table';
+import type { CustomFieldTemplate } from '@/types/custom-fields';
+import type { CustomFieldTemplateTableProps } from '@/types/templates';
+export type { CustomFieldTemplateTableProps } from '@/types/templates';
 
 const formatDataType = (dataType: string) => {
   switch (dataType) {
@@ -69,7 +69,6 @@ export function CustomFieldTemplateTable({
 }: CustomFieldTemplateTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customFieldToDelete, setCustomFieldToDelete] = useState<CustomFieldTemplate | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [imageDialogOpen, setImageDialogOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null)
 
@@ -137,29 +136,15 @@ export function CustomFieldTemplateTable({
   const handleConfirmDelete = async () => {
     if (!customFieldToDelete) return
 
-    setIsDeleting(true)
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
-    try {
-      await Promise.all([
-        new Promise<void>((resolve) => {
-          onDeleteCustomFieldTemplate(customFieldToDelete)
-          resolve()
-        }),
-        minDelay
-      ])
-    } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
-      setCustomFieldToDelete(null)
-    }
-  }
-
-  const handleCancelDelete = () => {
-    if (!isDeleting) {
-      setDeleteDialogOpen(false)
-      setCustomFieldToDelete(null)
-    }
+    await Promise.all([
+      new Promise<void>((resolve) => {
+        onDeleteCustomFieldTemplate(customFieldToDelete)
+        resolve()
+      }),
+      minDelay
+    ])
   }
 
   if (customFieldTemplates.length === 0) {
@@ -278,28 +263,27 @@ export function CustomFieldTemplateTable({
       />
 
       {/* Delete confirmation dialog */}
-      <ReusableAlertDialog
+      <HuemulAlertDialog
         open={deleteDialogOpen}
         onOpenChange={(open) => {
-          if (!open && !isDeleting) {
-            handleCancelDelete()
-          }
+          setDeleteDialogOpen(open)
+          if (!open) setCustomFieldToDelete(null)
         }}
         title="Delete Custom Field Template"
         description={`Are you sure you want to delete the custom field template "${customFieldToDelete?.name}"? This action cannot be undone and will remove this field from the template.`}
-        onConfirm={handleConfirmDelete}
-        confirmLabel="Delete"
-        isProcessing={isDeleting}
-        variant="destructive"
+        onAction={handleConfirmDelete}
+        actionLabel="Delete"
+        actionVariant="destructive"
       />
 
       {/* Image preview dialog */}
-      <ReusableDialog
+      <HuemulDialog
         open={imageDialogOpen}
         onOpenChange={setImageDialogOpen}
         title={selectedImage?.name || "Image Preview"}
-        maxWidth="2xl"
-        maxHeight="90vh"
+        maxWidth="sm:max-w-2xl"
+        maxHeight="max-h-[90vh]"
+        showFooter={false}
       >
         <div className="flex justify-center">
           {selectedImage && (
@@ -310,7 +294,7 @@ export function CustomFieldTemplateTable({
             />
           )}
         </div>
-      </ReusableDialog>
+      </HuemulDialog>
     </>
   )
 }

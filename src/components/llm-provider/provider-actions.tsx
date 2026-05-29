@@ -4,8 +4,8 @@ import { Edit, Trash2, MoreVertical } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import type { ProviderActionsProps } from "@/types/provider-actions"
-export type { ProviderActionsProps } from "@/types/provider-actions"
+import type { ProviderActionsProps } from "@/types/llm-provider"
+export type { ProviderActionsProps } from "@/types/llm-provider"
 
 export function ProviderActions({ 
   provider, 

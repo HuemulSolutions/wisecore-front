@@ -19,14 +19,7 @@ import {
   DeleteOrganizationDialog,
   type Organization
 } from "@/components/organization"
-
-interface OrganizationPageState {
-  searchTerm: string
-  selectedOrganizations: Set<string>
-  editingOrganization: Organization | null
-  showCreateDialog: boolean
-  deletingOrganization: Organization | null
-}
+import type { OrganizationPageState } from "@/types/organizations"
 
 export default function Organizations() {
   const { t } = useTranslation(['organizations', 'common'])

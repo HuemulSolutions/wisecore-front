@@ -4,8 +4,8 @@ import { Edit, Trash2, MoreVertical, Radio, Loader2, Settings } from "lucide-rea
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useTranslation } from "react-i18next"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import type { ModelActionsProps } from "@/types/models-actions"
-export type { ModelActionsProps } from "@/types/models-actions"
+import type { ModelActionsProps } from "@/types/models"
+export type { ModelActionsProps } from "@/types/models"
 
 export function ModelActions({ 
   model, 

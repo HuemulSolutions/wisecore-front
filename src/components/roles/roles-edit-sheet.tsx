@@ -5,8 +5,8 @@ import { Edit3 } from "lucide-react"
 import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
 import PermissionSelector from "./roles-permission-selector"
 import RoleFormFields from "./roles-form-fields"
-import type { EditRoleSheetProps } from '@/types/roles-edit-sheet'
-export type { EditRoleSheetProps } from '@/types/roles-edit-sheet'
+import type { EditRoleSheetProps } from '@/types/roles'
+export type { EditRoleSheetProps } from '@/types/roles'
 
 export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleSheetProps) {
   const { t } = useTranslation(['roles', 'common'])

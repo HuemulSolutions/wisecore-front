@@ -1,9 +1,9 @@
 import { FileStack, Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import type { AssetTypePageHeaderProps } from "@/types/assets-types-page-header"
+import type { AssetTypePageHeaderProps } from '@/types/assets'
 
-export type { AssetTypePageHeaderProps } from "@/types/assets-types-page-header"
+export type { AssetTypePageHeaderProps } from '@/types/assets'
 
 export default function AssetTypePageHeader({ 
   assetTypeCount, 

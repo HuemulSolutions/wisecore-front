@@ -1,14 +1,8 @@
 import React, { useMemo } from "react"
 import { cn } from "@/lib/utils"
+import type { TokenType, Token, JsonViewerProps } from "@/types/json-viewer"
 
-// ── Token types ─────────────────────────────────────────────────────────────
-
-export type TokenType = "key" | "string" | "number" | "boolean" | "null" | "punctuation" | "whitespace"
-
-interface Token {
-  type: TokenType
-  value: string
-}
+export type { TokenType, Token, JsonViewerProps }
 
 // ── Tokenizer ────────────────────────────────────────────────────────────────
 
@@ -68,17 +62,6 @@ export const tokenStyle: Record<TokenType, React.CSSProperties> = {
 }
 
 // ── Public component ─────────────────────────────────────────────────────────
-
-export interface JsonViewerProps {
-  /** Raw JSON string (pretty-printed or compact) */
-  value: string
-  /** Extra className on the outer wrapper */
-  className?: string
-  /** Minimum height (default: unset) */
-  minHeight?: string
-  /** Maximum height — adds scrollbar when exceeded */
-  maxHeight?: string
-}
 
 export function JsonViewer({ value, className, minHeight, maxHeight = "600px" }: JsonViewerProps) {
   const { formatted, tokens, error } = useMemo(() => {

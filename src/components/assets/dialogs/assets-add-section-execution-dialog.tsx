@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react"
 import { PlusCircle } from "lucide-react"
-import { ReusableDialog } from "@/components/ui/reusable-dialog"
+import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { AddSectionExecutionForm } from "@/components/sections/sections-execution-add-form"
 import { useTranslation } from "react-i18next"
-import type { AddSectionExecutionDialogProps } from "@/types/assets-add-section-execution-dialog"
-export type { AddSectionExecutionDialogProps } from "@/types/assets-add-section-execution-dialog"
+import type { AddSectionExecutionDialogProps } from '@/types/assets'
+export type { AddSectionExecutionDialogProps } from '@/types/assets'
 
 export function AddSectionExecutionDialog({
   open,
@@ -26,15 +26,15 @@ export function AddSectionExecutionDialog({
     }
   }, [open])
 
-  const handleCancel = () => {
-    onClose()
-    setIsFormValid(false)
+  const handleOpenChange = (open: boolean) => {
+    onOpenChange(open)
+    if (!open) onClose()
   }
 
   return (
-    <ReusableDialog
+    <HuemulDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={t('addSectionExecution.title')}
       description={
         afterFromSectionId 
@@ -42,15 +42,19 @@ export function AddSectionExecutionDialog({
           : t('addSectionExecution.beginningDescription')
       }
       icon={PlusCircle}
-      maxWidth="xl"
-      maxHeight="90vh"
-      showDefaultFooter
-      onCancel={handleCancel}
-      submitLabel={t('addSectionExecution.submitLabel')}
+      maxWidth="sm:max-w-xl"
+      maxHeight="max-h-[90vh]"
       cancelLabel={t('common:cancel')}
-      isSubmitting={isPending}
-      isValid={isFormValid}
-      formId="add-section-execution-form"
+      saveAction={{
+        label: t('addSectionExecution.submitLabel'),
+        loading: isPending,
+        disabled: !isFormValid || isPending,
+        closeOnSuccess: false,
+        onClick: () => {
+          const form = document.getElementById('add-section-execution-form') as HTMLFormElement | null
+          form?.requestSubmit()
+        },
+      }}
     >
       <AddSectionExecutionForm
         afterFromId={afterFromSectionId}
@@ -61,6 +65,6 @@ export function AddSectionExecutionDialog({
         defaultType={defaultType}
         defaultManualInput={defaultManualInput}
       />
-    </ReusableDialog>
+    </HuemulDialog>
   )
 }

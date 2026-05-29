@@ -26,13 +26,8 @@ export const docxTemplateQueryKeys = {
     [...docxTemplateQueryKeys.all, 'available', 'execution', organizationId, executionId] as const,
 }
 
-// ─── List query (templates of a Template resource) ────────────────────────────
-
-export interface UseDocxTemplatesForTemplateOptions {
-  enabled?: boolean
-  page?: number
-  pageSize?: number
-}
+import type { UseDocxTemplatesForTemplateOptions } from '@/types/templates'
+export type { UseDocxTemplatesForTemplateOptions }
 
 export function useDocxTemplatesForTemplate(
   organizationId: string,

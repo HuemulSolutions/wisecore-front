@@ -7,8 +7,8 @@ import { updateTemplateSection, deleteTemplateSection, deleteTemplateSectionWith
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import type { TemplateSectionsListProps } from '@/types/templates-sections-list';
-export type { TemplateSectionsListProps } from '@/types/templates-sections-list';
+import type { TemplateSectionsListProps } from '@/types/templates';
+export type { TemplateSectionsListProps } from '@/types/templates';
 
 export function TemplateSectionsList({
   sections,

@@ -50,7 +50,7 @@ import {
   EmbeddingProviderEditDialog,
 } from '@/components/embedding-provider'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import type { LLM, CreateLLMRequest } from '@/types/llm'
+import type { LLM, CreateLLMRequest } from '@/types/models'
 import type { CreateLLMProviderRequest } from '@/types/llm-provider'
 
 export default function Models() {

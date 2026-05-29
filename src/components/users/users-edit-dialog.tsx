@@ -3,17 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { updateUser, getUserById } from "@/services/users"
-import { type User, type UpdateUserData } from "@/types/users"
+import { type UpdateUserData } from "@/types/users"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { UserPen } from "lucide-react"
 import UserFormFields from "@/components/users/users-form-fields"
-
-interface EditUserDialogProps {
-  user: User | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
-}
+import type { EditUserDialogProps } from '@/types/users'
+export type { EditUserDialogProps } from '@/types/users'
 
 export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: EditUserDialogProps) {
   const [formData, setFormData] = useState({

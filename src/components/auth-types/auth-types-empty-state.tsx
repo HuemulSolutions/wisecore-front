@@ -1,8 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { Card } from "@/components/ui/card"
-import type { AuthTypesEmptyStateProps } from "@/types/auth-types-empty-state"
+import type { AuthTypesEmptyStateProps } from '@/types/auth-types'
 
-export type { AuthTypesEmptyStateProps } from "@/types/auth-types-empty-state"
+export type { AuthTypesEmptyStateProps } from '@/types/auth-types'
 
 export function AuthTypesEmptyState({ searchTerm }: AuthTypesEmptyStateProps) {
   const { t } = useTranslation(['auth-types', 'common'])

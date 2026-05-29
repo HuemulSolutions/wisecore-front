@@ -3,8 +3,8 @@ import { Bot } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
-import type { AiEditSectionDialogProps } from "@/types/assets-ai-edit-section-dialog"
-export type { AiEditSectionDialogProps } from "@/types/assets-ai-edit-section-dialog"
+import type { AiEditSectionDialogProps } from '@/types/assets'
+export type { AiEditSectionDialogProps } from '@/types/assets'
 
 export function AiEditSectionDialog({
   open,

@@ -1,0 +1,25 @@
+import type { SupportedProvider, CreateLLMProviderRequest } from './core'
+
+export interface CreateProviderDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  supportedProviders: SupportedProvider[]
+  onSubmit: (data: CreateLLMProviderRequest) => void
+  isCreating: boolean
+}
+
+export interface DeleteProviderDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  provider: any | null
+  onAction: () => Promise<void>
+}
+
+export interface EditProviderDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  provider: any | null
+  supportedProviders: SupportedProvider[]
+  onSubmit: (data: CreateLLMProviderRequest) => void
+  isUpdating: boolean
+}

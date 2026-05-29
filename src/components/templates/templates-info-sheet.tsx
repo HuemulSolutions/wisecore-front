@@ -7,8 +7,8 @@ import {
   HuemulInfoSection,
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
-import type { TemplateInfoSheetProps } from '@/types/templates-info-sheet';
-export type { TemplateInfoSheetProps } from '@/types/templates-info-sheet';
+import type { TemplateInfoSheetProps } from '@/types/templates';
+export type { TemplateInfoSheetProps } from '@/types/templates';
 
 // ── Component ──────────────────────────────────────────────────────────────
 

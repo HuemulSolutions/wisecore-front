@@ -1,20 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
 import { httpClient } from '@/lib/http-client';
 import type { UserOrganization } from '@/types/users';
-
-interface OrganizationContextType {
-  selectedOrganizationId: string | null;
-  organizations: UserOrganization[];
-  organizationToken: string | null;
-  setSelectedOrganizationId: (id: string) => void;
-  setOrganizations: (organizations: UserOrganization[]) => void;
-  setOrganizationToken: (token: string | null) => void;
-  isLoading: boolean;
-  requiresOrganizationSelection: boolean;
-  setRequiresOrganizationSelection: (required: boolean) => void;
-  resetOrganizationContext: () => void;
-}
+import type { OrganizationContextType, OrganizationProviderProps } from '@/types/organizations'
+export type { OrganizationContextType }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
@@ -25,10 +13,6 @@ export const useOrganization = () => {
   }
   return context;
 };
-
-interface OrganizationProviderProps {
-  children: ReactNode;
-}
 
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
   const [selectedOrganizationId, setSelectedOrganizationIdState] = useState<string | null>(null);

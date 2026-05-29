@@ -1,0 +1,17 @@
+import type { CustomField } from './core'
+import type { useCustomFieldMutations } from '@/hooks/useCustomFields'
+
+export interface CreateEditCustomFieldDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  customField: CustomField | null
+  onSuccess: () => void
+  customFieldMutations: ReturnType<typeof useCustomFieldMutations>
+}
+
+export interface DeleteCustomFieldDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  customField: CustomField | null
+  onConfirm: (customField: CustomField) => void
+}

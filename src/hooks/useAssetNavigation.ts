@@ -3,25 +3,7 @@ import { useLocation, useParams } from "react-router-dom";
 import { useOrgNavigate, stripOrgPrefix } from "@/hooks/useOrgRouter";
 import { getLibraryContent } from "@/services/folders";
 import type { BreadcrumbItem, LibraryItem, LibraryNavigationState } from "@/components/assets";
-
-interface UseAssetNavigationProps {
-  selectedOrganizationId: string | null;
-  organizationToken: string | null;
-}
-
-interface UseAssetNavigationReturn {
-  breadcrumb: BreadcrumbItem[];
-  selectedFile: LibraryItem | null;
-  selectedExecutionId: string | null;
-  selectedSectionId: string | null;
-  isLoadingDocument: boolean;
-  isUpdatingUrl: boolean;
-  setBreadcrumb: React.Dispatch<React.SetStateAction<BreadcrumbItem[]>>;
-  setSelectedFile: React.Dispatch<React.SetStateAction<LibraryItem | null>>;
-  setSelectedExecutionId: React.Dispatch<React.SetStateAction<string | null>>;
-  setSelectedSectionId: React.Dispatch<React.SetStateAction<string | null>>;
-  currentFolderId: string | undefined;
-}
+import type { UseAssetNavigationProps, UseAssetNavigationReturn } from "@/types/assets"
 
 /**
  * Hook to manage asset navigation, URL parsing, and state synchronization

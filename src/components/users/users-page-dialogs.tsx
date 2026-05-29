@@ -4,17 +4,8 @@ import CreateUserDialog from "@/components/users/users-create-dialog"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import UserDeleteDialog from "@/components/users/users-delete-dialog"
 import RootAdminDialog from "@/components/users/users-root-admin-dialog"
-import { useUserMutations } from "@/hooks/useUsers"
-import { type UserPageState } from "@/types/users"
-
-interface UserPageDialogsProps {
-  state: UserPageState
-  onCloseDialog: (dialog: keyof UserPageState) => void
-  onUpdateState: (updates: Partial<UserPageState>) => void
-  userMutations: ReturnType<typeof useUserMutations>
-  onUsersUpdated?: () => void
-  createUserAddToOrganization?: boolean
-}
+import type { UserPageDialogsProps } from '@/types/users'
+export type { UserPageDialogsProps } from '@/types/users'
 
 export default function UserPageDialogs({ 
   state, 

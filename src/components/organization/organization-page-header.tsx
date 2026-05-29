@@ -3,8 +3,8 @@
 import { Plus, Building2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
-import type { OrganizationPageHeaderProps } from "@/types/organization-page-header"
-export type { OrganizationPageHeaderProps } from "@/types/organization-page-header"
+import type { OrganizationPageHeaderProps } from "@/types/organizations"
+export type { OrganizationPageHeaderProps } from "@/types/organizations"
 
 export function OrganizationPageHeader({
   organizationCount,

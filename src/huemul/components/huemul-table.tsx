@@ -1,8 +1,24 @@
 import * as React from "react"
-import { type LucideIcon, MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw } from "lucide-react"
-import type { ReactNode } from "react"
+import { MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import type {
+  HuemulTableActionsMode,
+  HuemulTableColumn,
+  HuemulTableAction,
+  HuemulTableEmptyState,
+  HuemulTablePagination,
+  HuemulTableProps,
+} from "@/types/huemul"
+
+export type {
+  HuemulTableActionsMode,
+  HuemulTableColumn,
+  HuemulTableAction,
+  HuemulTableEmptyState,
+  HuemulTablePagination,
+  HuemulTableProps,
+}
 import {
   TableHeader,
   TableBody,
@@ -21,113 +37,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulButton } from "./huemul-button"
 import { HuemulPagination } from "./huemul-pagination"
 import { useTranslation } from "react-i18next"
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-/** "dropdown" renders a ⋮ button that opens a menu. "inline" renders icon-only buttons. */
-export type HuemulTableActionsMode = "dropdown" | "inline"
-
-export interface HuemulTableColumn<T> {
-  /** Unique key for the column */
-  key: string
-  /** Header label */
-  label: string
-  /** Optional Tailwind width class, e.g. "w-[20%]" */
-  width?: string
-  /** Hide on small screens */
-  hideOnMobile?: boolean
-  /** Text alignment (default: "left") */
-  align?: "left" | "right" | "center"
-  /** Cell renderer */
-  render: (item: T) => ReactNode
-  /**
-   * API sort key for this column (e.g. "document_name").
-   * When provided the header becomes clickable.
-   * Ascending = "key", descending = "-key".
-   */
-  sortKey?: string
-}
-
-export interface HuemulTableAction<T> {
-  /** Unique key */
-  key: string
-  /** Label shown in dropdown or as tooltip in inline mode */
-  label: string
-  /** Lucide icon */
-  icon: LucideIcon
-  /** Click handler */
-  onClick: (item: T) => void
-  /** Show separator after this action (dropdown mode only) */
-  separator?: boolean
-  /** Destructive style (red tint) */
-  destructive?: boolean
-  /** Additional className for the menu item / button */
-  className?: string
-  /** Conditionally show this action */
-  show?: (item: T) => boolean
-}
-
-export interface HuemulTableEmptyState {
-  icon?: LucideIcon
-  title: string
-  description?: string
-}
-
-export interface HuemulTablePagination {
-  /** Current page (1-indexed) */
-  page: number
-  /** Items per page */
-  pageSize: number
-  /** Total items across all pages (enables full pagination UI) */
-  totalItems?: number
-  /** Cursor-based: is there a next page? */
-  hasNext?: boolean
-  /** Cursor-based: is there a previous page? */
-  hasPrevious?: boolean
-  /** Page change handler */
-  onPageChange: (page: number) => void
-  /** Page size change handler (shows selector when provided) */
-  onPageSizeChange?: (size: number) => void
-  /** Available options for the page size selector */
-  pageSizeOptions?: number[]
-}
-
-export interface HuemulTableProps<T> {
-  /** Data rows */
-  data: T[]
-  /** Column definitions */
-  columns: HuemulTableColumn<T>[]
-  /** Row actions */
-  actions?: HuemulTableAction<T>[]
-  /**
-   * How to render actions:
-   * - "dropdown" (default) — a ⋮ button opens a dropdown menu
-   * - "inline" — icon-only buttons rendered directly in the cell
-   */
-  actionsMode?: HuemulTableActionsMode
-  /** Returns a unique string key per row */
-  getRowKey: (item: T) => string
-  /** Shown when data is empty and not loading */
-  emptyState?: HuemulTableEmptyState
-  /** Pagination config */
-  pagination?: HuemulTablePagination
-  /** Show skeleton rows while loading with no data */
-  isLoading?: boolean
-  /** Show subtle refetch indicator while data is present */
-  isFetching?: boolean
-  /** Error to display instead of table content */
-  error?: Error | null
-  /** Called when the user clicks the retry button on the error state */
-  onRetry?: () => void
-  /** Current sort value — "field" for asc, "-field" for desc, null for none */
-  sort?: string | null
-  /** Called when the user clicks a sortable column header */
-  onSortChange?: (sort: string | null) => void
-  /** Max height of the table container (default: "max-h-[70vh]") */
-  maxHeight?: string
-  /** Additional className for the outer wrapper */
-  className?: string
-}
 
 // ── Component ──────────────────────────────────────────────────────────────
 

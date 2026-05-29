@@ -6,8 +6,8 @@ import { createTemplateSection } from "@/services/template_section";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { Plus } from "lucide-react";
 import { withRefresh } from "@/lib/query-utils";
-import type { AddSectionDialogProps } from '@/types/templates-add-section-dialog';
-export type { AddSectionDialogProps } from '@/types/templates-add-section-dialog';
+import type { AddSectionDialogProps } from '@/types/templates/add-section-dialog';
+export type { AddSectionDialogProps } from '@/types/templates/add-section-dialog';
 
 export function AddSectionDialog({
   open,
