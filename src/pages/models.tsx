@@ -467,17 +467,17 @@ export default function Models() {
             isLoading={isRefreshing}
           />
         }
-        headerClassName="p-6 pb-0"
+        headerClassName="p-6 md:p-8 pb-0 md:pb-0"
         columns={[
           {
             content: (
-              <Tabs defaultValue="models" className="flex-1 min-h-0">
-        <TabsList>
+              <Tabs defaultValue="models" className="w-full flex-1 min-h-0">
+        <TabsList className="shrink-0">
           <TabsTrigger value="models" className="hover:cursor-pointer">{t('tabs.models')}</TabsTrigger>
           <TabsTrigger value="embeddings" className="hover:cursor-pointer">{t('tabs.embeddings')}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="models" className="min-h-0 flex flex-col">
+        <TabsContent value="models" className="mt-4 min-h-0 flex flex-col">
           {/* Default model banner */}
           {!hasError && defaultModel && (
             <div className="mb-4 shrink-0">
@@ -640,7 +640,7 @@ export default function Models() {
           )}
         </TabsContent>
 
-        <TabsContent value="embeddings" className="min-h-0 overflow-auto">
+        <TabsContent value="embeddings" className="mt-4 min-h-0 overflow-auto">
           {hasEmbeddingError ? (
             <ModelsContentEmptyState
               type="error"
@@ -777,7 +777,7 @@ export default function Models() {
         </TabsContent>
       </Tabs>
             ),
-            className: "p-6 pt-4",
+            className: "p-6 md:p-8 pt-0 md:pt-0",
           },
         ]}
       />
