@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, KeyboardEvent } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import type { Value } from 'platejs'
 
@@ -97,6 +97,8 @@ export interface HuemulFieldProps {
   selectSize?: "sm" | "default" | "xs";
   controlClassName?: string;
   children?: ReactNode;
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
+  searchOnEnter?: boolean;
 }
 
 export interface HuemulFieldGroupProps {

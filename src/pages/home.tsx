@@ -13,9 +13,9 @@ import { ImportAssetFromFileDialog } from '@/components/assets/dialogs/assets-im
 import { CreateAssetDialog } from '@/components/assets/dialogs/assets-create-dialog';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
 import { useAllExecutions } from '@/hooks/useAllExecutions';
-import { useDocumentTypes } from '@/hooks/useDocumentTypes';
 import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
+import { getDocumentTypes } from '@/services/document-types';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
 import type { Execution, ExecutionLifecycleState } from '@/types/execution';
 import { ApiError } from '@/types/api-error';
@@ -92,20 +92,15 @@ export default function Home() {
     setPage(1);
   }
 
-  const { data: documentTypesData } = useDocumentTypes();
-  const documentTypes = documentTypesData?.data ?? [];
-
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
-      const filtered = s
-        ? documentTypes.filter((dt) => dt.name.toLowerCase().includes(s.toLowerCase()))
-        : documentTypes;
+      const res = await getDocumentTypes({ search: s || undefined });
       return {
-        options: filtered.map((dt) => ({ value: dt.id, label: dt.name, color: dt.color })),
+        options: (res.data ?? []).map((dt) => ({ value: dt.id, label: dt.name, color: dt.color })),
         hasMore: false,
       };
     },
-    [documentTypes],
+    [],
   );
 
   const fetchUsers = useCallback(
@@ -318,6 +313,7 @@ export default function Home() {
                   label={t('filters.search')}
                   value={pendingFilters.search}
                   onChange={(v) => setPendingFilters((p) => ({ ...p, search: String(v ?? '') }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleApply(); }}
                   placeholder={t('filters.searchPlaceholder')}
                   className="w-auto"
                   inputClassName="w-48 h-8 text-xs"
@@ -350,6 +346,7 @@ export default function Home() {
                   onChange={(v) => setPendingFilters((p) => ({ ...p, documentTypeId: v ? String(v) : '' }))}
                   fetchOptions={fetchDocumentTypes}
                   pageSize={50}
+                  searchOnEnter
                   className="w-auto"
                   inputClassName="w-44 h-8 text-xs"
                 />
@@ -365,6 +362,7 @@ export default function Home() {
                   asyncResultsLabel={t('filters.ownerUsersLabel')}
                   fetchOptions={fetchUsers}
                   pageSize={20}
+                  searchOnEnter
                   className="w-auto"
                   inputClassName="w-44 h-8 text-xs"
                 />
