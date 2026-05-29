@@ -240,7 +240,7 @@ export function HuemulTable<T>({
                                     icon={loading ? Loader2 : ActionIcon}
                                     tooltip={action.label}
                                     tooltipSide="top"
-                                    onClick={() => !disabled && action.onClick(item)}
+                                    onClick={() => { if (!disabled) action.onClick(item) }}
                                     disabled={disabled}
                                     className={cn(
                                       "h-7 w-7 p-0",
