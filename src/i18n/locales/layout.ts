@@ -69,6 +69,26 @@ const translations = {
     searchPlaceholder: { en: "Search assets...", es: "Buscar activos..." },
     searchNoResults: { en: "No results found", es: "No se encontraron resultados" },
   },
+  llmConfigBanner: {
+    llmNotConfigured: {
+      en: "Default LLM is not configured. AI features will not work until a default LLM is set up.",
+      es: "El LLM predeterminado no está configurado. Las funcionalidades de IA no funcionarán hasta configurarlo.",
+    },
+    llmNotWorking: {
+      en: "Default LLM is configured but not working. Please check your LLM settings.",
+      es: "El LLM predeterminado está configurado pero no funciona. Por favor, revisa la configuración.",
+    },
+    embeddingNotConfigured: {
+      en: "Embedding provider is not configured. Semantic search and AI features may not work.",
+      es: "El proveedor de embeddings no está configurado. La búsqueda semántica y las funcionalidades de IA pueden no funcionar.",
+    },
+    embeddingNotWorking: {
+      en: "Embedding provider is configured but not working. Please check your embedding settings.",
+      es: "El proveedor de embeddings está configurado pero no funciona. Por favor, revisa la configuración.",
+    },
+    configure: { en: "Configure", es: "Configurar" },
+    dismiss: { en: "Dismiss", es: "Cerrar" },
+  },
 }
 
 export default translations

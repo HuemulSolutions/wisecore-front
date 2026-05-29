@@ -20,3 +20,22 @@ export interface LLMsResponse {
   page_size: number;
   has_next: boolean;
 }
+
+export interface LlmConfigurationStatusItem {
+  is_configured: boolean;
+  is_working: boolean;
+}
+
+export interface LlmConfigurationStatusData {
+  embedding: LlmConfigurationStatusItem;
+  default_llm: LlmConfigurationStatusItem;
+}
+
+export interface LlmConfigurationStatusResponse {
+  data: LlmConfigurationStatusData;
+  transaction_id: string;
+  page: null;
+  page_size: null;
+  has_next: null;
+  timestamp: string;
+}
