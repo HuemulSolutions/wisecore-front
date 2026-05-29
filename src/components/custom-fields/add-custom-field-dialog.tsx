@@ -358,11 +358,18 @@ export function AddCustomFieldDialog({
           <HuemulField
             type="file"
             label={t('addDialog.imageLabel')}
-            accept="image/*"
+            accept=".png,.jpg,.jpeg,.gif,.bmp"
             disabled={isUploadingImage}
             onFileChange={(files) => {
               const file = files?.[0]
               if (file) {
+                const VALID_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
+                const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+                if (!VALID_IMAGE_EXTENSIONS.includes(ext)) {
+                  setFormErrors(prev => ({ ...prev, value: 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, BMP.' }))
+                  return
+                }
+                setFormErrors(prev => ({ ...prev, value: '' }))
                 setSelectedFile(file)
                 setValue(file.name)
               }

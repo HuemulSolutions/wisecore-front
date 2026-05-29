@@ -1,6 +1,7 @@
 'use client';
 
 import { CaptionPlugin } from '@platejs/caption/react';
+import { toast } from 'sonner';
 import {
   AudioPlugin,
   FilePlugin,
@@ -48,9 +49,13 @@ const ImagePasteUploadPlugin = createPlatePlugin({
       // image files present in the clipboard together with text/html.
       if (files.length === 0 || !types.includes('text/html')) return false;
 
-      const imageFiles = Array.from(files).filter((f) =>
-        f.type.startsWith('image/')
-      );
+      const VALID_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/bmp'];
+      const allImageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+      const imageFiles = allImageFiles.filter((f) => VALID_IMAGE_MIME_TYPES.includes(f.type));
+      if (allImageFiles.length > 0 && imageFiles.length === 0) {
+        toast.error('Invalid image type. Allowed: PNG, JPG, GIF, BMP.');
+        return false;
+      }
       if (imageFiles.length === 0) return false;
 
       event.preventDefault();
