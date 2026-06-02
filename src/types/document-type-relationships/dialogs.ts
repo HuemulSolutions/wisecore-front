@@ -36,6 +36,7 @@ export interface RelationshipEditDialogProps {
   organizationId: string
   relationship: DocumentTypeRelationship | null
   isLocked?: boolean
+  onUpdated?: (relationship: DocumentTypeRelationship) => void
 }
 
 export interface RelationshipDeleteDialogProps {

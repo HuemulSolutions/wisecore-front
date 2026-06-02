@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { HuemulTable } from '@/huemul/components/huemul-table'
@@ -319,6 +319,11 @@ export default function Models() {
     setEditingModel(model)
   }
 
+  const handleEditModelProvider = (model: LLM) => {
+    const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
+    if (provider) setEditingProvider(provider)
+  }
+
   const handleDeleteModel = (model: LLM) => {
     setDeletingModel(model)
   }
@@ -595,6 +600,13 @@ export default function Models() {
                     isLoading: (model) => testingModelId === model.id,
                     disabled: (model) => testingModelId !== null && testingModelId !== model.id,
                   },
+                  ...(canUpdateProvider ? [{
+                    key: 'editProvider',
+                    label: t('providerActions.editProvider'),
+                    icon: Building2,
+                    onClick: handleEditModelProvider,
+                    disabled: (model: LLM) => !model.provider_id,
+                  }] : []),
                   ...(canUpdateModel ? [{
                     key: 'edit',
                     label: t('modelActions.editModel'),
