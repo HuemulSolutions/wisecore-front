@@ -9,15 +9,15 @@ import { type TElement, NodeApi } from 'platejs';
 import { PlateElement, useEditorRef } from 'platejs/react';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 
-const headingVariants = cva('relative', {
+const headingVariants = cva('relative font-["IBM_Plex_Sans",sans-serif]', {
   variants: {
     variant: {
-      h1: 'text-2xl font-bold my-4',
-      h2: 'text-xl font-bold my-3',
-      h3: 'text-lg font-bold my-2',
-      h4: 'text-base font-bold my-2',
-      h5: 'text-sm font-bold my-2',
-      h6: 'text-xs font-bold my-2',
+      h1: 'text-[1.875rem] leading-tight font-semibold tracking-tight mt-8 mb-4',
+      h2: 'text-[1.5rem] leading-snug font-semibold tracking-tight mt-7 mb-3',
+      h3: 'text-[1.25rem] leading-snug font-semibold mt-6 mb-3',
+      h4: 'text-[1.125rem] leading-snug font-semibold mt-5 mb-2',
+      h5: 'text-base font-semibold mt-4 mb-2',
+      h6: 'text-sm font-semibold mt-3 mb-1',
     },
   },
 });
