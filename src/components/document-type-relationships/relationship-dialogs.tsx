@@ -130,6 +130,7 @@ export function RelationshipEditDialog({
   organizationId,
   relationship,
   isLocked = false,
+  onUpdated,
 }: RelationshipEditDialogProps) {
   const { t } = useTranslation(["document-type-relationships", "common"])
   const [formData, setFormData] = useState<RelationshipFormData>({
@@ -174,7 +175,10 @@ export function RelationshipEditDialog({
       updateDocumentTypeRelationship.mutate(
         { relationshipId: configId, body },
         {
-          onSuccess: () => resolve(),
+          onSuccess: (data) => {
+            onUpdated?.(data)
+            resolve()
+          },
           onError: (err) => reject(err),
         },
       )

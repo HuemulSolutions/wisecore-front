@@ -394,6 +394,33 @@ function RelationshipsCanvasFlow({
     setPendingConnection({ sourceId: params.source, targetId: params.target })
   }, [])
 
+  const handleRelationshipUpdated = useCallback(
+    (updated: DocumentTypeRelationship) => {
+      const cfg = extractRelConfig(updated)
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id !== `rel-${cfg.id}`) return e
+          return {
+            ...e,
+            data: {
+              ...(e.data as RelationshipEdgeData),
+              name: cfg.name,
+              minCount: cfg.min_count,
+              maxCount: cfg.max_count,
+              onEdit: () => setEditingRelationship(updated),
+              onManageAttributes: (id: string) => {
+                setAttributesRelationshipId(id)
+                setAttributesRelationshipName(cfg.name)
+              },
+            } satisfies RelationshipEdgeData,
+          }
+        }),
+      )
+      setEditingRelationship(updated)
+    },
+    [setEdges],
+  )
+
   const handleRelationshipCreated = useCallback(
     (relationship: DocumentTypeRelationship) => {
       const conn = pendingConnectionRef.current
@@ -528,6 +555,7 @@ function RelationshipsCanvasFlow({
         onOpenChange={(o) => !o && setEditingRelationship(null)}
         organizationId={organizationId}
         relationship={editingRelationship}
+        onUpdated={handleRelationshipUpdated}
       />
 
       {/* Delete relationship dialog */}
