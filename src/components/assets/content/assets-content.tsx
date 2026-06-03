@@ -1,9 +1,9 @@
-import { useMemo, useEffect, useState, useRef, useCallback } from "react";
+﻿import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, MoreVertical, Check, Undo2, Lock, Tag, Globe, Archive, Link2, Users, Info, Settings2 } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2 } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -34,7 +34,7 @@ import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dial
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -48,6 +48,7 @@ import { CreateTemplateDialog } from "@/components/templates/templates-create-di
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
+import { CloneToNewDocumentDialog } from "@/components/assets/dialogs/assets-clone-to-new-document-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -78,12 +79,10 @@ import { ContentErrorState } from './content-error-state';
 // import { useCustomFieldMutations } from './hooks/useCustomFieldMutations';
 // import { useExecutionState } from './hooks/useExecutionState';
 
-/** Return the best display label for an execution: version first, then name. */
-function getExecutionDisplayLabel(execution: { version?: string | null; name?: string } | null | undefined): string {
-  if (!execution) return '';
-  if (execution.version) return `v${execution.version}`;
-  return execution.name || '';
-}
+import { getExecutionDisplayLabel } from './utils/version-utils';
+import { VersionSelectorDropdown } from './assets-version-selector';
+import { ViewModeToggle } from './assets-view-mode-toggle';
+import { MoreOptionsDropdown } from './assets-more-options-dropdown';
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -118,8 +117,11 @@ const STAGE_COLORS: Record<string, string> = {
   edit: 'bg-blue-100 text-blue-700',
   review: 'bg-amber-100 text-amber-700',
   approve: 'bg-orange-100 text-orange-700',
+  approved: 'bg-orange-100 text-orange-700',
   publish: 'bg-green-100 text-green-700',
+  published: 'bg-green-100 text-green-700',
   archive: 'bg-gray-100 text-gray-600',
+  archived: 'bg-gray-100 text-gray-600',
   view: 'bg-slate-100 text-slate-600',
 };
 
@@ -391,6 +393,22 @@ export function AssetContent({
     meta: { successMessage: t('mutations.executionCloned') },
   });
 
+  // Mutation for clone execution to new document
+  const cloneToNewDocumentMutation = useMutation({
+    mutationFn: async (options: { name?: string; internal_code?: string; description?: string; folder_id?: string }) => {
+      preserveScrollPosition();
+      if (!selectedExecutionId || !selectedOrganizationId) {
+        throw new Error('Missing execution ID or organization ID');
+      }
+      return cloneExecutionToNewDocument(selectedExecutionId, selectedOrganizationId, options);
+    },
+    onSuccess: () => {
+      closeCloneToNewDocumentDialog();
+      queryClient.invalidateQueries({ queryKey: ['library'] });
+    },
+    meta: { successMessage: t('mutations.executionCloned') },
+  });
+
   // Mutation for creating custom field document
   const createCustomFieldDocumentMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -557,6 +575,7 @@ export function AssetContent({
   const [deleteType, setDeleteType] = useState<'document' | 'execution' | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
+  const [isCloneToNewDocumentDialogOpen, setIsCloneToNewDocumentDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
   const [isCheckLifecycleDialogOpen, setIsCheckLifecycleDialogOpen] = useState(false);
@@ -1610,6 +1629,23 @@ export function AssetContent({
     }
   };
 
+  function openCloneToNewDocumentDialog() {
+    preserveScrollPosition();
+    setIsCloneToNewDocumentDialogOpen(true);
+  }
+
+  function closeCloneToNewDocumentDialog() {
+    setIsCloneToNewDocumentDialogOpen(false);
+  }
+
+  const handleCloneToNewDocumentDialogChange = (open: boolean) => {
+    if (open) {
+      openCloneToNewDocumentDialog();
+    } else {
+      closeCloneToNewDocumentDialog();
+    }
+  };
+
   function openApproveDialog() {
     preserveScrollPosition();
     setIsApproveDialogOpen(true);
@@ -1823,8 +1859,6 @@ export function AssetContent({
                     <div className="flex items-center gap-1 text-xs text-gray-500 min-h-4.5">
                       {selectedExecutionInfo && (
                         <>
-                          <span className="text-xs">{getExecutionDisplayLabel(selectedExecutionInfo)}</span>
-                          <span>•</span>
                           <span className="text-xs">{selectedExecutionInfo.formattedDate}</span>
                           {selectedExecutionInfo.isLatest && (
                             <span className="inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
@@ -2322,128 +2356,113 @@ export function AssetContent({
                         />
 
                       </div>
-                      {/* Info button - top right of header */}
-                      <HuemulButton
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setIsInfoSheetOpen(true)}
-                        icon={Info}
-                        iconClassName="h-4 w-4"
-                        className="h-8 w-8 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                        tooltip={t('content.assetInfo')}
-                        tooltipSide="left"
-                      />
+                      {/* Mode Toggle + Version dropdown + More Options — always in the same position for muscle memory */}
+                      <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                        {canSwitchToEditorMode && (
+                          <ViewModeToggle
+                            isViewMode={isViewMode}
+                            onSwitchToReader={() => { preserveScrollPosition(); setIsViewMode(true); }}
+                            onSwitchToEditor={() => { preserveScrollPosition(); setIsViewMode(false); }}
+                          />
+                        )}
+                        {selectedFile.type === 'document' && allExecutions?.length > 0 && (
+                          <VersionSelectorDropdown
+                            allExecutions={allExecutions}
+                            selectedExecutionId={selectedExecutionId}
+                            documentExecutionId={documentContent?.execution_id}
+                            lifecyclePermissions={lifecyclePermissions}
+                            isCreatingPending={executeDocumentMutation.isPending}
+                            hasExecutionInProcess={hasExecutionInProcess}
+                            onCreateExecution={handleCreateExecutionFromHeader}
+                            onSelectExecution={(id) => guardedAction(() => {
+                              onPreserveScroll?.();
+                              setSelectedExecutionId(id);
+                              queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
+                              queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, id] });
+                            })}
+                            onOpenVersionManagement={() => setIsVersionManagementSheetOpen(true)}
+                            onRenameVersion={(exec) => {
+                              setExecutionToRename({ id: exec.id, name: exec.name });
+                              setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
+                            }}
+                            dropdownAlign="end"
+                          />
+                        )}
+                        {!isViewOnly && (
+                          <MoreOptionsDropdown
+                            isViewMode={isViewMode}
+                            dropdownAlign="end"
+                            lifecyclePermissions={lifecyclePermissions}
+                            frontendPermissions={frontendPermissions}
+                            lifecycleStatus={documentContent?.lifecycle_status}
+                            selectedExecutionId={selectedExecutionId}
+                            hasTemplateName={!!documentContent?.template_name}
+                            canCreateTemplate={canCreate('template')}
+                            isRefreshing={isRefreshingContent}
+                            isLoadingContent={isLoadingContent}
+                            hasTocItems={tocItems.length > 0}
+                            isDocumentType={selectedFile.type === 'document'}
+                            hasDocumentContent={!!documentContent?.content}
+                            isTocSidebarOpen={isTocSidebarOpen}
+                            onAssignVersion={() => setIsAssignVersionDialogOpen(true)}
+                            onRejectLifecycle={() => setIsRejectLifecycleDialogOpen(true)}
+                            onCheckLifecycle={() => setIsCheckLifecycleDialogOpen(true)}
+                            onPublish={() => setIsPublishDialogOpen(true)}
+                            onArchive={() => setIsArchiveDialogOpen(true)}
+                            onRefresh={handleRefreshContent}
+                            onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
+                            onOpenInfo={() => setIsInfoSheetOpen(true)}
+                            onOpenSections={() => setIsSectionSheetOpen(true)}
+                            onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
+                            onOpenContext={() => setIsContextSheetOpen(true)}
+                            onClone={() => openCloneDialog()}
+                            onCloneToNew={() => openCloneToNewDocumentDialog()}
+                            onCreateTemplate={() => setIsCreateTemplateFromDocumentDialogOpen(true)}
+                            onExportMarkdown={handleExportMarkdown}
+                            onExportWord={handleExportWord}
+                            onExportCustomWord={handleExportCustomWord}
+                            onExportExcel={handleExportExcel}
+                            onDeleteVersion={() => openDeleteDialog('execution')}
+                            onDeleteDocument={() => openDeleteDialog('document')}
+                          />
+                        )}
+                      </div>
                     </div>
                     
                     {/* Metadata Row - Combined */}
                     <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
                       {selectedExecutionInfo && (
                         <>
-                          <span>
-                            {getExecutionDisplayLabel(selectedExecutionInfo) || `Version ${selectedExecutionInfo.status}`}
-                          </span>
-                          <span className="text-gray-400">•</span>
                           <span>{selectedExecutionInfo.formattedDate}</span>
                           {selectedExecutionInfo.isLatest && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                              Latest
+                              {t('content.latest')}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {documentContent?.lifecycle_status && (
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
+                          </span>
+                          {documentContent.lifecycle_status.current_group && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              {documentContent.lifecycle_status.current_group}
                             </span>
                           )}
                         </>
                       )}
                     </div>
-                    {documentContent?.lifecycle_status && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
-                        </span>
-                        {documentContent.lifecycle_status.current_group && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            {documentContent.lifecycle_status.current_group}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('content.assignVersion')}
-                              icon={Tag}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-[#4464f7] border-[#4464f7] hover:bg-blue-50 hover:cursor-pointer"
-                              loading={assignVersionMutation.isPending}
-                              tooltip={t('content.assignVersionTooltip')}
-                              onClick={() => setIsAssignVersionDialogOpen(true)}
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_check && (
-                            <>
-                              <HuemulButton
-                                variant="outline"
-                                size="sm"
-                                label={t('lifecycle.return')}
-                                icon={Undo2}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                                loading={rejectLifecycleMutation.isPending}
-                                tooltip={t('lifecycle.tooltipReturn')}
-                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                              />
-                              <HuemulButton
-                                variant="default"
-                                size="sm"
-                                label={t('lifecycle.complete')}
-                                icon={Check}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 hover:cursor-pointer"
-                                loading={checkLifecycleMutation.isPending}
-                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                              />
-                            </>
-                          )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
-                            <HuemulButton
-                              variant="default"
-                              size="sm"
-                              label={t('lifecycle.publish')}
-                              icon={Globe}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipPublish')}
-                              onClick={() => setIsPublishDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.archive')}
-                              icon={Archive}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipArchive')}
-                              onClick={() => setIsArchiveDialogOpen(true)}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 )}
               </div>
             )}
             
             {/* Action Buttons Section */}
-            {isLoadingContent && !documentContent ? (
+            {!isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
                   <Skeleton className="h-7 w-10 rounded-md" />
@@ -2461,171 +2480,83 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
-              {/* LEFT GROUP - Version, Sections, Dependencies, Context */}
+              {/* LEFT GROUP - Lifecycle Actions, Sections, Dependencies, Context */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Execution / Version Dropdown with Create button */}
-                {selectedFile.type === 'document' && allExecutions?.length > 0 && (
-                  <div className="flex items-center">
-                    {/* Create new version button - integrated left of version dropdown */}
-                    {(!lifecyclePermissions || lifecyclePermissions.create) && (
+                {/* Lifecycle action buttons */}
+                {documentContent?.lifecycle_status && (
+                  <>
+                    {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
                       <HuemulButton
                         size="sm"
                         variant="ghost"
-                        onClick={handleCreateExecutionFromHeader}
-                        disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                        className={`h-7 w-7 p-0 rounded-r-none transition-colors ${
-                          executeDocumentMutation.isPending || hasExecutionInProcess
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : 'text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer'
-                        }`}
-                        tooltip={executeDocumentMutation.isPending || hasExecutionInProcess 
-                          ? t('content.cannotExecuteInProgress')
-                          : t('content.executeNewVersion')
-                        }
-                      >
-                        {executeDocumentMutation.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5" />
-                        )}
-                      </HuemulButton>
+                        label={t('content.assignVersion')}
+                        icon={Tag}
+                        iconPosition="left"
+                        iconClassName="h-3.5 w-3.5"
+                        loading={assignVersionMutation.isPending}
+                        tooltip={t('content.assignVersionTooltip')}
+                        onClick={() => setIsAssignVersionDialogOpen(true)}
+                        className="h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+                      />
                     )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                    {documentContent.lifecycle_status.can_check && (
+                      <>
                         <HuemulButton
                           size="sm"
                           variant="ghost"
-                          className={`h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xs ${
-                            (!lifecyclePermissions || lifecyclePermissions.create) ? 'rounded-l-none' : ''
-                          }`}
-                          tooltip={t('content.switchVersion')}
-                        >
-                        <span className="font-medium">
-                          {(() => {
-                            if (!allExecutions) return 'v1';
-                            // Use selectedExecutionId if available, otherwise use documentContent.execution_id (the default loaded execution)
-                            const targetId = selectedExecutionId || documentContent?.execution_id;
-                            const selectedExecution = allExecutions.find((exec: any) => exec.id === targetId);
-                            // Show semantic version if available
-                            const label = getExecutionDisplayLabel(selectedExecution);
-                            if (label) {
-                              return label.length > 20 ? `${label.substring(0, 20)}...` : label;
-                            }
-                            // Fallback to version number if no name
-                            const sortedExecutions = [...allExecutions].sort((a: { created_at: string }, b: { created_at: string }) => 
-                              parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                            );
-                            const index = sortedExecutions.findIndex((exec: any) => exec.id === targetId);
-                            return index !== -1 ? `v${sortedExecutions.length - index}` : 'v1';
-                          })()} 
-                        </span>
-                      </HuemulButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-80">
-                      <div className="px-3 py-2 border-b border-gray-100">
-                        <p className="text-xs font-medium text-gray-900">{t('content.documentVersions')}</p>
-                        <p className="text-xs text-gray-500">{t('content.selectVersion')}</p>
-                      </div>
-                      {(!lifecyclePermissions || lifecyclePermissions.create) && (
-                        <>
-                          <DropdownMenuItem
-                            className="hover:cursor-pointer p-2 gap-2 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6]"
-                            onSelect={() => setTimeout(() => handleCreateExecutionFromHeader(), 0)}
-                            disabled={executeDocumentMutation.isPending || hasExecutionInProcess}
-                          >
-                            <div className="flex h-6 w-6 items-center justify-center rounded-md border border-dashed border-[#4464f7]">
-                              <Plus className="h-3.5 w-3.5" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs font-medium">{t('content.newVersion')}</span>
-                              <span className="text-xs text-gray-400">{t('content.createNewVersion')}</span>
-                            </div>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                        </>
-                      )}
-                      <div className="overflow-y-auto max-h-64">
-                      {allExecutions
-                        .sort((a: { created_at: string }, b: { created_at: string }) => 
-                          parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime()
-                        )
-                        .map((execution: { id: string; created_at: string; name: string; status: string; version?: string | null }, index: number) => {
-                          const isSelected = selectedExecutionId === execution.id;
-                          const isApproved = execution.status === 'approved';
-                          const isLatest = index === 0;
-                          const displayName = getExecutionDisplayLabel(execution);
-                          
-                          return (
-                            <DropdownMenuItem 
-                              key={execution.id} 
-                              className={`hover:cursor-pointer p-2 transition-colors ${
-                                isSelected ? 'bg-blue-50 border-l-2 border-[#4464f7]' : 'hover:bg-gray-50'
-                              }`}
-                              onClick={() => guardedAction(() => {
-                                // Preserve scroll position before changing execution
-                                onPreserveScroll?.();
-                                setSelectedExecutionId(execution.id);
-                                // Invalidate all document-content queries and refetch with new execution ID
-                                queryClient.removeQueries({ queryKey: ['document-content', selectedFile?.id] });
-                                queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id, execution.id] });
-                              })}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-sm font-medium ${
-                                    isSelected ? 'text-[#4464f7]' : 'text-gray-900'
-                                  }`}>
-                                    {displayName}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {lifecyclePermissions?.create && lifecyclePermissions?.edit && !execution.version && (
-                                    <button
-                                      className="p-0.5 rounded hover:bg-gray-200 hover:cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
-                                      title={t('content.renameVersion')}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setExecutionToRename({ id: execution.id, name: execution.name || '' });
-                                        setTimeout(() => setIsRenameVersionDialogOpen(true), 0);
-                                      }}
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  {isLatest && (
-                                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                      <Clock className="w-3 h-3" />
-                                      {t('content.latest')}
-                                    </div>
-                                  )}
-                                  {isApproved && (
-                                    <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                                      <CheckCircle className="w-3 h-3" />
-                                      {t('content.approved')}
-                                    </div>
-                                  )}
-                                  {isSelected && (
-                                    <div className="flex items-center gap-1 text-[#4464f7] text-xs font-medium">
-                                      <Eye className="w-3 h-3" />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </div>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="hover:cursor-pointer p-2 gap-2 text-gray-700 hover:bg-gray-50"
-                        onSelect={() => setTimeout(() => setIsVersionManagementSheetOpen(true), 0)}
-                      >
-                        <Settings2 className="h-4 w-4" />
-                        <span className="text-xs font-medium">{t('content.manageVersions')}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  </div>
+                          label={t('lifecycle.return')}
+                          icon={Undo2}
+                          iconPosition="left"
+                          iconClassName="h-3.5 w-3.5"
+                          loading={rejectLifecycleMutation.isPending}
+                          tooltip={t('lifecycle.tooltipReturn')}
+                          onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                          className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                        />
+                        <HuemulButton
+                          size="sm"
+                          variant="ghost"
+                          label={t('lifecycle.complete')}
+                          icon={Check}
+                          iconPosition="left"
+                          iconClassName="h-3.5 w-3.5"
+                          loading={checkLifecycleMutation.isPending}
+                          disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                          tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                          onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                          className="h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
+                        />
+                      </>
+                    )}
+                    {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        label={t('lifecycle.publish')}
+                        icon={Globe}
+                        iconPosition="left"
+                        iconClassName="h-3.5 w-3.5"
+                        loading={advanceLifecycleMutation.isPending}
+                        tooltip={t('lifecycle.tooltipPublish')}
+                        onClick={() => setIsPublishDialogOpen(true)}
+                        className="h-7 px-2 text-green-600 hover:bg-green-600 hover:text-white hover:cursor-pointer transition-colors text-xs"
+                      />
+                    )}
+                    {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
+                      <HuemulButton
+                        size="sm"
+                        variant="ghost"
+                        label={t('lifecycle.archive')}
+                        icon={Archive}
+                        iconPosition="left"
+                        iconClassName="h-3.5 w-3.5"
+                        loading={advanceLifecycleMutation.isPending}
+                        tooltip={t('lifecycle.tooltipArchive')}
+                        onClick={() => setIsArchiveDialogOpen(true)}
+                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
+                      />
+                    )}
+                  </>
                 )}
 
                 {/* Sections sheet */}
@@ -2669,41 +2600,10 @@ export function AssetContent({
                 )}
               </div>
 
-              {/* RIGHT GROUP - Mode Toggle, Approve/Disapprove, Create Template, More Options */}
+              {/* RIGHT GROUP - Refresh, TOC Toggle */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Mode Toggle - Reader / Editor */}
-                {canSwitchToEditorMode && (
-                  <div className="flex items-center bg-gray-100 p-0.5 rounded-md gap-0.5">
-                    <HuemulButton
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { preserveScrollPosition(); setIsViewMode(true); }}
-                      icon={Eye}
-                      iconClassName="h-3 w-3"
-                      label={t('content.reader')}
-                      className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
-                        isViewMode
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      }`}
-                    />
-                    <HuemulButton
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { preserveScrollPosition(); setIsViewMode(false); }}
-                      icon={Pencil}
-                      iconClassName="h-3 w-3"
-                      label={t('content.editor')}
-                      className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
-                        !isViewMode
-                          ? 'bg-white text-[#4464f7] shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                      }`}
-                    />
-                  </div>
-                )}
-
                 {/* Refresh button */}
+                {!isViewMode && (
                 <HuemulButton
                   size="sm"
                   variant="ghost"
@@ -2714,9 +2614,10 @@ export function AssetContent({
                   className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
                   tooltip={t('content.refreshContent')}
                 />
+                )}
 
-                {/* TOC Toggle button - desktop only, shown when there's content with headings */}
-                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
+                {/* TOC Toggle button - desktop only, hidden in reader mode (moved to More Options) */}
+                {!isViewMode && selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
                  (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
                   <HuemulButton
                     size="sm"
@@ -2733,123 +2634,9 @@ export function AssetContent({
                   />
                 )}
 
-                {/* More Options Dropdown - only render when at least one item is available and user is not view-only */}
-                {!isViewOnly &&
-                 (!isViewMode || !canSwitchToEditorMode || frontendPermissions.canAccessSectionSheet) &&
-                 ((lifecyclePermissions?.create && !!selectedExecutionId) ||
-                  (!documentContent?.template_name && canCreate('template')) ||
-                  lifecyclePermissions?.view ||
-                  lifecyclePermissions?.create ||
-                  lifecyclePermissions?.edit ||
-                  lifecyclePermissions?.review ||
-                  lifecyclePermissions?.approve ||
-                  lifecyclePermissions?.publish ||
-                  lifecyclePermissions?.archive ||
-                  (frontendPermissions.canAccessSectionSheet && (!frontendPermissions.canEditSections || isViewMode))) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <HuemulButton
-                      size="sm"
-                      variant="ghost"
-                      icon={MoreVertical}
-                      iconClassName="h-3.5 w-3.5"
-                      className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors"
-                      tooltip={t('content.moreOptions')}
-                    />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    {frontendPermissions.canAccessSectionSheet && (!frontendPermissions.canEditSections || isViewMode) && (
-                      <>
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => setIsSectionSheetOpen(true), 0)}
-                          className="hover:cursor-pointer"
-                        >
-                          <BetweenHorizontalStart className="mr-2 h-4 w-4" />
-                          {t('content.sectionsLabel')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => setIsDependenciesSheetOpen(true), 0)}
-                          className="hover:cursor-pointer"
-                        >
-                          <Link2 className="mr-2 h-4 w-4" />
-                          {t('content.dependenciesLabel')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => setIsContextSheetOpen(true), 0)}
-                          className="hover:cursor-pointer"
-                        >
-                          <Users className="mr-2 h-4 w-4" />
-                          {t('content.contextLabel')}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    {lifecyclePermissions?.create && selectedExecutionId && (
-                      <DropdownMenuItem
-                        onSelect={() => setTimeout(() => openCloneDialog(), 0)}
-                        className="hover:cursor-pointer"
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        {t('content.cloneVersion')}
-                      </DropdownMenuItem>
-                    )}
-                    {!documentContent?.template_name && canCreate('template') && (
-                      <DropdownMenuItem
-                        onSelect={() => setTimeout(() => setIsCreateTemplateFromDocumentDialogOpen(true), 0)}
-                        className="hover:cursor-pointer"
-                      >
-                        <FileCode className="mr-2 h-4 w-4" />
-                        {t('content.createTemplateFromAsset')}
-                      </DropdownMenuItem>
-                    )}
-                    {((lifecyclePermissions?.create && !!selectedExecutionId) || (!documentContent?.template_name && canCreate('template'))) && (lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && <DropdownMenuSeparator />}
-                    {(lifecyclePermissions?.view || lifecyclePermissions?.create || lifecyclePermissions?.edit || lifecyclePermissions?.review || lifecyclePermissions?.approve || lifecyclePermissions?.publish || lifecyclePermissions?.archive) && (
-                      <>
-                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportMarkdown}>
-                          <FileText className="mr-2 h-4 w-4" />
-                          {t('content.exportAsMarkdown')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportWord}>
-                          <Download className="mr-2 h-4 w-4" />
-                          {t('content.exportAsWord')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => setTimeout(() => handleExportCustomWord(), 0)}>
-                          <FileCode className="mr-2 h-4 w-4" />
-                          {t('content.exportAsCustomWord')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleExportExcel}>
-                          <FileSpreadsheet className="mr-2 h-4 w-4" />
-                          {t('content.exportAsExcel')}
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    {(lifecyclePermissions?.edit || lifecyclePermissions?.create) && documentContent?.lifecycle_status?.stage === 'edit' && (
-                      <>
-                        <DropdownMenuSeparator />
-                        {selectedExecutionId && (
-                          <DropdownMenuItem
-                            onSelect={() => setTimeout(() => openDeleteDialog('execution'), 0)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t('content.deleteVersion')}
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onSelect={() => setTimeout(() => openDeleteDialog('document'), 0)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:cursor-pointer"
-                        >
-                          <FileX className="mr-2 h-4 w-4" />
-                          {t('content.deleteDocumentLabel')}
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                )}
               </div>
             </div>
-            )}
+            ))}
             
           </div>
         </div>
@@ -2860,7 +2647,7 @@ export function AssetContent({
           <ScrollArea className="h-full max-w-full">
             <div 
               ref={scrollRestoration.viewportRef}
-              className="py-4 md:py-5 px-4 md:px-6 [contain:inline-size]"
+              className={`${isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5'} px-4 md:px-6 [contain:inline-size]`}
             >
             {selectedFile.type === 'document' ? (
               <>
@@ -3546,6 +3333,15 @@ export function AssetContent({
         onAction={() => cloneMutation.mutateAsync()}
         actionLabel={t('content.cloneConfirm')}
         actionVariant="default"
+      />
+
+      {/* Clone to New Document Dialog */}
+      <CloneToNewDocumentDialog
+        open={isCloneToNewDocumentDialogOpen}
+        onOpenChange={handleCloneToNewDocumentDialogChange}
+        onConfirm={(options) => cloneToNewDocumentMutation.mutate(options)}
+        isProcessing={cloneToNewDocumentMutation.isPending}
+        organizationId={selectedOrganizationId!}
       />
 
       {/* Approve Confirmation AlertDialog */}

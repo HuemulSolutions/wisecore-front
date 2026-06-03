@@ -375,13 +375,39 @@ export async function disapproveExecution(executionId: string, organizationId: s
 
 export async function cloneExecution(executionId: string, organizationId: string) {
     console.log(`Cloning execution with ID: ${executionId}`);
-    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/clone`, {}, {
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/clone`, undefined, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
     console.log('Execution cloned:', data.data);
+    return data.data;
+}
+
+export async function cloneExecutionToNewDocument(
+    executionId: string,
+    organizationId: string,
+    options: {
+        name?: string;
+        internal_code?: string;
+        description?: string;
+        folder_id?: string;
+    } = {},
+) {
+    console.log(`Cloning execution with ID: ${executionId} to new document`);
+    const body: Record<string, string> = { mode: 'new_document' };
+    if (options.name) body.name = options.name;
+    if (options.internal_code) body.internal_code = options.internal_code;
+    if (options.description) body.description = options.description;
+    if (options.folder_id) body.folder_id = options.folder_id;
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/clone`, body, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    console.log('Execution cloned to new document:', data.data);
     return data.data;
 }
 
