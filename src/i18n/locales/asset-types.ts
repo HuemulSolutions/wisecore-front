@@ -154,6 +154,17 @@ const translations = {
       discard: { en: "Discard changes", es: "Descartar cambios" },
       keepEditing: { en: "Keep editing", es: "Seguir editando" },
     },
+    grants: {
+      sectionDescription: { en: "Grant specific users the ability to {{action}} this document.", es: "Otorga a usuarios específicos la capacidad de {{action}} este documento." },
+      currentUsers: { en: "Users with access", es: "Usuarios con acceso" },
+      currentUsersAction: { en: "Users who can {{action}}", es: "Usuarios que pueden {{action}}" },
+      addUser: { en: "Add users", es: "Agregar usuarios" },
+      addUserPlaceholder: { en: "Select a user…", es: "Selecciona un usuario…" },
+      save: { en: "Save", es: "Guardar" },
+      revokeSelected: { en: "Revoke selected", es: "Revocar seleccionados" },
+      noGrants: { en: "No users have been granted access to this step.", es: "Ningún usuario tiene acceso a este paso." },
+      noDocumentType: { en: "Document type information is unavailable.", es: "La información del tipo de documento no está disponible." },
+    },
   },
 }
 

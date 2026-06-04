@@ -54,6 +54,16 @@ export interface AssetTypeLifecycleDialogProps {
 }
 
 // ----------------------------------------
+// Asset Lifecycle Sheet
+// ----------------------------------------
+
+export interface AssetLifecycleSheetProps {
+  asset: { id: string; name: string; document_type_id: string | null } | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+// ----------------------------------------
 // Edit Step
 // ----------------------------------------
 

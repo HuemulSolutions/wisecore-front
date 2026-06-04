@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp } from "lucide-react"
+import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -34,6 +34,7 @@ import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-fo
 import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog"
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
+import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet"
 import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
@@ -49,6 +50,7 @@ const NavKnowledgeContext = React.createContext<{
   handleEditFolder: (folderId: string, currentName: string) => void
   handleDeleteDocument: (documentId: string, documentName: string) => void
   handleEditDocument: (documentId: string, currentName: string) => void
+  handleOpenAssetLifecycle: (documentId: string, documentName: string, documentTypeId: string | null) => void
   refreshFileTree: () => void
   isSearchOpen: boolean
   setIsSearchOpen: (open: boolean) => void
@@ -78,6 +80,8 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [renderDeleteDocumentDialog, setRenderDeleteDocumentDialog] = useState(false)
   const [editFolderDialogOpen, setEditFolderDialogOpen] = useState(false)
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
+  const [assetLifecycleSheetOpen, setAssetLifecycleSheetOpen] = useState(false)
+  const [assetForLifecycle, setAssetForLifecycle] = useState<{ id: string; name: string; document_type_id: string | null } | null>(null)
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined)
   const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string } | null>(null)
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; name: string } | null>(null)
@@ -264,13 +268,18 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }
   }, [])
 
+  const handleOpenAssetLifecycle = useCallback((documentId: string, documentName: string, documentTypeId: string | null) => {
+    setAssetForLifecycle({ id: documentId, name: documentName, document_type_id: documentTypeId })
+    setAssetLifecycleSheetOpen(true)
+  }, [])
+
   const refreshFileTree = useCallback(() => {
     console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
     fileTreeRef.current?.refresh()
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetDialog
@@ -322,6 +331,11 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         documentId={documentToEdit?.id || ""}
         currentName={documentToEdit?.name || ""}
         onUpdated={handleDocumentEdited}
+      />
+      <AssetLifecycleSheet
+        asset={assetForLifecycle}
+        open={assetLifecycleSheetOpen}
+        onOpenChange={setAssetLifecycleSheetOpen}
       />
     </NavKnowledgeContext.Provider>
   )
@@ -473,9 +487,10 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
+  const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
   const { canCreate, canUpdate, canDelete } = useUserPermissions()
@@ -635,6 +650,14 @@ export function NavKnowledgeContent() {
         setDocumentNames((prev) => {
           const newMap = new Map(prev)
           content.assets.forEach((item) => newMap.set(item.id, item.name))
+          return newMap
+        })
+
+        setDocumentTypeIds((prev) => {
+          const newMap = new Map(prev)
+          content.assets.forEach((item) => {
+            if (item.document_type?.id) newMap.set(item.id, item.document_type.id)
+          })
           return newMap
         })
 
@@ -805,6 +828,17 @@ export function NavKnowledgeContent() {
         if (nodeParentIds.get(node.id) === null) return false
         return canUpdate('asset') || node.access_levels?.includes('edit') || false
       },
+      variant: "default",
+    },
+    {
+      label: t('knowledge.assetPermissions'),
+      icon: <ShieldCheck className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        const documentName = documentNames.get(nodeId) || ""
+        const documentTypeId = documentTypeIds.get(nodeId) ?? null
+        handleOpenAssetLifecycle(nodeId, documentName, documentTypeId)
+      },
+      show: (node) => node.type === "document",
       variant: "default",
     },
     {

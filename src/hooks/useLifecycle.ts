@@ -8,8 +8,15 @@ import {
   getSlaUnits,
   createLifecycleStep,
   deleteLifecycleStep,
+  getDocumentStepGrants,
+  grantLifecycleDocument,
+  revokeLifecycleDocument,
   type UpdateLifecycleStepData,
   type CreateLifecycleStepData,
+  type GrantLifecycleDocumentRequest,
+  type GrantLifecycleDocumentResponse,
+  type RevokeLifecycleDocumentRequest,
+  type RevokeLifecycleDocumentResponse,
 } from '@/services/lifecycle'
 
 export const lifecycleQueryKeys = {
@@ -18,6 +25,8 @@ export const lifecycleQueryKeys = {
   steps: (documentTypeId: string, stepType: string | null) =>
     [...lifecycleQueryKeys.all, 'steps', documentTypeId, stepType] as const,
   slaUnits: () => [...lifecycleQueryKeys.all, 'sla-units'] as const,
+  documentStepGrants: (organizationId: string, documentId: string, stepId: string) =>
+    [...lifecycleQueryKeys.all, 'document-step-grants', organizationId, documentId, stepId] as const,
 }
 
 export function useLifecycleStepTypes(enabled: boolean = true) {
@@ -99,4 +108,48 @@ export function useLifecycleMutations(documentTypeId: string, stepType: string |
   })
 
   return { updateStep, addRole, removeRole, createStep, deleteStep }
+}
+
+// ─── Document grants ────────────────────────────────────────────────────────
+
+export function useDocumentStepGrants(
+  organizationId: string,
+  documentId: string,
+  stepId: string,
+  enabled: boolean = true,
+) {
+  return useQuery({
+    queryKey: lifecycleQueryKeys.documentStepGrants(organizationId, documentId, stepId),
+    queryFn: () => getDocumentStepGrants(organizationId, documentId, stepId),
+    enabled: enabled && !!organizationId && !!documentId && !!stepId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 0,
+  })
+}
+
+export function useDocumentGrantMutations(organizationId: string, documentId: string) {
+  const queryClient = useQueryClient()
+
+  const grant = useMutation({
+    mutationFn: (body: GrantLifecycleDocumentRequest) =>
+      grantLifecycleDocument(organizationId, documentId, body),
+    onSuccess: (_data: GrantLifecycleDocumentResponse, { lifecycle_step_id }) => {
+      queryClient.invalidateQueries({
+        queryKey: lifecycleQueryKeys.documentStepGrants(organizationId, documentId, lifecycle_step_id),
+      })
+    },
+  })
+
+  const revoke = useMutation({
+    mutationFn: (body: RevokeLifecycleDocumentRequest) =>
+      revokeLifecycleDocument(organizationId, documentId, body),
+    onSuccess: (_data: RevokeLifecycleDocumentResponse, { lifecycle_step_id }) => {
+      queryClient.invalidateQueries({
+        queryKey: lifecycleQueryKeys.documentStepGrants(organizationId, documentId, lifecycle_step_id),
+      })
+    },
+  })
+
+  return { grant, revoke }
 }

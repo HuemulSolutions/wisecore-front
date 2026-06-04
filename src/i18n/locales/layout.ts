@@ -37,6 +37,7 @@ const translations = {
     editFolder: { en: "Edit Folder", es: "Editar Carpeta" },
     deleteFolder: { en: "Delete Folder", es: "Eliminar Carpeta" },
     editFile: { en: "Edit File", es: "Editar Archivo" },
+    assetPermissions: { en: "Asset Permissions", es: "Permisos del Activo" },
     deleteFile: { en: "Delete File", es: "Eliminar Archivo" },
     folderDeletedSuccess: {
       en: "Folder \"{{name}}\" deleted successfully",
