@@ -78,6 +78,12 @@ const translations = {
     attributes: { en: "Attributes", es: "Atributos" },
     delete: { en: "Delete", es: "Eliminar" },
   },
+  nodePanel: {
+    assetType: { en: "Asset Type", es: "Tipo de Activo" },
+    actions: { en: "Actions", es: "Acciones" },
+    loadRelationships: { en: "Load Relationships", es: "Cargar Relaciones" },
+    loadingRelationships: { en: "Loading…", es: "Cargando…" },
+  },
   relationship: {
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "Relationship name", es: "Nombre de la relación" },

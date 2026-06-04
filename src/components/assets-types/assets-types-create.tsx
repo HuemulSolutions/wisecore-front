@@ -67,6 +67,8 @@ export default function CreateDocumentType({
       const queryKey = type === 'asset' ? 'asset-types' : 'document-types';
       queryClient.invalidateQueries({ queryKey: [queryKey, 'list-with-roles'] });
       queryClient.invalidateQueries({ queryKey: [queryKey, selectedOrganizationId] });
+      // Always invalidate the document-types list so canvas/relationship pages refresh
+      queryClient.invalidateQueries({ queryKey: ['document-types'] });
       onDocumentTypeCreated?.(result);
       resetForm();
       setIsDialogOpen(false);

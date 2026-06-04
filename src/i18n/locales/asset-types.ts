@@ -20,6 +20,7 @@ const translations = {
     cloneAssetType: { en: "Clone Asset Type", es: "Clonar Tipo de Activo" },
     editAssetType: { en: "Edit Asset Type", es: "Editar Tipo de Activo" },
     deleteAssetType: { en: "Delete Asset Type", es: "Eliminar Tipo de Activo" },
+    viewRelationships: { en: "View Relationships", es: "Ver Relaciones" },
   },
   table: {
     showing: { en: "Showing {{count}} asset types", es: "Mostrando {{count}} tipos de activo" },

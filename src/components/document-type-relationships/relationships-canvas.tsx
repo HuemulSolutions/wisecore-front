@@ -30,12 +30,14 @@ import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship
 import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
 import { RelationshipPanel } from "./relationship-panel"
+import { NodePanel } from "./node-panel"
 import { documentTypeRelationshipQueryKeys } from "@/hooks/useDocumentTypeRelationships"
 import { getDocumentTypeRelationships } from "@/services/document-type-relationships"
 import type {
   DocumentTypeRelationship,
   PendingConnection,
   RelationshipsCanvasProps,
+  CanvasNodeAction,
 } from "@/types/document-type-relationships"
 import { cn } from "@/lib/utils"
 
@@ -148,6 +150,8 @@ export function RelationshipsCanvas(props: RelationshipsCanvasProps) {
 function RelationshipsCanvasFlow({
   organizationId,
   documentTypes,
+  initialDocumentTypeId,
+  nodeActions,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
   const { screenToFlowPosition, getNodes, getEdges } = useReactFlow()
@@ -166,8 +170,15 @@ function RelationshipsCanvasFlow({
 
   // Right panel — tracks the clicked edge
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     setSelectedEdgeId(edge.id)
+    setSelectedNodeId(null)
+  }, [])
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id)
+    setSelectedEdgeId(null)
   }, [])
 
   // Keep ref in sync so handleRelationshipCreated avoids stale closure
@@ -186,6 +197,21 @@ function RelationshipsCanvasFlow({
   const organizationIdRef = useRef(organizationId)
   useEffect(() => { docTypeMapRef.current = docTypeMap }, [docTypeMap])
   useEffect(() => { organizationIdRef.current = organizationId }, [organizationId])
+
+  // ─── Sync canvas node name/color when documentTypes data changes ───────────
+  useEffect(() => {
+    if (docTypeMap.size === 0) return
+    setNodes((nds) =>
+      nds.map((n) => {
+        const updated = docTypeMap.get(n.id)
+        if (!updated) return n
+        const data = n.data as AssetTypeNodeData
+        if (data.name === updated.name && data.color === updated.color) return n
+        return { ...n, data: { ...data, name: updated.name, color: updated.color } }
+      }),
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docTypeMap])
 
   // ─── Load relationships for a specific document type ───────────────────────
   // Stable identity — reads latest data via refs, latest graph via getNodes/getEdges
@@ -343,6 +369,15 @@ function RelationshipsCanvasFlow({
     [queryClient, getNodes, getEdges, setNodes, setEdges],
   )
 
+  // ─── Auto-load initial document type ───────────────────────────────────────
+  useEffect(() => {
+    if (initialDocumentTypeId) {
+      handleLoadRelationships(initialDocumentTypeId)
+    }
+    // Run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ─── Drag-and-drop onto canvas ──────────────────────────────────────────────
   const handleRemoveNode = useCallback(
     (id: string) => {
@@ -486,6 +521,7 @@ function RelationshipsCanvasFlow({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onEdgeClick={onEdgeClick}
+          onNodeClick={onNodeClick}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           nodeTypes={NODE_TYPES}
@@ -505,7 +541,7 @@ function RelationshipsCanvasFlow({
           {nodes.length > 0 && (
             <Panel position="top-right">
               <button
-                onClick={() => { setNodes([]); setSelectedEdgeId(null) }}
+                onClick={() => { setNodes([]); setSelectedEdgeId(null); setSelectedNodeId(null) }}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 hover:cursor-pointer transition-colors shadow-sm"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -539,6 +575,22 @@ function RelationshipsCanvasFlow({
             onClose={() => setSelectedEdgeId(null)}
           />
         )}
+
+        {selectedNodeId && (() => {
+          const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+          const nodeData = selectedNode?.data as AssetTypeNodeData | undefined
+          if (!nodeData) return null
+          return (
+            <NodePanel
+              nodeId={nodeData.id}
+              nodeName={nodeData.name}
+              nodeColor={nodeData.color}
+              nodeActions={nodeActions}
+              onLoadRelationships={nodeData.onLoadRelationships ? handleLoadRelationships : undefined}
+              onClose={() => setSelectedNodeId(null)}
+            />
+          )
+        })()}
       </div>
 
       {/* Create relationship dialog */}
