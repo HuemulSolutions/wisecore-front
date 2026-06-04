@@ -17,8 +17,10 @@ export interface RelationshipsCanvasProps {
 export interface AssetTypeSidebarProps {
   items: DocumentType[]
   isLoading?: boolean
+  isFetching?: boolean
   page: number
   pageSize: number
+  onRefresh?: () => void
 }
 
 export interface AssetTypeDraggableItemProps {

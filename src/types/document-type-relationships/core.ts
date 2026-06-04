@@ -2,8 +2,6 @@
 
 export type AttributeValueType = 'number' | 'percentage' | 'text' | 'date'
 
-export type RelationshipDirection = 'source' | 'target' | 'both'
-
 // ─── Attribute type option (GET /attribute-types) ─────────────────────────────
 
 export interface AttributeTypeOption {
@@ -11,48 +9,24 @@ export interface AttributeTypeOption {
   label: string
 }
 
-// ─── Relationship config (nested in main response) ────────────────────────────
-
-export interface DocumentTypeRelationshipConfig {
-  id: string
-  name: string
-  source_document_type_id: string
-  target_document_type_id: string
-  min_count: number
-  max_count: number
-}
-
-// ─── Execution reference (nested in main response) ────────────────────────────
-
-export interface RelationshipExecutionRef {
-  id: string
-  name: string
-  document_id: string
-  document_name: string
-  document_type_id: string
-}
-
-// ─── Attribute with value (nested in main response) ───────────────────────────
-
-export interface RelationshipAttributeValue {
-  id: string
-  document_type_relationship_attribute_id: string
-  name: string
-  value_type: AttributeValueType
-  is_required: boolean
-  display_order: number
-  value: number | string | null
-}
-
 // ─── Main entity ──────────────────────────────────────────────────────────────
 
 export interface DocumentTypeRelationship {
   id: string
-  direction: RelationshipDirection
-  document_type_relationship: DocumentTypeRelationshipConfig
-  source_execution: RelationshipExecutionRef
-  target_execution: RelationshipExecutionRef
-  attributes: RelationshipAttributeValue[]
+  name: string
+  source_document_type_id: string
+  source_document_type_name: string
+  target_document_type_id: string
+  target_document_type_name: string
+  min_count: number
+  max_count: number
+  attributes: RelationshipAttributeDefinition[]
+  relationship_source: DocumentTypeRelationship[]
+  relationship_target: DocumentTypeRelationship[]
+  created_at: string
+  updated_at: string
+  created_by: string
+  updated_by: string
 }
 
 // ─── Response wrappers ────────────────────────────────────────────────────────
@@ -99,6 +73,7 @@ export interface GetDocumentTypeRelationshipsParams {
   page_size?: number
   search?: string
   document_type_id?: string
+  include_subrelationships?: boolean
 }
 
 export interface CreateDocumentTypeRelationshipRequest {

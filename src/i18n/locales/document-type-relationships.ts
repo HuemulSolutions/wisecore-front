@@ -50,6 +50,7 @@ const translations = {
     },
     empty: { en: "No asset types found", es: "No se encontraron tipos de activo" },
     noResults: { en: "No results for \"{{term}}\"", es: "Sin resultados para \"{{term}}\"" },
+    refresh: { en: "Refresh list", es: "Refrescar lista" },
   },
   canvas: {
     empty: {

@@ -25,7 +25,7 @@ import type {
 export const documentTypeRelationshipQueryKeys = {
   all: ['document-type-relationships'] as const,
   listBase: () => [...documentTypeRelationshipQueryKeys.all, 'list'] as const,
-  list: (organizationId: string, page: number, pageSize: number, search?: string, documentTypeId?: string) =>
+  list: (organizationId: string, page: number, pageSize: number, search?: string, documentTypeId?: string, includeSubrelationships?: boolean) =>
     [
       ...documentTypeRelationshipQueryKeys.listBase(),
       organizationId,
@@ -33,6 +33,7 @@ export const documentTypeRelationshipQueryKeys = {
       pageSize,
       search ?? '',
       documentTypeId ?? '',
+      includeSubrelationships ?? false,
     ] as const,
   detail: (organizationId: string, relationshipId: string) =>
     [...documentTypeRelationshipQueryKeys.all, 'detail', organizationId, relationshipId] as const,
@@ -67,12 +68,12 @@ export function useDocumentTypeRelationships(
   organizationId: string,
   options: UseDocumentTypeRelationshipsOptions = {},
 ) {
-  const { enabled = true, page = 1, pageSize = 100, search, documentTypeId } = options
+  const { enabled = true, page = 1, pageSize = 100, search, documentTypeId, includeSubrelationships } = options
 
   return useQuery({
-    queryKey: documentTypeRelationshipQueryKeys.list(organizationId, page, pageSize, search, documentTypeId),
+    queryKey: documentTypeRelationshipQueryKeys.list(organizationId, page, pageSize, search, documentTypeId, includeSubrelationships),
     queryFn: () =>
-      getDocumentTypeRelationships(organizationId, { page, page_size: pageSize, search, document_type_id: documentTypeId }),
+      getDocumentTypeRelationships(organizationId, { page, page_size: pageSize, search, document_type_id: documentTypeId, include_subrelationships: includeSubrelationships }),
     enabled: enabled && !!organizationId,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,

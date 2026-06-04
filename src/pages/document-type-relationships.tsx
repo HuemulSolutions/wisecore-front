@@ -21,7 +21,7 @@ export default function DocumentTypeRelationshipsPage() {
   const [searchInput, setSearchInput] = useState("")
   const [search, setSearch] = useState("")
 
-  const { data: docTypesResponse, isLoading } = useDocumentTypes({ search })
+  const { data: docTypesResponse, isLoading, isFetching, refetch } = useDocumentTypes({ search })
   const documentTypes = docTypesResponse?.data ?? []
 
   // Pagination state
@@ -73,8 +73,10 @@ export default function DocumentTypeRelationshipsPage() {
             <AssetTypeSidebar
               items={documentTypes}
               isLoading={isLoading}
+              isFetching={isFetching}
               page={page}
               pageSize={pageSize}
+              onRefresh={refetch}
             />
           ),
           defaultSize: 20,

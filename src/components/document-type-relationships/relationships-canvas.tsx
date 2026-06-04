@@ -54,20 +54,15 @@ function parallelOffset(index: number, total: number): number {
   return (index - (total - 1) / 2) * PARALLEL_SPACING
 }
 
-// The API can return either a nested format { document_type_relationship: { id, name, ... } }
-// or a flat format where those fields sit directly on the root object.
-// This helper normalises both shapes into a single config object.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Normalise the relationship object into a config shape for use in canvas logic.
 function extractRelConfig(rel: DocumentTypeRelationship) {
-  const nested = rel.document_type_relationship
-  const flat = rel as unknown as Record<string, any>
   return {
-    id: (nested?.id ?? flat.id ?? "") as string,
-    name: (nested?.name ?? flat.name ?? "") as string,
-    source_document_type_id: (nested?.source_document_type_id ?? flat.source_document_type_id ?? "") as string,
-    target_document_type_id: (nested?.target_document_type_id ?? flat.target_document_type_id ?? "") as string,
-    min_count: (nested?.min_count ?? flat.min_count ?? 0) as number,
-    max_count: (nested?.max_count ?? flat.max_count ?? 0) as number,
+    id: rel.id,
+    name: rel.name,
+    source_document_type_id: rel.source_document_type_id,
+    target_document_type_id: rel.target_document_type_id,
+    min_count: rel.min_count,
+    max_count: rel.max_count,
   }
 }
 
@@ -200,17 +195,28 @@ function RelationshipsCanvasFlow({
       const orgId = organizationIdRef.current
 
       const relData = await queryClient.fetchQuery({
-        queryKey: documentTypeRelationshipQueryKeys.list(orgId, 1, 1000, undefined, documentTypeId),
+        queryKey: documentTypeRelationshipQueryKeys.list(orgId, 1, 1000, undefined, documentTypeId, true),
         queryFn: () =>
           getDocumentTypeRelationships(orgId, {
             page: 1,
             page_size: 1000,
             document_type_id: documentTypeId,
+            include_subrelationships: true,
           }),
         staleTime: 2 * 60 * 1000,
       })
 
       if (!relData?.data?.length) return
+
+      // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
+      // into a single deduplicated map so the full connected graph is rendered in one pass.
+      const allRelsMap = new Map<string, DocumentTypeRelationship>()
+      relData.data.forEach((rel) => {
+        allRelsMap.set(rel.id, rel) // top-level item takes precedence (has full callbacks)
+        rel.relationship_source.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+        rel.relationship_target.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+      })
+      const allRels = Array.from(allRelsMap.values())
 
       // Use getNodes/getEdges to always read current graph state (no stale closure)
       const existingNodeIds = new Set(getNodes().map((n) => n.id))
@@ -221,7 +227,7 @@ function RelationshipsCanvasFlow({
 
       // Pre-count how many NEW edges will be added per pair in this batch
       const newEdgeCountPerPair = new Map<string, number>()
-      relData.data.forEach((rel) => {
+      allRels.forEach((rel) => {
         const cfg = extractRelConfig(rel)
         if (!existingEdgeIds.has(`rel-${cfg.id}`)) {
           const key = `${cfg.source_document_type_id}::${cfg.target_document_type_id}`
@@ -239,7 +245,7 @@ function RelationshipsCanvasFlow({
       // Track current new-edge index per pair (starts at existing count)
       const currentIndexPerPair = new Map<string, number>(existingCountPerPair)
 
-      relData.data.forEach((rel) => {
+      allRels.forEach((rel) => {
         const cfg = extractRelConfig(rel)
         const sourceId = cfg.source_document_type_id
         const targetId = cfg.target_document_type_id

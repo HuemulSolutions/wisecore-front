@@ -6,4 +6,5 @@ export interface UseDocumentTypeRelationshipsOptions {
   pageSize?: number
   search?: string
   documentTypeId?: string
+  includeSubrelationships?: boolean
 }
