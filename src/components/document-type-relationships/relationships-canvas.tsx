@@ -42,7 +42,6 @@ import type {
   DocumentTypeRelationship,
   PendingConnection,
   RelationshipsCanvasProps,
-  CanvasNodeAction,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import { cn } from "@/lib/utils"

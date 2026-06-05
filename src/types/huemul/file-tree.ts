@@ -1,4 +1,4 @@
-import type { ReactNode, DragEvent } from 'react'
+import type { ReactNode } from 'react'
 import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from './tree'
 
 export interface HuemulFileTreeProps {
