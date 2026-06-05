@@ -8,11 +8,13 @@ import { useOrganization } from "@/contexts/organization-context";
 import { ExpandedFoldersProvider } from "@/hooks/use-expanded-folders";
 import { useAssetNavigation } from "@/hooks/useAssetNavigation";
 import { useScrollPreservation } from "@/hooks/useScrollPreservation";
-import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh, useNavKnowledgePagination } from "@/components/layout/nav-knowledge";
+import { NavKnowledgeHeader, NavKnowledgeContent, useNavKnowledgeRefresh, useNavKnowledgePagination, useNavKnowledgeMode } from "@/components/layout/nav-knowledge";
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
+import { RelationshipsCanvas } from "@/components/document-type-relationships";
+import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 
 /**
  * Main content component for the Assets page
@@ -23,6 +25,9 @@ function AssetsContent() {
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
+  const { isRelationsMode } = useNavKnowledgeMode();
+  const { data: docTypesResponse } = useDocumentTypes();
+  const documentTypes = docTypesResponse?.data ?? [];
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
@@ -95,7 +100,13 @@ function AssetsContent() {
           {
             content: (
               <div ref={scrollContainerRef} className="h-full bg-white">
-                {selectedFile ? (
+                {isRelationsMode ? (
+                  <RelationshipsCanvas
+                    organizationId={selectedOrganizationId}
+                    documentTypes={documentTypes}
+                    mode="execution"
+                  />
+                ) : selectedFile ? (
                   <AssetContent
                     selectedFile={selectedFile}
                     breadcrumb={breadcrumb}

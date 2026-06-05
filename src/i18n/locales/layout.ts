@@ -69,6 +69,9 @@ const translations = {
     rootFolder: { en: "Root", es: "Raíz" },
     searchPlaceholder: { en: "Search assets...", es: "Buscar activos..." },
     searchNoResults: { en: "No results found", es: "No se encontraron resultados" },
+    relationsMode: { en: "Relations", es: "Relaciones" },
+    relationsModeTitle: { en: "Relations", es: "Relaciones" },
+    relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
   },
   llmConfigBanner: {
     llmNotConfigured: {

@@ -2,9 +2,21 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { X, Network, Loader2 } from "lucide-react"
+import { X, Network, Loader2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
+import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId"
+import { HuemulField } from "@/huemul/components/huemul-field"
+import type { Execution } from "@/types/execution"
+
+function executionLabel(ex: Execution): string {
+  const ver =
+    ex.version_major != null
+      ? `v${ex.version_major}.${ex.version_minor ?? 0}.${ex.version_patch ?? 0}`
+      : null
+  const parts = [ex.name, ver].filter(Boolean)
+  return parts.join(" — ")
+}
 
 interface NodePanelProps {
   nodeId: string
@@ -13,6 +25,11 @@ interface NodePanelProps {
   nodeActions?: CanvasNodeAction[]
   onLoadRelationships?: (id: string) => Promise<void> | void
   onClose: () => void
+  // Execution mode
+  mode?: "document-type" | "execution"
+  executionId?: string
+  organizationId?: string
+  onSelectExecution?: (nodeId: string, executionId: string) => void
 }
 
 export function NodePanel({
@@ -22,9 +39,26 @@ export function NodePanel({
   nodeActions,
   onLoadRelationships,
   onClose,
+  mode,
+  executionId,
+  organizationId,
+  onSelectExecution,
 }: NodePanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const [isLoadingRelationships, setIsLoadingRelationships] = useState(false)
+
+  const isExecutionMode = mode === "execution"
+
+  const { data: executions, isLoading: isLoadingExecutions } = useExecutionsByDocumentId(
+    nodeId,
+    organizationId ?? "",
+    isExecutionMode && !!organizationId,
+  )
+
+  const execOptions = ((executions as Execution[]) ?? []).map((ex) => ({
+    label: executionLabel(ex),
+    value: ex.id,
+  }))
 
   const handleLoadRelationships = async () => {
     if (!onLoadRelationships || isLoadingRelationships) return
@@ -72,6 +106,41 @@ export function NodePanel({
             </div>
           </div>
         </div>
+
+        {/* Version selector — execution mode only */}
+        {isExecutionMode && (
+          <div className="space-y-2">
+            {isLoadingExecutions ? (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                  {t("nodePanel.version")}
+                </p>
+                <div className="flex items-center gap-2 h-9 px-3 rounded-md border bg-muted/10 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  <span>{t("nodePanel.loadingRelationships")}</span>
+                </div>
+              </div>
+            ) : (
+              <HuemulField
+                type="select"
+                label={t("nodePanel.version")}
+                name="execution_version"
+                value={executionId ?? ""}
+                onChange={(v) => onSelectExecution?.(nodeId, v as string)}
+                options={execOptions}
+                placeholder={t("relationship.selectExecution")}
+                description={execOptions.length === 0 ? t("relationship.noExecutions") : undefined}
+                disabled={execOptions.length === 0}
+              />
+            )}
+            {!isLoadingExecutions && !executionId && execOptions.length > 0 && (
+              <div className="flex items-center gap-1.5 text-amber-600">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                <p className="text-[11px]">{t("nodePanel.versionRequired")}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="space-y-2">

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck } from "lucide-react"
+import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -64,6 +64,8 @@ const NavKnowledgeContext = React.createContext<{
   setRootPage: (page: number) => void
   setRootPageSize: (size: number) => void
   setHasNextRootPage: (hasNext: boolean) => void
+  isRelationsMode: boolean
+  setIsRelationsMode: (mode: boolean) => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
@@ -94,6 +96,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPage, setRootPage] = useState(1)
   const [rootPageSize, setRootPageSize] = useState(50)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
+  const [isRelationsMode, setIsRelationsMode] = useState(false)
   const { selectedOrganizationId } = useOrganization()
 
   // Refs to keep callbacks stable across re-renders while accessing latest state
@@ -279,7 +282,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetDialog
@@ -377,10 +380,18 @@ export function useNavKnowledgePagination() {
   }
 }
 
+export function useNavKnowledgeMode() {
+  const context = React.useContext(NavKnowledgeContext)
+  return {
+    isRelationsMode: context?.isRelationsMode ?? false,
+    setIsRelationsMode: context?.setIsRelationsMode ?? (() => {}),
+  }
+}
+
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
   const { canCreate } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
@@ -404,6 +415,15 @@ export function NavKnowledgeHeader() {
       <div className="flex items-center justify-between">
         <SidebarGroupLabel className="py-0 text-xs">{t('knowledge.sectionTitle')}</SidebarGroupLabel>
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-6 w-6 hover:cursor-pointer", isRelationsMode && "bg-accent text-accent-foreground")}
+            onClick={() => setIsRelationsMode(!isRelationsMode)}
+            title={t('knowledge.relationsModeTooltip')}
+          >
+            <Network className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -487,7 +507,7 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -966,6 +986,14 @@ export function NavKnowledgeContent() {
             const color = (node as FileNode).document_type?.color
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
+          onNodeDragStart={isRelationsMode ? (e, node) => {
+            const docType = node.document_type
+            if (!docType) return
+            e.dataTransfer.setData(
+              "application/document-type",
+              JSON.stringify({ id: node.id, name: node.name, color: docType.color, documentTypeId: docType.id })
+            )
+          } : undefined}
         />
       )}
     </SidebarGroup>

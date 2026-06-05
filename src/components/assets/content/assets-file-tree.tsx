@@ -41,6 +41,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       renderLeafIcon: renderLeafIconProp,
       renderNodeClassName: renderNodeClassNameProp,
       alwaysShowMenuActions,
+      onNodeDragStart,
     },
     ref,
   ) => {
@@ -119,6 +120,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         initialFolderId={initialFolderId}
         showBorder={showBorder}
         showRefreshButton={showRefreshButton}
+        onDragStart={onNodeDragStart ? (e, node) => onNodeDragStart(e, node as FileNode) : undefined}
         minHeight={minHeight}
         labels={{
           newFile: t("fileTree.newFile"),

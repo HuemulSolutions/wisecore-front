@@ -24,21 +24,27 @@ import "@xyflow/react/dist/style.css"
 
 import { useQueryClient } from "@tanstack/react-query"
 import { GitMerge, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
 import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
+import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog } from "./execution-relationship-dialogs"
 import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { RelationshipPanel } from "./relationship-panel"
 import { NodePanel } from "./node-panel"
 import { documentTypeRelationshipQueryKeys } from "@/hooks/useDocumentTypeRelationships"
 import { getDocumentTypeRelationships } from "@/services/document-type-relationships"
+import { getExecutionRelationshipsByExecution } from "@/services/execution-relationships"
+import { useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships"
 import type {
   DocumentTypeRelationship,
   PendingConnection,
   RelationshipsCanvasProps,
   CanvasNodeAction,
 } from "@/types/document-type-relationships"
+import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import { cn } from "@/lib/utils"
 
 const NODE_TYPES = {
@@ -152,10 +158,12 @@ function RelationshipsCanvasFlow({
   documentTypes,
   initialDocumentTypeId,
   nodeActions,
+  mode = 'document-type',
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
   const { screenToFlowPosition, getNodes, getEdges } = useReactFlow()
   const queryClient = useQueryClient()
+  const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -164,6 +172,14 @@ function RelationshipsCanvasFlow({
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null)
   const pendingConnectionRef = useRef<PendingConnection | null>(null)
   const [editingRelationship, setEditingRelationship] = useState<DocumentTypeRelationship | null>(null)
+  // execution-mode edit state
+  const [editingExecRelationship, setEditingExecRelationship] = useState<ExecutionRelationship | null>(null)
+  const [editingExecRelName, setEditingExecRelName] = useState("")
+  // execution-mode load state: nodeId waiting for user to pick an execution
+  const [pendingExecLoad, setPendingExecLoad] = useState<string | null>(null)
+  // execution-mode delete state
+  const [deletingExecRelId, setDeletingExecRelId] = useState<string | null>(null)
+  const [deletingExecRelName, setDeletingExecRelName] = useState("")
   const [deletingRelationship, setDeletingRelationship] = useState<DocumentTypeRelationship | null>(null)
   const [attributesRelationshipId, setAttributesRelationshipId] = useState<string | null>(null)
   const [attributesRelationshipName, setAttributesRelationshipName] = useState("")
@@ -386,6 +402,18 @@ function RelationshipsCanvasFlow({
     [setNodes],
   )
 
+  // ─── Select execution for a node (execution mode) ─────────────────────────
+  const handleSelectExecution = useCallback(
+    (nodeId: string, executionId: string) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, executionId } } : n,
+        ),
+      )
+    },
+    [setNodes],
+  )
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "copy"
@@ -397,7 +425,7 @@ function RelationshipsCanvasFlow({
       const raw = e.dataTransfer.getData("application/document-type")
       if (!raw) return
 
-      let docType: { id: string; name: string; color: string }
+      let docType: { id: string; name: string; color: string; documentTypeId?: string }
       try {
         docType = JSON.parse(raw)
       } catch {
@@ -409,6 +437,7 @@ function RelationshipsCanvasFlow({
 
       // Use screenToFlowPosition to correctly account for pan and zoom
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      const isExecution = mode === 'execution'
 
       setNodes((nds) => [
         ...nds,
@@ -418,9 +447,12 @@ function RelationshipsCanvasFlow({
           position,
           data: {
             id: docType.id,
+            documentTypeId: docType.documentTypeId,
             name: docType.name,
             color: docType.color,
-            onLoadRelationships: handleLoadRelationships,
+            onLoadRelationships: isExecution
+              ? (id: string) => handleLoadExecRelRef.current?.(id)
+              : handleLoadRelationships,
             onRemove: handleRemoveNode,
           },
         },
@@ -432,8 +464,37 @@ function RelationshipsCanvasFlow({
   // ─── Connect → open create dialog ──────────────────────────────────────────
   const onConnect: OnConnect = useCallback((params) => {
     if (!params.source || !params.target) return
-    setPendingConnection({ sourceId: params.source, targetId: params.target })
-  }, [])
+    if (mode === 'execution') {
+      const allNodes = getNodes()
+      const srcNode = allNodes.find((n) => n.id === params.source)
+      const tgtNode = allNodes.find((n) => n.id === params.target)
+      const srcData = srcNode?.data as AssetTypeNodeData | undefined
+      const tgtData = tgtNode?.data as AssetTypeNodeData | undefined
+      // Block connection if either node has no version selected
+      if (!srcData?.executionId || !tgtData?.executionId) {
+        const missing = [
+          !srcData?.executionId ? srcData?.name : null,
+          !tgtData?.executionId ? tgtData?.name : null,
+        ].filter(Boolean).join(", ")
+        toast.warning(t("nodePanel.versionRequiredFor", { names: missing }))
+        return
+      }
+      setPendingConnection({
+        sourceId: params.source,
+        targetId: params.target,
+        sourceDocumentTypeId: srcData?.documentTypeId ?? srcData?.id,
+        targetDocumentTypeId: tgtData?.documentTypeId ?? tgtData?.id,
+        sourceName: srcData?.name,
+        targetName: tgtData?.name,
+        sourceColor: srcData?.color,
+        targetColor: tgtData?.color,
+        sourceExecutionId: srcData.executionId,
+        targetExecutionId: tgtData.executionId,
+      })
+    } else {
+      setPendingConnection({ sourceId: params.source, targetId: params.target })
+    }
+  }, [mode, getNodes, t])
 
   const handleRelationshipUpdated = useCallback(
     (updated: DocumentTypeRelationship) => {
@@ -502,7 +563,225 @@ function RelationshipsCanvasFlow({
     [setEdges],
   )
 
-  // ─── Remove dangling edges when a node is removed from canvas ──────────────
+  // ─── Execution relationship created → add edge ─────────────────────────────
+  const handleExecutionRelationshipCreated = useCallback(
+    (relationship: ExecutionRelationship, relName: string, sourceExecId: string, targetExecId: string) => {
+      const conn = pendingConnectionRef.current
+      if (!conn) return
+
+      // Store executionIds on source and target nodes for future use
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === conn.sourceId) return { ...n, data: { ...n.data, executionId: sourceExecId } }
+          if (n.id === conn.targetId) return { ...n, data: { ...n.data, executionId: targetExecId } }
+          return n
+        }),
+      )
+
+      setEdges((eds) => {
+        const pairCount = eds.filter(
+          (e) => e.source === conn.sourceId && e.target === conn.targetId,
+        ).length
+        return addEdge(
+          {
+            id: `exec-rel-${relationship.id}`,
+            source: conn.sourceId,
+            target: conn.targetId,
+            type: "relationship",
+            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
+            data: {
+              relationshipId: relationship.id,
+              name: relName,
+              minCount: 0,
+              maxCount: 0,
+              pathOffset: parallelOffset(pairCount, pairCount + 1),
+              onEdit: () => {
+                setEditingExecRelationship(relationship)
+                setEditingExecRelName(relName)
+              },
+              onDelete: () => {
+                setDeletingExecRelId(relationship.id)
+                setDeletingExecRelName(relName)
+              },
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          },
+          eds,
+        )
+      })
+      setPendingConnection(null)
+    },
+    [setEdges],
+  )
+
+  // ─── Load execution relationships for a node ────────────────────────────────
+  // Ref so new nodes created during load can reference the handler without stale closure
+  const handleLoadExecRelRef = useRef<((nodeId: string) => void) | null>(null)
+
+  const doLoadExecutionRelationships = useCallback(
+    async (nodeId: string, executionId: string) => {
+      const orgId = organizationIdRef.current
+
+      // Persist the executionId on the node
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, executionId } } : n,
+        ),
+      )
+
+      const relData = await getExecutionRelationshipsByExecution(orgId, executionId, {
+        page: 1,
+        page_size: 1000,
+        include_subrelationships: true,
+      })
+      if (!relData?.data?.length) return
+
+      // Flatten top-level + all sub-relationships (relationship_source / relationship_target)
+      // into a single deduplicated map by id so the full connected graph renders in one pass.
+      const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
+      for (const item of relData.data) {
+        if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
+        for (const sub of item.relationship_source) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+        for (const sub of item.relationship_target) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+      }
+      const allRels = Array.from(allRelsMap.values())
+
+      const currentNodes = getNodes()
+      const currentEdgeIds = new Set(getEdges().map((e) => e.id))
+      const newNodes: Node<AssetTypeNodeData>[] = []
+      const newEdges: Edge[] = []
+
+      // Helper: ensure a node exists for a given execution endpoint
+      const ensureNode = (docId: string, execId: string, docName: string, docTypeId: string) => {
+        // Already in canvas (by executionId or by doc id)
+        const byExecId =
+          currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
+          newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
+        if (byExecId) return byExecId
+
+        const existingByDocId = currentNodes.find((n) => n.id === docId)
+        if (existingByDocId) {
+          // Attach executionId and documentTypeId if missing
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.id !== docId) return n
+              const nd = n.data as AssetTypeNodeData
+              if (nd.executionId && nd.documentTypeId) return n
+              return { ...n, data: { ...nd, executionId: nd.executionId ?? execId, documentTypeId: nd.documentTypeId ?? docTypeId } }
+            }),
+          )
+          return docId
+        }
+
+        if (!newNodes.some((n) => n.id === docId)) {
+          newNodes.push({
+            id: docId,
+            type: 'assetType',
+            position: { x: 0, y: 0 },
+            data: {
+              id: docId,
+              executionId: execId,
+              documentTypeId: docTypeId,
+              name: docName,
+              color: '#94a3b8',
+              onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+              onRemove: handleRemoveNode,
+            },
+          })
+        }
+        return docId
+      }
+
+      for (const rel of allRels) {
+        const srcDocId = rel.source_execution.document_id
+        const tgtDocId = rel.target_execution.document_id
+
+        ensureNode(srcDocId, rel.source_execution.id, rel.source_execution.document_name, rel.source_execution.document_type_id)
+        ensureNode(tgtDocId, rel.target_execution.id, rel.target_execution.document_name, rel.target_execution.document_type_id)
+
+        const edgeId = `exec-rel-${rel.id}`
+        if (!currentEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairCount = getEdges().filter(
+            (e) => e.source === srcDocId && e.target === tgtDocId,
+          ).length
+
+          newEdges.push({
+            id: edgeId,
+            source: srcDocId,
+            target: tgtDocId,
+            type: 'relationship',
+            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
+            data: {
+              relationshipId: rel.id,
+              name: rel.document_type_relationship.name,
+              minCount: rel.document_type_relationship.min_count,
+              maxCount: rel.document_type_relationship.max_count,
+              pathOffset: parallelOffset(pairCount, pairCount + 1),
+              onEdit: () => {
+                setEditingExecRelationship({
+                  id: rel.id,
+                  document_type_relationship_id: rel.document_type_relationship.id,
+                  source_execution_id: rel.source_execution.id,
+                  target_execution_id: rel.target_execution.id,
+                  attributes: rel.attributes,
+                  created_at: '',
+                  updated_at: '',
+                  created_by: null,
+                  updated_by: null,
+                })
+                setEditingExecRelName(rel.document_type_relationship.name)
+              },
+              onDelete: () => {
+                setDeletingExecRelId(rel.id)
+                setDeletingExecRelName(rel.document_type_relationship.name)
+              },
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          currentEdgeIds.add(edgeId)
+        }
+      }
+
+      if (newNodes.length > 0) {
+        const anchorPos = getNodes().find((n) => n.id === nodeId)?.position ?? { x: 0, y: 0 }
+        const edgePairs = newEdges.map((e) => ({ source: e.source as string, target: e.target as string }))
+        const layoutPositions = computeLayoutForNewNodes(
+          nodeId, anchorPos, newNodes.map((n) => n.id), edgePairs,
+        )
+        for (const node of newNodes) {
+          const pos = layoutPositions.get(node.id)
+          if (pos) node.position = pos
+        }
+        setNodes((nds) => [...nds, ...newNodes])
+      }
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, getNodes, getEdges, setNodes, setEdges, handleRemoveNode],
+  )
+
+  const handleLoadExecutionRelationships = useCallback(
+    (nodeId: string) => {
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData) return
+      if (nodeData.executionId) {
+        doLoadExecutionRelationships(nodeId, nodeData.executionId)
+      } else {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData.name }))
+      }
+    },
+    [getNodes, doLoadExecutionRelationships, t],
+  )
+
+  // Keep ref in sync so nodes created during load can reference the latest handler
+  useEffect(() => {
+    handleLoadExecRelRef.current = handleLoadExecutionRelationships
+  }, [handleLoadExecutionRelationships])
   useEffect(() => {
     const nodeIds = new Set(nodes.map((n) => n.id))
     setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
@@ -588,13 +867,17 @@ function RelationshipsCanvasFlow({
               nodeActions={nodeActions}
               onLoadRelationships={nodeData.onLoadRelationships ? handleLoadRelationships : undefined}
               onClose={() => setSelectedNodeId(null)}
+              mode={mode}
+              executionId={nodeData.executionId}
+              organizationId={organizationId}
+              onSelectExecution={handleSelectExecution}
             />
           )
         })()}
       </div>
 
-      {/* Create relationship dialog */}
-      {pendingConnection && (
+      {/* Create relationship dialog — document-type mode */}
+      {pendingConnection && mode === 'document-type' && (
         <RelationshipCreateDialog
           open={!!pendingConnection}
           onOpenChange={(o) => !o && setPendingConnection(null)}
@@ -607,13 +890,93 @@ function RelationshipsCanvasFlow({
         />
       )}
 
-      {/* Edit relationship dialog */}
+      {/* Create relationship dialog — execution mode */}
+      {pendingConnection && mode === 'execution' &&
+        pendingConnection.sourceDocumentTypeId &&
+        pendingConnection.targetDocumentTypeId && (
+        <ExecutionRelationshipCreateDialog
+          open={!!pendingConnection}
+          onOpenChange={(o) => !o && setPendingConnection(null)}
+          organizationId={organizationId}
+          source={{
+            assetId: pendingConnection.sourceId,
+            name: pendingConnection.sourceName ?? pendingConnection.sourceId,
+            color: pendingConnection.sourceColor,
+            documentTypeId: pendingConnection.sourceDocumentTypeId,
+            executionId: pendingConnection.sourceExecutionId,
+          }}
+          target={{
+            assetId: pendingConnection.targetId,
+            name: pendingConnection.targetName ?? pendingConnection.targetId,
+            color: pendingConnection.targetColor,
+            documentTypeId: pendingConnection.targetDocumentTypeId,
+            executionId: pendingConnection.targetExecutionId,
+          }}
+          onCreated={handleExecutionRelationshipCreated}
+        />
+      )}
+
+      {/* Edit relationship dialog — document-type mode */}
       <RelationshipEditDialog
         open={!!editingRelationship}
         onOpenChange={(o) => !o && setEditingRelationship(null)}
         organizationId={organizationId}
         relationship={editingRelationship}
         onUpdated={handleRelationshipUpdated}
+      />
+
+      {/* Execution version picker — shown when user triggers "Load relationships" without a stored executionId */}
+      {pendingExecLoad && (() => {
+        const pendingNode = nodes.find((n) => n.id === pendingExecLoad)
+        const pendingData = pendingNode?.data as AssetTypeNodeData | undefined
+        return (
+          <ExecutionPickerDialog
+            open={!!pendingExecLoad}
+            onOpenChange={(o) => !o && setPendingExecLoad(null)}
+            organizationId={organizationId}
+            assetId={pendingExecLoad}
+            assetName={pendingData?.name ?? pendingExecLoad}
+            onSelect={(executionId) => {
+              doLoadExecutionRelationships(pendingExecLoad, executionId)
+              setPendingExecLoad(null)
+            }}
+          />
+        )
+      })()}
+
+      {/* Edit relationship dialog — execution mode */}
+      <ExecutionRelationshipEditDialog
+        open={!!editingExecRelationship}
+        onOpenChange={(o) => !o && setEditingExecRelationship(null)}
+        organizationId={organizationId}
+        executionRelationship={editingExecRelationship}
+        relationshipName={editingExecRelName}
+        onUpdated={(updated) => {
+          setEditingExecRelationship(updated)
+        }}
+      />
+
+      {/* Delete exec relationship dialog */}
+      <HuemulAlertDialog
+        open={!!deletingExecRelId}
+        onOpenChange={(o) => !o && setDeletingExecRelId(null)}
+        title={t("delete.title")}
+        description={t("delete.description", { name: deletingExecRelName })}
+        actionLabel={t("delete.confirmLabel")}
+        onAction={async () => {
+          if (!deletingExecRelId) return
+          await new Promise<void>((resolve, reject) => {
+            deleteExecutionRelationship.mutate(deletingExecRelId, {
+              onSuccess: () => {
+                setEdges((eds) => eds.filter((e) => e.id !== `exec-rel-${deletingExecRelId}`))
+                setSelectedEdgeId(null)
+                setDeletingExecRelId(null)
+                resolve()
+              },
+              onError: (err) => reject(err),
+            })
+          })
+        }}
       />
 
       {/* Delete relationship dialog */}

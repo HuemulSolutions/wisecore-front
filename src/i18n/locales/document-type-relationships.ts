@@ -83,6 +83,15 @@ const translations = {
     actions: { en: "Actions", es: "Acciones" },
     loadRelationships: { en: "Load Relationships", es: "Cargar Relaciones" },
     loadingRelationships: { en: "Loading…", es: "Cargando…" },
+    version: { en: "Version", es: "Versión" },
+    versionRequired: {
+      en: "Select a version to enable connections",
+      es: "Selecciona una versión para habilitar conexiones",
+    },
+    versionRequiredFor: {
+      en: "Select a version for: {{names}}",
+      es: "Selecciona una versión para: {{names}}",
+    },
   },
   relationship: {
     name: { en: "Name", es: "Nombre" },
@@ -93,6 +102,16 @@ const translations = {
     maxCount: { en: "Max Count", es: "Cantidad Máxima" },
     maxCountHint: { en: "0 means unlimited", es: "0 significa sin límite" },
     selfRelation: { en: "Self-relationship", es: "Autorelación" },
+    type: { en: "Relationship Type", es: "Tipo de Relación" },
+    noRelationshipsBetweenTypes: {
+      en: "No relationship types defined between these asset types.",
+      es: "No hay tipos de relación definidos entre estos tipos de activo.",
+    },
+    noAttributes: { en: "This relationship has no attributes.", es: "Esta relación no tiene atributos." },
+    sourceExecution: { en: "Source version ({{name}})", es: "Versión origen ({{name}})" },
+    targetExecution: { en: "Target version ({{name}})", es: "Versión destino ({{name}})" },
+    selectExecution: { en: "Select version…", es: "Seleccionar versión…" },
+    noExecutions: { en: "No versions available for this asset.", es: "No hay versiones disponibles para este activo." },
   },
   attributes: {
     title: { en: "Attributes", es: "Atributos" },

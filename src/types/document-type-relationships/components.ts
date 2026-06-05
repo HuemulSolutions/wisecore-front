@@ -6,6 +6,17 @@ import type React from 'react'
 export interface PendingConnection {
   sourceId: string
   targetId: string
+  // populated in execution mode: the document type IDs from the node data
+  sourceDocumentTypeId?: string
+  targetDocumentTypeId?: string
+  // display labels
+  sourceName?: string
+  targetName?: string
+  sourceColor?: string
+  targetColor?: string
+  // pre-selected execution ids (from node panel version selector)
+  sourceExecutionId?: string
+  targetExecutionId?: string
 }
 
 export interface CanvasNodeAction {
@@ -22,6 +33,7 @@ export interface RelationshipsCanvasProps {
   documentTypes: DocumentType[]
   initialDocumentTypeId?: string
   nodeActions?: CanvasNodeAction[]
+  mode?: 'document-type' | 'execution'
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, DragEvent } from 'react'
 import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from './tree'
 
 export interface HuemulFileTreeProps {
@@ -35,6 +35,7 @@ export interface HuemulFileTreeProps {
   showRefreshButton?: boolean
   minHeight?: string
   labels?: HuemulFileTreeLabels
+  onDragStart?: (e: React.DragEvent, node: HuemulTreeNode) => void
 }
 
 export interface HuemulFileTreeRef {

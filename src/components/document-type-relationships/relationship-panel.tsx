@@ -97,27 +97,33 @@ export function RelationshipPanel({
             {t("panel.actions")}
           </p>
           <div className="flex flex-col gap-1">
-            <button
-              onClick={() => edgeData.onEdit(edgeData.relationshipId)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
-            >
-              <Edit2 className="h-3.5 w-3.5 shrink-0" />
-              <span>{t("panel.edit")}</span>
-            </button>
-            <button
-              onClick={() => edgeData.onManageAttributes(edgeData.relationshipId)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
-            >
-              <Settings2 className="h-3.5 w-3.5 shrink-0" />
-              <span>{t("panel.attributes")}</span>
-            </button>
-            <button
-              onClick={() => edgeData.onDelete(edgeData.relationshipId)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5 shrink-0" />
-              <span>{t("panel.delete")}</span>
-            </button>
+            {edgeData.onEdit && (
+              <button
+                onClick={() => edgeData.onEdit!(edgeData.relationshipId)}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
+              >
+                <Edit2 className="h-3.5 w-3.5 shrink-0" />
+                <span>{t("panel.edit")}</span>
+              </button>
+            )}
+            {edgeData.onManageAttributes && (
+              <button
+                onClick={() => edgeData.onManageAttributes!(edgeData.relationshipId)}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors"
+              >
+                <Settings2 className="h-3.5 w-3.5 shrink-0" />
+                <span>{t("panel.attributes")}</span>
+              </button>
+            )}
+            {edgeData.onDelete && (
+              <button
+                onClick={() => edgeData.onDelete!(edgeData.relationshipId)}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                <span>{t("panel.delete")}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -21,9 +21,9 @@ export interface RelationshipEdgeData {
   maxCount: number
   /** Signed offset index used to vary curvature for parallel edges */
   pathOffset?: number
-  onEdit: (relationshipId: string) => void
-  onDelete: (relationshipId: string) => void
-  onManageAttributes: (relationshipId: string) => void
+  onEdit?: (relationshipId: string) => void
+  onDelete?: (relationshipId: string) => void
+  onManageAttributes?: (relationshipId: string) => void
   [key: string]: unknown
 }
 
