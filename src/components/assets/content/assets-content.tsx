@@ -3242,10 +3242,13 @@ export function AssetContent({
         executionId={documentContent?.execution_id}
         documentId={selectedFile?.id}
         assetName={
-          selectedFile?.name
-            ? documentContent?.execution_id && selectedExecutionInfo
-              ? `${getExecutionDisplayLabel(selectedExecutionInfo) || selectedExecutionInfo.formattedDate} - ${selectedFile.name}`
-              : selectedFile.name
+          selectedFile?.id
+            ? (() => {
+                const displayName = documentContent?.document_name || selectedFile.name;
+                return documentContent?.execution_id && selectedExecutionInfo
+                  ? `${getExecutionDisplayLabel(selectedExecutionInfo) || selectedExecutionInfo.formattedDate} - ${displayName}`
+                  : displayName;
+              })()
             : undefined
         }
         enabled={Boolean(documentContent && documentContent.content && selectedFile?.id)}

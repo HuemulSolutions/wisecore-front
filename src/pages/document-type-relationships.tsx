@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next"
 import { GitMerge, Edit2, Activity, Copy, Trash2 } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { AssetTypePageEmptyState } from "@/components/assets-types"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
 import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-type-relationships"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
@@ -34,11 +36,18 @@ export default function DocumentTypeRelationshipsPage() {
   const { t } = useTranslation(["document-type-relationships", "asset-types", "common"])
   const { selectedOrganizationId } = useOrganization()
 
+  // Permissions
+  const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const canListDocumentTypes = isRootAdmin || hasAnyPermission(['asset_type:l', 'asset_type:r'])
+  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
+  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
+  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
+
   // Search input (typed) vs committed search (sent to API on Enter)
   const [searchInput, setSearchInput] = useState("")
   const [search, setSearch] = useState("")
 
-  const { data: docTypesResponse, isLoading, isFetching, refetch } = useDocumentTypes({ search })
+  const { data: docTypesResponse, isLoading, isFetching, refetch } = useDocumentTypes({ search, enabled: canListDocumentTypes })
   const documentTypes = docTypesResponse?.data ?? []
   const mutations = useAssetTypeMutations()
 
@@ -87,49 +96,52 @@ export default function DocumentTypeRelationshipsPage() {
   }
 
   const nodeActions: CanvasNodeAction[] = [
-    {
+    ...(canUpdateDocumentType ? [{
       key: "edit",
       label: t("asset-types:actions.editAssetType"),
       icon: Edit2,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setEditingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
-    },
-    {
+    }] : []),
+    ...(canUpdateDocumentType ? [{
       key: "lifecycle",
       label: t("asset-types:actions.lifecycle"),
       icon: Activity,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setLifecycleAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
-    },
-    {
+    }] : []),
+    ...(canCreateDocumentType ? [{
       key: "clone",
       label: t("asset-types:actions.cloneAssetType"),
       icon: Copy,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setCloningAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
-    },
-    {
+    }] : []),
+    ...(canDeleteDocumentType ? [{
       key: "delete",
       label: t("asset-types:actions.deleteAssetType"),
       icon: Trash2,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setDeletingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
       destructive: true,
       separator: true,
-    },
+    }] : []),
   ]
 
   const totalItems = documentTypes.length
   const hasNext = page * pageSize < totalItems
   const hasPrevious = page > 1
+
+  if (isLoadingPermissions) return <PageSkeleton />
+  if (!canListDocumentTypes) return <AssetTypePageEmptyState type="access-denied" />
 
   if (isLoading && !docTypesResponse) return <PageSkeleton />
 

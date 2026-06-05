@@ -1370,6 +1370,15 @@ export function HuemulField({
         );
 
       case "select": {
+        const currentValue = String(value ?? "")
+        const flatOptions = groupedOptions
+          ? groupedOptions.flatMap((g) => [
+              ...(g.groupValue ? [{ value: g.groupValue, label: g.groupLabel }] : []),
+              ...g.options,
+            ])
+          : options
+        const selectedLabel = flatOptions.find((o) => o.value === currentValue)?.label
+
         const selectTrigger = (
           <SelectTrigger
             id={fieldId}
@@ -1377,7 +1386,9 @@ export function HuemulField({
             className={cn("w-full", inputClassName)}
             aria-invalid={baseInvalid || undefined}
           >
-            <SelectValue placeholder={placeholder || t('selectPlaceholder')} />
+            <SelectValue placeholder={placeholder || t('selectPlaceholder')}>
+              {selectedLabel}
+            </SelectValue>
           </SelectTrigger>
         );
 

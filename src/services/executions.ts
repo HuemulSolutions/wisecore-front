@@ -18,7 +18,8 @@ export async function getAllExecutions(
   const {
     page = 1,
     page_size = 100,
-    search,
+    query,
+    search_type,
     created_by,
     has_pending_ai_suggestion,
     lifecycle_state,
@@ -40,32 +41,33 @@ export async function getAllExecutions(
     document_type_id,
     sort,
   } = params
-  const query = new URLSearchParams({
+  const qs = new URLSearchParams({
     page: page.toString(),
     page_size: page_size.toString(),
   })
-  if (search?.trim()) query.set('search', search.trim())
-  if (created_by) query.set('created_by', created_by)
-  if (has_pending_ai_suggestion != null) query.set('has_pending_ai_suggestion', has_pending_ai_suggestion.toString())
-  if (lifecycle_state) query.set('lifecycle_state', lifecycle_state)
-  if (owner_scope) query.set('owner_scope', owner_scope)
-  if (has_unresolved_comments != null) query.set('has_unresolved_comments', has_unresolved_comments.toString())
-  if (expiration_date) query.set('expiration_date', toDateParam(expiration_date))
-  if (expiration_date_from) query.set('expiration_date_from', toDateParam(expiration_date_from))
-  if (expiration_date_to) query.set('expiration_date_to', toDateParam(expiration_date_to))
-  if (estimated_publication_date) query.set('estimated_publication_date', toDateParam(estimated_publication_date))
-  if (estimated_publication_date_from) query.set('estimated_publication_date_from', toDateParam(estimated_publication_date_from))
-  if (estimated_publication_date_to) query.set('estimated_publication_date_to', toDateParam(estimated_publication_date_to))
-  if (review_date) query.set('review_date', toDateParam(review_date))
-  if (review_date_from) query.set('review_date_from', toDateParam(review_date_from))
-  if (review_date_to) query.set('review_date_to', toDateParam(review_date_to))
-  if (audit_date) query.set('audit_date', toDateParam(audit_date))
-  if (audit_date_from) query.set('audit_date_from', toDateParam(audit_date_from))
-  if (audit_date_to) query.set('audit_date_to', toDateParam(audit_date_to))
-  if (template_id) query.set('template_id', template_id)
-  if (document_type_id) query.set('document_type_id', document_type_id)
-  if (sort) query.set('sort', sort)
-  const response = await httpClient.get(`${backendUrl}/execution/?${query}`, {
+  if (query?.trim()) qs.set('query', query.trim())
+  if (search_type) qs.set('search_type', search_type)
+  if (created_by) qs.set('created_by', created_by)
+  if (has_pending_ai_suggestion != null) qs.set('has_pending_ai_suggestion', has_pending_ai_suggestion.toString())
+  if (lifecycle_state) qs.set('lifecycle_state', lifecycle_state)
+  if (owner_scope) qs.set('owner_scope', owner_scope)
+  if (has_unresolved_comments != null) qs.set('has_unresolved_comments', has_unresolved_comments.toString())
+  if (expiration_date) qs.set('expiration_date', toDateParam(expiration_date))
+  if (expiration_date_from) qs.set('expiration_date_from', toDateParam(expiration_date_from))
+  if (expiration_date_to) qs.set('expiration_date_to', toDateParam(expiration_date_to))
+  if (estimated_publication_date) qs.set('estimated_publication_date', toDateParam(estimated_publication_date))
+  if (estimated_publication_date_from) qs.set('estimated_publication_date_from', toDateParam(estimated_publication_date_from))
+  if (estimated_publication_date_to) qs.set('estimated_publication_date_to', toDateParam(estimated_publication_date_to))
+  if (review_date) qs.set('review_date', toDateParam(review_date))
+  if (review_date_from) qs.set('review_date_from', toDateParam(review_date_from))
+  if (review_date_to) qs.set('review_date_to', toDateParam(review_date_to))
+  if (audit_date) qs.set('audit_date', toDateParam(audit_date))
+  if (audit_date_from) qs.set('audit_date_from', toDateParam(audit_date_from))
+  if (audit_date_to) qs.set('audit_date_to', toDateParam(audit_date_to))
+  if (template_id) qs.set('template_id', template_id)
+  if (document_type_id) qs.set('document_type_id', document_type_id)
+  if (sort) qs.set('sort', sort)
+  const response = await httpClient.get(`${backendUrl}/execution/?${qs}`, {
     headers: { 'X-Org-Id': organizationId },
   })
   return response.json() as Promise<ExecutionsResponse>

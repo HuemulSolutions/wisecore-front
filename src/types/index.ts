@@ -75,7 +75,7 @@ export * from './canvas'
 
 export * from './jwt-utils'
 export * from './access-levels'
-export type { ExecutionLifecycleState, Execution, ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse } from './execution'
+export type { ExecutionLifecycleState, Execution, ExecutionsResponse, GetExecutionsParams, ExecutionSearchType, RollbackTarget, RollbackStep, RollbackTargetsResponse } from './execution'
 export * from './auth-types'
 export type { DocumentTypeDetail, DocumentTypeDetailResponse, DocumentTypesResponse, CreateDocumentTypeData, UpdateDocumentTypeData } from './document-types'
 export * from './folders'

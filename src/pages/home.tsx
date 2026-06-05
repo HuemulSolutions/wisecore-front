@@ -17,7 +17,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
-import type { Execution, ExecutionLifecycleState } from '@/types/execution';
+import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/types/execution';
 import { ApiError } from '@/types/api-error';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
 
@@ -39,7 +39,8 @@ export default function Home() {
 
   // Filters — pending (UI fields) / applied (drives the query)
   const defaultFilters = {
-    search: '',
+    query: '',
+    searchType: 'semantic' as ExecutionSearchType,
     lifecycleState: '',
     ownerValue: '',
     hasUnresolvedComments: false,
@@ -63,7 +64,8 @@ export default function Home() {
   const [sort, setSort] = useState<string | null>(null);
 
   const hasActiveFilters =
-    !!appliedFilters.search ||
+    !!appliedFilters.query ||
+    !!appliedFilters.searchType && appliedFilters.searchType !== 'semantic' ||
     !!appliedFilters.lifecycleState ||
     !!appliedFilters.ownerValue ||
     appliedFilters.hasUnresolvedComments ||
@@ -125,7 +127,8 @@ export default function Home() {
     enabled: !!selectedOrganizationId,
     page,
     pageSize: PAGE_SIZE,
-    search: appliedFilters.search || undefined,
+    query: appliedFilters.query || undefined,
+    search_type: (appliedFilters.searchType || undefined) as ExecutionSearchType | undefined,
     lifecycle_state: (appliedFilters.lifecycleState || undefined) as ExecutionLifecycleState | undefined,
     owner_scope: appliedFilters.ownerValue === '__me__' ? 'me' : undefined,
     created_by: appliedFilters.ownerValue && appliedFilters.ownerValue !== '__me__' ? appliedFilters.ownerValue : undefined,
@@ -309,10 +312,26 @@ export default function Home() {
                 hasActiveFilters={hasActiveFilters}
               >
                 <HuemulField
+                  type="select"
+                  label={t('filters.searchType')}
+                  value={pendingFilters.searchType}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, searchType: String(v) as ExecutionSearchType }))}
+                  options={[
+                    { value: 'semantic', label: t('filters.searchTypeSemantic') },
+                    { value: 'title', label: t('filters.searchTypeTitle') },
+                    { value: 'code', label: t('filters.searchTypeCode') },
+                    { value: 'content', label: t('filters.searchTypeContent') },
+                  ]}
+                  selectSize="xs"
+                  className="w-auto"
+                  inputClassName="w-36 h-8 text-xs"
+                />
+
+                <HuemulField
                   type="text"
                   label={t('filters.search')}
-                  value={pendingFilters.search}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, search: String(v ?? '') }))}
+                  value={pendingFilters.query}
+                  onChange={(v) => setPendingFilters((p) => ({ ...p, query: String(v ?? '') }))}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleApply(); }}
                   placeholder={t('filters.searchPlaceholder')}
                   className="w-auto"
