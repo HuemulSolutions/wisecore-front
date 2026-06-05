@@ -262,11 +262,19 @@ export function EditCustomFieldTemplateDialog({
           <div className="space-y-2">
             <Input
               type="file"
-              accept="image/*"
+              accept=".png,.jpg,.jpeg,.gif,.bmp"
               disabled={isUploadingImage}
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) {
+                  const VALID_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
+                  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+                  if (!VALID_IMAGE_EXTENSIONS.includes(ext)) {
+                    setFormErrors(prev => ({ ...prev, value: 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, BMP.' }))
+                    e.target.value = ''
+                    return
+                  }
+                  setFormErrors(prev => ({ ...prev, value: '' }))
                   setSelectedFile(file)
                   handleImageUpload(file)
                 }

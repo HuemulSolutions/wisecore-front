@@ -20,6 +20,7 @@ const translations = {
     cloneAssetType: { en: "Clone Asset Type", es: "Clonar Tipo de Activo" },
     editAssetType: { en: "Edit Asset Type", es: "Editar Tipo de Activo" },
     deleteAssetType: { en: "Delete Asset Type", es: "Eliminar Tipo de Activo" },
+    viewRelationships: { en: "View Relationships", es: "Ver Relaciones" },
   },
   table: {
     showing: { en: "Showing {{count}} asset types", es: "Mostrando {{count}} tipos de activo" },
@@ -153,6 +154,17 @@ const translations = {
       description: { en: "You have unsaved changes. If you continue, your changes will be lost.", es: "Tienes cambios sin guardar. Si continúas, se perderán los cambios." },
       discard: { en: "Discard changes", es: "Descartar cambios" },
       keepEditing: { en: "Keep editing", es: "Seguir editando" },
+    },
+    grants: {
+      sectionDescription: { en: "Grant specific users the ability to {{action}} this document.", es: "Otorga a usuarios específicos la capacidad de {{action}} este documento." },
+      currentUsers: { en: "Users with access", es: "Usuarios con acceso" },
+      currentUsersAction: { en: "Users who can {{action}}", es: "Usuarios que pueden {{action}}" },
+      addUser: { en: "Add users", es: "Agregar usuarios" },
+      addUserPlaceholder: { en: "Select a user…", es: "Selecciona un usuario…" },
+      save: { en: "Save", es: "Guardar" },
+      revokeSelected: { en: "Revoke selected", es: "Revocar seleccionados" },
+      noGrants: { en: "No users have been granted access to this step.", es: "Ningún usuario tiene acceso a este paso." },
+      noDocumentType: { en: "Document type information is unavailable.", es: "La información del tipo de documento no está disponible." },
     },
   },
 }

@@ -28,7 +28,8 @@ export default function AssetTypesPage() {
     deletingAssetType: null,
     cloningAssetType: null,
     rolePermissionsAssetType: null,
-    lifecycleAssetType: null
+    lifecycleAssetType: null,
+    viewRelationshipsAssetType: null
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -108,6 +109,10 @@ export default function AssetTypesPage() {
     updateState({ lifecycleAssetType: assetType })
   }
 
+  const handleViewRelationships = (assetType: AssetTypeWithRoles) => {
+    updateState({ viewRelationshipsAssetType: assetType })
+  }
+
   return (
     <>
       <HuemulPageLayout
@@ -147,6 +152,7 @@ export default function AssetTypesPage() {
                 onDeleteAssetType={handleDeleteAssetType}
                 onCloneAssetType={handleCloneAssetType}
                 onLifecycle={handleLifecycle}
+                onViewRelationships={handleViewRelationships}
                 canUpdate={canUpdateDocumentType}
                 canDelete={canDeleteDocumentType}
                 isLoading={isTableLoading}

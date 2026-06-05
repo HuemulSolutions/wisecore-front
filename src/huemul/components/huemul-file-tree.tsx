@@ -49,6 +49,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       showRefreshButton = false,
       minHeight = "530px",
       labels: labelOverrides,
+      onDragStart: onDragStartProp,
     },
     ref,
   ) => {
@@ -376,6 +377,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         "application/wisy-context",
         JSON.stringify({ type: node.type === folderType ? "folder" : "document", id: node.id, name: node.name })
       )
+      onDragStartProp?.(e, node)
       scrollableParentRef.current = findScrollableParent(containerRef.current)
       dragClientYRef.current = e.clientY
       startAutoScroll()

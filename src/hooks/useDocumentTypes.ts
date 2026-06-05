@@ -8,14 +8,15 @@ export const documentTypeQueryKeys = {
 }
 
 // Hook for fetching document types
-export function useDocumentTypes(options?: { search?: string }) {
-  const { search } = options ?? {}
+export function useDocumentTypes(options?: { search?: string; enabled?: boolean }) {
+  const { search, enabled = true } = options ?? {}
   return useQuery({
     queryKey: documentTypeQueryKeys.list(search),
     queryFn: () => getDocumentTypes({ search }),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 0,
     placeholderData: (prev) => prev,
+    enabled,
   })
 }
 

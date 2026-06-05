@@ -5,3 +5,4 @@ export { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship
 export { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 export { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
 export { RelationshipsCanvas } from "./relationships-canvas"
+export { NodePanel } from "./node-panel"

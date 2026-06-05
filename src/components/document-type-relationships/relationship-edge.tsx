@@ -21,9 +21,9 @@ export interface RelationshipEdgeData {
   maxCount: number
   /** Signed offset index used to vary curvature for parallel edges */
   pathOffset?: number
-  onEdit: (relationshipId: string) => void
-  onDelete: (relationshipId: string) => void
-  onManageAttributes: (relationshipId: string) => void
+  onEdit?: (relationshipId: string) => void
+  onDelete?: (relationshipId: string) => void
+  onManageAttributes?: (relationshipId: string) => void
   [key: string]: unknown
 }
 
@@ -164,21 +164,21 @@ export function RelationshipEdge({
           {selected && (
             <div className="flex items-center gap-0.5 bg-background border rounded-md px-1 py-0.5 shadow-sm">
               <button
-                onClick={() => edgeData.onEdit(edgeData.relationshipId)}
+                onClick={() => edgeData.onEdit?.(edgeData.relationshipId)}
                 className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
                 title="Edit relationship"
               >
                 <Edit2 className="h-3 w-3" />
               </button>
               <button
-                onClick={() => edgeData.onManageAttributes(edgeData.relationshipId)}
+                onClick={() => edgeData.onManageAttributes?.(edgeData.relationshipId)}
                 className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
                 title="Manage attributes"
               >
                 <Settings2 className="h-3 w-3" />
               </button>
               <button
-                onClick={() => edgeData.onDelete(edgeData.relationshipId)}
+                onClick={() => edgeData.onDelete?.(edgeData.relationshipId)}
                 className="p-1 rounded hover:bg-destructive/10 hover:cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
                 title="Delete relationship"
               >

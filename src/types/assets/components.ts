@@ -98,6 +98,7 @@ export interface AssetFileTreeProps {
   renderLeafIcon?: (node: FileNode) => React.ReactNode
   renderNodeClassName?: (node: FileNode) => string | undefined
   alwaysShowMenuActions?: boolean
+  onNodeDragStart?: (e: React.DragEvent, node: FileNode) => void
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

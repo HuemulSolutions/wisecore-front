@@ -1,8 +1,8 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse } from '@/types/lifecycle';
+import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse } from '@/types/lifecycle';
 
-export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse };
+export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse };
 
 export async function getLifecycleStepTypes(): Promise<LifecycleStepTypesResponse> {
   const response = await httpClient.fetch(`${backendUrl}/lifecycle/step-types`);
@@ -59,4 +59,44 @@ export async function createLifecycleStep(
 
 export async function deleteLifecycleStep(stepId: string): Promise<void> {
   await httpClient.delete(`${backendUrl}/lifecycle/steps/${stepId}`);
+}
+
+// ─── Document grants ─────────────────────────────────────────────────────────
+
+export async function getDocumentStepGrants(
+  organizationId: string,
+  documentId: string,
+  stepId: string,
+): Promise<LifecycleDocumentGrantsResponse> {
+  const response = await httpClient.get(
+    `${backendUrl}/lifecycle/documents/${documentId}/steps/${stepId}/grants`,
+    { headers: { 'X-Org-Id': organizationId } },
+  );
+  return response.json() as Promise<LifecycleDocumentGrantsResponse>;
+}
+
+export async function grantLifecycleDocument(
+  organizationId: string,
+  documentId: string,
+  body: GrantLifecycleDocumentRequest,
+): Promise<GrantLifecycleDocumentResponse> {
+  const response = await httpClient.post(
+    `${backendUrl}/lifecycle/documents/${documentId}/grants`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  );
+  return response.json() as Promise<GrantLifecycleDocumentResponse>;
+}
+
+export async function revokeLifecycleDocument(
+  organizationId: string,
+  documentId: string,
+  body: RevokeLifecycleDocumentRequest,
+): Promise<RevokeLifecycleDocumentResponse> {
+  const response = await httpClient.post(
+    `${backendUrl}/lifecycle/documents/${documentId}/grants/revoke`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  );
+  return response.json() as Promise<RevokeLifecycleDocumentResponse>;
 }
