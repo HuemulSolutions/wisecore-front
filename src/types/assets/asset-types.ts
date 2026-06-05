@@ -68,6 +68,7 @@ export interface AssetTypePageState {
   cloningAssetType: AssetTypeWithRoles | null;
   rolePermissionsAssetType: AssetTypeWithRoles | null;
   lifecycleAssetType: AssetTypeWithRoles | null;
+  viewRelationshipsAssetType: AssetTypeWithRoles | null;
 }
 
 export interface AssetTypePageActions {

@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 
 export interface AssetTypeNodeData {
   id: string
+  documentTypeId?: string   // set in execution mode; id holds assetId in that case
+  executionId?: string      // the selected execution for this asset node (execution mode)
   name: string
   color: string
   onLoadRelationships?: (documentTypeId: string) => Promise<void> | void

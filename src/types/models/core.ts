@@ -3,6 +3,18 @@ export interface LLM {
   name: string;
   internal_name: string;
   provider_id: string;
+  provider_name?: string;
+  provider?: {
+    id: string;
+    name: string;
+    type: string;
+    is_managed: boolean;
+    key?: string;
+    endpoint?: string;
+    deployment?: string;
+    created_at?: string;
+    updated_at?: string;
+  };
   is_default?: boolean;
   capabilities?: string[];
 }
@@ -19,4 +31,23 @@ export interface LLMsResponse {
   page: number;
   page_size: number;
   has_next: boolean;
+}
+
+export interface LlmConfigurationStatusItem {
+  is_configured: boolean;
+  is_working: boolean;
+}
+
+export interface LlmConfigurationStatusData {
+  embedding: LlmConfigurationStatusItem;
+  default_llm: LlmConfigurationStatusItem;
+}
+
+export interface LlmConfigurationStatusResponse {
+  data: LlmConfigurationStatusData;
+  transaction_id: string;
+  page: null;
+  page_size: null;
+  has_next: null;
+  timestamp: string;
 }

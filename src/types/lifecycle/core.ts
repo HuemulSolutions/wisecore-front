@@ -85,3 +85,56 @@ export interface LifecycleStepResponse {
   transaction_id: string;
   timestamp: string;
 }
+
+// ─── Document grants ─────────────────────────────────────────────────────────
+
+export interface LifecycleDocumentGrant {
+  id: string;
+  user_id: string;
+  granted_by: string;
+  created_at: string;
+}
+
+export interface LifecycleDocumentGrantSkip {
+  user_id: string;
+  reason: string;
+}
+
+export interface LifecycleDocumentGrantsResponse {
+  transaction_id: string;
+  data: {
+    document_id: string;
+    lifecycle_step_id: string;
+    grants: LifecycleDocumentGrant[];
+  };
+}
+
+export interface GrantLifecycleDocumentResponse {
+  transaction_id: string;
+  data: {
+    document_id: string;
+    lifecycle_step_id: string;
+    created: LifecycleDocumentGrant[];
+    skipped: LifecycleDocumentGrantSkip[];
+  };
+}
+
+export interface RevokeLifecycleDocumentResponse {
+  transaction_id: string;
+  data: {
+    document_id: string;
+    lifecycle_step_id: string;
+    revoked: LifecycleDocumentGrant[];
+    skipped: LifecycleDocumentGrantSkip[];
+  };
+}
+
+export interface GrantLifecycleDocumentRequest {
+  lifecycle_step_id: string;
+  user_ids: string[];
+}
+
+export interface RevokeLifecycleDocumentRequest {
+  lifecycle_step_id: string;
+  user_ids: string[];
+}

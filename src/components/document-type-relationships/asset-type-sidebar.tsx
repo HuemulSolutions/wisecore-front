@@ -1,7 +1,7 @@
 "use client"
 
 import { useTranslation } from "react-i18next"
-import { GripVertical } from "lucide-react"
+import { GripVertical, RefreshCw } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -10,7 +10,7 @@ import type {
   AssetTypeDraggableItemProps,
 } from "@/types/document-type-relationships"
 
-export function AssetTypeSidebar({ items, isLoading, page, pageSize }: AssetTypeSidebarProps) {
+export function AssetTypeSidebar({ items, isLoading, isFetching, page, pageSize, onRefresh }: AssetTypeSidebarProps) {
   const { t } = useTranslation("document-type-relationships")
 
   const start = (page - 1) * pageSize
@@ -19,8 +19,18 @@ export function AssetTypeSidebar({ items, isLoading, page, pageSize }: AssetType
   return (
     <div className="flex flex-col h-full border-r bg-muted/20">
       {/* Drag hint */}
-      <div className="px-4 py-2 border-b shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b shrink-0">
         <p className="text-[11px] text-muted-foreground">{t("sidebar.dragHint")}</p>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            disabled={isFetching}
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent hover:cursor-pointer transition-colors disabled:opacity-50"
+            title={t("sidebar.refresh")}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+          </button>
+        )}
       </div>
 
       {/* Scrollable list */}

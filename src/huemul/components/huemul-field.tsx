@@ -738,6 +738,7 @@ function AsyncSelectField({
   staticOptions = [],
   staticOptionsLabel,
   asyncResultsLabel,
+  searchOnEnter = false,
 }: {
   fieldId: string;
   value?: string | number | boolean;
@@ -753,6 +754,7 @@ function AsyncSelectField({
   staticOptions?: AsyncSelectOption[];
   staticOptionsLabel?: string;
   asyncResultsLabel?: string;
+  searchOnEnter?: boolean;
 }) {
   const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
@@ -821,6 +823,7 @@ function AsyncSelectField({
   // Debounce: auto-search 300 ms after the user stops typing
   React.useEffect(() => {
     if (isInitialMount.current) return;
+    if (searchOnEnter) return;
     const timer = setTimeout(() => {
       setPage(1);
       setHasMore(true);
@@ -1304,6 +1307,8 @@ export function HuemulField({
   selectSize = "default",
   controlClassName,
   children,
+  onKeyDown,
+  searchOnEnter,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
   const isInline = (type === "checkbox" || type === "switch") && inline !== false;
@@ -1365,6 +1370,15 @@ export function HuemulField({
         );
 
       case "select": {
+        const currentValue = String(value ?? "")
+        const flatOptions = groupedOptions
+          ? groupedOptions.flatMap((g) => [
+              ...(g.groupValue ? [{ value: g.groupValue, label: g.groupLabel }] : []),
+              ...g.options,
+            ])
+          : options
+        const selectedLabel = flatOptions.find((o) => o.value === currentValue)?.label
+
         const selectTrigger = (
           <SelectTrigger
             id={fieldId}
@@ -1372,7 +1386,9 @@ export function HuemulField({
             className={cn("w-full", inputClassName)}
             aria-invalid={baseInvalid || undefined}
           >
-            <SelectValue placeholder={placeholder || t('selectPlaceholder')} />
+            <SelectValue placeholder={placeholder || t('selectPlaceholder')}>
+              {selectedLabel}
+            </SelectValue>
           </SelectTrigger>
         );
 
@@ -1622,6 +1638,7 @@ export function HuemulField({
             staticOptions={asyncStaticOptions}
             staticOptionsLabel={asyncStaticOptionsLabel}
             asyncResultsLabel={asyncResultsLabel}
+            searchOnEnter={searchOnEnter}
           />
         ) : null;
 
@@ -1707,6 +1724,7 @@ export function HuemulField({
             type={type}
             value={String(value ?? "")}
             onChange={handleInputChange}
+            onKeyDown={onKeyDown}
             placeholder={placeholder}
             disabled={disabled}
             readOnly={readOnly}

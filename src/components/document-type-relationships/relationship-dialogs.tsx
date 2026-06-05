@@ -130,6 +130,7 @@ export function RelationshipEditDialog({
   organizationId,
   relationship,
   isLocked = false,
+  onUpdated,
 }: RelationshipEditDialogProps) {
   const { t } = useTranslation(["document-type-relationships", "common"])
   const [formData, setFormData] = useState<RelationshipFormData>({
@@ -139,21 +140,12 @@ export function RelationshipEditDialog({
   })
   const { updateDocumentTypeRelationship } = useDocumentTypeRelationshipMutations(organizationId)
 
-  // Support both nested { document_type_relationship: {...} } and flat API responses
-  const nested = relationship?.document_type_relationship
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const flat = relationship as unknown as Record<string, any> | null
-  const configId: string = nested?.id ?? flat?.id ?? ""
-  const configName: string = nested?.name ?? flat?.name ?? ""
-  const configMinCount: number = nested?.min_count ?? flat?.min_count ?? 0
-  const configMaxCount: number = nested?.max_count ?? flat?.max_count ?? 0
-
   useEffect(() => {
     if (relationship && open) {
       setFormData({
-        name: configName,
-        min_count: configMinCount,
-        max_count: configMaxCount,
+        name: relationship.name,
+        min_count: relationship.min_count,
+        max_count: relationship.max_count,
       })
     }
   }, [relationship, open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -164,7 +156,7 @@ export function RelationshipEditDialog({
   ) => setFormData((prev) => ({ ...prev, [field]: value }))
 
   const handleSubmit = async () => {
-    if (!configId) return
+    if (!relationship?.id) return
     const body: UpdateDocumentTypeRelationshipRequest = {
       name: formData.name,
       min_count: formData.min_count,
@@ -172,9 +164,12 @@ export function RelationshipEditDialog({
     }
     await new Promise<void>((resolve, reject) => {
       updateDocumentTypeRelationship.mutate(
-        { relationshipId: configId, body },
+        { relationshipId: relationship.id, body },
         {
-          onSuccess: () => resolve(),
+          onSuccess: (data) => {
+            onUpdated?.(data)
+            resolve()
+          },
           onError: (err) => reject(err),
         },
       )

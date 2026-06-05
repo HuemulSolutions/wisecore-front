@@ -35,6 +35,7 @@ export interface HuemulFileTreeProps {
   showRefreshButton?: boolean
   minHeight?: string
   labels?: HuemulFileTreeLabels
+  onDragStart?: (e: React.DragEvent, node: HuemulTreeNode) => void
 }
 
 export interface HuemulFileTreeRef {

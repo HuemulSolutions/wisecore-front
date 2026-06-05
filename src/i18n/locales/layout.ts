@@ -37,6 +37,7 @@ const translations = {
     editFolder: { en: "Edit Folder", es: "Editar Carpeta" },
     deleteFolder: { en: "Delete Folder", es: "Eliminar Carpeta" },
     editFile: { en: "Edit File", es: "Editar Archivo" },
+    assetPermissions: { en: "Asset Permissions", es: "Permisos del Activo" },
     deleteFile: { en: "Delete File", es: "Eliminar Archivo" },
     folderDeletedSuccess: {
       en: "Folder \"{{name}}\" deleted successfully",
@@ -68,6 +69,29 @@ const translations = {
     rootFolder: { en: "Root", es: "Raíz" },
     searchPlaceholder: { en: "Search assets...", es: "Buscar activos..." },
     searchNoResults: { en: "No results found", es: "No se encontraron resultados" },
+    relationsMode: { en: "Relations", es: "Relaciones" },
+    relationsModeTitle: { en: "Relations", es: "Relaciones" },
+    relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
+  },
+  llmConfigBanner: {
+    llmNotConfigured: {
+      en: "Default LLM is not configured. AI features will not work until a default LLM is set up.",
+      es: "El LLM predeterminado no está configurado. Las funcionalidades de IA no funcionarán hasta configurarlo.",
+    },
+    llmNotWorking: {
+      en: "Default LLM is configured but not working. Please check your LLM settings.",
+      es: "El LLM predeterminado está configurado pero no funciona. Por favor, revisa la configuración.",
+    },
+    embeddingNotConfigured: {
+      en: "Embedding provider is not configured. Semantic search and AI features may not work.",
+      es: "El proveedor de embeddings no está configurado. La búsqueda semántica y las funcionalidades de IA pueden no funcionar.",
+    },
+    embeddingNotWorking: {
+      en: "Embedding provider is configured but not working. Please check your embedding settings.",
+      es: "El proveedor de embeddings está configurado pero no funciona. Por favor, revisa la configuración.",
+    },
+    configure: { en: "Configure", es: "Configurar" },
+    dismiss: { en: "Dismiss", es: "Cerrar" },
   },
 }
 

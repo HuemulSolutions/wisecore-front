@@ -3,6 +3,7 @@ import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
+import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -118,6 +119,17 @@ export default function AssetTypePageDialogs({
         onOpenChange={(open) => {
           if (!open) {
             onCloseDialog('lifecycleAssetType')
+          }
+        }}
+      />
+
+      {/* View Relationships Sheet */}
+      <AssetTypeRelationshipsSheet
+        assetType={state.viewRelationshipsAssetType}
+        open={!!state.viewRelationshipsAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('viewRelationshipsAssetType')
           }
         }}
       />

@@ -76,6 +76,7 @@ export function useAssetTypeMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
+      queryClient.invalidateQueries({ queryKey: ['document-types'] })
     },
   })
 
@@ -85,6 +86,7 @@ export function useAssetTypeMutations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.listWithRoles() })
+      queryClient.invalidateQueries({ queryKey: ['document-types'] })
     },
   })
 

@@ -55,6 +55,10 @@ const translations = {
     clearAll: { en: "Clear all", es: "Limpiar todo" },
     dropHint: { en: "Drop here to add as context", es: "Suelta aquí para agregar como contexto" },
     addCurrent: { en: "Add to context", es: "Agregar al contexto" },
+    typeDocument: { en: "Document", es: "Documento" },
+    typeFolder: { en: "Folder", es: "Carpeta" },
+    typeExecution: { en: "Version", es: "Versión" },
+    addToContext: { en: "Add to context", es: "Agregar al contexto" },
   },
 }
 
