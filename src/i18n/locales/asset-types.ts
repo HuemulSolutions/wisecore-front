@@ -72,8 +72,8 @@ const translations = {
     description: { en: "You need administrator privileges to access this page.", es: "Necesitas privilegios de administrador para acceder a esta página." },
   },
   lifecycle: {
-    title: { en: "Lifecycle", es: "Ciclo de vida" },
-    description: { en: "Lifecycle configuration for \"{{name}}\".", es: "Configuración del ciclo de vida de \"{{name}}\"." },
+    title: { en: "Asset permissions", es: "Permisos del activo" },
+    description: { en: "Configure user permissions per lifecycle phase for \"{{name}}\".", es: "Configura los permisos de usuarios por fase del ciclo de vida de \"{{name}}\"." },
     stepContent: { en: "Content for step \"{{step}}\" in asset type \"{{name}}\" will be displayed here.", es: "El contenido del paso \"{{step}}\" para el tipo de activo \"{{name}}\" se mostrará aquí." },
     noConfig: { en: "No configuration found for this step type.", es: "No se encontró configuración para este tipo de paso." },
     allowAnyoneLabel: { en: "Permit anyone to {{action}}", es: "Permitir que cualquiera pueda {{action}}" },

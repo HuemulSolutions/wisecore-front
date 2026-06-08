@@ -17,6 +17,7 @@ import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
+import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
@@ -601,6 +602,7 @@ export function AssetContent({
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
+  const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
   useEffect(() => {
@@ -2412,6 +2414,7 @@ export function AssetContent({
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
+                            onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
                             onOpenContext={() => setIsContextSheetOpen(true)}
@@ -3576,6 +3579,13 @@ export function AssetContent({
           }
         }}
         isProcessing={renameVersionMutation.isPending}
+      />
+
+      {/* Asset Permissions Sheet */}
+      <AssetLifecycleSheet
+        asset={selectedFile?.type === 'document' ? { id: selectedFile.id, name: documentContent?.document_name || selectedFile.name, document_type_id: documentContent?.document_type?.id ?? selectedFile.document_type?.id ?? null } : null}
+        open={isPermissionsSheetOpen}
+        onOpenChange={setIsPermissionsSheetOpen}
       />
 
       {/* Asset Info Sheet */}
