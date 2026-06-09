@@ -9,7 +9,17 @@ import {
   RefreshCw,
   Check,
   BellOff,
+  ChevronDown,
+  GitBranch,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getExecutionDisplayLabel } from "@/components/assets/content/utils/version-utils";
+import { parseApiDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { Switch } from "@/components/ui/switch";
@@ -145,12 +155,25 @@ function NotificationItem({
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+interface ExecutionSummary {
+  id: string;
+  name?: string | null;
+  version?: string | null;
+  status?: string;
+  created_at: string;
+}
+
+function toDisplayExec(e: ExecutionSummary): { version?: string | null; name?: string } {
+  return { version: e.version, name: e.name ?? undefined };
+}
+
 interface AssetsNotificationsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   documentId: string;
   executionId?: string | null;
   organizationId: string;
+  allExecutions?: ExecutionSummary[];
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -161,6 +184,7 @@ export function AssetsNotificationsSheet({
   documentId,
   executionId,
   organizationId,
+  allExecutions,
 }: AssetsNotificationsSheetProps) {
   const { t } = useTranslation(["assets"]);
   const queryClient = useQueryClient();
@@ -169,6 +193,27 @@ export function AssetsNotificationsSheet({
     "notifications",
   );
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
+
+  // Version selected for date-alert subscriptions (defaults to the currently viewed version)
+  const [selectedSubExecutionId, setSelectedSubExecutionId] = useState<string | null>(
+    executionId ?? null,
+  );
+
+  // Sync when the prop changes (e.g. user switches version while sheet is open)
+  const effectiveExecutionId = selectedSubExecutionId ?? executionId ?? null;
+
+  // Sorted executions for the version picker
+  const sortedExecutions = useMemo(() => {
+    if (!allExecutions) return [];
+    return [...allExecutions].sort(
+      (a, b) => parseApiDate(b.created_at).getTime() - parseApiDate(a.created_at).getTime(),
+    );
+  }, [allExecutions]);
+
+  const selectedExecution = useMemo(
+    () => sortedExecutions.find((e) => e.id === effectiveExecutionId) ?? sortedExecutions[0] ?? null,
+    [sortedExecutions, effectiveExecutionId],
+  );
 
   // days_before local state for date events (initialized with sensible defaults)
   const [dateEventDays, setDateEventDays] = useState<Record<DateEventType, number>>({
@@ -513,11 +558,89 @@ export function AssetsNotificationsSheet({
               </section>
 
               {/* ── Date alerts (version-level only) ───────────────────── */}
-              {executionId && (
+              {sortedExecutions.length > 0 && (
                 <section>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                    {t("notifications.sectionDateAlerts")}
-                  </h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {t("notifications.sectionDateAlerts")}
+                    </h3>
+                  </div>
+
+                  {/* Version picker */}
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-400 mb-1.5">
+                      {t("notifications.dateAlertsVersion")}
+                    </p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={cn(
+                            "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm hover:cursor-pointer transition-colors",
+                            selectedExecution
+                              ? "bg-blue-50 border-blue-200 text-blue-800"
+                              : "bg-gray-50 border-gray-200 text-gray-600",
+                          )}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <GitBranch className="h-3.5 w-3.5 shrink-0" />
+                            <span className="font-medium truncate">
+                              {selectedExecution
+                                ? getExecutionDisplayLabel(toDisplayExec(selectedExecution)) ||
+                                  t("notifications.versionFallback", {
+                                    n: sortedExecutions.indexOf(selectedExecution) + 1,
+                                  })
+                                : t("notifications.noVersion")}
+                            </span>
+                            {selectedExecution?.id === executionId && (
+                              <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium shrink-0">
+                                {t("notifications.currentVersion")}
+                              </span>
+                            )}
+                          </div>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-72">
+                        {sortedExecutions.map((exec, index) => {
+                          const label =
+                            getExecutionDisplayLabel(toDisplayExec(exec)) ||
+                            `v${sortedExecutions.length - index}`;
+                          const isCurrent = exec.id === executionId;
+                          const isSelected = exec.id === effectiveExecutionId;
+                          return (
+                            <DropdownMenuItem
+                              key={exec.id}
+                              className={cn(
+                                "flex items-center justify-between gap-2 hover:cursor-pointer",
+                                isSelected && "bg-blue-50",
+                              )}
+                              onSelect={() => setSelectedSubExecutionId(exec.id)}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <GitBranch className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                <span
+                                  className={cn(
+                                    "text-sm truncate",
+                                    isSelected
+                                      ? "font-medium text-blue-700"
+                                      : "text-gray-700",
+                                  )}
+                                >
+                                  {label}
+                                </span>
+                              </div>
+                              {isCurrent && (
+                                <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium shrink-0">
+                                  {t("notifications.currentVersion")}
+                                </span>
+                              )}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
                   <p className="text-xs text-gray-400 mb-2">
                     {t("notifications.dateAlertsHint")}
                   </p>
@@ -526,7 +649,7 @@ export function AssetsNotificationsSheet({
                       const sub = subscriptions.find(
                         (s) =>
                           s.event_type === eventType &&
-                          s.execution_id === executionId,
+                          s.execution_id === effectiveExecutionId,
                       );
                       const days = dateEventDays[eventType];
                       return (
@@ -570,11 +693,11 @@ export function AssetsNotificationsSheet({
                               onCheckedChange={() =>
                                 handleToggleEventSubscription(
                                   eventType,
-                                  executionId,
+                                  effectiveExecutionId,
                                   days,
                                 )
                               }
-                              disabled={isSubscriptionBusy}
+                              disabled={isSubscriptionBusy || !effectiveExecutionId}
                               className="hover:cursor-pointer"
                             />
                           </div>

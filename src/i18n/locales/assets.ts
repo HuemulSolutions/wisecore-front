@@ -595,6 +595,10 @@ const translations = {
     sectionDateAlerts: { en: "Date alerts (this version)", es: "Alertas de fechas (esta versión)" },
     dateAlertsHint: { en: "You will be notified N days before each date.", es: "Serás notificado N días antes de cada fecha." },
     daysBefore: { en: "days before", es: "días antes" },
+    currentVersion: { en: "Current", es: "Actual" },
+    versionFallback: { en: "Version {{n}}", es: "Versión {{n}}" },
+    noVersion: { en: "Select a version", es: "Seleccionar versión" },
+    dateAlertsVersion: { en: "Version to subscribe to date alerts:", es: "Versión a la que suscribirse para alertas de fecha:" },
     events: {
       document_stage_draft: { en: "Draft", es: "Borrador" },
       document_stage_in_review: { en: "In review", es: "En revisión" },

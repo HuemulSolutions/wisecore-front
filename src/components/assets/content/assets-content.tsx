@@ -3626,6 +3626,7 @@ export function AssetContent({
         documentId={selectedFile?.id ?? ''}
         executionId={selectedExecutionId}
         organizationId={selectedOrganizationId ?? ''}
+        allExecutions={allExecutions}
       />
     </>
   );
