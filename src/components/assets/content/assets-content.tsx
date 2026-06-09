@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2 } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2, Bell } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -21,6 +21,7 @@ import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sh
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 
 import {
   DropdownMenu,
@@ -586,6 +587,7 @@ export function AssetContent({
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
+  const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -2390,6 +2392,15 @@ export function AssetContent({
                             dropdownAlign="end"
                           />
                         )}
+                        <HuemulButton
+                          size="sm"
+                          variant="ghost"
+                          icon={Bell}
+                          iconClassName="h-4 w-4"
+                          className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                          tooltip={t('content.notificationsTooltip')}
+                          onClick={() => setIsNotificationsSheetOpen(true)}
+                        />
                         {!isViewOnly && (
                           <MoreOptionsDropdown
                             isViewMode={isViewMode}
@@ -3607,6 +3618,15 @@ export function AssetContent({
           initialExecutionId={selectedExecutionId || documentContent?.execution_id}
         />
       )}
+
+      {/* Notifications Sheet */}
+      <AssetsNotificationsSheet
+        open={isNotificationsSheetOpen}
+        onOpenChange={setIsNotificationsSheetOpen}
+        documentId={selectedFile?.id ?? ''}
+        executionId={selectedExecutionId}
+        organizationId={selectedOrganizationId ?? ''}
+      />
     </>
   );
 }
