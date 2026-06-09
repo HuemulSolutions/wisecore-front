@@ -235,7 +235,7 @@ export function TemplateContent({
                         disabled={isGenerating}
                         tooltip={t('templates:content.cloneTemplate')}
                         className="h-8 w-8 p-0 hover:bg-gray-100"
-                        onClick={() => selectedTemplate?.id && cloneMutation.mutate(selectedTemplate.id)}
+                        onClick={() => { if (selectedTemplate?.id) cloneMutation.mutate(selectedTemplate.id); }}
                       />
                     )}
                     {canUpdate && (
