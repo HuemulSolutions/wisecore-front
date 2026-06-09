@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
-import { getTemplateById, generateTemplateSections } from "@/services/templates";
+import { getTemplateById, generateTemplateSections, cloneTemplate } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrganization } from "@/contexts/organization-context";
 import { TemplateHeader } from "./templates-header";
@@ -27,7 +27,7 @@ export function TemplateContent({
   onTemplateDeleted,
   onTemplateCreated,
   onToggleSidebar,
-  // canCreate,
+  canCreate,
   canUpdate,
   canDelete,
   canListSections,
@@ -81,6 +81,16 @@ export function TemplateContent({
     meta: { successMessage: t('templates:content.sectionsGenerated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
+    },
+  });
+
+  // Mutation para clonar template
+  const cloneMutation = useMutation({
+    mutationFn: (templateId: string) => cloneTemplate(templateId, selectedOrganizationId!),
+    meta: { successMessage: t('templates:content.cloneSuccess') },
+    onSuccess: (cloned) => {
+      onRefresh();
+      onTemplateCreated?.(cloned);
     },
   });
 
@@ -215,6 +225,19 @@ export function TemplateContent({
                       className="h-8 w-8 p-0 hover:bg-gray-100"
                       onClick={() => { refetch(); }}
                     />
+                    {canCreate && (
+                      <HuemulButton
+                        icon={Copy}
+                        iconClassName="h-4 w-4 text-gray-600"
+                        variant="ghost"
+                        size="sm"
+                        loading={cloneMutation.isPending}
+                        disabled={isGenerating}
+                        tooltip={t('templates:content.cloneTemplate')}
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
+                        onClick={() => selectedTemplate?.id && cloneMutation.mutate(selectedTemplate.id)}
+                      />
+                    )}
                     {canUpdate && (
                       <HuemulButton
                         icon={Edit3}
