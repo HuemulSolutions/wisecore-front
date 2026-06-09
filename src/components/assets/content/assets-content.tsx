@@ -2361,7 +2361,7 @@ export function AssetContent({
 
                       </div>
                       {/* Mode Toggle + Version dropdown + More Options — always in the same position for muscle memory */}
-                      <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                      <div className="flex items-center gap-1.5">
                         {canSwitchToEditorMode && (
                           <ViewModeToggle
                             isViewMode={isViewMode}
