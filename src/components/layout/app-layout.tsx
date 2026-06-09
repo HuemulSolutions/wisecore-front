@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, GitMerge, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -587,7 +587,7 @@ export default function AppLayout() {
                 const currentPath = stripOrgPrefix(location.pathname)
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
-                  '/asset-types', '/custom-fields', '/asset-type-relationships', '/canvas',
+                  '/asset-types', '/custom-fields', '/canvas',
                   '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
                 ].some(isSettingsActive)
 
@@ -639,15 +639,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessDocumentTypes || isOrgAdmin) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/asset-type-relationships")} className={settingsItemClass('/asset-type-relationships')}>
-                              <GitMerge className={settingsIconClass('/asset-type-relationships')} />
-                              <span className="flex-1">{t('settings.assetTypeRelationships')}</span>
-                              {isSettingsActive('/asset-type-relationships') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
+
                         {(canAccessCanvas || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/canvas")} className={settingsItemClass('/canvas')}>

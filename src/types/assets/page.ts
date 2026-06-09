@@ -78,6 +78,8 @@ export interface AssetTypePageHeaderProps {
   searchTerm: string
   onSearchChange: (value: string) => void
   canCreate?: boolean
+  viewMode?: 'table' | 'relationships'
+  onViewModeChange?: (mode: 'table' | 'relationships') => void
 }
 
 // ----------------------------------------

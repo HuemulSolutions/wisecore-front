@@ -4,6 +4,8 @@ const translations = {
     createAssetType: { en: "Create Asset Type", es: "Crear Tipo de Activo" },
     searchPlaceholder: { en: "Search asset types...", es: "Buscar tipos de activo..." },
     assetTypesCount: { en: "{{count}} types", es: "{{count}} tipos" },
+    viewRelationships: { en: "Relationship View", es: "Vista de Relaciones" },
+    viewTable: { en: "Table View", es: "Vista de Tabla" },
   },
   columns: {
     color: { en: "Color", es: "Color" },
