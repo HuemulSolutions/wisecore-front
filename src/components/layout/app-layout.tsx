@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -376,7 +376,7 @@ export default function AppLayout() {
   const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isOrgAdmin || isRootAdmin
-  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
+  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
 
   // Generate initials from user name
   const getUserInitials = (firstName: string, lastName: string): string => {
@@ -587,7 +587,7 @@ export default function AppLayout() {
                 const currentPath = stripOrgPrefix(location.pathname)
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
-                  '/asset-types', '/custom-fields', '/canvas',
+                  '/asset-types', '/custom-fields', '/canvas', '/media',
                   '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
                 ].some(isSettingsActive)
 
@@ -646,6 +646,15 @@ export default function AppLayout() {
                               <LayoutPanelTop className={settingsIconClass('/canvas')} />
                               <span className="flex-1">{t('settings.canvas')}</span>
                               {isSettingsActive('/canvas') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {organizationToken && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/media")} className={settingsItemClass('/media')}>
+                              <Image className={settingsIconClass('/media')} />
+                              <span className="flex-1">{t('settings.media')}</span>
+                              {isSettingsActive('/media') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
