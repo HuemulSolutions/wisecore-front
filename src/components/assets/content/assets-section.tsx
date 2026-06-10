@@ -762,6 +762,7 @@ function SectionExecutionInner({
                         isSaving={isSaving}
                         documentId={documentId}
                         sectionExecutionId={sectionExecution.id}
+                        organizationId={selectedOrganizationId ?? undefined}
                         toolbarTopOffset="36px"
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />

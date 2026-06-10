@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
@@ -198,6 +198,11 @@ export function AssetsNotificationsSheet({
   const [selectedSubExecutionId, setSelectedSubExecutionId] = useState<string | null>(
     executionId ?? null,
   );
+
+  // Reset selected version whenever the asset changes so we never show stale data
+  useEffect(() => {
+    setSelectedSubExecutionId(executionId ?? null);
+  }, [documentId, executionId]);
 
   // Sync when the prop changes (e.g. user switches version while sheet is open)
   const effectiveExecutionId = selectedSubExecutionId ?? executionId ?? null;
