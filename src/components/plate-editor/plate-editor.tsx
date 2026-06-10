@@ -50,6 +50,7 @@ function sanitizeNodes(nodes: unknown[]): Value {
   }) as Value;
 }
 import { Plate, usePlateEditor, usePlateState, usePluginOption, useEditorRef, useEditorSelector } from 'platejs/react';
+import type { PlateEditor } from 'platejs/react';
 import { SuggestionPlugin } from '@platejs/suggestion/react';
 import {
   Bold,
@@ -465,9 +466,9 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
 
   // ── Media reference picker state ────────────────────────────────────────────
   const [pickerOpen, setPickerOpen] = React.useState(false);
-  const pickerEditorRef = React.useRef<ReturnType<typeof useEditorRef> | null>(null);
+  const pickerEditorRef = React.useRef<PlateEditor | null>(null);
 
-  const openPicker = React.useCallback((editor: ReturnType<typeof useEditorRef>) => {
+  const openPicker = React.useCallback((editor: PlateEditor) => {
     pickerEditorRef.current = editor;
     setPickerOpen(true);
   }, []);

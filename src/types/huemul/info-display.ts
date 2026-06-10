@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 
 export type InfoLayout = "vertical" | "horizontal";
 
-export type HuemulInfoItemVariant = "text" | "mono" | "badge";
+export type HuemulInfoItemVariant = "text" | "mono" | "badge" | "code";
 
 export interface HuemulInfoItemProps {
   label: string;
@@ -23,6 +23,7 @@ export interface HuemulInfoGroupProps {
   items?: HuemulInfoItemProps[];
   children?: ReactNode;
   className?: string;
+  layout?: string;
 }
 
 export interface HuemulInfoSectionProps {
