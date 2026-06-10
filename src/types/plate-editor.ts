@@ -34,6 +34,12 @@ export interface PlateRichEditorProps {
   /** Section execution ID – required for creating discussions via with-comment endpoint */
   sectionExecutionId?: string;
   /**
+   * Organization ID – required to enable the media reference picker (insert media).
+   * When provided alongside documentId, a media picker button and slash command
+   * become available in the editor.
+   */
+  organizationId?: string;
+  /**
    * Called immediately after a discussion is created or a comment is added.
    * Use this to auto-save plate_content so comment marks survive a page refresh.
    */
