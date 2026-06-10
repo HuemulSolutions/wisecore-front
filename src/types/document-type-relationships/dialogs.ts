@@ -1,5 +1,6 @@
 import type { AttributeValueType, DocumentTypeRelationship } from './core'
 import type { DocumentType } from '@/types/document-types'
+import type { ExecutionRelationship } from '@/types/execution-relationships'
 
 // ─── Form data ────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ export interface RelationshipEditDialogProps {
   organizationId: string
   relationship: DocumentTypeRelationship | null
   isLocked?: boolean
+  onUpdated?: (relationship: DocumentTypeRelationship) => void
 }
 
 export interface RelationshipDeleteDialogProps {
@@ -52,4 +54,32 @@ export interface AttributesDialogProps {
   organizationId: string
   relationshipId: string
   relationshipName: string
+}
+
+// ─── Execution relationship dialogs ───────────────────────────────────────────
+
+export interface ExecutionRelationshipNodeInfo {
+  assetId: string       // the asset / document id (for fetching executions)
+  name: string
+  color?: string
+  documentTypeId: string
+  executionId?: string  // pre-selected execution (from node panel version selector)
+}
+
+export interface ExecutionRelationshipCreateDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  organizationId: string
+  source: ExecutionRelationshipNodeInfo
+  target: ExecutionRelationshipNodeInfo
+  onCreated?: (relationship: ExecutionRelationship, relName: string, sourceExecutionId: string, targetExecutionId: string) => void
+}
+
+export interface ExecutionRelationshipEditDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  organizationId: string
+  executionRelationship: ExecutionRelationship | null
+  relationshipName?: string
+  onUpdated?: (relationship: ExecutionRelationship) => void
 }

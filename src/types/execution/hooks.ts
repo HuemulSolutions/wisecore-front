@@ -1,10 +1,11 @@
-import type { ExecutionLifecycleState } from './core'
+import type { ExecutionLifecycleState, ExecutionSearchType } from './core'
 
 export interface UseAllExecutionsOptions {
   enabled?: boolean
   page?: number
   pageSize?: number
-  search?: string
+  query?: string
+  search_type?: ExecutionSearchType
   created_by?: string | null
   has_pending_ai_suggestion?: boolean | null
   lifecycle_state?: ExecutionLifecycleState | null

@@ -90,6 +90,7 @@ export interface AssetTypeTableProps {
   onDeleteAssetType: (assetType: AssetTypeWithRoles) => void
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
   onLifecycle: (assetType: AssetTypeWithRoles) => void
+  onViewRelationships: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean

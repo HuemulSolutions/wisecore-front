@@ -38,6 +38,7 @@ import { ChatbotProvider } from "@/contexts/chatbot-context"
 import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
 import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-context"
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
+import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserDialog from "@/components/users/users-edit-dialog"
 import { cn } from "@/lib/utils"
@@ -774,7 +775,9 @@ export default function AppLayout() {
               )}
             </div>
           </header>
-          
+
+          <LlmConfigBanner organizationId={selectedOrganizationId} />
+
           <GlobalPanelOutlet />
         </div>
 

@@ -30,7 +30,7 @@ export async function getDocumentTypeRelationships(
   organizationId: string,
   params: GetDocumentTypeRelationshipsParams = {},
 ): Promise<DocumentTypeRelationshipsResponse> {
-  const { page = 1, page_size = 100, search, document_type_id } = params
+  const { page = 1, page_size = 100, search, document_type_id, include_subrelationships } = params
 
   const query = new URLSearchParams({
     page: page.toString(),
@@ -38,6 +38,8 @@ export async function getDocumentTypeRelationships(
   })
   if (search?.trim()) query.set('search', search.trim())
   if (document_type_id?.trim()) query.set('document_type_id', document_type_id.trim())
+  if (include_subrelationships !== undefined)
+    query.set('include_subrelationships', String(include_subrelationships))
 
   const response = await httpClient.get(`${BASE_URL}/?${query}`, {
     headers: { 'X-Org-Id': organizationId },

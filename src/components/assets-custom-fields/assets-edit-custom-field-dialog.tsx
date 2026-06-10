@@ -268,12 +268,19 @@ export function EditCustomFieldAssetDialog({
           <HuemulField
             type="file"
             label={label}
-            accept="image/*"
+            accept=".png,.jpg,.jpeg,.gif,.bmp"
             disabled={isUploadingImage}
             description="Image will be uploaded immediately after selection"
             onFileChange={(files) => {
               const file = files?.[0]
               if (file) {
+                const VALID_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
+                const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+                if (!VALID_IMAGE_EXTENSIONS.includes(ext)) {
+                  setFormErrors(prev => ({ ...prev, value: 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, BMP.' }))
+                  return
+                }
+                setFormErrors(prev => ({ ...prev, value: '' }))
                 setSelectedFile(file)
                 handleImageUpload(file)
               }

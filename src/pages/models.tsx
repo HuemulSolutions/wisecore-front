@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { HuemulTable } from '@/huemul/components/huemul-table'
@@ -292,9 +292,7 @@ export default function Models() {
 
   // Helper functions
   const defaultModel = llms.find((llm) => llm.is_default)
-  const defaultModelProvider = defaultModel
-    ? allProvidersList.find((p: any) => p.id === defaultModel.provider_id)
-    : undefined
+  const defaultModelProvider = defaultModel?.provider
 
   // Event handlers
   const handleUpdateProvider = (data: CreateLLMProviderRequest) => {
@@ -319,6 +317,11 @@ export default function Models() {
 
   const handleEditModel = (model: LLM) => {
     setEditingModel(model)
+  }
+
+  const handleEditModelProvider = (model: LLM) => {
+    const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
+    if (provider) setEditingProvider(provider)
   }
 
   const handleDeleteModel = (model: LLM) => {
@@ -561,14 +564,14 @@ export default function Models() {
                     key: 'provider',
                     label: t('table.provider'),
                     render: (model) => {
-                      const provider = allProvidersList.find((p: any) => p.id === model.provider_id)
-                      if (!provider) return <span className="text-muted-foreground">—</span>
+                      const providerName = model.provider_name || model.provider?.name
+                      if (!providerName) return <span className="text-muted-foreground">—</span>
                       return (
                         <div className="flex items-center gap-2">
-                          <div className={cn('h-6 w-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0', getProviderColor(provider.name))}>
-                            {provider.name.charAt(0).toUpperCase()}
+                          <div className={cn('h-6 w-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0', getProviderColor(providerName))}>
+                            {providerName.charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-sm">{provider.name}</span>
+                          <span className="text-sm">{providerName}</span>
                         </div>
                       )
                     },
@@ -597,6 +600,13 @@ export default function Models() {
                     isLoading: (model) => testingModelId === model.id,
                     disabled: (model) => testingModelId !== null && testingModelId !== model.id,
                   },
+                  ...(canUpdateProvider ? [{
+                    key: 'editProvider',
+                    label: t('providerActions.editProvider'),
+                    icon: Building2,
+                    onClick: handleEditModelProvider,
+                    disabled: (model: LLM) => !model.provider_id,
+                  }] : []),
                   ...(canUpdateModel ? [{
                     key: 'edit',
                     label: t('modelActions.editModel'),

@@ -1,6 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { LLM, LLMsResponse, CreateLLMRequest } from "@/types/models";
+import type { LLM, LLMsResponse, CreateLLMRequest, LlmConfigurationStatusData, LlmConfigurationStatusResponse } from "@/types/models";
 
 // Re-export types for backward compatibility
 export type { LLM, LLMsResponse, CreateLLMRequest } from "@/types/models";
@@ -74,4 +74,12 @@ export async function testLLMConnection(llmId: string): Promise<{ ok: boolean }>
     const response = await httpClient.post(`${backendUrl}/llms/${llmId}/test_connection`, {});
     const data = await response.json();
     return data.data || data;
+}
+
+export async function getLlmConfigurationStatus(organizationId: string): Promise<LlmConfigurationStatusData> {
+    const response = await httpClient.get(`${backendUrl}/llms/configuration-status`, {
+        headers: { 'X-Org-Id': organizationId },
+    });
+    const data = (await response.json()) as LlmConfigurationStatusResponse;
+    return data.data;
 }

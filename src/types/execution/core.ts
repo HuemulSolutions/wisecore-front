@@ -42,10 +42,13 @@ export interface ExecutionsResponse {
   timestamp?: string
 }
 
+export type ExecutionSearchType = 'semantic' | 'title' | 'code' | 'content'
+
 export interface GetExecutionsParams {
   page?: number
   page_size?: number
-  search?: string
+  query?: string
+  search_type?: ExecutionSearchType
   created_by?: string | null
   has_pending_ai_suggestion?: boolean | null
   lifecycle_state?: ExecutionLifecycleState | null
