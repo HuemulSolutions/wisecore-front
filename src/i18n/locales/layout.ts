@@ -5,6 +5,7 @@ const translations = {
     search: { en: "Search", es: "Búsqueda" },
     templates: { en: "Templates", es: "Plantillas" },
     advanced: { en: "Advanced", es: "Avanzado" },
+    media: { en: "Media", es: "Media" },
     navigationMenuTitle: { en: "Navigation", es: "Navegación" },
   },
   header: {
@@ -19,6 +20,7 @@ const translations = {
     assetTypeRelationships: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
     canvas: { en: "Canvas", es: "Canvas" },
+    media: { en: "Media", es: "Media" },
     administration: { en: "Administration", es: "Administración" },
     organizations: { en: "Organizations", es: "Organizaciones" },
     globalAdminSettings: { en: "Global Admin Settings", es: "Configuración de Admin Global" },
