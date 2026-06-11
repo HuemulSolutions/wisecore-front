@@ -33,6 +33,7 @@ import huemulFileTree from './locales/huemul-file-tree'
 import canvas from './locales/canvas'
 import documentTypeRelationships from './locales/document-type-relationships'
 import media from './locales/media'
+import subscriptions from './locales/subscriptions'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -85,6 +86,7 @@ const modules = {
   canvas,
   'document-type-relationships': documentTypeRelationships,
   media,
+  subscriptions,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const

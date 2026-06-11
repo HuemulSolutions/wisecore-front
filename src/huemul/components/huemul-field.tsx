@@ -1377,7 +1377,9 @@ export function HuemulField({
               ...g.options,
             ])
           : options
-        const selectedLabel = flatOptions.find((o) => o.value === currentValue)?.label
+        const selectedOpt = flatOptions.find((o) => o.value === currentValue)
+        const selectedLabel = selectedOpt?.label
+        const selectedColor = selectedOpt?.color
 
         const selectTrigger = (
           <SelectTrigger
@@ -1387,7 +1389,17 @@ export function HuemulField({
             aria-invalid={baseInvalid || undefined}
           >
             <SelectValue placeholder={placeholder || t('selectPlaceholder')}>
-              {selectedLabel}
+              {selectedLabel && (
+                <span className="flex items-center gap-2">
+                  {selectedColor && (
+                    <span
+                      className="size-3 rounded-full shrink-0 border border-border/40 inline-block"
+                      style={{ backgroundColor: selectedColor }}
+                    />
+                  )}
+                  {selectedLabel}
+                </span>
+              )}
             </SelectValue>
           </SelectTrigger>
         );

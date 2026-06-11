@@ -454,7 +454,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         hasCustomMenuActions
 
       return (
-        <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
+        <div key={node.id} className={cn("relative min-w-0", level > 0 && "ml-4")}>
           {level > 0 && (
             <div
               className="absolute left-0 top-0 bottom-0 w-px bg-border"
@@ -470,7 +470,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
           <div
             className={cn(
-              "group flex items-center gap-1 py-0.5 px-2 rounded-md transition-colors relative",
+              "group flex items-center gap-1 min-w-0 py-0.5 px-2 rounded-md transition-colors relative",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
@@ -642,7 +642,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
     // ─── Root render ────────────────────────────────────────────────────────────
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 w-full min-w-0">
         {showRefreshButton && (
           <div className="flex justify-end">
             <HuemulButton
@@ -660,7 +660,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         <div
           ref={containerRef}
           className={cn(
-            "relative rounded-lg transition-colors overflow-hidden",
+            "relative w-full rounded-lg transition-colors overflow-hidden",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
             dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",

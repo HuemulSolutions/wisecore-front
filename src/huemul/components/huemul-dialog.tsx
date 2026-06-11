@@ -112,7 +112,7 @@ export function HuemulDialog({
         </DialogHeader>
 
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-2">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2">
           {bodyLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-4 w-3/4" />

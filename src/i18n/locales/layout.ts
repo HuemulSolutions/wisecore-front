@@ -12,6 +12,7 @@ const translations = {
     applicationVersion: { en: "Application Version", es: "Versión de la Aplicación" },
     settingsMenuSrOnly: { en: "Settings menu", es: "Menú de configuración" },
     updateProfile: { en: "Update Profile", es: "Actualizar Perfil" },
+    mySubscriptions: { en: "My Subscriptions", es: "Mis Suscripciones" },
     signOut: { en: "Sign out", es: "Cerrar sesión" },
   },
   settings: {
