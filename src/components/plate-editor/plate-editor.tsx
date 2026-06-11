@@ -580,6 +580,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
               <Editor
                 placeholder={t('placeholder')}
                 variant={variant === 'section' ? 'section' : undefined}
+                className={readOnly ? 'pb-2 pt-1' : undefined}
               />
             </EditorContainer>
 
