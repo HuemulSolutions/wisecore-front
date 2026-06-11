@@ -3,19 +3,21 @@ export type SubscriptionReactionType = 'watch' | 'love' | 'insights' | 'favorite
 // Main entity — must match backend response shape exactly
 export interface Subscription {
   id: string
+  user_id: string
   document_id: string | null
   execution_id: string | null
   event_type: string | null
   reaction_type: SubscriptionReactionType
   comment: string | null
-  days_before: number
+  days_before: number | null
   notify_email: boolean
   notify_in_app: boolean
   require_read_ack: boolean
   created_at: string
-  created_by: string | null
   updated_at: string
-  updated_by: string | null
+  document_name: string | null
+  execution_name: string | null
+  user_name: string | null
 }
 
 // Paginated list response
