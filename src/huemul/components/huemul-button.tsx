@@ -81,7 +81,7 @@ export const HuemulButton = React.forwardRef<HTMLButtonElement, HuemulButtonProp
     const handleClick = React.useCallback(
       async (e: React.MouseEvent<HTMLButtonElement>) => {
         if (!onClick || isLoading) return;
-        const result = onClick(e);
+        const result: unknown = onClick(e);
         if (result instanceof Promise) {
           setAsyncLoading(true);
           try {

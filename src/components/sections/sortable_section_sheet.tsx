@@ -141,6 +141,11 @@ export default function SortableSectionSheet({
                       {t("sections:sortableSection.typeBadgeReference")}
                     </Badge>
                   )}
+                  {sectionType === 'form' && (
+                    <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
+                      {t("sections:sortableSection.typeBadgeForm")}
+                    </Badge>
+                  )}
                 </div>
                 
                 {/* Description Preview */}
@@ -170,7 +175,18 @@ export default function SortableSectionSheet({
                       <Markdown>{referencedContent ? `${referencedContent.substring(0, 150)}...` : t("sections:sortableSection.noContentAvailable")}</Markdown>
                     );
                   }
-                  
+
+                  // Para tipo Form: mostrar lista de campos
+                  if (sectionType === 'form') {
+                    const fields: any[] = (item as any).form_fields || [];
+                    if (fields.length === 0) return <span className="text-xs text-gray-400">{t("sections:sortableSection.noContentAvailable")}</span>;
+                    return (
+                      <span className="text-xs text-gray-500">
+                        {fields.map(f => f.field_name || f.field_id).join(', ')}
+                      </span>
+                    );
+                  }
+
                   return null;
                 })()}
 

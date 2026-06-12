@@ -6,19 +6,20 @@ export interface EditFormItem {
   prompt: string;
   order: number;
   dependencies: { id: string; name: string }[];
-  type?: "ai" | "manual" | "reference";
+  type?: "ai" | "manual" | "reference" | "form";
   manual_input?: string;
   reference_section_id?: string;
   reference_mode?: "latest" | "specific";
   reference_execution_id?: string;
   referenced_document_id?: string;
   template_section_id?: string;
+  form_fields?: import('./core').SectionFormField[];
 }
 
 export interface EditFormItemForBackend {
   id: string;
   name: string;
-  type?: "ai" | "manual" | "reference";
+  type?: "ai" | "manual" | "reference" | "form";
   prompt?: string;
   output?: string;
   manual_input?: string;

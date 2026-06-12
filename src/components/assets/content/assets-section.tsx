@@ -91,9 +91,9 @@ function SectionExecutionInner({
     
     // Determine which actions are available based on section type
     const canExecute = sectionType === 'ai' || sectionType === null; // AI sections y null pueden ejecutarse
-    const canEdit = sectionType !== 'reference'; // Manual y AI pueden editarse, reference no
-    const canAiEdit = sectionType !== 'reference'; // Manual y AI pueden usar AI edit, reference no
-    const canDelete = sectionType !== 'reference'; // Manual y AI pueden eliminarse, reference no
+    const canEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden editarse
+    const canAiEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden usar AI edit
+    const canDelete = sectionType !== 'reference'; // Manual, AI y form pueden eliminarse, reference no
     
     // Check if there's an execution in progress
     const isExecutionInProgress = !!(executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus));

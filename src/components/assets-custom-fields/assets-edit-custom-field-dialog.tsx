@@ -76,6 +76,8 @@ export function EditCustomFieldAssetDialog({
         return document.value_url || ""
       case "image":
         return "" // Images are handled separately via blob upload
+      case "list":
+        return document.value_identifier || ""
       default:
         return document.value || ""
     }
@@ -176,6 +178,8 @@ export function EditCustomFieldAssetDialog({
         return { value: value }
       case "image":
         return {} // Images are handled via blob upload
+      case "list":
+        return { value: value }
       default:
         return { value: value }
     }
@@ -294,6 +298,18 @@ export function EditCustomFieldAssetDialog({
               </div>
             )}
           </HuemulField>
+        )
+      case "list":
+        return (
+          <HuemulField
+            type="select"
+            label={label}
+            placeholder="Select an option"
+            value={value}
+            onChange={(v) => setValue(String(v))}
+            options={(customFieldDocument.options ?? []).map(o => ({ value: o.option_id, label: o.name }))}
+            error={formErrors.value}
+          />
         )
       default:
         return (

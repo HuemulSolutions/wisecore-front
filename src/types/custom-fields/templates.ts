@@ -1,4 +1,4 @@
-import type { PaginationParams, ApiResponse } from './core'
+import type { PaginationParams, ApiResponse, CustomFieldOption } from './core'
 
 export type CustomFieldTemplateSource = "manual" | "inferred";
 
@@ -19,6 +19,7 @@ export interface CustomFieldTemplate {
   value_number: number | null;
   value_bool: boolean | null;
   value_identifier: string | null;
+  options?: CustomFieldOption[];
   source: CustomFieldTemplateSource;
   created_at: string;
   updated_at: string;

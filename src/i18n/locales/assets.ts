@@ -536,6 +536,7 @@ const translations = {
       estimatedPublicationDate: { en: "Estimated publication date", es: "Fecha estimada de publicación" },
       reviewDate: { en: "Review date", es: "Fecha de revisión" },
       auditDate: { en: "Audit date", es: "Fecha de auditoría" },
+      contentHash: { en: "Content hash", es: "Hash de contenido" },
       lifecycle: { en: "Lifecycle", es: "Ciclo de vida" },
       state: { en: "State", es: "Estado" },
       stage: { en: "Stage", es: "Etapa" },

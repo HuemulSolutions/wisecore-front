@@ -64,6 +64,7 @@ import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-expor
 import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
 import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
@@ -2341,9 +2342,18 @@ export function AssetContent({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
-                    <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <h1 className="text-lg font-semibold text-gray-900 truncate cursor-default">{documentContent?.document_name || selectedFile.name}</h1>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-md">
+                              <p>{documentContent?.document_name || selectedFile.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <HuemulButton
                           requiredAccess="edit"
                           checkGlobalPermissions={true}
@@ -2361,7 +2371,7 @@ export function AssetContent({
 
                       </div>
                       {/* Mode Toggle + Version dropdown + More Options — always in the same position for muscle memory */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {canSwitchToEditorMode && (
                           <ViewModeToggle
                             isViewMode={isViewMode}

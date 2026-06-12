@@ -155,7 +155,7 @@ export interface SectionExecutionProps {
   onOpenExecuteSheet?: () => void
   executionMode?: 'single' | 'from' | 'full' | 'full-single'
   showExecutionFeedback?: boolean
-  sectionType?: 'ai' | 'manual' | 'reference' | null
+  sectionType?: 'ai' | 'manual' | 'reference' | 'form' | null
   sectionName?: string
   canEditSections?: boolean
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void

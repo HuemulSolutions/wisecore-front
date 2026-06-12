@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, Plus } from "lucide-react"
 import { useCustomFields, useCustomFieldDataTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useOrganization } from "@/contexts/organization-context"
-import type { CustomField } from "@/types/custom-fields"
+import type { CustomField, CustomFieldOption } from "@/types/custom-fields"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 import type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
@@ -41,6 +41,7 @@ export function AddCustomFieldDialog({
     data_type: "",
     masc: "",
   })
+  const [newOptions, setNewOptions] = useState<CustomFieldOption[]>([])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   // Fetch existing custom fields (lazy loading: only when dialog is open)
@@ -75,6 +76,7 @@ export function AddCustomFieldDialog({
         data_type: "",
         masc: "",
       })
+      setNewOptions([])
       setFormErrors({})
     }
   }, [isOpen])
@@ -132,6 +134,8 @@ export function AddCustomFieldDialog({
         return { value: value }
       case "image":
         return {} // Images are handled via blob upload
+      case "list":
+        return { value: value }
       default:
         return { value: value }
     }
@@ -152,6 +156,17 @@ export function AddCustomFieldDialog({
 
     if (!newCustomFieldData.data_type) {
       newErrors.data_type = t('form.dataTypeRequired')
+    }
+
+    if (newCustomFieldData.data_type === 'list') {
+      if (newOptions.length === 0) {
+        newErrors.options = t('form.optionsRequired')
+      } else {
+        newOptions.forEach((opt, i) => {
+          if (!opt.option_id.trim()) newErrors[`option_${i}_id`] = t('form.optionIdRequired')
+          if (!opt.name.trim()) newErrors[`option_${i}_name`] = t('form.optionNameRequired')
+        })
+      }
     }
 
     setFormErrors(newErrors)
@@ -184,6 +199,7 @@ export function AddCustomFieldDialog({
       data_type: "",
       masc: "",
     })
+    setNewOptions([])
     setFormErrors({})
   }
 
@@ -240,6 +256,7 @@ export function AddCustomFieldDialog({
           description: newCustomFieldData.description,
           data_type: newCustomFieldData.data_type,
           masc: newCustomFieldData.masc || "",
+          ...(newCustomFieldData.data_type === 'list' && { options: newOptions }),
         })
 
         console.log("Created new custom field:", newCustomField)
@@ -387,6 +404,20 @@ export function AddCustomFieldDialog({
             )}
           </HuemulField>
         )
+      case "list": {
+        const opts = getSelectedCustomField()?.options ?? []
+        return (
+          <HuemulField
+            type="select"
+            label={t('addDialog.valueLabel')}
+            placeholder={t('addDialog.valuePlaceholderList')}
+            value={value}
+            onChange={(v) => setValue(String(v))}
+            options={opts.map(o => ({ value: o.option_id, label: o.name }))}
+            error={formErrors.value}
+          />
+        )
+      }
       default: // string, url
         return (
           <HuemulField
@@ -510,10 +541,15 @@ export function AddCustomFieldDialog({
               description={newCustomFieldData.description}
               dataType={newCustomFieldData.data_type}
               masc={newCustomFieldData.masc}
+              options={newOptions}
               onNameChange={(value) => handleNewCustomFieldInputChange("name", value)}
               onDescriptionChange={(value) => handleNewCustomFieldInputChange("description", value)}
-              onDataTypeChange={(value) => handleNewCustomFieldInputChange("data_type", value)}
+              onDataTypeChange={(value) => {
+                handleNewCustomFieldInputChange("data_type", value)
+                if (value !== 'list') setNewOptions([])
+              }}
               onMascChange={(value) => handleNewCustomFieldInputChange("masc", value)}
+              onOptionsChange={setNewOptions}
               dataTypes={dataTypes}
               formatDataType={formatDataType}
               errors={formErrors}

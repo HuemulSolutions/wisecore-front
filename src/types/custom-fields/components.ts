@@ -1,4 +1,4 @@
-import type { CustomField } from './core'
+import type { CustomField, CustomFieldOption } from './core'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
 
 export interface CustomFieldContentEmptyStateProps {
@@ -20,10 +20,14 @@ export interface CustomFieldFormFieldsProps {
   onMascChange: (value: string) => void
   dataTypes: string[]
   formatDataType: (dataType: string) => string
+  options: CustomFieldOption[]
+  onOptionsChange: (options: CustomFieldOption[]) => void
   errors?: {
     name?: string
     description?: string
     data_type?: string
+    options?: string
+    [key: string]: string | undefined
   }
   disabled?: boolean
   loadingDataTypes?: boolean

@@ -1,4 +1,5 @@
 import type { Section } from './add'
+import type { SectionFormField } from './core'
 
 export interface SectionItem {
   id: string;
@@ -8,6 +9,7 @@ export interface SectionItem {
   dependencies: { id: string; name: string }[];
   referenced_document_id?: string;
   template_section_id?: string;
+  form_fields?: SectionFormField[];
 }
 
 export interface SectionFormProps {
@@ -25,6 +27,6 @@ export interface SectionFormProps {
   onDirtyChange?: (isDirty: boolean) => void;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
-  defaultType?: 'ai' | 'manual' | 'reference';
+  defaultType?: 'ai' | 'manual' | 'reference' | 'form';
   defaultManualInput?: string;
 }
