@@ -40,6 +40,12 @@ const translations = {
     adding: { en: "Adding...", es: "Agregando..." },
     generating: { en: "Generating...", es: "Generando..." },
   },
+  editDialog: {
+    title: { en: "Edit Section", es: "Editar Sección" },
+    description: { en: "Make changes to the section information and content.", es: "Realiza cambios en la información y contenido de la sección." },
+    save: { en: "Save Changes", es: "Guardar Cambios" },
+    generating: { en: "Generating...", es: "Generando..." },
+  },
   toast: {
     sectionCreated: { en: "Section created successfully", es: "Sección creada exitosamente" },
     sectionUpdated: { en: "Section updated successfully", es: "Sección actualizada exitosamente" },

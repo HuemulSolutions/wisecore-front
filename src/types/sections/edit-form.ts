@@ -37,6 +37,8 @@ export interface EditSectionFormProps {
   existingSections?: Section[];
   onValidationChange?: (isValid: boolean) => void;
   onGeneratingChange?: (isGenerating: boolean) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
+  documentId?: string;
 }

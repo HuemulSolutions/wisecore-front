@@ -388,12 +388,15 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <MarkToolbarButton nodeType="highlight" tooltip={t('toolbar.highlight')}>
           <Highlighter />
         </MarkToolbarButton>
+        <FontColorToolbarButton nodeType="color" tooltip={t('toolbar.textColor')} />
+        <FontColorToolbarButton nodeType="backgroundColor" tooltip={t('toolbar.backgroundColor')} />
 
         <ToolbarSeparator />
 
         <TurnIntoToolbarButton />
-
-        <ToolbarSeparator />
+        <AlignToolbarButton />
+        <OutdentToolbarButton />
+        <IndentToolbarButton />
 
         <BulletedListToolbarButton />
         <NumberedListToolbarButton />
@@ -406,12 +409,6 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <MediaToolbarButton nodeType="img" />
         <CodeDrawingToolbarButton />
         <MediaReferenceToolbarButton />
-
-        <ToolbarSeparator />
-
-        <AlignToolbarButton />
-        <OutdentToolbarButton />
-        <IndentToolbarButton />
 
       </div>
       {actions && actions}

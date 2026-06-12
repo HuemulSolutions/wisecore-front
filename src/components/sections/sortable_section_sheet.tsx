@@ -45,6 +45,7 @@ export default function SortableSectionSheet({
   isAddToCurrentVersionPending = false,
   currentExecutionId = null,
   useExecutionDeleteDialog = false,
+  documentId,
 }: SortableSectionSheetProps) {
   const { t } = useTranslation(["sections", "common"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
@@ -485,6 +486,7 @@ export default function SortableSectionSheet({
         existingSections={existingSections as any}
         hasTemplate={hasTemplate}
         isTemplateSection={isTemplateSection}
+        documentId={documentId}
       />
     </div>
   );

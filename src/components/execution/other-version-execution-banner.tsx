@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ export function OtherVersionExecutionBanner({
   onDismiss,
   onViewVersion
 }: OtherVersionExecutionBannerProps) {
+  const { t } = useTranslation('execute');
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
   const [pollingInterval, setPollingInterval] = useState<number | false>(2000);
@@ -72,7 +74,7 @@ export function OtherVersionExecutionBanner({
       case 'running':
         return {
           icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-          text: 'generating',
+          text: t('banner.status.running'),
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           textColor: 'text-blue-800'
@@ -80,7 +82,7 @@ export function OtherVersionExecutionBanner({
       case 'pending':
         return {
           icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: 'queued',
+          text: t('banner.status.queued'),
           bgColor: 'bg-amber-50',
           borderColor: 'border-amber-200',
           textColor: 'text-amber-800'
@@ -88,7 +90,7 @@ export function OtherVersionExecutionBanner({
       case 'completed':
         return {
           icon: <CheckCircle className="h-5 w-5 text-green-600" />,
-          text: 'completed',
+          text: t('banner.status.completed'),
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           textColor: 'text-green-800'
@@ -96,7 +98,7 @@ export function OtherVersionExecutionBanner({
       case 'failed':
         return {
           icon: <XCircle className="h-5 w-5 text-red-600" />,
-          text: 'failed',
+          text: t('banner.status.failed'),
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
           textColor: 'text-red-800'
@@ -104,7 +106,7 @@ export function OtherVersionExecutionBanner({
       case 'cancelled':
         return {
           icon: <XCircle className="h-5 w-5 text-gray-600" />,
-          text: 'cancelled',
+          text: t('banner.status.cancelled'),
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200',
           textColor: 'text-gray-800'
@@ -112,7 +114,7 @@ export function OtherVersionExecutionBanner({
       case 'paused':
         return {
           icon: <Clock className="h-5 w-5 text-amber-600" />,
-          text: 'paused',
+          text: t('banner.status.paused'),
           bgColor: 'bg-amber-50',
           borderColor: 'border-amber-200',
           textColor: 'text-amber-800'
@@ -143,15 +145,15 @@ export function OtherVersionExecutionBanner({
           </div>
           <div className="flex-1 min-w-0">
             <p className={cn("text-sm font-medium", statusInfo.textColor)}>
-              Version "{executionName}" is {statusInfo.text}
+              {t('otherVersionBanner.versionTitle', { name: executionName, status: statusInfo.text })}
             </p>
             <p className="text-xs text-gray-600 mt-1">
-              {execution.status === 'running' && 'Content is being generated for this version...'}
-              {execution.status === 'pending' && 'Waiting in queue to start generation...'}
-              {execution.status === 'completed' && 'Generation completed successfully!'}
-              {execution.status === 'failed' && 'Generation encountered an error.'}
-              {execution.status === 'cancelled' && 'Generation was cancelled.'}
-              {execution.status === 'paused' && 'Generation is paused.'}
+              {execution.status === 'running' && t('otherVersionBanner.description.running')}
+              {execution.status === 'pending' && t('otherVersionBanner.description.pending')}
+              {execution.status === 'completed' && t('otherVersionBanner.description.completed')}
+              {execution.status === 'failed' && t('otherVersionBanner.description.failed')}
+              {execution.status === 'cancelled' && t('otherVersionBanner.description.cancelled')}
+              {execution.status === 'paused' && t('otherVersionBanner.description.paused')}
             </p>
           </div>
         </div>
@@ -173,7 +175,7 @@ export function OtherVersionExecutionBanner({
               onClick={onViewVersion}
               className="hover:cursor-pointer"
             >
-              View Version
+              {t('otherVersionBanner.viewVersion')}
             </Button>
           )}
           <Button

@@ -55,6 +55,16 @@ const translations = {
     insertColumnAfter: { en: "Insert column after", es: "Insertar columna después" },
     deleteColumn: { en: "Delete column", es: "Eliminar columna" },
     deleteTable: { en: "Delete table", es: "Eliminar tabla" },
+    cellBackground: { en: "Background color", es: "Color de fondo" },
+    cellBorders: { en: "Cell borders", es: "Bordes de celda" },
+    borders: {
+      top: { en: "Top Border", es: "Borde superior" },
+      right: { en: "Right Border", es: "Borde derecho" },
+      bottom: { en: "Bottom Border", es: "Borde inferior" },
+      left: { en: "Left Border", es: "Borde izquierdo" },
+      none: { en: "No Border", es: "Sin borde" },
+      outside: { en: "Outside Borders", es: "Bordes exteriores" },
+    },
   },
   list: {
     default: { en: "Default", es: "Predeterminado" },
@@ -98,6 +108,15 @@ const translations = {
     customColors: { en: "Custom Colors", es: "Colores personalizados" },
     defaultColors: { en: "Default Colors", es: "Colores predeterminados" },
     clear: { en: "Clear", es: "Limpiar" },
+    label: { en: "Colors", es: "Colores" },
+  },
+  link: {
+    pasteLink: { en: "Paste link", es: "Pegar enlace" },
+    textToDisplay: { en: "Text to display", es: "Texto a mostrar" },
+    editLink: { en: "Edit link", es: "Editar enlace" },
+    openInNewTab: { en: "Open link in a new tab", es: "Abrir enlace en nueva pestaña" },
+    pasteEmbedLink: { en: "Paste the embed link...", es: "Pegar el enlace incrustado..." },
+    caption: { en: "Caption", es: "Leyenda" },
   },
   placeholder: { en: "Type your content here...", es: "Escribe tu contenido aquí..." },
   markdownDialog: {

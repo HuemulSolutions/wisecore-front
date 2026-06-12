@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
@@ -29,8 +29,9 @@ export function SectionForm({
   onSubmit, 
   isPending = false, 
   existingSections = [], 
-  onValidationChange, 
+  onValidationChange,
   onGeneratingChange,
+  onDirtyChange,
   hasTemplate = false,
   isTemplateSection = false,
   defaultType,
@@ -40,6 +41,13 @@ export function SectionForm({
   const { selectedOrganizationId } = useOrganization();
   const promptEditorRef = useRef<SectionPlateEditorRef>(null);
   const manualEditorRef = useRef<SectionPlateEditorRef>(null);
+  const isInitialSyncDone = useRef(false);
+
+  const markDirty = useCallback(() => {
+    if (isInitialSyncDone.current) {
+      onDirtyChange?.(true);
+    }
+  }, [onDirtyChange]);
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
@@ -192,42 +200,51 @@ export function SectionForm({
       setSelectedSection(null);
       setReferenceSectionId("");
       setReferenceExecutionId("");
+      markDirty();
     }
   };
 
   // Sincronizar con item cuando cambie (modo edit)
   useEffect(() => {
-    if (mode === 'edit' && item) {
-      setName(item.name);
-      setType((item as any).type || "ai");
-      setPrompt(item.prompt);
-      const manualInputValue = (item as any).manual_input || "";
-      setManualInput(manualInputValue);
-      const refSectionId = (item as any).reference_section_id || "";
-      const refDocumentId = (item as any).referenced_document_id || "";
-      setReferenceSectionId(refSectionId);
-      setReferenceMode((item as any).reference_mode || "latest");
-      setReferenceExecutionId((item as any).reference_execution_id || "");
-      setSelectedDependencies([...item.dependencies]);
-      
-      // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
-      if (refSectionId && refDocumentId && (item as any).type === 'reference') {
-        // Establecer el asset seleccionado usando referenced_document_id
-        setSelectedAsset({ id: refDocumentId, name: `Asset ${refDocumentId.slice(0, 8)}...` });
-        // Establecer la sección seleccionada usando reference_section_id
-        setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
-      }
-      
-      // PlateRichEditor se re-inicializa con key={editorKey} + initialMarkdown
-      if (editorType === 'rich') {
-        setEditorKey(prev => prev + 1);
-      }
+    if (mode !== 'edit' || !item) return;
+
+    isInitialSyncDone.current = false;
+    setName(item.name);
+    setType((item as any).type || "ai");
+    setPrompt(item.prompt);
+    const manualInputValue = (item as any).manual_input || "";
+    setManualInput(manualInputValue);
+    const refSectionId = (item as any).reference_section_id || "";
+    const refDocumentId = (item as any).referenced_document_id || "";
+    setReferenceSectionId(refSectionId);
+    setReferenceMode((item as any).reference_mode || "latest");
+    setReferenceExecutionId((item as any).reference_execution_id || "");
+    setSelectedDependencies([...item.dependencies]);
+
+    // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
+    if (refSectionId && refDocumentId && (item as any).type === 'reference') {
+      // Establecer el asset seleccionado usando referenced_document_id
+      setSelectedAsset({ id: refDocumentId, name: `Asset ${refDocumentId.slice(0, 8)}...` });
+      // Establecer la sección seleccionada usando reference_section_id
+      setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
     }
+
+    // PlateRichEditor se re-inicializa con key={editorKey} + initialMarkdown
+    if (editorType === 'rich') {
+      setEditorKey(prev => prev + 1);
+    }
+
+    // Plate fires onChange during initial normalization — delay the flag so those
+    // initialization events don't incorrectly mark the form as dirty.
+    const timer = setTimeout(() => {
+      isInitialSyncDone.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
   }, [item, mode, editorType]);
 
   const handleGeneratePrompt = async () => {
     if (!name.trim()) return;
-    
+    markDirty();
     setIsGenerating(true);
     let accumulatedText = "";
     try {
@@ -259,15 +276,17 @@ export function SectionForm({
     if (!selectedDependencies.some(dep => dep.id === sectionId)) {
       const sectionInfo = existingSections.find(section => section.id === sectionId);
       setSelectedDependencies(prev => [
-        ...prev, 
+        ...prev,
         { id: sectionId, name: sectionInfo?.name || `Section ${sectionId}` }
       ]);
+      markDirty();
     }
     setSelectValue("");
   };
 
   const removeDependency = (sectionId: string) => {
     setSelectedDependencies(prev => prev.filter(dep => dep.id !== sectionId));
+    markDirty();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -318,7 +337,8 @@ export function SectionForm({
       } else if (documentId) {
         submitData.document_id = documentId;
       }
-      
+
+      onDirtyChange?.(false);
       onSubmit(submitData);
     } else {
       // Modo edit
@@ -357,13 +377,15 @@ export function SectionForm({
       if (isTemplateSection) {
         submitData.propagate_to_sections = propagatePrompt;
       }
-      
+
+      onDirtyChange?.(false);
       onSubmit(submitData);
     }
   };
 
   const handlePromptChange = (value: string) => {
     setPrompt(value);
+    markDirty();
   };
 
   // Filtrar secciones disponibles
@@ -414,7 +436,7 @@ export function SectionForm({
         name="section-name"
         placeholder={t('form.sectionName.placeholder')}
         value={name}
-        onChange={(val) => setName(val as string)}
+        onChange={(val) => { setName(val as string); markDirty(); }}
         disabled={isPending || isFromTemplate}
         autoFocus={mode === 'create'}
         autoComplete="off"
@@ -433,7 +455,7 @@ export function SectionForm({
           { value: "reference", label: t('form.sectionType.optionReference') },
         ]}
         value={type}
-        onChange={(val) => setType(val as "ai" | "manual" | "reference")}
+        onChange={(val) => { setType(val as "ai" | "manual" | "reference"); markDirty(); }}
         disabled={isPending}
         placeholder={t('form.sectionType.placeholder')}
         description={
@@ -492,6 +514,8 @@ export function SectionForm({
                 hideActions={true}
                 enableComments={false}
                 enableCreateSection={false}
+                organizationId={selectedOrganizationId ?? undefined}
+                documentId={documentId}
                 onValueChange={() => {
                   const md = promptEditorRef.current?.getMarkdown?.() || "";
                   handlePromptChange(md);
@@ -562,6 +586,9 @@ export function SectionForm({
             hideActions={true}
             enableComments={false}
             enableCreateSection={false}
+            organizationId={selectedOrganizationId ?? undefined}
+            documentId={documentId}
+            onValueChange={() => markDirty()}
           />
           <p className="text-xs text-gray-500">
             {t('form.manualInput.description')}
@@ -592,6 +619,7 @@ export function SectionForm({
                     setSelectedSection(null);
                     setReferenceSectionId("");
                     setReferenceExecutionId("");
+                    markDirty();
                   }}
                   disabled={isPending}
                   icon={X}
@@ -630,6 +658,7 @@ export function SectionForm({
                   setReferenceSectionId(sectionId);
                   const section = assetSections?.find((s: any) => s.id === sectionId);
                   if (section) setSelectedSection({ id: section.id, name: section.name });
+                  markDirty();
                 }}
                 disabled={isPending || isLoadingSections}
                 placeholder={isLoadingSections ? t('form.reference.sectionPlaceholderLoading') : t('form.reference.sectionPlaceholder')}
@@ -650,6 +679,7 @@ export function SectionForm({
                   const mode = val as "latest" | "specific";
                   setReferenceMode(mode);
                   if (mode === "latest") setReferenceExecutionId("");
+                  markDirty();
                 }}
                 disabled={isPending || !selectedAsset || !referenceSectionId}
                 placeholder={t('form.reference.modePlaceholder')}
@@ -698,7 +728,7 @@ export function SectionForm({
               required
               options={availableExecutions.map((exec: any) => ({ value: exec.id, label: exec.name || "Unnamed Execution" }))}
               value={referenceExecutionId}
-              onChange={(val) => setReferenceExecutionId(val as string)}
+              onChange={(val) => { setReferenceExecutionId(val as string); markDirty(); }}
               disabled={isPending || isLoadingExecutions}
               placeholder={isLoadingExecutions ? t('form.reference.executionPlaceholderLoading') : t('form.reference.executionPlaceholder')}
               description={t('form.reference.executionDescription')}
@@ -714,7 +744,7 @@ export function SectionForm({
           type="checkbox"
           label={t('form.propagate.toTemplate')}
           value={propagateToTemplate}
-          onChange={(val) => setPropagateToTemplate(val as boolean)}
+          onChange={(val) => { setPropagateToTemplate(val as boolean); markDirty(); }}
           disabled={isPending}
         />
       )}
@@ -725,7 +755,7 @@ export function SectionForm({
           type="checkbox"
           label={t('form.propagate.toAssets')}
           value={propagateToAssets}
-          onChange={(val) => setPropagateToAssets(val as boolean)}
+          onChange={(val) => { setPropagateToAssets(val as boolean); markDirty(); }}
           disabled={isPending}
         />
       )}
@@ -736,7 +766,7 @@ export function SectionForm({
           type="checkbox"
           label={t('form.propagate.toAssetsSections')}
           value={propagatePrompt}
-          onChange={(val) => setPropagatePrompt(val as boolean)}
+          onChange={(val) => { setPropagatePrompt(val as boolean); markDirty(); }}
           disabled={isPending}
         />
       )}

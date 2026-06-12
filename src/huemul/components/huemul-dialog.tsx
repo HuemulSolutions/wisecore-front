@@ -27,6 +27,7 @@ export function HuemulDialog({
   showFooter = true,
   showCancelButton = true,
   cancelLabel = "Cancel",
+  onCancel,
   saveAction,
   extraActions,
   closeDelay = 500,
@@ -135,7 +136,7 @@ export function HuemulDialog({
                 <Button
                   variant="outline"
                   className="hover:cursor-pointer"
-                  onClick={closeDialog}
+                  onClick={() => onCancel?.()}
                 >
                   {cancelLabel}
                 </Button>
