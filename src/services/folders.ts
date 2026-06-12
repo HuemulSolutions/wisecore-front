@@ -16,10 +16,12 @@ export async function getLibraryContent(
     pageSize: number = 1000,
     search?: string,
     filters?: GetLibraryContentFilters,
+    focusAssetId?: string,
 ): Promise<LibraryContent> {
     const folderPath = folderId || 'root';
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (search) params.set('search', search);
+    if (focusAssetId) params.set('focus_asset_id', focusAssetId);
     if (filters) {
         if (filters.has_pending_ai_suggestion != null) params.set('has_pending_ai_suggestion', String(filters.has_pending_ai_suggestion));
         if (filters.lifecycle_state != null) params.set('lifecycle_state', filters.lifecycle_state);

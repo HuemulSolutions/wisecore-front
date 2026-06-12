@@ -69,6 +69,7 @@ export interface AssetEmptyContentProps {
 
 export interface AssetFileTreeProps {
   onLoadChildren?: (folderId: string | null) => Promise<FileNode[]>
+  onRefresh?: () => Promise<FileNode[]>
   /** documentTypeId and templateId are passed by custom create-file dialogs */
   onCreateFile?: (parentId: string | null, name: string, documentTypeId?: string, templateId?: string) => Promise<void>
   onCreateFolder?: (parentId: string | null, name: string) => Promise<void>

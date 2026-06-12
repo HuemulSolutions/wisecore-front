@@ -27,6 +27,7 @@ export interface LibraryContentFolder {
   path: string;
   is_match: boolean;
   is_context: boolean;
+  is_expanded: boolean;
 }
 
 export interface LibraryContent {

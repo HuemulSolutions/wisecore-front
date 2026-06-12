@@ -26,6 +26,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
   (
     {
       onLoadChildren,
+      onRefresh: onRefreshProp,
       onCreateFile,
       onCreateFolder,
       onDelete,
@@ -184,38 +185,43 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       if (!onLoadChildren) return
       setIsLoading(true)
       try {
-        const currentExpandedIds = Array.from(expandedFolders)
-        const rootData = await onLoadChildren(initialFolderId)
+        if (onRefreshProp) {
+          const data = await onRefreshProp()
+          setNodes(data)
+        } else {
+          const currentExpandedIds = Array.from(expandedFolders)
+          const rootData = await onLoadChildren(initialFolderId)
 
-        const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
-          const result: HuemulTreeNode[] = []
-          for (const node of nodeList) {
-            const newNode = { ...node }
-            if (node.type === folderType && currentExpandedIds.includes(node.id)) {
-              try {
-                const children = await onLoadChildren(node.id)
-                newNode.children = await reloadExpandedFolders(children)
-                newNode.isExpanded = true
-                newNode.hasChildren = children.length > 0
-              } catch (error) {
-                console.error(`Error reloading folder ${node.id}:`, error)
-                newNode.children = []
-                newNode.isExpanded = false
+          const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
+            const result: HuemulTreeNode[] = []
+            for (const node of nodeList) {
+              const newNode = { ...node }
+              if (node.type === folderType && currentExpandedIds.includes(node.id)) {
+                try {
+                  const children = await onLoadChildren(node.id)
+                  newNode.children = await reloadExpandedFolders(children)
+                  newNode.isExpanded = true
+                  newNode.hasChildren = children.length > 0
+                } catch (error) {
+                  console.error(`Error reloading folder ${node.id}:`, error)
+                  newNode.children = []
+                  newNode.isExpanded = false
+                }
               }
+              result.push(newNode)
             }
-            result.push(newNode)
+            return result
           }
-          return result
-        }
 
-        const refreshedNodes = await reloadExpandedFolders(rootData)
-        setNodes(refreshedNodes)
+          const refreshedNodes = await reloadExpandedFolders(rootData)
+          setNodes(refreshedNodes)
+        }
       } catch (error) {
         console.error("Error refreshing tree:", error)
       } finally {
         setIsLoading(false)
       }
-    }, [onLoadChildren, expandedFolders, initialFolderId, folderType])
+    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, folderType])
 
     useImperativeHandle(ref, () => ({ refresh }))
 
