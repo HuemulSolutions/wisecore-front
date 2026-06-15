@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { WithRequiredKey } from 'platejs';
 
@@ -67,6 +68,7 @@ export function MediaToolbar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const { t } = useTranslation('editor');
   const element = useElement();
   const { props: buttonProps } = useRemoveNodeButton({ element });
 
@@ -87,7 +89,7 @@ export function MediaToolbar({
 
               <FloatingMediaPrimitive.UrlInput
                 className={inputVariants()}
-                placeholder="Paste the embed link..."
+                placeholder={t('link.pasteEmbedLink')}
                 options={{ plugin }}
               />
             </div>
@@ -97,11 +99,11 @@ export function MediaToolbar({
             <FloatingMediaPrimitive.EditButton
               className={buttonVariants({ size: 'sm', variant: 'ghost' })}
             >
-              Edit link
+              {t('link.editLink')}
             </FloatingMediaPrimitive.EditButton>
 
             <CaptionButton size="sm" variant="ghost">
-              Caption
+              {t('link.caption')}
             </CaptionButton>
 
             <Separator orientation="vertical" className="mx-1 h-6" />

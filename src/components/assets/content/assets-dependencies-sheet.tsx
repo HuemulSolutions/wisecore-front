@@ -44,6 +44,7 @@ export function DependenciesSheet({
           size="sm"
           variant="ghost"
           onClick={() => onOpenChange(true)}
+          tooltip={t('sheet.buttonLabel')}
           className={isMobile
             ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
             : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"

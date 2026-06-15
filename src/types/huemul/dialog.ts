@@ -24,6 +24,7 @@ export interface HuemulDialogProps {
   showFooter?: boolean;
   showCancelButton?: boolean;
   cancelLabel?: string;
+  onCancel?: () => void;
   saveAction?: HuemulDialogFooterAction;
   extraActions?: HuemulDialogFooterAction[];
   closeDelay?: number;

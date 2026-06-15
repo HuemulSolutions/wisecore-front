@@ -50,6 +50,7 @@ function sanitizeNodes(nodes: unknown[]): Value {
   }) as Value;
 }
 import { Plate, usePlateEditor, usePlateState, usePluginOption, useEditorRef, useEditorSelector } from 'platejs/react';
+import type { PlateEditor } from 'platejs/react';
 import { SuggestionPlugin } from '@platejs/suggestion/react';
 import {
   Bold,
@@ -121,6 +122,9 @@ import { cn } from '@/lib/utils';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
 import { useTranslation } from 'react-i18next';
+import { MediaReferenceContext, useMediaReference } from '@/contexts/media-reference-context';
+import { MediaReferencePicker } from '@/components/ui/media-reference-picker';
+import { Library } from 'lucide-react';
 
 
 function EditorToolbar() {
@@ -264,6 +268,7 @@ function EditorToolbar() {
           <MediaToolbarButton nodeType="img" />
           <CodeDrawingToolbarButton />
           <EmojiToolbarButton />
+          <MediaReferenceToolbarButton />
 
           <ToolbarSeparator />
         </>
@@ -383,12 +388,15 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <MarkToolbarButton nodeType="highlight" tooltip={t('toolbar.highlight')}>
           <Highlighter />
         </MarkToolbarButton>
+        <FontColorToolbarButton nodeType="color" tooltip={t('toolbar.textColor')} />
+        <FontColorToolbarButton nodeType="backgroundColor" tooltip={t('toolbar.backgroundColor')} />
 
         <ToolbarSeparator />
 
         <TurnIntoToolbarButton />
-
-        <ToolbarSeparator />
+        <AlignToolbarButton />
+        <OutdentToolbarButton />
+        <IndentToolbarButton />
 
         <BulletedListToolbarButton />
         <NumberedListToolbarButton />
@@ -400,12 +408,7 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
         <TableToolbarButton />
         <MediaToolbarButton nodeType="img" />
         <CodeDrawingToolbarButton />
-
-        <ToolbarSeparator />
-
-        <AlignToolbarButton />
-        <OutdentToolbarButton />
-        <IndentToolbarButton />
+        <MediaReferenceToolbarButton />
 
       </div>
       {actions && actions}
@@ -415,6 +418,26 @@ function SectionEditorToolbar({ actions, topOffset }: { actions?: React.ReactNod
 
 import type { PlateRichEditorRef, PlateRichEditorProps } from '@/types/plate-editor'
 export type { PlateRichEditorRef, PlateRichEditorProps } from '@/types/plate-editor'
+
+// ─── Media reference toolbar button ──────────────────────────────────────────
+
+function MediaReferenceToolbarButton() {
+  const { openPicker } = useMediaReference()
+  const editor = useEditorRef()
+  const { t } = useTranslation('editor')
+
+  if (!openPicker) return null
+
+  return (
+    <ToolbarButton
+      tooltip={t('toolbar.insertMediaReference')}
+      onClick={() => openPicker(editor)}
+      className="hover:cursor-pointer"
+    >
+      <Library />
+    </ToolbarButton>
+  )
+}
 
 export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEditorProps>(
   function PlateRichEditor({
@@ -433,9 +456,25 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     enableComments = true,
     enableCreateSection = true,
     toolbarTopOffset,
+    organizationId,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { t } = useTranslation('editor');
+
+  // ── Media reference picker state ────────────────────────────────────────────
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const pickerEditorRef = React.useRef<PlateEditor | null>(null);
+
+  const openPicker = React.useCallback((editor: PlateEditor) => {
+    pickerEditorRef.current = editor;
+    setPickerOpen(true);
+  }, []);
+
+  const mediaReferenceCtx = React.useMemo(
+    () => ({ openPicker: organizationId && documentId ? openPicker : null }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [organizationId, documentId],
+  );
 
   const editor = usePlateEditor({
     plugins: [
@@ -498,26 +537,27 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
   }, []);
 
   return (
-    <TooltipProvider>
-      <div
-        ref={containerRef}
-        className={cn(
-          'relative isolate w-full min-w-0',
-          variant === 'section'
-            ? cn('rounded-md bg-background', !readOnly && 'border border-border')
-            : cn('rounded-lg bg-background', !readOnly && 'border border-border shadow-sm'),
-          className
-        )}
-      >
+    <MediaReferenceContext.Provider value={mediaReferenceCtx}>
+      <TooltipProvider>
+        <div
+          ref={containerRef}
+          className={cn(
+            'relative isolate w-full min-w-0',
+            variant === 'section'
+              ? cn('rounded-md bg-background', !readOnly && 'border border-border')
+              : cn('rounded-lg bg-background', !readOnly && 'border border-border shadow-sm'),
+            className
+          )}
+        >
 
-        <EditorErrorBoundary>
-          <Plate
-            editor={editor}
-            readOnly={readOnly}
-            onChange={({ value }) => {
-              onChange?.(value);
-            }}
-          >
+          <EditorErrorBoundary>
+            <Plate
+              editor={editor}
+              readOnly={readOnly}
+              onChange={({ value }) => {
+                onChange?.(value);
+              }}
+            >
             {/* Sync discussions from backend when a documentId is provided */}
             {documentId && (
               <DiscussionSync
@@ -537,6 +577,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
               <Editor
                 placeholder={t('placeholder')}
                 variant={variant === 'section' ? 'section' : undefined}
+                className={readOnly ? 'pb-2 pt-1' : undefined}
               />
             </EditorContainer>
 
@@ -549,7 +590,20 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
           </Plate>
         </EditorErrorBoundary>
       </div>
+
+      {/* Media reference picker – rendered outside the editor so it is not
+          affected by the editor's focus trap and event capture */}
+      {organizationId && documentId && (
+        <MediaReferencePicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          editor={pickerEditorRef.current}
+          organizationId={organizationId}
+          documentId={documentId}
+        />
+      )}
     </TooltipProvider>
+  </MediaReferenceContext.Provider>
   );
   }
 );

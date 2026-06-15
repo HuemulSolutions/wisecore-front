@@ -1,4 +1,4 @@
-export type CustomFieldDataType = 
+export type CustomFieldDataType =
   | "string"
   | "int"
   | "date"
@@ -7,7 +7,13 @@ export type CustomFieldDataType =
   | "decimal"
   | "bool"
   | "image"
-  | "url";
+  | "url"
+  | "list";
+
+export interface CustomFieldOption {
+  option_id: string;
+  name: string;
+}
 
 export interface CustomField {
   id: string;
@@ -19,6 +25,7 @@ export interface CustomField {
   description: string;
   updated_at: string;
   updated_by: string | null;
+  options?: CustomFieldOption[];
 }
 
 export interface PaginationParams {
@@ -47,6 +54,7 @@ export interface CreateCustomFieldRequest {
   description: string;
   data_type: string;
   masc: string;
+  options?: CustomFieldOption[];
 }
 
 export interface UpdateCustomFieldRequest {
@@ -54,4 +62,5 @@ export interface UpdateCustomFieldRequest {
   description?: string;
   data_type?: string;
   masc?: string;
+  options?: CustomFieldOption[];
 }

@@ -303,6 +303,7 @@ function RelationshipsCanvasFlow({
                 name: sourceDocType.name,
                 color: sourceDocType.color,
                 onLoadRelationships: handleLoadRelationships,
+                onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
                 onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
               },
             })
@@ -322,6 +323,7 @@ function RelationshipsCanvasFlow({
                 name: targetDocType.name,
                 color: targetDocType.color,
                 onLoadRelationships: handleLoadRelationships,
+                onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
                 onRemove: (id: string) => setNodes((nds) => nds.filter((n) => n.id !== id)),
               },
             })
@@ -384,6 +386,107 @@ function RelationshipsCanvasFlow({
     [queryClient, getNodes, getEdges, setNodes, setEdges],
   )
 
+  // ─── Load relationships — canvas-only (no new nodes, only edges between existing nodes) ───
+  const handleLoadRelationshipsCanvasOnly = useCallback(
+    async (documentTypeId: string) => {
+      const orgId = organizationIdRef.current
+
+      const relData = await queryClient.fetchQuery({
+        queryKey: documentTypeRelationshipQueryKeys.list(orgId, 1, 1000, undefined, documentTypeId, true),
+        queryFn: () =>
+          getDocumentTypeRelationships(orgId, {
+            page: 1,
+            page_size: 1000,
+            document_type_id: documentTypeId,
+            include_subrelationships: true,
+          }),
+        staleTime: 2 * 60 * 1000,
+      })
+
+      if (!relData?.data?.length) return
+
+      const allRelsMap = new Map<string, DocumentTypeRelationship>()
+      relData.data.forEach((rel) => {
+        allRelsMap.set(rel.id, rel)
+        rel.relationship_source.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+        rel.relationship_target.forEach((sub) => { if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub) })
+      })
+      const allRels = Array.from(allRelsMap.values())
+
+      const existingNodeIds = new Set(getNodes().map((n) => n.id))
+      const existingEdges = getEdges()
+      const existingEdgeIds = new Set(existingEdges.map((e) => e.id))
+      const newEdges: Edge[] = []
+
+      // Pre-count new edges per pair (only where both nodes already exist in canvas)
+      const newEdgeCountPerPair = new Map<string, number>()
+      allRels.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        if (
+          existingNodeIds.has(cfg.source_document_type_id) &&
+          existingNodeIds.has(cfg.target_document_type_id) &&
+          !existingEdgeIds.has(`rel-${cfg.id}`)
+        ) {
+          const key = `${cfg.source_document_type_id}::${cfg.target_document_type_id}`
+          newEdgeCountPerPair.set(key, (newEdgeCountPerPair.get(key) ?? 0) + 1)
+        }
+      })
+
+      const existingCountPerPair = new Map<string, number>()
+      existingEdges.forEach((e) => {
+        const key = `${e.source}::${e.target}`
+        existingCountPerPair.set(key, (existingCountPerPair.get(key) ?? 0) + 1)
+      })
+
+      const currentIndexPerPair = new Map<string, number>(existingCountPerPair)
+
+      allRels.forEach((rel) => {
+        const cfg = extractRelConfig(rel)
+        const sourceId = cfg.source_document_type_id
+        const targetId = cfg.target_document_type_id
+
+        // Skip if either node is not already in the canvas
+        if (!existingNodeIds.has(sourceId) || !existingNodeIds.has(targetId)) return
+
+        const edgeId = `rel-${cfg.id}`
+        if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairKey = `${sourceId}::${targetId}`
+          const existingCount = existingCountPerPair.get(pairKey) ?? 0
+          const newCount = newEdgeCountPerPair.get(pairKey) ?? 1
+          const total = existingCount + newCount
+          const index = currentIndexPerPair.get(pairKey) ?? existingCount
+          currentIndexPerPair.set(pairKey, index + 1)
+
+          newEdges.push({
+            id: edgeId,
+            source: sourceId,
+            target: targetId,
+            type: "relationship",
+            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
+            data: {
+              relationshipId: cfg.id,
+              name: cfg.name,
+              minCount: cfg.min_count,
+              maxCount: cfg.max_count,
+              pathOffset: parallelOffset(index, total),
+              onEdit: () => setEditingRelationship(rel),
+              onDelete: () => setDeletingRelationship(rel),
+              onManageAttributes: (id) => {
+                setAttributesRelationshipId(id)
+                setAttributesRelationshipName(cfg.name)
+              },
+            } satisfies RelationshipEdgeData,
+          })
+          existingEdgeIds.add(edgeId)
+        }
+      })
+
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, getNodes, getEdges, setEdges],
+  )
+
   // ─── Auto-load initial document type ───────────────────────────────────────
   useEffect(() => {
     if (initialDocumentTypeId) {
@@ -403,10 +506,10 @@ function RelationshipsCanvasFlow({
 
   // ─── Select execution for a node (execution mode) ─────────────────────────
   const handleSelectExecution = useCallback(
-    (nodeId: string, executionId: string) => {
+    (nodeId: string, executionId: string, executionName: string) => {
       setNodes((nds) =>
         nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, executionId } } : n,
+          n.id === nodeId ? { ...n, data: { ...n.data, executionId, executionName } } : n,
         ),
       )
     },
@@ -431,33 +534,49 @@ function RelationshipsCanvasFlow({
         return
       }
 
-      // Avoid duplicates
-      if (getNodes().some((n) => n.id === docType.id)) return
+      // In doc-type mode avoid duplicates; in execution mode allow the same asset with different versions
+      const isExecution = mode === 'execution'
+      if (!isExecution && getNodes().some((n) => n.id === docType.id)) return
 
       // Use screenToFlowPosition to correctly account for pan and zoom
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      const isExecution = mode === 'execution'
+
+      // In execution mode, generate a unique canvas node ID so multiple versions of the same
+      // asset can coexist. The real asset ID is stored in data.assetId.
+      const canvasNodeId = isExecution
+        ? `${docType.id}-${Math.random().toString(36).slice(2, 9)}`
+        : docType.id
 
       setNodes((nds) => [
         ...nds,
         {
-          id: docType.id,
+          id: canvasNodeId,
           type: "assetType",
           position,
           data: {
-            id: docType.id,
+            id: canvasNodeId,
+            assetId: isExecution ? docType.id : undefined,
             documentTypeId: docType.documentTypeId,
             name: docType.name,
             color: docType.color,
             onLoadRelationships: isExecution
               ? (id: string) => handleLoadExecRelRef.current?.(id)
               : handleLoadRelationships,
+            onLoadRelationshipsCanvasOnly: isExecution
+              ? (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id)
+              : handleLoadRelationshipsCanvasOnly,
             onRemove: handleRemoveNode,
           },
         },
       ])
+
+      // In execution mode, auto-open the node panel so the user is prompted to select a version
+      if (isExecution) {
+        setSelectedNodeId(canvasNodeId)
+        setSelectedEdgeId(null)
+      }
     },
-    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleRemoveNode],
+    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleRemoveNode, mode],
   )
 
   // ─── Connect → open create dialog ──────────────────────────────────────────
@@ -481,6 +600,8 @@ function RelationshipsCanvasFlow({
       setPendingConnection({
         sourceId: params.source,
         targetId: params.target,
+        sourceAssetId: srcData?.assetId ?? params.source,
+        targetAssetId: tgtData?.assetId ?? params.target,
         sourceDocumentTypeId: srcData?.documentTypeId ?? srcData?.id,
         targetDocumentTypeId: tgtData?.documentTypeId ?? tgtData?.id,
         sourceName: srcData?.name,
@@ -616,6 +737,7 @@ function RelationshipsCanvasFlow({
   // ─── Load execution relationships for a node ────────────────────────────────
   // Ref so new nodes created during load can reference the handler without stale closure
   const handleLoadExecRelRef = useRef<((nodeId: string) => void) | null>(null)
+  const handleLoadExecRelCanvasOnlyRef = useRef<((nodeId: string) => void) | null>(null)
 
   const doLoadExecutionRelationships = useCallback(
     async (nodeId: string, executionId: string) => {
@@ -655,63 +777,71 @@ function RelationshipsCanvasFlow({
       const newEdges: Edge[] = []
 
       // Helper: ensure a node exists for a given execution endpoint
-      const ensureNode = (docId: string, execId: string, docName: string, docTypeId: string) => {
+      const ensureNode = (docId: string, execId: string, execName: string, docName: string, docTypeId: string, docTypeColor: string) => {
         // Already in canvas (by executionId or by doc id)
         const byExecId =
           currentNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id ??
           newNodes.find((n) => (n.data as AssetTypeNodeData).executionId === execId)?.id
         if (byExecId) return byExecId
 
-        const existingByDocId = currentNodes.find((n) => n.id === docId)
+        // Look for a node with the same assetId that hasn't been assigned an execution yet
+        const existingByDocId = currentNodes.find((n) => {
+          const nd = n.data as AssetTypeNodeData
+          return !nd.executionId && (nd.assetId === docId || (!nd.assetId && n.id === docId))
+        })
         if (existingByDocId) {
-          // Attach executionId and documentTypeId if missing
+          // Attach executionId, executionName and documentTypeId
           setNodes((nds) =>
             nds.map((n) => {
-              if (n.id !== docId) return n
+              if (n.id !== existingByDocId.id) return n
               const nd = n.data as AssetTypeNodeData
-              if (nd.executionId && nd.documentTypeId) return n
-              return { ...n, data: { ...nd, executionId: nd.executionId ?? execId, documentTypeId: nd.documentTypeId ?? docTypeId } }
+              return { ...n, data: { ...nd, executionId: execId, executionName: execName, documentTypeId: nd.documentTypeId ?? docTypeId } }
             }),
           )
-          return docId
+          return existingByDocId.id
         }
 
-        if (!newNodes.some((n) => n.id === docId)) {
+        // Create a new node with a unique canvas ID
+        const canvasId = `${docId}-${Math.random().toString(36).slice(2, 9)}`
+        if (!newNodes.some((n) => (n.data as AssetTypeNodeData).executionId === execId)) {
           newNodes.push({
-            id: docId,
+            id: canvasId,
             type: 'assetType',
             position: { x: 0, y: 0 },
             data: {
-              id: docId,
+              id: canvasId,
+              assetId: docId,
               executionId: execId,
+              executionName: execName,
               documentTypeId: docTypeId,
               name: docName,
-              color: '#94a3b8',
+              color: docTypeColor || '#94a3b8',
               onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+              onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
               onRemove: handleRemoveNode,
             },
           })
         }
-        return docId
+        return canvasId
       }
 
       for (const rel of allRels) {
         const srcDocId = rel.source_execution.document_id
         const tgtDocId = rel.target_execution.document_id
 
-        ensureNode(srcDocId, rel.source_execution.id, rel.source_execution.document_name, rel.source_execution.document_type_id)
-        ensureNode(tgtDocId, rel.target_execution.id, rel.target_execution.document_name, rel.target_execution.document_type_id)
+        const srcCanvasId = ensureNode(srcDocId, rel.source_execution.id, rel.source_execution.name, rel.source_execution.document_name, rel.source_execution.document_type_id, rel.source_execution.document_type_color ?? '')
+        const tgtCanvasId = ensureNode(tgtDocId, rel.target_execution.id, rel.target_execution.name, rel.target_execution.document_name, rel.target_execution.document_type_id, rel.target_execution.document_type_color ?? '')
 
         const edgeId = `exec-rel-${rel.id}`
         if (!currentEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
           const pairCount = getEdges().filter(
-            (e) => e.source === srcDocId && e.target === tgtDocId,
+            (e) => e.source === srcCanvasId && e.target === tgtCanvasId,
           ).length
 
           newEdges.push({
             id: edgeId,
-            source: srcDocId,
-            target: tgtDocId,
+            source: srcCanvasId,
+            target: tgtCanvasId,
             type: 'relationship',
             markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
@@ -777,10 +907,116 @@ function RelationshipsCanvasFlow({
     [getNodes, doLoadExecutionRelationships, t],
   )
 
-  // Keep ref in sync so nodes created during load can reference the latest handler
+  // ─── Load execution relationships — canvas-only (no new nodes, only edges between existing executions) ───
+  const handleLoadExecRelCanvasOnly = useCallback(
+    async (nodeId: string) => {
+      const node = getNodes().find((n) => n.id === nodeId)
+      const nodeData = node?.data as AssetTypeNodeData | undefined
+      if (!nodeData?.executionId) {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: nodeData?.name ?? '' }))
+        return
+      }
+      const orgId = organizationIdRef.current
+      const relData = await getExecutionRelationshipsByExecution(orgId, nodeData.executionId, {
+        page: 1,
+        page_size: 1000,
+        include_subrelationships: true,
+      })
+      if (!relData?.data?.length) return
+
+      const allRelsMap = new Map<string, ExecutionRelationshipSubitem>()
+      for (const item of relData.data) {
+        if (!allRelsMap.has(item.id)) allRelsMap.set(item.id, item)
+        for (const sub of item.relationship_source) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+        for (const sub of item.relationship_target) {
+          if (!allRelsMap.has(sub.id)) allRelsMap.set(sub.id, sub)
+        }
+      }
+      const allRels = Array.from(allRelsMap.values())
+
+      const currentNodes = getNodes()
+      const existingEdges = getEdges()
+      const existingEdgeIds = new Set(existingEdges.map((e) => e.id))
+      const newEdges: Edge[] = []
+
+      // Build map of executionId → canvas node id
+      const execToNodeId = new Map<string, string>()
+      for (const n of currentNodes) {
+        const nd = n.data as AssetTypeNodeData
+        if (nd.executionId) execToNodeId.set(nd.executionId, n.id)
+      }
+
+      // Count existing edges per pair for parallel offset
+      const existingCountPerPair = new Map<string, number>()
+      existingEdges.forEach((e) => {
+        const key = `${e.source}::${e.target}`
+        existingCountPerPair.set(key, (existingCountPerPair.get(key) ?? 0) + 1)
+      })
+
+      for (const rel of allRels) {
+        const srcExecId = rel.source_execution.id
+        const tgtExecId = rel.target_execution.id
+        // Only draw edges between executions already on canvas
+        if (!execToNodeId.has(srcExecId) || !execToNodeId.has(tgtExecId)) continue
+        const srcCanvasId = execToNodeId.get(srcExecId)!
+        const tgtCanvasId = execToNodeId.get(tgtExecId)!
+        const edgeId = `exec-rel-${rel.id}`
+        if (!existingEdgeIds.has(edgeId) && !newEdges.some((e) => e.id === edgeId)) {
+          const pairKey = `${srcCanvasId}::${tgtCanvasId}`
+          const existingCount = existingCountPerPair.get(pairKey) ?? 0
+          const total = existingCount + 1
+          newEdges.push({
+            id: edgeId,
+            source: srcCanvasId,
+            target: tgtCanvasId,
+            type: 'relationship',
+            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
+            data: {
+              relationshipId: rel.id,
+              name: rel.document_type_relationship.name,
+              minCount: rel.document_type_relationship.min_count,
+              maxCount: rel.document_type_relationship.max_count,
+              pathOffset: parallelOffset(existingCount, total),
+              onEdit: () => {
+                setEditingExecRelationship({
+                  id: rel.id,
+                  document_type_relationship_id: rel.document_type_relationship.id,
+                  source_execution_id: rel.source_execution.id,
+                  target_execution_id: rel.target_execution.id,
+                  attributes: rel.attributes,
+                  created_at: '',
+                  updated_at: '',
+                  created_by: null,
+                  updated_by: null,
+                })
+                setEditingExecRelName(rel.document_type_relationship.name)
+              },
+              onDelete: () => {
+                setDeletingExecRelId(rel.id)
+                setDeletingExecRelName(rel.document_type_relationship.name)
+              },
+              onManageAttributes: undefined,
+            } satisfies RelationshipEdgeData,
+          })
+          existingEdgeIds.add(edgeId)
+          existingCountPerPair.set(pairKey, total)
+        }
+      }
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getNodes, getEdges, setEdges, t],
+  )
+
+  // Keep refs in sync so nodes created during load can reference the latest handlers
   useEffect(() => {
     handleLoadExecRelRef.current = handleLoadExecutionRelationships
   }, [handleLoadExecutionRelationships])
+  useEffect(() => {
+    handleLoadExecRelCanvasOnlyRef.current = handleLoadExecRelCanvasOnly
+  }, [handleLoadExecRelCanvasOnly])
   useEffect(() => {
     const nodeIds = new Set(nodes.map((n) => n.id))
     setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
@@ -861,10 +1097,17 @@ function RelationshipsCanvasFlow({
           return (
             <NodePanel
               nodeId={nodeData.id}
+              assetId={nodeData.assetId}
               nodeName={nodeData.name}
               nodeColor={nodeData.color}
+              assetTypeName={
+                mode === 'execution' && nodeData.documentTypeId
+                  ? docTypeMap.get(nodeData.documentTypeId)?.name
+                  : undefined
+              }
               nodeActions={nodeActions}
-              onLoadRelationships={nodeData.onLoadRelationships ? handleLoadRelationships : undefined}
+              onLoadRelationships={nodeData.onLoadRelationships ? (mode === 'execution' ? handleLoadExecutionRelationships : handleLoadRelationships) : undefined}
+              onLoadRelationshipsCanvasOnly={nodeData.onLoadRelationships ? (mode === 'execution' ? handleLoadExecRelCanvasOnly : handleLoadRelationshipsCanvasOnly) : undefined}
               onClose={() => setSelectedNodeId(null)}
               mode={mode}
               executionId={nodeData.executionId}
@@ -898,14 +1141,14 @@ function RelationshipsCanvasFlow({
           onOpenChange={(o) => !o && setPendingConnection(null)}
           organizationId={organizationId}
           source={{
-            assetId: pendingConnection.sourceId,
+            assetId: pendingConnection.sourceAssetId ?? pendingConnection.sourceId,
             name: pendingConnection.sourceName ?? pendingConnection.sourceId,
             color: pendingConnection.sourceColor,
             documentTypeId: pendingConnection.sourceDocumentTypeId,
             executionId: pendingConnection.sourceExecutionId,
           }}
           target={{
-            assetId: pendingConnection.targetId,
+            assetId: pendingConnection.targetAssetId ?? pendingConnection.targetId,
             name: pendingConnection.targetName ?? pendingConnection.targetId,
             color: pendingConnection.targetColor,
             documentTypeId: pendingConnection.targetDocumentTypeId,
@@ -933,7 +1176,7 @@ function RelationshipsCanvasFlow({
             open={!!pendingExecLoad}
             onOpenChange={(o) => !o && setPendingExecLoad(null)}
             organizationId={organizationId}
-            assetId={pendingExecLoad}
+            assetId={pendingData?.assetId ?? pendingExecLoad}
             assetName={pendingData?.name ?? pendingExecLoad}
             onSelect={(executionId) => {
               doLoadExecutionRelationships(pendingExecLoad, executionId)

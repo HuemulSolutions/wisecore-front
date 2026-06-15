@@ -1,24 +1,30 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import type { SectionFormField } from "@/types/sections/core";
 
 export async function createSection(
-    sectionData: { 
-        name: string; 
+    sectionData: {
+        name: string;
         document_id: string;
-        execution_id?: string;
-        prompt?: string; 
-        output?: string;
+        prompt?: string;
+        design_prompt?: string;
+        generate_content?: boolean;
+        generate_design?: boolean;
+        html_template_identifier?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
-        dependencies?: string[]; 
-        type?: "ai" | "manual" | "reference";
-    }, 
+        dependencies?: string[];
+        type?: "ai" | "manual" | "reference" | "form";
+        form_fields?: SectionFormField[];
+        execution_id?: string;
+        output?: string;
+    },
     organizationId: string
 ) {
     const response = await httpClient.post(`${backendUrl}/sections/`, {
         ...sectionData,
-        type: sectionData.type || "ai" // Asegurar que siempre se envíe el tipo
+        type: sectionData.type || "ai"
     }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -31,18 +37,23 @@ export async function createSection(
 }
 
 export async function updateSection(
-    sectionId: string, 
-    sectionData: { 
-        name?: string; 
-        type?: "ai" | "manual" | "reference";
-        prompt?: string; 
+    sectionId: string,
+    sectionData: {
+        name?: string;
+        type?: "ai" | "manual" | "reference" | "form";
+        prompt?: string;
+        design_prompt?: string;
+        generate_content?: boolean;
+        generate_design?: boolean;
+        html_template_identifier?: string;
         output?: string;
         reference_section_id?: string;
         reference_mode?: string;
         reference_execution_id?: string;
-        dependencies?: string[]; 
+        dependencies?: string[];
         propagate_to_template?: boolean;
-    }, 
+        form_fields?: SectionFormField[];
+    },
     organizationId: string
 ) {
     const response = await httpClient.put(`${backendUrl}/sections/${sectionId}`, sectionData, {

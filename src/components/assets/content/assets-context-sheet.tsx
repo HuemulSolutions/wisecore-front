@@ -46,7 +46,7 @@ export function ContextSheet({
           icon={Users}
           iconClassName={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}
           label={isMobile ? undefined : t('sheet.buttonLabel')}
-          title={t('sheet.manageContext')}
+          tooltip={t('sheet.manageContext')}
           className={isMobile
             ? "h-7 w-7 p-0 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors rounded-full"
             : "h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"

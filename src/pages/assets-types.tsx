@@ -1,12 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import { Edit2, Activity, Copy, Trash2 } from "lucide-react"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { useAssetTypesWithRoles, useAssetTypeMutations } from "@/hooks/useAssetTypes"
+import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
+import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
+import type { CanvasNodeAction } from "@/types/document-type-relationships"
 
 // Components
 import {
@@ -18,9 +23,15 @@ import {
   AssetTypeContentEmptyState,
   type AssetTypePageState
 } from "@/components/assets-types"
+import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-type-relationships"
+import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 
+const RELATIONSHIP_PAGE_SIZE = 100
+
 export default function AssetTypesPage() {
+  const { t } = useTranslation('asset-types')
   const [state, setState] = useState<AssetTypePageState>({
     searchTerm: "",
     editingAssetType: null,
@@ -34,10 +45,15 @@ export default function AssetTypesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [viewMode, setViewMode] = useState<'table' | 'relationships'>('table')
+  const [relSearchInput, setRelSearchInput] = useState("")
+  const [relSearch, setRelSearch] = useState("")
+  const [relPage, setRelPage] = useState(1)
 
   // Permisos
   const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
+  const { selectedOrganizationId } = useOrganization()
   
   // Permisos específicos
   const canListDocumentTypes = isRootAdmin || hasAnyPermission(['asset_type:l', 'asset_type:r'])
@@ -49,11 +65,80 @@ export default function AssetTypesPage() {
   const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
   const assetTypeMutations = useAssetTypeMutations()
 
+  // Fetch document types for the relationship canvas
+  const { data: docTypesResponse, isLoading: isLoadingDocTypes, isFetching: isFetchingDocTypes, refetch: refetchDocTypes } = useDocumentTypes({
+    search: relSearch || undefined,
+    enabled: canListDocumentTypes && viewMode === 'relationships',
+  })
+  const documentTypes = docTypesResponse?.data ?? []
+
   const { showPageLoader, isTableLoading, isTableFetching } = useTableLoadingState({
     isLoading,
     isFetching,
     hasData: !!assetTypesResponse,
   })
+
+  // State update helpers (defined early so nodeActions can use them)
+  const updateState = (updates: Partial<AssetTypePageState>) => {
+    setState((prev: AssetTypePageState) => ({ ...prev, ...updates }))
+  }
+
+  const closeDialog = (dialog: keyof AssetTypePageState) => {
+    setState((prev: AssetTypePageState) => ({ ...prev, [dialog]: null }))
+  }
+
+  // Node actions for relationship canvas
+  function toMinimalAssetType(id: string, name: string, color: string): AssetTypeWithRoles {
+    return {
+      document_type_id: id,
+      document_type_name: name,
+      document_type_color: color,
+      document_type_created_date: "",
+      document_count: 0,
+      roles: [],
+    }
+  }
+
+  const nodeActions: CanvasNodeAction[] = [
+    ...(canUpdateDocumentType ? [{
+      key: "edit",
+      label: t('actions.editAssetType'),
+      icon: Edit2,
+      onClick: (nodeId: string) => {
+        const node = documentTypes.find((d) => d.id === nodeId)
+        updateState({ editingAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
+      },
+    }] : []),
+    ...(canUpdateDocumentType ? [{
+      key: "lifecycle",
+      label: t('actions.lifecycle'),
+      icon: Activity,
+      onClick: (nodeId: string) => {
+        const node = documentTypes.find((d) => d.id === nodeId)
+        updateState({ lifecycleAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
+      },
+    }] : []),
+    ...(canCreateDocumentType ? [{
+      key: "clone",
+      label: t('actions.cloneAssetType'),
+      icon: Copy,
+      onClick: (nodeId: string) => {
+        const node = documentTypes.find((d) => d.id === nodeId)
+        updateState({ cloningAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
+      },
+    }] : []),
+    ...(canDeleteDocumentType ? [{
+      key: "delete",
+      label: t('actions.deleteAssetType'),
+      icon: Trash2,
+      onClick: (nodeId: string) => {
+        const node = documentTypes.find((d) => d.id === nodeId)
+        updateState({ deletingAssetType: toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8") })
+      },
+      destructive: true,
+      separator: true,
+    }] : []),
+  ]
 
   // Loading permissions check
   if (isLoadingPermissions) {
@@ -71,15 +156,6 @@ export default function AssetTypesPage() {
   }
 
   const assetTypes = assetTypesResponse?.data || []
-
-  // State update helpers
-  const updateState = (updates: Partial<AssetTypePageState>) => {
-    setState((prev: AssetTypePageState) => ({ ...prev, ...updates }))
-  }
-
-  const closeDialog = (dialog: keyof AssetTypePageState) => {
-    setState((prev: AssetTypePageState) => ({ ...prev, [dialog]: null }))
-  }
 
   // Function to refresh data
   const handleRefresh = async () => {
@@ -113,9 +189,20 @@ export default function AssetTypesPage() {
     updateState({ viewRelationshipsAssetType: assetType })
   }
 
+  const relTotalItems = documentTypes.length
+  const relHasNext = relPage * RELATIONSHIP_PAGE_SIZE < relTotalItems
+  const relHasPrevious = relPage > 1
+
+  const handleRelSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setRelSearch(relSearchInput)
+    setRelPage(1)
+  }
+
   return (
     <>
       <HuemulPageLayout
+        key={viewMode}
         header={
           <AssetTypePageHeader
             assetTypeCount={assetTypes.length}
@@ -129,10 +216,12 @@ export default function AssetTypesPage() {
               setPage(1)
             }}
             canCreate={canCreateDocumentType}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
-        columns={[
+        columns={viewMode === 'table' ? [
           {
             content: error ? (
               <AssetTypeContentEmptyState
@@ -172,6 +261,62 @@ export default function AssetTypesPage() {
               />
             ),
             className: "p-6 md:p-8 pt-0 md:pt-0",
+          },
+        ] : [
+          {
+            header: {
+              content: (
+                <div className="px-3 py-2 border-b bg-muted/20">
+                  <form onSubmit={handleRelSearchSubmit}>
+                    <HuemulField
+                      type="text"
+                      value={relSearchInput}
+                      onChange={(v) => setRelSearchInput(v as string)}
+                      placeholder={t('header.searchPlaceholder')}
+                      className="gap-0"
+                      inputClassName="h-8 text-xs"
+                    />
+                  </form>
+                </div>
+              ),
+            },
+            content: (
+              <AssetTypeSidebar
+                items={documentTypes}
+                isLoading={isLoadingDocTypes}
+                isFetching={isFetchingDocTypes}
+                page={relPage}
+                pageSize={RELATIONSHIP_PAGE_SIZE}
+                onRefresh={refetchDocTypes}
+              />
+            ),
+            defaultSize: 20,
+            minSize: 15,
+            maxSize: 35,
+            className: "overflow-hidden",
+            footer: {
+              content: (
+                <HuemulPagination
+                  page={relPage}
+                  pageSize={RELATIONSHIP_PAGE_SIZE}
+                  hasNext={relHasNext}
+                  hasPrevious={relHasPrevious}
+                  onPageChange={setRelPage}
+                />
+              ),
+            },
+          },
+          {
+            content: (
+              <RelationshipsCanvas
+                organizationId={selectedOrganizationId ?? ""}
+                documentTypes={documentTypes}
+                nodeActions={nodeActions}
+              />
+            ),
+            defaultSize: 80,
+            minSize: 50,
+            className: "overflow-hidden",
           },
         ]}
       />

@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sparkles, Loader2, X, Plus, Trash2 } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
 import { FileTree } from "@/components/assets/content/assets-file-tree";
@@ -14,10 +16,15 @@ import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
+import type { SectionFormField } from "@/types/sections/core";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
 import type { SectionFormProps } from '@/types/sections';
 export type { SectionFormProps } from '@/types/sections';
+
+const DATA_TYPE_OPTIONS = [
+  "string", "int", "date", "time", "datetime", "decimal", "bool", "image", "url"
+] as const;
 
 export function SectionForm({ 
   mode,
@@ -29,8 +36,9 @@ export function SectionForm({
   onSubmit, 
   isPending = false, 
   existingSections = [], 
-  onValidationChange, 
+  onValidationChange,
   onGeneratingChange,
+  onDirtyChange,
   hasTemplate = false,
   isTemplateSection = false,
   defaultType,
@@ -40,10 +48,18 @@ export function SectionForm({
   const { selectedOrganizationId } = useOrganization();
   const promptEditorRef = useRef<SectionPlateEditorRef>(null);
   const manualEditorRef = useRef<SectionPlateEditorRef>(null);
+  const isInitialSyncDone = useRef(false);
+
+  const markDirty = useCallback(() => {
+    if (isInitialSyncDone.current) {
+      onDirtyChange?.(true);
+    }
+  }, [onDirtyChange]);
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
-  const [type, setType] = useState<"ai" | "manual" | "reference">(mode === 'edit' && item ? (item as any).type || "ai" : (defaultType || "ai"));
+  const [type, setType] = useState<"ai" | "manual" | "reference" | "form">(mode === 'edit' && item ? (item as any).type || "ai" : (defaultType || "ai"));
+  const [formFields, setFormFields] = useState<SectionFormField[]>(mode === 'edit' && item ? item.form_fields || [] : []);
   const [prompt, setPrompt] = useState(mode === 'edit' && item ? item.prompt : "");
   // Key para forzar el render del editor cuando cambia el prompt generado
   const [editorKey, setEditorKey] = useState(0);
@@ -192,42 +208,52 @@ export function SectionForm({
       setSelectedSection(null);
       setReferenceSectionId("");
       setReferenceExecutionId("");
+      markDirty();
     }
   };
 
   // Sincronizar con item cuando cambie (modo edit)
   useEffect(() => {
-    if (mode === 'edit' && item) {
-      setName(item.name);
-      setType((item as any).type || "ai");
-      setPrompt(item.prompt);
-      const manualInputValue = (item as any).manual_input || "";
-      setManualInput(manualInputValue);
-      const refSectionId = (item as any).reference_section_id || "";
-      const refDocumentId = (item as any).referenced_document_id || "";
-      setReferenceSectionId(refSectionId);
-      setReferenceMode((item as any).reference_mode || "latest");
-      setReferenceExecutionId((item as any).reference_execution_id || "");
-      setSelectedDependencies([...item.dependencies]);
-      
-      // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
-      if (refSectionId && refDocumentId && (item as any).type === 'reference') {
-        // Establecer el asset seleccionado usando referenced_document_id
-        setSelectedAsset({ id: refDocumentId, name: `Asset ${refDocumentId.slice(0, 8)}...` });
-        // Establecer la sección seleccionada usando reference_section_id
-        setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
-      }
-      
-      // PlateRichEditor se re-inicializa con key={editorKey} + initialMarkdown
-      if (editorType === 'rich') {
-        setEditorKey(prev => prev + 1);
-      }
+    if (mode !== 'edit' || !item) return;
+
+    isInitialSyncDone.current = false;
+    setName(item.name);
+    setType((item as any).type || "ai");
+    setPrompt(item.prompt);
+    const manualInputValue = (item as any).manual_input || "";
+    setManualInput(manualInputValue);
+    const refSectionId = (item as any).reference_section_id || "";
+    const refDocumentId = (item as any).referenced_document_id || "";
+    setReferenceSectionId(refSectionId);
+    setReferenceMode((item as any).reference_mode || "latest");
+    setReferenceExecutionId((item as any).reference_execution_id || "");
+    setSelectedDependencies([...item.dependencies]);
+    setFormFields(item.form_fields || []);
+
+    // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
+    if (refSectionId && refDocumentId && (item as any).type === 'reference') {
+      // Establecer el asset seleccionado usando referenced_document_id
+      setSelectedAsset({ id: refDocumentId, name: `Asset ${refDocumentId.slice(0, 8)}...` });
+      // Establecer la sección seleccionada usando reference_section_id
+      setSelectedSection({ id: refSectionId, name: `Section ${refSectionId.slice(0, 8)}...` });
     }
+
+    // PlateRichEditor se re-inicializa con key={editorKey} + initialMarkdown
+    if (editorType === 'rich') {
+      setEditorKey(prev => prev + 1);
+    }
+
+    // Plate fires onChange during initial normalization — delay the flag so those
+    // initialization events don't incorrectly mark the form as dirty.
+    const timer = setTimeout(() => {
+      isInitialSyncDone.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
   }, [item, mode, editorType]);
 
   const handleGeneratePrompt = async () => {
     if (!name.trim()) return;
-    
+    markDirty();
     setIsGenerating(true);
     let accumulatedText = "";
     try {
@@ -255,19 +281,39 @@ export function SectionForm({
     }
   };
 
+  const addFormField = () => {
+    setFormFields(prev => [
+      ...prev,
+      { field_id: '', field_name: '', data_type: 'string', required: false, order: prev.length + 1 }
+    ]);
+    markDirty();
+  };
+
+  const updateFormField = (index: number, patch: Partial<SectionFormField>) => {
+    setFormFields(prev => prev.map((f, i) => i === index ? { ...f, ...patch } : f));
+    markDirty();
+  };
+
+  const removeFormField = (index: number) => {
+    setFormFields(prev => prev.filter((_, i) => i !== index));
+    markDirty();
+  };
+
   const addDependency = (sectionId: string) => {
     if (!selectedDependencies.some(dep => dep.id === sectionId)) {
       const sectionInfo = existingSections.find(section => section.id === sectionId);
       setSelectedDependencies(prev => [
-        ...prev, 
+        ...prev,
         { id: sectionId, name: sectionInfo?.name || `Section ${sectionId}` }
       ]);
+      markDirty();
     }
     setSelectValue("");
   };
 
   const removeDependency = (sectionId: string) => {
     setSelectedDependencies(prev => prev.filter(dep => dep.id !== sectionId));
+    markDirty();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -308,6 +354,8 @@ export function SectionForm({
         if (referenceMode === "specific") {
           submitData.reference_execution_id = referenceExecutionId;
         }
+      } else if (type === "form") {
+        submitData.form_fields = formFields;
       }
 
       if (templateId) {
@@ -318,7 +366,8 @@ export function SectionForm({
       } else if (documentId) {
         submitData.document_id = documentId;
       }
-      
+
+      onDirtyChange?.(false);
       onSubmit(submitData);
     } else {
       // Modo edit
@@ -328,7 +377,7 @@ export function SectionForm({
         type: type,
         order: item!.order
       };
-      
+
       // Agregar campos según el tipo
       if (type === "ai") {
         submitData.prompt = prompt.trim();
@@ -348,6 +397,8 @@ export function SectionForm({
         if (referenceMode === "specific") {
           submitData.reference_execution_id = referenceExecutionId;
         }
+      } else if (type === "form") {
+        submitData.form_fields = formFields;
       }
       
       if (hasTemplate) {
@@ -357,13 +408,15 @@ export function SectionForm({
       if (isTemplateSection) {
         submitData.propagate_to_sections = propagatePrompt;
       }
-      
+
+      onDirtyChange?.(false);
       onSubmit(submitData);
     }
   };
 
   const handlePromptChange = (value: string) => {
     setPrompt(value);
+    markDirty();
   };
 
   // Filtrar secciones disponibles
@@ -379,7 +432,7 @@ export function SectionForm({
   // Notificar cambios en la validación
   const isFormValid = (() => {
     if (!name.trim() || isGenerating) return false;
-    
+
     if (type === "ai") {
       return prompt.trim().length > 0;
     } else if (type === "manual") {
@@ -388,8 +441,14 @@ export function SectionForm({
       if (!referenceSectionId || !referenceMode) return false;
       if (referenceMode === "specific" && !referenceExecutionId) return false;
       return true;
+    } else if (type === "form") {
+      if (formFields.length === 0) return false;
+      const allFilled = formFields.every(f => f.field_id.trim() && f.field_name.trim());
+      const ids = formFields.map(f => f.field_id.trim());
+      const unique = new Set(ids).size === ids.length;
+      return allFilled && unique;
     }
-    
+
     return false;
   })();
   
@@ -414,7 +473,7 @@ export function SectionForm({
         name="section-name"
         placeholder={t('form.sectionName.placeholder')}
         value={name}
-        onChange={(val) => setName(val as string)}
+        onChange={(val) => { setName(val as string); markDirty(); }}
         disabled={isPending || isFromTemplate}
         autoFocus={mode === 'create'}
         autoComplete="off"
@@ -431,15 +490,17 @@ export function SectionForm({
           { value: "ai", label: t('form.sectionType.optionAi') },
           { value: "manual", label: t('form.sectionType.optionManual') },
           { value: "reference", label: t('form.sectionType.optionReference') },
+          { value: "form", label: t('form.sectionType.optionForm') },
         ]}
         value={type}
-        onChange={(val) => setType(val as "ai" | "manual" | "reference")}
+        onChange={(val) => { setType(val as "ai" | "manual" | "reference" | "form"); markDirty(); }}
         disabled={isPending}
         placeholder={t('form.sectionType.placeholder')}
         description={
           type === "ai" ? t('form.sectionType.descriptionAi') :
           type === "manual" ? t('form.sectionType.descriptionManual') :
-          t('form.sectionType.descriptionReference')
+          type === "reference" ? t('form.sectionType.descriptionReference') :
+          t('form.sectionType.descriptionForm')
         }
       />
 
@@ -492,6 +553,8 @@ export function SectionForm({
                 hideActions={true}
                 enableComments={false}
                 enableCreateSection={false}
+                organizationId={selectedOrganizationId ?? undefined}
+                documentId={documentId}
                 onValueChange={() => {
                   const md = promptEditorRef.current?.getMarkdown?.() || "";
                   handlePromptChange(md);
@@ -562,6 +625,9 @@ export function SectionForm({
             hideActions={true}
             enableComments={false}
             enableCreateSection={false}
+            organizationId={selectedOrganizationId ?? undefined}
+            documentId={documentId}
+            onValueChange={() => markDirty()}
           />
           <p className="text-xs text-gray-500">
             {t('form.manualInput.description')}
@@ -592,6 +658,7 @@ export function SectionForm({
                     setSelectedSection(null);
                     setReferenceSectionId("");
                     setReferenceExecutionId("");
+                    markDirty();
                   }}
                   disabled={isPending}
                   icon={X}
@@ -630,6 +697,7 @@ export function SectionForm({
                   setReferenceSectionId(sectionId);
                   const section = assetSections?.find((s: any) => s.id === sectionId);
                   if (section) setSelectedSection({ id: section.id, name: section.name });
+                  markDirty();
                 }}
                 disabled={isPending || isLoadingSections}
                 placeholder={isLoadingSections ? t('form.reference.sectionPlaceholderLoading') : t('form.reference.sectionPlaceholder')}
@@ -650,6 +718,7 @@ export function SectionForm({
                   const mode = val as "latest" | "specific";
                   setReferenceMode(mode);
                   if (mode === "latest") setReferenceExecutionId("");
+                  markDirty();
                 }}
                 disabled={isPending || !selectedAsset || !referenceSectionId}
                 placeholder={t('form.reference.modePlaceholder')}
@@ -698,7 +767,7 @@ export function SectionForm({
               required
               options={availableExecutions.map((exec: any) => ({ value: exec.id, label: exec.name || "Unnamed Execution" }))}
               value={referenceExecutionId}
-              onChange={(val) => setReferenceExecutionId(val as string)}
+              onChange={(val) => { setReferenceExecutionId(val as string); markDirty(); }}
               disabled={isPending || isLoadingExecutions}
               placeholder={isLoadingExecutions ? t('form.reference.executionPlaceholderLoading') : t('form.reference.executionPlaceholder')}
               description={t('form.reference.executionDescription')}
@@ -708,13 +777,107 @@ export function SectionForm({
         </>
       )}
 
+      {/* Campos específicos para tipo Form */}
+      {type === "form" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-gray-700">
+              {t('form.formFields.label')} <span className="text-red-500">*</span>
+            </Label>
+            <HuemulButton
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={addFormField}
+              disabled={isPending}
+              className="h-7 text-xs"
+              icon={Plus}
+            >
+              {t('form.formFields.addField')}
+            </HuemulButton>
+          </div>
+
+          {formFields.length === 0 ? (
+            <p className="text-xs text-gray-500 italic">{t('form.formFields.emptyState')}</p>
+          ) : (
+            <div className="space-y-2">
+              {formFields.map((field, index) => {
+                const isDuplicate = formFields.some(
+                  (f, i) => i !== index && f.field_id.trim() && f.field_id.trim() === field.field_id.trim()
+                );
+                return (
+                  <div key={index} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-start p-2 border rounded-md bg-gray-50">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">{t('form.formFields.fieldId')} *</Label>
+                      <Input
+                        value={field.field_id}
+                        onChange={(e) => updateFormField(index, { field_id: e.target.value })}
+                        placeholder="field_id"
+                        className={`h-7 text-xs ${isDuplicate ? 'border-red-400' : ''}`}
+                        disabled={isPending}
+                      />
+                      {isDuplicate && (
+                        <p className="text-xs text-red-500">{t('form.formFields.duplicateFieldId')}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">{t('form.formFields.fieldName')} *</Label>
+                      <Input
+                        value={field.field_name}
+                        onChange={(e) => updateFormField(index, { field_name: e.target.value })}
+                        placeholder="Field Name"
+                        className="h-7 text-xs"
+                        disabled={isPending}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-600">{t('form.formFields.dataType')}</Label>
+                      <select
+                        value={field.data_type}
+                        onChange={(e) => updateFormField(index, { data_type: e.target.value as SectionFormField['data_type'] })}
+                        className="h-7 text-xs border border-gray-200 rounded px-1 bg-white"
+                        disabled={isPending}
+                      >
+                        {DATA_TYPE_OPTIONS.map(dt => (
+                          <option key={dt} value={dt}>{dt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1 flex flex-col items-center">
+                      <Label className="text-xs text-gray-600">{t('form.formFields.required')}</Label>
+                      <Checkbox
+                        checked={field.required ?? false}
+                        onCheckedChange={(checked) => updateFormField(index, { required: !!checked })}
+                        disabled={isPending}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex items-end pb-0.5">
+                      <HuemulButton
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFormField(index)}
+                        disabled={isPending}
+                        icon={Trash2}
+                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Propagate to Template - Solo mostrar en modo edit cuando hasTemplate es true */}
       {mode === 'edit' && hasTemplate && (
         <HuemulField
           type="checkbox"
           label={t('form.propagate.toTemplate')}
           value={propagateToTemplate}
-          onChange={(val) => setPropagateToTemplate(val as boolean)}
+          onChange={(val) => { setPropagateToTemplate(val as boolean); markDirty(); }}
           disabled={isPending}
         />
       )}
@@ -725,7 +888,7 @@ export function SectionForm({
           type="checkbox"
           label={t('form.propagate.toAssets')}
           value={propagateToAssets}
-          onChange={(val) => setPropagateToAssets(val as boolean)}
+          onChange={(val) => { setPropagateToAssets(val as boolean); markDirty(); }}
           disabled={isPending}
         />
       )}
@@ -736,7 +899,7 @@ export function SectionForm({
           type="checkbox"
           label={t('form.propagate.toAssetsSections')}
           value={propagatePrompt}
-          onChange={(val) => setPropagatePrompt(val as boolean)}
+          onChange={(val) => { setPropagatePrompt(val as boolean); markDirty(); }}
           disabled={isPending}
         />
       )}
@@ -761,6 +924,11 @@ export function SectionForm({
         {type === "reference" && referenceMode === "specific" && selectedAsset && !referenceExecutionId && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
             ⚠️ {t('form.validation.selectExecution')}
+          </div>
+        )}
+        {type === "form" && formFields.length === 0 && (
+          <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            ⚠️ {t('form.validation.formFieldsRequired')}
           </div>
         )}
       </div>

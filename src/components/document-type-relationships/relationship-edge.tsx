@@ -97,6 +97,41 @@ function getEdgeParams(source: InternalNode, target: InternalNode) {
   return { sx, sy, tx, ty, sourcePos, targetPos }
 }
 
+// ─── Self-loop path helper ────────────────────────────────────────────────────
+
+/**
+ * Builds a smooth oval arc that goes above the node using an SVG arc command.
+ * Source = left-center, Target = right-center of the node.
+ * Stacked loops grow the oval height/width via `loopIndex`.
+ */
+function getSelfLoopPath(
+  node: InternalNode,
+  loopIndex: number = 0,
+): [string, number, number] {
+  const center = getNodeCenter(node)
+  const halfW = (node.measured.width ?? 120) / 2
+
+  // Connect left-center → right-center of the node
+  const sx = center.x - halfW
+  const sy = center.y
+  const tx = center.x + halfW
+  const ty = center.y
+
+  // rx slightly wider than the node so the oval doesn't look cramped
+  const rx = halfW + 20 + loopIndex * 14
+  // ry controls the arc height above the node
+  const ry = 55 + loopIndex * 20
+
+  // large-arc=1, sweep=1 → clockwise in SVG (Y-down) → arc goes ABOVE the node
+  const path = `M ${sx} ${sy} A ${rx} ${ry} 0 1 1 ${tx} ${ty}`
+
+  // Label at the apex of the arc: ellipse top = center.y - ry
+  const labelX = center.x
+  const labelY = center.y - ry - 16
+
+  return [path, labelX, labelY]
+}
+
 // ─── Edge component ────────────────────────────────────────────────────────────
 
 export function RelationshipEdge({
@@ -113,23 +148,34 @@ export function RelationshipEdge({
 
   if (!sourceNode || !targetNode) return null
 
-  const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeParams(sourceNode, targetNode)
-
-  // Vary curvature to separate parallel edges; offset units come from parallelOffset()
+  const isSelfLoop = source === target
   const offset = edgeData.pathOffset ?? 0
-  const curvature = 0.25 + (offset / 14) * 0.35
-
   const strokeColor = selected ? "var(--primary)" : "var(--muted-foreground)"
 
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX: sx,
-    sourceY: sy,
-    sourcePosition: sourcePos,
-    targetX: tx,
-    targetY: ty,
-    targetPosition: targetPos,
-    curvature,
-  })
+  let edgePath: string
+  let labelX: number
+  let labelY: number
+
+  if (isSelfLoop) {
+    // Convert the raw pathOffset (…-28, -14, 0, 14, 28…) to a 0-based index
+    const loopIndex = Math.round(Math.abs(offset) / 14)
+    ;[edgePath, labelX, labelY] = getSelfLoopPath(sourceNode, loopIndex)
+  } else {
+    const { sx, sy, tx, ty, sourcePos, targetPos } = getEdgeParams(sourceNode, targetNode)
+
+    // Vary curvature to separate parallel edges; offset units come from parallelOffset()
+    const curvature = 0.25 + (offset / 14) * 0.35
+
+    ;[edgePath, labelX, labelY] = getBezierPath({
+      sourceX: sx,
+      sourceY: sy,
+      sourcePosition: sourcePos,
+      targetX: tx,
+      targetY: ty,
+      targetPosition: targetPos,
+      curvature,
+    })
+  }
 
   return (
     <>

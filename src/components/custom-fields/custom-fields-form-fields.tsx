@@ -1,6 +1,8 @@
 import { HuemulField } from '@/huemul/components/huemul-field';
+import { HuemulButton } from '@/huemul/components/huemul-button';
 import { useTranslation } from 'react-i18next';
-import type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
+import { Plus, Trash2 } from 'lucide-react';
+import type { CustomFieldFormFieldsProps, CustomFieldOption } from '@/types/custom-fields';
 
 export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
 
@@ -9,10 +11,12 @@ export default function CustomFieldFormFields({
   description,
   dataType,
   masc,
+  options,
   onNameChange,
   onDescriptionChange,
   onDataTypeChange,
   onMascChange,
+  onOptionsChange,
   dataTypes,
   formatDataType,
   errors = {},
@@ -20,6 +24,21 @@ export default function CustomFieldFormFields({
   loadingDataTypes = false,
 }: CustomFieldFormFieldsProps) {
   const { t } = useTranslation(['custom-fields', 'common'])
+
+  const handleAddOption = () => {
+    onOptionsChange([...options, { option_id: '', name: '' }])
+  }
+
+  const handleRemoveOption = (index: number) => {
+    onOptionsChange(options.filter((_, i) => i !== index))
+  }
+
+  const handleOptionChange = (index: number, field: keyof CustomFieldOption, value: string) => {
+    const updated = options.map((opt, i) =>
+      i === index ? { ...opt, [field]: value } : opt
+    )
+    onOptionsChange(updated)
+  }
 
   return (
     <div className="space-y-4">
@@ -60,6 +79,67 @@ export default function CustomFieldFormFields({
           value: type,
         }))}
       />
+
+      {dataType === 'list' && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">
+            {t('form.listOptionsLabel')}
+          </p>
+          {errors.options && (
+            <p className="text-sm text-destructive">{errors.options}</p>
+          )}
+          <div className="space-y-2">
+            {options.map((option, index) => (
+              <div key={index} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <HuemulField
+                    type="text"
+                    label={index === 0 ? t('form.optionIdLabel') : undefined}
+                    name={`option_id_${index}`}
+                    placeholder={t('form.optionIdPlaceholder')}
+                    value={option.option_id}
+                    onChange={(v) => handleOptionChange(index, 'option_id', String(v))}
+                    disabled={disabled}
+                    error={errors[`option_${index}_id`]}
+                  />
+                </div>
+                <div className="flex-1">
+                  <HuemulField
+                    type="text"
+                    label={index === 0 ? t('form.optionNameLabel') : undefined}
+                    name={`option_name_${index}`}
+                    placeholder={t('form.optionNamePlaceholder')}
+                    value={option.name}
+                    onChange={(v) => handleOptionChange(index, 'name', String(v))}
+                    disabled={disabled}
+                    error={errors[`option_${index}_name`]}
+                  />
+                </div>
+                <div className={index === 0 ? 'mt-6' : ''}>
+                  <HuemulButton
+                    icon={Trash2}
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={disabled}
+                    onClick={() => handleRemoveOption(index)}
+                    type="button"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <HuemulButton
+            icon={Plus}
+            variant="outline"
+            size="sm"
+            label={t('form.listOptionsAddButton')}
+            disabled={disabled}
+            onClick={handleAddOption}
+            type="button"
+          />
+        </div>
+      )}
+
       <HuemulField
         type="text"
         label={t('form.maskLabel')}

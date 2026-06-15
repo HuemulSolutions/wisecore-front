@@ -8,6 +8,7 @@ import {
   RefreshCw,
   List,
   Info,
+  ShieldCheck,
   BetweenHorizontalStart,
   Link2,
   Users,
@@ -80,6 +81,7 @@ interface MoreOptionsDropdownProps {
   onRefresh: () => void;
   onToggleToc: () => void;
   onOpenInfo: () => void;
+  onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenDependencies: () => void;
   onOpenContext: () => void;
@@ -118,6 +120,7 @@ export function MoreOptionsDropdown({
   onRefresh,
   onToggleToc,
   onOpenInfo,
+  onOpenPermissions,
   onOpenSections,
   onOpenDependencies,
   onOpenContext,
@@ -217,7 +220,7 @@ export function MoreOptionsDropdown({
           </>
         )}
 
-        {/* ── Reader mode: refresh, TOC, info ── */}
+        {/* ── Reader mode: refresh, TOC ── */}
         {isViewMode && (
           <>
             <DropdownMenuItem
@@ -237,15 +240,26 @@ export function MoreOptionsDropdown({
                 {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenInfo, 0)}
-              className="hover:cursor-pointer"
-            >
-              <Info className="mr-2 h-4 w-4" />
-              {t("content.assetInfo")}
-            </DropdownMenuItem>
           </>
         )}
+
+        {/* ── Asset Info (visible in both reader and editor mode) ── */}
+        <DropdownMenuItem
+          onSelect={() => setTimeout(onOpenInfo, 0)}
+          className="hover:cursor-pointer"
+        >
+          <Info className="mr-2 h-4 w-4" />
+          {t("content.assetInfo")}
+        </DropdownMenuItem>
+
+        {/* ── Asset Permissions (always visible) ── */}
+        <DropdownMenuItem
+          onSelect={() => setTimeout(onOpenPermissions, 0)}
+          className="hover:cursor-pointer"
+        >
+          <ShieldCheck className="mr-2 h-4 w-4" />
+          {t("content.assetPermissions")}
+        </DropdownMenuItem>
 
         {/* ── Sections / Dependencies / Context ── */}
         {frontendPermissions.canAccessSectionSheet &&

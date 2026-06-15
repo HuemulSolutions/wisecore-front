@@ -26,6 +26,7 @@ import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
+import type { LibraryContent } from "@/types/folders"
 import { moveDocument, deleteDocument } from "@/services/assets"
 import { CreateAssetDialog } from "@/components/assets/dialogs/assets-create-dialog"
 import { ImportAssetFromFileDialog } from "@/components/assets/dialogs/assets-import-from-file-dialog"
@@ -39,6 +40,51 @@ import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
 import { cn } from "@/lib/utils"
+
+function buildFocusedTree(content: LibraryContent): FileNode[] {
+  const { folders, assets } = content
+
+  const folderMap = new Map<string, FileNode>()
+  for (const f of folders) {
+    folderMap.set(f.id, {
+      id: f.id,
+      name: f.name,
+      type: 'folder',
+      isExpanded: f.is_expanded,
+      hasChildren: true,
+      children: f.is_expanded ? [] : undefined,
+    })
+  }
+
+  for (const f of folders) {
+    if (!f.parent_folder_id) continue
+    const parent = folderMap.get(f.parent_folder_id)
+    if (parent?.isExpanded && parent.children) {
+      parent.children.push(folderMap.get(f.id)!)
+    }
+  }
+
+  const matchFolder = folders.find(f => f.is_match)
+  if (matchFolder) {
+    const matchNode = folderMap.get(matchFolder.id)!
+    if (matchNode?.children) {
+      matchNode.children.push(
+        ...assets.map(a => ({
+          id: a.id,
+          name: a.name,
+          type: 'document' as const,
+          document_type: a.document_type,
+          access_levels: a.access_levels,
+        })),
+      )
+    }
+  }
+
+  return folders
+    .filter(f => f.parent_folder_id === null)
+    .map(f => folderMap.get(f.id)!)
+    .filter(Boolean)
+}
 
 // Context para compartir el fileTreeRef entre header y content
 const NavKnowledgeContext = React.createContext<{
@@ -603,6 +649,10 @@ export function NavKnowledgeContent() {
     return match ? match[1] : null
   }, [location.pathname])
 
+  // Always reflects the current asset in the URL — used by both initial load and refresh
+  const activeAssetIdRef = useRef(activeAssetId)
+  activeAssetIdRef.current = activeAssetId
+
   // Refresh file tree only when organization actually changes (not on mount)
   React.useEffect(() => {
     // If previousOrgId is null, this is the initial mount - skip refresh
@@ -635,30 +685,33 @@ export function NavKnowledgeContent() {
 
       try {
         const isRoot = folderId === null
-        const content = isRoot
-          ? await getLibraryContent(selectedOrganizationId, undefined, rootPageRef.current, rootPageSizeRef.current)
-          : await getLibraryContent(selectedOrganizationId, folderId)
+        const focusAssetId = isRoot ? activeAssetIdRef.current : null
+
+        let content: LibraryContent
+        if (isRoot && focusAssetId) {
+          content = await getLibraryContent(
+            selectedOrganizationId,
+            undefined,
+            rootPageRef.current,
+            rootPageSizeRef.current,
+            undefined,
+            undefined,
+            focusAssetId,
+          )
+        } else if (isRoot) {
+          content = await getLibraryContent(
+            selectedOrganizationId,
+            undefined,
+            rootPageRef.current,
+            rootPageSizeRef.current,
+          )
+        } else {
+          content = await getLibraryContent(selectedOrganizationId, folderId!)
+        }
 
         if (isRoot) {
           setHasNextRootPage(content.has_next)
         }
-
-        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
-          id: item.id,
-          name: item.name,
-          type: 'folder',
-          hasChildren: true,
-        }))
-
-        const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
-          id: item.id,
-          name: item.name,
-          type: 'document',
-          document_type: item.document_type,
-          access_levels: item.access_levels,
-        }))
-
-        const nodes = [...folderNodes, ...assetNodes]
 
         // Store folder and document names for later use in delete dialog
         setFolderNames((prev) => {
@@ -684,17 +737,47 @@ export function NavKnowledgeContent() {
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
-          nodes.forEach((item) => newMap.set(item.id, folderId))
+          if (isRoot && focusAssetId) {
+            content.folders.forEach((f) => newMap.set(f.id, f.parent_folder_id))
+            content.assets.forEach((a) => newMap.set(a.id, a.folder_id))
+          } else {
+            [...content.folders.map(f => f.id), ...content.assets.map(a => a.id)]
+              .forEach((id) => newMap.set(id, folderId))
+          }
           return newMap
         })
 
-        return nodes
+        if (isRoot && focusAssetId) {
+          return buildFocusedTree(content)
+        }
+
+        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: 'folder',
+          hasChildren: true,
+        }))
+
+        const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: 'document',
+          document_type: item.document_type,
+          access_levels: item.access_levels,
+        }))
+
+        return [...folderNodes, ...assetNodes]
       } catch (error) {
         console.error("Error loading folder content:", error)
         return []
       }
     },
     [selectedOrganizationId]
+  )
+
+  const handleRefreshTree = useCallback(
+    () => handleLoadChildren(null),
+    [handleLoadChildren]
   )
 
   const handleFileClick = useCallback(
@@ -970,6 +1053,7 @@ export function NavKnowledgeContent() {
           key={selectedOrganizationId}
           ref={fileTreeRef}
           onLoadChildren={handleLoadChildren}
+          onRefresh={handleRefreshTree}
           onFileClick={handleFileClick}
           onMoveFolder={handleMoveFolder}
           onMoveFile={handleMoveFile}

@@ -91,9 +91,9 @@ function SectionExecutionInner({
     
     // Determine which actions are available based on section type
     const canExecute = sectionType === 'ai' || sectionType === null; // AI sections y null pueden ejecutarse
-    const canEdit = sectionType !== 'reference'; // Manual y AI pueden editarse, reference no
-    const canAiEdit = sectionType !== 'reference'; // Manual y AI pueden usar AI edit, reference no
-    const canDelete = sectionType !== 'reference'; // Manual y AI pueden eliminarse, reference no
+    const canEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden editarse
+    const canAiEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden usar AI edit
+    const canDelete = sectionType !== 'reference'; // Manual, AI y form pueden eliminarse, reference no
     
     // Check if there's an execution in progress
     const isExecutionInProgress = !!(executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus));
@@ -363,7 +363,7 @@ function SectionExecutionInner({
     };
 
     return (
-        <div ref={containerRef} className="p-2 relative">
+        <div ref={containerRef} className={`${readyToEdit ? 'p-2' : 'py-0 px-2'} relative`}>
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
                 <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
@@ -762,6 +762,7 @@ function SectionExecutionInner({
                         isSaving={isSaving}
                         documentId={documentId}
                         sectionExecutionId={sectionExecution.id}
+                        organizationId={selectedOrganizationId ?? undefined}
                         toolbarTopOffset="36px"
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />

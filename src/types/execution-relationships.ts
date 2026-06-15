@@ -40,6 +40,7 @@ export interface ExecutionRelationshipInlineExecution {
   document_id: string
   document_name: string
   document_type_id: string
+  document_type_color?: string
 }
 
 export interface ExecutionRelationshipSubitem {

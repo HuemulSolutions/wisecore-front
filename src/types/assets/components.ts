@@ -69,6 +69,7 @@ export interface AssetEmptyContentProps {
 
 export interface AssetFileTreeProps {
   onLoadChildren?: (folderId: string | null) => Promise<FileNode[]>
+  onRefresh?: () => Promise<FileNode[]>
   /** documentTypeId and templateId are passed by custom create-file dialogs */
   onCreateFile?: (parentId: string | null, name: string, documentTypeId?: string, templateId?: string) => Promise<void>
   onCreateFolder?: (parentId: string | null, name: string) => Promise<void>
@@ -154,7 +155,7 @@ export interface SectionExecutionProps {
   onOpenExecuteSheet?: () => void
   executionMode?: 'single' | 'from' | 'full' | 'full-single'
   showExecutionFeedback?: boolean
-  sectionType?: 'ai' | 'manual' | 'reference' | null
+  sectionType?: 'ai' | 'manual' | 'reference' | 'form' | null
   sectionName?: string
   canEditSections?: boolean
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void

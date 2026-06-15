@@ -1,14 +1,60 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { LibraryContentAsset, LibraryContentFolder, LibraryContent } from "@/types/folders";
+import type {
+    LibraryContentAsset,
+    LibraryContentFolder,
+    LibraryContent,
+    GetLibraryContentFilters,
+} from "@/types/folders";
 
-export type { LibraryContentAsset, LibraryContentFolder, LibraryContent };
+export type { LibraryContentAsset, LibraryContentFolder, LibraryContent, GetLibraryContentFilters };
 
-export async function getLibraryContent(organizationId: string, folderId?: string, page: number = 1, pageSize: number = 1000, search?: string): Promise<LibraryContent> {
+export async function getLibraryContent(
+    organizationId: string,
+    folderId?: string,
+    page: number = 1,
+    pageSize: number = 1000,
+    search?: string,
+    filters?: GetLibraryContentFilters,
+    focusAssetId?: string,
+): Promise<LibraryContent> {
     const folderPath = folderId || 'root';
     const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (search) params.set('search', search);
+    if (focusAssetId) params.set('focus_asset_id', focusAssetId);
+    if (filters) {
+        if (filters.has_pending_ai_suggestion != null) params.set('has_pending_ai_suggestion', String(filters.has_pending_ai_suggestion));
+        if (filters.lifecycle_state != null) params.set('lifecycle_state', filters.lifecycle_state);
+        if (filters.owner_scope != null) params.set('owner_scope', filters.owner_scope);
+        if (filters.has_unresolved_comments != null) params.set('has_unresolved_comments', String(filters.has_unresolved_comments));
+        if (filters.template_id != null) params.set('template_id', filters.template_id);
+        if (filters.document_type_id != null) params.set('document_type_id', filters.document_type_id);
+        if (filters.expiration_date != null) params.set('expiration_date', filters.expiration_date);
+        if (filters.estimated_publication_date != null) params.set('estimated_publication_date', filters.estimated_publication_date);
+        if (filters.review_date != null) params.set('review_date', filters.review_date);
+        if (filters.audit_date != null) params.set('audit_date', filters.audit_date);
+    }
     const url = `${backendUrl}/folder/${folderPath}/get_content?${params.toString()}`;
+    const response = await httpClient.get(url, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const raw = await response.json();
+    return {
+        ...(raw.data as Omit<LibraryContent, 'has_next'>),
+        has_next: raw.has_next ?? false,
+    };
+}
+
+export async function getLibraryContentByAsset(
+    organizationId: string,
+    assetId: string,
+    page: number = 1,
+    pageSize: number = 1000,
+): Promise<LibraryContent> {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    const url = `${backendUrl}/folder/by-asset/${assetId}?${params.toString()}`;
     const response = await httpClient.get(url, {
         headers: {
             'X-Org-Id': organizationId,

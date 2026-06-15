@@ -24,6 +24,7 @@ import GlobalAdminPage from "./pages/global-admin";
 import AdvancedPage from "./pages/advanced";
 import ExternalSystemsPage from "./pages/external-systems";
 import DocumentTypeRelationshipsPage from "./pages/document-type-relationships";
+import MediaPage from "./pages/media";
 import { RootRedirect } from "./components/organization/root-redirect";
 import HuemulLayoutDemoPage from "./pages/huemul-layout-demo";
 
@@ -137,6 +138,7 @@ export default function App() {
                 <DocumentTypeRelationshipsPage />
               </PermissionProtectedRoute>
             } />
+            <Route path="media" element={<MediaPage />} />
           </Route>
 
           {/* Catch-all: redirect unknown paths to root */}

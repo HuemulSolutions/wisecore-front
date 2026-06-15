@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulField } from "@/huemul/components/huemul-field"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -76,6 +77,8 @@ export function EditCustomFieldTemplateDialog({
         return template.value_url || ""
       case "image":
         return "" // Images are handled separately via blob upload
+      case "list":
+        return template.value_identifier || ""
       default:
         return template.value_string || ""
     }
@@ -175,6 +178,8 @@ export function EditCustomFieldTemplateDialog({
         return { value: value }
       case "image":
         return {} // Images are handled via blob upload
+      case "list":
+        return { value: value }
       default:
         return { value: value }
     }
@@ -290,6 +295,16 @@ export function EditCustomFieldTemplateDialog({
               </div>
             )}
           </div>
+        )
+      case "list":
+        return (
+          <HuemulField
+            type="select"
+            placeholder="Select an option"
+            value={value}
+            onChange={(v) => setValue(String(v))}
+            options={(customFieldTemplate.options ?? []).map(o => ({ value: o.option_id, label: o.name }))}
+          />
         )
       default: // string, url
         return (

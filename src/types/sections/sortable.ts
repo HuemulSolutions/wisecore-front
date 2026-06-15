@@ -22,6 +22,7 @@ export interface SortableSectionSheetProps {
   isAddToCurrentVersionPending?: boolean;
   currentExecutionId?: string | null;
   useExecutionDeleteDialog?: boolean;
+  documentId?: string;
 }
 
 export type DeleteMode = "structure" | "structure_and_current_version";

@@ -117,6 +117,8 @@ export function HuemulInfoItem({
         <div className="flex items-center justify-end gap-1">
           {variant === "badge" ? (
             <Badge variant={badgeVariant} className="text-xs">{value}</Badge>
+          ) : variant === "code" ? (
+            <code className="text-[11px] font-mono bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{value}</code>
           ) : (
             <span>{value}</span>
           )}
@@ -163,6 +165,17 @@ export function HuemulInfoItem({
           <Badge variant={badgeVariant} className="text-xs font-semibold tabular-nums">
             {value}
           </Badge>
+          {copyValue && <CopyButton value={copyValue} />}
+        </div>
+      );
+    }
+
+    if (variant === "code") {
+      return (
+        <div className="flex items-center gap-1 mt-0.5">
+          <code className="text-xs font-mono bg-muted text-muted-foreground px-1.5 py-0.5 rounded flex-1 min-w-0 truncate">
+            {value}
+          </code>
           {copyValue && <CopyButton value={copyValue} />}
         </div>
       );
