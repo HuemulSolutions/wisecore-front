@@ -1,27 +1,75 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Edit3 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { EditSectionForm } from "@/components/sections/sections-edit-form"
+import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import type { ItemForBackend, EditSectionDialogProps } from '@/types/sections'
 export type { EditSectionDialogProps } from '@/types/sections'
 
-export function EditSectionDialog({ 
-  open, 
-  onOpenChange, 
-  item, 
-  onSave, 
+export function EditSectionDialog({
+  open,
+  onOpenChange,
+  item,
+  onSave,
   existingSections = [],
   onGeneratingChange,
   hasTemplate = false,
-  isTemplateSection = false
+  isTemplateSection = false,
+  documentId,
 }: EditSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const isDirtyRef = useRef(false)
+  const isExplicitCancel = useRef(false)
+  const isClosingRef = useRef(false)
+  const { t } = useTranslation(["sections", "common"])
+  const { guardedAction, setIsSectionEditing } = useOptionalEditingGuard()
+
+  // Reset all flags when dialog opens
+  useEffect(() => {
+    if (open) {
+      isDirtyRef.current = false
+      isExplicitCancel.current = false
+      isClosingRef.current = false
+    }
+  }, [open])
+
+  const handleDirtyChange = (dirty: boolean) => {
+    // Ignore dirty events fired by editors during close animation (still mounted)
+    if (isClosingRef.current) return
+    isDirtyRef.current = dirty
+    setIsSectionEditing(dirty)
+  }
+
+  const startClose = () => {
+    isClosingRef.current = true
+    isDirtyRef.current = false
+    setIsSectionEditing(false)
+  }
+
+  const handleCancel = () => {
+    isExplicitCancel.current = true
+    startClose()
+  }
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && isDirtyRef.current && !isExplicitCancel.current) {
+      guardedAction(() => {
+        startClose()
+        onOpenChange(false)
+      })
+    } else {
+      isExplicitCancel.current = false
+      onOpenChange(newOpen)
+    }
+  }
 
   const handleSubmit = (updatedItem: ItemForBackend) => {
+    startClose()
     onSave(updatedItem)
     onOpenChange(false)
   }
@@ -29,14 +77,16 @@ export function EditSectionDialog({
   return (
     <HuemulDialog
       open={open}
-      onOpenChange={onOpenChange}
-      title="Edit Section"
-      description="Make changes to the section information and content."
+      onOpenChange={handleOpenChange}
+      title={t("sections:editDialog.title")}
+      description={t("sections:editDialog.description")}
       icon={Edit3}
+      cancelLabel={t("common:cancel")}
+      onCancel={handleCancel}
       maxWidth="sm:max-w-3xl"
       maxHeight="max-h-[90vh]"
       saveAction={{
-        label: isGenerating ? "Generating..." : "Save Changes",
+        label: isGenerating ? t("sections:editDialog.generating") : t("sections:editDialog.save"),
         icon: Edit3,
         disabled: !isFormValid || isGenerating,
         closeOnSuccess: false,
@@ -54,8 +104,10 @@ export function EditSectionDialog({
           setIsGenerating(generating)
           onGeneratingChange?.(generating)
         }}
+        onDirtyChange={handleDirtyChange}
         hasTemplate={hasTemplate}
         isTemplateSection={isTemplateSection}
+        documentId={documentId}
       />
     </HuemulDialog>
   )

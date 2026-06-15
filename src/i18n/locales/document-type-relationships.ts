@@ -82,6 +82,7 @@ const translations = {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     actions: { en: "Actions", es: "Acciones" },
     loadRelationships: { en: "Load Relationships", es: "Cargar Relaciones" },
+    loadRelationshipsCanvasOnly: { en: "Load Canvas Relationships", es: "Cargar Relaciones del Canvas" },
     loadingRelationships: { en: "Loading…", es: "Cargando…" },
     version: { en: "Version", es: "Versión" },
     versionRequired: {

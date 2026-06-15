@@ -9,6 +9,7 @@ export interface HuemulTreeNode {
   isLoading?: boolean
   hasChildren?: boolean
   disabled?: boolean
+  metadata?: Record<string, unknown>
 }
 
 export interface HuemulTreeMenuAction {

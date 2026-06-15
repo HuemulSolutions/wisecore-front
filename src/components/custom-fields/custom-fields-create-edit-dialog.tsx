@@ -7,7 +7,7 @@ import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form
 import { useTranslation } from "react-i18next"
 
 import { useCustomFieldDataTypes } from "@/hooks/useCustomFields"
-import type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
+import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
@@ -24,6 +24,7 @@ export function CreateEditCustomFieldDialog({
     description: "",
     data_type: "",
     masc: "",
+    options: [] as CustomFieldOption[],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -43,6 +44,7 @@ export function CreateEditCustomFieldDialog({
           description: customField.description,
           data_type: customField.data_type,
           masc: customField.masc || "",
+          options: customField.data_type === 'list' ? (customField.options ?? []) : [],
         })
       } else {
         setFormData({
@@ -50,6 +52,7 @@ export function CreateEditCustomFieldDialog({
           description: "",
           data_type: "",
           masc: "",
+          options: [],
         })
       }
       setErrors({})
@@ -73,6 +76,21 @@ export function CreateEditCustomFieldDialog({
       newErrors.data_type = t('form.dataTypeRequired')
     }
 
+    if (formData.data_type === 'list') {
+      if (formData.options.length === 0) {
+        newErrors.options = t('form.optionsRequired')
+      } else {
+        formData.options.forEach((opt, i) => {
+          if (!opt.option_id.trim()) {
+            newErrors[`option_${i}_id`] = t('form.optionIdRequired')
+          }
+          if (!opt.name.trim()) {
+            newErrors[`option_${i}_name`] = t('form.optionNameRequired')
+          }
+        })
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -92,6 +110,7 @@ export function CreateEditCustomFieldDialog({
             description: formData.description,
             data_type: formData.data_type,
             masc: formData.masc || undefined,
+            ...(formData.data_type === 'list' && { options: formData.options }),
           },
         })
       } else {
@@ -100,11 +119,11 @@ export function CreateEditCustomFieldDialog({
           description: formData.description,
           data_type: formData.data_type,
           masc: formData.masc || "",
+          ...(formData.data_type === 'list' && { options: formData.options }),
         })
       }
       onSuccess()
     } catch (error) {
-      // Error is handled by the mutation
       console.error("Error submitting custom field:", error)
     } finally {
       setIsSubmitting(false)
@@ -112,10 +131,20 @@ export function CreateEditCustomFieldDialog({
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    // Clear error for this field
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+      ...(field === 'data_type' && value !== 'list' ? { options: [] } : {}),
+    }))
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
+    }
+  }
+
+  const handleOptionsChange = (options: CustomFieldOption[]) => {
+    setFormData(prev => ({ ...prev, options }))
+    if (errors.options) {
+      setErrors(prev => ({ ...prev, options: "" }))
     }
   }
 
@@ -149,10 +178,12 @@ export function CreateEditCustomFieldDialog({
           description={formData.description}
           dataType={formData.data_type}
           masc={formData.masc}
+          options={formData.options}
           onNameChange={(value) => handleInputChange("name", value)}
           onDescriptionChange={(value) => handleInputChange("description", value)}
           onDataTypeChange={(value) => handleInputChange("data_type", value)}
           onMascChange={(value) => handleInputChange("masc", value)}
+          onOptionsChange={handleOptionsChange}
           dataTypes={dataTypes}
           formatDataType={formatDataType}
           errors={errors}

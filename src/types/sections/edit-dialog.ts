@@ -12,4 +12,5 @@ export interface EditSectionDialogProps {
   onGeneratingChange?: (isGenerating: boolean) => void;
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
+  documentId?: string;
 }

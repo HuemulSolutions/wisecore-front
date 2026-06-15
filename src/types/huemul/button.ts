@@ -12,7 +12,7 @@ export interface HuemulButtonProps
   iconPosition?: "left" | "right";
   iconClassName?: string;
   loading?: boolean;
-  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   tooltip?: string;
   tooltipSide?: "top" | "right" | "bottom" | "left";
   asChild?: boolean;

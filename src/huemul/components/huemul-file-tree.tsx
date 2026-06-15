@@ -26,6 +26,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
   (
     {
       onLoadChildren,
+      onRefresh: onRefreshProp,
       onCreateFile,
       onCreateFolder,
       onDelete,
@@ -184,38 +185,43 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       if (!onLoadChildren) return
       setIsLoading(true)
       try {
-        const currentExpandedIds = Array.from(expandedFolders)
-        const rootData = await onLoadChildren(initialFolderId)
+        if (onRefreshProp) {
+          const data = await onRefreshProp()
+          setNodes(data)
+        } else {
+          const currentExpandedIds = Array.from(expandedFolders)
+          const rootData = await onLoadChildren(initialFolderId)
 
-        const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
-          const result: HuemulTreeNode[] = []
-          for (const node of nodeList) {
-            const newNode = { ...node }
-            if (node.type === folderType && currentExpandedIds.includes(node.id)) {
-              try {
-                const children = await onLoadChildren(node.id)
-                newNode.children = await reloadExpandedFolders(children)
-                newNode.isExpanded = true
-                newNode.hasChildren = children.length > 0
-              } catch (error) {
-                console.error(`Error reloading folder ${node.id}:`, error)
-                newNode.children = []
-                newNode.isExpanded = false
+          const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
+            const result: HuemulTreeNode[] = []
+            for (const node of nodeList) {
+              const newNode = { ...node }
+              if (node.type === folderType && currentExpandedIds.includes(node.id)) {
+                try {
+                  const children = await onLoadChildren(node.id)
+                  newNode.children = await reloadExpandedFolders(children)
+                  newNode.isExpanded = true
+                  newNode.hasChildren = children.length > 0
+                } catch (error) {
+                  console.error(`Error reloading folder ${node.id}:`, error)
+                  newNode.children = []
+                  newNode.isExpanded = false
+                }
               }
+              result.push(newNode)
             }
-            result.push(newNode)
+            return result
           }
-          return result
-        }
 
-        const refreshedNodes = await reloadExpandedFolders(rootData)
-        setNodes(refreshedNodes)
+          const refreshedNodes = await reloadExpandedFolders(rootData)
+          setNodes(refreshedNodes)
+        }
       } catch (error) {
         console.error("Error refreshing tree:", error)
       } finally {
         setIsLoading(false)
       }
-    }, [onLoadChildren, expandedFolders, initialFolderId, folderType])
+    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, folderType])
 
     useImperativeHandle(ref, () => ({ refresh }))
 
@@ -454,7 +460,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         hasCustomMenuActions
 
       return (
-        <div key={node.id} className={cn("relative", level > 0 && "ml-4")}>
+        <div key={node.id} className={cn("relative min-w-0", level > 0 && "ml-4")}>
           {level > 0 && (
             <div
               className="absolute left-0 top-0 bottom-0 w-px bg-border"
@@ -470,7 +476,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
           <div
             className={cn(
-              "group flex items-center gap-1 py-0.5 px-2 rounded-md transition-colors relative",
+              "group flex items-center gap-1 min-w-0 py-0.5 px-2 rounded-md transition-colors relative",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
@@ -642,7 +648,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
     // ─── Root render ────────────────────────────────────────────────────────────
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 w-full min-w-0">
         {showRefreshButton && (
           <div className="flex justify-end">
             <HuemulButton
@@ -660,7 +666,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         <div
           ref={containerRef}
           className={cn(
-            "relative rounded-lg transition-colors overflow-hidden",
+            "relative w-full rounded-lg transition-colors overflow-hidden",
             showBorder && "border bg-card",
             !showBorder && "bg-transparent",
             dragOverNode === null && draggedNode && "bg-primary/10 border-primary border-dashed",

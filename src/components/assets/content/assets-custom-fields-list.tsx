@@ -124,6 +124,12 @@ export function CustomFieldsList({
           return field.value_url;
         }
         return String(field.value);
+      case 'list': {
+        const optionId = field.value_identifier
+        if (!optionId) return 'customFieldsList.empty'
+        const match = field.options?.find(o => o.option_id === optionId)
+        return match ? match.name : optionId
+      }
       case 'number':
         if (field.value_number !== null && field.value_number !== undefined) {
           return field.value_number.toString();

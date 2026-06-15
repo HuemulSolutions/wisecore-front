@@ -163,6 +163,9 @@ export function AssetsInfoSheet({
           {selectedExecutionInfo?.audit_date && (
             <HuemulInfoItem label={t("content.info.auditDate")} value={formatApiDateTime(selectedExecutionInfo.audit_date)} />
           )}
+          {selectedExecutionInfo?.content_hash && (
+            <HuemulInfoItem label={t("content.info.contentHash")} value={selectedExecutionInfo.content_hash} variant="mono" copyable />
+          )}
         </HuemulInfoSection>
 
         {/* Lifecycle */}

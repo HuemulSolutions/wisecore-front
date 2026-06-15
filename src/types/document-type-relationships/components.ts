@@ -14,6 +14,9 @@ export interface PendingConnection {
   targetName?: string
   sourceColor?: string
   targetColor?: string
+  // actual asset (document) IDs — separate from canvas node IDs in execution mode
+  sourceAssetId?: string
+  targetAssetId?: string
   // pre-selected execution ids (from node panel version selector)
   sourceExecutionId?: string
   targetExecutionId?: string
