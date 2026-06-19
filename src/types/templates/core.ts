@@ -2,6 +2,9 @@ export interface TemplateItem {
   id: string;
   name: string;
   description?: string;
+  instructions?: string | null;
+  asset_kind?: string | null;
+  canvas_id?: string | null;
 }
 
 export interface TemplatesResponse {

@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Button } from "@/components/ui/button";
-import { Plus, List, RefreshCw, Info } from "lucide-react";
+import { Plus, List, RefreshCw, Info, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import type { TemplateHeaderProps } from '@/types/templates';
 export type { TemplateHeaderProps } from '@/types/templates';
 
 export function TemplateHeader({
   templateName,
   templateDescription,
+  templateInstructions,
   isMobile,
   isGenerating,
   isRefreshing = false,
@@ -17,6 +19,42 @@ export function TemplateHeader({
   onInfo,
 }: TemplateHeaderProps) {
   const { t } = useTranslation(['common', 'templates']);
+  const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+
+  const instructions = templateInstructions?.trim();
+  const isLongInstructions = !!instructions && (instructions.length > 80 || instructions.includes("\n"));
+  const instructionsCallout = instructions ? (
+    <div className="mt-2 flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5">
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+        <span className="text-sm font-medium text-gray-700">
+          {t('templates:header.instructionsTitle')}
+        </span>
+      </div>
+      <div className="w-px self-stretch bg-gray-200" />
+      <p
+        className={`flex-1 min-w-0 text-sm text-gray-500 ${
+          instructionsExpanded ? "whitespace-pre-line" : "truncate"
+        }`}
+      >
+        {instructions}
+      </p>
+      {isLongInstructions && (
+        <button
+          type="button"
+          onClick={() => setInstructionsExpanded((v) => !v)}
+          className="flex items-center gap-0.5 shrink-0 text-sm font-medium text-blue-600 hover:text-blue-700 hover:cursor-pointer"
+        >
+          {instructionsExpanded ? t('templates:header.showLess') : t('templates:header.showMore')}
+          {instructionsExpanded ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   if (isMobile) {
     return (
@@ -40,6 +78,9 @@ export function TemplateHeader({
               <p className="text-[10px] text-gray-600 truncate ml-9">
                 {templateDescription}
               </p>
+            )}
+            {instructionsCallout && (
+              <div className="ml-9 max-w-full">{instructionsCallout}</div>
             )}
           </div>
           <div className="flex items-center gap-1">
@@ -69,11 +110,11 @@ export function TemplateHeader({
   }
 
   return (
-    <div className="bg-white px-4 py-3 z-10 shrink-0">
+    <div className="bg-white px-4 py-4 z-10 shrink-0">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1 min-w-0">
           {/* Template Name */}
-          <h1 className="text-xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900">
             {templateName}
           </h1>
           {/* Template Description */}
@@ -82,6 +123,8 @@ export function TemplateHeader({
               {templateDescription}
             </p>
           )}
+          {/* Template Instructions */}
+          {instructionsCallout}
         </div>
         {onInfo && (
           <HuemulButton

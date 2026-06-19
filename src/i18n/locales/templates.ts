@@ -24,6 +24,13 @@ const translations = {
     templateNamePlaceholder: { en: "Enter template name...", es: "Ingresa el nombre de la plantilla..." },
     description: { en: "Description", es: "Descripción" },
     descriptionPlaceholder: { en: "Enter template description (optional)...", es: "Ingresa la descripción de la plantilla (opcional)..." },
+    instructions: { en: "Instructions", es: "Instrucciones" },
+    instructionsPlaceholder: { en: "Describe what this template is used for and how it should be used...", es: "Describe para qué se usa este template y cómo debe utilizarse..." },
+  },
+  header: {
+    instructionsTitle: { en: "Instructions", es: "Instrucciones" },
+    showMore: { en: "Show more", es: "Ver más" },
+    showLess: { en: "Show less", es: "Ver menos" },
   },
   addSection: {
     description: { en: "Create a structured section for your template with custom content and dependencies.", es: "Crea una sección estructurada para tu plantilla con contenido personalizado y dependencias." },
@@ -93,6 +100,7 @@ const translations = {
     id: { en: "ID", es: "ID" },
     descriptionLabel: { en: "Description", es: "Descripción" },
     noDescription: { en: "No description", es: "Sin descripción" },
+    instructionsLabel: { en: "Instructions", es: "Instrucciones" },
     createdAt: { en: "Created at", es: "Creado el" },
     updatedAt: { en: "Updated at", es: "Actualizado el" },
     createdBy: { en: "Created by", es: "Creado por" },

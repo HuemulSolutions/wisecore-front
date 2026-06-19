@@ -22,6 +22,7 @@ export interface EditTemplateDialogProps {
   templateId: string;
   templateName: string;
   templateDescription?: string;
+  templateInstructions?: string;
   organizationId: string;
   onSuccess: () => void;
 }

@@ -20,10 +20,11 @@ export async function getAllTemplates(organizationId: string, search?: string, p
     return response.json();
 }
 
-export async function addTemplate( { name, description, organization_id }: { name: string, description?: string, organization_id: string}) {
+export async function addTemplate( { name, description, instructions, organization_id }: { name: string, description?: string, instructions?: string, organization_id: string}) {
     const response = await httpClient.post(`${backendUrl}/templates/`, {
         name,
-        description: description || null
+        description: description || null,
+        instructions: instructions || null
     }, {
         headers: {
             'X-Org-Id': organization_id,
@@ -58,7 +59,17 @@ export async function deleteTemplate(templateId: string, organizationId: string)
     return data;
 }
 
-export async function updateTemplate(templateId: string, updateData: { name?: string; description?: string | null }, organizationId: string) {
+export async function updateTemplate(
+    templateId: string,
+    updateData: {
+        name?: string;
+        description?: string | null;
+        instructions?: string | null;
+        asset_kind?: string | null;
+        canvas_id?: string | null;
+    },
+    organizationId: string
+) {
     const payload: Record<string, string | null> = {};
 
     if (updateData.name !== undefined) {
@@ -67,6 +78,18 @@ export async function updateTemplate(templateId: string, updateData: { name?: st
 
     if (updateData.description !== undefined) {
         payload.description = updateData.description;
+    }
+
+    if (updateData.instructions !== undefined) {
+        payload.instructions = updateData.instructions;
+    }
+
+    if (updateData.asset_kind !== undefined) {
+        payload.asset_kind = updateData.asset_kind;
+    }
+
+    if (updateData.canvas_id !== undefined) {
+        payload.canvas_id = updateData.canvas_id;
     }
 
     const response = await httpClient.put(`${backendUrl}/templates/${templateId}`, payload, {
