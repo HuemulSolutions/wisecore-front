@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import {
   Bell,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
+import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn, formatApiDateTime } from "@/lib/utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
@@ -152,6 +153,13 @@ export function NotificationsSheet({
   const navigate = useOrgNavigate()
 
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
+
+  // Reset to the first page whenever the sheet is (re)opened or the filter changes
+  useEffect(() => {
+    setPage(1)
+  }, [notifFilter, open])
 
   const {
     data: notificationsData,
@@ -159,15 +167,17 @@ export function NotificationsSheet({
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ["notifications", "global", notifFilter],
+    queryKey: ["notifications", "global", notifFilter, page, pageSize],
     queryFn: () =>
       getNotifications(organizationId, {
         is_read: notifFilter === "unread" ? false : undefined,
-        page_size: 50,
+        page,
+        page_size: pageSize,
       }),
     enabled: open && !!organizationId,
     staleTime: 30000,
     refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   })
 
   const notifications = notificationsData?.data ?? []
@@ -264,6 +274,23 @@ export function NotificationsSheet({
               ))}
             </div>
           )}
+        </div>
+
+        {/* Pagination footer */}
+        <div className="px-6 pt-2 border-t border-gray-100">
+          <HuemulPagination
+            page={notificationsData?.page ?? page}
+            pageSize={notificationsData?.page_size ?? pageSize}
+            totalItems={notificationsData?.total}
+            hasNext={notificationsData?.has_next}
+            hasPrevious={(notificationsData?.page ?? page) > 1}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => {
+              setPageSize(s)
+              setPage(1)
+            }}
+            pageSizeOptions={[25, 50, 100]}
+          />
         </div>
       </div>
     </HuemulSheet>
