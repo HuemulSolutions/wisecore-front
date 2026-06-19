@@ -70,7 +70,9 @@ export interface ExecutionPickerDialogProps {
   organizationId: string
   assetId: string
   assetName: string
-  onSelect: (executionId: string) => void
+  /** Execution IDs already present on the canvas for this asset — hidden from the selector. */
+  excludeExecutionIds?: string[]
+  onSelect: (executionId: string, executionName: string) => void
 }
 
 export function ExecutionPickerDialog({
@@ -79,6 +81,7 @@ export function ExecutionPickerDialog({
   organizationId,
   assetId,
   assetName,
+  excludeExecutionIds,
   onSelect,
 }: ExecutionPickerDialogProps) {
   const { t } = useTranslation(["document-type-relationships", "common"])
@@ -90,14 +93,21 @@ export function ExecutionPickerDialog({
     if (!open) setSelectedExecId("")
   }, [open])
 
-  const execOptions = (executions as Execution[]).map((ex) => ({
-    label: executionLabel(ex),
-    value: ex.id,
-  }))
+  const excluded = new Set(excludeExecutionIds ?? [])
+  const execOptions = (executions as Execution[])
+    .filter((ex) => !excluded.has(ex.id))
+    .map((ex) => ({
+      label: executionLabel(ex),
+      value: ex.id,
+    }))
+
+  // Distinguish "asset has no versions" from "all versions are already on the canvas"
+  const allInCanvas = execOptions.length === 0 && (executions as Execution[]).length > 0
 
   const handleConfirm = async () => {
     if (!selectedExecId) return
-    onSelect(selectedExecId)
+    const label = execOptions.find((o) => o.value === selectedExecId)?.label ?? ""
+    onSelect(selectedExecId, label)
     onOpenChange(false)
   }
 
@@ -117,7 +127,9 @@ export function ExecutionPickerDialog({
       <HuemulFieldGroup className="py-2">
         <p className="text-xs text-muted-foreground font-medium">{assetName}</p>
         {execOptions.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{t("relationship.noExecutions")}</p>
+          <p className="text-xs text-muted-foreground">
+            {allInCanvas ? t("relationship.allVersionsInCanvas") : t("relationship.noExecutions")}
+          </p>
         ) : (
           <HuemulField
             label={t("relationship.selectExecution")}

@@ -3,6 +3,7 @@ const translations = {
   save: { en: "Save", es: "Guardar" },
   saving: { en: "Saving...", es: "Guardando..." },
   cancel: { en: "Cancel", es: "Cancelar" },
+  confirm: { en: "Confirm", es: "Confirmar" },
   delete: { en: "Delete", es: "Eliminar" },
   deleting: { en: "Deleting...", es: "Eliminando..." },
   create: { en: "Create", es: "Crear" },

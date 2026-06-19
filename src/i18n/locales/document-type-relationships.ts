@@ -93,6 +93,10 @@ const translations = {
       en: "Select a version for: {{names}}",
       es: "Selecciona una versión para: {{names}}",
     },
+    versionAlreadyInCanvas: {
+      en: "That version is already on the canvas.",
+      es: "Esa versión ya está en el canvas.",
+    },
   },
   relationship: {
     name: { en: "Name", es: "Nombre" },
@@ -113,6 +117,10 @@ const translations = {
     targetExecution: { en: "Target version ({{name}})", es: "Versión destino ({{name}})" },
     selectExecution: { en: "Select version…", es: "Seleccionar versión…" },
     noExecutions: { en: "No versions available for this asset.", es: "No hay versiones disponibles para este activo." },
+    allVersionsInCanvas: {
+      en: "All versions are already on the canvas.",
+      es: "Todas las versiones ya están en el canvas.",
+    },
   },
   attributes: {
     title: { en: "Attributes", es: "Atributos" },
