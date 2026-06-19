@@ -64,19 +64,16 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
     }
   }
 
-  const matchFolder = folders.find(f => f.is_match)
-  if (matchFolder) {
-    const matchNode = folderMap.get(matchFolder.id)!
-    if (matchNode?.children) {
-      matchNode.children.push(
-        ...assets.map(a => ({
-          id: a.id,
-          name: a.name,
-          type: 'document' as const,
-          document_type: a.document_type,
-          access_levels: a.access_levels,
-        })),
-      )
+  for (const a of assets) {
+    const parent = a.folder_id ? folderMap.get(a.folder_id) : null
+    if (parent?.isExpanded && parent.children) {
+      parent.children.push({
+        id: a.id,
+        name: a.name,
+        type: 'document' as const,
+        document_type: a.document_type,
+        access_levels: a.access_levels,
+      })
     }
   }
 
