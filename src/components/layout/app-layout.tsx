@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -42,6 +42,8 @@ import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserDialog from "@/components/users/users-edit-dialog"
 import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
+import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
+import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
 import { cn } from "@/lib/utils"
 import {
   ResizablePanelGroup,
@@ -191,9 +193,11 @@ export default function AppLayout() {
   const queryClient = useQueryClient()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const [subscriptionsSheetOpen, setSubscriptionsSheetOpen] = useState(false)
+  const [notificationsSheetOpen, setNotificationsSheetOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isInSelectionFlow, setIsInSelectionFlow] = useState(false)
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+  const unreadNotificationsCount = useUnreadNotificationsCount(selectedOrganizationId)
   const isSwitchingOrgRef = useRef(false)
   const lastSyncedUrlOrgRef = useRef<string | null>(null)
   const previousChatbotOrgRef = useRef<string | null>(null)
@@ -400,6 +404,12 @@ export default function AppLayout() {
   const handleOpenSubscriptions = () => {
     setTimeout(() => {
       setSubscriptionsSheetOpen(true)
+    }, 0)
+  }
+
+  const handleOpenNotifications = () => {
+    setTimeout(() => {
+      setNotificationsSheetOpen(true)
     }, 0)
   }
 
@@ -750,13 +760,18 @@ export default function AppLayout() {
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="hover:cursor-pointer">
+                    <Button variant="ghost" size="icon" className="relative hover:cursor-pointer">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="" alt={`${user.name} ${user.last_name}`} />
                         <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
                           {getUserInitials(user.name, user.last_name)}
                         </AvatarFallback>
                       </Avatar>
+                      {organizationToken && unreadNotificationsCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
+                          {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                        </span>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -774,6 +789,20 @@ export default function AppLayout() {
                       <User className="h-4 w-4 mr-2" />
                       {t('header.updateProfile')}
                     </DropdownMenuItem>
+                    {organizationToken && (
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer"
+                        onSelect={handleOpenNotifications}
+                      >
+                        <BellRing className="h-4 w-4 mr-2" />
+                        {t('header.notifications')}
+                        {unreadNotificationsCount > 0 && (
+                          <span className="ml-auto inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
+                            {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    )}
                     {organizationToken && (
                       <DropdownMenuItem
                         className="hover:cursor-pointer"
@@ -816,6 +845,15 @@ export default function AppLayout() {
           <SubscriptionsSheet
             open={subscriptionsSheetOpen}
             onOpenChange={setSubscriptionsSheetOpen}
+            organizationId={selectedOrganizationId}
+          />
+        )}
+
+        {/* Notifications sheet */}
+        {organizationToken && selectedOrganizationId && (
+          <NotificationsSheet
+            open={notificationsSheetOpen}
+            onOpenChange={setNotificationsSheetOpen}
             organizationId={selectedOrganizationId}
           />
         )}
