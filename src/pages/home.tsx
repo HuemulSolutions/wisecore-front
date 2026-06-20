@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { FileUp, ClipboardList, Plus, GitBranch, ExternalLink, MessageCircle } from 'lucide-react';
@@ -7,8 +7,11 @@ import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulTable } from '@/huemul/components/huemul-table';
 import type { HuemulTableColumn, HuemulTableAction } from '@/huemul/components/huemul-table';
-import { HuemulFilters } from '@/huemul/components/huemul-filters';
-import { HuemulField } from '@/huemul/components/huemul-field';
+import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button';
+import { HuemulFilterChips } from '@/huemul/components/huemul-filter-chips';
+import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel';
+import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
+import { useHuemulFilters } from '@/hooks/useHuemulFilters';
 import { ImportAssetFromFileDialog } from '@/components/assets/dialogs/assets-import-from-file-dialog';
 import { CreateAssetDialog } from '@/components/assets/dialogs/assets-create-dialog';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
@@ -17,6 +20,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
+import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from '@/types/huemul';
 import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/types/execution';
 import { ApiError } from '@/types/api-error';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
@@ -35,64 +39,7 @@ export default function Home() {
   const [reviewsSheetOpen, setReviewsSheetOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [filtersOpen, setFiltersOpen] = useState(true);
-
-  // Filters — pending (UI fields) / applied (drives the query)
-  const defaultFilters = {
-    query: '',
-    searchType: 'semantic' as ExecutionSearchType,
-    lifecycleState: '',
-    ownerValue: '',
-    hasUnresolvedComments: false,
-    documentTypeId: '',
-    expirationDate: '',
-    expirationDateFrom: '',
-    expirationDateTo: '',
-    estimatedPublicationDate: '',
-    estimatedPublicationDateFrom: '',
-    estimatedPublicationDateTo: '',
-    reviewDate: '',
-    reviewDateFrom: '',
-    reviewDateTo: '',
-    auditDate: '',
-    auditDateFrom: '',
-    auditDateTo: '',
-  };
-
-  const [pendingFilters, setPendingFilters] = useState({ ...defaultFilters });
-  const [appliedFilters, setAppliedFilters] = useState({ ...defaultFilters });
   const [sort, setSort] = useState<string | null>(null);
-
-  const hasActiveFilters =
-    !!appliedFilters.query ||
-    !!appliedFilters.searchType && appliedFilters.searchType !== 'semantic' ||
-    !!appliedFilters.lifecycleState ||
-    !!appliedFilters.ownerValue ||
-    appliedFilters.hasUnresolvedComments ||
-    !!appliedFilters.documentTypeId ||
-    !!appliedFilters.expirationDate ||
-    !!appliedFilters.expirationDateFrom ||
-    !!appliedFilters.expirationDateTo ||
-    !!appliedFilters.estimatedPublicationDate ||
-    !!appliedFilters.estimatedPublicationDateFrom ||
-    !!appliedFilters.estimatedPublicationDateTo ||
-    !!appliedFilters.reviewDate ||
-    !!appliedFilters.reviewDateFrom ||
-    !!appliedFilters.reviewDateTo ||
-    !!appliedFilters.auditDate ||
-    !!appliedFilters.auditDateFrom ||
-    !!appliedFilters.auditDateTo;
-
-  function handleApply() {
-    setAppliedFilters({ ...pendingFilters });
-    setPage(1);
-  }
-
-  function handleClear() {
-    setPendingFilters({ ...defaultFilters });
-    setAppliedFilters({ ...defaultFilters });
-    setPage(1);
-  }
 
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -121,31 +68,149 @@ export default function Home() {
 
   const PAGE_SIZE = 20;
 
-  const ALL_VALUE = '__all__';
+  const { t: tFilters } = useTranslation('huemul-filters');
+
+  const filterDefs = useMemo<HuemulFilterDef[]>(() => {
+    const search = tFilters('groups.search');
+    const classification = tFilters('groups.classification');
+    const dates = tFilters('groups.dates');
+    const other = tFilters('groups.other');
+    return [
+      {
+        key: 'searchType',
+        type: 'select',
+        group: search,
+        toolbar: true,
+        label: t('filters.searchType'),
+        allValue: 'semantic',
+        inputClassName: 'w-36',
+        options: [
+          { value: 'semantic', label: t('filters.searchTypeSemantic') },
+          { value: 'title', label: t('filters.searchTypeTitle') },
+          { value: 'code', label: t('filters.searchTypeCode') },
+          { value: 'content', label: t('filters.searchTypeContent') },
+        ],
+      },
+      {
+        key: 'query',
+        type: 'text',
+        group: search,
+        toolbar: true,
+        label: t('filters.search'),
+        placeholder: t('filters.searchPlaceholder'),
+        inputClassName: 'w-56',
+      },
+      {
+        key: 'lifecycleState',
+        type: 'select',
+        group: classification,
+        label: t('filters.lifecycleState'),
+        allValue: '__all__',
+        options: [
+          { value: '__all__', label: t('filters.allLifecycleStates') },
+          { value: 'draft', label: tAssets('lifecycle.stateLabels.draft') },
+          { value: 'in_review', label: tAssets('lifecycle.stateLabels.in_review') },
+          { value: 'in_approval', label: tAssets('lifecycle.stateLabels.in_approval') },
+          { value: 'approved', label: tAssets('lifecycle.stateLabels.approved') },
+          { value: 'published', label: tAssets('lifecycle.stateLabels.published') },
+          { value: 'archived', label: tAssets('lifecycle.stateLabels.archived') },
+        ],
+      },
+      {
+        key: 'documentTypeId',
+        type: 'async-select',
+        group: classification,
+        label: t('filters.documentType'),
+        placeholder: t('filters.allDocumentTypes'),
+        fetchOptions: fetchDocumentTypes,
+        pageSize: 50,
+        searchOnEnter: true,
+      },
+      {
+        key: 'ownerValue',
+        type: 'async-select',
+        group: classification,
+        label: t('filters.ownerScope'),
+        placeholder: t('filters.allOwners'),
+        fetchOptions: fetchUsers,
+        pageSize: 20,
+        searchOnEnter: true,
+        staticOptions: [
+          { value: '__me__', label: t('filters.ownerMe'), description: t('filters.ownerMeDescription') },
+        ],
+        staticOptionsLabel: t('filters.ownerScopeLabel'),
+        asyncResultsLabel: t('filters.ownerUsersLabel'),
+      },
+      { key: 'expirationDate', type: 'date-range', group: dates, label: t('filters.expirationDate') },
+      { key: 'estimatedPublicationDate', type: 'date-range', group: dates, label: t('filters.estimatedPublicationDate') },
+      { key: 'reviewDate', type: 'date-range', group: dates, label: t('filters.reviewDate') },
+      { key: 'auditDate', type: 'date-range', group: dates, label: t('filters.auditDate') },
+      { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
+    ];
+  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers]);
+
+  const {
+    values,
+    open: filtersOpen,
+    setOpen: setFiltersOpen,
+    setValue,
+    clearValue,
+    clearAll,
+    chips,
+    activeCount,
+    setSelectedLabel,
+  } = useHuemulFilters({
+    filters: filterDefs,
+    defaultOpen: true,
+    initialValues: { searchType: 'semantic' },
+  });
+
+  // Instant-apply: any filter change resets to the first page.
+  const handleFilterChange = useCallback((key: string, value: HuemulFilterValue) => {
+    setValue(key, value);
+    setPage(1);
+  }, [setValue]);
+
+  const handleChipRemove = useCallback((key: string) => {
+    clearValue(key);
+    setPage(1);
+  }, [clearValue]);
+
+  const handleClearAll = useCallback(() => {
+    clearAll();
+    setPage(1);
+  }, [clearAll]);
+
+  const expiration = (values.expirationDate as HuemulDateRangeValue | undefined) ?? {};
+  const estimatedPublication = (values.estimatedPublicationDate as HuemulDateRangeValue | undefined) ?? {};
+  const review = (values.reviewDate as HuemulDateRangeValue | undefined) ?? {};
+  const audit = (values.auditDate as HuemulDateRangeValue | undefined) ?? {};
 
   const { data, isLoading, isFetching, refetch, error } = useAllExecutions(selectedOrganizationId ?? '', {
     enabled: !!selectedOrganizationId,
     page,
     pageSize: PAGE_SIZE,
-    query: appliedFilters.query || undefined,
-    search_type: (appliedFilters.searchType || undefined) as ExecutionSearchType | undefined,
-    lifecycle_state: (appliedFilters.lifecycleState || undefined) as ExecutionLifecycleState | undefined,
-    owner_scope: appliedFilters.ownerValue === '__me__' ? 'me' : undefined,
-    created_by: appliedFilters.ownerValue && appliedFilters.ownerValue !== '__me__' ? appliedFilters.ownerValue : undefined,
-    has_unresolved_comments: appliedFilters.hasUnresolvedComments || undefined,
-    document_type_id: appliedFilters.documentTypeId || undefined,
-    expiration_date: appliedFilters.expirationDate || undefined,
-    expiration_date_from: appliedFilters.expirationDateFrom || undefined,
-    expiration_date_to: appliedFilters.expirationDateTo || undefined,
-    estimated_publication_date: appliedFilters.estimatedPublicationDate || undefined,
-    estimated_publication_date_from: appliedFilters.estimatedPublicationDateFrom || undefined,
-    estimated_publication_date_to: appliedFilters.estimatedPublicationDateTo || undefined,
-    review_date: appliedFilters.reviewDate || undefined,
-    review_date_from: appliedFilters.reviewDateFrom || undefined,
-    review_date_to: appliedFilters.reviewDateTo || undefined,
-    audit_date: appliedFilters.auditDate || undefined,
-    audit_date_from: appliedFilters.auditDateFrom || undefined,
-    audit_date_to: appliedFilters.auditDateTo || undefined,
+    query: (values.query as string) || undefined,
+    search_type: ((values.searchType as string) || undefined) as ExecutionSearchType | undefined,
+    lifecycle_state: (values.lifecycleState && values.lifecycleState !== '__all__'
+      ? values.lifecycleState
+      : undefined) as ExecutionLifecycleState | undefined,
+    owner_scope: values.ownerValue === '__me__' ? 'me' : undefined,
+    created_by: values.ownerValue && values.ownerValue !== '__me__' ? String(values.ownerValue) : undefined,
+    has_unresolved_comments: (values.hasUnresolvedComments as boolean) || undefined,
+    document_type_id: (values.documentTypeId as string) || undefined,
+    expiration_date: expiration.date || undefined,
+    expiration_date_from: expiration.from || undefined,
+    expiration_date_to: expiration.to || undefined,
+    estimated_publication_date: estimatedPublication.date || undefined,
+    estimated_publication_date_from: estimatedPublication.from || undefined,
+    estimated_publication_date_to: estimatedPublication.to || undefined,
+    review_date: review.date || undefined,
+    review_date_from: review.from || undefined,
+    review_date_to: review.to || undefined,
+    audit_date: audit.date || undefined,
+    audit_date_from: audit.from || undefined,
+    audit_date_to: audit.to || undefined,
     sort: sort || undefined,
   });
 
@@ -272,24 +337,39 @@ export default function Home() {
   ];
 
   const header = (
-    <div className="flex items-center justify-end gap-2 px-4 py-3">
-      <HuemulButton
-        variant="outline"
-        icon={FileUp}
-        label={t('actions.uploadDocument')}
-        onClick={() => setImportDialogOpen(true)}
-      />
-      <HuemulButton
-        variant="outline"
-        icon={ClipboardList}
-        label={t('actions.pendingReviews')}
-        onClick={() => setReviewsSheetOpen(true)}
-      />
-      <HuemulButton
-        icon={Plus}
-        label={t('actions.createAsset')}
-        onClick={() => setCreateDialogOpen(true)}
-      />
+    <div className="flex items-center justify-between gap-2 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <HuemulFilterButton
+          count={activeCount}
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen(!filtersOpen)}
+        />
+        <HuemulFilterInline
+          filters={filterDefs}
+          values={values}
+          onChange={handleFilterChange}
+          onSelectedLabel={setSelectedLabel}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <HuemulButton
+          variant="outline"
+          icon={FileUp}
+          label={t('actions.uploadDocument')}
+          onClick={() => setImportDialogOpen(true)}
+        />
+        <HuemulButton
+          variant="outline"
+          icon={ClipboardList}
+          label={t('actions.pendingReviews')}
+          onClick={() => setReviewsSheetOpen(true)}
+        />
+        <HuemulButton
+          icon={Plus}
+          label={t('actions.createAsset')}
+          onClick={() => setCreateDialogOpen(true)}
+        />
+      </div>
     </div>
   );
 
@@ -297,203 +377,78 @@ export default function Home() {
     <>
       <HuemulPageLayout
         header={header}
-        columns={[{
-          content: (
-            <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
-              {/* Filters */}
-              <HuemulFilters
-                title={t('filters.title')}
-                open={filtersOpen}
-                onOpenChange={setFiltersOpen}
-                onRefresh={() => refetch()}
-                isRefreshing={isFetching}
-                onApply={handleApply}
-                onClear={handleClear}
-                hasActiveFilters={hasActiveFilters}
-              >
-                <HuemulField
-                  type="select"
-                  label={t('filters.searchType')}
-                  value={pendingFilters.searchType}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, searchType: String(v) as ExecutionSearchType }))}
-                  options={[
-                    { value: 'semantic', label: t('filters.searchTypeSemantic') },
-                    { value: 'title', label: t('filters.searchTypeTitle') },
-                    { value: 'code', label: t('filters.searchTypeCode') },
-                    { value: 'content', label: t('filters.searchTypeContent') },
-                  ]}
-                  selectSize="xs"
-                  className="w-auto"
-                  inputClassName="w-36 h-8 text-xs"
+        columns={[
+          {
+            content: (
+              <HuemulFilterPanel
+                filters={filterDefs}
+                values={values}
+                onChange={handleFilterChange}
+                onSelectedLabel={setSelectedLabel}
+                onClose={() => setFiltersOpen(false)}
+              />
+            ),
+            show: filtersOpen,
+            defaultSize: 22,
+            minSize: 16,
+            maxSize: 35,
+            collapsible: true,
+          },
+          {
+            content: (
+              <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
+                <HuemulFilterChips
+                  chips={chips}
+                  onRemove={handleChipRemove}
+                  onClearAll={handleClearAll}
                 />
 
-                <HuemulField
-                  type="text"
-                  label={t('filters.search')}
-                  value={pendingFilters.query}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, query: String(v ?? '') }))}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleApply(); }}
-                  placeholder={t('filters.searchPlaceholder')}
-                  className="w-auto"
-                  inputClassName="w-48 h-8 text-xs"
-                />
+                {!isLoading && (
+                  <p className="shrink-0 text-sm text-muted-foreground">
+                    {t('executionsTable.resultsCount', { count: executions.length })}
+                  </p>
+                )}
 
-                <HuemulField
-                  type="select"
-                  label={t('filters.lifecycleState')}
-                  value={pendingFilters.lifecycleState || ALL_VALUE}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, lifecycleState: v === ALL_VALUE ? '' : String(v) }))}
-                  options={[
-                    { value: ALL_VALUE, label: t('filters.allLifecycleStates') },
-                    { value: 'draft', label: tAssets('lifecycle.stateLabels.draft') },
-                    { value: 'in_review', label: tAssets('lifecycle.stateLabels.in_review') },
-                    { value: 'in_approval', label: tAssets('lifecycle.stateLabels.in_approval') },
-                    { value: 'approved', label: tAssets('lifecycle.stateLabels.approved') },
-                    { value: 'published', label: tAssets('lifecycle.stateLabels.published') },
-                    { value: 'archived', label: tAssets('lifecycle.stateLabels.archived') },
-                  ]}
-                  selectSize="xs"
-                  className="w-auto"
-                  inputClassName="w-44 h-8 text-xs"
-                />
-
-                <HuemulField
-                  type="async-select"
-                  label={t('filters.documentType')}
-                  placeholder={t('filters.allDocumentTypes')}
-                  value={pendingFilters.documentTypeId}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, documentTypeId: v ? String(v) : '' }))}
-                  fetchOptions={fetchDocumentTypes}
-                  pageSize={50}
-                  searchOnEnter
-                  className="w-auto"
-                  inputClassName="w-44 h-8 text-xs"
-                />
-
-                <HuemulField
-                  type="async-select"
-                  label={t('filters.ownerScope')}
-                  placeholder={t('filters.allOwners')}
-                  value={pendingFilters.ownerValue}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, ownerValue: v ? String(v) : '' }))}
-                  asyncStaticOptions={[{ value: '__me__', label: t('filters.ownerMe'), description: t('filters.ownerMeDescription') }]}
-                  asyncStaticOptionsLabel={t('filters.ownerScopeLabel')}
-                  asyncResultsLabel={t('filters.ownerUsersLabel')}
-                  fetchOptions={fetchUsers}
-                  pageSize={20}
-                  searchOnEnter
-                  className="w-auto"
-                  inputClassName="w-44 h-8 text-xs"
-                />
-
-                <div className="w-px h-8 bg-border self-end" />
-
-                <HuemulField
-                  type="date-range"
-                  label={t('filters.expirationDate')}
-                  dateValue={pendingFilters.expirationDate}
-                  dateRangeFrom={pendingFilters.expirationDateFrom}
-                  dateRangeTo={pendingFilters.expirationDateTo}
-                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, expirationDate: v, expirationDateFrom: '', expirationDateTo: '' }))}
-                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, expirationDate: '', expirationDateFrom: from, expirationDateTo: to }))}
-                  className="w-auto"
-                  inputClassName="w-52 h-8 text-xs"
-                />
-
-                <HuemulField
-                  type="date-range"
-                  label={t('filters.estimatedPublicationDate')}
-                  dateValue={pendingFilters.estimatedPublicationDate}
-                  dateRangeFrom={pendingFilters.estimatedPublicationDateFrom}
-                  dateRangeTo={pendingFilters.estimatedPublicationDateTo}
-                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, estimatedPublicationDate: v, estimatedPublicationDateFrom: '', estimatedPublicationDateTo: '' }))}
-                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, estimatedPublicationDate: '', estimatedPublicationDateFrom: from, estimatedPublicationDateTo: to }))}
-                  className="w-auto"
-                  inputClassName="w-52 h-8 text-xs"
-                />
-
-                <HuemulField
-                  type="date-range"
-                  label={t('filters.reviewDate')}
-                  dateValue={pendingFilters.reviewDate}
-                  dateRangeFrom={pendingFilters.reviewDateFrom}
-                  dateRangeTo={pendingFilters.reviewDateTo}
-                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, reviewDate: v, reviewDateFrom: '', reviewDateTo: '' }))}
-                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, reviewDate: '', reviewDateFrom: from, reviewDateTo: to }))}
-                  className="w-auto"
-                  inputClassName="w-52 h-8 text-xs"
-                />
-
-                <HuemulField
-                  type="date-range"
-                  label={t('filters.auditDate')}
-                  dateValue={pendingFilters.auditDate}
-                  dateRangeFrom={pendingFilters.auditDateFrom}
-                  dateRangeTo={pendingFilters.auditDateTo}
-                  onDateChange={(v) => setPendingFilters((p) => ({ ...p, auditDate: v, auditDateFrom: '', auditDateTo: '' }))}
-                  onDateRangeChange={(from, to) => setPendingFilters((p) => ({ ...p, auditDate: '', auditDateFrom: from, auditDateTo: to }))}
-                  className="w-auto"
-                  inputClassName="w-52 h-8 text-xs"
-                />
-
-                <div className="w-px h-8 bg-border self-end" />
-
-                <HuemulField
-                  type="switch"
-                  label={t('filters.unresolvedComments')}
-                  inline={false}
-                  value={pendingFilters.hasUnresolvedComments}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, hasUnresolvedComments: Boolean(v) }))}
-                  className="w-auto"
-                  controlClassName="h-8 flex items-center"
-                />
-              </HuemulFilters>
-
-              {!isLoading && (
-                <p className="shrink-0 text-sm text-muted-foreground -mt-2">
-                  {t('executionsTable.resultsCount', { count: executions.length })}
-                </p>
-              )}
-
-              <div className="flex-1 min-h-0">
-                <HuemulTable
-                  data={executions}
-                  columns={columns}
-                  getRowKey={(item) => item.id}
-                  isLoading={isLoading}
-                  isFetching={isFetching}
-                  actions={tableActions}
-                  actionsMode="inline"
-                  className="h-full"
-                  maxHeight=""
-                  sort={sort}
-                  onSortChange={(s) => { setSort(s); setPage(1); }}
-                  error={error as Error | null}
-                  onRetry={() => {
-                    if (ApiError.isApiError(error) && error.code === 'INVALID_SORT') {
-                      setSort(null);
-                      setPage(1);
-                    } else {
-                      refetch();
-                    }
-                  }}
-                  emptyState={{
-                    icon: GitBranch,
-                    title: t('executionsTable.empty.title'),
-                    description: t('executionsTable.empty.description'),
-                  }}
-                  pagination={{
-                    page,
-                    pageSize: PAGE_SIZE,
-                    hasNext: data?.has_next,
-                    hasPrevious: page > 1,
-                    onPageChange: setPage,
-                  }}
-                />
+                <div className="flex-1 min-h-0">
+                  <HuemulTable
+                    data={executions}
+                    columns={columns}
+                    getRowKey={(item) => item.id}
+                    isLoading={isLoading}
+                    isFetching={isFetching}
+                    actions={tableActions}
+                    actionsMode="inline"
+                    className="h-full"
+                    maxHeight=""
+                    sort={sort}
+                    onSortChange={(s) => { setSort(s); setPage(1); }}
+                    error={error as Error | null}
+                    onRetry={() => {
+                      if (ApiError.isApiError(error) && error.code === 'INVALID_SORT') {
+                        setSort(null);
+                        setPage(1);
+                      } else {
+                        refetch();
+                      }
+                    }}
+                    emptyState={{
+                      icon: GitBranch,
+                      title: t('executionsTable.empty.title'),
+                      description: t('executionsTable.empty.description'),
+                    }}
+                    pagination={{
+                      page,
+                      pageSize: PAGE_SIZE,
+                      hasNext: data?.has_next,
+                      hasPrevious: page > 1,
+                      onPageChange: setPage,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          ),
-        }]}
+            ),
+          },
+        ]}
       />
 
       <ImportAssetFromFileDialog

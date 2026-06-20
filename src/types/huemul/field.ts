@@ -91,6 +91,9 @@ export interface HuemulFieldProps {
   debounceMs?: number;
   selectedLabel?: string;
   selectedColor?: string;
+  /** Fires (alongside `onChange`) with the resolved option label when an
+   *  async-select value is picked or cleared. Lets callers cache display names. */
+  onSelectedLabelChange?: (label?: string) => void;
   asyncStaticOptions?: AsyncSelectOption[];
   asyncStaticOptionsLabel?: string;
   asyncResultsLabel?: string;

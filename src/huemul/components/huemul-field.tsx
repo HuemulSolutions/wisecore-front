@@ -739,6 +739,7 @@ function AsyncSelectField({
   staticOptionsLabel,
   asyncResultsLabel,
   searchOnEnter = false,
+  onSelectedLabelChange,
 }: {
   fieldId: string;
   value?: string | number | boolean;
@@ -755,6 +756,7 @@ function AsyncSelectField({
   staticOptionsLabel?: string;
   asyncResultsLabel?: string;
   searchOnEnter?: boolean;
+  onSelectedLabelChange?: (label?: string) => void;
 }) {
   const { t } = useTranslation('common');
   const [open, setOpen] = React.useState(false);
@@ -885,16 +887,20 @@ function AsyncSelectField({
     const newValue = selectedValue === strValue ? "" : selectedValue;
     onChange?.(newValue);
     if (newValue) {
-      const option = options.find((opt) => opt.value === newValue);
+      const option =
+        options.find((opt) => opt.value === newValue) ??
+        staticOptions.find((opt) => opt.value === newValue);
       if (option) {
         setSelectedLabel(option.label);
         setSelectedColor(option.color);
         lastManualSelection.current = { value: newValue, label: option.label, color: option.color };
+        onSelectedLabelChange?.(option.label);
       }
     } else {
       setSelectedLabel("");
       setSelectedColor(undefined);
       lastManualSelection.current = null;
+      onSelectedLabelChange?.(undefined);
     }
     setOpen(false);
   };
@@ -971,6 +977,7 @@ function AsyncSelectField({
               onChange?.("");
               setSelectedLabel("");
               setSelectedColor(undefined);
+              onSelectedLabelChange?.(undefined);
               setOpen(false);
             }}
           >
@@ -1301,6 +1308,7 @@ export function HuemulField({
   pageSize = 10,
   selectedLabel,
   selectedColor,
+  onSelectedLabelChange,
   asyncStaticOptions,
   asyncStaticOptionsLabel,
   asyncResultsLabel,
@@ -1651,6 +1659,7 @@ export function HuemulField({
             staticOptionsLabel={asyncStaticOptionsLabel}
             asyncResultsLabel={asyncResultsLabel}
             searchOnEnter={searchOnEnter}
+            onSelectedLabelChange={onSelectedLabelChange}
           />
         ) : null;
 
