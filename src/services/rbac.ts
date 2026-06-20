@@ -49,11 +49,15 @@ export const createRole = async (data: CreateRoleData): Promise<Role> => {
 };
 
 // Get all permissions
-export const getPermissions = async (): Promise<PermissionsResponse> => {
-  const response = await httpClient.get(`${backendUrl}/rbac/permissions`, {
+export const getPermissions = async (search?: string): Promise<PermissionsResponse> => {
+  const url = new URL(`${backendUrl}/rbac/permissions`);
+  if (search?.trim()) {
+    url.searchParams.append('search', search.trim());
+  }
+  const response = await httpClient.get(url.toString(), {
     headers: getHeaders(),
   });
-  
+
   return response.json();
 };
 

@@ -28,6 +28,7 @@ export interface CustomFieldDocument {
 
 export interface CustomFieldDocumentListParams extends PaginationParams {
   document_id?: string | null;
+  search?: string;
 }
 
 export interface CustomFieldDocumentByDocumentParams extends PaginationParams {

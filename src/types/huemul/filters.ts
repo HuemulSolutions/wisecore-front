@@ -7,7 +7,7 @@ import type {
 } from './field'
 
 // ── Legacy collapsible filter bar (HuemulFilters) ────────────────────────────
-// Still used by media.tsx and search-filters.tsx. Kept for backward compatibility.
+// Still used by media.tsx. Kept for backward compatibility.
 export interface HuemulFiltersProps {
   children: ReactNode;
   title?: string;
@@ -46,6 +46,9 @@ interface HuemulFilterDefBase {
   /** When true, this filter renders inline in the toolbar (via HuemulFilterInline)
    *  instead of in the panel, and is excluded from chips and the applied count. */
   toolbar?: boolean;
+  /** When true, the control is not rendered (panel/inline) and is excluded from
+   *  chips/count, but its value is still tracked. Use for conditional filters. */
+  hidden?: boolean;
 }
 
 export interface HuemulSelectFilterDef extends HuemulFilterDefBase {
@@ -74,8 +77,13 @@ export interface HuemulDateRangeFilterDef extends HuemulFilterDefBase {
 
 export interface HuemulBooleanFilterDef extends HuemulFilterDefBase {
   type: 'boolean';
-  /** Label shown on the chip when true; defaults to `label`. */
+  /** Label shown on the chip when active; defaults to `label`. */
   chipLabel?: string;
+  /** Inactive/empty value (used by clearAll and the default state). Defaults to `false`. */
+  defaultValue?: boolean;
+  /** Value that counts as active (chip + count). Defaults to `true`.
+   *  Set to `false` for inverted toggles (on by default, "off" is the filter). */
+  activeWhen?: boolean;
 }
 
 export interface HuemulTextFilterDef extends HuemulFilterDefBase {

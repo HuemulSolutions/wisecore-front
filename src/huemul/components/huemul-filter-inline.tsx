@@ -25,7 +25,7 @@ export function HuemulFilterInline({
   onSelectedLabel,
   className,
 }: HuemulFilterInlineProps) {
-  const inlineFilters = React.useMemo(() => filters.filter((d) => d.toolbar), [filters]);
+  const inlineFilters = React.useMemo(() => filters.filter((d) => d.toolbar && !d.hidden), [filters]);
 
   if (inlineFilters.length === 0) return null;
 

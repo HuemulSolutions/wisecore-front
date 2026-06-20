@@ -12,8 +12,12 @@ export async function getSupportedProviders(): Promise<SupportedProvidersRespons
     return response.json();
 }
 
-export async function getAllProviders(): Promise<ConfiguredProvidersResponse> {
-    const response = await httpClient.get(`${backendUrl}/llm_provider/`);
+export async function getAllProviders(search?: string): Promise<ConfiguredProvidersResponse> {
+    const url = new URL(`${backendUrl}/llm_provider/`);
+    if (search?.trim()) {
+        url.searchParams.append('search', search.trim());
+    }
+    const response = await httpClient.get(url.toString());
     return response.json();
 }
 

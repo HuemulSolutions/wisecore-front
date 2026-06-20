@@ -19,7 +19,7 @@ function emptyValue(def: HuemulFilterDef): HuemulFilterValue {
     case 'select':
       return def.allValue ?? ''
     case 'boolean':
-      return false
+      return def.defaultValue ?? false
     case 'date-range':
       return undefined
     default:
@@ -36,7 +36,7 @@ function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
     case 'text':
       return typeof value === 'string' && value.trim() !== ''
     case 'boolean':
-      return value === true
+      return value === (def.activeWhen ?? true)
     case 'date-range': {
       const v = value as HuemulDateRangeValue | undefined
       return !!(v && (v.date || v.from || v.to))
@@ -112,7 +112,7 @@ export function useHuemulFilters({
   const chips = useMemo<HuemulFilterChip[]>(() => {
     const result: HuemulFilterChip[] = []
     for (const def of filters) {
-      if (def.toolbar) continue
+      if (def.toolbar || def.hidden) continue
       const value = values[def.key]
       if (!isActive(def, value)) continue
 

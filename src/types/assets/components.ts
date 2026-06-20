@@ -3,7 +3,6 @@ import type React from 'react'
 import type { LifecyclePermissions, FileNode } from './core'
 import type { MenuAction } from '@/types/menu-action'
 import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree'
-import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field'
 import type { CustomFieldDocument } from '@/types/custom-fields'
 
 // ----------------------------------------
@@ -103,31 +102,6 @@ export interface AssetFileTreeProps {
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}
-
-// ----------------------------------------
-// Form Fields
-// ----------------------------------------
-
-export interface AssetFormFieldsProps {
-  name: string
-  description: string
-  internalCode: string
-  templateId: string
-  documentTypeId: string
-  selectedDocTypeLabel?: string
-  selectedDocTypeColor?: string
-  createInitialVersion: boolean
-  onNameChange: (value: string) => void
-  onDescriptionChange: (value: string) => void
-  onInternalCodeChange: (value: string) => void
-  onTemplateIdChange: (value: string) => void
-  onDocumentTypeIdChange: (value: string) => void
-  onCreateInitialVersionChange: (value: boolean) => void
-  onCreateDocType?: () => void
-  fetchTemplateOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>
-  fetchDocumentTypeOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>
-  disabled?: boolean
-}
 
 // ----------------------------------------
 // Section Execution

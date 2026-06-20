@@ -4,12 +4,15 @@ import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentRespons
 
 export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse };
 
-export async function getAllDocuments(organizationId: string, documentTypeId?: string) {
+export async function getAllDocuments(organizationId: string, documentTypeId?: string, search?: string) {
   const url = new URL(`${backendUrl}/documents/`);
   if (documentTypeId) {
     url.searchParams.append('document_type_id', documentTypeId);
   }
-  
+  if (search?.trim()) {
+    url.searchParams.append('search', search.trim());
+  }
+
   const headers: Record<string, string> = {};
   if (organizationId) {
     headers['X-Org-Id'] = organizationId;

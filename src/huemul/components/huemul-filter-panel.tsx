@@ -46,7 +46,7 @@ export function HuemulFilterPanel({
   const { t } = useTranslation(["huemul-filters", "common"]);
 
   // Toolbar filters render outside the panel (see HuemulFilterInline).
-  const panelFilters = React.useMemo(() => filters.filter((d) => !d.toolbar), [filters]);
+  const panelFilters = React.useMemo(() => filters.filter((d) => !d.toolbar && !d.hidden), [filters]);
   const groups = React.useMemo(() => groupFilters(panelFilters), [panelFilters]);
 
   return (

@@ -88,10 +88,18 @@ export async function deleteOrganization(organizationId: string) {
 export async function getOrganizationUsers(
   organizationId: string,
   page = 1,
-  pageSize = 100
+  pageSize = 100,
+  search?: string
 ): Promise<OrganizationUsersResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  if (search?.trim()) {
+    params.set('search', search.trim());
+  }
   const response = await httpClient.get(
-    `${backendUrl}/organizations/${organizationId}/users?page=${page}&page_size=${pageSize}`,
+    `${backendUrl}/organizations/${organizationId}/users?${params.toString()}`,
     {
       headers: {
         'X-Org-Id': organizationId
