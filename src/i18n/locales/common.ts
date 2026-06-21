@@ -33,6 +33,8 @@ const translations = {
   yes: { en: "Yes", es: "Sí" },
   no: { en: "No", es: "No" },
   search: { en: "Search", es: "Buscar" },
+  viewGrid: { en: "Grid view", es: "Vista cuadrícula" },
+  viewList: { en: "List view", es: "Vista lista" },
   active: { en: "Active", es: "Activo" },
   inactive: { en: "Inactive", es: "Inactivo" },
   pending: { en: "Pending", es: "Pendiente" },
