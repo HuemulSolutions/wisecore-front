@@ -124,10 +124,10 @@ function FilterControl({ def, value, onChange, onSelectedLabel }: FilterControlP
         />
       );
 
-    case "async-select":
+    case "async-combobox":
       return (
         <HuemulField
-          type="async-select"
+          type="async-combobox"
           label={def.label}
           value={String(value ?? "")}
           onChange={(v) => onChange(def.key, v ? String(v) : "")}

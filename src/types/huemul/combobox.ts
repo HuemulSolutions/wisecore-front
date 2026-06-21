@@ -36,6 +36,10 @@ export interface HuemulComboboxProps {
   /** Etiquetas/colores precargados para valores ya seleccionados que aún no
    *  están en la lista (resuelve el display label inicial en async). */
   selectedOptions?: HuemulComboboxOption[]
+  /** Se dispara (junto a onValueChange) con el label de la opción resuelta al
+   *  seleccionar o limpiar. Permite a los callers cachear nombres (p.ej. chips).
+   *  Solo aplica en selección única. */
+  onSelectedLabelChange?: (label?: string) => void
 
   placeholder?: string
   searchPlaceholder?: string

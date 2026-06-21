@@ -101,7 +101,7 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { selectedOrganizationId } = useOrganization();
 
-  // ── async-select fetchers ──
+  // ── async-combobox fetchers ──
   const fetchAssetTypes = useCallback(
     async ({ search: s, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
       const res = await getAssetTypes(page, pageSize, s);
@@ -179,7 +179,7 @@ export default function SearchPage() {
       },
       {
         key: "documentTypeId",
-        type: "async-select",
+        type: "async-combobox",
         group: classification,
         label: t("filters.assetType"),
         placeholder: t("filters.all"),
@@ -188,7 +188,7 @@ export default function SearchPage() {
       },
       {
         key: "templateId",
-        type: "async-select",
+        type: "async-combobox",
         group: classification,
         label: t("filters.template"),
         placeholder: t("filters.all"),
@@ -197,7 +197,7 @@ export default function SearchPage() {
       },
       {
         key: "ownerValue",
-        type: "async-select",
+        type: "async-combobox",
         group: classification,
         label: t("filters.ownerScope"),
         placeholder: t("filters.allOwners"),

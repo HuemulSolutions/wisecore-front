@@ -59,8 +59,8 @@ export interface HuemulSelectFilterDef extends HuemulFilterDefBase {
   allValue?: string;
 }
 
-export interface HuemulAsyncSelectFilterDef extends HuemulFilterDefBase {
-  type: 'async-select';
+export interface HuemulAsyncComboboxFilterDef extends HuemulFilterDefBase {
+  type: 'async-combobox';
   fetchOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   placeholder?: string;
   pageSize?: number;
@@ -93,7 +93,7 @@ export interface HuemulTextFilterDef extends HuemulFilterDefBase {
 
 export type HuemulFilterDef =
   | HuemulSelectFilterDef
-  | HuemulAsyncSelectFilterDef
+  | HuemulAsyncComboboxFilterDef
   | HuemulDateRangeFilterDef
   | HuemulBooleanFilterDef
   | HuemulTextFilterDef;
@@ -123,7 +123,7 @@ export interface UseHuemulFiltersReturn {
   chips: HuemulFilterChip[];
   open: boolean;
   setOpen: (open: boolean) => void;
-  /** Registers a resolved display label for an async-select id (used by chips). */
+  /** Registers a resolved display label for an async-combobox id (used by chips). */
   setSelectedLabel: (key: string, label?: string) => void;
 }
 
@@ -149,7 +149,7 @@ export interface HuemulFilterPanelProps {
   filters: HuemulFilterDef[];
   values: HuemulFilterValues;
   onChange: (key: string, value: HuemulFilterValue) => void;
-  /** Called when an async-select resolves a label, so chips can show names. */
+  /** Called when an async-combobox resolves a label, so chips can show names. */
   onSelectedLabel?: (key: string, label?: string) => void;
   title?: string;
   /** Renders a close (X) button in the panel header when provided. */
@@ -161,7 +161,7 @@ export interface HuemulFilterInlineProps {
   filters: HuemulFilterDef[];
   values: HuemulFilterValues;
   onChange: (key: string, value: HuemulFilterValue) => void;
-  /** Called when an async-select resolves a label, so chips can show names. */
+  /** Called when an async-combobox resolves a label, so chips can show names. */
   onSelectedLabel?: (key: string, label?: string) => void;
   className?: string;
 }

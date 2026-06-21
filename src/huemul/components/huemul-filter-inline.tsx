@@ -72,10 +72,10 @@ function InlineControl({ def, value, onChange, onSelectedLabel }: InlineControlP
         />
       );
 
-    case "async-select":
+    case "async-combobox":
       return (
         <HuemulField
-          type="async-select"
+          type="async-combobox"
           value={String(value ?? "")}
           onChange={(v) => onChange(def.key, v ? String(v) : "")}
           onSelectedLabelChange={(label) => onSelectedLabel?.(def.key, label)}

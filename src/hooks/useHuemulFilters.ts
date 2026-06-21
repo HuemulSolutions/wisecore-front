@@ -32,7 +32,7 @@ function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
   switch (def.type) {
     case 'select':
       return typeof value === 'string' && value !== '' && value !== def.allValue
-    case 'async-select':
+    case 'async-combobox':
     case 'text':
       return typeof value === 'string' && value.trim() !== ''
     case 'boolean':
@@ -50,7 +50,7 @@ function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
  * `useHuemulFilters` — config-driven state for the faceted filter panel.
  *
  * Holds a flat `values` record keyed by filter `key`, the panel `open` state,
- * and a cache of resolved labels for async-select chips. Filters apply
+ * and a cache of resolved labels for async-combobox chips. Filters apply
  * instantly (the returned `values` are meant to drive the query directly).
  */
 export function useHuemulFilters({
@@ -123,7 +123,7 @@ export function useHuemulFilters({
           label = `${def.label}: ${opt?.label ?? value}`
           break
         }
-        case 'async-select': {
+        case 'async-combobox': {
           const resolved = selectedLabels[def.key]
           label = `${def.label}: ${resolved ?? value}`
           break

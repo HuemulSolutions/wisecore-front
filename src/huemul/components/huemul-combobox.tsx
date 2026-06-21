@@ -79,6 +79,7 @@ export function HuemulCombobox({
   staticOptionsLabel,
   asyncResultsLabel,
   selectedOptions = [],
+  onSelectedLabelChange,
   placeholder,
   searchPlaceholder,
   emptyMessage,
@@ -135,8 +136,9 @@ export function HuemulCombobox({
   const handleSingleChange = React.useCallback(
     (next: HuemulComboboxOption | null) => {
       onValueChange(next ? next.value : "")
+      onSelectedLabelChange?.(next?.label)
     },
-    [onValueChange],
+    [onValueChange, onSelectedLabelChange],
   )
 
   const handleMultiChange = React.useCallback(

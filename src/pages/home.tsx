@@ -118,7 +118,7 @@ export default function Home() {
       },
       {
         key: 'documentTypeId',
-        type: 'async-select',
+        type: 'async-combobox',
         group: classification,
         label: t('filters.documentType'),
         placeholder: t('filters.allDocumentTypes'),
@@ -128,7 +128,7 @@ export default function Home() {
       },
       {
         key: 'ownerValue',
-        type: 'async-select',
+        type: 'async-combobox',
         group: classification,
         label: t('filters.ownerScope'),
         placeholder: t('filters.allOwners'),

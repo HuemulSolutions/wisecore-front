@@ -270,7 +270,7 @@ function StepGrantsPanel({
             {/* Edit mode: user picker */}
             {isEditing && (
               <HuemulField
-                type="async-select"
+                type="async-combobox"
                 label={t("lifecycle.grants.addUser")}
                 name={`add-user-${step.id}`}
                 placeholder={t("lifecycle.grants.addUserPlaceholder")}

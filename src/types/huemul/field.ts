@@ -6,7 +6,7 @@ export type HuemulFieldType =
   | "text" | "email" | "password" | "number" | "tel" | "url" | "time"
   | "datetime" | "textarea" | "select" | "checkbox" | "switch" | "file"
   | "combobox" | "color" | "date" | "date-range" | "radio" | "richtext"
-  | "async-select" | "async-combobox" | "json";
+  | "async-combobox" | "json";
 
 export interface HuemulFieldOption {
   label: string;
@@ -92,7 +92,7 @@ export interface HuemulFieldProps {
   selectedLabel?: string;
   selectedColor?: string;
   /** Fires (alongside `onChange`) with the resolved option label when an
-   *  async-select value is picked or cleared. Lets callers cache display names. */
+   *  async-combobox value is picked or cleared. Lets callers cache display names. */
   onSelectedLabelChange?: (label?: string) => void;
   asyncStaticOptions?: AsyncSelectOption[];
   asyncStaticOptionsLabel?: string;
