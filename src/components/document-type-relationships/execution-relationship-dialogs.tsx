@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { GitMerge } from "lucide-react"
+import { GitMerge, Plus, Trash2 } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { useDocumentTypeRelationships } from "@/hooks/useDocumentTypeRelationships"
 import { useRelationshipAttributes } from "@/hooks/useDocumentTypeRelationships"
 import { useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships"
@@ -14,7 +15,7 @@ import type {
   ExecutionRelationshipEditDialogProps,
 } from "@/types/document-type-relationships"
 import type {
-  ExecutionRelationshipAttributeValue,
+  ExecutionRelationshipAttributeInput,
 } from "@/types/execution-relationships"
 import type { RelationshipAttributeDefinition } from "@/types/document-type-relationships"
 import type { Execution } from "@/types/execution"
@@ -48,6 +49,76 @@ function AttributeFields({
           />
         ))}
     </>
+  )
+}
+
+// ─── Manual attribute rows (free-form name + value) ─────────────────────────────
+
+interface ManualAttr {
+  name: string
+  value: string
+}
+
+function ManualAttributeRows({
+  attrs,
+  onChange,
+}: {
+  attrs: ManualAttr[]
+  onChange: (attrs: ManualAttr[]) => void
+}) {
+  const { t } = useTranslation(["document-type-relationships", "common"])
+
+  const updateRow = (index: number, patch: Partial<ManualAttr>) => {
+    onChange(attrs.map((a, i) => (i === index ? { ...a, ...patch } : a)))
+  }
+  const removeRow = (index: number) => {
+    onChange(attrs.filter((_, i) => i !== index))
+  }
+  const addRow = () => {
+    onChange([...attrs, { name: "", value: "" }])
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {attrs.map((attr, index) => (
+        <div key={index} className="flex items-end gap-2">
+          <HuemulField
+            className="flex-1"
+            label={index === 0 ? t("relationship.attributeName") : undefined}
+            name={`manual_attr_name_${index}`}
+            type="text"
+            value={attr.name}
+            onChange={(v) => updateRow(index, { name: v as string })}
+            placeholder={t("relationship.attributeName")}
+          />
+          <HuemulField
+            className="flex-1"
+            label={index === 0 ? t("relationship.attributeValue") : undefined}
+            name={`manual_attr_value_${index}`}
+            type="text"
+            value={attr.value}
+            onChange={(v) => updateRow(index, { value: v as string })}
+            placeholder={t("relationship.attributeValue")}
+          />
+          <button
+            type="button"
+            onClick={() => removeRow(index)}
+            className="mb-1.5 p-2 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors shrink-0"
+            title={t("common:delete")}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+      <HuemulButton
+        variant="outline"
+        size="sm"
+        icon={Plus}
+        label={t("relationship.addAttribute")}
+        onClick={addRow}
+        className="self-start"
+      />
+    </div>
   )
 }
 
@@ -167,6 +238,10 @@ export function ExecutionRelationshipCreateDialog({
   const [selectedRelId, setSelectedRelId] = useState("")
   const [attrValues, setAttrValues] = useState<Record<string, string>>({})
 
+  // Manual relationship (fallback when no configured relationship exists between the types)
+  const [manualName, setManualName] = useState("")
+  const [manualAttrs, setManualAttrs] = useState<ManualAttr[]>([])
+
   const { createExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
 
   // Fetch executions for each asset
@@ -207,6 +282,8 @@ export function ExecutionRelationshipCreateDialog({
     if (!open) {
       setSelectedRelId("")
       setAttrValues({})
+      setManualName("")
+      setManualAttrs([])
       setSourceExecId(source.executionId ?? "")
       setTargetExecId(target.executionId ?? "")
     }
@@ -232,35 +309,50 @@ export function ExecutionRelationshipCreateDialog({
     setAttrValues((prev) => ({ ...prev, [attrId]: value }))
   }
 
-  const canSubmit =
-    !!sourceExecId && !!targetExecId && !!selectedRelId
+  // Manual mode is the fallback only once the relationships query has settled
+  // and there are no configured relationships between the two types.
+  const isManual = relResponse !== undefined && availableRels.length === 0
+
+  const canSubmit = isManual
+    ? !!sourceExecId && !!targetExecId && manualName.trim() !== ""
+    : !!sourceExecId && !!targetExecId && !!selectedRelId
 
   const handleSubmit = async () => {
     if (!canSubmit) return
-    const attributes: ExecutionRelationshipAttributeValue[] = attrDefs
-      .filter((attr) => attrValues[attr.id] !== undefined && attrValues[attr.id] !== "")
-      .map((attr) => ({
-        document_type_relationship_attribute_id: attr.id,
-        value: attrValues[attr.id],
-      }))
 
-    await new Promise<void>((resolve, reject) => {
-      createExecutionRelationship.mutate(
-        {
+    const attributes: ExecutionRelationshipAttributeInput[] = isManual
+      ? manualAttrs
+          .filter((a) => a.name.trim() !== "" && a.value !== "")
+          .map((a) => ({ name: a.name.trim(), value: a.value }))
+      : attrDefs
+          .filter((attr) => attrValues[attr.id] !== undefined && attrValues[attr.id] !== "")
+          .map((attr) => ({ document_type_relationship_attribute_id: attr.id, value: attrValues[attr.id] }))
+
+    const body = isManual
+      ? {
+          source_execution_id: sourceExecId,
+          target_execution_id: targetExecId,
+          execution_relationship_name: manualName.trim(),
+          attributes: attributes.length > 0 ? attributes : undefined,
+        }
+      : {
           document_type_relationship_id: selectedRelId,
           source_execution_id: sourceExecId,
           target_execution_id: targetExecId,
           attributes: attributes.length > 0 ? attributes : undefined,
+        }
+
+    await new Promise<void>((resolve, reject) => {
+      createExecutionRelationship.mutate(body, {
+        onSuccess: (data) => {
+          const relName = isManual
+            ? manualName.trim()
+            : availableRels.find((r) => r.id === selectedRelId)?.name ?? ""
+          onCreated?.(data, relName, sourceExecId, targetExecId)
+          resolve()
         },
-        {
-          onSuccess: (data) => {
-            const relName = availableRels.find((r) => r.id === selectedRelId)?.name ?? ""
-            onCreated?.(data, relName, sourceExecId, targetExecId)
-            resolve()
-          },
-          onError: (err) => reject(err),
-        },
-      )
+        onError: (err) => reject(err),
+      })
     })
   }
 
@@ -336,26 +428,41 @@ export function ExecutionRelationshipCreateDialog({
           )
         )}
 
-        {/* Relationship type selector */}
-        {availableRels.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            {t("relationship.noRelationshipsBetweenTypes")}
-          </p>
+        {/* Manual relationship form — fallback when no configured relationship exists */}
+        {isManual ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              {t("relationship.manualHint")}
+            </p>
+            <HuemulField
+              label={t("relationship.manualName")}
+              name="execution_relationship_name"
+              type="text"
+              value={manualName}
+              onChange={(v) => setManualName(v as string)}
+              placeholder={t("relationship.manualName")}
+              required
+            />
+            <ManualAttributeRows attrs={manualAttrs} onChange={setManualAttrs} />
+          </>
         ) : (
-          <HuemulField
-            label={t("relationship.type")}
-            name="relationship_type"
-            type="select"
-            value={selectedRelId}
-            onChange={(v) => setSelectedRelId(v as string)}
-            options={relOptions}
-            required
-          />
-        )}
+          <>
+            {/* Relationship type selector */}
+            <HuemulField
+              label={t("relationship.type")}
+              name="relationship_type"
+              type="select"
+              value={selectedRelId}
+              onChange={(v) => setSelectedRelId(v as string)}
+              options={relOptions}
+              required
+            />
 
-        {/* Attribute values */}
-        {selectedRelId && (
-          <AttributeFields attributes={attrDefs} values={attrValues} onChange={handleAttrChange} />
+            {/* Attribute values */}
+            {selectedRelId && (
+              <AttributeFields attributes={attrDefs} values={attrValues} onChange={handleAttrChange} />
+            )}
+          </>
         )}
       </HuemulFieldGroup>
     </HuemulDialog>
@@ -377,20 +484,26 @@ export function ExecutionRelationshipEditDialog({
 
   const { updateExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
 
+  // Manual relationships have no document_type_relationship; their attributes are keyed by name.
+  const isManual = !executionRelationship?.document_type_relationship_id
   const docTypeRelId = executionRelationship?.document_type_relationship_id ?? ""
 
-  const { data: attrDefs = [] } = useRelationshipAttributes(organizationId, docTypeRelId)
+  const { data: attrDefs = [] } = useRelationshipAttributes(organizationId, isManual ? "" : docTypeRelId)
+
+  // Manual attributes come from the relationship itself (read-only name, editable value).
+  const manualAttrs = executionRelationship?.attributes ?? []
 
   useEffect(() => {
     if (open && executionRelationship) {
       const initial: Record<string, string> = {}
       executionRelationship.attributes.forEach((a) => {
-        initial[a.document_type_relationship_attribute_id] = a.value
+        const key = isManual ? a.name ?? "" : a.document_type_relationship_attribute_id ?? ""
+        if (key) initial[key] = a.value
       })
       setAttrValues(initial)
     }
     if (!open) setAttrValues({})
-  }, [open, executionRelationship])
+  }, [open, executionRelationship, isManual])
 
   const handleAttrChange = (attrId: string, value: string) => {
     setAttrValues((prev) => ({ ...prev, [attrId]: value }))
@@ -398,12 +511,16 @@ export function ExecutionRelationshipEditDialog({
 
   const handleSubmit = async () => {
     if (!executionRelationship?.id) return
-    const attributes: ExecutionRelationshipAttributeValue[] = Object.entries(attrValues)
-      .filter(([, value]) => value !== "")
-      .map(([document_type_relationship_attribute_id, value]) => ({
-        document_type_relationship_attribute_id,
-        value,
-      }))
+    const attributes: ExecutionRelationshipAttributeInput[] = isManual
+      ? manualAttrs
+          .filter((a) => !!a.name)
+          .map((a) => ({ name: a.name!, value: attrValues[a.name!] ?? a.value }))
+      : Object.entries(attrValues)
+          .filter(([, value]) => value !== "")
+          .map(([document_type_relationship_attribute_id, value]) => ({
+            document_type_relationship_attribute_id,
+            value,
+          }))
 
     await new Promise<void>((resolve, reject) => {
       updateExecutionRelationship.mutate(
@@ -426,7 +543,26 @@ export function ExecutionRelationshipEditDialog({
       saveAction={{ label: t("edit.submitLabel"), onClick: handleSubmit }}
     >
       <HuemulFieldGroup className="py-2">
-        {attrDefs.length === 0 ? (
+        {isManual ? (
+          manualAttrs.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              {t("relationship.noAttributes")}
+            </p>
+          ) : (
+            manualAttrs
+              .filter((a) => !!a.name)
+              .map((a) => (
+                <HuemulField
+                  key={a.name}
+                  label={a.name ?? ""}
+                  name={a.name ?? ""}
+                  type="text"
+                  value={attrValues[a.name!] ?? ""}
+                  onChange={(v) => handleAttrChange(a.name!, v as string)}
+                />
+              ))
+          )
+        ) : attrDefs.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-2">
             {t("relationship.noAttributes")}
           </p>

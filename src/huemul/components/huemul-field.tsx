@@ -28,6 +28,7 @@ export type {
 }
 
 import SectionPlateEditor from "@/components/plate-editor/section-plate-editor";
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -1306,6 +1307,7 @@ export function HuemulField({
   labelFirst,
   fetchOptions,
   pageSize = 10,
+  debounceMs,
   selectedLabel,
   selectedColor,
   onSelectedLabelChange,
@@ -1660,6 +1662,31 @@ export function HuemulField({
             asyncResultsLabel={asyncResultsLabel}
             searchOnEnter={searchOnEnter}
             onSelectedLabelChange={onSelectedLabelChange}
+          />
+        ) : null;
+
+      case "async-combobox":
+        return fetchOptions ? (
+          <HuemulCombobox
+            id={fieldId}
+            value={String(value ?? "")}
+            onValueChange={(v) => onChange?.(v as string)}
+            fetchOptions={fetchOptions}
+            pageSize={pageSize}
+            debounceMs={debounceMs}
+            searchOnEnter={searchOnEnter}
+            staticOptions={asyncStaticOptions}
+            staticOptionsLabel={asyncStaticOptionsLabel}
+            asyncResultsLabel={asyncResultsLabel}
+            selectedOptions={
+              value && selectedLabel
+                ? [{ value: String(value), label: selectedLabel, color: selectedColor }]
+                : []
+            }
+            placeholder={placeholder}
+            error={error}
+            disabled={disabled}
+            className={inputClassName}
           />
         ) : null;
 

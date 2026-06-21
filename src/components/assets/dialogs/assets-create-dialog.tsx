@@ -197,7 +197,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
         <form id="create-asset-form" onSubmit={handleSubmit} className="grid gap-6">
           {/* 1 · Asset type */}
           <HuemulField
-            type="async-select"
+            type="async-combobox"
             label={t('form.assetType')}
             name="documentType"
             id="documentType"
@@ -244,7 +244,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
           {/* 3 · Template selector (template mode only) */}
           {contentMode === "template" && (
             <HuemulField
-              type="async-select"
+              type="async-combobox"
               label={t('form.template')}
               name="template"
               value={templateId}

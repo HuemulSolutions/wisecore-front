@@ -754,6 +754,7 @@ function RelationshipsCanvasFlow({
             data: {
               relationshipId: relationship.id,
               name: relName,
+              relationshipType: relationship.relationship_type,
               minCount: 0,
               maxCount: 0,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
@@ -880,6 +881,10 @@ function RelationshipsCanvasFlow({
             (e) => e.source === srcCanvasId && e.target === tgtCanvasId,
           ).length
 
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
           newEdges.push({
             id: edgeId,
             source: srcCanvasId,
@@ -888,14 +893,17 @@ function RelationshipsCanvasFlow({
             markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
-              name: rel.document_type_relationship.name,
-              minCount: rel.document_type_relationship.min_count,
-              maxCount: rel.document_type_relationship.max_count,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
               onEdit: () => {
                 setEditingExecRelationship({
                   id: rel.id,
-                  document_type_relationship_id: rel.document_type_relationship.id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
                   source_execution_id: rel.source_execution.id,
                   target_execution_id: rel.target_execution.id,
                   attributes: rel.attributes,
@@ -904,11 +912,11 @@ function RelationshipsCanvasFlow({
                   created_by: null,
                   updated_by: null,
                 })
-                setEditingExecRelName(rel.document_type_relationship.name)
+                setEditingExecRelName(relName)
               },
               onDelete: () => {
                 setDeletingExecRelId(rel.id)
-                setDeletingExecRelName(rel.document_type_relationship.name)
+                setDeletingExecRelName(relName)
               },
               onManageAttributes: undefined,
             } satisfies RelationshipEdgeData,
@@ -1009,6 +1017,10 @@ function RelationshipsCanvasFlow({
           const pairKey = `${srcCanvasId}::${tgtCanvasId}`
           const existingCount = existingCountPerPair.get(pairKey) ?? 0
           const total = existingCount + 1
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
           newEdges.push({
             id: edgeId,
             source: srcCanvasId,
@@ -1017,14 +1029,17 @@ function RelationshipsCanvasFlow({
             markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
-              name: rel.document_type_relationship.name,
-              minCount: rel.document_type_relationship.min_count,
-              maxCount: rel.document_type_relationship.max_count,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
               pathOffset: parallelOffset(existingCount, total),
               onEdit: () => {
                 setEditingExecRelationship({
                   id: rel.id,
-                  document_type_relationship_id: rel.document_type_relationship.id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
                   source_execution_id: rel.source_execution.id,
                   target_execution_id: rel.target_execution.id,
                   attributes: rel.attributes,
@@ -1033,11 +1048,11 @@ function RelationshipsCanvasFlow({
                   created_by: null,
                   updated_by: null,
                 })
-                setEditingExecRelName(rel.document_type_relationship.name)
+                setEditingExecRelName(relName)
               },
               onDelete: () => {
                 setDeletingExecRelId(rel.id)
-                setDeletingExecRelName(rel.document_type_relationship.name)
+                setDeletingExecRelName(relName)
               },
               onManageAttributes: undefined,
             } satisfies RelationshipEdgeData,

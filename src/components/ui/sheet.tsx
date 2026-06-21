@@ -46,6 +46,7 @@ function SheetContent({
   className,
   children,
   side = "right",
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -55,6 +56,15 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        onInteractOutside={(e) => {
+          // Keep the sheet open when interacting with a Base UI combobox popup,
+          // which portals outside the sheet DOM.
+          const target = e.target as HTMLElement | null
+          if (target?.closest('[data-slot="combobox-content"]')) {
+            e.preventDefault()
+          }
+          onInteractOutside?.(e)
+        }}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-240 data-[state=open]:duration-320",
           side === "right" &&
