@@ -20,6 +20,7 @@ export function CreateTemplateDialog({
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newInstructions, setNewInstructions] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -27,12 +28,13 @@ export function CreateTemplateDialog({
     if (open) {
       setNewName("");
       setNewDescription("");
+      setNewInstructions("");
       setError(null);
     }
   }, [open]);
 
   const createTemplateMutation = useMutation({
-    mutationFn: (newData: { name: string; description: string; organization_id: string }) => {
+    mutationFn: (newData: { name: string; description: string; instructions: string; organization_id: string }) => {
       console.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
       return addTemplate(newData);
     },
@@ -73,6 +75,7 @@ export function CreateTemplateDialog({
     createTemplateMutation.mutate({
       name: newName,
       description: newDescription,
+      instructions: newInstructions,
       organization_id: organizationId,
     });
   };
@@ -116,6 +119,15 @@ export function CreateTemplateDialog({
           value={newDescription}
           onChange={(v) => setNewDescription(String(v))}
           placeholder={t('form.descriptionPlaceholder')}
+          disabled={createTemplateMutation.isPending}
+        />
+        <HuemulField
+          label={t('form.instructions')}
+          type="textarea"
+          value={newInstructions}
+          onChange={(v) => setNewInstructions(String(v))}
+          placeholder={t('form.instructionsPlaceholder')}
+          rows={3}
           disabled={createTemplateMutation.isPending}
         />
       </div>

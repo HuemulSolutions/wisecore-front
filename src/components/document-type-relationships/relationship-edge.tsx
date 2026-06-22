@@ -13,12 +13,15 @@ import {
 } from "@xyflow/react"
 import { Edit2, Trash2, Settings2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { ExecutionRelationshipType } from "@/types/execution-relationships"
 
 export interface RelationshipEdgeData {
   relationshipId: string
   name: string
-  minCount: number
-  maxCount: number
+  /** Only present for execution relationships; absent for document-type relationships. */
+  relationshipType?: ExecutionRelationshipType
+  minCount?: number
+  maxCount?: number
   /** Signed offset index used to vary curvature for parallel edges */
   pathOffset?: number
   onEdit?: (relationshipId: string) => void

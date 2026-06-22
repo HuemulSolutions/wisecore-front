@@ -147,6 +147,7 @@ export function TemplateContent({
         <TemplateHeader
           templateName={templateData?.name || selectedTemplate.name}
           templateDescription={templateData?.description}
+          templateInstructions={templateData?.instructions ?? undefined}
           isMobile={isMobile}
           hasNoSections={!orderedSections || orderedSections.length === 0}
           isGenerating={isGenerating}
@@ -373,6 +374,7 @@ export function TemplateContent({
           templateId={selectedTemplate.id}
           templateName={templateData.name}
           templateDescription={templateData.description}
+          templateInstructions={templateData.instructions ?? undefined}
           organizationId={selectedOrganizationId!}
           onSuccess={() => {
             // Solo refrescar el template actual, no toda la lista

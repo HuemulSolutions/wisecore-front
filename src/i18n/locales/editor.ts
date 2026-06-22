@@ -98,6 +98,8 @@ const translations = {
     mediaReferenceSearch: { en: "Search media…", es: "Buscar media…" },
     mediaReferenceEmpty: { en: "No media found", es: "No se encontró media" },
     mediaReferenceNoItems: { en: "No media available", es: "No hay media disponible" },
+    fileType: { en: "File Type", es: "Tipo de archivo" },
+    fileTypePlaceholder: { en: "e.g. image/png", es: "ej. image/png" },
     page: { en: "Page", es: "Página" },
     of: { en: "of", es: "de" },
     previous: { en: "Previous", es: "Anterior" },

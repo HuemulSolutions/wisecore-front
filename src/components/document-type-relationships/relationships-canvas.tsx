@@ -176,6 +176,11 @@ function RelationshipsCanvasFlow({
   const [editingExecRelName, setEditingExecRelName] = useState("")
   // execution-mode load state: nodeId waiting for user to pick an execution
   const [pendingExecLoad, setPendingExecLoad] = useState<string | null>(null)
+  // execution-mode drop state: asset dropped on canvas, waiting for the user to pick a version
+  const [pendingDrop, setPendingDrop] = useState<{
+    docType: { id: string; name: string; color: string; documentTypeId?: string }
+    position: { x: number; y: number }
+  } | null>(null)
   // execution-mode delete state
   const [deletingExecRelId, setDeletingExecRelId] = useState<string | null>(null)
   const [deletingExecRelName, setDeletingExecRelName] = useState("")
@@ -507,19 +512,68 @@ function RelationshipsCanvasFlow({
   // ─── Select execution for a node (execution mode) ─────────────────────────
   const handleSelectExecution = useCallback(
     (nodeId: string, executionId: string, executionName: string) => {
+      // Block selecting a version already used by another node of the same asset
+      const node = getNodes().find((n) => n.id === nodeId)
+      const assetId = (node?.data as AssetTypeNodeData | undefined)?.assetId
+      const duplicate = getNodes().some((n) => {
+        if (n.id === nodeId) return false
+        const d = n.data as AssetTypeNodeData
+        return d.assetId === assetId && d.executionId === executionId
+      })
+      if (duplicate) {
+        toast.warning(t("nodePanel.versionAlreadyInCanvas"))
+        return
+      }
       setNodes((nds) =>
         nds.map((n) =>
           n.id === nodeId ? { ...n, data: { ...n.data, executionId, executionName } } : n,
         ),
       )
     },
-    [setNodes],
+    [setNodes, getNodes, t],
   )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "copy"
   }, [])
+
+  // Create an execution-mode node at the given position, with the picked version pre-filled.
+  // A unique canvas node ID lets multiple versions of the same asset coexist; the real asset
+  // ID is stored in data.assetId.
+  const createExecutionNode = useCallback(
+    (
+      docType: { id: string; name: string; color: string; documentTypeId?: string },
+      position: { x: number; y: number },
+      executionId: string,
+      executionName: string,
+    ) => {
+      const canvasNodeId = `${docType.id}-${Math.random().toString(36).slice(2, 9)}`
+      setNodes((nds) => [
+        ...nds,
+        {
+          id: canvasNodeId,
+          type: "assetType",
+          position,
+          data: {
+            id: canvasNodeId,
+            assetId: docType.id,
+            documentTypeId: docType.documentTypeId,
+            name: docType.name,
+            color: docType.color,
+            executionId,
+            executionName,
+            onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+            onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+            onRemove: handleRemoveNode,
+          },
+        },
+      ])
+      setSelectedNodeId(canvasNodeId)
+      setSelectedEdgeId(null)
+    },
+    [setNodes, handleRemoveNode],
+  )
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -534,49 +588,37 @@ function RelationshipsCanvasFlow({
         return
       }
 
-      // In doc-type mode avoid duplicates; in execution mode allow the same asset with different versions
-      const isExecution = mode === 'execution'
-      if (!isExecution && getNodes().some((n) => n.id === docType.id)) return
-
       // Use screenToFlowPosition to correctly account for pan and zoom
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
 
-      // In execution mode, generate a unique canvas node ID so multiple versions of the same
-      // asset can coexist. The real asset ID is stored in data.assetId.
-      const canvasNodeId = isExecution
-        ? `${docType.id}-${Math.random().toString(36).slice(2, 9)}`
-        : docType.id
+      // In execution mode, ask which version to add (and validate against canvas duplicates)
+      // before creating the node. In doc-type mode create the node directly, avoiding duplicates.
+      if (mode === 'execution') {
+        setPendingDrop({ docType, position })
+        return
+      }
+
+      if (getNodes().some((n) => n.id === docType.id)) return
 
       setNodes((nds) => [
         ...nds,
         {
-          id: canvasNodeId,
+          id: docType.id,
           type: "assetType",
           position,
           data: {
-            id: canvasNodeId,
-            assetId: isExecution ? docType.id : undefined,
+            id: docType.id,
             documentTypeId: docType.documentTypeId,
             name: docType.name,
             color: docType.color,
-            onLoadRelationships: isExecution
-              ? (id: string) => handleLoadExecRelRef.current?.(id)
-              : handleLoadRelationships,
-            onLoadRelationshipsCanvasOnly: isExecution
-              ? (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id)
-              : handleLoadRelationshipsCanvasOnly,
+            onLoadRelationships: handleLoadRelationships,
+            onLoadRelationshipsCanvasOnly: handleLoadRelationshipsCanvasOnly,
             onRemove: handleRemoveNode,
           },
         },
       ])
-
-      // In execution mode, auto-open the node panel so the user is prompted to select a version
-      if (isExecution) {
-        setSelectedNodeId(canvasNodeId)
-        setSelectedEdgeId(null)
-      }
     },
-    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleRemoveNode, mode],
+    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleLoadRelationshipsCanvasOnly, handleRemoveNode, mode],
   )
 
   // ─── Connect → open create dialog ──────────────────────────────────────────
@@ -712,6 +754,7 @@ function RelationshipsCanvasFlow({
             data: {
               relationshipId: relationship.id,
               name: relName,
+              relationshipType: relationship.relationship_type,
               minCount: 0,
               maxCount: 0,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
@@ -838,6 +881,10 @@ function RelationshipsCanvasFlow({
             (e) => e.source === srcCanvasId && e.target === tgtCanvasId,
           ).length
 
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
           newEdges.push({
             id: edgeId,
             source: srcCanvasId,
@@ -846,14 +893,17 @@ function RelationshipsCanvasFlow({
             markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
-              name: rel.document_type_relationship.name,
-              minCount: rel.document_type_relationship.min_count,
-              maxCount: rel.document_type_relationship.max_count,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
               pathOffset: parallelOffset(pairCount, pairCount + 1),
               onEdit: () => {
                 setEditingExecRelationship({
                   id: rel.id,
-                  document_type_relationship_id: rel.document_type_relationship.id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
                   source_execution_id: rel.source_execution.id,
                   target_execution_id: rel.target_execution.id,
                   attributes: rel.attributes,
@@ -862,11 +912,11 @@ function RelationshipsCanvasFlow({
                   created_by: null,
                   updated_by: null,
                 })
-                setEditingExecRelName(rel.document_type_relationship.name)
+                setEditingExecRelName(relName)
               },
               onDelete: () => {
                 setDeletingExecRelId(rel.id)
-                setDeletingExecRelName(rel.document_type_relationship.name)
+                setDeletingExecRelName(relName)
               },
               onManageAttributes: undefined,
             } satisfies RelationshipEdgeData,
@@ -967,6 +1017,10 @@ function RelationshipsCanvasFlow({
           const pairKey = `${srcCanvasId}::${tgtCanvasId}`
           const existingCount = existingCountPerPair.get(pairKey) ?? 0
           const total = existingCount + 1
+          const dtr = rel.document_type_relationship
+          const isManual = rel.relationship_type === 'manual' || !dtr
+          const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
           newEdges.push({
             id: edgeId,
             source: srcCanvasId,
@@ -975,14 +1029,17 @@ function RelationshipsCanvasFlow({
             markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
             data: {
               relationshipId: rel.id,
-              name: rel.document_type_relationship.name,
-              minCount: rel.document_type_relationship.min_count,
-              maxCount: rel.document_type_relationship.max_count,
+              name: relName,
+              relationshipType: rel.relationship_type,
+              minCount: dtr?.min_count ?? 0,
+              maxCount: dtr?.max_count ?? 0,
               pathOffset: parallelOffset(existingCount, total),
               onEdit: () => {
                 setEditingExecRelationship({
                   id: rel.id,
-                  document_type_relationship_id: rel.document_type_relationship.id,
+                  document_type_relationship_id: dtr?.id ?? null,
+                  relationship_type: rel.relationship_type,
+                  execution_relationship_name: rel.execution_relationship_name ?? null,
                   source_execution_id: rel.source_execution.id,
                   target_execution_id: rel.target_execution.id,
                   attributes: rel.attributes,
@@ -991,11 +1048,11 @@ function RelationshipsCanvasFlow({
                   created_by: null,
                   updated_by: null,
                 })
-                setEditingExecRelName(rel.document_type_relationship.name)
+                setEditingExecRelName(relName)
               },
               onDelete: () => {
                 setDeletingExecRelId(rel.id)
-                setDeletingExecRelName(rel.document_type_relationship.name)
+                setDeletingExecRelName(relName)
               },
               onManageAttributes: undefined,
             } satisfies RelationshipEdgeData,
@@ -1185,6 +1242,27 @@ function RelationshipsCanvasFlow({
           />
         )
       })()}
+
+      {/* Execution version picker — shown when an asset is dropped on the canvas (execution mode) */}
+      {pendingDrop && (
+        <ExecutionPickerDialog
+          open={!!pendingDrop}
+          onOpenChange={(o) => !o && setPendingDrop(null)}
+          organizationId={organizationId}
+          assetId={pendingDrop.docType.id}
+          assetName={pendingDrop.docType.name}
+          excludeExecutionIds={nodes
+            .filter((n) => {
+              const d = n.data as AssetTypeNodeData
+              return d.assetId === pendingDrop.docType.id && !!d.executionId
+            })
+            .map((n) => (n.data as AssetTypeNodeData).executionId as string)}
+          onSelect={(executionId, executionName) => {
+            createExecutionNode(pendingDrop.docType, pendingDrop.position, executionId, executionName)
+            setPendingDrop(null)
+          }}
+        />
+      )}
 
       {/* Edit relationship dialog — execution mode */}
       <ExecutionRelationshipEditDialog

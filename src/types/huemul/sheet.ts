@@ -23,6 +23,7 @@ export interface HuemulSheetProps {
   showFooter?: boolean;
   showCancelButton?: boolean;
   cancelLabel?: string;
+  onCancel?: () => void;
   saveAction?: HuemulSheetAction;
   extraActions?: HuemulSheetAction[];
   closeDelay?: number;

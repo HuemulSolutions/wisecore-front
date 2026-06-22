@@ -30,7 +30,7 @@ export function useRoles(enabled: boolean = true, page: number = 1, pageSize: nu
 export function usePermissions(enabled: boolean = true) {
   return useQuery({
     queryKey: rbacQueryKeys.permissions(),
-    queryFn: getPermissions,
+    queryFn: () => getPermissions(),
     staleTime: 10 * 60 * 1000, // 10 minutes - permissions change less frequently
     enabled,
   })

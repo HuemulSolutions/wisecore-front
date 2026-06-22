@@ -18,6 +18,7 @@ const translations = {
     lifecycleState: { en: "Lifecycle State", es: "Estado de Ciclo de Vida" },
     filterWithLlm: { en: "Filter results using AI for semantic relevance", es: "Filtrar resultados usando IA por relevancia semántica" },
     filterWithLlmShort: { en: "AI filter", es: "Filtro IA" },
+    llmDisabledChip: { en: "AI filter off", es: "Filtro IA desactivado" },
     searchType: { en: "Search Type", es: "Tipo de búsqueda" },
     apply: { en: "Apply", es: "Aplicar" },
     clearAll: { en: "Clear filters", es: "Limpiar filtros" },
@@ -44,6 +45,11 @@ const translations = {
     noResultsDescription: {
       en: "Try adjusting your search query or using different keywords.",
       es: "Intenta ajustar tu búsqueda o usa palabras clave diferentes.",
+    },
+    initialTitle: { en: "Start searching", es: "Comienza tu búsqueda" },
+    initialDescription: {
+      en: "Enter a query or apply filters to see results.",
+      es: "Ingresa una consulta o aplica filtros para ver resultados.",
     },
   },
   skeleton: {

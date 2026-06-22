@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
+import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ar, de, enUS, es, fr, it, ja, ptBR, zhCN, type Locale } from "date-fns/locale";
 import { tokenize, tokenStyle } from "./json-viewer";
@@ -28,6 +28,7 @@ export type {
 }
 
 import SectionPlateEditor from "@/components/plate-editor/section-plate-editor";
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -723,363 +724,6 @@ function DateRangeField({
   );
 }
 
-function AsyncSelectField({
-  fieldId,
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  error,
-  inputClassName,
-  fetchOptions,
-  pageSize = 10,
-  externalSelectedLabel,
-  externalSelectedColor,
-  staticOptions = [],
-  staticOptionsLabel,
-  asyncResultsLabel,
-  searchOnEnter = false,
-}: {
-  fieldId: string;
-  value?: string | number | boolean;
-  onChange?: (value: string | number | boolean) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  error?: string;
-  inputClassName?: string;
-  fetchOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
-  pageSize?: number;
-  externalSelectedLabel?: string;
-  externalSelectedColor?: string;
-  staticOptions?: AsyncSelectOption[];
-  staticOptionsLabel?: string;
-  asyncResultsLabel?: string;
-  searchOnEnter?: boolean;
-}) {
-  const { t } = useTranslation('common');
-  const [open, setOpen] = React.useState(false);
-  const [options, setOptions] = React.useState<AsyncSelectOption[]>([]);
-  const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
-  const [hasMore, setHasMore] = React.useState(true);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [selectedLabel, setSelectedLabel] = React.useState("");
-  const [selectedColor, setSelectedColor] = React.useState<string | undefined>(undefined);
-
-  const listRef = React.useRef<HTMLDivElement>(null);
-  const isInitialMount = React.useRef(true);
-  const lastManualSelection = React.useRef<{ value: string; label: string; color?: string } | null>(null);
-
-  const loadOptions = React.useCallback(
-    async (searchTerm: string, pageNum: number, append = false) => {
-      const isPaginating = pageNum > 1;
-      if (isPaginating) {
-        setIsLoadingMore(true);
-      } else {
-        setIsLoading(true);
-      }
-      try {
-        const [result] = await Promise.all([
-          fetchOptions({ search: searchTerm, page: pageNum, pageSize }),
-          isPaginating ? new Promise((r) => setTimeout(r, 400)) : Promise.resolve(),
-        ]);
-        setOptions((prev) => append ? [...prev, ...(result as FetchOptionsResult).options] : (result as FetchOptionsResult).options);
-        setHasMore((result as FetchOptionsResult).hasMore);
-        setPage(pageNum);
-      } catch (err) {
-        console.error("Error fetching options:", err);
-      } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
-      }
-    },
-    [fetchOptions, pageSize],
-  );
-
-  // Load initial options when popover opens
-  React.useEffect(() => {
-    if (open && isInitialMount.current) {
-      isInitialMount.current = false;
-      loadOptions("", 1);
-    }
-  }, [open, loadOptions]);
-
-  // Reset state when popover closes
-  React.useEffect(() => {
-    if (!open) {
-      setSearch("");
-      setPage(1);
-      setOptions([]);
-      setHasMore(true);
-      isInitialMount.current = true;
-    }
-  }, [open]);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-  };
-
-  // Debounce: auto-search 300 ms after the user stops typing
-  React.useEffect(() => {
-    if (isInitialMount.current) return;
-    if (searchOnEnter) return;
-    const timer = setTimeout(() => {
-      setPage(1);
-      setHasMore(true);
-      loadOptions(search, 1, false);
-    }, 300);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setPage(1);
-      setHasMore(true);
-      loadOptions(search, 1, false);
-    }
-  };
-
-  const handleScroll = React.useCallback(() => {
-    const list = listRef.current;
-    if (!list || isLoadingMore || !hasMore) return;
-    const { scrollTop, scrollHeight, clientHeight } = list;
-    if (scrollHeight - scrollTop - clientHeight < 50) {
-      loadOptions(search, page + 1, true);
-    }
-  }, [hasMore, isLoadingMore, loadOptions, page, search]);
-
-  // Keep selectedLabel / selectedColor in sync when options list changes
-  React.useEffect(() => {
-    if (value) {
-      const staticOpt = staticOptions.find((o) => o.value === String(value));
-      if (staticOpt) {
-        setSelectedLabel(staticOpt.label);
-        setSelectedColor(staticOpt.color);
-      } else {
-        const option = options.find((opt) => opt.value === String(value));
-        if (option) {
-          setSelectedLabel(option.label);
-          setSelectedColor(option.color);
-        } else if (lastManualSelection.current?.value === String(value)) {
-          // User just selected this value — options were cleared on close but the label is known
-          setSelectedLabel(lastManualSelection.current.label);
-          setSelectedColor(lastManualSelection.current.color);
-        } else if (externalSelectedLabel) {
-          setSelectedLabel(externalSelectedLabel);
-          setSelectedColor(externalSelectedColor);
-        }
-      }
-    } else {
-      setSelectedLabel("");
-      setSelectedColor(undefined);
-      lastManualSelection.current = null;
-    }
-  }, [value, options, staticOptions, externalSelectedLabel, externalSelectedColor]);
-
-  const strValue = String(value ?? "");
-
-  const handleSelect = (selectedValue: string) => {
-    const newValue = selectedValue === strValue ? "" : selectedValue;
-    onChange?.(newValue);
-    if (newValue) {
-      const option = options.find((opt) => opt.value === newValue);
-      if (option) {
-        setSelectedLabel(option.label);
-        setSelectedColor(option.color);
-        lastManualSelection.current = { value: newValue, label: option.label, color: option.color };
-      }
-    } else {
-      setSelectedLabel("");
-      setSelectedColor(undefined);
-      lastManualSelection.current = null;
-    }
-    setOpen(false);
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={fieldId}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-invalid={!!error || undefined}
-          disabled={disabled}
-          className={cn(
-            "w-full justify-between font-normal hover:cursor-pointer",
-            !strValue && "text-muted-foreground",
-            error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
-            inputClassName,
-          )}
-        >
-          <span className="flex items-center gap-2 truncate">
-            {strValue && selectedColor && (
-              <span
-                className="shrink-0 size-3 rounded-full"
-                style={{ backgroundColor: selectedColor }}
-              />
-            )}
-            <span className="truncate">
-              {strValue && selectedLabel ? selectedLabel : (placeholder || t('selectPlaceholder'))}
-            </span>
-          </span>
-          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] w-64 p-0" align="start">
-        <div className="flex items-center border-b px-3">
-          <Input
-            placeholder={t('searchPlaceholder')}
-            value={search}
-            onChange={handleSearchChange}
-            onKeyDown={handleSearchKeyDown}
-            className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 h-9"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                loadOptions("", 1, false);
-              }}
-              className="text-muted-foreground hover:text-foreground hover:cursor-pointer"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-        <div
-          ref={listRef}
-          className="max-h-60 overflow-y-auto p-1"
-          onScroll={handleScroll}
-          onWheel={(e) => e.stopPropagation()}
-        >
-          {/* All / clear option — always visible */}
-          <button
-            type="button"
-            className={cn(
-              "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-              "hover:bg-accent hover:text-accent-foreground",
-              !strValue && "bg-accent text-accent-foreground",
-            )}
-            onClick={() => {
-              onChange?.("");
-              setSelectedLabel("");
-              setSelectedColor(undefined);
-              setOpen(false);
-            }}
-          >
-            <span className="flex size-4 items-center justify-center">
-              {!strValue && <Check className="size-4" />}
-            </span>
-            <span className="truncate text-muted-foreground">{placeholder ?? t('selectPlaceholder')}</span>
-          </button>
-
-          {/* Static section label */}
-          {staticOptionsLabel && staticOptions.length > 0 && (
-            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {staticOptionsLabel}
-            </p>
-          )}
-
-          {/* Static options — always visible, pinned above async results */}
-          {staticOptions.map((option) => {
-            const isStaticSelected = strValue === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                className={cn(
-                  "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  isStaticSelected && "bg-accent text-accent-foreground",
-                )}
-                onClick={() => handleSelect(option.value)}
-              >
-                <span className="flex size-4 shrink-0 items-center justify-center">
-                  {isStaticSelected && <Check className="size-4" />}
-                </span>
-                {option.color && (
-                  <span className="shrink-0 size-3 rounded-full" style={{ backgroundColor: option.color }} />
-                )}
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="truncate">{option.label}</span>
-                  {option.description && (
-                    <span className="text-xs text-muted-foreground truncate">{option.description}</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-
-          {/* Separator + async section label */}
-          {staticOptions.length > 0 && (
-            <div className="my-1 -mx-1 border-t border-border" />
-          )}
-          {asyncResultsLabel && (
-            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {asyncResultsLabel}
-            </p>
-          )}
-
-          {/* Async results */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-sm text-muted-foreground">{t('loading')}</span>
-            </div>
-          ) : options.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">{t('noResults')}</p>
-          ) : (
-            <>
-              {options.map((option) => {
-                const isSelected = strValue === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={cn(
-                      "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      isSelected && "bg-accent text-accent-foreground",
-                    )}
-                    onClick={() => handleSelect(option.value)}
-                  >
-                    <span className="flex size-4 items-center justify-center">
-                      {isSelected && <Check className="size-4" />}
-                    </span>
-                    {option.color && (
-                      <span
-                        className="shrink-0 size-3 rounded-full"
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <span className="truncate">{option.label}</span>
-                  </button>
-                );
-              })}
-              {isLoadingMore && (
-                <div className="flex items-center justify-center py-2">
-                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-xs text-muted-foreground">{t('loadingMore')}</span>
-                </div>
-              )}
-              {!hasMore && options.length > 0 && (
-                <p className="py-2 text-center text-xs text-muted-foreground">{t('noMoreResults')}</p>
-              )}
-            </>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 // ── JSON Editor Field ──────────────────────────────────────────────────────
 
 function JsonEditorField({
@@ -1299,8 +943,10 @@ export function HuemulField({
   labelFirst,
   fetchOptions,
   pageSize = 10,
+  debounceMs,
   selectedLabel,
   selectedColor,
+  onSelectedLabelChange,
   asyncStaticOptions,
   asyncStaticOptionsLabel,
   asyncResultsLabel,
@@ -1633,24 +1279,29 @@ export function HuemulField({
           </div>
         );
 
-      case "async-select":
+      case "async-combobox":
         return fetchOptions ? (
-          <AsyncSelectField
-            fieldId={fieldId}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            disabled={disabled}
-            error={error}
-            inputClassName={inputClassName}
+          <HuemulCombobox
+            id={fieldId}
+            value={String(value ?? "")}
+            onValueChange={(v) => onChange?.(v as string)}
             fetchOptions={fetchOptions}
             pageSize={pageSize}
-            externalSelectedLabel={selectedLabel}
-            externalSelectedColor={selectedColor}
+            debounceMs={debounceMs}
+            searchOnEnter={searchOnEnter}
             staticOptions={asyncStaticOptions}
             staticOptionsLabel={asyncStaticOptionsLabel}
             asyncResultsLabel={asyncResultsLabel}
-            searchOnEnter={searchOnEnter}
+            selectedOptions={
+              value && selectedLabel
+                ? [{ value: String(value), label: selectedLabel, color: selectedColor }]
+                : []
+            }
+            onSelectedLabelChange={onSelectedLabelChange}
+            placeholder={placeholder}
+            error={error}
+            disabled={disabled}
+            className={inputClassName}
           />
         ) : null;
 

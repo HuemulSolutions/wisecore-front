@@ -22,6 +22,7 @@ import { getExecutionDisplayLabel } from "@/components/assets/content/utils/vers
 import { parseApiDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -193,6 +194,13 @@ export function AssetsNotificationsSheet({
     "notifications",
   );
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
+  const [notifPage, setNotifPage] = useState(1);
+  const [notifPageSize, setNotifPageSize] = useState(50);
+
+  // Reset to the first page when the asset, filter, or active tab changes
+  useEffect(() => {
+    setNotifPage(1);
+  }, [documentId, notifFilter, activeTab]);
 
   // Version selected for date-alert subscriptions (defaults to the currently viewed version)
   const [selectedSubExecutionId, setSelectedSubExecutionId] = useState<string | null>(
@@ -236,16 +244,18 @@ export function AssetsNotificationsSheet({
     refetch: refetchNotifications,
     isFetching: isFetchingNotifications,
   } = useQuery({
-    queryKey: ["notifications", documentId, notifFilter],
+    queryKey: ["notifications", documentId, notifFilter, notifPage, notifPageSize],
     queryFn: () =>
       getNotifications(organizationId, {
         document_id: documentId,
         is_read: notifFilter === "unread" ? false : undefined,
-        page_size: 50,
+        page: notifPage,
+        page_size: notifPageSize,
       }),
     enabled: open && activeTab === "notifications",
     staleTime: 30000,
     refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   const notifications = notificationsData?.data ?? [];
@@ -451,6 +461,25 @@ export function AssetsNotificationsSheet({
                   onDelete={(id) => deleteNotificationMutation.mutate(id)}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Pagination footer */}
+          {notifications.length > 0 && (
+            <div className="pt-3 mt-3 border-t border-gray-100">
+              <HuemulPagination
+                page={notificationsData?.page ?? notifPage}
+                pageSize={notificationsData?.page_size ?? notifPageSize}
+                totalItems={notificationsData?.total}
+                hasNext={notificationsData?.has_next}
+                hasPrevious={(notificationsData?.page ?? notifPage) > 1}
+                onPageChange={setNotifPage}
+                onPageSizeChange={(s) => {
+                  setNotifPageSize(s);
+                  setNotifPage(1);
+                }}
+                pageSizeOptions={[25, 50, 100]}
+              />
             </div>
           )}
         </TabsContent>

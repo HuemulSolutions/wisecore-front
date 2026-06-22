@@ -15,6 +15,7 @@ export function EditTemplateDialog({
   templateId,
   templateName,
   templateDescription,
+  templateInstructions,
   organizationId,
   onSuccess,
 }: EditTemplateDialogProps) {
@@ -22,13 +23,15 @@ export function EditTemplateDialog({
   const queryClient = useQueryClient();
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editInstructions, setEditInstructions] = useState("");
 
   useEffect(() => {
     if (open) {
       setEditName(templateName);
       setEditDescription(templateDescription || "");
+      setEditInstructions(templateInstructions || "");
     }
-  }, [open, templateName, templateDescription]);
+  }, [open, templateName, templateDescription, templateInstructions]);
 
   const updateTemplateMutation = useMutation({
     mutationFn: withRefresh(
@@ -46,7 +49,8 @@ export function EditTemplateDialog({
   const handleSubmit = () => {
     updateTemplateMutation.mutate({
       name: editName.trim(),
-      description: editDescription.trim() || null
+      description: editDescription.trim() || null,
+      instructions: editInstructions.trim() || null
     });
   };
 
@@ -81,6 +85,15 @@ export function EditTemplateDialog({
           value={editDescription}
           onChange={(v) => setEditDescription(String(v))}
           placeholder={t('form.descriptionPlaceholder')}
+          rows={3}
+          disabled={updateTemplateMutation.isPending}
+        />
+        <HuemulField
+          label={t('form.instructions')}
+          type="textarea"
+          value={editInstructions}
+          onChange={(v) => setEditInstructions(String(v))}
+          placeholder={t('form.instructionsPlaceholder')}
           rows={3}
           disabled={updateTemplateMutation.isPending}
         />

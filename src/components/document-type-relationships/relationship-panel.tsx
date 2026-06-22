@@ -81,15 +81,26 @@ export function RelationshipPanel({
           </div>
         </div>
 
-        {/* Cardinality */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-            {t("panel.cardinality")}
-          </p>
-          <Badge variant="outline" className="text-xs h-6 px-2">
-            {edgeData.minCount}–{edgeData.maxCount === 0 ? "∞" : edgeData.maxCount}
-          </Badge>
-        </div>
+        {/* Cardinality (configured relationships) / Manual badge */}
+        {edgeData.relationshipType === "manual" ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              {t("panel.type")}
+            </p>
+            <Badge variant="outline" className="text-xs h-6 px-2">
+              {t("panel.manual")}
+            </Badge>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              {t("panel.cardinality")}
+            </p>
+            <Badge variant="outline" className="text-xs h-6 px-2">
+              {edgeData.minCount ?? 0}–{(edgeData.maxCount ?? 0) === 0 ? "∞" : edgeData.maxCount}
+            </Badge>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="space-y-2">

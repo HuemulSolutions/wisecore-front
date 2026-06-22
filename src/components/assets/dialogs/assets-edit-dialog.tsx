@@ -162,7 +162,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
         />
 
         <HuemulField
-          type="async-select"
+          type="async-combobox"
           label={t('assets:form.assetType')}
           name="documentType"
           value={documentTypeId}
