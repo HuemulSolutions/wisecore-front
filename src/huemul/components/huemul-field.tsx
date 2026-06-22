@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
+import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ar, de, enUS, es, fr, it, ja, ptBR, zhCN, type Locale } from "date-fns/locale";
 import { tokenize, tokenStyle } from "./json-viewer";
