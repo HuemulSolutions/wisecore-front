@@ -161,7 +161,7 @@ export default function Home() {
     setSelectedLabel,
   } = useHuemulFilters({
     filters: filterDefs,
-    defaultOpen: true,
+    defaultOpen: false,
     initialValues: { searchType: 'semantic' },
   });
 
@@ -233,12 +233,14 @@ export default function Home() {
       key: 'documentName',
       label: t('executionsTable.columns.documentName'),
       sortKey: 'document_name',
+      defaultWidth: 260,
       render: (item) => <span className="font-medium">{item.document_name}</span>,
     },
     {
       key: 'unresolvedComments',
       label: t('executionsTable.columns.unresolvedComments'),
       sortKey: 'unresolved_comments_count',
+      defaultWidth: 150,
       render: (item) =>
         item.unresolved_comments_count > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
@@ -252,6 +254,7 @@ export default function Home() {
     {
       key: 'version',
       label: t('executionsTable.columns.version'),
+      defaultWidth: 120,
       render: (item) => (
         <span className="text-muted-foreground">
           {item.version_major !== null && item.version_minor !== null && item.version_patch !== null
@@ -264,6 +267,7 @@ export default function Home() {
       key: 'lifecycleState',
       label: t('executionsTable.columns.lifecycleState'),
       sortKey: 'lifecycle_state',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground">{tAssets(`lifecycle.stateLabels.${item.lifecycle_state}`)}</span>
       ),
@@ -272,6 +276,7 @@ export default function Home() {
       key: 'taskStatus',
       label: t('executionsTable.columns.taskStatus'),
       sortKey: 'task_status',
+      defaultWidth: 140,
       render: (item) => (
         <span className="text-muted-foreground">{item.task_status ?? '—'}</span>
       ),
@@ -280,6 +285,7 @@ export default function Home() {
       key: 'owner',
       label: t('executionsTable.columns.owner'),
       sortKey: 'created_by_user_name',
+      defaultWidth: 160,
       render: (item) => (
         <span className="text-muted-foreground">{item.created_by_user_name ?? '—'}</span>
       ),
@@ -288,6 +294,7 @@ export default function Home() {
       key: 'updatedAt',
       label: t('executionsTable.columns.updatedAt'),
       sortKey: 'updated_at',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.updated_at}>
           {formatRelativeTime(item.updated_at)}
@@ -298,6 +305,7 @@ export default function Home() {
       key: 'expirationDate',
       label: t('executionsTable.columns.expirationDate'),
       sortKey: 'expiration_date',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.expiration_date ?? undefined}>
           {item.expiration_date ? formatAbsoluteDate(item.expiration_date) : '—'}
@@ -308,6 +316,7 @@ export default function Home() {
       key: 'estimatedPublicationDate',
       label: t('executionsTable.columns.estimatedPublicationDate'),
       sortKey: 'estimated_publication_date',
+      defaultWidth: 180,
       render: (item) => (
         <span className="text-muted-foreground" title={item.estimated_publication_date ?? undefined}>
           {item.estimated_publication_date ? formatAbsoluteDate(item.estimated_publication_date) : '—'}
@@ -318,6 +327,7 @@ export default function Home() {
       key: 'reviewDate',
       label: t('executionsTable.columns.reviewDate'),
       sortKey: 'review_date',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.review_date ?? undefined}>
           {item.review_date ? formatAbsoluteDate(item.review_date) : '—'}
@@ -328,6 +338,7 @@ export default function Home() {
       key: 'auditDate',
       label: t('executionsTable.columns.auditDate'),
       sortKey: 'audit_date',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.audit_date ?? undefined}>
           {item.audit_date ? formatAbsoluteDate(item.audit_date) : '—'}
@@ -418,6 +429,8 @@ export default function Home() {
                     isFetching={isFetching}
                     actions={tableActions}
                     actionsMode="inline"
+                    resizable
+                    columnsStorageKey="wisecore:home-executions-col-widths"
                     className="h-full"
                     maxHeight=""
                     sort={sort}
