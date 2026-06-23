@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { PlusCircle } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet"
 import { useTranslation } from "react-i18next"
 import type { AddSectionDialogProps } from '@/types/assets'
@@ -16,11 +16,13 @@ export function AddSectionDialog({
   isPending,
 }: AddSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const { t } = useTranslation(["assets", "common"])
 
   useEffect(() => {
     if (!open) {
       setIsFormValid(false)
+      setIsGenerating(false)
     }
   }, [open])
 
@@ -35,21 +37,27 @@ export function AddSectionDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={(o) => {
-        if (!o) setIsFormValid(false)
+        if (!o) {
+          setIsFormValid(false)
+          setIsGenerating(false)
+        }
         onOpenChange(o)
       }}
       title={t('addSectionDialog.title')}
       description={getDescription()}
       icon={PlusCircle}
-      maxWidth="sm:max-w-2xl"
-      maxHeight="max-h-[90vh]"
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       cancelLabel={t('common:cancel')}
       saveAction={{
-        label: isPending ? t('common:creating') : t('addSectionDialog.createSection'),
-        disabled: !isFormValid || isPending,
+        label: isPending
+          ? t('common:creating')
+          : isGenerating
+            ? t('addSectionDialog.generating')
+            : t('addSectionDialog.createSection'),
+        disabled: !isFormValid || isPending || isGenerating,
         loading: isPending,
         closeOnSuccess: false,
         onClick: () => {
@@ -63,7 +71,8 @@ export function AddSectionDialog({
         isPending={isPending}
         existingSections={existingSections}
         onValidationChange={setIsFormValid}
+        onGeneratingChange={setIsGenerating}
       />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

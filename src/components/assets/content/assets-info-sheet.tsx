@@ -179,10 +179,18 @@ export function AssetsInfoSheet({
             <HuemulInfoItem label={t("content.info.currentGroup")} value={documentContent.lifecycle_status.current_group} hideWhenEmpty />
             <HuemulInfoItem label={t("content.info.semanticVersion")} value={documentContent.lifecycle_status.version} variant="mono" hideWhenEmpty />
             <HuemulInfoItem
-              label={t("content.info.canCheck")}
+              label={t("content.info.canAdvance")}
               value={
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_check ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                  {documentContent.lifecycle_status.can_check ? t("common:yes") : t("common:no")}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_advance ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  {documentContent.lifecycle_status.can_advance ? t("common:yes") : t("common:no")}
+                </span>
+              }
+            />
+            <HuemulInfoItem
+              label={t("content.info.canRollback")}
+              value={
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${documentContent.lifecycle_status.can_rollback ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  {documentContent.lifecycle_status.can_rollback ? t("common:yes") : t("common:no")}
                 </span>
               }
             />

@@ -165,7 +165,8 @@ export interface LifecycleStatus {
   current_group: string | null;
   current_group_order: number;
   current_step_id: string | null;
-  can_check: boolean;
+  can_advance: boolean;
+  can_rollback: boolean;
   will_advance_phase: boolean;
   version: string | null;
   version_required: boolean;

@@ -30,7 +30,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
@@ -51,6 +50,11 @@ import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/as
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
 import { CloneToNewDocumentDialog } from "@/components/assets/dialogs/assets-clone-to-new-document-dialog";
+import { ContentDeleteDialog } from "@/components/assets/dialogs/assets-content-delete-dialog";
+import { CloneExecutionDialog } from "@/components/assets/dialogs/assets-clone-execution-dialog";
+import { ApproveExecutionDialog } from "@/components/assets/dialogs/assets-approve-execution-dialog";
+import { DisapproveExecutionDialog } from "@/components/assets/dialogs/assets-disapprove-execution-dialog";
+import { DeleteCustomFieldDialog } from "@/components/assets/dialogs/assets-delete-custom-field-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -1898,34 +1902,34 @@ export function AssetContent({
                               onClick={() => setIsAssignVersionDialogOpen(true)}
                             />
                           )}
-                          {documentContent.lifecycle_status.can_check && (
-                            <>
-                              <HuemulButton
-                                variant="outline"
-                                size="sm"
-                                label={t('lifecycle.return')}
-                                icon={Undo2}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                                loading={rejectLifecycleMutation.isPending}
-                                tooltip={t('lifecycle.tooltipReturn')}
-                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                              />
-                              <HuemulButton
-                                variant="default"
-                                size="sm"
-                                label={t('lifecycle.complete')}
-                                icon={Check}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 hover:cursor-pointer"
-                                loading={checkLifecycleMutation.isPending}
-                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                              />
-                            </>
+                          {documentContent.lifecycle_status.can_rollback && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.return')}
+                              icon={Undo2}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={rejectLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipReturn')}
+                              onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                            />
+                          )}
+                          {documentContent.lifecycle_status.can_advance && (
+                            <HuemulButton
+                              variant="default"
+                              size="sm"
+                              label={t('lifecycle.complete')}
+                              icon={Check}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 hover:cursor-pointer"
+                              loading={checkLifecycleMutation.isPending}
+                              disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                              tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                              onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                            />
                           )}
                           {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
                             <HuemulButton
@@ -2498,34 +2502,34 @@ export function AssetContent({
                               className="h-7 px-2.5 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
-                          {documentContent.lifecycle_status.can_check && (
-                            <>
-                              <HuemulButton
-                                size="sm"
-                                variant="ghost"
-                                label={t('lifecycle.return')}
-                                icon={Undo2}
-                                iconPosition="left"
-                                iconClassName="h-3.5 w-3.5"
-                                loading={rejectLifecycleMutation.isPending}
-                                tooltip={t('lifecycle.tooltipReturn')}
-                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                                className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
-                              />
-                              <HuemulButton
-                                size="sm"
-                                variant="ghost"
-                                label={t('lifecycle.complete')}
-                                icon={Check}
-                                iconPosition="left"
-                                iconClassName="h-3.5 w-3.5"
-                                loading={checkLifecycleMutation.isPending}
-                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                                className="h-7 px-2.5 bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white hover:cursor-pointer transition-colors text-xs font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                              />
-                            </>
+                          {documentContent.lifecycle_status.can_rollback && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.return')}
+                              icon={Undo2}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={rejectLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipReturn')}
+                              onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
+                          )}
+                          {documentContent.lifecycle_status.can_advance && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.complete')}
+                              icon={Check}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={checkLifecycleMutation.isPending}
+                              disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                              tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                              onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                              className="h-7 px-2.5 bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white hover:cursor-pointer transition-colors text-xs font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
                           )}
                           {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
                             <HuemulButton
@@ -3316,23 +3320,12 @@ export function AssetContent({
       />
 
       {/* Delete Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <ContentDeleteDialog
         open={isDeleteDialogOpen}
         onOpenChange={handleDeleteDialogChange}
-        title={deleteType === 'execution' ? t('content.deleteVersionTitle') : t('content.deleteDocumentTitle')}
-        description={
-          deleteType === 'execution' ? (
-            selectedExecutionInfo ? (
-              <>
-                {t('content.deleteExecutionDescription', { date: selectedExecutionInfo.formattedDate })}
-              </>
-            ) : (
-              t('content.deleteExecutionFallback')
-            )
-          ) : (
-            t('content.deleteDocumentDescription', { name: selectedFile?.name })
-          )
-        }
+        deleteType={deleteType}
+        documentName={selectedFile?.name}
+        executionFormattedDate={selectedExecutionInfo?.formattedDate}
         onAction={async () => {
           if (deleteType === 'document') {
             await handleDeleteDocument();
@@ -3340,25 +3333,14 @@ export function AssetContent({
             await deleteExecutionMutation.mutateAsync();
           }
         }}
-        actionLabel={t('content.deleteConfirm')}
-        actionVariant="destructive"
       />
 
       {/* Clone Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <CloneExecutionDialog
         open={isCloneDialogOpen}
         onOpenChange={handleCloneDialogChange}
-        title={t('content.cloneExecutionTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.cloneExecutionDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.cloneExecutionFallback')
-          )
-        }
+        executionName={selectedExecutionInfo?.name}
         onAction={() => cloneMutation.mutateAsync()}
-        actionLabel={t('content.cloneConfirm')}
-        actionVariant="default"
       />
 
       {/* Clone to New Document Dialog */}
@@ -3371,37 +3353,19 @@ export function AssetContent({
       />
 
       {/* Approve Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <ApproveExecutionDialog
         open={isApproveDialogOpen}
         onOpenChange={handleApproveDialogChange}
-        title={t('content.approveExecutionTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.approveExecutionDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.approveExecutionFallback')
-          )
-        }
+        executionName={selectedExecutionInfo?.name}
         onAction={() => approveMutation.mutateAsync()}
-        actionLabel={t('content.approveConfirm')}
-        actionVariant="default"
       />
 
       {/* Disapprove Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <DisapproveExecutionDialog
         open={isDisapproveDialogOpen}
         onOpenChange={handleDisapproveDialogChange}
-        title={t('content.disapproveTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.disapproveDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.disapproveFallback')
-          )
-        }
+        executionName={selectedExecutionInfo?.name}
         onAction={() => disapproveMutation.mutateAsync()}
-        actionLabel={t('content.convertToDraft')}
-        actionVariant="destructive"
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
@@ -3552,16 +3516,13 @@ export function AssetContent({
       />
 
       {/* Delete Custom Field Document Confirmation Dialog */}
-      <HuemulAlertDialog
+      <DeleteCustomFieldDialog
         open={isDeleteCustomFieldDocumentDialogOpen}
         onOpenChange={(open) => {
           if (!open) handleCancelDeleteCustomFieldDocument();
         }}
-        title={t('content.deleteCustomFieldTitle')}
-        description={t('content.deleteCustomFieldDescription', { name: customFieldDocumentToDelete?.name })}
+        fieldName={customFieldDocumentToDelete?.name}
         onAction={handleConfirmDeleteCustomFieldDocument}
-        actionLabel={t('content.deleteCustomFieldConfirm')}
-        actionVariant="destructive"
       />
 
       {/* Create Template from Document Dialog */}

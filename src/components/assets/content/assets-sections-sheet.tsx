@@ -22,9 +22,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
 import SortableSectionSheet from "@/components/sections/sortable_section_sheet";
-import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { createSection, updateSection, updateSectionsOrder, deleteSection } from "@/services/section";
 import { linkSectionToExecution } from "@/services/section_execution";
 import { generateDocumentStructure, getDocumentSectionsConfig, syncDocumentsFromTemplate, syncTemplateFromDocument } from "@/services/assets";
@@ -52,8 +51,6 @@ export function SectionSheet({
   const { selectedOrganizationId } = useOrganization();
   const [isAddingSectionDialogOpen, setIsAddingSectionDialogOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
-  const [isFormValid, setIsFormValid] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
 
@@ -139,8 +136,6 @@ export function SectionSheet({
     ),
     onSuccess: () => {
       setIsAddingSectionDialogOpen(false);
-      setIsFormValid(false);
-      setIsGenerating(false);
       toast.success(t('toast.sectionCreated'));
     },
   });
@@ -384,8 +379,6 @@ export function SectionSheet({
               className="bg-[#4464f7] hover:bg-[#3451e6] hover:cursor-pointer h-8"
               onClick={() => {
                 setIsAddingSectionDialogOpen(true);
-                setIsFormValid(false);
-                setIsGenerating(false);
               }}
             >
               <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -502,45 +495,21 @@ export function SectionSheet({
               </p>
             </div>
           )}
+
+          {/* Add Section Dialog — rendered inside the sheet so Radix treats it
+              as a nested layer and closing it does not dismiss this sheet */}
+          <AddSectionDialog
+            open={isAddingSectionDialogOpen}
+            onOpenChange={setIsAddingSectionDialogOpen}
+            documentId={selectedFile!.id}
+            existingSections={fullDocument?.sections || []}
+            onSubmit={(values) => {
+              addSectionMutation.mutate(values);
+            }}
+            isPending={addSectionMutation.isPending}
+          />
         </div>
       </HuemulSheet>
-
-      {/* Add Section Dialog */}
-      <HuemulDialog
-        open={isAddingSectionDialogOpen}
-        onOpenChange={(open) => {
-          setIsAddingSectionDialogOpen(open);
-          if (!open) {
-            setIsFormValid(false);
-            setIsGenerating(false);
-          }
-        }}
-          title={t('addDialog.title')}
-        description={t('addDialog.description')}
-        icon={PlusCircle}
-        maxWidth="sm:max-w-3xl"
-        maxHeight="max-h-[90vh]"
-        saveAction={{
-          label: addSectionMutation.isPending ? t('addDialog.adding') : isGenerating ? t('addDialog.generating') : t('addDialog.save'),
-          disabled: !isFormValid || addSectionMutation.isPending || isGenerating,
-          loading: addSectionMutation.isPending,
-          closeOnSuccess: false,
-          onClick: () => {
-            (document.getElementById("add-section-form") as HTMLFormElement)?.requestSubmit();
-          },
-        }}
-      >
-        <AddSectionFormSheet
-          documentId={selectedFile!.id}
-          onSubmit={(values) => {
-            addSectionMutation.mutate(values);
-          }}
-          isPending={addSectionMutation.isPending}
-          existingSections={fullDocument?.sections || []}
-          onValidationChange={setIsFormValid}
-          onGeneratingChange={setIsGenerating}
-        />
-      </HuemulDialog>
     </>
   );
 }

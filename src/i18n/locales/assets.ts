@@ -338,6 +338,7 @@ const translations = {
     createNew: { en: "Create a new section for your asset.", es: "Crear una nueva sección para tu activo." },
     title: { en: "Add New Section", es: "Agregar Nueva Sección" },
     createSection: { en: "Create Section", es: "Crear Sección" },
+    generating: { en: "Generating...", es: "Generando..." },
   },
   addSectionExecution: {
     title: { en: "Add Section Content", es: "Agregar Contenido de Sección" },
@@ -549,7 +550,8 @@ const translations = {
       state: { en: "State", es: "Estado" },
       stage: { en: "Stage", es: "Etapa" },
       currentGroup: { en: "Current group", es: "Grupo actual" },
-      canCheck: { en: "Can advance", es: "Puede avanzar" },
+      canAdvance: { en: "Can advance", es: "Puede avanzar" },
+      canRollback: { en: "Can roll back", es: "Puede retroceder" },
       versionRequired: { en: "Version required", es: "Versión requerida" },
       stepId: { en: "Step ID", es: "ID del paso" },
       audit: { en: "Audit", es: "Auditoría" },
