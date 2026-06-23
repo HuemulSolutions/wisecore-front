@@ -106,9 +106,15 @@ export function TemplateHeader({
           </h1>
           {/* Template Description */}
           {templateDescription && (
-            <p className="text-sm text-gray-600">
-              {templateDescription}
-            </p>
+            <HuemulExpandableText
+              text={templateDescription}
+              collapsedLines={2}
+              expandedMaxHeight={100}
+              showMoreLabel={t('templates:header.showMore')}
+              showLessLabel={t('templates:header.showLess')}
+              textClassName="text-gray-600"
+              className="mt-0"
+            />
           )}
           {/* Template Instructions */}
           {instructionsCallout}
