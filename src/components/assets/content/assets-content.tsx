@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2, Bell } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2, Bell, Sparkles } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -21,6 +21,7 @@ import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sh
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 
 import {
@@ -3043,6 +3044,29 @@ export function AssetContent({
                     if (documentContent?.content) {
                       return (
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
+                          {/* Template instructions callout - shown once at the top */}
+                          {documentContent.template_instructions?.trim() && (
+                            <div className="not-prose mb-4">
+                              <HuemulExpandableText
+                                collapsible
+                                text={documentContent.template_instructions.trim()}
+                                collapsedLines={1}
+                                expandedMaxHeight={100}
+                                showMoreLabel={t('content.instructionsShowMore')}
+                                showLessLabel={t('content.instructionsShowLess')}
+                                triggerClassName="rounded-lg border border-gray-200 bg-white px-3 py-2"
+                                className="rounded-lg border border-gray-200 bg-white px-4 py-2.5"
+                                leading={
+                                  <span className="flex items-center gap-1.5 shrink-0">
+                                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {t('content.instructionsTitle')}
+                                    </span>
+                                  </span>
+                                }
+                              />
+                            </div>
+                          )}
                           {Array.isArray(documentContent.content) ? (
                             // New format: array of sections with separators
                             <>

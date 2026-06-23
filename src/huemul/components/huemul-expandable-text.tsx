@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
+  CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +26,16 @@ export interface HuemulExpandableTextProps {
   textClassName?: string;
   /** Alto máximo (px) del contenido al expandir; con scroll interno si lo excede. Default 192. */
   expandedMaxHeight?: number;
+  /**
+   * Si es `true`, el componente arranca oculto detrás de un botón disparador
+   * (muestra solo `leading` + chevron). Al pulsarlo se despliega el contenido;
+   * al volver a pulsarlo se oculta (toggle). Default `false`.
+   */
+  collapsible?: boolean;
+  /** Estado inicial del disclosure externo cuando `collapsible` es `true`. Default `false`. */
+  defaultOpen?: boolean;
+  /** Clases para el botón disparador (solo en modo `collapsible`). */
+  triggerClassName?: string;
 }
 
 /**
@@ -43,8 +54,12 @@ export function HuemulExpandableText({
   className,
   textClassName,
   expandedMaxHeight = 192,
+  collapsible = false,
+  defaultOpen = false,
+  triggerClassName,
 }: HuemulExpandableTextProps) {
   const [expanded, setExpanded] = React.useState(false);
+  const [revealed, setRevealed] = React.useState(defaultOpen);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   // Callback ref: al cambiar el render de `<div>` a `<Collapsible><button>`, el
   // `<p>` se remonta como nodo nuevo; con un ref de estado el efecto se vuelve a
@@ -93,9 +108,10 @@ export function HuemulExpandableText({
 
   const canToggle = isOverflowing || expanded;
 
-  const content = (
+  // Cuerpo de texto sin `leading`, para poder reutilizarlo dentro del modo colapsable
+  // (donde `leading` se renderiza en el botón disparador, no junto al texto).
+  const textBody = (
     <>
-      {leading}
       {expanded ? (
         <ScrollArea
           className="flex-1 min-w-0"
@@ -140,20 +156,54 @@ export function HuemulExpandableText({
 
   const containerClassName = cn("flex items-start gap-3 text-left w-full min-w-0", className);
 
-  if (!canToggle) {
-    return <div className={containerClassName}>{content}</div>;
+  // Envuelve un nodo aplicando la lógica de "estático vs clickeable" del disclosure
+  // interno (line-clamp + "Ver más/menos") según si el texto realmente se recorta.
+  const wrapClickable = (node: React.ReactNode) => {
+    if (!canToggle) {
+      return <div className={containerClassName}>{node}</div>;
+    }
+    return (
+      <Collapsible open={expanded} onOpenChange={setExpanded} className="w-full">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(containerClassName, "group hover:cursor-pointer")}
+          >
+            {node}
+          </button>
+        </CollapsibleTrigger>
+      </Collapsible>
+    );
+  };
+
+  // Modo colapsable: el contenido arranca oculto detrás de un botón disparador
+  // que muestra `leading` + chevron. El cuerpo de texto se despliega/oculta (toggle).
+  if (collapsible) {
+    return (
+      <Collapsible open={revealed} onOpenChange={setRevealed} className="w-full">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "group/reveal inline-flex w-fit items-center gap-1.5 hover:cursor-pointer",
+              triggerClassName
+            )}
+          >
+            {leading}
+            <ChevronDown className="h-3.5 w-3.5 text-gray-400 transition-transform group-data-[state=open]/reveal:rotate-180" />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          {wrapClickable(textBody)}
+        </CollapsibleContent>
+      </Collapsible>
+    );
   }
 
-  return (
-    <Collapsible open={expanded} onOpenChange={setExpanded} className="w-full">
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className={cn(containerClassName, "group hover:cursor-pointer")}
-        >
-          {content}
-        </button>
-      </CollapsibleTrigger>
-    </Collapsible>
+  return wrapClickable(
+    <>
+      {leading}
+      {textBody}
+    </>
   );
 }
