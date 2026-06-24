@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
@@ -32,17 +33,20 @@ export default function AssetTypePageDialogs({
     ])
   }
 
-  const handleClone = async () => {
+  const handleClone = async (includeRelationships: boolean) => {
     if (!state.cloningAssetType) return
 
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
     await Promise.all([
       new Promise<void>((resolve, reject) => {
-        assetTypeMutations.cloneAssetType.mutate(state.cloningAssetType!.document_type_id, {
-          onSuccess: () => resolve(),
-          onError: (error) => reject(error)
-        })
+        assetTypeMutations.cloneAssetType.mutate(
+          { id: state.cloningAssetType!.document_type_id, includeRelationships },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error)
+          }
+        )
       }),
       minDelay
     ])
@@ -84,18 +88,15 @@ export default function AssetTypePageDialogs({
       />
 
       {/* Clone Asset Type Dialog */}
-      <HuemulAlertDialog
+      <CloneAssetTypeDialog
         open={!!state.cloningAssetType}
         onOpenChange={(open) => {
           if (!open) {
             onCloseDialog('cloningAssetType')
           }
         }}
-        title={t('clone.title')}
-        description={t('clone.description', { name: state.cloningAssetType?.document_type_name })}
-        onAction={handleClone}
-        actionLabel={t('clone.confirm')}
-        cancelLabel={t('common:cancel')}
+        assetTypeName={state.cloningAssetType?.document_type_name}
+        onConfirm={handleClone}
       />
 
       {/* Role Permissions Dialog */}

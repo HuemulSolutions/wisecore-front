@@ -48,6 +48,8 @@ const translations = {
     title: { en: "Clone Asset Type", es: "Clonar Tipo de Activo" },
     description: { en: "Are you sure you want to clone the asset type \"{{name}}\"? A new copy will be created with the same configuration.", es: "¿Estás seguro de que deseas clonar el tipo de activo \"{{name}}\"? Se creará una nueva copia con la misma configuración." },
     confirm: { en: "Clone", es: "Clonar" },
+    copyRelationships: { en: "Copy relationships", es: "Copiar relaciones" },
+    copyRelationshipsDescription: { en: "Also copy the relationships between document types and their attributes.", es: "También copiar las relaciones entre tipos de documento y sus atributos." },
   },
   form: {
     assetTypeName: { en: "Asset Type Name", es: "Nombre del Tipo de Activo" },

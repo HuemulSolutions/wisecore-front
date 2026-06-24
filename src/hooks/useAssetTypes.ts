@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType, cloneAssetType } from "@/services/asset-types"
+import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType, cloneAssetType, getDocumentTypeTemplates, linkTemplateToDocumentType, unlinkTemplateFromDocumentType } from "@/services/asset-types"
 
 // Query keys
 export const assetTypeQueryKeys = {
@@ -7,6 +7,8 @@ export const assetTypeQueryKeys = {
   list: () => [...assetTypeQueryKeys.all, 'list'] as const,
   listWithRoles: () => [...assetTypeQueryKeys.all, 'list-with-roles'] as const,
   detail: (id: string) => [...assetTypeQueryKeys.all, 'detail', id] as const,
+  templates: (documentTypeId: string) =>
+    [...assetTypeQueryKeys.detail(documentTypeId), 'templates'] as const,
 }
 
 // Hook for fetching asset types
@@ -47,6 +49,20 @@ export function useAssetType(id: string) {
   })
 }
 
+// Hook for fetching templates linked to a document type
+export function useDocumentTypeTemplates(documentTypeId: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: assetTypeQueryKeys.templates(documentTypeId),
+    queryFn: () => getDocumentTypeTemplates(documentTypeId),
+    enabled: enabled && !!documentTypeId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    retry: 0,
+  })
+}
+
 // Hook for asset type mutations
 export function useAssetTypeMutations() {
   const queryClient = useQueryClient()
@@ -81,7 +97,8 @@ export function useAssetTypeMutations() {
   })
 
   const cloneAssetTypeMutation = useMutation({
-    mutationFn: cloneAssetType,
+    mutationFn: ({ id, includeRelationships }: { id: string; includeRelationships: boolean }) =>
+      cloneAssetType(id, { include_relationships: includeRelationships }),
     meta: { successMessage: 'Asset type cloned successfully' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.list() })
@@ -90,10 +107,30 @@ export function useAssetTypeMutations() {
     },
   })
 
+  const linkTemplateMutation = useMutation({
+    mutationFn: ({ documentTypeId, templateId }: { documentTypeId: string; templateId: string }) =>
+      linkTemplateToDocumentType(documentTypeId, templateId),
+    meta: { successMessage: 'Template linked successfully' },
+    onSuccess: (_data, { documentTypeId }) => {
+      queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.templates(documentTypeId) })
+    },
+  })
+
+  const unlinkTemplateMutation = useMutation({
+    mutationFn: ({ documentTypeId, templateId }: { documentTypeId: string; templateId: string }) =>
+      unlinkTemplateFromDocumentType(documentTypeId, templateId),
+    meta: { successMessage: 'Template unlinked successfully' },
+    onSuccess: (_data, { documentTypeId }) => {
+      queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.templates(documentTypeId) })
+    },
+  })
+
   return {
     createAssetType: createAssetTypeMutation,
     updateAssetType: updateAssetTypeMutation,
     deleteAssetType: deleteAssetTypeMutation,
     cloneAssetType: cloneAssetTypeMutation,
+    linkTemplate: linkTemplateMutation,
+    unlinkTemplate: unlinkTemplateMutation,
   }
 }

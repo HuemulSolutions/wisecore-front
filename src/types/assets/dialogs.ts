@@ -232,6 +232,17 @@ export interface CloneExecutionDialogProps {
 }
 
 // ----------------------------------------
+// Clone Asset Type
+// ----------------------------------------
+
+export interface CloneAssetTypeDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  assetTypeName?: string
+  onConfirm: (includeRelationships: boolean) => Promise<void>
+}
+
+// ----------------------------------------
 // Approve Execution
 // ----------------------------------------
 

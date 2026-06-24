@@ -7,6 +7,20 @@ export interface TemplateItem {
   canvas_id?: string | null;
 }
 
+export interface CloneTemplateRequest {
+  name?: string | null;
+  include_relationships?: boolean;
+}
+
+export interface CloneTemplateResult {
+  id: string;
+  name: string;
+  sections_copied: number;
+  custom_fields_copied: number;
+  docx_templates_copied: number;
+  document_types_copied: number;
+}
+
 export interface TemplatesResponse {
   data: { id: string; name: string; description?: string }[];
   page: number;

@@ -56,6 +56,11 @@ export interface UpdateAssetTypeData {
   description?: string;
 }
 
+export interface CloneAssetTypeData {
+  name?: string | null;
+  include_relationships?: boolean;
+}
+
 // ========================================
 // Asset Type Page State & Actions
 // ========================================
@@ -74,4 +79,35 @@ export interface AssetTypePageState {
 export interface AssetTypePageActions {
   updateState: (updates: Partial<AssetTypePageState>) => void;
   closeDialog: (dialog: keyof AssetTypePageState) => void;
+}
+
+// ========================================
+// Linked Templates (document_types/{id}/templates)
+// ========================================
+
+export type AssetKind = 'text' | 'design';
+
+export interface LinkedTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  instructions: string | null;
+  asset_kind: AssetKind | null;
+  canvas_id: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface DocumentTypeTemplatesResponse {
+  data: LinkedTemplate[];
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface DocumentTypeTemplateLinkResponse {
+  data: { message: string };
+  transaction_id: string;
+  timestamp: string;
 }

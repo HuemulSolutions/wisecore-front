@@ -1,8 +1,8 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData } from '@/types/assets';
+import type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData, CloneAssetTypeData, LinkedTemplate, DocumentTypeTemplatesResponse } from '@/types/assets';
 
-export type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData };
+export type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData, CloneAssetTypeData, LinkedTemplate, DocumentTypeTemplatesResponse };
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {
@@ -88,10 +88,49 @@ export const deleteAssetType = async (id: string): Promise<void> => {
 };
 
 // Clone asset type
-export const cloneAssetType = async (id: string): Promise<AssetType> => {
-  const response = await httpClient.post(`${backendUrl}/document_types/${id}/clone`, undefined, {
+export const cloneAssetType = async (id: string, options: CloneAssetTypeData = {}): Promise<AssetType> => {
+  const body: CloneAssetTypeData = {};
+  if (options.name !== undefined) body.name = options.name;
+  if (options.include_relationships !== undefined) {
+    body.include_relationships = options.include_relationships;
+  }
+  const response = await httpClient.post(`${backendUrl}/document_types/${id}/clone`, body, {
     headers: getHeaders(),
   });
 
   return response.json();
+};
+
+// Get templates linked to a document type
+export const getDocumentTypeTemplates = async (
+  documentTypeId: string,
+): Promise<DocumentTypeTemplatesResponse> => {
+  const response = await httpClient.get(
+    `${backendUrl}/document_types/${documentTypeId}/templates`,
+    { headers: getHeaders() },
+  );
+  return response.json();
+};
+
+// Link a template to a document type (requiere permiso asset_type:u)
+export const linkTemplateToDocumentType = async (
+  documentTypeId: string,
+  templateId: string,
+): Promise<void> => {
+  await httpClient.post(
+    `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
+    {},
+    { headers: getHeaders() },
+  );
+};
+
+// Unlink a template from a document type (requiere permiso asset_type:u)
+export const unlinkTemplateFromDocumentType = async (
+  documentTypeId: string,
+  templateId: string,
+): Promise<void> => {
+  await httpClient.delete(
+    `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
+    { headers: getHeaders() },
+  );
 };

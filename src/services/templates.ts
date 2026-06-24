@@ -1,6 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { TemplateItem, TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse } from "@/types/templates";
+import type { TemplatesResponse, CloneTemplateRequest, CloneTemplateResult, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse } from "@/types/templates";
 
 export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse };
 
@@ -127,8 +127,19 @@ export async function generateTemplateSections(templateId: string, organizationI
     return data.data;
 }
 
-export async function cloneTemplate(templateId: string, organizationId: string): Promise<TemplateItem> {
-    const response = await httpClient.post(`${backendUrl}/templates/${templateId}/clone`, {}, {
+export async function cloneTemplate(
+    templateId: string,
+    organizationId: string,
+    options: CloneTemplateRequest = {},
+): Promise<CloneTemplateResult> {
+    const body: CloneTemplateRequest = {};
+    if (options.name !== undefined) {
+        body.name = options.name;
+    }
+    if (options.include_relationships !== undefined) {
+        body.include_relationships = options.include_relationships;
+    }
+    const response = await httpClient.post(`${backendUrl}/templates/${templateId}/clone`, body, {
         headers: {
             'X-Org-Id': organizationId,
         },
