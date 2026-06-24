@@ -3083,7 +3083,7 @@ export function AssetContent({
                           const realSectionId = section.section_id;
                           
                           // In reader mode, hide sections with empty content
-                          if (isViewMode && isSectionContentEmpty(section)) {
+                          if (isViewMode && section.section_type !== 'form' && isSectionContentEmpty(section)) {
                             return null;
                           }
                           
@@ -3100,7 +3100,14 @@ export function AssetContent({
                                     ai_suggestion_content: section.ai_suggestion_content,
                                     ai_suggestion_instruction: section.ai_suggestion_instruction,
                                     review_status: section.review_status,
+                                    form_fields: section.form_fields,
                                   }}
+                                  status={section.status}
+                                  responderName={
+                                    documentContent?.updated_by_user
+                                      ? `${documentContent.updated_by_user.name ?? ''} ${documentContent.updated_by_user.last_name ?? ''}`.trim()
+                                      : undefined
+                                  }
                                   onUpdate={handleSectionUpdate}
                                   readyToEdit={showEditorActions}
                                   sectionIndex={index}

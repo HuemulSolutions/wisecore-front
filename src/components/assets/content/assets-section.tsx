@@ -27,6 +27,7 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
+import { AssetFormSection, FormStatusBadge } from '@/components/assets/content/asset-form-section';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -44,6 +45,9 @@ function SectionExecutionInner({
     showExecutionFeedback = false,
     sectionType = 'ai',
     sectionName,
+    status,
+    responderName,
+    respondedAt,
     canEditSections = false,
     onCreateSectionFromSelection,
     // onCopyLink,
@@ -380,6 +384,8 @@ function SectionExecutionInner({
                                 </span>
                             </div>
                         )}
+
+                        {sectionType === 'form' && <FormStatusBadge status={status} />}
 
                         {/* Review Status Selector - inline with section info */}
                         {!isEditing && (
@@ -747,6 +753,20 @@ function SectionExecutionInner({
                             <span className="ml-2 text-xs text-gray-500">{t('section.generatingSectionContent')}</span>
                         </div>
                     </div>
+                </div>
+            ) : sectionType === 'form' ? (
+                /* Form section: render fillable/read-only form instead of the Plate editor */
+                <div className={`${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
+                    <AssetFormSection
+                        sectionExecutionId={sectionExecution.id}
+                        formFields={sectionExecution.form_fields ?? []}
+                        status={status}
+                        organizationId={selectedOrganizationId ?? undefined}
+                        canInteract={readyToEdit && canEditSections}
+                        responderName={responderName}
+                        respondedAt={respondedAt}
+                        onUpdate={onUpdate}
+                    />
                 </div>
             ) : (
                 /* Unified Plate view: readOnly when not editing, editable when editing */

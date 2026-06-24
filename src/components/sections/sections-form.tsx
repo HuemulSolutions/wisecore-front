@@ -4,9 +4,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, Loader2, X, Plus, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, X } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
 import { FileTree } from "@/components/assets/content/assets-file-tree";
@@ -16,17 +14,14 @@ import { getDocumentSections, getDocumentById } from "@/services/assets";
 import { getSectionContent } from "@/services/section";
 import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
-import type { SectionFormField } from "@/types/sections/core";
+import { SectionFormFieldsBuilder } from "./section-form-fields-builder";
+import { CUSTOM_FIELD_QUESTION_TYPE, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
 import type { SectionFormProps } from '@/types/sections';
 export type { SectionFormProps } from '@/types/sections';
 
-const DATA_TYPE_OPTIONS = [
-  "string", "int", "date", "time", "datetime", "decimal", "bool", "image", "url"
-] as const;
-
-export function SectionForm({ 
+export function SectionForm({
   mode,
   editorType = 'rich',
   formId = 'section-form',
@@ -59,7 +54,7 @@ export function SectionForm({
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
   const [type, setType] = useState<"ai" | "manual" | "reference" | "form">(mode === 'edit' && item ? (item as any).type || "ai" : (defaultType || "ai"));
-  const [formFields, setFormFields] = useState<SectionFormField[]>(mode === 'edit' && item ? item.form_fields || [] : []);
+  const [formFields, setFormFields] = useState<FormFieldDraft[]>(mode === 'edit' && item ? (item.form_fields || []).map(withFieldKey) : []);
   const [prompt, setPrompt] = useState(mode === 'edit' && item ? item.prompt : "");
   // Key para forzar el render del editor cuando cambia el prompt generado
   const [editorKey, setEditorKey] = useState(0);
@@ -228,7 +223,7 @@ export function SectionForm({
     setReferenceMode((item as any).reference_mode || "latest");
     setReferenceExecutionId((item as any).reference_execution_id || "");
     setSelectedDependencies([...item.dependencies]);
-    setFormFields(item.form_fields || []);
+    setFormFields((item.form_fields || []).map(withFieldKey));
 
     // Si hay un reference_section_id y referenced_document_id, establecer selectedAsset y selectedSection
     if (refSectionId && refDocumentId && (item as any).type === 'reference') {
@@ -279,24 +274,6 @@ export function SectionForm({
       setIsGenerating(false);
       setEditorKey(prev => prev + 1);
     }
-  };
-
-  const addFormField = () => {
-    setFormFields(prev => [
-      ...prev,
-      { field_id: '', field_name: '', data_type: 'string', required: false, order: prev.length + 1 }
-    ]);
-    markDirty();
-  };
-
-  const updateFormField = (index: number, patch: Partial<SectionFormField>) => {
-    setFormFields(prev => prev.map((f, i) => i === index ? { ...f, ...patch } : f));
-    markDirty();
-  };
-
-  const removeFormField = (index: number) => {
-    setFormFields(prev => prev.filter((_, i) => i !== index));
-    markDirty();
   };
 
   const addDependency = (sectionId: string) => {
@@ -355,7 +332,7 @@ export function SectionForm({
           submitData.reference_execution_id = referenceExecutionId;
         }
       } else if (type === "form") {
-        submitData.form_fields = formFields;
+        submitData.form_fields = formFields.map((f, idx) => ({ ...stripFieldKey(f), order: idx + 1 }));
       }
 
       if (templateId) {
@@ -398,7 +375,7 @@ export function SectionForm({
           submitData.reference_execution_id = referenceExecutionId;
         }
       } else if (type === "form") {
-        submitData.form_fields = formFields;
+        submitData.form_fields = formFields.map((f, idx) => ({ ...stripFieldKey(f), order: idx + 1 }));
       }
       
       if (hasTemplate) {
@@ -443,10 +420,13 @@ export function SectionForm({
       return true;
     } else if (type === "form") {
       if (formFields.length === 0) return false;
-      const allFilled = formFields.every(f => f.field_id.trim() && f.field_name.trim());
+      const allFilled = formFields.every(f => f.field_id.trim() && f.field_name.trim() && f.question_type);
       const ids = formFields.map(f => f.field_id.trim());
       const unique = new Set(ids).size === ids.length;
-      return allFilled && unique;
+      const customOk = formFields.every(
+        f => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE || !!f.custom_field_id
+      );
+      return allFilled && unique && customOk;
     }
 
     return false;
@@ -779,96 +759,12 @@ export function SectionForm({
 
       {/* Campos específicos para tipo Form */}
       {type === "form" && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-gray-700">
-              {t('form.formFields.label')} <span className="text-red-500">*</span>
-            </Label>
-            <HuemulButton
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={addFormField}
-              disabled={isPending}
-              className="h-7 text-xs"
-              icon={Plus}
-            >
-              {t('form.formFields.addField')}
-            </HuemulButton>
-          </div>
-
-          {formFields.length === 0 ? (
-            <p className="text-xs text-gray-500 italic">{t('form.formFields.emptyState')}</p>
-          ) : (
-            <div className="space-y-2">
-              {formFields.map((field, index) => {
-                const isDuplicate = formFields.some(
-                  (f, i) => i !== index && f.field_id.trim() && f.field_id.trim() === field.field_id.trim()
-                );
-                return (
-                  <div key={index} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-2 items-start p-2 border rounded-md bg-gray-50">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-600">{t('form.formFields.fieldId')} *</Label>
-                      <Input
-                        value={field.field_id}
-                        onChange={(e) => updateFormField(index, { field_id: e.target.value })}
-                        placeholder="field_id"
-                        className={`h-7 text-xs ${isDuplicate ? 'border-red-400' : ''}`}
-                        disabled={isPending}
-                      />
-                      {isDuplicate && (
-                        <p className="text-xs text-red-500">{t('form.formFields.duplicateFieldId')}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-600">{t('form.formFields.fieldName')} *</Label>
-                      <Input
-                        value={field.field_name}
-                        onChange={(e) => updateFormField(index, { field_name: e.target.value })}
-                        placeholder="Field Name"
-                        className="h-7 text-xs"
-                        disabled={isPending}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-600">{t('form.formFields.dataType')}</Label>
-                      <select
-                        value={field.data_type}
-                        onChange={(e) => updateFormField(index, { data_type: e.target.value as SectionFormField['data_type'] })}
-                        className="h-7 text-xs border border-gray-200 rounded px-1 bg-white"
-                        disabled={isPending}
-                      >
-                        {DATA_TYPE_OPTIONS.map(dt => (
-                          <option key={dt} value={dt}>{dt}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1 flex flex-col items-center">
-                      <Label className="text-xs text-gray-600">{t('form.formFields.required')}</Label>
-                      <Checkbox
-                        checked={field.required ?? false}
-                        onCheckedChange={(checked) => updateFormField(index, { required: !!checked })}
-                        disabled={isPending}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="flex items-end pb-0.5">
-                      <HuemulButton
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFormField(index)}
-                        disabled={isPending}
-                        icon={Trash2}
-                        className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <SectionFormFieldsBuilder
+          value={formFields}
+          onChange={(next) => { setFormFields(next); markDirty(); }}
+          templateId={templateId}
+          isPending={isPending}
+        />
       )}
 
       {/* Propagate to Template - Solo mostrar en modo edit cuando hasTemplate es true */}

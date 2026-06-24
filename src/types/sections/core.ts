@@ -6,11 +6,46 @@ export type Dependency = {
 }
 
 export interface SectionFormField {
+  id?: string;                          // id de la fila section_form (presente en lecturas)
   field_id: string;
   field_name: string;
-  data_type: CustomFieldDataType;
+  data_type: CustomFieldDataType;       // auto-derivado del question_type (o del custom field)
+  question_type: string;                // requerido — uno del catálogo QuestionType
   required?: boolean;
   order?: number;
+  default_value?: unknown | null;       // JSONB — aloja la config de UI (ver FormFieldConfig)
+  min_value?: unknown | null;           // JSONB
+  max_value?: unknown | null;           // JSONB
+  custom_field_id?: string | null;      // solo si question_type === "custom_field"
+}
+
+// Valor de un form field en el snapshot de una section_execution (contenido del asset).
+// El `id` es el identificador del snapshot usado para PATCH /form_values;
+// `section_form_id` referencia la definición (SectionFormField.id) para hacer el join.
+export interface FormFieldValue {
+  id: string;
+  section_form_id: string;
+  field_name: string;
+  value: unknown;
+  // Definición embebida por el backend en el contenido del asset (para renderizar el input)
+  question_type?: string;
+  data_type?: CustomFieldDataType;
+  required?: boolean;
+  order?: number;
+  default_value?: unknown | null;       // config UI (options, startLabel, stars, ...)
+  min_value?: unknown | null;
+  max_value?: unknown | null;
+}
+
+// Config de UI por tipo de pregunta, persistida dentro de default_value (JSONB).
+// El backend no tiene campos dedicados para opciones/etiquetas, así que se guardan aquí.
+export interface FormFieldConfig {
+  options?: string[];        // opcion_multiple, desplegable
+  startLabel?: string;       // escala_lineal — etiqueta inicio
+  endLabel?: string;         // escala_lineal — etiqueta fin
+  stars?: number;            // calificacion — número de estrellas
+  maxFiles?: number;         // archivo — máximo de archivos
+  maxSize?: number;          // archivo — tamaño máximo (MB)
 }
 
 export interface SortableSectionItem {
