@@ -5,15 +5,19 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
+import { AssetTypeTemplatesSheet } from "@/components/assets-types/assets-types-templates-sheet"
+import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
+import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
 
-export default function AssetTypePageDialogs({ 
-  state, 
-  onCloseDialog, 
-  onUpdateState, 
-  assetTypeMutations 
+export default function AssetTypePageDialogs({
+  state,
+  onCloseDialog,
+  onUpdateState,
+  assetTypeMutations,
+  onImportSuccess,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
 
@@ -133,6 +137,38 @@ export default function AssetTypePageDialogs({
             onCloseDialog('viewRelationshipsAssetType')
           }
         }}
+      />
+
+      {/* Manage Templates Sheet */}
+      <AssetTypeTemplatesSheet
+        assetType={state.templatesAssetType}
+        open={!!state.templatesAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('templatesAssetType')
+          }
+        }}
+      />
+
+      {/* Export Dialog */}
+      <AssetTypeExportDialog
+        open={state.showExportDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            onUpdateState({ showExportDialog: false })
+          }
+        }}
+      />
+
+      {/* Import Sheet */}
+      <AssetTypeImportSheet
+        open={state.showImportSheet}
+        onOpenChange={(open) => {
+          if (!open) {
+            onUpdateState({ showImportSheet: false })
+          }
+        }}
+        onImportSuccess={onImportSuccess}
       />
     </>
   )

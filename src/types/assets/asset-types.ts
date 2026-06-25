@@ -74,6 +74,9 @@ export interface AssetTypePageState {
   rolePermissionsAssetType: AssetTypeWithRoles | null;
   lifecycleAssetType: AssetTypeWithRoles | null;
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
+  templatesAssetType: AssetTypeWithRoles | null;
+  showExportDialog: boolean;
+  showImportSheet: boolean;
 }
 
 export interface AssetTypePageActions {
@@ -110,4 +113,34 @@ export interface DocumentTypeTemplateLinkResponse {
   data: { message: string };
   transaction_id: string;
   timestamp: string;
+}
+
+// ========================================
+// Export / Import
+// ========================================
+
+export interface ExportAssetTypesBody {
+  document_type_ids: string[];
+  include_lifecycle?: boolean;
+  include_relationships?: boolean;
+}
+
+export interface ImportAssetTypesQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  document_type_ids?: string[];
+  include_lifecycle?: boolean;
+  include_relationships?: boolean;
+}
+
+export interface ImportAssetTypesData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportAssetTypesResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportAssetTypesData;
 }

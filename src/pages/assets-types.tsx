@@ -40,7 +40,10 @@ export default function AssetTypesPage() {
     cloningAssetType: null,
     rolePermissionsAssetType: null,
     lifecycleAssetType: null,
-    viewRelationshipsAssetType: null
+    viewRelationshipsAssetType: null,
+    templatesAssetType: null,
+    showExportDialog: false,
+    showImportSheet: false,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -60,6 +63,8 @@ export default function AssetTypesPage() {
   const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
   const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
   const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
+  const canExportDocumentTypes = isRootAdmin || hasPermission('asset_type:r')
+  const canImportDocumentTypes = isRootAdmin || (hasPermission('asset_type:c') && hasPermission('asset_type:u'))
   
   // Fetch asset types and mutations - solo si tiene permisos
   const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
@@ -189,6 +194,10 @@ export default function AssetTypesPage() {
     updateState({ viewRelationshipsAssetType: assetType })
   }
 
+  const handleManageTemplates = (assetType: AssetTypeWithRoles) => {
+    updateState({ templatesAssetType: assetType })
+  }
+
   const relTotalItems = documentTypes.length
   const relHasNext = relPage * RELATIONSHIP_PAGE_SIZE < relTotalItems
   const relHasPrevious = relPage > 1
@@ -218,6 +227,10 @@ export default function AssetTypesPage() {
             canCreate={canCreateDocumentType}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
+            onExport={() => updateState({ showExportDialog: true })}
+            onImport={() => updateState({ showImportSheet: true })}
+            canExport={canExportDocumentTypes}
+            canImport={canImportDocumentTypes}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
@@ -242,6 +255,7 @@ export default function AssetTypesPage() {
                 onCloneAssetType={handleCloneAssetType}
                 onLifecycle={handleLifecycle}
                 onViewRelationships={handleViewRelationships}
+                onManageTemplates={handleManageTemplates}
                 canUpdate={canUpdateDocumentType}
                 canDelete={canDeleteDocumentType}
                 isLoading={isTableLoading}
@@ -326,6 +340,7 @@ export default function AssetTypesPage() {
         onCloseDialog={closeDialog}
         onUpdateState={updateState}
         assetTypeMutations={assetTypeMutations}
+        onImportSuccess={handleRefresh}
       />
     </>
   )
