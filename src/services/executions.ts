@@ -423,10 +423,21 @@ export async function completeExecutionLifecycleStep(executionId: string, stepId
     return data.data;
 }
 
-export async function advanceExecutionLifecycle(executionId: string, organizationId: string, options?: { comment?: string; skip_published?: boolean }) {
+export async function advanceExecutionLifecycle(
+    executionId: string,
+    organizationId: string,
+    options?: {
+        comment?: string
+        skip_published?: boolean
+        publish_step_id?: string
+        run_external_publish?: boolean
+    },
+) {
     const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {
         comment: options?.comment || '',
         ...(options?.skip_published && { skip_published: true }),
+        ...(options?.publish_step_id && { publish_step_id: options.publish_step_id }),
+        ...(options?.run_external_publish && { run_external_publish: true }),
     }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -566,6 +577,20 @@ export async function bulkAiFixByTemplateSection({
     });
     const data = await response.json();
     return data.data;
+}
+
+export async function runExternalPublish(
+    executionId: string,
+    organizationId: string,
+    publishStepId: string,
+) {
+    const res = await httpClient.post(
+        `${backendUrl}/execution-lifecycle/${executionId}/run-external-publish`,
+        { publish_step_id: publishStepId },
+        { headers: { 'X-Org-Id': organizationId } },
+    )
+    const data = await res.json()
+    return data.data
 }
 
 export async function bulkExportExcel({

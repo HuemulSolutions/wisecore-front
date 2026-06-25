@@ -230,6 +230,7 @@ export default function DocumentTypeRelationshipsPage() {
         assetType={lifecycleAssetType}
         open={!!lifecycleAssetType}
         onOpenChange={(o) => { if (!o) setLifecycleAssetType(null) }}
+        organizationId={selectedOrganizationId ?? ""}
       />
 
       {/* Clone confirmation */}

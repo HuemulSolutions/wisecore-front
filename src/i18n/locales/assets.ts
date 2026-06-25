@@ -115,6 +115,10 @@ const translations = {
     errorAdvance: { en: "Failed to advance asset. Please try again.", es: "Error al avanzar el activo. Intenta de nuevo." },
     commentLabel: { en: "Comment", es: "Comentario" },
     commentPlaceholder: { en: "Add a comment about this action...", es: "Agrega un comentario sobre esta acción..." },
+    publishWithExternalSystem: { en: "Publish with external system", es: "Publicar con sistema externo" },
+    rerunExternalPublish: { en: "Re-run external publish", es: "Relanzar publicación externa" },
+    successRerunExternalPublish: { en: "External publish triggered successfully", es: "Publicación externa iniciada correctamente" },
+    errorRerunExternalPublish: { en: "Failed to trigger external publish. Please try again.", es: "Error al relanzar la publicación externa. Intenta de nuevo." },
     stateLabels: {
       draft: { en: "Draft", es: "Borrador" },
       in_review: { en: "In Review", es: "En Revisión" },

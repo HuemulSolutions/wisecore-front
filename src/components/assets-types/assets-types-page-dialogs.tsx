@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next"
+import { useOrganization } from "@/contexts/organization-context"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
@@ -20,6 +21,7 @@ export default function AssetTypePageDialogs({
   onImportSuccess,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
+  const { selectedOrganizationId } = useOrganization()
 
   const handleDelete = async () => {
     if (!state.deletingAssetType) return
@@ -126,6 +128,7 @@ export default function AssetTypePageDialogs({
             onCloseDialog('lifecycleAssetType')
           }
         }}
+        organizationId={selectedOrganizationId ?? ""}
       />
 
       {/* View Relationships Sheet */}

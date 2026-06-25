@@ -32,11 +32,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
+import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog";
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -529,7 +530,7 @@ export function AssetContent({
   // Mutation for advancing lifecycle (publish / archive)
   const advanceLifecycleMutation = useMutation({
     mutationFn: withRefresh(
-      async (options?: { comment?: string; skip_published?: boolean }) => {
+      async (options?: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean }) => {
         preserveScrollPosition();
         const executionId = selectedExecutionId || documentContent?.execution_id;
         if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
@@ -548,6 +549,18 @@ export function AssetContent({
       setIsArchiveDialogOpen(false);
       handleApiError(error, { fallbackMessage: t('lifecycle.errorAdvance') });
     },
+  });
+
+  // Mutation for manual re-trigger of external publish
+  const runExternalPublishMutation = useMutation({
+    mutationFn: async () => {
+      const executionId = selectedExecutionId || documentContent?.execution_id;
+      const stepId = documentContent?.lifecycle_status?.current_step_id;
+      if (!executionId || !stepId || !selectedOrganizationId) throw new Error('Missing execution, step or organization');
+      return runExternalPublish(executionId, selectedOrganizationId, stepId);
+    },
+    meta: { successMessage: t('lifecycle.successRerunExternalPublish') },
+    onError: (error) => handleApiError(error, { fallbackMessage: t('lifecycle.errorRerunExternalPublish') }),
   });
 
   // Helper function to preserve scroll position
@@ -1960,6 +1973,19 @@ export function AssetContent({
                               onClick={() => setIsArchiveDialogOpen(true)}
                             />
                           )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.rerunExternalPublish')}
+                              icon={RefreshCw}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={runExternalPublishMutation.isPending}
+                              onClick={() => runExternalPublishMutation.mutate()}
+                            />
+                          )}
                         </div>
                       </div>
                     )}
@@ -2557,6 +2583,19 @@ export function AssetContent({
                               loading={advanceLifecycleMutation.isPending}
                               tooltip={t('lifecycle.tooltipArchive')}
                               onClick={() => setIsArchiveDialogOpen(true)}
+                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
+                          )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.rerunExternalPublish')}
+                              icon={RefreshCw}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={runExternalPublishMutation.isPending}
+                              onClick={() => runExternalPublishMutation.mutate()}
                               className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
@@ -3427,18 +3466,18 @@ export function AssetContent({
         isProcessing={rejectLifecycleMutation.isPending}
       />
 
-      {/* Publish Confirmation AlertDialog */}
-      <LifecycleCommentDialog
+      {/* Publish Confirmation Dialog */}
+      <LifecyclePublishDialog
         open={isPublishDialogOpen}
         onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
-        title={t('lifecycle.publishTitle')}
-        description={t('lifecycle.publishDescription')}
-        onConfirm={(comment) => advanceLifecycleMutation.mutate({ comment })}
-        confirmLabel={t('lifecycle.publishConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
+        onConfirm={({ comment, run_external_publish }) =>
+          advanceLifecycleMutation.mutate({
+            comment,
+            publish_step_id: documentContent?.lifecycle_status?.current_step_id ?? undefined,
+            run_external_publish: run_external_publish || undefined,
+          })
+        }
         isProcessing={advanceLifecycleMutation.isPending}
-        variant="default"
       />
 
       {/* Archive Confirmation AlertDialog */}

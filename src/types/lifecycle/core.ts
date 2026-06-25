@@ -138,3 +138,69 @@ export interface RevokeLifecycleDocumentRequest {
   lifecycle_step_id: string;
   user_ids: string[];
 }
+
+// ─── External Publish Actions ─────────────────────────────────────────────────
+
+export interface ExternalPublishAction {
+  id: string
+  lifecycle_step_id: string
+  external_functionality_id: string
+  external_functionality_name?: string
+  execution_order: number
+  is_enabled: boolean
+  stop_on_error: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ExternalPublishActionsResponse {
+  data: ExternalPublishAction[]
+  transaction_id: string
+  timestamp: string
+}
+
+export interface ExternalPublishActionResponse {
+  data: ExternalPublishAction
+  transaction_id: string
+  timestamp: string
+}
+
+export interface CreateExternalPublishActionRequest {
+  external_functionality_id: string
+  execution_order: number
+  is_enabled: boolean
+  stop_on_error: boolean
+}
+
+export interface UpdateExternalPublishActionRequest {
+  external_functionality_id?: string
+  execution_order?: number
+  is_enabled?: boolean
+  stop_on_error?: boolean
+}
+
+export interface ReorderExternalPublishActionsRequest {
+  actions: Array<{
+    id: string
+    execution_order: number
+  }>
+}
+
+export interface ExternalPublishRun {
+  id: string
+  status: 'pending' | 'running' | 'completed' | 'completed_with_errors' | 'failed'
+  total_actions: number
+  successful_actions: number
+  failed_actions: number
+  trigger_mode: string
+  triggered_by_user_id: string
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface AdvanceLifecycleResponse {
+  execution_id: string
+  previous_state: string
+  new_state: string
+  external_publish: ExternalPublishRun | null
+}

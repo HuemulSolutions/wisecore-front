@@ -1,8 +1,8 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse } from '@/types/lifecycle';
+import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest } from '@/types/lifecycle';
 
-export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse };
+export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest };
 
 export async function getLifecycleStepTypes(): Promise<LifecycleStepTypesResponse> {
   const response = await httpClient.fetch(`${backendUrl}/lifecycle/step-types`);
@@ -99,4 +99,69 @@ export async function revokeLifecycleDocument(
     { headers: { 'X-Org-Id': organizationId } },
   );
   return response.json() as Promise<RevokeLifecycleDocumentResponse>;
+}
+
+// ─── External Publish Actions ─────────────────────────────────────────────────
+
+export async function getExternalPublishActions(
+  stepId: string,
+  organizationId: string,
+): Promise<ExternalPublishActionsResponse> {
+  const response = await httpClient.get(
+    `${backendUrl}/lifecycle/steps/${stepId}/external-publish-actions/`,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  return response.json() as Promise<ExternalPublishActionsResponse>
+}
+
+export async function createExternalPublishAction(
+  stepId: string,
+  organizationId: string,
+  body: CreateExternalPublishActionRequest,
+): Promise<ExternalPublishAction> {
+  const response = await httpClient.post(
+    `${backendUrl}/lifecycle/steps/${stepId}/external-publish-actions/`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  const data = (await response.json()) as ExternalPublishActionResponse
+  return data.data
+}
+
+export async function updateExternalPublishAction(
+  stepId: string,
+  actionId: string,
+  organizationId: string,
+  body: UpdateExternalPublishActionRequest,
+): Promise<ExternalPublishAction> {
+  const response = await httpClient.put(
+    `${backendUrl}/lifecycle/steps/${stepId}/external-publish-actions/${actionId}`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  const data = (await response.json()) as ExternalPublishActionResponse
+  return data.data
+}
+
+export async function deleteExternalPublishAction(
+  stepId: string,
+  actionId: string,
+  organizationId: string,
+): Promise<void> {
+  await httpClient.delete(
+    `${backendUrl}/lifecycle/steps/${stepId}/external-publish-actions/${actionId}`,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+}
+
+export async function reorderExternalPublishActions(
+  stepId: string,
+  organizationId: string,
+  body: ReorderExternalPublishActionsRequest,
+): Promise<void> {
+  await httpClient.put(
+    `${backendUrl}/lifecycle/steps/${stepId}/external-publish-actions/reorder`,
+    body,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
 }

@@ -1,4 +1,4 @@
 export { ExternalFunctionalityDetail } from "./external-functionality-detail"
-export { ExternalFunctionalityCreateDialog } from "./external-functionality-create-dialog"
-export { ExternalFunctionalityEditDialog } from "./external-functionality-edit-dialog"
+export { ExternalFunctionalityCreateSheet } from "./external-functionality-create-sheet"
+export { ExternalFunctionalityEditSheet } from "./external-functionality-edit-sheet"
 export { ExternalFunctionalityDeleteDialog } from "./external-functionality-delete-dialog"

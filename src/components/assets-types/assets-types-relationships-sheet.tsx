@@ -169,6 +169,7 @@ export function AssetTypeRelationshipsSheet({
         assetType={lifecycleAssetType}
         open={!!lifecycleAssetType}
         onOpenChange={(o) => { if (!o) setLifecycleAssetType(null) }}
+        organizationId={selectedOrganizationId ?? ""}
       />
 
       {/* Clone confirmation */}
