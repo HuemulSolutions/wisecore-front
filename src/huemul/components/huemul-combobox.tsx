@@ -82,7 +82,6 @@ export function HuemulCombobox({
   selectedOptions = [],
   onSelectedLabelChange,
   placeholder,
-  searchPlaceholder,
   emptyMessage,
   disabled,
   error,
@@ -275,14 +274,6 @@ export function HuemulCombobox({
   // ── Popup body ─────────────────────────────────────────────────────────────
   // In-popup search box — used by multi-select (single-select searches through
   // its own main input instead).
-  const searchInput = isAsync ? (
-    <ComboboxInput
-      showTrigger={false}
-      placeholder={searchPlaceholder ?? t("searchPlaceholder")}
-      onKeyDown={handleInputKeyDown}
-    />
-  ) : null
-
   const listBody = (
     <>
       <ComboboxList ref={listRef} onScroll={isAsync ? handleScroll : undefined}>

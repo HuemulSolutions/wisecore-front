@@ -17,6 +17,7 @@ import { SectionQuestionTypeFields } from "./section-question-type-fields";
 import {
   questionTypeIcon,
   questionTypeLabel,
+  slugifyFieldId,
   type FormFieldDraft,
 } from "./question-type-meta";
 
@@ -56,6 +57,9 @@ export function SectionFormFieldCard({
   const { t } = useTranslation("sections");
   const [isExpanded, setIsExpanded] = useState(!field.field_name);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [idCustomized, setIdCustomized] = useState(
+    () => field.field_id !== "" && field.field_id !== slugifyFieldId(field.field_name),
+  );
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: field.__key,
@@ -122,7 +126,12 @@ export function SectionFormFieldCard({
               label={t("form.formFields.statement")}
               required
               value={field.field_name}
-              onChange={(val) => onUpdate({ field_name: val as string })}
+              onChange={(val) => {
+              const name = val as string;
+              const patch: Partial<SectionFormField> = { field_name: name };
+              if (!idCustomized) patch.field_id = slugifyFieldId(name);
+              onUpdate(patch);
+            }}
               placeholder={t("form.formFields.statement")}
               disabled={isPending}
             />
@@ -165,13 +174,25 @@ export function SectionFormFieldCard({
                 <Label className="text-xs text-gray-600">{t("form.formFields.fieldId")} *</Label>
                 <Input
                   value={field.field_id}
-                  onChange={(e) => onUpdate({ field_id: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setIdCustomized(false);
+                      onUpdate({ field_id: slugifyFieldId(field.field_name) });
+                    } else {
+                      setIdCustomized(true);
+                      onUpdate({ field_id: val });
+                    }
+                  }}
                   placeholder="field_id"
                   className={`h-8 text-xs ${isDuplicate ? "border-red-400" : ""}`}
                   disabled={isPending}
                 />
                 {isDuplicate && (
                   <p className="text-xs text-red-500">{t("form.formFields.duplicateFieldId")}</p>
+                )}
+                {!idCustomized && (
+                  <p className="text-xs text-gray-400">{t("form.formFields.fieldIdAuto")}</p>
                 )}
               </div>
             </CollapsibleContent>

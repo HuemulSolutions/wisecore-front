@@ -27,7 +27,7 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
-import { AssetFormSection, FormStatusBadge } from '@/components/assets/content/asset-form-section';
+import { AssetFormSection } from '@/components/assets/content/asset-form-section';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -385,8 +385,6 @@ function SectionExecutionInner({
                             </div>
                         )}
 
-                        {sectionType === 'form' && <FormStatusBadge status={status} />}
-
                         {/* Review Status Selector - inline with section info */}
                         {!isEditing && (
                             <HuemulField
@@ -396,11 +394,17 @@ function SectionExecutionInner({
                                 onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
                                 disabled={isUpdatingReviewStatus || !canEditSections}
                                 placeholder={t('section.reviewStatusPlaceholder')}
-                                options={[
-                                    { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
-                                    { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
-                                    { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
-                                ]}
+                                options={sectionType === 'form'
+                                    ? [
+                                        { value: 'editing', label: t('section.reviewStatusFormNotAnswered'), color: '#f59e0b' },
+                                        { value: 'finished', label: t('section.reviewStatusFormAnswered'), color: '#22c55e' },
+                                    ]
+                                    : [
+                                        { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
+                                        { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
+                                        { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                    ]
+                                }
                                 className="w-auto"
                                 selectSize="xs"
                                 inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"

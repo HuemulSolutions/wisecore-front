@@ -1,22 +1,13 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Mail, Star, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { HuemulField } from "@/huemul/components/huemul-field";
 import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
-import { updateSectionFormValues } from "@/services/section_execution";
+import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
+import type { ReviewStatus } from "@/services/section_execution";
 import type { FormFieldValue } from "@/types/sections/core";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
@@ -24,6 +15,7 @@ import {
   QUESTION_TYPE,
   questionTypeLabel,
   readFieldConfig,
+  readFieldOptions,
 } from "@/components/sections/question-type-meta";
 
 interface AssetFormSectionProps {
@@ -42,21 +34,21 @@ interface AssetFormSectionProps {
 
 type AnswerMap = Record<string, unknown>;
 
-const FIELD_INPUT = "h-9 text-sm bg-white";
-
 // Inicializa el mapa de respuestas desde los valores actuales del snapshot.
+// Si value es config (array de opciones u objeto de configuración), no es una respuesta → null.
 function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
   const map: AnswerMap = {};
-  for (const f of fields) map[f.id] = f.value ?? null;
+  for (const f of fields) map[f.id] = hasAnswer(f.value) ? f.value : null;
   return map;
 }
 
 // ¿El campo tiene una respuesta no vacía?
+// Arrays de objetos (opciones) y objetos planos (config) no son respuestas del usuario.
 function hasAnswer(value: unknown): boolean {
   if (value === null || value === undefined) return false;
+  if (typeof value === "object") return false;
   if (typeof value === "string") return value.trim() !== "";
-  if (Array.isArray(value)) return value.length > 0;
-  return true;
+  return true; // number, boolean
 }
 
 export function AssetFormSection({
@@ -81,15 +73,57 @@ export function AssetFormSection({
     canInteract && !isAnswered ? "edit" : "view",
   );
   const [answers, setAnswers] = useState<AnswerMap>(() => buildInitialAnswers(sortedFields));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const setAnswer = (fieldId: string, value: unknown) =>
+  const setAnswer = (fieldId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[fieldId]) return prev;
+      const next = { ...prev };
+      delete next[fieldId];
+      return next;
+    });
+  };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    for (const f of sortedFields) {
+      const v = answers[f.id];
+      if (f.required && !hasAnswer(v)) {
+        errs[f.id] = t("form.fill.fieldRequired");
+      } else if (hasAnswer(v)) {
+        if (f.question_type === QUESTION_TYPE.email) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) {
+            errs[f.id] = t("form.fill.invalidEmail");
+          }
+        } else if (f.question_type === QUESTION_TYPE.number) {
+          if (!Number.isInteger(Number(v))) {
+            errs[f.id] = t("form.fill.invalidInteger");
+          } else {
+            const n = Number(v);
+            if (typeof f.min_value === "number" && n < f.min_value) {
+              errs[f.id] = t("form.fill.valueTooSmall", { min: f.min_value });
+            } else if (typeof f.max_value === "number" && n > f.max_value) {
+              errs[f.id] = t("form.fill.valueTooBig", { max: f.max_value });
+            }
+          }
+        } else if (f.question_type === QUESTION_TYPE.decimal) {
+          const n = Number(v);
+          if (typeof f.min_value === "number" && n < f.min_value) {
+            errs[f.id] = t("form.fill.valueTooSmall", { min: f.min_value });
+          } else if (typeof f.max_value === "number" && n > f.max_value) {
+            errs[f.id] = t("form.fill.valueTooBig", { max: f.max_value });
+          }
+        }
+      }
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = async () => {
-    // Validación de requeridos
-    const missingRequired = sortedFields.some((f) => f.required && !hasAnswer(answers[f.id]));
-    if (missingRequired) {
+    if (!validate()) {
       toast.error(t("form.fill.requiredError"));
       return;
     }
@@ -98,6 +132,7 @@ export function AssetFormSection({
     try {
       const values = sortedFields.map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
       await updateSectionFormValues(sectionExecutionId, values, organizationId);
+      await updateReviewStatus(sectionExecutionId, "finished" as ReviewStatus, organizationId);
       toast.success(t("form.fill.saved"));
       setMode("view");
       onUpdate?.();
@@ -122,245 +157,212 @@ export function AssetFormSection({
   const renderInput = (field: FormFieldValue) => {
     const cfg = readFieldConfig(field);
     const value = answers[field.id];
+    const error = fieldErrors[field.id];
 
     switch (field.question_type) {
       case QUESTION_TYPE.shortAnswer:
         return (
-          <Input
-            className={FIELD_INPUT}
+          <HuemulField
+            type="text"
+            label=""
             value={(value as string) ?? ""}
             placeholder={t("form.formFields.previewShortAnswer")}
-            onChange={(e) => setAnswer(field.id, e.target.value)}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
           />
         );
 
       case QUESTION_TYPE.paragraph:
         return (
-          <Textarea
-            className="text-sm bg-white resize-none"
+          <HuemulField
+            type="textarea"
+            label=""
             rows={3}
             value={(value as string) ?? ""}
             placeholder={t("form.formFields.previewLongAnswer")}
-            onChange={(e) => setAnswer(field.id, e.target.value)}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
           />
         );
 
       case QUESTION_TYPE.email:
         return (
-          <div className="relative">
-            <Input
-              type="email"
-              className={`${FIELD_INPUT} pr-9`}
-              value={(value as string) ?? ""}
-              placeholder={t("form.formFields.previewEmail")}
-              onChange={(e) => setAnswer(field.id, e.target.value)}
-            />
-            <Mail className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-          </div>
+          <HuemulField
+            type="email"
+            label=""
+            value={(value as string) ?? ""}
+            placeholder={t("form.formFields.previewEmail")}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
+          />
         );
 
       case QUESTION_TYPE.number:
       case QUESTION_TYPE.decimal: {
         const isDecimal = field.question_type === QUESTION_TYPE.decimal || field.data_type === "decimal";
         return (
-          <Input
+          <HuemulField
             type="number"
-            step={isDecimal ? "any" : "1"}
-            className={FIELD_INPUT}
-            value={value === null || value === undefined ? "" : (value as number)}
+            label=""
+            step={isDecimal ? undefined : 1}
             min={typeof field.min_value === "number" ? field.min_value : undefined}
             max={typeof field.max_value === "number" ? field.max_value : undefined}
             placeholder={isDecimal ? "1.2" : "0"}
-            onChange={(e) => {
-              const raw = e.target.value;
-              setAnswer(field.id, raw === "" ? null : Number(raw));
-            }}
+            value={value === null || value === undefined ? "" : (value as number)}
+            onChange={(v) => setAnswer(field.id, v === "" ? null : Number(v))}
+            error={error}
           />
         );
       }
 
-      case QUESTION_TYPE.yesNo:
+      case QUESTION_TYPE.yesNo: {
         return (
-          <div className="flex items-center gap-2">
-            {[true, false].map((opt) => {
-              const selected = value === opt;
-              return (
-                <button
-                  key={String(opt)}
-                  type="button"
-                  onClick={() => setAnswer(field.id, opt)}
-                  className={cn(
-                    "inline-flex h-9 items-center gap-1 rounded-md border px-4 text-sm transition-colors",
-                    selected
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-                  )}
-                >
-                  {opt ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
-                </button>
-              );
-            })}
-          </div>
+          <HuemulField
+            type="yes-no"
+            label=""
+            value={value as boolean}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
+          />
         );
+      }
 
-      case QUESTION_TYPE.multipleChoice:
+      case QUESTION_TYPE.multipleChoice: {
+        const mcOptions = readFieldOptions(field);
         return (
-          <RadioGroup
+          <HuemulField
+            type="radio"
+            label=""
             value={(value as string) ?? ""}
-            onValueChange={(v) => setAnswer(field.id, v)}
-            className="space-y-2"
-          >
-            {(cfg.options ?? []).map((opt, i) => (
-              <label key={i} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                <RadioGroupItem value={opt} id={`${field.id}-${i}`} />
-                {opt}
-              </label>
-            ))}
-          </RadioGroup>
+            options={mcOptions.map((o) => ({ value: o.id, label: o.label }))}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
+          />
         );
+      }
 
-      case QUESTION_TYPE.dropdown:
+      case QUESTION_TYPE.dropdown: {
+        const ddOptions = readFieldOptions(field);
         return (
-          <Select value={(value as string) ?? ""} onValueChange={(v) => setAnswer(field.id, v)}>
-            <SelectTrigger className="w-full bg-white">
-              <SelectValue placeholder={t("form.fill.selectOption")} />
-            </SelectTrigger>
-            <SelectContent>
-              {(cfg.options ?? []).map((opt, i) => (
-                <SelectItem key={i} value={opt}>
-                  {opt}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <HuemulField
+            type="select"
+            label=""
+            value={(value as string) ?? ""}
+            options={ddOptions.map((o) => ({ value: o.id, label: o.label }))}
+            placeholder={t("form.fill.selectOption")}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
+          />
         );
+      }
 
       case QUESTION_TYPE.linearScale: {
-        const min = typeof field.min_value === "number" ? field.min_value : 1;
-        const max = typeof field.max_value === "number" ? field.max_value : 5;
-        const steps =
-          max > min && max - min <= 20 ? Array.from({ length: max - min + 1 }, (_, i) => min + i) : [];
         return (
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {steps.map((n) => {
-                const selected = value === n;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setAnswer(field.id, n)}
-                    className={cn(
-                      "flex size-9 items-center justify-center rounded-md border text-sm transition-colors",
-                      selected
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
-                    )}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-            {(cfg.startLabel || cfg.endLabel) && (
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>{cfg.startLabel}</span>
-                <span>{cfg.endLabel}</span>
-              </div>
-            )}
-          </div>
+          <HuemulField
+            type="linear-scale"
+            label=""
+            min={typeof field.min_value === "number" ? field.min_value : 1}
+            max={typeof field.max_value === "number" ? field.max_value : 5}
+            minLabel={cfg.min_label}
+            maxLabel={cfg.max_label}
+            value={value as number}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
+          />
         );
       }
 
       case QUESTION_TYPE.rating: {
-        const stars = cfg.stars ?? 5;
-        const current = typeof value === "number" ? value : 0;
         return (
-          <div className="flex flex-wrap items-center gap-1">
-            {Array.from({ length: stars }, (_, i) => {
-              const n = i + 1;
-              return (
-                <button key={i} type="button" onClick={() => setAnswer(field.id, n)} className="p-0.5">
-                  <Star
-                    className={cn(
-                      "size-6 transition-colors",
-                      n <= current ? "fill-amber-400 text-amber-400" : "text-gray-300",
-                    )}
-                  />
-                </button>
-              );
-            })}
-          </div>
+          <HuemulField
+            type="rating"
+            label=""
+            max={typeof field.max_value === "number" ? field.max_value : 5}
+            value={value as number}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
+          />
         );
       }
 
       case QUESTION_TYPE.date:
         return (
-          <Input
+          <HuemulField
             type="date"
-            className={FIELD_INPUT}
+            label=""
             value={(value as string) ?? ""}
-            onChange={(e) => setAnswer(field.id, e.target.value)}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
           />
         );
 
       case QUESTION_TYPE.time:
         return (
-          <Input
+          <HuemulField
             type="time"
-            className={FIELD_INPUT}
+            label=""
             value={(value as string) ?? ""}
-            onChange={(e) => setAnswer(field.id, e.target.value)}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
           />
         );
 
-      case QUESTION_TYPE.fileUpload:
-        // Fuera de alcance por ahora: placeholder no interactivo.
+      case QUESTION_TYPE.fileUpload: {
+        const fileCfg = readFieldConfig(field);
+        const accept = fileCfg.allowed_types?.map((ext) => `.${ext}`).join(", ");
         return (
-          <div className="flex h-16 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 bg-white text-xs text-gray-400">
-            <Upload className="size-4" />
-            {t("form.formFields.previewFileUpload")}
-          </div>
+          <HuemulField
+            type="file"
+            label=""
+            accept={accept}
+            onFileChange={(files) => setAnswer(field.id, files)}
+            error={error}
+          />
         );
+      }
 
       case CUSTOM_FIELD_QUESTION_TYPE:
       default: {
-        // Fallback por data_type
         if (NUMERIC_DATA_TYPES.includes(field.data_type as string)) {
           return (
-            <Input
+            <HuemulField
               type="number"
-              className={FIELD_INPUT}
+              label=""
               value={value === null || value === undefined ? "" : (value as number)}
-              onChange={(e) => setAnswer(field.id, e.target.value === "" ? null : Number(e.target.value))}
+              onChange={(v) => setAnswer(field.id, v === "" ? null : Number(v))}
+              error={error}
             />
           );
         }
         if (field.data_type === "date") {
           return (
-            <Input
+            <HuemulField
               type="date"
-              className={FIELD_INPUT}
+              label=""
               value={(value as string) ?? ""}
-              onChange={(e) => setAnswer(field.id, e.target.value)}
+              onChange={(v) => setAnswer(field.id, v)}
+              error={error}
             />
           );
         }
         if (field.data_type === "time") {
           return (
-            <Input
+            <HuemulField
               type="time"
-              className={FIELD_INPUT}
+              label=""
               value={(value as string) ?? ""}
-              onChange={(e) => setAnswer(field.id, e.target.value)}
+              onChange={(v) => setAnswer(field.id, v)}
+              error={error}
             />
           );
         }
         return (
-          <Input
-            className={FIELD_INPUT}
+          <HuemulField
+            type="text"
+            label=""
             value={(value as string) ?? ""}
-            onChange={(e) => setAnswer(field.id, e.target.value)}
+            onChange={(v) => setAnswer(field.id, v)}
+            error={error}
           />
         );
       }
@@ -369,8 +371,7 @@ export function AssetFormSection({
 
   // ── Render del valor en solo lectura ───────────────────────────────────────
   const renderReadOnly = (field: FormFieldValue) => {
-    const cfg = readFieldConfig(field);
-    const value = field.value;
+    const value = answers[field.id];
 
     if (!hasAnswer(value)) {
       return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
@@ -385,22 +386,44 @@ export function AssetFormSection({
     }
 
     if (field.question_type === QUESTION_TYPE.rating) {
-      const stars = cfg.stars ?? 5;
-      const current = typeof value === "number" ? value : 0;
       return (
-        <div className="flex items-center gap-1">
-          {Array.from({ length: stars }, (_, i) => (
-            <Star
-              key={i}
-              className={cn("size-5", i < current ? "fill-amber-400 text-amber-400" : "text-gray-300")}
-            />
-          ))}
-        </div>
+        <HuemulField
+          type="rating"
+          label=""
+          max={typeof field.max_value === "number" ? field.max_value : 5}
+          value={value as number}
+          disabled
+        />
       );
     }
 
     if (field.question_type === QUESTION_TYPE.paragraph) {
       return <p className="whitespace-pre-wrap text-sm text-gray-800">{String(value)}</p>;
+    }
+
+    if (
+      field.question_type === QUESTION_TYPE.multipleChoice ||
+      field.question_type === QUESTION_TYPE.dropdown
+    ) {
+      const options = readFieldOptions(field);
+      const selectedId = value as string;
+      const found = options.find((o) => o.id === selectedId);
+      return <span className="text-sm text-gray-800">{found ? found.label : selectedId}</span>;
+    }
+
+    if (
+      field.question_type === QUESTION_TYPE.date ||
+      (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value))
+    ) {
+      const dateOnly = (value as string).split("T")[0];
+      const [year, month, day] = dateOnly.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      const formatted = date.toLocaleDateString(navigator.language || "es-ES", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+      return <span className="text-sm text-gray-800">{formatted}</span>;
     }
 
     return <span className="text-sm text-gray-800">{String(value)}</span>;

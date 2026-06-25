@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TFunction } from "i18next";
-import type { FormFieldConfig, SectionFormField } from "@/types/sections/core";
+import type { FormFieldConfig, FormFieldOption, SectionFormField } from "@/types/sections/core";
 
 // question_type que referencia un custom field
 export const CUSTOM_FIELD_QUESTION_TYPE = "custom_field";
@@ -36,7 +36,7 @@ export const QUESTION_TYPE = {
   email: "email",
   yesNo: "booleano",
   multipleChoice: "opcion_multiple",
-  dropdown: "desplegable",
+  dropdown: "lista_desplegable",
   fileUpload: "carga_de_archivos",
   linearScale: "escala_lineal",
   rating: "calificacion",
@@ -85,7 +85,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   imagen: Image,
   casillas: CheckSquare,
   opcion_multiple: CircleDot,
-  desplegable: ListChecks,
+  lista_desplegable: ListChecks,
   booleano: ToggleLeft,
   si_no: ToggleLeft,
 };
@@ -101,13 +101,20 @@ export const questionTypeLabel = (slug: string, t: TFunction): string =>
 
 // ── Config de UI alojada en default_value (JSONB) ───────────────────────────
 
-// Lee la config de un field de forma segura (objeto plano; {} si null/legacy).
-// Acepta cualquier shape con default_value (SectionFormField o FormFieldValue del contenido).
+// Lee la config de un field de forma segura (objeto plano; {} si null/legacy/array).
+// Para opcion_multiple y desplegable usar readFieldOptions en su lugar.
 export const readFieldConfig = (field: { default_value?: unknown | null }): FormFieldConfig => {
   const raw = field.default_value;
   return raw && typeof raw === "object" && !Array.isArray(raw)
     ? (raw as FormFieldConfig)
     : {};
+};
+
+// Lee las opciones de opcion_multiple / desplegable desde default_value.
+// El backend persiste un array directo de FormFieldOption; retorna [] si el valor no es un array.
+export const readFieldOptions = (field: { default_value?: unknown | null }): FormFieldOption[] => {
+  const raw = field.default_value;
+  return Array.isArray(raw) ? (raw as FormFieldOption[]) : [];
 };
 
 // Devuelve el nuevo default_value resultante de mergear un patch de config.
@@ -119,3 +126,7 @@ export const writeFieldConfig = (
 // Valor JSONB listo para un input controlado (number/string; null/boolean → "")
 export const jsonbToInputValue = (v: unknown): string | number =>
   v === null || v === undefined || typeof v === "boolean" ? "" : (v as string | number);
+
+// Genera un field_id seguro a partir del enunciado del campo.
+export const slugifyFieldId = (name: string): string =>
+  name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 64) || "";

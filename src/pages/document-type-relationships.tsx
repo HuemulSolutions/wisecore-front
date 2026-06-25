@@ -72,7 +72,7 @@ export default function DocumentTypeRelationshipsPage() {
     const minDelay = new Promise((resolve) => setTimeout(resolve, 800))
     await Promise.all([
       new Promise<void>((resolve, reject) => {
-        mutations.cloneAssetType.mutate(cloningAssetType.document_type_id, {
+        mutations.cloneAssetType.mutate({ id: cloningAssetType.document_type_id, includeRelationships: false }, {
           onSuccess: () => resolve(),
           onError: (err) => reject(err),
         })

@@ -25,7 +25,9 @@ export interface SectionFormField {
 export interface FormFieldValue {
   id: string;
   section_form_id: string;
+  field_id?: string;
   field_name: string;
+  custom_field_id?: string | null;
   value: unknown;
   // Definición embebida por el backend en el contenido del asset (para renderizar el input)
   question_type?: string;
@@ -37,15 +39,22 @@ export interface FormFieldValue {
   max_value?: unknown | null;
 }
 
+// Una opción de opcion_multiple / lista_desplegable.
+// Se persiste como array directo en default_value: [{ id, label }, ...]
+export interface FormFieldOption {
+  id: string;
+  label: string;
+}
+
 // Config de UI por tipo de pregunta, persistida dentro de default_value (JSONB).
-// El backend no tiene campos dedicados para opciones/etiquetas, así que se guardan aquí.
+// Para opcion_multiple / desplegable default_value es FormFieldOption[] (no este objeto).
 export interface FormFieldConfig {
-  options?: string[];        // opcion_multiple, desplegable
-  startLabel?: string;       // escala_lineal — etiqueta inicio
-  endLabel?: string;         // escala_lineal — etiqueta fin
-  stars?: number;            // calificacion — número de estrellas
-  maxFiles?: number;         // archivo — máximo de archivos
-  maxSize?: number;          // archivo — tamaño máximo (MB)
+  // escala_lineal — etiquetas de extremos
+  min_label?: string;
+  max_label?: string;
+  // carga_de_archivos
+  allowed_types?: string[];
+  max_size_mb?: number;
 }
 
 export interface SortableSectionItem {

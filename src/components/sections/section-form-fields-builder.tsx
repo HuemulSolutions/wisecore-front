@@ -21,13 +21,14 @@ import { getCustomFieldTemplatesByTemplate } from "@/services/custom-fields-temp
 import { getCustomFields } from "@/services/custom-fields";
 import { useOrganization } from "@/contexts/organization-context";
 import type { SectionFormField } from "@/types/sections/core";
-import type { CustomFieldDataType } from "@/types/custom-fields/core";
+import type { CustomFieldDataType, CustomFieldsResponse } from "@/types/custom-fields/core";
+import type { CustomFieldTemplatesResponse } from "@/types/custom-fields/templates";
 import { SectionFormFieldCard, type CustomFieldOption } from "./section-form-field-card";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
-  readFieldConfig,
+  readFieldOptions,
   withFieldKey,
   type FormFieldDraft,
 } from "./question-type-meta";
@@ -58,9 +59,9 @@ export function SectionFormFieldsBuilder({
   }, [questionTypes]);
 
   // Custom fields: del template si hay templateId; si no, los de la organización.
-  const { data: customFieldsResp } = useQuery({
+  const { data: customFieldsResp } = useQuery<CustomFieldsResponse | CustomFieldTemplatesResponse>({
     queryKey: ["form-field-custom-fields", templateId ?? "org"],
-    queryFn: () =>
+    queryFn: (): Promise<CustomFieldsResponse | CustomFieldTemplatesResponse> =>
       templateId
         ? getCustomFieldTemplatesByTemplate({ template_id: templateId })
         : getCustomFields(),
@@ -131,21 +132,21 @@ export function SectionFormFieldsBuilder({
     switch (questionType) {
       case QUESTION_TYPE.multipleChoice:
       case QUESTION_TYPE.dropdown: {
-        const prevOptions = readFieldConfig(prev).options;
+        const prevOptions = readFieldOptions(prev);
         return {
           min_value: null,
           max_value: null,
-          default_value: {
-            options: prevOptions?.length ? prevOptions : [1, 2, 3].map((n) => t("form.formFields.option", { n })),
-          },
+          default_value: prevOptions.length
+            ? prevOptions
+            : [1, 2, 3].map((n) => ({ id: String(n), label: t("form.formFields.option", { n }) })),
         };
       }
       case QUESTION_TYPE.linearScale:
-        return { min_value: 1, max_value: 5, default_value: { startLabel: "", endLabel: "" } };
+        return { min_value: 1, max_value: 5, default_value: { min_label: "", max_label: "" } };
       case QUESTION_TYPE.rating:
-        return { min_value: null, max_value: null, default_value: { stars: 5 } };
+        return { min_value: null, max_value: 5, default_value: null };
       case QUESTION_TYPE.fileUpload:
-        return { min_value: null, max_value: null, default_value: { maxFiles: 1, maxSize: 10 } };
+        return { min_value: null, max_value: null, default_value: { allowed_types: [], max_size_mb: 10 } };
       default: {
         const isNumeric = NUMERIC_DATA_TYPES.includes(derived as string);
         return {

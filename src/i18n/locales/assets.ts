@@ -236,6 +236,8 @@ const translations = {
     reviewStatusEditing: { en: "Editing", es: "Editando" },
     reviewStatusReviewing: { en: "Reviewing", es: "Revisando" },
     reviewStatusFinished: { en: "Finished", es: "Finalizado" },
+    reviewStatusFormNotAnswered: { en: "Not answered", es: "No respondido" },
+    reviewStatusFormAnswered: { en: "Answered", es: "Respondido" },
     reviewStatusPlaceholder: { en: "Review status", es: "Estado de revisión" },
     reviewStatusUpdateFailed: { en: "Failed to update review status", es: "Error al actualizar el estado de revisión" },
     viewHistory: { en: "View change history", es: "Ver historial de cambios" },

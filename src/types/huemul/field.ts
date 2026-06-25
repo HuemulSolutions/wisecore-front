@@ -6,7 +6,8 @@ export type HuemulFieldType =
   | "text" | "email" | "password" | "number" | "tel" | "url" | "time"
   | "datetime" | "textarea" | "select" | "checkbox" | "switch" | "file"
   | "combobox" | "color" | "date" | "date-range" | "radio" | "richtext"
-  | "async-combobox" | "json";
+  | "async-combobox" | "json"
+  | "yes-no" | "linear-scale" | "rating";
 
 export interface HuemulFieldOption {
   label: string;
@@ -71,6 +72,8 @@ export interface HuemulFieldProps {
   min?: number;
   max?: number;
   step?: number;
+  minLabel?: string;
+  maxLabel?: string;
   checkLabel?: string;
   richTextValue?: Value;
   onRichTextChange?: (value: Value) => void;

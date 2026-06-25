@@ -11,6 +11,7 @@ import {
   questionTypeIcon,
   questionTypeLabel,
   readFieldConfig,
+  readFieldOptions,
 } from "./question-type-meta";
 
 interface SectionFormFieldsViewProps {
@@ -80,29 +81,33 @@ export function SectionFormFieldsView({ fields }: SectionFormFieldsViewProps) {
           </div>
         );
 
-      case QUESTION_TYPE.multipleChoice:
+      case QUESTION_TYPE.multipleChoice: {
+        const mcOptions = readFieldOptions(field);
         return (
           <div className="space-y-2">
-            {(cfg.options ?? []).map((opt, i) => (
-              <div key={i} className="flex items-center gap-2">
+            {mcOptions.map((opt) => (
+              <div key={opt.id} className="flex items-center gap-2">
                 <span className="size-4 shrink-0 rounded-full border border-gray-300 bg-white" />
-                <span className="text-xs text-gray-700">{opt}</span>
+                <span className="text-xs text-gray-700">{opt.label}</span>
               </div>
             ))}
           </div>
         );
+      }
 
-      case QUESTION_TYPE.dropdown:
+      case QUESTION_TYPE.dropdown: {
+        const ddOptions = readFieldOptions(field);
         return (
           <div className="space-y-2">
-            {(cfg.options ?? []).map((opt, i) => (
-              <div key={i} className="flex items-center gap-2">
+            {ddOptions.map((opt, i) => (
+              <div key={opt.id} className="flex items-center gap-2">
                 <span className="w-4 shrink-0 text-xs text-gray-500">{i + 1}.</span>
-                <span className="text-xs text-gray-700">{opt}</span>
+                <span className="text-xs text-gray-700">{opt.label}</span>
               </div>
             ))}
           </div>
         );
+      }
 
       case QUESTION_TYPE.fileUpload:
         return (
@@ -125,10 +130,10 @@ export function SectionFormFieldsView({ fields }: SectionFormFieldsViewProps) {
                 </span>
               ))}
             </div>
-            {(cfg.startLabel || cfg.endLabel) && (
+            {(cfg.min_label || cfg.max_label) && (
               <div className="flex justify-between text-[11px] text-gray-400">
-                <span>{cfg.startLabel}</span>
-                <span>{cfg.endLabel}</span>
+                <span>{cfg.min_label}</span>
+                <span>{cfg.max_label}</span>
               </div>
             )}
           </div>
@@ -136,7 +141,7 @@ export function SectionFormFieldsView({ fields }: SectionFormFieldsViewProps) {
       }
 
       case QUESTION_TYPE.rating: {
-        const stars = cfg.stars ?? 5;
+        const stars = typeof field.max_value === "number" ? field.max_value : 5;
         return (
           <div className="flex flex-wrap items-center gap-1">
             {Array.from({ length: stars }, (_, i) => (

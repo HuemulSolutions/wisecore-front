@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SectionFormField } from "@/types/sections/core";
+import type { FormFieldOption, SectionFormField } from "@/types/sections/core";
 import type { CustomFieldOption } from "./section-form-field-card";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
@@ -19,6 +19,7 @@ import {
   QUESTION_TYPE,
   jsonbToInputValue,
   readFieldConfig,
+  readFieldOptions,
   writeFieldConfig,
   type FormFieldDraft,
 } from "./question-type-meta";
@@ -53,23 +54,27 @@ export function SectionQuestionTypeFields({
     onUpdate({ default_value: writeFieldConfig(field, patch) });
 
   // ── Editor de opciones (opcion_multiple / desplegable) ────────────────────
+  // default_value es directamente FormFieldOption[] (array, no objeto envuelto).
   const renderOptions = (variant: "radio" | "ordered") => {
-    const options = cfg.options ?? [];
-    const setOptions = (next: string[]) => patchConfig({ options: next });
+    const options = readFieldOptions(field);
+    const setOptions = (next: FormFieldOption[]) => onUpdate({ default_value: next });
+    const slugify = (label: string) =>
+      label.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "") || String(Date.now());
     return (
       <div className="space-y-2">
         {options.map((opt, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={opt.id || i} className="flex items-center gap-2">
             {variant === "radio" ? (
               <span className="size-4 shrink-0 rounded-full border border-gray-300 bg-white" />
             ) : (
               <span className="w-4 shrink-0 text-xs text-gray-500">{i + 1}.</span>
             )}
             <Input
-              value={opt}
-              onChange={(e) =>
-                setOptions(options.map((o, idx) => (idx === i ? e.target.value : o)))
-              }
+              value={opt.label}
+              onChange={(e) => {
+                const newLabel = e.target.value;
+                setOptions(options.map((o, idx) => idx === i ? { ...o, label: newLabel } : o));
+              }}
               placeholder={t("form.formFields.option", { n: i + 1 })}
               className="h-8 text-xs bg-white"
               disabled={isPending}
@@ -90,7 +95,10 @@ export function SectionQuestionTypeFields({
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setOptions([...options, t("form.formFields.option", { n: options.length + 1 })])}
+          onClick={() => {
+            const label = t("form.formFields.option", { n: options.length + 1 });
+            setOptions([...options, { id: slugify(label), label }]);
+          }}
           disabled={isPending}
           icon={Plus}
           className="h-7 px-1 text-xs text-gray-600 hover:text-gray-900"
@@ -193,7 +201,15 @@ export function SectionQuestionTypeFields({
       return renderOptions("ordered");
 
     // ── Carga de archivos ───────────────────────────────────────────────────
-    case QUESTION_TYPE.fileUpload:
+    case QUESTION_TYPE.fileUpload: {
+      const FILE_TYPE_OPTIONS = ["pdf", "docx", "xlsx", "png", "jpg", "csv"];
+      const allowedTypes = cfg.allowed_types ?? [];
+      const toggleType = (type: string) => {
+        const next = allowedTypes.includes(type)
+          ? allowedTypes.filter((t) => t !== type)
+          : [...allowedTypes, type];
+        patchConfig({ allowed_types: next });
+      };
       return (
         <div className="space-y-3">
           <PreviewBox>
@@ -202,28 +218,39 @@ export function SectionQuestionTypeFields({
               {t("form.formFields.previewFileUpload")}
             </div>
           </PreviewBox>
-          <div className="grid grid-cols-2 gap-3">
-            <HuemulField
-              type="select"
-              label={t("form.formFields.maxFiles")}
-              value={String(cfg.maxFiles ?? 1)}
-              onChange={(v) => patchConfig({ maxFiles: Number(v) })}
-              options={[1, 2, 3, 5, 10].map((n) => ({ value: String(n), label: String(n) }))}
-              selectSize="sm"
-              disabled={isPending}
-            />
-            <HuemulField
-              type="select"
-              label={t("form.formFields.maxSize")}
-              value={String(cfg.maxSize ?? 10)}
-              onChange={(v) => patchConfig({ maxSize: Number(v) })}
-              options={[1, 5, 10, 25, 50].map((n) => ({ value: String(n), label: `${n} MB` }))}
-              selectSize="sm"
-              disabled={isPending}
-            />
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-700">{t("form.formFields.allowedTypes")}</p>
+            <div className="flex flex-wrap gap-2">
+              {FILE_TYPE_OPTIONS.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => toggleType(type)}
+                  disabled={isPending}
+                  className={`rounded px-2 py-0.5 text-xs border transition-colors ${
+                    allowedTypes.includes(type)
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-400"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
           </div>
+          <HuemulField
+            type="select"
+            label={t("form.formFields.maxSize")}
+            value={String(cfg.max_size_mb ?? 10)}
+            onChange={(v) => patchConfig({ max_size_mb: Number(v) })}
+            options={[1, 5, 10, 25, 50].map((n) => ({ value: String(n), label: `${n} MB` }))}
+            selectSize="sm"
+            disabled={isPending}
+            className="max-w-[160px]"
+          />
         </div>
       );
+    }
 
     // ── Escala lineal ───────────────────────────────────────────────────────
     case QUESTION_TYPE.linearScale: {
@@ -259,16 +286,16 @@ export function SectionQuestionTypeFields({
             <HuemulField
               type="text"
               label={t("form.formFields.startLabel")}
-              value={cfg.startLabel ?? ""}
-              onChange={(v) => patchConfig({ startLabel: v as string })}
+              value={cfg.min_label ?? ""}
+              onChange={(v) => patchConfig({ min_label: v as string })}
               placeholder={t("form.formFields.startLabelPlaceholder")}
               disabled={isPending}
             />
             <HuemulField
               type="text"
               label={t("form.formFields.endLabel")}
-              value={cfg.endLabel ?? ""}
-              onChange={(v) => patchConfig({ endLabel: v as string })}
+              value={cfg.max_label ?? ""}
+              onChange={(v) => patchConfig({ max_label: v as string })}
               placeholder={t("form.formFields.endLabelPlaceholder")}
               disabled={isPending}
             />
@@ -287,15 +314,16 @@ export function SectionQuestionTypeFields({
     }
 
     // ── Calificación ────────────────────────────────────────────────────────
+    // El número de estrellas va en max_value (requerido por el backend).
     case QUESTION_TYPE.rating: {
-      const stars = cfg.stars ?? 5;
+      const stars = typeof field.max_value === "number" ? field.max_value : 5;
       return (
         <div className="space-y-3">
           <HuemulField
             type="select"
             label={t("form.formFields.starCount")}
             value={String(stars)}
-            onChange={(v) => patchConfig({ stars: Number(v) })}
+            onChange={(v) => onUpdate({ max_value: Number(v) })}
             options={[3, 4, 5, 10].map((n) => ({ value: String(n), label: String(n) }))}
             selectSize="sm"
             disabled={isPending}

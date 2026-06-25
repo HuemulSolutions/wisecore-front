@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon } from "lucide-react";
+import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Star } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ar, de, enUS, es, fr, it, ja, ptBR, zhCN, type Locale } from "date-fns/locale";
 import { tokenize, tokenStyle } from "./json-viewer";
@@ -521,7 +521,12 @@ function DateInputField({
           )}
         >
           <CalendarIcon className="h-4 w-4 shrink-0" />
-          {selected ? format(selected, "d MMM yyyy", { locale: getBrowserDateLocale() }) : (placeholder || t('pickDate'))}
+          {selected
+            ? selected.toLocaleDateString(
+                typeof navigator !== "undefined" ? navigator.language : undefined,
+                { day: "2-digit", month: "2-digit", year: "numeric" },
+              )
+            : (placeholder || t('pickDate'))}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -955,6 +960,8 @@ export function HuemulField({
   children,
   onKeyDown,
   searchOnEnter,
+  minLabel,
+  maxLabel,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
   const isInline = (type === "checkbox" || type === "switch") && inline !== false;
@@ -1304,6 +1311,108 @@ export function HuemulField({
             className={inputClassName}
           />
         ) : null;
+
+      case "yes-no": {
+        return (
+          <div className="flex items-center gap-2">
+            {([true, false] as const).map((opt) => {
+              const selected = value === opt;
+              return (
+                <button
+                  key={String(opt)}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onChange?.(opt)}
+                  className={cn(
+                    "inline-flex h-9 items-center rounded-md border px-4 text-sm transition-colors",
+                    selected
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : error
+                        ? "border-destructive bg-white text-gray-600 hover:bg-gray-50"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+                    disabled && "pointer-events-none opacity-50",
+                    inputClassName,
+                  )}
+                >
+                  {opt ? t("yes") : t("no")}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      case "linear-scale": {
+        const scaleMin = typeof min === "number" ? min : 1;
+        const scaleMax = typeof max === "number" ? max : 5;
+        const steps =
+          scaleMax > scaleMin && scaleMax - scaleMin <= 20
+            ? Array.from({ length: scaleMax - scaleMin + 1 }, (_, i) => scaleMin + i)
+            : [];
+        return (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {steps.map((n) => {
+                const selected = value === n;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onChange?.(n)}
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-md border text-sm transition-colors",
+                      selected
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : error
+                          ? "border-destructive bg-white text-gray-600 hover:bg-gray-50"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+                      disabled && "pointer-events-none opacity-50",
+                      inputClassName,
+                    )}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+            {(minLabel || maxLabel) && (
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>{minLabel}</span>
+                <span>{maxLabel}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "rating": {
+        const stars = typeof max === "number" ? max : 5;
+        const current = typeof value === "number" ? value : 0;
+        return (
+          <div className="flex flex-wrap items-center gap-1">
+            {Array.from({ length: stars }, (_, i) => {
+              const n = i + 1;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => !disabled && onChange?.(n)}
+                  className={cn("p-0.5", disabled && "pointer-events-none opacity-50")}
+                >
+                  <Star
+                    className={cn(
+                      "size-6 transition-colors",
+                      n <= current ? "fill-amber-400 text-amber-400" : "text-gray-300",
+                    )}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
 
       case "json":
         return (
