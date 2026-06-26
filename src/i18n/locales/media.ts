@@ -19,6 +19,12 @@ const translations = {
     mediaType: { en: "Media Type", es: "Tipo de Media" },
     mediaTypePlaceholder: { en: "e.g. image/png", es: "ej. image/png" },
     clear: { en: "Clear filters", es: "Limpiar filtros" },
+    levels: {
+      organization: { en: "Organization", es: "Organización" },
+      document_type: { en: "Document Type", es: "Tipo de Documento" },
+      document: { en: "Document", es: "Documento" },
+      execution: { en: "Execution", es: "Ejecución" },
+    },
   },
   detail: {
     name: { en: "Name", es: "Nombre" },

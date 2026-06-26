@@ -2,7 +2,7 @@ import * as React from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
@@ -20,6 +20,7 @@ export function CreateTemplateDialog({
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newInstructions, setNewInstructions] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -27,12 +28,13 @@ export function CreateTemplateDialog({
     if (open) {
       setNewName("");
       setNewDescription("");
+      setNewInstructions("");
       setError(null);
     }
   }, [open]);
 
   const createTemplateMutation = useMutation({
-    mutationFn: (newData: { name: string; description: string; organization_id: string }) => {
+    mutationFn: (newData: { name: string; description: string; instructions: string; organization_id: string }) => {
       console.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
       return addTemplate(newData);
     },
@@ -73,18 +75,19 @@ export function CreateTemplateDialog({
     createTemplateMutation.mutate({
       name: newName,
       description: newDescription,
+      instructions: newInstructions,
       organization_id: organizationId,
     });
   };
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('create.title')}
       description={t('create.description')}
       icon={FileCode}
-      maxHeight="max-h-[90vh]"
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       cancelLabel={t('create.cancelLabel', { defaultValue: 'Cancel' })}
       saveAction={{
         label: t('create.submitLabel'),
@@ -112,13 +115,25 @@ export function CreateTemplateDialog({
         />
         <HuemulField
           label={t('form.description')}
-          type="text"
+          type="textarea"
           value={newDescription}
           onChange={(v) => setNewDescription(String(v))}
           placeholder={t('form.descriptionPlaceholder')}
+          rows={8}
+          inputClassName="min-h-[16rem]"
+          disabled={createTemplateMutation.isPending}
+        />
+        <HuemulField
+          label={t('form.instructions')}
+          type="textarea"
+          value={newInstructions}
+          onChange={(v) => setNewInstructions(String(v))}
+          placeholder={t('form.instructionsPlaceholder')}
+          rows={8}
+          inputClassName="min-h-[16rem]"
           disabled={createTemplateMutation.isPending}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   );
 }

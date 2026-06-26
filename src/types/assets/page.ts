@@ -54,6 +54,7 @@ export interface AssetTypePageDialogsProps {
   onCloseDialog: (dialog: keyof AssetTypePageState) => void
   onUpdateState: (updates: Partial<AssetTypePageState>) => void
   assetTypeMutations: ReturnType<typeof useAssetTypeMutations>
+  onImportSuccess: () => void
 }
 
 // ----------------------------------------
@@ -80,6 +81,10 @@ export interface AssetTypePageHeaderProps {
   canCreate?: boolean
   viewMode?: 'table' | 'relationships'
   onViewModeChange?: (mode: 'table' | 'relationships') => void
+  onExport?: () => void
+  onImport?: () => void
+  canExport?: boolean
+  canImport?: boolean
 }
 
 // ----------------------------------------
@@ -93,6 +98,7 @@ export interface AssetTypeTableProps {
   onCloneAssetType: (assetType: AssetTypeWithRoles) => void
   onLifecycle: (assetType: AssetTypeWithRoles) => void
   onViewRelationships: (assetType: AssetTypeWithRoles) => void
+  onManageTemplates: (assetType: AssetTypeWithRoles) => void
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean

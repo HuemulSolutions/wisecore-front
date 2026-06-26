@@ -3,17 +3,15 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { Edit } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
 import { ExternalFunctionalityForm } from "./external-functionality-form"
-import type {
-  UpdateExternalFunctionalityRequest,
-} from "@/types/external-functionalities"
+import type { UpdateExternalFunctionalityRequest } from "@/types/external-functionalities"
 import type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionalities"
 
 export type { ExternalFunctionalityEditDialogProps } from "@/types/external-functionalities"
 
-export function ExternalFunctionalityEditDialog({
+export function ExternalFunctionalityEditSheet({
   open,
   onOpenChange,
   organizationId,
@@ -57,7 +55,7 @@ export function ExternalFunctionalityEditDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t("edit.title")}
@@ -66,9 +64,10 @@ export function ExternalFunctionalityEditDialog({
       saveAction={{
         label: t("common:update"),
         onClick: handleSubmit,
+        position: "header",
       }}
     >
       <ExternalFunctionalityForm formData={formData} onChange={handleChange} />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

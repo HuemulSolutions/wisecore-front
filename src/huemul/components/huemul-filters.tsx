@@ -29,7 +29,7 @@ export type { HuemulFiltersProps }
  *   hasActiveFilters={activeCount > 0}
  * >
  *   <HuemulField type="select" label="Status" ... />
- *   <HuemulField type="async-select" label="Owner" ... />
+ *   <HuemulField type="async-combobox" label="Owner" ... />
  * </HuemulFilters>
  * ```
  */

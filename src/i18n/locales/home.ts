@@ -302,6 +302,9 @@ const translations = {
     auditDateFrom: { en: "Audit from", es: "Auditoría desde" },
     auditDateTo: { en: "Audit to", es: "Auditoría hasta" },
     all: { en: "All", es: "Todos" },
+    customFieldsGroup: { en: "Custom Fields", es: "Campos Personalizados" },
+    customFields: { en: "Custom Fields", es: "Campos personalizados" },
+    customFieldsPlaceholder: { en: "Search field...", es: "Buscar campo..." },
   },
 
   executionsTable: {

@@ -27,6 +27,7 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
+import { AssetFormSection } from '@/components/assets/content/asset-form-section';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -44,6 +45,9 @@ function SectionExecutionInner({
     showExecutionFeedback = false,
     sectionType = 'ai',
     sectionName,
+    status,
+    responderName,
+    respondedAt,
     canEditSections = false,
     onCreateSectionFromSelection,
     // onCopyLink,
@@ -390,11 +394,17 @@ function SectionExecutionInner({
                                 onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
                                 disabled={isUpdatingReviewStatus || !canEditSections}
                                 placeholder={t('section.reviewStatusPlaceholder')}
-                                options={[
-                                    { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
-                                    { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
-                                    { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
-                                ]}
+                                options={sectionType === 'form'
+                                    ? [
+                                        { value: 'editing', label: t('section.reviewStatusFormNotAnswered'), color: '#f59e0b' },
+                                        { value: 'finished', label: t('section.reviewStatusFormAnswered'), color: '#22c55e' },
+                                    ]
+                                    : [
+                                        { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
+                                        { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
+                                        { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                    ]
+                                }
                                 className="w-auto"
                                 selectSize="xs"
                                 inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
@@ -747,6 +757,21 @@ function SectionExecutionInner({
                             <span className="ml-2 text-xs text-gray-500">{t('section.generatingSectionContent')}</span>
                         </div>
                     </div>
+                </div>
+            ) : sectionType === 'form' ? (
+                /* Form section: render fillable/read-only form instead of the Plate editor */
+                <div className={`${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
+                    <AssetFormSection
+                        sectionExecutionId={sectionExecution.id}
+                        formFields={sectionExecution.form_fields ?? []}
+                        status={status}
+                        organizationId={selectedOrganizationId ?? undefined}
+                        documentId={documentId}
+                        canInteract={readyToEdit && canEditSections}
+                        responderName={responderName}
+                        respondedAt={respondedAt}
+                        onUpdate={onUpdate}
+                    />
                 </div>
             ) : (
                 /* Unified Plate view: readOnly when not editing, editable when editing */

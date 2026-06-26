@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Plus } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useExternalFunctionalityMutations } from "@/hooks/useExternalFunctionalities"
 import { ExternalFunctionalityForm, type ExternalFunctionalityFormData } from "./external-functionality-form"
 import type { CreateExternalFunctionalityRequest } from "@/types/external-functionalities"
@@ -24,7 +24,7 @@ const INITIAL_FORM: CreateExternalFunctionalityRequest = {
   functionality_class: "endpoint",
 }
 
-export function ExternalFunctionalityCreateDialog({
+export function ExternalFunctionalityCreateSheet({
   open,
   onOpenChange,
   organizationId,
@@ -54,7 +54,7 @@ export function ExternalFunctionalityCreateDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t("create.title")}
@@ -63,9 +63,10 @@ export function ExternalFunctionalityCreateDialog({
       saveAction={{
         label: t("create.submitLabel"),
         onClick: handleSubmit,
+        position: "header",
       }}
     >
       <ExternalFunctionalityForm formData={formData} onChange={handleChange} />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

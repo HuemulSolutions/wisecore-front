@@ -2,18 +2,36 @@
 
 export type ExecutionRelationshipDirection = 'all' | 'source' | 'target'
 
+/** "default" = basada en un document_type_relationship; "manual" = relación libre por nombre. */
+export type ExecutionRelationshipType = 'default' | 'manual'
+
 // ─── Attribute value ──────────────────────────────────────────────────────────
 
+/**
+ * Forma de respuesta de un atributo. Para relaciones "default" viene
+ * `document_type_relationship_attribute_id`; para "manual" viene `name` y el id es null.
+ */
 export interface ExecutionRelationshipAttributeValue {
-  document_type_relationship_attribute_id: string
+  document_type_relationship_attribute_id: string | null
+  name?: string | null
   value: string
+  value_type?: string | null
+  is_required?: boolean
+  display_order?: number
 }
+
+/** Atributo enviado en los requests: por id (default) o por nombre (manual). */
+export type ExecutionRelationshipAttributeInput =
+  | { document_type_relationship_attribute_id: string; value: string }
+  | { name: string; value: string }
 
 // ─── Main entity ──────────────────────────────────────────────────────────────
 
 export interface ExecutionRelationship {
   id: string
-  document_type_relationship_id: string
+  document_type_relationship_id: string | null
+  relationship_type: ExecutionRelationshipType
+  execution_relationship_name: string | null
   source_execution_id: string
   target_execution_id: string
   attributes: ExecutionRelationshipAttributeValue[]
@@ -46,7 +64,9 @@ export interface ExecutionRelationshipInlineExecution {
 export interface ExecutionRelationshipSubitem {
   id: string
   direction: 'source' | 'target'
-  document_type_relationship: ExecutionRelationshipInlineDocType
+  relationship_type: ExecutionRelationshipType
+  execution_relationship_name: string | null
+  document_type_relationship: ExecutionRelationshipInlineDocType | null
   source_execution: ExecutionRelationshipInlineExecution
   target_execution: ExecutionRelationshipInlineExecution
   attributes: ExecutionRelationshipAttributeValue[]
@@ -57,7 +77,9 @@ export interface ExecutionRelationshipSubitem {
 export interface ExecutionRelationshipWithDetails {
   id: string
   direction: 'source' | 'target'
-  document_type_relationship: ExecutionRelationshipInlineDocType
+  relationship_type: ExecutionRelationshipType
+  execution_relationship_name: string | null
+  document_type_relationship: ExecutionRelationshipInlineDocType | null
   source_execution: ExecutionRelationshipInlineExecution
   target_execution: ExecutionRelationshipInlineExecution
   attributes: ExecutionRelationshipAttributeValue[]
@@ -100,12 +122,15 @@ export interface GetExecutionRelationshipsParams {
 // ─── Request bodies ───────────────────────────────────────────────────────────
 
 export interface CreateExecutionRelationshipRequest {
-  document_type_relationship_id: string
+  /** Requerido para tipo "default"; null/omitido para "manual". */
+  document_type_relationship_id?: string | null
+  /** Requerido para tipo "manual"; null/omitido para "default". */
+  execution_relationship_name?: string | null
   source_execution_id: string
   target_execution_id: string
-  attributes?: ExecutionRelationshipAttributeValue[]
+  attributes?: ExecutionRelationshipAttributeInput[]
 }
 
 export interface UpdateExecutionRelationshipRequest {
-  attributes: ExecutionRelationshipAttributeValue[]
+  attributes: ExecutionRelationshipAttributeInput[]
 }

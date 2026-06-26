@@ -25,6 +25,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
+import { SectionFormFieldsView } from "./section-form-fields-view";
 import type { SortableSectionSheetProps, DeleteMode } from "@/types/sections";
 
 export type { SortableSectionSheetItem } from "@/types/sections";
@@ -366,6 +367,20 @@ export default function SortableSectionSheet({
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <p className="text-sm text-gray-500 italic">{t("sections:sortableSection.noPrompt")}</p>
                     </div>
+                  </div>
+                )}
+
+                {/* Form - vista de solo lectura de las preguntas */}
+                {sectionType === 'form' && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.formFieldsTitle")}</h4>
+                    {item.form_fields && item.form_fields.length > 0 ? (
+                      <SectionFormFieldsView fields={item.form_fields} />
+                    ) : (
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-sm text-gray-500 italic">{t("sections:sortableSection.noContentAvailable")}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 

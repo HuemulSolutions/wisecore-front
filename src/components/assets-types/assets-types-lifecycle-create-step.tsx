@@ -8,6 +8,7 @@ import { useLifecycleSteps, useLifecycleMutations, useLifecycleSlaUnits } from "
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { LifecyclePublishActionsSection } from "./assets-types-lifecycle-publish-actions"
 import type { CreateStepContentProps } from '@/types/assets'
 
 export type { CreateStepContentProps } from '@/types/assets'
@@ -22,6 +23,7 @@ export function CreateStepContent({
   noOwner = false,
   useAllOrCustomOwner = false,
   onEditingChange,
+  organizationId,
 }: CreateStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
@@ -375,6 +377,14 @@ export function CreateStepContent({
           disabled={!isEditing}
         />
       </div>}
+
+      {/* External publish actions — only for publish steps */}
+      {stepType === "publish" && organizationId && step?.id && (
+        <LifecyclePublishActionsSection
+          organizationId={organizationId}
+          stepId={step.id}
+        />
+      )}
     </div>
   )
 }

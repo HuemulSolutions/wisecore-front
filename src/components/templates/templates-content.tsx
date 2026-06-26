@@ -6,12 +6,13 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
-import { getTemplateById, generateTemplateSections, cloneTemplate } from "@/services/templates";
+import { getTemplateById, generateTemplateSections } from "@/services/templates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrganization } from "@/contexts/organization-context";
 import { TemplateHeader } from "./templates-header";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
+import { CloneTemplateDialog } from "./templates-clone-dialog";
 import { AddSectionDialog } from "./templates-add-section-dialog";
 import { TemplateSectionsList } from "./templates-sections-list";
 import { TemplateEmptyState } from "./templates-empty-state";
@@ -45,6 +46,7 @@ export function TemplateContent({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddingSectionOpen, setIsAddingSectionOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isGeneratingIndividual, setIsGeneratingIndividual] = useState(false);
@@ -81,16 +83,6 @@ export function TemplateContent({
     meta: { successMessage: t('templates:content.sectionsGenerated') },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
-    },
-  });
-
-  // Mutation para clonar template
-  const cloneMutation = useMutation({
-    mutationFn: (templateId: string) => cloneTemplate(templateId, selectedOrganizationId!),
-    meta: { successMessage: t('templates:content.cloneSuccess') },
-    onSuccess: (cloned) => {
-      onRefresh();
-      onTemplateCreated?.(cloned);
     },
   });
 
@@ -147,6 +139,7 @@ export function TemplateContent({
         <TemplateHeader
           templateName={templateData?.name || selectedTemplate.name}
           templateDescription={templateData?.description}
+          templateInstructions={templateData?.instructions ?? undefined}
           isMobile={isMobile}
           hasNoSections={!orderedSections || orderedSections.length === 0}
           isGenerating={isGenerating}
@@ -231,11 +224,10 @@ export function TemplateContent({
                         iconClassName="h-4 w-4 text-gray-600"
                         variant="ghost"
                         size="sm"
-                        loading={cloneMutation.isPending}
                         disabled={isGenerating}
                         tooltip={t('templates:content.cloneTemplate')}
                         className="h-8 w-8 p-0 hover:bg-gray-100"
-                        onClick={() => { if (selectedTemplate?.id) cloneMutation.mutate(selectedTemplate.id); }}
+                        onClick={() => setIsCloneDialogOpen(true)}
                       />
                     )}
                     {canUpdate && (
@@ -373,6 +365,7 @@ export function TemplateContent({
           templateId={selectedTemplate.id}
           templateName={templateData.name}
           templateDescription={templateData.description}
+          templateInstructions={templateData.instructions ?? undefined}
           organizationId={selectedOrganizationId!}
           onSuccess={() => {
             // Solo refrescar el template actual, no toda la lista
@@ -402,6 +395,17 @@ export function TemplateContent({
             organizationId={selectedOrganizationId!}
             existingSections={orderedSections}
             onGeneratingChange={setIsGeneratingIndividual}
+          />
+
+          <CloneTemplateDialog
+            open={isCloneDialogOpen}
+            onOpenChange={setIsCloneDialogOpen}
+            templateId={selectedTemplate.id}
+            organizationId={selectedOrganizationId!}
+            onSuccess={(cloned) => {
+              onRefresh();
+              onTemplateCreated?.(cloned);
+            }}
           />
         </>
       )}

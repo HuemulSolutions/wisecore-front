@@ -165,7 +165,8 @@ export interface LifecycleStatus {
   current_group: string | null;
   current_group_order: number;
   current_step_id: string | null;
-  can_check: boolean;
+  can_advance: boolean;
+  can_rollback: boolean;
   will_advance_phase: boolean;
   version: string | null;
   version_required: boolean;
@@ -351,6 +352,7 @@ export interface ContentSection {
   ai_suggestion_instruction?: string | null;
   ai_suggestion_error?: string | null;
   review_status?: 'editing' | 'reviewing' | 'finished' | null;
+  form_fields?: import('../sections/core').FormFieldValue[];
 }
 
 export interface LibraryContentProps {

@@ -3,7 +3,6 @@ import type React from 'react'
 import type { LifecyclePermissions, FileNode } from './core'
 import type { MenuAction } from '@/types/menu-action'
 import type { HuemulFileTreeRef } from '@/huemul/components/huemul-file-tree'
-import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field'
 import type { CustomFieldDocument } from '@/types/custom-fields'
 
 // ----------------------------------------
@@ -105,31 +104,6 @@ export interface AssetFileTreeProps {
 export interface FileTreeRef extends HuemulFileTreeRef {}
 
 // ----------------------------------------
-// Form Fields
-// ----------------------------------------
-
-export interface AssetFormFieldsProps {
-  name: string
-  description: string
-  internalCode: string
-  templateId: string
-  documentTypeId: string
-  selectedDocTypeLabel?: string
-  selectedDocTypeColor?: string
-  createInitialVersion: boolean
-  onNameChange: (value: string) => void
-  onDescriptionChange: (value: string) => void
-  onInternalCodeChange: (value: string) => void
-  onTemplateIdChange: (value: string) => void
-  onDocumentTypeIdChange: (value: string) => void
-  onCreateInitialVersionChange: (value: boolean) => void
-  onCreateDocType?: () => void
-  fetchTemplateOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>
-  fetchDocumentTypeOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>
-  disabled?: boolean
-}
-
-// ----------------------------------------
 // Section Execution
 // ----------------------------------------
 
@@ -144,6 +118,8 @@ export interface SectionExecutionProps {
     ai_suggestion_content?: string | null
     ai_suggestion_instruction?: string | null
     review_status?: 'editing' | 'reviewing' | 'finished' | null
+    /** Valores del formulario (solo para secciones type="form") */
+    form_fields?: import('../sections/core').FormFieldValue[]
   }
   onUpdate?: () => void
   readyToEdit: boolean
@@ -157,7 +133,15 @@ export interface SectionExecutionProps {
   showExecutionFeedback?: boolean
   sectionType?: 'ai' | 'manual' | 'reference' | 'form' | null
   sectionName?: string
+  /** Estado de la sección (ej. "pending"). Para type="form" decide responder vs solo lectura */
+  status?: string
+  /** Nombre del autor a mostrar en el footer de un formulario respondido (aprox. nivel documento) */
+  responderName?: string
+  /** Fecha (ISO) a mostrar en el footer de un formulario respondido */
+  respondedAt?: string
   canEditSections?: boolean
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void
   onCopyLink?: () => void
+  /** Definiciones de los form fields de la sección (solo type="form") */
+  formFieldDefinitions?: import('../sections/core').SectionFormField[]
 }

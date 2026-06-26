@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bell, Star, Eye, Edit2, Trash2, Plus, Mail, Smartphone } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
@@ -33,9 +33,18 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingItem, setEditingItem] = useState<Subscription | null>(null)
   const [deletingItem, setDeletingItem] = useState<Subscription | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(100)
+
+  // Reset to the first page whenever the sheet is (re)opened
+  useEffect(() => {
+    if (open) setPage(1)
+  }, [open])
 
   const { data, isLoading, isFetching, error } = useSubscriptions(organizationId, {
     enabled: open && !!organizationId,
+    page,
+    pageSize,
   })
 
   const items = data?.data ?? []
@@ -167,6 +176,19 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
               emptyState={{
                 title: t("emptyState.title"),
                 description: t("emptyState.description"),
+              }}
+              pagination={{
+                page: data?.page ?? page,
+                pageSize: data?.page_size ?? pageSize,
+                totalItems: data?.total,
+                hasNext: data?.has_next,
+                hasPrevious: (data?.page ?? page) > 1,
+                onPageChange: setPage,
+                onPageSizeChange: (s) => {
+                  setPageSize(s)
+                  setPage(1)
+                },
+                pageSizeOptions: [25, 50, 100, 200, 500],
               }}
             />
           )}

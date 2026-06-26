@@ -29,6 +29,7 @@ const translations = {
       secrets: { en: "Secrets", es: "Secretos" },
       body: { en: "Body", es: "Cuerpo" },
       logs: { en: "Logs", es: "Registros" },
+      lifecycle: { en: "Lifecycle", es: "Ciclo de vida" },
     },
     response: {
       label: { en: "Response", es: "Respuesta" },
@@ -86,6 +87,51 @@ const translations = {
   actions: {
     edit: { en: "Edit Functionality", es: "Editar Funcionalidad" },
     delete: { en: "Delete Functionality", es: "Eliminar Funcionalidad" },
+  },
+  logs: {
+    empty: { en: "No logs yet", es: "Sin registros aún" },
+    emptyDescription: {
+      en: "Logs will appear here once the functionality is executed",
+      es: "Los registros aparecerán aquí cuando se ejecute la funcionalidad",
+    },
+    status: { en: "Status", es: "Estado" },
+    httpStatus: { en: "HTTP", es: "HTTP" },
+    url: { en: "URL", es: "URL" },
+    document: { en: "Document", es: "Documento" },
+    date: { en: "Date", es: "Fecha" },
+    loadMore: { en: "Load more", es: "Cargar más" },
+    statusPending: { en: "Pending", es: "Pendiente" },
+    statusRunning: { en: "Running", es: "En proceso" },
+    statusCompleted: { en: "Completed", es: "Completado" },
+    statusFailed: { en: "Failed", es: "Fallido" },
+  },
+  publishActions: {
+    selectDocumentType: { en: "Asset Type", es: "Tipo de asset" },
+    selectDocumentTypePlaceholder: { en: "Select an asset type", es: "Selecciona un tipo de asset" },
+    selectStep: { en: "Publish Step", es: "Paso de publicación" },
+    selectStepPlaceholder: { en: "Select a step", es: "Selecciona un paso" },
+    noStepSelected: {
+      en: "Select an asset type and a publish step to view its actions",
+      es: "Selecciona un tipo de asset y un paso para ver sus acciones",
+    },
+    addAction: { en: "Add action", es: "Agregar acción" },
+    editAction: { en: "Edit action", es: "Editar acción" },
+    deleteAction: { en: "Delete action", es: "Eliminar acción" },
+    confirmDelete: {
+      en: "Delete this publish action?",
+      es: "¿Eliminar esta acción de publicación?",
+    },
+    empty: { en: "No actions configured", es: "Sin acciones configuradas" },
+    emptyDescription: {
+      en: "Add a functionality to run when this step is reached",
+      es: "Agrega una funcionalidad para que se ejecute al publicar en este paso",
+    },
+    executionOrder: { en: "Order", es: "Orden" },
+    functionality: { en: "Functionality", es: "Funcionalidad" },
+    isEnabled: { en: "Enabled", es: "Activa" },
+    stopOnError: { en: "Stop on error", es: "Detener si falla" },
+    save: { en: "Save", es: "Guardar" },
+    cancel: { en: "Cancel", es: "Cancelar" },
   },
 }
 

@@ -64,26 +64,32 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
     }
   }
 
-  const matchFolder = folders.find(f => f.is_match)
-  if (matchFolder) {
-    const matchNode = folderMap.get(matchFolder.id)!
-    if (matchNode?.children) {
-      matchNode.children.push(
-        ...assets.map(a => ({
-          id: a.id,
-          name: a.name,
-          type: 'document' as const,
-          document_type: a.document_type,
-          access_levels: a.access_levels,
-        })),
-      )
+  // Assets de raíz, para devolverlos a nivel root
+  const rootAssetNodes: FileNode[] = []
+  for (const a of assets) {
+    const assetNode: FileNode = {
+      id: a.id,
+      name: a.name,
+      type: 'document' as const,
+      document_type: a.document_type,
+      access_levels: a.access_levels,
+    }
+    if (!a.folder_id) {
+      rootAssetNodes.push(assetNode)
+      continue
+    }
+    const parent = folderMap.get(a.folder_id)
+    if (parent?.isExpanded && parent.children) {
+      parent.children.push(assetNode)
     }
   }
 
-  return folders
+  const rootFolderNodes = folders
     .filter(f => f.parent_folder_id === null)
     .map(f => folderMap.get(f.id)!)
     .filter(Boolean)
+
+  return [...rootFolderNodes, ...rootAssetNodes]
 }
 
 // Context para compartir el fileTreeRef entre header y content

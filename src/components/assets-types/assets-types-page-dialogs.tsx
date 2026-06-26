@@ -1,20 +1,27 @@
 import { useTranslation } from "react-i18next"
+import { useOrganization } from "@/contexts/organization-context"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import RolePermissionsDialog from "@/components/roles/roles-permissions-dialog"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { CloneAssetTypeDialog } from "@/components/assets-types/assets-types-clone-dialog"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
 import { AssetTypeRelationshipsSheet } from "@/components/assets-types/assets-types-relationships-sheet"
+import { AssetTypeTemplatesSheet } from "@/components/assets-types/assets-types-templates-sheet"
+import { AssetTypeExportDialog } from "@/components/assets-types/assets-types-export-dialog"
+import { AssetTypeImportSheet } from "@/components/assets-types/assets-types-import-sheet"
 import type { AssetTypePageDialogsProps } from '@/types/assets'
 
 export type { AssetTypePageDialogsProps } from '@/types/assets'
 
-export default function AssetTypePageDialogs({ 
-  state, 
-  onCloseDialog, 
-  onUpdateState, 
-  assetTypeMutations 
+export default function AssetTypePageDialogs({
+  state,
+  onCloseDialog,
+  onUpdateState,
+  assetTypeMutations,
+  onImportSuccess,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
+  const { selectedOrganizationId } = useOrganization()
 
   const handleDelete = async () => {
     if (!state.deletingAssetType) return
@@ -32,17 +39,20 @@ export default function AssetTypePageDialogs({
     ])
   }
 
-  const handleClone = async () => {
+  const handleClone = async (includeRelationships: boolean) => {
     if (!state.cloningAssetType) return
 
     const minDelay = new Promise(resolve => setTimeout(resolve, 800))
 
     await Promise.all([
       new Promise<void>((resolve, reject) => {
-        assetTypeMutations.cloneAssetType.mutate(state.cloningAssetType!.document_type_id, {
-          onSuccess: () => resolve(),
-          onError: (error) => reject(error)
-        })
+        assetTypeMutations.cloneAssetType.mutate(
+          { id: state.cloningAssetType!.document_type_id, includeRelationships },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error)
+          }
+        )
       }),
       minDelay
     ])
@@ -84,18 +94,15 @@ export default function AssetTypePageDialogs({
       />
 
       {/* Clone Asset Type Dialog */}
-      <HuemulAlertDialog
+      <CloneAssetTypeDialog
         open={!!state.cloningAssetType}
         onOpenChange={(open) => {
           if (!open) {
             onCloseDialog('cloningAssetType')
           }
         }}
-        title={t('clone.title')}
-        description={t('clone.description', { name: state.cloningAssetType?.document_type_name })}
-        onAction={handleClone}
-        actionLabel={t('clone.confirm')}
-        cancelLabel={t('common:cancel')}
+        assetTypeName={state.cloningAssetType?.document_type_name}
+        onConfirm={handleClone}
       />
 
       {/* Role Permissions Dialog */}
@@ -121,6 +128,7 @@ export default function AssetTypePageDialogs({
             onCloseDialog('lifecycleAssetType')
           }
         }}
+        organizationId={selectedOrganizationId ?? ""}
       />
 
       {/* View Relationships Sheet */}
@@ -132,6 +140,38 @@ export default function AssetTypePageDialogs({
             onCloseDialog('viewRelationshipsAssetType')
           }
         }}
+      />
+
+      {/* Manage Templates Sheet */}
+      <AssetTypeTemplatesSheet
+        assetType={state.templatesAssetType}
+        open={!!state.templatesAssetType}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseDialog('templatesAssetType')
+          }
+        }}
+      />
+
+      {/* Export Dialog */}
+      <AssetTypeExportDialog
+        open={state.showExportDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            onUpdateState({ showExportDialog: false })
+          }
+        }}
+      />
+
+      {/* Import Sheet */}
+      <AssetTypeImportSheet
+        open={state.showImportSheet}
+        onOpenChange={(open) => {
+          if (!open) {
+            onUpdateState({ showImportSheet: false })
+          }
+        }}
+        onImportSuccess={onImportSuccess}
       />
     </>
   )

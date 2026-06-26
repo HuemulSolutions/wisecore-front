@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { ImagePreviewDialog } from "@/components/assets/dialogs/assets-image-preview-dialog";
 import type { CustomFieldDocument } from '@/types/custom-fields';
 import type { CustomFieldsListProps } from '@/types/assets';
 export type { CustomFieldsListProps } from '@/types/assets';
@@ -323,24 +323,11 @@ export function CustomFieldsList({
       </div>
 
       {/* Image preview dialog */}
-      <HuemulDialog
+      <ImagePreviewDialog
         open={imageDialogOpen}
         onOpenChange={setImageDialogOpen}
-        title={selectedImage?.name || t('customFieldsList.imagePreview')}
-        maxWidth="sm:max-w-2xl"
-        maxHeight="max-h-[90vh]"
-        showFooter={false}
-      >
-        <div className="flex justify-center">
-          {selectedImage && (
-            <img
-              src={selectedImage.url}
-              alt={selectedImage.name}
-              className="max-h-[70vh] w-auto object-contain rounded"
-            />
-          )}
-        </div>
-      </HuemulDialog>
+        image={selectedImage}
+      />
     </div>
   );
 }

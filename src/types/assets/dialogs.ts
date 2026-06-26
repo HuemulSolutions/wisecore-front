@@ -196,3 +196,81 @@ export interface RenameVersionDialogProps {
   currentName: string
   isProcessing?: boolean
 }
+
+// ----------------------------------------
+// Image Preview
+// ----------------------------------------
+
+export interface ImagePreviewDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  image: { url: string; name: string } | null
+}
+
+// ----------------------------------------
+// Content Delete (combined document / execution)
+// ----------------------------------------
+
+export interface ContentDeleteDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  deleteType: 'document' | 'execution' | null
+  documentName?: string
+  executionFormattedDate?: string
+  onAction: () => Promise<void>
+}
+
+// ----------------------------------------
+// Clone Execution
+// ----------------------------------------
+
+export interface CloneExecutionDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  executionName?: string
+  onAction: () => Promise<void>
+}
+
+// ----------------------------------------
+// Clone Asset Type
+// ----------------------------------------
+
+export interface CloneAssetTypeDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  assetTypeName?: string
+  onConfirm: (includeRelationships: boolean) => Promise<void>
+}
+
+// ----------------------------------------
+// Approve Execution
+// ----------------------------------------
+
+export interface ApproveExecutionDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  executionName?: string
+  onAction: () => Promise<void>
+}
+
+// ----------------------------------------
+// Disapprove Execution
+// ----------------------------------------
+
+export interface DisapproveExecutionDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  executionName?: string
+  onAction: () => Promise<void>
+}
+
+// ----------------------------------------
+// Delete Custom Field (document)
+// ----------------------------------------
+
+export interface DeleteCustomFieldDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  fieldName?: string
+  onAction: () => Promise<void>
+}

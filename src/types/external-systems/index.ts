@@ -6,3 +6,4 @@ export type { ExternalSystemDetailProps, ExternalSystemDetailTab } from './detai
 export type { ExternalSystemParamsTabProps, ExternalSystemParamsEditingState, ExternalSystemParamsAddFormState } from './params-tab'
 export type { ExternalSystemSecretsTabProps, ExternalSystemSecretsEditingState, ExternalSystemSecretsAddFormState } from './secrets-tab'
 export * from './hooks'
+export * from './logs'

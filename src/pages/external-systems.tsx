@@ -24,8 +24,8 @@ import {
 } from "@/components/external-systems"
 import {
   ExternalFunctionalityDetail,
-  ExternalFunctionalityCreateDialog,
-  ExternalFunctionalityEditDialog,
+  ExternalFunctionalityCreateSheet,
+  ExternalFunctionalityEditSheet,
   ExternalFunctionalityDeleteDialog,
 } from "@/components/external-functionalities"
 
@@ -429,8 +429,8 @@ export default function ExternalSystemsPage() {
         }}
       />
 
-      {/* Functionality dialogs */}
-      <ExternalFunctionalityCreateDialog
+      {/* Functionality sheets */}
+      <ExternalFunctionalityCreateSheet
         open={state.showCreateFunctionalityDialog}
         onOpenChange={(open) =>
           setState((s) => ({
@@ -444,7 +444,7 @@ export default function ExternalSystemsPage() {
         onSuccess={() => treeRef.current?.refresh()}
       />
 
-      <ExternalFunctionalityEditDialog
+      <ExternalFunctionalityEditSheet
         open={!!state.editingFunctionality}
         onOpenChange={(open) =>
           !open &&

@@ -24,6 +24,7 @@ export function TemplateInfoSheet({
 
   const name = templateData?.name ?? selectedTemplate?.name ?? "—";
   const description = templateData?.description;
+  const instructions = templateData?.instructions;
   const templateId = templateData?.id ?? selectedTemplate?.id;
   const organizationId = templateData?.organization_id;
   const assetKind = templateData?.asset_kind;
@@ -59,6 +60,11 @@ export function TemplateInfoSheet({
               label={t("templates:infoSheet.descriptionLabel")}
               value={description}
               emptyText={t("templates:infoSheet.noDescription")}
+            />
+            <HuemulInfoItem
+              label={t("templates:infoSheet.instructionsLabel")}
+              value={instructions}
+              emptyText={t("templates:infoSheet.none")}
             />
             <HuemulInfoItem
               label={t("templates:infoSheet.id")}

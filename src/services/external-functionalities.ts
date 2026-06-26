@@ -8,6 +8,10 @@ import type {
   CreateExternalFunctionalityRequest,
   UpdateExternalFunctionalityRequest,
 } from '@/types/external-functionalities'
+import type {
+  ExternalExecutionLogsFilters,
+  ExternalExecutionLogsResponse,
+} from '@/types/external-systems'
 
 const BASE_URL = `${backendUrl}/external-systems`
 
@@ -95,4 +99,28 @@ export async function deleteExternalFunctionality(
     `${BASE_URL}/${systemId}/functionalities/${functionalityId}`,
     { headers: { 'X-Org-Id': organizationId } },
   )
+}
+
+export async function getExternalExecutionLogs(
+  systemId: string,
+  functionalityId: string,
+  organizationId: string,
+  filters: ExternalExecutionLogsFilters = {},
+): Promise<ExternalExecutionLogsResponse> {
+  const query = new URLSearchParams()
+  if (filters.page) query.set('page', filters.page.toString())
+  if (filters.page_size) query.set('page_size', filters.page_size.toString())
+  if (filters.status) query.set('status', filters.status)
+  if (filters.document_id) query.set('document_id', filters.document_id)
+  if (filters.execution_id) query.set('execution_id', filters.execution_id)
+  if (filters.publish_run_id) query.set('publish_run_id', filters.publish_run_id)
+  if (filters.lifecycle_step_id) query.set('lifecycle_step_id', filters.lifecycle_step_id)
+  if (filters.http_status_code) query.set('http_status_code', filters.http_status_code.toString())
+
+  const qs = query.toString()
+  const response = await httpClient.get(
+    `${BASE_URL}/${systemId}/functionalities/${functionalityId}/execution-logs/${qs ? `?${qs}` : ''}`,
+    { headers: { 'X-Org-Id': organizationId } },
+  )
+  return response.json() as Promise<ExternalExecutionLogsResponse>
 }

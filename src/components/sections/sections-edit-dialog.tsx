@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Edit3 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { EditSectionForm } from "@/components/sections/sections-edit-form"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import type { ItemForBackend, EditSectionDialogProps } from '@/types/sections'
@@ -75,7 +75,7 @@ export function EditSectionDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={handleOpenChange}
       title={t("sections:editDialog.title")}
@@ -83,8 +83,7 @@ export function EditSectionDialog({
       icon={Edit3}
       cancelLabel={t("common:cancel")}
       onCancel={handleCancel}
-      maxWidth="sm:max-w-3xl"
-      maxHeight="max-h-[90vh]"
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       saveAction={{
         label: isGenerating ? t("sections:editDialog.generating") : t("sections:editDialog.save"),
         icon: Edit3,
@@ -109,6 +108,6 @@ export function EditSectionDialog({
         isTemplateSection={isTemplateSection}
         documentId={documentId}
       />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

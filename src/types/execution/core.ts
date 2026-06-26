@@ -69,6 +69,7 @@ export interface GetExecutionsParams {
   template_id?: string | null
   document_type_id?: string | null
   sort?: string | null
+  custom_field_filter?: string[]
 }
 
 export interface RollbackTarget {

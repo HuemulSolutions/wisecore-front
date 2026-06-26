@@ -1,4 +1,5 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo, useCallback } from "react"
+import type { TFunction } from "i18next"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { Image, FileText, File, Film, Music, Archive, AlertCircle, RefreshCw, Inbox, Download, History, Clock, Upload, Trash2, Plus } from "lucide-react"
@@ -10,28 +11,29 @@ import { useMediaList, useMediaVersions, useMediaMutations, mediaQueryKeys } fro
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { handleApiError } from "@/lib/error-utils"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { HuemulFilters } from "@/huemul/components/huemul-filters"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulInfoDisplay, HuemulInfoGroup, HuemulInfoItem } from "@/huemul/components/huemul-info-display"
-import { PageHeader } from "@/huemul/components/huemul-page-header"
+import { HuemulButton } from "@/huemul/components/huemul-button"
+import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
+import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
+import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel"
+import { HuemulViewToggle } from "@/huemul/components/huemul-view-toggle"
+import { useHuemulFilters } from "@/hooks/useHuemulFilters"
+import { useMediaViewMode } from "@/hooks/useMediaViewMode"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { formatBytes } from "@/lib/format-bytes"
 import type { Media, MediaVersion, MediaLevel } from "@/types/media"
+import type { HuemulFilterDef, HuemulFilterValue } from "@/types/huemul"
+import type { ViewMode } from "@/huemul/components/huemul-view-toggle"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatBytes(bytes?: number | null): string {
-  if (bytes == null) return "—"
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp"])
 const IMAGE_ACCEPT = Array.from(IMAGE_TYPES).join(",")
@@ -51,19 +53,14 @@ function MediaIcon({ contentType, className }: { contentType?: string | null; cl
   return <File className={cn(cls, "text-muted-foreground")} />
 }
 
-const LEVEL_OPTIONS = [
-  { value: "organization", label: "Organization" },
-  { value: "document_type", label: "Document Type" },
-  { value: "document", label: "Document" },
-  { value: "execution", label: "Execution" },
-] as const
+const LEVEL_VALUES = ["organization", "document_type", "document", "execution"] as const
+
+/** Build the level select options with translated labels. */
+function getLevelOptions(t: TFunction): { value: MediaLevel; label: string }[] {
+  return LEVEL_VALUES.map((value) => ({ value, label: t(`filters.levels.${value}`) }))
+}
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48]
-
-const defaultFilters = {
-  level: "organization" as MediaLevel,
-  mediaType: "",
-}
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -321,7 +318,7 @@ function UploadMediaSheet({
           label={t("filters.level")}
           value={level}
           onChange={(v) => setLevel(v as MediaLevel)}
-          options={LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          options={getLevelOptions(t)}
         />
         <HuemulField
           type="text"
@@ -564,10 +561,60 @@ function MediaDetailSheet({
   )
 }
 
-// ─── Gallery grid ─────────────────────────────────────────────────────────────
+// ─── List row ─────────────────────────────────────────────────────────────────
+
+function MediaRow({ item, onClick }: { item: Media; onClick: () => void }) {
+  const version = item.current_version
+  const name = item.name ?? version?.original_filename ?? item.id
+  const contentType = version?.content_type
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className="group flex items-center gap-3 rounded-lg border bg-card px-3 py-2 hover:shadow-sm transition-shadow hover:cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="relative h-10 w-10 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+        {isImage(contentType) && version?.download_url ? (
+          <img src={version.download_url} alt={name} className="object-cover w-full h-full" loading="lazy" />
+        ) : (
+          <MediaIcon contentType={contentType} className="h-5 w-5 opacity-50" />
+        )}
+      </div>
+
+      <p className="flex-1 min-w-0 truncate text-sm font-medium" title={name}>
+        {name}
+      </p>
+
+      {item.origin && (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 hidden sm:inline-flex">
+          {item.origin}
+        </Badge>
+      )}
+      {contentType && (
+        <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-5 shrink-0">
+          {contentType.split("/")[1] ?? contentType}
+        </Badge>
+      )}
+      <span className="text-xs text-muted-foreground shrink-0 w-16 text-right tabular-nums">
+        {formatBytes(version?.file_size)}
+      </span>
+      {item.created_at && (
+        <span className="text-xs text-muted-foreground shrink-0 hidden md:block w-20 text-right" title={item.created_at}>
+          {formatRelativeTime(item.created_at)}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ─── Gallery ──────────────────────────────────────────────────────────────────
 
 function MediaGallery({
   items,
+  viewMode,
   isLoading,
   isFetching,
   isError,
@@ -578,6 +625,7 @@ function MediaGallery({
   loadError,
 }: {
   items: Media[]
+  viewMode: ViewMode
   isLoading: boolean
   isFetching: boolean
   isError: boolean
@@ -610,6 +658,18 @@ function MediaGallery({
     )
   }
 
+  if (viewMode === "list") {
+    return (
+      <div className={cn("flex flex-col gap-1.5", isFetching && "opacity-60 pointer-events-none")}>
+        {isLoading
+          ? Array.from({ length: 12 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+            ))
+          : items.map((item) => <MediaRow key={item.id} item={item} onClick={() => onSelect(item)} />)}
+      </div>
+    )
+  }
+
   return (
     <div
       className={cn(
@@ -634,42 +694,73 @@ function MediaGallery({
 
 export default function MediaPage() {
   const { t } = useTranslation("media")
+  const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(24)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(true)
   const [selectedItem, setSelectedItem] = useState<Media | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [viewMode, setViewMode] = useMediaViewMode()
 
-  const [pendingFilters, setPendingFilters] = useState({ ...defaultFilters })
-  const [appliedFilters, setAppliedFilters] = useState({ ...defaultFilters })
+  const filterDefs = useMemo<HuemulFilterDef[]>(() => [
+    {
+      key: "level",
+      type: "select",
+      label: t("filters.level"),
+      allValue: "organization",
+      options: getLevelOptions(t),
+    },
+    {
+      key: "mediaType",
+      type: "text",
+      label: t("filters.mediaType"),
+      placeholder: t("filters.mediaTypePlaceholder"),
+    },
+  ], [t])
 
-  const hasActiveFilters =
-    appliedFilters.level !== "organization" || !!appliedFilters.mediaType
+  const {
+    values,
+    open: filtersOpen,
+    setOpen: setFiltersOpen,
+    setValue,
+    clearValue,
+    clearAll,
+    chips,
+    activeCount,
+  } = useHuemulFilters({
+    filters: filterDefs,
+    defaultOpen: false,
+    initialValues: { level: "organization" },
+  })
 
-  function handleApply() {
-    setAppliedFilters({ ...pendingFilters })
+  // Instant-apply: any filter change resets to the first page.
+  const handleFilterChange = useCallback((key: string, value: HuemulFilterValue) => {
+    setValue(key, value)
     setPage(1)
-  }
+  }, [setValue])
 
-  function handleClear() {
-    setPendingFilters({ ...defaultFilters })
-    setAppliedFilters({ ...defaultFilters })
+  const handleChipRemove = useCallback((key: string) => {
+    clearValue(key)
     setPage(1)
-  }
+  }, [clearValue])
+
+  const handleClearAll = useCallback(() => {
+    clearAll()
+    setPage(1)
+  }, [clearAll])
 
   const { data, isLoading, isFetching, isError, refetch } = useMediaList(
     selectedOrganizationId ?? "",
-    appliedFilters.level,
+    (values.level as MediaLevel) || "organization",
     {
       enabled: !!selectedOrganizationId,
       page,
       pageSize,
-      mediaType: appliedFilters.mediaType || undefined,
+      mediaType: (values.mediaType as string) || undefined,
     },
   )
 
@@ -706,102 +797,115 @@ export default function MediaPage() {
 
   const items = data?.data ?? []
 
+  const header = (
+    <div className="flex items-center justify-between gap-2 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <HuemulFilterButton
+          count={activeCount}
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen(!filtersOpen)}
+        />
+        <Image className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+        <h1 className="text-lg sm:text-xl font-semibold text-foreground">{t("title")}</h1>
+        {data?.total != null && (
+          <Badge variant="outline" className="text-xs px-2 py-1">
+            {t("totalItems")}: {data.total}
+          </Badge>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <HuemulViewToggle value={viewMode} onChange={setViewMode} />
+        <HuemulButton
+          variant="outline"
+          size="sm"
+          icon={RefreshCw}
+          iconClassName="w-3 h-3 mr-1"
+          label={tCommon("refresh")}
+          loading={isRefreshing || isFetching}
+          onClick={handleRefresh}
+          className="h-8 text-xs px-2"
+        />
+        <HuemulButton
+          size="sm"
+          icon={Plus}
+          iconClassName="w-3 h-3 mr-1"
+          label={t("upload.title")}
+          onClick={() => setUploadOpen(true)}
+          className="h-8 text-xs px-2"
+        />
+      </div>
+    </div>
+  )
+
   return (
     <>
       <HuemulPageLayout
-      header={
-        <PageHeader
-          icon={Image}
-          title={t("title")}
-          badges={
-            data?.total != null
-              ? [{ label: t("totalItems"), value: data.total }]
-              : []
-          }
-          showRefresh
-          onRefresh={handleRefresh}
-          isLoading={isRefreshing || isFetching}
-          primaryAction={{
-            label: t("upload.title"),
-            icon: Plus,
-            onClick: () => setUploadOpen(true),
-          }}
-        />
-      }
-      headerClassName="p-4 md:p-6 pb-0 md:pb-0"
-      columns={[
-        {
-          content: (
-            <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
-              <HuemulFilters
-                title={t("filters.title")}
-                open={filtersOpen}
-                onOpenChange={setFiltersOpen}
-                onApply={handleApply}
-                onClear={handleClear}
-                hasActiveFilters={hasActiveFilters}
-              >
-                <HuemulField
-                  type="select"
-                  label={t("filters.level")}
-                  value={pendingFilters.level}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, level: v as MediaLevel }))}
-                  options={LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-                  selectSize="xs"
-                  className="w-auto"
-                  inputClassName="w-44 h-8 text-xs"
+        header={header}
+        columns={[
+          {
+            content: (
+              <HuemulFilterPanel
+                filters={filterDefs}
+                values={values}
+                onChange={handleFilterChange}
+                onClose={() => setFiltersOpen(false)}
+              />
+            ),
+            show: filtersOpen,
+            defaultSize: 22,
+            minSize: 16,
+            maxSize: 35,
+            collapsible: true,
+          },
+          {
+            content: (
+              <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
+                <HuemulFilterChips
+                  chips={chips}
+                  onRemove={handleChipRemove}
+                  onClearAll={handleClearAll}
                 />
-                <HuemulField
-                  type="text"
-                  label={t("filters.mediaType")}
-                  value={pendingFilters.mediaType}
-                  onChange={(v) => setPendingFilters((p) => ({ ...p, mediaType: String(v ?? "") }))}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleApply() }}
-                  placeholder={t("filters.mediaTypePlaceholder")}
-                  className="w-auto"
-                  inputClassName="w-44 h-8 text-xs"
-                />
-              </HuemulFilters>
 
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <MediaGallery
-                  items={items}
-                  isLoading={isTableLoading}
-                  isFetching={isTableFetching}
-                  isError={isError}
-                  onRetry={handleRefresh}
-                  onSelect={(item) => {
-                    setSelectedItem(item)
-                    setDetailOpen(true)
-                  }}
-                  emptyTitle={t("emptyTitle")}
-                  emptyDescription={t("emptyDescription")}
-                  loadError={t("loadError")}
-                />
-              </div>
-
-              {(data?.total != null || data?.has_next || page > 1) && (
-                <div className="shrink-0 border-t bg-background pt-2">
-                  <HuemulPagination
-                    page={page}
-                    pageSize={pageSize}
-                    totalItems={data?.total}
-                    hasNext={data?.has_next}
-                    hasPrevious={page > 1}
-                    onPageChange={setPage}
-                    onPageSizeChange={(size) => {
-                      setPageSize(size)
-                      setPage(1)
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <MediaGallery
+                    items={items}
+                    viewMode={viewMode}
+                    isLoading={isTableLoading}
+                    isFetching={isTableFetching}
+                    isError={isError}
+                    onRetry={handleRefresh}
+                    onSelect={(item) => {
+                      setSelectedItem(item)
+                      setDetailOpen(true)
                     }}
-                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    emptyTitle={t("emptyTitle")}
+                    emptyDescription={t("emptyDescription")}
+                    loadError={t("loadError")}
                   />
                 </div>
-              )}
-            </div>
-          ),
-        },
-      ]}
-    />
+
+                {(items.length > 0 || page > 1) && (
+                  <div className="shrink-0 border-t bg-background pt-2">
+                    <HuemulPagination
+                      page={page}
+                      pageSize={pageSize}
+                      totalItems={data?.total}
+                      hasNext={data?.has_next}
+                      hasPrevious={page > 1}
+                      onPageChange={setPage}
+                      onPageSizeChange={(size) => {
+                        setPageSize(size)
+                        setPage(1)
+                      }}
+                      pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    />
+                  </div>
+                )}
+              </div>
+            ),
+          },
+        ]}
+      />
 
     <MediaDetailSheet
       item={selectedItem}

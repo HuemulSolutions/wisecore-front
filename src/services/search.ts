@@ -36,6 +36,7 @@ export async function search({
     sort,
     page = 1,
     page_size = 100,
+    custom_field_filter,
 }: SearchParams) {
     const params = new URLSearchParams();
     params.set('query', query);
@@ -63,6 +64,7 @@ export async function search({
     if (audit_date_from != null) params.set('audit_date_from', toDateParam(audit_date_from));
     if (audit_date_to != null) params.set('audit_date_to', toDateParam(audit_date_to));
     if (sort != null) params.set('sort', sort);
+    custom_field_filter?.forEach(f => params.append('custom_field_filter', f));
 
     const response = await httpClient.get(`${backendUrl}/search/?${params.toString()}`, {
         headers: {
