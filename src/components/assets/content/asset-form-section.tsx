@@ -8,7 +8,9 @@ import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
 import type { ReviewStatus } from "@/services/section_execution";
+import { uploadMedia } from "@/services/media";
 import type { FormFieldValue } from "@/types/sections/core";
+import { Loader2 } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
@@ -24,6 +26,8 @@ interface AssetFormSectionProps {
   formFields: FormFieldValue[];
   status?: string;
   organizationId?: string;
+  /** document_id del asset → se pasa como parent_id al subir archivos a /media/ */
+  documentId?: string;
   /** Si el usuario puede responder/editar el formulario (modo editor + permiso). Si es false, solo lectura. */
   canInteract: boolean;
   responderName?: string;
@@ -56,25 +60,36 @@ export function AssetFormSection({
   formFields,
   status,
   organizationId,
+  documentId,
   canInteract,
   responderName,
   respondedAt,
   onUpdate,
 }: AssetFormSectionProps) {
-  const { t } = useTranslation("sections");
+  const { t } = useTranslation(["sections", "common"]);
 
   const sortedFields = useMemo(
     () => [...formFields].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [formFields],
   );
 
+  // ¿Hay al menos un campo editable? Los custom_field son solo lectura
+  // (se gestionan en la configuración de secciones), así que un formulario
+  // compuesto solo por custom_field no permite editar respuestas.
+  const hasEditableFields = sortedFields.some(
+    (f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE,
+  );
+
   const isAnswered = !!status && status !== "pending";
   const [mode, setMode] = useState<"edit" | "view">(
-    canInteract && !isAnswered ? "edit" : "view",
+    canInteract && !isAnswered && hasEditableFields ? "edit" : "view",
   );
   const [answers, setAnswers] = useState<AnswerMap>(() => buildInitialAnswers(sortedFields));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
+  // URL de descarga de archivos recién subidos (para previsualizar; el placeholder no es una URL)
+  const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
 
   const setAnswer = (fieldId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
@@ -86,9 +101,20 @@ export function AssetFormSection({
     });
   };
 
+  // URL a mostrar para un campo de archivo: la subida nueva (filePreviews) o la URL original del backend.
+  const fileDisplayUrl = (field: FormFieldValue): string | null => {
+    const preview = filePreviews[field.id];
+    if (preview) return preview;
+    const v = answers[field.id];
+    if (typeof v === "string" && v.startsWith("http")) return v;
+    return null;
+  };
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     for (const f of sortedFields) {
+      // Los custom_field son solo lectura (su valor se gestiona en los custom fields del documento)
+      if (f.question_type === CUSTOM_FIELD_QUESTION_TYPE) continue;
       const v = answers[f.id];
       if (f.required && !hasAnswer(v)) {
         errs[f.id] = t("form.fill.fieldRequired");
@@ -123,6 +149,10 @@ export function AssetFormSection({
   };
 
   const handleSubmit = async () => {
+    if (uploadingFields.size > 0) {
+      toast.error(t("form.fill.fileUploading_block"));
+      return;
+    }
     if (!validate()) {
       toast.error(t("form.fill.requiredError"));
       return;
@@ -130,7 +160,16 @@ export function AssetFormSection({
 
     setIsSaving(true);
     try {
-      const values = sortedFields.map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
+      const values = sortedFields
+        // custom_field es solo lectura: su valor se gestiona en los custom fields del documento
+        .filter((f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE)
+        // archivo: solo enviar si el usuario subió uno nuevo (placeholder), no la URL existente
+        .filter((f) => {
+          if (f.question_type !== QUESTION_TYPE.fileUpload) return true;
+          const a = answers[f.id];
+          return typeof a === "string" && a.startsWith("{{MEDIA:");
+        })
+        .map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
       await updateSectionFormValues(sectionExecutionId, values, organizationId);
       await updateReviewStatus(sectionExecutionId, "finished" as ReviewStatus, organizationId);
       toast.success(t("form.fill.saved"));
@@ -143,6 +182,13 @@ export function AssetFormSection({
     }
   };
 
+  // Descarta los cambios en curso y vuelve a solo lectura.
+  const handleCancel = () => {
+    setAnswers(buildInitialAnswers(sortedFields));
+    setFieldErrors({});
+    setMode("view");
+  };
+
   if (sortedFields.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-400">
@@ -151,7 +197,7 @@ export function AssetFormSection({
     );
   }
 
-  const editing = mode === "edit" && canInteract;
+  const editing = mode === "edit" && canInteract && hasEditableFields;
 
   // ── Render de un input editable según el tipo de pregunta ──────────────────
   const renderInput = (field: FormFieldValue) => {
@@ -304,24 +350,101 @@ export function AssetFormSection({
             value={(value as string) ?? ""}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            withSeconds={false}
           />
         );
 
       case QUESTION_TYPE.fileUpload: {
         const fileCfg = readFieldConfig(field);
         const accept = fileCfg.allowed_types?.map((ext) => `.${ext}`).join(", ");
+        const isUploading = uploadingFields.has(field.id);
+
+        const handleFileChange = async (files: FileList | null) => {
+          if (!files || files.length === 0) return;
+          const file = files[0];
+
+          if (fileCfg.allowed_types?.length) {
+            const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+            if (!fileCfg.allowed_types.includes(ext)) {
+              setFieldErrors((prev) => ({
+                ...prev,
+                [field.id]: t("form.fill.fileTypeNotAllowed", { types: fileCfg.allowed_types!.join(", ") }),
+              }));
+              return;
+            }
+          }
+
+          if (fileCfg.max_size_mb) {
+            const sizeMb = file.size / (1024 * 1024);
+            if (sizeMb > fileCfg.max_size_mb) {
+              setFieldErrors((prev) => ({
+                ...prev,
+                [field.id]: t("form.fill.fileTooLarge", { max: fileCfg.max_size_mb }),
+              }));
+              return;
+            }
+          }
+
+          setFieldErrors((prev) => { const next = { ...prev }; delete next[field.id]; return next; });
+          setUploadingFields((prev) => new Set([...prev, field.id]));
+
+          try {
+            const media = await uploadMedia(organizationId!, {
+              file,
+              level: "document",
+              parent_id: documentId,
+            });
+            setAnswer(field.id, `{{MEDIA:${media.id}}}`);
+            setFilePreviews((prev) => ({ ...prev, [field.id]: media.current_version?.download_url ?? "" }));
+          } catch {
+            setFieldErrors((prev) => ({ ...prev, [field.id]: t("form.fill.fileUploadError") }));
+          } finally {
+            setUploadingFields((prev) => { const next = new Set(prev); next.delete(field.id); return next; });
+          }
+        };
+
+        const currentUrl = fileDisplayUrl(field);
+
         return (
-          <HuemulField
-            type="file"
-            label=""
-            accept={accept}
-            onFileChange={(files) => setAnswer(field.id, files)}
-            error={error}
-          />
+          <div className="space-y-1.5">
+            {currentUrl && (
+              field.data_type === "image" ? (
+                <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
+                  <img src={currentUrl} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
+                </a>
+              ) : (
+                <a
+                  href={currentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800"
+                >
+                  {t("form.fill.fileDownload")}
+                </a>
+              )
+            )}
+            <HuemulField
+              type="file"
+              label=""
+              accept={accept}
+              disabled={isUploading}
+              onFileChange={handleFileChange}
+              error={error}
+            />
+            {isUploading && (
+              <p className="flex items-center gap-1.5 text-xs text-gray-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {t("form.fill.fileUploading")}
+              </p>
+            )}
+          </div>
         );
       }
 
       case CUSTOM_FIELD_QUESTION_TYPE:
+        // Solo lectura: el valor se gestiona en los custom fields del documento
+        return renderReadOnly(field);
+
       default: {
         if (NUMERIC_DATA_TYPES.includes(field.data_type as string)) {
           return (
@@ -353,6 +476,7 @@ export function AssetFormSection({
               value={(value as string) ?? ""}
               onChange={(v) => setAnswer(field.id, v)}
               error={error}
+              withSeconds={false}
             />
           );
         }
@@ -411,6 +535,67 @@ export function AssetFormSection({
       return <span className="text-sm text-gray-800">{found ? found.label : selectedId}</span>;
     }
 
+    if (field.question_type === QUESTION_TYPE.fileUpload) {
+      const url = fileDisplayUrl(field);
+      if (!url) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
+      if (field.data_type === "image") {
+        return (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
+            <img src={url} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
+          </a>
+        );
+      }
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800"
+        >
+          {t("form.fill.fileDownload")}
+        </a>
+      );
+    }
+
+    if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) {
+      if (field.data_type === "image") {
+        const url = String(value);
+        return (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
+            <img src={url} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
+          </a>
+        );
+      }
+      if (field.data_type === "url") {
+        const url = String(value);
+        return (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800 break-all"
+          >
+            {url}
+          </a>
+        );
+      }
+      if (field.data_type === "bool") {
+        const isYes = value === true || value === "true" || value === 1;
+        return (
+          <span className="text-sm text-gray-800">
+            {isYes ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
+          </span>
+        );
+      }
+      if (field.data_type === "list") {
+        const options = readFieldOptions(field);
+        const selectedId = String(value);
+        const found = options.find((o) => o.id === selectedId);
+        return <span className="text-sm text-gray-800">{found ? found.label : selectedId}</span>;
+      }
+      // date / time / numéricos / string → caen al manejo genérico de abajo
+    }
+
     if (
       field.question_type === QUESTION_TYPE.date ||
       (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value))
@@ -420,10 +605,18 @@ export function AssetFormSection({
       const date = new Date(year, month - 1, day);
       const formatted = date.toLocaleDateString(navigator.language || "es-ES", {
         day: "2-digit",
-        month: "short",
+        month: "2-digit",
         year: "numeric",
       });
       return <span className="text-sm text-gray-800">{formatted}</span>;
+    }
+
+    if (
+      (field.question_type === QUESTION_TYPE.time || field.data_type === "time") &&
+      typeof value === "string"
+    ) {
+      // Mostrar HH:MM (sin segundos)
+      return <span className="text-sm text-gray-800">{value.slice(0, 5)}</span>;
     }
 
     return <span className="text-sm text-gray-800">{String(value)}</span>;
@@ -455,14 +648,23 @@ export function AssetFormSection({
           {editing ? (
             <>
               <span className="text-xs text-gray-400">{t("form.fill.requiredFieldsNote")}</span>
-              <HuemulButton
-                variant="default"
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700"
-                loading={isSaving}
-                label={t("form.fill.submitResponses")}
-                onClick={handleSubmit}
-              />
+              <div className="flex items-center gap-2">
+                <HuemulButton
+                  variant="outline"
+                  size="sm"
+                  disabled={isSaving}
+                  label={t("common:cancel")}
+                  onClick={handleCancel}
+                />
+                <HuemulButton
+                  variant="default"
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  loading={isSaving}
+                  label={t("form.fill.submitResponses")}
+                  onClick={handleSubmit}
+                />
+              </div>
             </>
           ) : (
             <>
@@ -476,7 +678,7 @@ export function AssetFormSection({
                     : responderName
                   : null}
               </span>
-              {canInteract && (
+              {canInteract && hasEditableFields && (
                 <HuemulButton
                   variant="outline"
                   size="sm"

@@ -766,6 +766,7 @@ function SectionExecutionInner({
                         formFields={sectionExecution.form_fields ?? []}
                         status={status}
                         organizationId={selectedOrganizationId ?? undefined}
+                        documentId={documentId}
                         canInteract={readyToEdit && canEditSections}
                         responderName={responderName}
                         respondedAt={respondedAt}

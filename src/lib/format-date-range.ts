@@ -21,6 +21,13 @@ export function getBrowserDateLocale(): Locale {
     ?? enUS
 }
 
+/**
+ * Numeric date pattern (e.g. "27/06/2024") used for both the editable date
+ * inputs in the filter control and the active-filter chips, so they stay in
+ * sync. Fixed (locale-independent) on purpose.
+ */
+export const NUMERIC_DATE_PATTERN = 'dd/MM/yyyy'
+
 export interface FormatDateRangeLabels {
   /** Prefix when only the "from" bound is set (e.g. "Desde"). */
   fromLabel: string
@@ -40,19 +47,16 @@ export function formatDateRangeValue(
   if (!value) return ''
   const { date, from, to } = value
 
-  if (date) return format(parseISO(date), 'd MMM yyyy', { locale })
+  if (date) return format(parseISO(date), NUMERIC_DATE_PATTERN, { locale })
 
   if (from && to) {
     const f = parseISO(from)
     const t = parseISO(to)
-    const sameYear = f.getFullYear() === t.getFullYear()
-    return sameYear
-      ? `${format(f, 'd MMM', { locale })} – ${format(t, 'd MMM yyyy', { locale })}`
-      : `${format(f, 'd MMM yyyy', { locale })} – ${format(t, 'd MMM yyyy', { locale })}`
+    return `${format(f, NUMERIC_DATE_PATTERN, { locale })} – ${format(t, NUMERIC_DATE_PATTERN, { locale })}`
   }
 
-  if (from) return `${fromLabel} ${format(parseISO(from), 'd MMM yyyy', { locale })}`
-  if (to) return `${toLabel} ${format(parseISO(to), 'd MMM yyyy', { locale })}`
+  if (from) return `${fromLabel} ${format(parseISO(from), NUMERIC_DATE_PATTERN, { locale })}`
+  if (to) return `${toLabel} ${format(parseISO(to), NUMERIC_DATE_PATTERN, { locale })}`
 
   return ''
 }

@@ -72,6 +72,8 @@ export interface HuemulFieldProps {
   min?: number;
   max?: number;
   step?: number;
+  /** For type="time"/"datetime": include the seconds column/segment. Default true. */
+  withSeconds?: boolean;
   minLabel?: string;
   maxLabel?: string;
   checkLabel?: string;

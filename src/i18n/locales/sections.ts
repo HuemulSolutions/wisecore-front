@@ -156,6 +156,12 @@ const translations = {
       statusPending: { en: "Pending", es: "Pendiente" },
       statusResponded: { en: "Responded", es: "Respondido" },
       respondedBy: { en: "Responded by {{name}} · {{date}}", es: "Respondido por {{name}} · {{date}}" },
+      fileUploading: { en: "Uploading file...", es: "Subiendo archivo..." },
+      fileUploadError: { en: "Could not upload the file", es: "No se pudo subir el archivo" },
+      fileTypeNotAllowed: { en: "File type not allowed. Allowed: {{types}}", es: "Tipo de archivo no permitido. Permitidos: {{types}}" },
+      fileTooLarge: { en: "File exceeds the maximum size of {{max}} MB", es: "El archivo supera el tamaño máximo de {{max}} MB" },
+      fileUploading_block: { en: "Wait for the file to finish uploading", es: "Espera a que el archivo termine de subirse" },
+      fileDownload: { en: "Download file", es: "Descargar archivo" },
     },
     formFields: {
       label: { en: "Form Fields", es: "Campos del Formulario" },
