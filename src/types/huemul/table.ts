@@ -7,6 +7,12 @@ export interface HuemulTableColumn<T> {
   key: string
   label: string
   width?: string
+  /** Ancho inicial en px cuando la tabla es redimensionable (`resizable`). */
+  defaultWidth?: number
+  /** Ancho mínimo en px al arrastrar. Default interno: 80. */
+  minWidth?: number
+  /** Permite excluir una columna del redimensionado (default: true cuando la tabla es `resizable`). */
+  resizable?: boolean
   hideOnMobile?: boolean
   align?: "left" | "right" | "center"
   render: (item: T) => ReactNode
@@ -60,4 +66,8 @@ export interface HuemulTableProps<T> {
   onSortChange?: (sort: string | null) => void
   maxHeight?: string
   className?: string
+  /** Habilita el redimensionado de columnas arrastrando el borde de la cabecera. */
+  resizable?: boolean
+  /** Clave de localStorage para persistir los anchos. Si se omite con `resizable`, los anchos viven solo en memoria. */
+  columnsStorageKey?: string
 }

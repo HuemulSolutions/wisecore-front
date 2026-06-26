@@ -7,7 +7,7 @@ import type {
 } from './core'
 import type { ExternalParameterType } from '@/types/external-parameters'
 
-export type ExternalFunctionalityTab = "docs" | "params" | "body" | "logs"
+export type ExternalFunctionalityTab = "docs" | "params" | "body" | "logs" | "lifecycle"
 
 export interface ExternalFunctionalityDetailProps {
   functionality: ExternalFunctionality

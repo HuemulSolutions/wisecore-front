@@ -118,6 +118,8 @@ export interface SectionExecutionProps {
     ai_suggestion_content?: string | null
     ai_suggestion_instruction?: string | null
     review_status?: 'editing' | 'reviewing' | 'finished' | null
+    /** Valores del formulario (solo para secciones type="form") */
+    form_fields?: import('../sections/core').FormFieldValue[]
   }
   onUpdate?: () => void
   readyToEdit: boolean
@@ -131,7 +133,15 @@ export interface SectionExecutionProps {
   showExecutionFeedback?: boolean
   sectionType?: 'ai' | 'manual' | 'reference' | 'form' | null
   sectionName?: string
+  /** Estado de la sección (ej. "pending"). Para type="form" decide responder vs solo lectura */
+  status?: string
+  /** Nombre del autor a mostrar en el footer de un formulario respondido (aprox. nivel documento) */
+  responderName?: string
+  /** Fecha (ISO) a mostrar en el footer de un formulario respondido */
+  respondedAt?: string
   canEditSections?: boolean
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void
   onCopyLink?: () => void
+  /** Definiciones de los form fields de la sección (solo type="form") */
+  formFieldDefinitions?: import('../sections/core').SectionFormField[]
 }

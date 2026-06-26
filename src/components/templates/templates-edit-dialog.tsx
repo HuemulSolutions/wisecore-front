@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { updateTemplate } from "@/services/templates";
 import { Edit3 } from "lucide-react";
@@ -55,12 +55,13 @@ export function EditTemplateDialog({
   };
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('edit.title')}
       description={t('edit.description')}
       icon={Edit3}
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       saveAction={{
         label: t('edit.submitLabel'),
         onClick: handleSubmit,
@@ -85,7 +86,8 @@ export function EditTemplateDialog({
           value={editDescription}
           onChange={(v) => setEditDescription(String(v))}
           placeholder={t('form.descriptionPlaceholder')}
-          rows={3}
+          rows={8}
+          inputClassName="min-h-[16rem]"
           disabled={updateTemplateMutation.isPending}
         />
         <HuemulField
@@ -94,10 +96,11 @@ export function EditTemplateDialog({
           value={editInstructions}
           onChange={(v) => setEditInstructions(String(v))}
           placeholder={t('form.instructionsPlaceholder')}
-          rows={3}
+          rows={8}
+          inputClassName="min-h-[16rem]"
           disabled={updateTemplateMutation.isPending}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   );
 }

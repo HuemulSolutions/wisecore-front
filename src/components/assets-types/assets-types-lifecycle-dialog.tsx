@@ -168,6 +168,7 @@ function StepContent({
   stepType,
   stepLabel,
   onEditingChange,
+  organizationId,
 }: StepContentProps) {
   if (stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read") {
     return (
@@ -179,6 +180,7 @@ function StepContent({
         noOwner={stepType === "create"}
         useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
         onEditingChange={onEditingChange}
+        organizationId={organizationId}
       />
     )
   }
@@ -198,6 +200,7 @@ export default function AssetTypeLifecycleDialog({
   assetType,
   open,
   onOpenChange,
+  organizationId,
 }: AssetTypeLifecycleDialogProps) {
   const { t } = useTranslation("asset-types")
   const { data, isLoading: loadingStepTypes } = useLifecycleStepTypes(open)
@@ -319,6 +322,7 @@ export default function AssetTypeLifecycleDialog({
             stepType={activeStep}
             stepLabel={activeStepLabel}
             onEditingChange={setActiveStepIsEditing}
+            organizationId={organizationId}
           />
         )}
       </div>

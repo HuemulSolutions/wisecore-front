@@ -31,7 +31,7 @@ export interface HuemulDateRangeValue {
   to?: string;
 }
 
-export type HuemulFilterValue = string | boolean | HuemulDateRangeValue | undefined;
+export type HuemulFilterValue = string | string[] | boolean | HuemulDateRangeValue | undefined;
 export type HuemulFilterValues = Record<string, HuemulFilterValue>;
 
 interface HuemulFilterDefBase {
@@ -68,6 +68,8 @@ export interface HuemulAsyncComboboxFilterDef extends HuemulFilterDefBase {
   staticOptions?: AsyncSelectOption[];
   staticOptionsLabel?: string;
   asyncResultsLabel?: string;
+  /** When true, allows selecting multiple values; the filter value becomes string[]. */
+  multiSelect?: boolean;
 }
 
 export interface HuemulDateRangeFilterDef extends HuemulFilterDefBase {

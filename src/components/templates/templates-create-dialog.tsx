@@ -2,7 +2,7 @@ import * as React from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
@@ -81,13 +81,13 @@ export function CreateTemplateDialog({
   };
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('create.title')}
       description={t('create.description')}
       icon={FileCode}
-      maxHeight="max-h-[90vh]"
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       cancelLabel={t('create.cancelLabel', { defaultValue: 'Cancel' })}
       saveAction={{
         label: t('create.submitLabel'),
@@ -115,10 +115,12 @@ export function CreateTemplateDialog({
         />
         <HuemulField
           label={t('form.description')}
-          type="text"
+          type="textarea"
           value={newDescription}
           onChange={(v) => setNewDescription(String(v))}
           placeholder={t('form.descriptionPlaceholder')}
+          rows={8}
+          inputClassName="min-h-[16rem]"
           disabled={createTemplateMutation.isPending}
         />
         <HuemulField
@@ -127,10 +129,11 @@ export function CreateTemplateDialog({
           value={newInstructions}
           onChange={(v) => setNewInstructions(String(v))}
           placeholder={t('form.instructionsPlaceholder')}
-          rows={3}
+          rows={8}
+          inputClassName="min-h-[16rem]"
           disabled={createTemplateMutation.isPending}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   );
 }

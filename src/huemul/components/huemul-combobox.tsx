@@ -9,6 +9,7 @@ import {
   Combobox,
   ComboboxChip,
   ComboboxChips,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxInput,
   ComboboxItem,
@@ -81,7 +82,6 @@ export function HuemulCombobox({
   selectedOptions = [],
   onSelectedLabelChange,
   placeholder,
-  searchPlaceholder,
   emptyMessage,
   disabled,
   error,
@@ -144,6 +144,7 @@ export function HuemulCombobox({
   const handleMultiChange = React.useCallback(
     (next: HuemulComboboxOption[]) => {
       onValueChange(next.map((o) => o.value))
+      setSearch("")
     },
     [onValueChange],
   )
@@ -229,6 +230,18 @@ export function HuemulCombobox({
     }
   }, [hasMore, isLoadingMore, loadOptions, page, search])
 
+  // Auto-load next page when all current items fit without triggering a scroll event.
+  React.useEffect(() => {
+    if (!isAsync || !open || isLoading || isLoadingMore || !hasMore) return
+    const list = listRef.current
+    if (!list) return
+    if (list.scrollHeight <= list.clientHeight) {
+      loadOptions(search, page + 1, true)
+    }
+    // Re-evaluates whenever items change (after each page load) or the popup opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAsync, open, items, isLoading, isLoadingMore, hasMore])
+
   // ── Derived render data ───────────────────────────────────────────────────
   // Static mode renders the provided options as-is. NO client-side filtering.
   const listOptions = isAsync ? items : options ?? []
@@ -261,14 +274,6 @@ export function HuemulCombobox({
   // ── Popup body ─────────────────────────────────────────────────────────────
   // In-popup search box — used by multi-select (single-select searches through
   // its own main input instead).
-  const searchInput = isAsync ? (
-    <ComboboxInput
-      showTrigger={false}
-      placeholder={searchPlaceholder ?? t("searchPlaceholder")}
-      onKeyDown={handleInputKeyDown}
-    />
-  ) : null
-
   const listBody = (
     <>
       <ComboboxList ref={listRef} onScroll={isAsync ? handleScroll : undefined}>
@@ -346,19 +351,25 @@ export function HuemulCombobox({
           className={cn("w-full hover:cursor-pointer", className)}
         >
           <ComboboxValue>
-            {(selected: HuemulComboboxOption[]) =>
-              selected.length === 0 ? (
-                <span className="px-1 text-sm text-muted-foreground">
-                  {resolvedPlaceholder}
-                </span>
-              ) : (
-                selected.map((option) => (
+            {(selected: HuemulComboboxOption[]) => (
+              <React.Fragment>
+                {selected.map((option) => (
                   <ComboboxChip key={option.value}>
                     <SelectedLabel option={option} />
                   </ComboboxChip>
-                ))
-              )
-            }
+                ))}
+                {isAsync ? (
+                  <ComboboxChipsInput
+                    placeholder={selected.length === 0 ? resolvedPlaceholder : undefined}
+                    onKeyDown={handleInputKeyDown}
+                  />
+                ) : selected.length === 0 ? (
+                  <span className="px-1 text-sm text-muted-foreground">
+                    {resolvedPlaceholder}
+                  </span>
+                ) : null}
+              </React.Fragment>
+            )}
           </ComboboxValue>
           <ComboboxTrigger
             id={id}
@@ -366,7 +377,6 @@ export function HuemulCombobox({
           />
         </ComboboxChips>
         <ComboboxContent anchor={anchorRef}>
-          {searchInput}
           {listBody}
         </ComboboxContent>
       </Combobox>

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { cloneTemplate } from "@/services/templates";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +26,7 @@ import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, Mo
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
+import { CloneTemplateDialog } from "./templates-clone-dialog";
 import type { TemplateItem } from '@/types/templates';
 import type { TemplatesSidebarProps } from '@/types/templates';
 export type { TemplatesSidebarProps } from '@/types/templates';
@@ -53,17 +53,9 @@ export function TemplatesSidebar({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editDialogTemplate, setEditDialogTemplate] = useState<TemplateItem | null>(null);
   const [deleteDialogTemplate, setDeleteDialogTemplate] = useState<TemplateItem | null>(null);
+  const [cloneDialogTemplate, setCloneDialogTemplate] = useState<TemplateItem | null>(null);
 
   const filteredTemplates = templates;
-
-  const cloneMutation = useMutation({
-    mutationFn: (templateId: string) => cloneTemplate(templateId, organizationId!),
-    meta: { successMessage: t('templates:content.cloneSuccess') },
-    onSuccess: (cloned) => {
-      onRefresh?.();
-      onTemplateSelect(cloned);
-    },
-  });
 
   const openEditDialog = (template: TemplateItem) => {
     setEditDialogTemplate(template);
@@ -245,9 +237,8 @@ export function TemplatesSidebar({
                                     {canCreate && (
                                       <DropdownMenuItem
                                         className="hover:cursor-pointer"
-                                        disabled={cloneMutation.isPending}
                                         onSelect={() => {
-                                          cloneMutation.mutate(template.id);
+                                          setTimeout(() => setCloneDialogTemplate(template), 0);
                                         }}
                                       >
                                         <Copy className="mr-2 h-4 w-4" />
@@ -287,9 +278,8 @@ export function TemplatesSidebar({
                         {canCreate && (
                           <ContextMenuItem
                             className="hover:cursor-pointer"
-                            disabled={cloneMutation.isPending}
                             onSelect={() => {
-                              cloneMutation.mutate(template.id);
+                              setTimeout(() => setCloneDialogTemplate(template), 0);
                             }}
                           >
                             <Copy className="mr-2 h-4 w-4" />
@@ -377,6 +367,20 @@ export function TemplatesSidebar({
           onSuccess={() => {
             closeDeleteDialog();
             onTemplateDeleted?.();
+          }}
+        />
+      )}
+
+      {cloneDialogTemplate && organizationId && (
+        <CloneTemplateDialog
+          open={!!cloneDialogTemplate}
+          onOpenChange={(open) => { if (!open) setCloneDialogTemplate(null); }}
+          templateId={cloneDialogTemplate.id}
+          organizationId={organizationId}
+          onSuccess={(cloned) => {
+            setCloneDialogTemplate(null);
+            onRefresh?.();
+            onTemplateSelect(cloned);
           }}
         />
       )}

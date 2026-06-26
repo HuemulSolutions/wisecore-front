@@ -34,6 +34,9 @@ const translations = {
     estimatedPublicationDate: { en: "Est. Publication Date", es: "Fecha est. de publicación" },
     reviewDate: { en: "Review Date", es: "Fecha de revisión" },
     auditDate: { en: "Audit Date", es: "Fecha de auditoría" },
+    customFieldsGroup: { en: "Custom Fields", es: "Campos Personalizados" },
+    customFields: { en: "Custom Fields", es: "Campos personalizados" },
+    customFieldsPlaceholder: { en: "Search field...", es: "Buscar campo..." },
   },
   errors: {
     performSearch: { en: "Error performing search", es: "Error al realizar la búsqueda" },

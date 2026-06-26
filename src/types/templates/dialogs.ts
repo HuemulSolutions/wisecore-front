@@ -1,4 +1,4 @@
-import type { TemplateItem } from './core'
+import type { TemplateItem, CloneTemplateResult } from './core'
 
 export interface CreateTemplateDialogProps {
   open: boolean;
@@ -14,6 +14,14 @@ export interface DeleteTemplateDialogProps {
   templateName: string;
   organizationId: string;
   onSuccess: () => void;
+}
+
+export interface CloneTemplateDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  templateId: string;
+  organizationId: string;
+  onSuccess: (cloned: CloneTemplateResult) => void;
 }
 
 export interface EditTemplateDialogProps {

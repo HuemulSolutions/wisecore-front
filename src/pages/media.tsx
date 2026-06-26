@@ -733,7 +733,7 @@ export default function MediaPage() {
     activeCount,
   } = useHuemulFilters({
     filters: filterDefs,
-    defaultOpen: true,
+    defaultOpen: false,
     initialValues: { level: "organization" },
   })
 

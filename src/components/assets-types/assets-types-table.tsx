@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
-import { Edit2, Trash2, FileStack, Activity, Copy, GitMerge } from "lucide-react"
+import { Edit2, Trash2, FileStack, Activity, Copy, GitMerge, LayoutTemplate } from "lucide-react"
 import { type AssetTypeWithRoles } from "@/services/asset-types"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import type { AssetTypeTableProps } from '@/types/assets'
@@ -23,6 +23,7 @@ export default function AssetTypeTable({
   onCloneAssetType,
   onLifecycle,
   onViewRelationships,
+  onManageTemplates,
   pagination,
   canUpdate = true,
   canDelete = true,
@@ -77,6 +78,12 @@ export default function AssetTypeTable({
       label: t('actions.viewRelationships'),
       icon: GitMerge,
       onClick: onViewRelationships
+    },
+    {
+      key: "manageTemplates",
+      label: t('actions.manageTemplates'),
+      icon: LayoutTemplate,
+      onClick: onManageTemplates
     },
     {
       key: "lifecycle",

@@ -158,6 +158,27 @@ export async function updateReviewStatus(
     );
 }
 
+// ─── Form values ───────────────────────────────────────────────────────────────
+
+export async function updateSectionFormValues(
+    sectionExecutionId: string,
+    values: { id: string; value: unknown }[],
+    organizationId?: string
+) {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    const response = await httpClient.patch(
+        `${backendUrl}/section_executions/${sectionExecutionId}/form_values`,
+        { values },
+        { headers }
+    );
+    const data = await response.json();
+    console.log('Section form values updated:', data.data);
+    return data.data;
+}
+
 // ─── Section History ──────────────────────────────────────────────────────────
 
 export async function getSectionExecutionHistory(

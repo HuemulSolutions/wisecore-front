@@ -19,6 +19,7 @@ import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
+import { getCustomFields } from '@/services/custom-fields';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
 import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from '@/types/huemul';
 import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/types/execution';
@@ -40,6 +41,17 @@ export default function Home() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<string | null>(null);
+
+  const fetchCustomFieldNames = useCallback(
+    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getCustomFields({ search: s || undefined, page: p, page_size: ps });
+      return {
+        options: res.data.map((cf) => ({ value: cf.name, label: cf.name })),
+        hasMore: res.has_next,
+      };
+    },
+    [],
+  );
 
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -146,8 +158,19 @@ export default function Home() {
       { key: 'reviewDate', type: 'date-range', group: dates, label: t('filters.reviewDate') },
       { key: 'auditDate', type: 'date-range', group: dates, label: t('filters.auditDate') },
       { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
+      {
+        key: 'customFieldFilter',
+        type: 'async-combobox',
+        multiSelect: true,
+        group: t('filters.customFieldsGroup'),
+        label: t('filters.customFields'),
+        placeholder: t('filters.customFieldsPlaceholder'),
+        fetchOptions: fetchCustomFieldNames,
+        pageSize: 50,
+        searchOnEnter: true,
+      },
     ];
-  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers]);
+  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers, fetchCustomFieldNames]);
 
   const {
     values,
@@ -161,7 +184,7 @@ export default function Home() {
     setSelectedLabel,
   } = useHuemulFilters({
     filters: filterDefs,
-    defaultOpen: true,
+    defaultOpen: false,
     initialValues: { searchType: 'semantic' },
   });
 
@@ -212,6 +235,9 @@ export default function Home() {
     audit_date_from: audit.from || undefined,
     audit_date_to: audit.to || undefined,
     sort: sort || undefined,
+    custom_field_filter: (values.customFieldFilter as string[] | undefined)?.filter(Boolean).length
+      ? (values.customFieldFilter as string[]).filter(Boolean)
+      : undefined,
   });
 
   const executions = data?.data ?? [];
@@ -233,12 +259,14 @@ export default function Home() {
       key: 'documentName',
       label: t('executionsTable.columns.documentName'),
       sortKey: 'document_name',
+      defaultWidth: 260,
       render: (item) => <span className="font-medium">{item.document_name}</span>,
     },
     {
       key: 'unresolvedComments',
       label: t('executionsTable.columns.unresolvedComments'),
       sortKey: 'unresolved_comments_count',
+      defaultWidth: 150,
       render: (item) =>
         item.unresolved_comments_count > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
@@ -252,6 +280,7 @@ export default function Home() {
     {
       key: 'version',
       label: t('executionsTable.columns.version'),
+      defaultWidth: 120,
       render: (item) => (
         <span className="text-muted-foreground">
           {item.version_major !== null && item.version_minor !== null && item.version_patch !== null
@@ -264,6 +293,7 @@ export default function Home() {
       key: 'lifecycleState',
       label: t('executionsTable.columns.lifecycleState'),
       sortKey: 'lifecycle_state',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground">{tAssets(`lifecycle.stateLabels.${item.lifecycle_state}`)}</span>
       ),
@@ -272,6 +302,7 @@ export default function Home() {
       key: 'taskStatus',
       label: t('executionsTable.columns.taskStatus'),
       sortKey: 'task_status',
+      defaultWidth: 140,
       render: (item) => (
         <span className="text-muted-foreground">{item.task_status ?? '—'}</span>
       ),
@@ -280,6 +311,7 @@ export default function Home() {
       key: 'owner',
       label: t('executionsTable.columns.owner'),
       sortKey: 'created_by_user_name',
+      defaultWidth: 160,
       render: (item) => (
         <span className="text-muted-foreground">{item.created_by_user_name ?? '—'}</span>
       ),
@@ -288,6 +320,7 @@ export default function Home() {
       key: 'updatedAt',
       label: t('executionsTable.columns.updatedAt'),
       sortKey: 'updated_at',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.updated_at}>
           {formatRelativeTime(item.updated_at)}
@@ -298,6 +331,7 @@ export default function Home() {
       key: 'expirationDate',
       label: t('executionsTable.columns.expirationDate'),
       sortKey: 'expiration_date',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.expiration_date ?? undefined}>
           {item.expiration_date ? formatAbsoluteDate(item.expiration_date) : '—'}
@@ -308,6 +342,7 @@ export default function Home() {
       key: 'estimatedPublicationDate',
       label: t('executionsTable.columns.estimatedPublicationDate'),
       sortKey: 'estimated_publication_date',
+      defaultWidth: 180,
       render: (item) => (
         <span className="text-muted-foreground" title={item.estimated_publication_date ?? undefined}>
           {item.estimated_publication_date ? formatAbsoluteDate(item.estimated_publication_date) : '—'}
@@ -318,6 +353,7 @@ export default function Home() {
       key: 'reviewDate',
       label: t('executionsTable.columns.reviewDate'),
       sortKey: 'review_date',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.review_date ?? undefined}>
           {item.review_date ? formatAbsoluteDate(item.review_date) : '—'}
@@ -328,6 +364,7 @@ export default function Home() {
       key: 'auditDate',
       label: t('executionsTable.columns.auditDate'),
       sortKey: 'audit_date',
+      defaultWidth: 150,
       render: (item) => (
         <span className="text-muted-foreground" title={item.audit_date ?? undefined}>
           {item.audit_date ? formatAbsoluteDate(item.audit_date) : '—'}
@@ -418,6 +455,8 @@ export default function Home() {
                     isFetching={isFetching}
                     actions={tableActions}
                     actionsMode="inline"
+                    resizable
+                    columnsStorageKey="wisecore:home-executions-col-widths"
                     className="h-full"
                     maxHeight=""
                     sort={sort}

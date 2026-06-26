@@ -6,6 +6,9 @@ export { default as AssetTypePageEmptyState } from './assets-types-page-empty-st
 export { default as AssetTypePageDialogs } from './assets-types-page-dialogs'
 export { AssetTypeContentEmptyState } from './assets-types-content-empty-state'
 export { AssetTypeRelationshipsSheet } from './assets-types-relationships-sheet'
+export { AssetTypeTemplatesSheet } from './assets-types-templates-sheet'
+export { AssetTypeExportDialog } from './assets-types-export-dialog'
+export { AssetTypeImportSheet } from './assets-types-import-sheet'
 export type { AssetTypePageState, AssetTypePageActions } from '@/types/assets'
 
 // Re-export utility functions
