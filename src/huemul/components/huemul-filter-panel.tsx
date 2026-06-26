@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { HuemulField } from "./huemul-field";
+import { HuemulCombobox } from "./huemul-combobox";
 
 import type {
   HuemulDateRangeValue,
@@ -125,6 +126,22 @@ function FilterControl({ def, value, onChange, onSelectedLabel }: FilterControlP
       );
 
     case "async-combobox":
+      if (def.multiSelect) {
+        return (
+          <div className="flex w-full flex-col gap-1.5">
+            <p className="text-sm font-medium leading-snug">{def.label}</p>
+            <HuemulCombobox
+              multiSelect
+              value={Array.isArray(value) ? (value as string[]) : []}
+              onValueChange={(v) => onChange(def.key, v as string[])}
+              fetchOptions={def.fetchOptions}
+              placeholder={def.placeholder}
+              pageSize={def.pageSize}
+              searchOnEnter={def.searchOnEnter}
+            />
+          </div>
+        );
+      }
       return (
         <HuemulField
           type="async-combobox"

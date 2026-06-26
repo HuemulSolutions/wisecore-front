@@ -17,6 +17,7 @@ import { useHuemulFilters } from "@/hooks/useHuemulFilters";
 import { search } from "@/services/search";
 import type { SearchType, SearchResultDocument, SearchResponse } from "@/services/search";
 import { getAssetTypes } from "@/services/asset-types";
+import { getCustomFields } from "@/services/custom-fields";
 import { getUsers } from "@/services/users";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
@@ -61,6 +62,7 @@ function parseValuesFromURL(params: URLSearchParams): HuemulFilterValues {
     filterWithLlm: params.get("filter_with_llm") !== "false",
     hasUnresolvedComments: params.get("has_unresolved_comments") === "true",
     hasPendingAiSuggestion: params.get("has_pending_ai_suggestion") === "true",
+    customFieldFilter: params.getAll("custom_field_filter"),
   };
   for (const prefix of DATE_PREFIXES) {
     values[DATE_KEY_BY_PREFIX[prefix]] = parseDateRange(params, prefix);
@@ -82,6 +84,10 @@ function buildURLFromValues(values: HuemulFilterValues): URLSearchParams {
   if (values.filterWithLlm === false) params.set("filter_with_llm", "false");
   if (values.hasUnresolvedComments) params.set("has_unresolved_comments", "true");
   if (values.hasPendingAiSuggestion) params.set("has_pending_ai_suggestion", "true");
+  const customFieldFilter = values.customFieldFilter as string[] | undefined;
+  if (customFieldFilter?.length) {
+    customFieldFilter.filter(Boolean).forEach((f) => params.append("custom_field_filter", f));
+  }
   for (const prefix of DATE_PREFIXES) {
     const v = values[DATE_KEY_BY_PREFIX[prefix]] as HuemulDateRangeValue | undefined;
     if (!v) continue;
@@ -136,6 +142,17 @@ export default function SearchPage() {
       };
     },
     [selectedOrganizationId],
+  );
+
+  const fetchCustomFieldNames = useCallback(
+    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getCustomFields({ search: s || undefined, page: p, page_size: ps });
+      return {
+        options: res.data.map((cf) => ({ value: cf.name, label: cf.name })),
+        hasMore: res.has_next,
+      };
+    },
+    [],
   );
 
   const initialValues = useMemo(() => parseValuesFromURL(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -241,8 +258,19 @@ export default function SearchPage() {
       },
       { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments") },
       { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion") },
+      {
+        key: "customFieldFilter",
+        type: "async-combobox",
+        multiSelect: true,
+        group: t("filters.customFieldsGroup"),
+        label: t("filters.customFields"),
+        placeholder: t("filters.customFieldsPlaceholder"),
+        fetchOptions: fetchCustomFieldNames,
+        pageSize: 50,
+        searchOnEnter: true,
+      },
     ];
-  }, [t, tAssets, tFilters, fetchAssetTypes, fetchTemplates, fetchUsers, currentSearchType]);
+  }, [t, tAssets, tFilters, fetchAssetTypes, fetchTemplates, fetchUsers, fetchCustomFieldNames, currentSearchType]);
 
   const {
     values,
@@ -315,6 +343,9 @@ export default function SearchPage() {
         audit_date: aud.date || undefined,
         audit_date_from: aud.from || undefined,
         audit_date_to: aud.to || undefined,
+        custom_field_filter: (values.customFieldFilter as string[] | undefined)?.filter(Boolean).length
+          ? (values.customFieldFilter as string[]).filter(Boolean)
+          : undefined,
       }),
     enabled: hasActiveSearch && !!selectedOrganizationId,
   });

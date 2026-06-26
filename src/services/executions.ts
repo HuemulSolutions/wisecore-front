@@ -40,6 +40,7 @@ export async function getAllExecutions(
     template_id,
     document_type_id,
     sort,
+    custom_field_filter,
   } = params
   const qs = new URLSearchParams({
     page: page.toString(),
@@ -67,6 +68,7 @@ export async function getAllExecutions(
   if (template_id) qs.set('template_id', template_id)
   if (document_type_id) qs.set('document_type_id', document_type_id)
   if (sort) qs.set('sort', sort)
+  custom_field_filter?.forEach(f => qs.append('custom_field_filter', f))
   const response = await httpClient.get(`${backendUrl}/execution/?${qs}`, {
     headers: { 'X-Org-Id': organizationId },
   })

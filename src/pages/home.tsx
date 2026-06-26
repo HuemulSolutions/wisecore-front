@@ -19,6 +19,7 @@ import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
+import { getCustomFields } from '@/services/custom-fields';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
 import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from '@/types/huemul';
 import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/types/execution';
@@ -40,6 +41,17 @@ export default function Home() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<string | null>(null);
+
+  const fetchCustomFieldNames = useCallback(
+    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getCustomFields({ search: s || undefined, page: p, page_size: ps });
+      return {
+        options: res.data.map((cf) => ({ value: cf.name, label: cf.name })),
+        hasMore: res.has_next,
+      };
+    },
+    [],
+  );
 
   const fetchDocumentTypes = useCallback(
     async ({ search: s }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -146,8 +158,19 @@ export default function Home() {
       { key: 'reviewDate', type: 'date-range', group: dates, label: t('filters.reviewDate') },
       { key: 'auditDate', type: 'date-range', group: dates, label: t('filters.auditDate') },
       { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
+      {
+        key: 'customFieldFilter',
+        type: 'async-combobox',
+        multiSelect: true,
+        group: t('filters.customFieldsGroup'),
+        label: t('filters.customFields'),
+        placeholder: t('filters.customFieldsPlaceholder'),
+        fetchOptions: fetchCustomFieldNames,
+        pageSize: 50,
+        searchOnEnter: true,
+      },
     ];
-  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers]);
+  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers, fetchCustomFieldNames]);
 
   const {
     values,
@@ -212,6 +235,9 @@ export default function Home() {
     audit_date_from: audit.from || undefined,
     audit_date_to: audit.to || undefined,
     sort: sort || undefined,
+    custom_field_filter: (values.customFieldFilter as string[] | undefined)?.filter(Boolean).length
+      ? (values.customFieldFilter as string[]).filter(Boolean)
+      : undefined,
   });
 
   const executions = data?.data ?? [];

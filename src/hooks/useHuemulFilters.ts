@@ -22,6 +22,8 @@ function emptyValue(def: HuemulFilterDef): HuemulFilterValue {
       return def.defaultValue ?? false
     case 'date-range':
       return undefined
+    case 'async-combobox':
+      return def.multiSelect ? [] : ''
     default:
       return ''
   }
@@ -33,6 +35,8 @@ function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
     case 'select':
       return typeof value === 'string' && value !== '' && value !== def.allValue
     case 'async-combobox':
+      if (Array.isArray(value)) return value.length > 0
+      return typeof value === 'string' && value.trim() !== ''
     case 'text':
       return typeof value === 'string' && value.trim() !== ''
     case 'boolean':
@@ -124,8 +128,12 @@ export function useHuemulFilters({
           break
         }
         case 'async-combobox': {
-          const resolved = selectedLabels[def.key]
-          label = `${def.label}: ${resolved ?? value}`
+          if (Array.isArray(value)) {
+            label = `${def.label}: ${(value as string[]).join(', ')}`
+          } else {
+            const resolved = selectedLabels[def.key]
+            label = `${def.label}: ${resolved ?? value}`
+          }
           break
         }
         case 'text':
