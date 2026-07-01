@@ -50,6 +50,17 @@ export function SectionForm({
       onDirtyChange?.(true);
     }
   }, [onDirtyChange]);
+
+  // Attach files uploaded from the section editor to the template or document.
+  const mediaUploadTarget = useMemo(
+    () =>
+      templateId
+        ? { level: 'template' as const, parentId: templateId }
+        : documentId
+          ? { level: 'document' as const, parentId: documentId }
+          : null,
+    [templateId, documentId],
+  );
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
@@ -535,6 +546,7 @@ export function SectionForm({
                 enableCreateSection={false}
                 organizationId={selectedOrganizationId ?? undefined}
                 documentId={documentId}
+                mediaUploadTarget={mediaUploadTarget}
                 onValueChange={() => {
                   const md = promptEditorRef.current?.getMarkdown?.() || "";
                   handlePromptChange(md);
@@ -607,6 +619,7 @@ export function SectionForm({
             enableCreateSection={false}
             organizationId={selectedOrganizationId ?? undefined}
             documentId={documentId}
+            mediaUploadTarget={mediaUploadTarget}
             onValueChange={() => markDirty()}
           />
           <p className="text-xs text-gray-500">

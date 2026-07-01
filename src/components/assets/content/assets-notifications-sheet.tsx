@@ -23,6 +23,7 @@ import { parseApiDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulPagination } from "@/huemul/components/huemul-pagination";
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -195,7 +196,7 @@ export function AssetsNotificationsSheet({
   );
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
   const [notifPage, setNotifPage] = useState(1);
-  const [notifPageSize, setNotifPageSize] = useState(50);
+  const [notifPageSize, setNotifPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // Reset to the first page when the asset, filter, or active tab changes
   useEffect(() => {
@@ -478,7 +479,7 @@ export function AssetsNotificationsSheet({
                   setNotifPageSize(s);
                   setNotifPage(1);
                 }}
-                pageSizeOptions={[25, 50, 100]}
+                pageSizeOptions={DEFAULT_PAGE_SIZE_OPTIONS}
               />
             </div>
           )}

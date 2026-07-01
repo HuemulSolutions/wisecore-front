@@ -68,7 +68,7 @@ export function useExternalFunctionalities(
   const {
     enabled = true,
     page = 1,
-    pageSize = 50,
+    pageSize = 100,
     search,
     httpMethod,
     executionType,

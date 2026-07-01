@@ -4,6 +4,7 @@ import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import { FileUp, ClipboardList, Plus, GitBranch, ExternalLink, MessageCircle } from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
+import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulTable } from '@/huemul/components/huemul-table';
 import type { HuemulTableColumn, HuemulTableAction } from '@/huemul/components/huemul-table';
@@ -78,7 +79,7 @@ export default function Home() {
     [selectedOrganizationId],
   );
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
   const { t: tFilters } = useTranslation('huemul-filters');
 

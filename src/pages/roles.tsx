@@ -8,6 +8,7 @@ import { useUsers } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { type Role } from "@/services/rbac"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import EditRoleSheet from "@/components/roles/roles-edit-sheet"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
@@ -40,7 +41,7 @@ export default function Roles() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingUsers] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Permissions check
   const { canAccessRoles, hasPermission, hasAnyPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -185,7 +186,7 @@ export default function Roles() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
               />
             ),

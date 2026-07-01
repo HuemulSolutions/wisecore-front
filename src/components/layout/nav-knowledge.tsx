@@ -7,6 +7,7 @@ import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import type { MenuAction } from "@/types/menu-action"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 
 import {
   SidebarGroup,
@@ -146,7 +147,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [searchTerm, setSearchTerm] = useState('')
   const [committedSearch, setCommittedSearch] = useState('')
   const [rootPage, setRootPage] = useState(1)
-  const [rootPageSize, setRootPageSize] = useState(50)
+  const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
   const [isRelationsMode, setIsRelationsMode] = useState(false)
   const { selectedOrganizationId } = useOrganization()

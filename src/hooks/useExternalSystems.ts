@@ -43,7 +43,7 @@ export function useExternalSystems(
   organizationId: string,
   options: UseExternalSystemsOptions = {},
 ) {
-  const { enabled = true, page = 1, pageSize = 50, search, status } = options
+  const { enabled = true, page = 1, pageSize = 100, search, status } = options
 
   return useQuery({
     queryKey: externalSystemQueryKeys.list(organizationId, page, pageSize, search, status),

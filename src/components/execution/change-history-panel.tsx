@@ -5,6 +5,7 @@ import { FileText, ChevronDown, Loader2, SquareArrowOutUpRight, RefreshCw, Hash 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { useOrganization } from "@/contexts/organization-context"
 import { useOrgPath } from "@/hooks/useOrgRouter"
 import { useUsers } from "@/hooks/useUsers"
@@ -13,7 +14,7 @@ import {
   type DocumentWithPendingChanges,
 } from "@/services/assets"
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 export function ChangeHistoryPanel() {
   const { t } = useTranslation(["advanced", "common"])

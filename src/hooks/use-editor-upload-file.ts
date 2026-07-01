@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/organization-context';
+import { useMediaReference } from '@/contexts/media-reference-context';
 import { uploadMedia } from '@/services/media';
+import { mediaQueryKeys } from '@/hooks/useMedia';
 import type { EditorUploadedFile } from '@/types/editor'
 export type { EditorUploadedFile }
 
@@ -12,6 +15,8 @@ export type { EditorUploadedFile }
  */
 export function useEditorUploadFile() {
   const { selectedOrganizationId } = useOrganization();
+  const { uploadTarget } = useMediaReference();
+  const queryClient = useQueryClient();
 
   const [uploadedFile, setUploadedFile] = React.useState<EditorUploadedFile>();
   const [uploadingFile, setUploadingFile] = React.useState<File>();
@@ -45,9 +50,14 @@ export function useEditorUploadFile() {
     try {
       const media = await uploadMedia(selectedOrganizationId, {
         file,
-        level: 'organization',
+        level: uploadTarget?.level ?? 'organization',
+        parent_id: uploadTarget?.parentId ?? null,
         name: file.name,
       });
+
+      // Refresh media lists and the reference picker so the new file shows up.
+      queryClient.invalidateQueries({ queryKey: mediaQueryKeys.listBase() });
+      queryClient.invalidateQueries({ queryKey: mediaQueryKeys.pickerBase() });
 
       clearProgressInterval();
       setProgress(100);

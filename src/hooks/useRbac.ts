@@ -8,12 +8,12 @@ export const rbacQueryKeys = {
   permissions: () => [...rbacQueryKeys.all, 'permissions'] as const,
   rolePermissions: (roleId: string, search?: string) => [...rbacQueryKeys.all, 'rolePermissions', roleId, search ?? ''] as const,
   userRoles: (userId: string) => [...rbacQueryKeys.all, 'userRoles', userId] as const,
-  userAllRoles: (userId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
-  roleWithAllUsers: (roleId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId, page ?? 1, pageSize ?? 10, search ?? ''] as const,
+  userAllRoles: (userId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'userAllRoles', userId, page ?? 1, pageSize ?? 100, search ?? ''] as const,
+  roleWithAllUsers: (roleId: string, page?: number, pageSize?: number, search?: string) => [...rbacQueryKeys.all, 'roleWithAllUsers', roleId, page ?? 1, pageSize ?? 100, search ?? ''] as const,
 }
 
 // Hook for fetching roles
-export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
+export function useRoles(enabled: boolean = true, page: number = 1, pageSize: number = 100, search?: string) {
   return useQuery({
     queryKey: [...rbacQueryKeys.roles(), page, pageSize, search ?? ''],
     queryFn: () => getRoles(page, pageSize, search),
@@ -60,7 +60,7 @@ export function useUserRoles(userId: string, enabled: boolean = true) {
 }
 
 // Hook for fetching all roles with user assignment status
-export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
+export function useUserAllRoles(userId: string, enabled: boolean = true, page: number = 1, pageSize: number = 100, search?: string) {
   return useQuery({
     queryKey: rbacQueryKeys.userAllRoles(userId, page, pageSize, search),
     queryFn: () => getUserAllRoles(userId, page, pageSize, search),
@@ -72,7 +72,7 @@ export function useUserAllRoles(userId: string, enabled: boolean = true, page: n
 }
 
 // Hook for fetching role with all users and their assignment status
-export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, page: number = 1, pageSize: number = 10, search?: string) {
+export function useRoleWithAllUsers(roleId: string, enabled: boolean = true, page: number = 1, pageSize: number = 100, search?: string) {
   return useQuery({
     queryKey: rbacQueryKeys.roleWithAllUsers(roleId, page, pageSize, search),
     queryFn: () => getRoleWithAllUsers(roleId, page, pageSize, search),

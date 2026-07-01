@@ -788,6 +788,13 @@ function SectionExecutionInner({
                         documentId={documentId}
                         sectionExecutionId={sectionExecution.id}
                         organizationId={selectedOrganizationId ?? undefined}
+                        mediaUploadTarget={
+                          executionId
+                            ? { level: 'execution', parentId: executionId }
+                            : documentId
+                              ? { level: 'document', parentId: documentId }
+                              : null
+                        }
                         toolbarTopOffset="36px"
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />

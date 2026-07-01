@@ -8,6 +8,7 @@ import { handleApiError } from "@/lib/error-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
@@ -44,7 +45,7 @@ export function GlobalAdminUsersSection() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const { canAccessUsers, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
@@ -330,7 +331,7 @@ export function GlobalAdminUsersSection() {
               setPageSize(newPageSize)
               setPage(1)
             },
-            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
           }}
         />
       )}

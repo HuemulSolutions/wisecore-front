@@ -264,7 +264,7 @@ export async function getDocumentsWithPendingChanges(
     hasPendingAiSuggestion?: boolean
   } = {}
 ): Promise<PendingChangesResponse> {
-  const { page = 1, pageSize = 20, search, hasPendingAiSuggestion = true } = options
+  const { page = 1, pageSize = 100, search, hasPendingAiSuggestion = true } = options
   const url = new URL(`${backendUrl}/documents/`)
   url.searchParams.append('page', String(page))
   url.searchParams.append('page_size', String(pageSize))

@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
 import {
   DndContext,
   closestCenter,
@@ -17,12 +16,11 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useQuestionTypes } from "@/hooks/useQuestionTypes";
-import { getCustomFieldTemplatesByTemplate } from "@/services/custom-fields-templates";
-import { getCustomFields } from "@/services/custom-fields";
+import { useCustomFieldTemplatesByTemplate } from "@/hooks/useCustomFieldTemplates";
+import { useCustomFields } from "@/hooks/useCustomFields";
 import { useOrganization } from "@/contexts/organization-context";
 import type { SectionFormField } from "@/types/sections/core";
-import type { CustomFieldDataType, CustomFieldsResponse } from "@/types/custom-fields/core";
-import type { CustomFieldTemplatesResponse } from "@/types/custom-fields/templates";
+import type { CustomFieldDataType } from "@/types/custom-fields/core";
 import { SectionFormFieldCard, type CustomFieldOption } from "./section-form-field-card";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
@@ -59,15 +57,16 @@ export function SectionFormFieldsBuilder({
   }, [questionTypes]);
 
   // Custom fields: del template si hay templateId; si no, los de la organización.
-  const { data: customFieldsResp } = useQuery<CustomFieldsResponse | CustomFieldTemplatesResponse>({
-    queryKey: ["form-field-custom-fields", templateId ?? "org"],
-    queryFn: (): Promise<CustomFieldsResponse | CustomFieldTemplatesResponse> =>
-      templateId
-        ? getCustomFieldTemplatesByTemplate({ template_id: templateId })
-        : getCustomFields(),
-    enabled: !!selectedOrganizationId,
-    staleTime: 5 * 60 * 1000,
+  // Reutilizamos los hooks existentes para que las invalidaciones de sus mutations
+  // (crear/editar/eliminar custom field o custom field template) refresquen este selector.
+  const isTemplateScope = !!templateId;
+  const { data: tplResp } = useCustomFieldTemplatesByTemplate(templateId ?? "", {
+    enabled: isTemplateScope && !!selectedOrganizationId,
   });
+  const { data: orgResp } = useCustomFields({
+    enabled: !isTemplateScope && !!selectedOrganizationId,
+  });
+  const customFieldsResp = isTemplateScope ? tplResp : orgResp;
   const customFieldOptions = useMemo<CustomFieldOption[]>(() => {
     const data = (customFieldsResp?.data ?? []) as Array<{
       id: string;

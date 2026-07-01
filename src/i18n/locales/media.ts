@@ -13,17 +13,51 @@ const translations = {
     en: "No media files match the current filters.",
     es: "No hay archivos de media que coincidan con los filtros actuales.",
   },
+  emptySelectParentTitle: {
+    en: "Select an entity",
+    es: "Selecciona una entidad",
+  },
+  emptySelectParentDescription: {
+    en: "Choose a parent entity to view its media files.",
+    es: "Elige una entidad para ver sus archivos de media.",
+  },
   filters: {
     title: { en: "Filters", es: "Filtros" },
     level: { en: "Level", es: "Nivel" },
     mediaType: { en: "Media Type", es: "Tipo de Media" },
     mediaTypePlaceholder: { en: "e.g. image/png", es: "ej. image/png" },
+    parentPlaceholder: { en: "Select…", es: "Seleccionar…" },
     clear: { en: "Clear filters", es: "Limpiar filtros" },
     levels: {
       organization: { en: "Organization", es: "Organización" },
       document_type: { en: "Document Type", es: "Tipo de Documento" },
       document: { en: "Document", es: "Documento" },
       execution: { en: "Execution", es: "Ejecución" },
+      template: { en: "Template", es: "Plantilla" },
+    },
+  },
+  picker: {
+    title: { en: "Select", es: "Seleccionar" },
+    searchPlaceholder: { en: "Search assets…", es: "Buscar assets…" },
+    clearSearch: { en: "Clear search", es: "Limpiar búsqueda" },
+    noResults: { en: "No results found", es: "No se encontraron resultados" },
+    parentEmpty: { en: "Select…", es: "Seleccionar…" },
+    currentAsset: { en: "Current asset", es: "Asset actual" },
+    currentVersion: { en: "Current version", es: "Versión actual" },
+  },
+  templateTab: {
+    title: { en: "Files", es: "Archivos" },
+    description: {
+      en: "Manage files attached to this template",
+      es: "Gestiona los archivos adjuntos a esta plantilla",
+    },
+    empty: {
+      en: "No files attached to this template",
+      es: "Sin archivos adjuntos a esta plantilla",
+    },
+    emptyDescription: {
+      en: "Upload a file to attach it to this template.",
+      es: "Sube un archivo para adjuntarlo a esta plantilla.",
     },
   },
   detail: {

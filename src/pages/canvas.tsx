@@ -9,6 +9,7 @@ import { useCanvasList, canvasQueryKeys } from "@/hooks/useCanvas"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { toast } from "sonner"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 import {
   CanvasPageHeader,
@@ -30,7 +31,7 @@ export default function CanvasPage() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const { t } = useTranslation(['canvas', 'common'])
   const { selectedOrganizationId, organizationToken } = useOrganization()
@@ -142,7 +143,7 @@ export default function CanvasPage() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000],
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
                 }}
               />
             ),
