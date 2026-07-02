@@ -44,6 +44,10 @@ export interface HuemulExpandableTextProps {
  * Colapsado muestra `collapsedLines` líneas (line-clamp). Detecta overflow real
  * con ResizeObserver, de modo que el afordancia "ver más" y la interacción de
  * clic solo aparecen cuando el contenido realmente se recorta.
+ *
+ * En modo `collapsible`, el bloque revelado por el disclosure externo siempre
+ * muestra el texto completo dentro de `expandedMaxHeight` con scroll interno,
+ * sin un segundo toggle "ver más" (no aplica `collapsedLines`).
  */
 export function HuemulExpandableText({
   text,
@@ -68,7 +72,9 @@ export function HuemulExpandableText({
 
   React.useLayoutEffect(() => {
     const el = textEl;
-    if (!el) return;
+    // En modo `collapsible` el texto siempre se muestra completo (ver `showFull`
+    // más abajo), por lo que no hace falta detectar recorte por líneas.
+    if (!el || collapsible) return;
 
     const measure = () => {
       // Altura objetivo del recorte: N líneas según el line-height computado.
@@ -104,15 +110,18 @@ export function HuemulExpandableText({
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [textEl, text, collapsedLines]);
+  }, [textEl, text, collapsedLines, collapsible]);
 
-  const canToggle = isOverflowing || expanded;
+  // En modo `collapsible` no existe un segundo toggle interno: al revelar el
+  // bloque se muestra siempre el texto completo (con scroll), sin "ver más".
+  const canToggle = collapsible ? false : (isOverflowing || expanded);
+  const showFull = collapsible || expanded;
 
   // Cuerpo de texto sin `leading`, para poder reutilizarlo dentro del modo colapsable
   // (donde `leading` se renderiza en el botón disparador, no junto al texto).
   const textBody = (
     <>
-      {expanded ? (
+      {showFull ? (
         <ScrollArea
           className="flex-1 min-w-0"
           style={{ maxHeight: expandedMaxHeight }}
