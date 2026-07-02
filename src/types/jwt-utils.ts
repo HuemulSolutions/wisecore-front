@@ -33,6 +33,7 @@ export type PermissionResource =
   | 'version'
   | 'llm_provider'
   | 'llm'
-  | 'rbac';
+  | 'rbac'
+  | 'diagram';
 
 export type Permission = `${PermissionResource}:${PermissionAction}`;

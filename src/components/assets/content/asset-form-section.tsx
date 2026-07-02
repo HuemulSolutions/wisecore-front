@@ -62,7 +62,6 @@ function hasAnswer(value: unknown): boolean {
 export function AssetFormSection({
   sectionExecutionId,
   formFields,
-  status,
   organizationId,
   documentId,
   canInteract,

@@ -20,6 +20,7 @@ import Roles from "./pages/roles";
 import AssetTypesPage from "./pages/assets-types";
 import CustomFieldsPage from "./pages/custom-fields";
 import CanvasPage from "./pages/canvas";
+import DiagramsPage from "./pages/diagrams";
 import GlobalAdminPage from "./pages/global-admin";
 import AdvancedPage from "./pages/advanced";
 import ExternalSystemsPage from "./pages/external-systems";
@@ -115,6 +116,12 @@ export default function App() {
             <Route path="canvas" element={
               <PermissionProtectedRoute permissions={["canvas:r", "canvas:l"]}>
                 <CanvasPage />
+              </PermissionProtectedRoute>
+            } />
+
+            <Route path="diagrams" element={
+              <PermissionProtectedRoute permissions={["diagram:r", "diagram:l"]}>
+                <DiagramsPage />
               </PermissionProtectedRoute>
             } />
 

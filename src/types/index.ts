@@ -82,6 +82,7 @@ export type { ExecutionLifecycleState, Execution, ExecutionsResponse, GetExecuti
 export * from './auth-types'
 export type { DocumentTypeDetail, DocumentTypeDetailResponse, DocumentTypesResponse, CreateDocumentTypeData, UpdateDocumentTypeData } from './document-types'
 export * from './folders'
+export * from './diagrams'
 export * from './generate'
 export type { EmptyStateProps as UserPageEmptyStateProps } from './users/components'
 export * from './rbac'

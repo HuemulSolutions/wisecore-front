@@ -23,7 +23,7 @@ import {
 import "@xyflow/react/dist/style.css"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { GitMerge, Trash2 } from "lucide-react"
+import { GitMerge, Trash2, Workflow } from "lucide-react"
 import { toast } from "sonner"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
@@ -31,6 +31,8 @@ import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship
 import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog } from "./execution-relationship-dialogs"
 import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
+import { SaveAsDiagramSheet } from "./save-as-diagram-sheet"
+import { LoadDiagramSheet } from "./load-diagram-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { RelationshipPanel } from "./relationship-panel"
 import { NodePanel } from "./node-panel"
@@ -38,12 +40,15 @@ import { documentTypeRelationshipQueryKeys } from "@/hooks/useDocumentTypeRelati
 import { getDocumentTypeRelationships } from "@/services/document-type-relationships"
 import { getExecutionRelationshipsByExecution } from "@/services/execution-relationships"
 import { useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type {
   DocumentTypeRelationship,
+  InitialCanvasNode,
   PendingConnection,
   RelationshipsCanvasProps,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
+import type { Diagram } from "@/types/diagrams"
 import { cn } from "@/lib/utils"
 
 const NODE_TYPES = {
@@ -158,14 +163,21 @@ function RelationshipsCanvasFlow({
   initialDocumentTypeId,
   nodeActions,
   mode = 'document-type',
+  initialNodes,
+  editingDiagram: editingDiagramProp,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
-  const { screenToFlowPosition, getNodes, getEdges } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const queryClient = useQueryClient()
   const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
+  const { isOrgAdmin, hasPermission } = useUserPermissions()
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+  const [showSaveDiagramDialog, setShowSaveDiagramDialog] = useState(false)
+  const [showLoadDiagramSheet, setShowLoadDiagramSheet] = useState(false)
+  const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
 
   // Dialog state
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null)
@@ -1079,12 +1091,77 @@ function RelationshipsCanvasFlow({
     setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
   }, [nodes, setEdges])
 
+  // ─── Seed nodes at explicit saved positions (reopening/loading a Diagram) ──
+  const seedCanvasNodes = useCallback((nodesToSeed: InitialCanvasNode[]) => {
+    const seeded = nodesToSeed.map((n) => {
+      const canvasNodeId = `${n.assetId}-${Math.random().toString(36).slice(2, 9)}`
+      const node: Node<AssetTypeNodeData> = {
+        id: canvasNodeId,
+        type: "assetType",
+        position: n.position,
+        data: {
+          id: canvasNodeId,
+          assetId: n.assetId,
+          documentTypeId: n.documentTypeId,
+          executionId: n.executionId,
+          executionName: n.executionName,
+          name: n.name,
+          color: n.color,
+          onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+          onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+          onRemove: handleRemoveNode,
+        },
+      }
+      return { canvasNodeId, node }
+    })
+
+    setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
+
+    // Draw current backend relationships between the seeded nodes.
+    seeded.forEach(({ canvasNodeId }) => handleLoadExecRelCanvasOnlyRef.current?.(canvasNodeId))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setNodes, handleRemoveNode])
+
+  // Guarded by a ref (not just the effect dep array) so it only seeds once even if
+  // the parent re-renders and passes a new `initialNodes` array reference.
+  const hasSeededInitialNodesRef = useRef(false)
+  useEffect(() => {
+    if (hasSeededInitialNodesRef.current || !initialNodes?.length) return
+    hasSeededInitialNodesRef.current = true
+    seedCanvasNodes(initialNodes)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialNodes])
+
+  // Picking a Diagram from LoadDiagramSheet replaces the canvas contents and
+  // switches the canvas into "editing" mode for that diagram.
+  const handleDiagramLoaded = useCallback((diagram: Diagram, nodesToSeed: InitialCanvasNode[]) => {
+    setNodes([])
+    setEdges([])
+    setSelectedEdgeId(null)
+    setSelectedNodeId(null)
+    setEditingDiagram({
+      id: diagram.id,
+      name: diagram.name,
+      description: diagram.description,
+      executionId: diagram.execution_id,
+      snapshotMediaId: diagram.snapshot_media_id,
+    })
+    seedCanvasNodes(nodesToSeed)
+  }, [seedCanvasNodes, setNodes, setEdges])
+
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
 
+  const canSaveDiagram = isOrgAdmin || hasPermission(editingDiagram ? 'diagram:u' : 'diagram:c')
+  const canLoadDiagram = isOrgAdmin || hasPermission('diagram:u')
+  const hasValidDiagramNodes = nodes.some((n) => {
+    const d = n.data as AssetTypeNodeData
+    return !!d.assetId && !!d.executionId
+  })
+
   return (
     <>
-      <div className="flex h-full w-full">
+      <div ref={containerRef} className="flex h-full w-full">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -1111,12 +1188,35 @@ function RelationshipsCanvasFlow({
 
           {nodes.length > 0 && (
             <Panel position="top-right">
+              <div className="flex items-center gap-2">
+                {mode === 'execution' && canSaveDiagram && hasValidDiagramNodes && (
+                  <button
+                    onClick={() => setShowSaveDiagramDialog(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                  >
+                    <Workflow className="h-3.5 w-3.5" />
+                    {editingDiagram ? t("canvas.saveChanges") : t("canvas.saveAsDiagram")}
+                  </button>
+                )}
+                <button
+                  onClick={() => { setNodes([]); setSelectedEdgeId(null); setSelectedNodeId(null); setEditingDiagram(undefined) }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 hover:cursor-pointer transition-colors shadow-sm"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("canvas.clearAll")}
+                </button>
+              </div>
+            </Panel>
+          )}
+
+          {nodes.length === 0 && mode === 'execution' && canLoadDiagram && (
+            <Panel position="top-right">
               <button
-                onClick={() => { setNodes([]); setSelectedEdgeId(null); setSelectedNodeId(null) }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 hover:cursor-pointer transition-colors shadow-sm"
+                onClick={() => setShowLoadDiagramSheet(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                {t("canvas.clearAll")}
+                <Workflow className="h-3.5 w-3.5" />
+                {t("canvas.loadDiagram")}
               </button>
             </Panel>
           )}
@@ -1322,6 +1422,35 @@ function RelationshipsCanvasFlow({
           organizationId={organizationId}
           relationshipId={attributesRelationshipId}
           relationshipName={attributesRelationshipName}
+        />
+      )}
+
+      {/* Save current graph as a Diagram, or save changes to the diagram being edited (execution mode only) */}
+      {mode === 'execution' && (
+        <SaveAsDiagramSheet
+          open={showSaveDiagramDialog}
+          onOpenChange={setShowSaveDiagramDialog}
+          organizationId={organizationId}
+          nodes={nodes as Node<AssetTypeNodeData>[]}
+          containerRef={containerRef}
+          fitView={fitView}
+          diagramId={editingDiagram?.id}
+          initialValues={editingDiagram ? {
+            name: editingDiagram.name,
+            description: editingDiagram.description,
+            executionId: editingDiagram.executionId,
+            snapshotMediaId: editingDiagram.snapshotMediaId,
+          } : undefined}
+        />
+      )}
+
+      {/* Load an existing Diagram into the canvas to edit/update it (execution mode only) */}
+      {mode === 'execution' && (
+        <LoadDiagramSheet
+          open={showLoadDiagramSheet}
+          onOpenChange={setShowLoadDiagramSheet}
+          organizationId={organizationId}
+          onLoad={handleDiagramLoaded}
         />
       )}
     </>
