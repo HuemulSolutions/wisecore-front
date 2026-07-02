@@ -13,6 +13,7 @@ import {
   Link2,
   Users,
   Copy,
+  GitCompare,
   FileCode,
   FileText,
   Download,
@@ -73,8 +74,11 @@ interface MoreOptionsDropdownProps {
   isDocumentType: boolean;
   hasDocumentContent: boolean;
   isTocSidebarOpen: boolean;
+  /** True when there are ≥2 versions to compare */
+  canCompareVersions: boolean;
   // Callbacks
   onAssignVersion: () => void;
+  onCompareVersions: () => void;
   onRejectLifecycle: () => void;
   onCheckLifecycle: () => void;
   onPublish: () => void;
@@ -113,7 +117,9 @@ export function MoreOptionsDropdown({
   isDocumentType,
   hasDocumentContent,
   isTocSidebarOpen,
+  canCompareVersions,
   onAssignVersion,
+  onCompareVersions,
   onRejectLifecycle,
   onCheckLifecycle,
   onPublish,
@@ -292,6 +298,20 @@ export function MoreOptionsDropdown({
               {!isViewMode && <DropdownMenuSeparator />}
             </>
           )}
+
+        {/* ── Compare versions ── */}
+        {canCompareVersions && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onCompareVersions, 0)}
+              className="hover:cursor-pointer"
+            >
+              <GitCompare className="mr-2 h-4 w-4" />
+              {t("content.compareVersions")}
+            </DropdownMenuItem>
+          </>
+        )}
 
         {/* ── Clone ── */}
         {lifecyclePermissions?.create && selectedExecutionId && (
