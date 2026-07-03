@@ -23,7 +23,7 @@ export interface HuemulInfoGroupProps {
   items?: HuemulInfoItemProps[];
   children?: ReactNode;
   className?: string;
-  layout?: string;
+  layout?: "vertical" | "grid-2";
 }
 
 export interface HuemulInfoSectionProps {

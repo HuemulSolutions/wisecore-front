@@ -18,9 +18,9 @@ import { formatBytes } from "@/lib/format-bytes"
 import { isImage, MediaIcon, IMAGE_TYPES, IMAGE_ACCEPT } from "./huemul-media-icon"
 import type { Media, MediaVersion } from "@/types/media"
 
-// ─── Version row ──────────────────────────────────────────────────────────────
+// ─── Version card ─────────────────────────────────────────────────────────────
 
-function VersionRow({
+function VersionCard({
   version,
   isCurrent,
   onDelete,
@@ -42,53 +42,60 @@ function VersionRow({
 
   return (
     <div className={cn(
-      "flex items-start gap-3 rounded-lg border p-3",
-      isCurrent && "border-primary/40 bg-primary/5",
+      "flex flex-col rounded-lg border overflow-hidden bg-card",
+      isCurrent && "border-primary/40",
     )}>
-      <div className="flex flex-col items-center gap-1 shrink-0">
-        <span className="font-mono text-xs font-semibold text-foreground">
+      {/* Thumbnail */}
+      <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
+        {isImage(version.content_type) && version.download_url ? (
+          <img
+            src={version.download_url}
+            alt={version.original_filename}
+            className="object-cover w-full h-full"
+            loading="lazy"
+          />
+        ) : (
+          <MediaIcon contentType={version.content_type} className="h-10 w-10 opacity-40" />
+        )}
+        <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-mono px-1.5 py-0.5 rounded">
           v{version.version_number}
         </span>
         {isCurrent && (
-          <Badge variant="default" className="text-[9px] px-1 py-0 h-3.5 leading-none">
+          <Badge variant="default" className="absolute top-1.5 left-1.5 text-[9px] px-1 py-0 h-3.5 leading-none">
             {t("detail.current")}
           </Badge>
         )}
       </div>
 
-      <div className="flex-1 min-w-0 space-y-1">
-        <p className="text-xs font-medium truncate" title={version.original_filename}>
-          {version.original_filename}
-        </p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-          <span className="text-[10px] text-muted-foreground font-mono">{version.content_type}</span>
-          <span className="text-[10px] text-muted-foreground">{formatBytes(version.file_size)}</span>
+      {/* Info + actions */}
+      <div className="flex items-center justify-between gap-1 p-2">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-[11px] font-medium text-foreground">{formatBytes(version.file_size)}</p>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Clock className="h-3 w-3 shrink-0" />
+            <span className="truncate" title={version.created_at}>{formatAbsoluteDate(version.created_at)}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Clock className="h-3 w-3 shrink-0" />
-          <span title={version.created_at}>{formatAbsoluteDate(version.created_at)}</span>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:cursor-pointer"
+            onClick={handleDownload}
+            title={t("detail.download")}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:cursor-pointer text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+            title={t("detail.deleteVersion")}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
         </div>
-      </div>
-
-      <div className="flex items-center gap-0.5 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 hover:cursor-pointer"
-          onClick={handleDownload}
-          title={t("detail.download")}
-        >
-          <Download className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 hover:cursor-pointer text-muted-foreground hover:text-destructive"
-          onClick={onDelete}
-          title={t("detail.deleteVersion")}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
       </div>
     </div>
   )
@@ -156,7 +163,7 @@ export function HuemulMediaDetailSheet({
         title={name}
         description={contentType ?? ""}
         icon={Image}
-        maxWidth="sm:max-w-lg"
+        maxWidth="sm:max-w-2xl"
         showFooter={false}
         extraActions={
           version
@@ -243,19 +250,19 @@ export function HuemulMediaDetailSheet({
               </div>
 
               {versionsLoading || uploadMediaVersion.isPending ? (
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                    <Skeleton key={i} className="aspect-[3/4] w-full rounded-lg" />
                   ))}
                 </div>
               ) : versions.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">{t("detail.noVersions")}</p>
               ) : (
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {[...versions]
                     .sort((a, b) => b.version_number - a.version_number)
                     .map((v) => (
-                      <VersionRow
+                      <VersionCard
                         key={v.id}
                         version={v}
                         isCurrent={v.is_current}
