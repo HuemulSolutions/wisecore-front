@@ -67,6 +67,9 @@ const translations = {
     assetTypeError: { en: "Error loading asset types", es: "Error al cargar los tipos de activo" },
     assetTypeEmpty: { en: "No asset types available with creation permissions", es: "No hay tipos de activo disponibles con permisos de creación" },
     newType: { en: "New type", es: "Nuevo tipo" },
+    createdBy: { en: "Creator", es: "Creador" },
+    createdByPlaceholder: { en: "Search a user to reassign the creator", es: "Buscar un usuario para reasignar el creador" },
+    createdByDescription: { en: "Shows who created this asset. Change it only to correct migrated or misattributed assets.", es: "Muestra quién creó este activo. Cámbialo solo para corregir activos migrados o mal atribuidos." },
   },
   edit: {
     title: { en: "Edit Asset", es: "Editar Activo" },

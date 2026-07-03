@@ -118,8 +118,8 @@ export async function generateDocumentStructure(documentId: string, organization
 }
 
 export async function updateDocument(
-  documentId: string, 
-  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string }, 
+  documentId: string,
+  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string },
   organizationId: string
 ) {
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}`, documentData, {
