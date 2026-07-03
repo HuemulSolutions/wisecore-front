@@ -53,6 +53,7 @@ export default function AssetTypesPage() {
   const [relSearchInput, setRelSearchInput] = useState("")
   const [relSearch, setRelSearch] = useState("")
   const [relPage, setRelPage] = useState(1)
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
 
   // Permisos
   const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -232,6 +233,7 @@ export default function AssetTypesPage() {
             onImport={() => updateState({ showImportSheet: true })}
             canExport={canExportDocumentTypes}
             canImport={canImportDocumentTypes}
+            exportSelectedCount={selectedExportIds.size}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
@@ -261,6 +263,8 @@ export default function AssetTypesPage() {
                 canDelete={canDeleteDocumentType}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
+                selectedIds={selectedExportIds}
+                onSelectionChange={setSelectedExportIds}
                 pagination={{
                   page: assetTypesResponse?.page || page,
                   pageSize: assetTypesResponse?.page_size || pageSize,
@@ -342,6 +346,8 @@ export default function AssetTypesPage() {
         onUpdateState={updateState}
         assetTypeMutations={assetTypeMutations}
         onImportSuccess={handleRefresh}
+        exportSelectedIds={[...selectedExportIds]}
+        onExported={() => setSelectedExportIds(new Set())}
       />
     </>
   )

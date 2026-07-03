@@ -29,6 +29,8 @@ export default function AssetTypeTable({
   canDelete = true,
   isLoading = false,
   isFetching = false,
+  selectedIds,
+  onSelectionChange,
 }: AssetTypeTableProps) {
   const { t } = useTranslation('asset-types')
 
@@ -127,6 +129,9 @@ export default function AssetTypeTable({
       pagination={pagination}
       isLoading={isLoading}
       isFetching={isFetching}
+      selectable
+      selectedKeys={selectedIds}
+      onSelectionChange={onSelectionChange}
     />
   )
 }

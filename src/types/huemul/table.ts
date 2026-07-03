@@ -70,4 +70,10 @@ export interface HuemulTableProps<T> {
   resizable?: boolean
   /** Clave de localStorage para persistir los anchos. Si se omite con `resizable`, los anchos viven solo en memoria. */
   columnsStorageKey?: string
+  /** Habilita una columna líder de checkboxes para seleccionar filas. */
+  selectable?: boolean
+  /** Keys (según `getRowKey`) de las filas seleccionadas. Requerido si `selectable`. */
+  selectedKeys?: Set<string>
+  /** Callback con el nuevo Set de keys seleccionadas. Requerido si `selectable`. */
+  onSelectionChange?: (keys: Set<string>) => void
 }

@@ -6,46 +6,31 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
-import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
-import type { FetchOptionsParams } from "@/types/huemul"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { getAssetTypes, exportAssetTypes } from "@/services/asset-types"
+import { exportAssetTypes } from "@/services/asset-types"
 
 interface AssetTypeExportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Ids seleccionados en la tabla que se van a exportar. */
+  selectedIds: string[]
+  /** Se llama tras exportar con éxito (p.ej. para limpiar la selección). */
+  onExported?: () => void
 }
 
-export function AssetTypeExportDialog({ open, onOpenChange }: AssetTypeExportDialogProps) {
+export function AssetTypeExportDialog({ open, onOpenChange, selectedIds, onExported }: AssetTypeExportDialogProps) {
   const { t } = useTranslation("asset-types")
 
-  const [selectedIds, setSelectedIds] = React.useState<string[]>([])
   const [includeLc, setIncludeLc] = React.useState(true)
   const [includeRel, setIncludeRel] = React.useState(true)
 
   React.useEffect(() => {
     if (!open) {
-      setSelectedIds([])
       setIncludeLc(true)
       setIncludeRel(true)
     }
   }, [open])
-
-  const fetchOptions = React.useCallback(
-    async ({ search, page, pageSize }: FetchOptionsParams) => {
-      const res = await getAssetTypes(page, pageSize, search || undefined)
-      return {
-        options: res.data.map((d) => ({
-          value: d.id,
-          label: d.name,
-          color: d.color ?? undefined,
-        })),
-        hasMore: res.has_next ?? false,
-      }
-    },
-    [],
-  )
 
   const handleExport = async () => {
     if (selectedIds.length === 0) {
@@ -57,6 +42,7 @@ export function AssetTypeExportDialog({ open, onOpenChange }: AssetTypeExportDia
       include_lifecycle: includeLc,
       include_relationships: includeRel,
     })
+    onExported?.()
     onOpenChange(false)
   }
 
@@ -75,15 +61,10 @@ export function AssetTypeExportDialog({ open, onOpenChange }: AssetTypeExportDia
       }}
     >
       <div className="flex flex-col gap-5">
-        {/* Asset type multiselect con búsqueda server-side */}
-        <HuemulCombobox
-          value={selectedIds}
-          onValueChange={(v) => setSelectedIds(v as string[])}
-          multiSelect
-          fetchOptions={fetchOptions}
-          pageSize={100}
-          placeholder={t("exportImport.selectAll")}
-        />
+        {/* Resumen de la selección hecha en la tabla */}
+        <p className="text-sm text-muted-foreground">
+          {t("exportImport.exportSummary", { count: selectedIds.length })}
+        </p>
 
         {/* Options */}
         <div className="flex flex-col gap-3 border-t pt-4">

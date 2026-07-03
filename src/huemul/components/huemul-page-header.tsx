@@ -10,6 +10,15 @@ import type { PageHeaderProps } from "@/types/huemul"
 
 export type { PageHeaderBadge, PageHeaderAction, PageHeaderSearchConfig, PageHeaderProps } from "@/types/huemul"
 
+// Paleta de acento para los iconos de las acciones secundarias: permite
+// distinguir cada acción de un vistazo sin romper el estilo outline del botón.
+const ACTION_ICON_COLORS = [
+  "text-blue-600",
+  "text-violet-600",
+  "text-emerald-600",
+  "text-amber-600",
+]
+
 export function PageHeader({
   icon: Icon,
   title,
@@ -75,16 +84,22 @@ export function PageHeader({
 
         {/* Actions Section */}
         <div className="flex items-center gap-2">
-          {/* Badges */}
+          {/* Badges (stat, no botón) */}
           {badges.map((badge, index) => (
-            <Badge 
+            <Badge
               key={index}
-              variant={badge.variant || "outline"} 
-              className="text-xs px-2 py-1"
+              variant={badge.variant || "secondary"}
+              className="text-xs px-2 py-1 font-medium tabular-nums"
             >
               {badge.label && `${badge.label}: `}{hasError && badge.value !== "..." ? 0 : badge.value}
             </Badge>
           ))}
+
+          {/* Separador entre el bloque de info (badges) y el bloque de acciones */}
+          {badges.length > 0 &&
+            ((showRefresh && onRefresh) || additionalActions.length > 0 || !!primaryAction) && (
+              <div className="h-5 w-px bg-border mx-1" aria-hidden />
+            )}
 
           {/* Refresh Button */}
           {showRefresh && onRefresh && (
@@ -92,7 +107,7 @@ export function PageHeader({
               variant="outline"
               size="sm"
               icon={RefreshCw}
-              iconClassName="w-3 h-3 mr-1"
+              iconClassName="w-3 h-3 mr-1 text-muted-foreground"
               label={t('refresh')}
               loading={isLoading}
               onClick={onRefresh}
@@ -103,13 +118,14 @@ export function PageHeader({
           {/* Additional Actions */}
           {additionalActions.map((action, index) => {
             const ActionIcon = action.icon || Plus
+            const iconColor = ACTION_ICON_COLORS[index % ACTION_ICON_COLORS.length]
             const button = (
               <HuemulButton
                 key={index}
                 variant={action.variant || "outline"}
                 size="sm"
                 icon={ActionIcon}
-                iconClassName="w-3 h-3 mr-1"
+                iconClassName={cn("w-3 h-3 mr-1", iconColor)}
                 label={action.label}
                 onClick={action.onClick}
                 disabled={action.disabled || hasError}
