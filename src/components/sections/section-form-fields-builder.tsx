@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DndContext,
@@ -16,16 +16,18 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useQuestionTypes } from "@/hooks/useQuestionTypes";
-import { useCustomFieldTemplatesByTemplate } from "@/hooks/useCustomFieldTemplates";
-import { useCustomFields } from "@/hooks/useCustomFields";
-import { useOrganization } from "@/contexts/organization-context";
+import { useCustomFieldMutations } from "@/hooks/useCustomFields";
+import { getCustomFields } from "@/services/custom-fields";
+import { CreateEditCustomFieldDialog } from "@/components/custom-fields/custom-fields-create-edit-dialog";
 import type { SectionFormField } from "@/types/sections/core";
-import type { CustomFieldDataType } from "@/types/custom-fields/core";
-import { SectionFormFieldCard, type CustomFieldOption } from "./section-form-field-card";
+import type { CustomField, CustomFieldDataType } from "@/types/custom-fields/core";
+import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
+import { SectionFormFieldCard } from "./section-form-field-card";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
+  customFieldDataTypeLabel,
   readFieldOptions,
   withFieldKey,
   type FormFieldDraft,
@@ -34,18 +36,15 @@ import {
 interface SectionFormFieldsBuilderProps {
   value: FormFieldDraft[];
   onChange: (next: FormFieldDraft[]) => void;
-  templateId?: string;
   isPending?: boolean;
 }
 
 export function SectionFormFieldsBuilder({
   value,
   onChange,
-  templateId,
   isPending,
 }: SectionFormFieldsBuilderProps) {
-  const { t } = useTranslation("sections");
-  const { selectedOrganizationId } = useOrganization();
+  const { t } = useTranslation(["sections", "custom-fields"]);
 
   // Catálogo de question types
   const { data: questionTypesResp } = useQuestionTypes();
@@ -56,30 +55,29 @@ export function SectionFormFieldsBuilder({
     return m;
   }, [questionTypes]);
 
-  // Custom fields: del template si hay templateId; si no, los de la organización.
-  // Reutilizamos los hooks existentes para que las invalidaciones de sus mutations
-  // (crear/editar/eliminar custom field o custom field template) refresquen este selector.
-  const isTemplateScope = !!templateId;
-  const { data: tplResp } = useCustomFieldTemplatesByTemplate(templateId ?? "", {
-    enabled: isTemplateScope && !!selectedOrganizationId,
-  });
-  const { data: orgResp } = useCustomFields({
-    enabled: !isTemplateScope && !!selectedOrganizationId,
-  });
-  const customFieldsResp = isTemplateScope ? tplResp : orgResp;
-  const customFieldOptions = useMemo<CustomFieldOption[]>(() => {
-    const data = (customFieldsResp?.data ?? []) as Array<{
-      id: string;
-      custom_field_id?: string;
-      name: string;
-      data_type: string;
-    }>;
-    return data.map((cf) => ({
-      id: cf.custom_field_id ?? cf.id,
-      name: cf.name,
-      data_type: cf.data_type as CustomFieldDataType,
-    }));
-  }, [customFieldsResp]);
+  // Custom fields de la organización: siempre el catálogo completo (búsqueda server-side),
+  // tanto en templates como en assets. Cachea data_type por id a medida que se buscan
+  // páginas, para poder auto-derivarlo al elegir un campo sin cargar la lista completa.
+  const customFieldDataTypeCacheRef = useRef(new Map<string, CustomFieldDataType>());
+  const fetchCustomFieldOptions = useCallback(
+    async ({ search, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getCustomFields({ search: search || undefined, page, page_size: pageSize });
+      res.data.forEach((cf) => customFieldDataTypeCacheRef.current.set(cf.id, cf.data_type));
+      return {
+        options: res.data.map((cf) => ({
+          value: cf.id,
+          label: cf.name,
+          description: customFieldDataTypeLabel(cf.data_type, t),
+        })),
+        hasMore: res.has_next,
+      };
+    },
+    [t],
+  );
+
+  // Diálogo de creación de custom field, compartido por todas las preguntas del builder.
+  const [createCustomFieldIndex, setCreateCustomFieldIndex] = useState<number | null>(null);
+  const customFieldMutations = useCustomFieldMutations();
 
   // Sensores dnd-kit (mismo patrón que templates-sections-list)
   const sensors = useSensors(
@@ -178,13 +176,21 @@ export function SectionFormFieldsBuilder({
     );
   };
 
-  const handleCustomFieldChange = (index: number, customFieldId: string) => {
-    const cf = customFieldOptions.find((c) => c.id === customFieldId);
+  const applyCustomField = (index: number, customFieldId: string, dataType?: CustomFieldDataType) => {
     onChange(
       value.map((f, i) =>
-        i === index ? { ...f, custom_field_id: customFieldId || null, data_type: cf?.data_type ?? f.data_type } : f,
+        i === index ? { ...f, custom_field_id: customFieldId || null, data_type: dataType ?? f.data_type } : f,
       ),
     );
+  };
+
+  const handleCustomFieldChange = (index: number, customFieldId: string) => {
+    applyCustomField(index, customFieldId, customFieldDataTypeCacheRef.current.get(customFieldId));
+  };
+
+  const handleCustomFieldCreated = (index: number, created: CustomField) => {
+    customFieldDataTypeCacheRef.current.set(created.id, created.data_type);
+    applyCustomField(index, created.id, created.data_type);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -240,11 +246,12 @@ export function SectionFormFieldsBuilder({
                     index={index}
                     isDuplicate={isDuplicate}
                     questionTypes={questionTypes}
-                    customFieldOptions={customFieldOptions}
+                    fetchCustomFieldOptions={fetchCustomFieldOptions}
                     isPending={isPending}
                     onUpdate={(patch) => updateField(index, patch)}
                     onQuestionTypeChange={(qt) => handleQuestionTypeChange(index, qt)}
                     onCustomFieldChange={(cfId) => handleCustomFieldChange(index, cfId)}
+                    onCreateCustomField={() => setCreateCustomFieldIndex(index)}
                     onDuplicate={() => duplicateField(index)}
                     onRemove={() => removeField(index)}
                   />
@@ -254,6 +261,21 @@ export function SectionFormFieldsBuilder({
           </SortableContext>
         </DndContext>
       )}
+
+      <CreateEditCustomFieldDialog
+        open={createCustomFieldIndex !== null}
+        onOpenChange={(open) => {
+          if (!open) setCreateCustomFieldIndex(null);
+        }}
+        customField={null}
+        onSuccess={(created) => {
+          if (created && createCustomFieldIndex !== null) {
+            handleCustomFieldCreated(createCustomFieldIndex, created);
+          }
+          setCreateCustomFieldIndex(null);
+        }}
+        customFieldMutations={customFieldMutations}
+      />
     </div>
   );
 }

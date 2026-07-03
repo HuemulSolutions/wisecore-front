@@ -99,6 +99,12 @@ export const questionTypeLabel = (slug: string, t: TFunction): string =>
     ? t(`form.formFields.questionTypeLabels.${slug}`, { defaultValue: humanizeQuestionType(slug) })
     : "";
 
+// Etiqueta visible de un data_type de custom field (namespace custom-fields).
+export const customFieldDataTypeLabel = (dataType: string, t: TFunction): string =>
+  dataType
+    ? t(`custom-fields:dataTypes.${dataType}`, { defaultValue: dataType })
+    : "";
+
 // ── Config de UI alojada en default_value (JSONB) ───────────────────────────
 
 // Lee la config de un field de forma segura (objeto plano; {} si null/legacy/array).

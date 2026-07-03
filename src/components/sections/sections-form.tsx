@@ -775,7 +775,6 @@ export function SectionForm({
         <SectionFormFieldsBuilder
           value={formFields}
           onChange={(next) => { setFormFields(next); markDirty(); }}
-          templateId={templateId}
           isPending={isPending}
         />
       )}

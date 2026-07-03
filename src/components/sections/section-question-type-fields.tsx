@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Mail, Plus, Star, Upload, X } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,12 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCustomField } from "@/hooks/useCustomFields";
 import type { FormFieldOption, SectionFormField } from "@/types/sections/core";
-import type { CustomFieldOption } from "./section-form-field-card";
+import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
+  customFieldDataTypeLabel,
   jsonbToInputValue,
   readFieldConfig,
   readFieldOptions,
@@ -26,10 +29,11 @@ import {
 
 interface SectionQuestionTypeFieldsProps {
   field: FormFieldDraft;
-  customFieldOptions: CustomFieldOption[];
+  fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
   onCustomFieldChange: (customFieldId: string) => void;
+  onCreateCustomField: () => void;
 }
 
 // Caja gris de vista previa (mismo estilo que el resto del builder).
@@ -39,12 +43,82 @@ function PreviewBox({ children }: { children: React.ReactNode }) {
 
 const PREVIEW_INPUT = "h-8 text-xs bg-white";
 
+// Selector de campo personalizado: combobox async sobre el catálogo de la organización
+// + botón para crear uno nuevo sin salir del formulario. Aislado en su propio componente
+// porque `useCustomField` sólo debe ejecutarse cuando este question type está activo, y
+// los hooks no pueden llamarse condicionalmente dentro del switch del componente padre.
+function SectionCustomFieldQuestionEditor({
+  field,
+  fetchCustomFieldOptions,
+  isPending,
+  onCustomFieldChange,
+  onCreateCustomField,
+}: {
+  field: FormFieldDraft;
+  fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
+  isPending?: boolean;
+  onCustomFieldChange: (customFieldId: string) => void;
+  onCreateCustomField: () => void;
+}) {
+  const { t } = useTranslation(["sections", "custom-fields"]);
+  const { data: selectedCustomField } = useCustomField(
+    field.custom_field_id ?? "",
+    !!field.custom_field_id,
+  );
+  const selectedOptions = selectedCustomField
+    ? [{
+        value: selectedCustomField.id,
+        label: selectedCustomField.name,
+        description: customFieldDataTypeLabel(selectedCustomField.data_type, t),
+      }]
+    : [];
+
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-gray-700">
+        {t("form.formFields.customField")} <span className="text-red-500">*</span>
+      </label>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <HuemulCombobox
+            value={field.custom_field_id ?? ""}
+            onValueChange={(v) => onCustomFieldChange(v as string)}
+            fetchOptions={fetchCustomFieldOptions}
+            pageSize={20}
+            selectedOptions={selectedOptions}
+            placeholder={t("form.formFields.customFieldPlaceholder")}
+            emptyMessage={t("form.formFields.customFieldEmpty")}
+            disabled={isPending}
+            error={!field.custom_field_id}
+          />
+        </div>
+        <HuemulButton
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCreateCustomField}
+          disabled={isPending}
+          icon={Plus}
+          className="h-8 shrink-0 text-xs"
+        >
+          {t("form.formFields.createCustomField")}
+        </HuemulButton>
+      </div>
+      {!field.custom_field_id && (
+        <p className="text-xs text-red-500">{t("form.validation.customFieldRequired")}</p>
+      )}
+      <p className="text-xs text-gray-500">{t("form.formFields.customFieldHint")}</p>
+    </div>
+  );
+}
+
 export function SectionQuestionTypeFields({
   field,
-  customFieldOptions,
+  fetchCustomFieldOptions,
   isPending,
   onUpdate,
   onCustomFieldChange,
+  onCreateCustomField,
 }: SectionQuestionTypeFieldsProps) {
   const { t } = useTranslation("sections");
   const cfg = readFieldConfig(field);
@@ -341,24 +415,13 @@ export function SectionQuestionTypeFields({
     // ── Campo personalizado ─────────────────────────────────────────────────
     case CUSTOM_FIELD_QUESTION_TYPE:
       return (
-        <div className="space-y-1">
-          <HuemulField
-            type="select"
-            label={t("form.formFields.customField")}
-            required
-            value={field.custom_field_id ?? ""}
-            onChange={(val) => onCustomFieldChange(val as string)}
-            options={customFieldOptions.map((cf) => ({ value: cf.id, label: cf.name }))}
-            placeholder={
-              customFieldOptions.length === 0
-                ? t("form.formFields.customFieldEmpty")
-                : t("form.formFields.customFieldPlaceholder")
-            }
-            disabled={isPending || customFieldOptions.length === 0}
-            error={!field.custom_field_id ? t("form.validation.customFieldRequired") : undefined}
-          />
-          <p className="text-xs text-gray-500">{t("form.formFields.customFieldHint")}</p>
-        </div>
+        <SectionCustomFieldQuestionEditor
+          field={field}
+          fetchCustomFieldOptions={fetchCustomFieldOptions}
+          isPending={isPending}
+          onCustomFieldChange={onCustomFieldChange}
+          onCreateCustomField={onCreateCustomField}
+        />
       );
 
     // ── Fallback: preview genérico por data_type (slug no contemplado) ───────
