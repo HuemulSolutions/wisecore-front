@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { useUserPermissions } from '@/hooks/useUserPermissions'
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout'
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from '@/huemul/constants'
 import { 
   getSupportedProviders,
   getAllProviders, 
@@ -85,7 +86,7 @@ export default function Models() {
   const [isCreateProviderOpen, setIsCreateProviderOpen] = useState(false)
   const [capabilitiesModel, setCapabilitiesModel] = useState<LLM | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [isTestingEmbeddingProvider, setIsTestingEmbeddingProvider] = useState(false)
   const [testingModelId, setTestingModelId] = useState<string | null>(null)
   const [isChangeDefaultOpen, setIsChangeDefaultOpen] = useState(false)
@@ -643,7 +644,7 @@ export default function Models() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100],
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
                 }}
               />
             </div>

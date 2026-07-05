@@ -561,6 +561,7 @@ export function TableCellElement({
         'h-full overflow-visible p-0',
         element.background ? 'bg-(--cellBackground)' : isHeader ? 'bg-gray-900 text-white' : 'bg-background',
         isHeader && 'text-left font-semibold *:m-0',
+        isHeader && !element.background && '[&_*]:text-white',
         !isHeader && 'align-top border-b border-gray-200',
         'before:size-full',
         selected && 'before:z-10 before:bg-brand/5',

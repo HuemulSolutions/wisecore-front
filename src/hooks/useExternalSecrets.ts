@@ -45,7 +45,7 @@ export function useExternalSecrets(
   systemId: string,
   options: UseExternalSecretsOptions = {},
 ) {
-  const { enabled = true, page = 1, pageSize = 50, search } = options
+  const { enabled = true, page = 1, pageSize = 100, search } = options
 
   return useQuery({
     queryKey: externalSecretQueryKeys.list(organizationId, systemId, page, pageSize, search),

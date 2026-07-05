@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useExternalExecutionLogs } from "@/hooks/useExternalFunctionalities"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import type { ExternalExecutionLog } from "@/types/external-systems"
 
 interface ExternalFunctionalityLogsTabProps {
@@ -39,7 +40,7 @@ export function ExternalFunctionalityLogsTab({
   const canList = isOrgAdmin || hasPermission("external_execution_log:l" as never)
 
   const [page, setPage] = useState(1)
-  const pageSize = 20
+  const pageSize = DEFAULT_PAGE_SIZE
 
   const { data, isLoading } = useExternalExecutionLogs(
     systemId,

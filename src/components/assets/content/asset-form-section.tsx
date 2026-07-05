@@ -10,7 +10,7 @@ import { updateReviewStatus, updateSectionFormValues } from "@/services/section_
 import type { ReviewStatus } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue } from "@/types/sections/core";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
@@ -30,6 +30,10 @@ interface AssetFormSectionProps {
   documentId?: string;
   /** Si el usuario puede responder/editar el formulario (modo editor + permiso). Si es false, solo lectura. */
   canInteract: boolean;
+  /** Modo edición, controlado por el padre (mismo botón de lápiz que las demás secciones). */
+  isEditing: boolean;
+  /** El padre sale del modo edición (cancelar o tras guardar). */
+  onExitEditing: () => void;
   responderName?: string;
   respondedAt?: string;
   /** Refresca el contenido del asset tras guardar */
@@ -58,10 +62,11 @@ function hasAnswer(value: unknown): boolean {
 export function AssetFormSection({
   sectionExecutionId,
   formFields,
-  status,
   organizationId,
   documentId,
   canInteract,
+  isEditing,
+  onExitEditing,
   responderName,
   respondedAt,
   onUpdate,
@@ -80,10 +85,6 @@ export function AssetFormSection({
     (f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE,
   );
 
-  const isAnswered = !!status && status !== "pending";
-  const [mode, setMode] = useState<"edit" | "view">(
-    canInteract && !isAnswered && hasEditableFields ? "edit" : "view",
-  );
   const [answers, setAnswers] = useState<AnswerMap>(() => buildInitialAnswers(sortedFields));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -173,7 +174,7 @@ export function AssetFormSection({
       await updateSectionFormValues(sectionExecutionId, values, organizationId);
       await updateReviewStatus(sectionExecutionId, "finished" as ReviewStatus, organizationId);
       toast.success(t("form.fill.saved"));
-      setMode("view");
+      onExitEditing();
       onUpdate?.();
     } catch (error) {
       handleApiError(error, { fallbackMessage: t("form.fill.saveError") });
@@ -186,7 +187,7 @@ export function AssetFormSection({
   const handleCancel = () => {
     setAnswers(buildInitialAnswers(sortedFields));
     setFieldErrors({});
-    setMode("view");
+    onExitEditing();
   };
 
   if (sortedFields.length === 0) {
@@ -197,7 +198,7 @@ export function AssetFormSection({
     );
   }
 
-  const editing = mode === "edit" && canInteract && hasEditableFields;
+  const editing = isEditing && canInteract && hasEditableFields;
 
   // ── Render de un input editable según el tipo de pregunta ──────────────────
   const renderInput = (field: FormFieldValue) => {
@@ -624,6 +625,32 @@ export function AssetFormSection({
 
   return (
     <div className="w-full">
+      {/* Barra de guardar/cancelar, arriba, igual que al editar contenido Plate */}
+      {editing && (
+        <div className="sticky top-9 z-40 mb-4 flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-sm shadow-sm">
+          <span className="text-xs text-gray-400">{t("form.fill.requiredFieldsNote")}</span>
+          <div className="flex items-center gap-2">
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              icon={X}
+              disabled={isSaving}
+              label={t("common:cancel")}
+              onClick={handleCancel}
+            />
+            <HuemulButton
+              variant="default"
+              size="sm"
+              icon={Check}
+              className="bg-[#4464f7] hover:bg-[#3451e6]"
+              loading={isSaving}
+              label={isSaving ? t("common:saving") : t("form.fill.submitResponses")}
+              onClick={handleSubmit}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="space-y-5">
         {sortedFields.map((field, index) => {
           const typeHint = questionTypeLabel(field.question_type ?? "", t);
@@ -642,52 +669,17 @@ export function AssetFormSection({
         })}
       </div>
 
-      {/* Footer */}
-      {(canInteract || responderName) && (
-        <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3">
-          {editing ? (
-            <>
-              <span className="text-xs text-gray-400">{t("form.fill.requiredFieldsNote")}</span>
-              <div className="flex items-center gap-2">
-                <HuemulButton
-                  variant="outline"
-                  size="sm"
-                  disabled={isSaving}
-                  label={t("common:cancel")}
-                  onClick={handleCancel}
-                />
-                <HuemulButton
-                  variant="default"
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  loading={isSaving}
-                  label={t("form.fill.submitResponses")}
-                  onClick={handleSubmit}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="text-xs text-gray-400">
-                {responderName
-                  ? respondedAt
-                    ? t("form.fill.respondedBy", {
-                        name: responderName,
-                        date: new Date(respondedAt).toLocaleString(),
-                      })
-                    : responderName
-                  : null}
-              </span>
-              {canInteract && hasEditableFields && (
-                <HuemulButton
-                  variant="outline"
-                  size="sm"
-                  label={t("form.fill.editResponses")}
-                  onClick={() => setMode("edit")}
-                />
-              )}
-            </>
-          )}
+      {/* Footer: solo info de quien respondió, en modo lectura */}
+      {!editing && responderName && (
+        <div className="mt-5 border-t border-gray-100 pt-3">
+          <span className="text-xs text-gray-400">
+            {respondedAt
+              ? t("form.fill.respondedBy", {
+                  name: responderName,
+                  date: new Date(respondedAt).toLocaleString(),
+                })
+              : responderName}
+          </span>
         </div>
       )}
     </div>

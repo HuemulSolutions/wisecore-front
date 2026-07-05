@@ -19,6 +19,8 @@ export default function AssetTypePageDialogs({
   onUpdateState,
   assetTypeMutations,
   onImportSuccess,
+  exportSelectedIds,
+  onExported,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
   const { selectedOrganizationId } = useOrganization()
@@ -161,6 +163,8 @@ export default function AssetTypePageDialogs({
             onUpdateState({ showExportDialog: false })
           }
         }}
+        selectedIds={exportSelectedIds}
+        onExported={onExported}
       />
 
       {/* Import Sheet */}

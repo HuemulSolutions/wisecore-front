@@ -16,6 +16,7 @@ import { ExecutionStatusBanner } from "@/components/execution/execution-status-b
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
+import { AssetVersionCompareSheet } from "@/components/assets/content/asset-version-compare-sheet";
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -623,6 +624,7 @@ export function AssetContent({
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
+  const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
@@ -2458,7 +2460,9 @@ export function AssetContent({
                             isDocumentType={selectedFile.type === 'document'}
                             hasDocumentContent={!!documentContent?.content}
                             isTocSidebarOpen={isTocSidebarOpen}
+                            canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
                             onAssignVersion={() => setIsAssignVersionDialogOpen(true)}
+                            onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
                             onRejectLifecycle={() => setIsRejectLifecycleDialogOpen(true)}
                             onCheckLifecycle={() => setIsCheckLifecycleDialogOpen(true)}
                             onPublish={() => setIsPublishDialogOpen(true)}
@@ -3657,6 +3661,17 @@ export function AssetContent({
           documentId={selectedFile?.id ?? ''}
           canEdit={!!(lifecyclePermissions?.create && lifecyclePermissions?.edit)}
           initialExecutionId={selectedExecutionId || documentContent?.execution_id}
+        />
+      )}
+
+      {/* Version Compare Sheet */}
+      {allExecutions && allExecutions.length > 1 && selectedFile && selectedOrganizationId && (
+        <AssetVersionCompareSheet
+          open={isVersionCompareSheetOpen}
+          onOpenChange={setIsVersionCompareSheetOpen}
+          documentId={selectedFile.id}
+          executions={allExecutions}
+          defaultRightExecutionId={selectedExecutionId ?? documentContent?.execution_id}
         />
       )}
 

@@ -103,10 +103,10 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
       <ContextMenuTrigger asChild>
         {nodeContent}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-64">
         {data.onLoadRelationships && (
           <ContextMenuItem
-            className="hover:cursor-pointer"
+            className="items-start hover:cursor-pointer"
             disabled={isLoading}
             onSelect={async () => {
               if (!data.onLoadRelationships || isLoading) return
@@ -119,16 +119,23 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
             }}
           >
             {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin mt-0.5" />
             ) : (
-              <Network className="mr-2 h-4 w-4" />
+              <Network className="mr-2 h-4 w-4 shrink-0 mt-0.5" />
             )}
-            <span>{isLoading ? t("node.loadingRelationships") : t("node.loadRelationships")}</span>
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">{isLoading ? t("nodePanel.loadingRelationships") : t("nodePanel.loadRelationships")}</span>
+              {!isLoading && (
+                <span className="text-[11px] leading-snug text-muted-foreground/80 font-normal whitespace-normal">
+                  {t("nodePanel.loadRelationshipsDescription")}
+                </span>
+              )}
+            </span>
           </ContextMenuItem>
         )}
         {data.onLoadRelationshipsCanvasOnly && (
           <ContextMenuItem
-            className="hover:cursor-pointer"
+            className="items-start hover:cursor-pointer"
             disabled={isLoadingCanvasOnly}
             onSelect={async () => {
               if (!data.onLoadRelationshipsCanvasOnly || isLoadingCanvasOnly) return
@@ -141,11 +148,18 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
             }}
           >
             {isLoadingCanvasOnly ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin mt-0.5" />
             ) : (
-              <Network className="mr-2 h-4 w-4" />
+              <Network className="mr-2 h-4 w-4 shrink-0 mt-0.5" />
             )}
-            <span>{isLoadingCanvasOnly ? t("node.loadingRelationships") : t("nodePanel.loadRelationshipsCanvasOnly")}</span>
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">{isLoadingCanvasOnly ? t("nodePanel.loadingRelationships") : t("nodePanel.loadRelationshipsCanvasOnly")}</span>
+              {!isLoadingCanvasOnly && (
+                <span className="text-[11px] leading-snug text-muted-foreground/80 font-normal whitespace-normal">
+                  {t("nodePanel.loadRelationshipsCanvasOnlyDescription")}
+                </span>
+              )}
+            </span>
           </ContextMenuItem>
         )}
         <ContextMenuItem

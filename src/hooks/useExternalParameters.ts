@@ -94,7 +94,7 @@ export function useExternalParameters(
   systemId: string,
   options: UseExternalParametersOptions = {},
 ) {
-  const { enabled = true, page = 1, pageSize = 50, search, paramType } = options
+  const { enabled = true, page = 1, pageSize = 100, search, paramType } = options
 
   return useQuery({
     queryKey: externalParameterQueryKeys.list(
@@ -192,7 +192,7 @@ export function useExternalFunctionalityParameters(
   functionalityId: string,
   options: UseExternalParametersOptions = {},
 ) {
-  const { enabled = true, page = 1, pageSize = 50, search, paramType } = options
+  const { enabled = true, page = 1, pageSize = 100, search, paramType } = options
 
   return useQuery({
     queryKey: externalParameterQueryKeys.functionalityList(

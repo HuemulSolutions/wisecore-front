@@ -22,6 +22,7 @@ const translations = {
   export: { en: "Export", es: "Exportar" },
   exporting: { en: "Exporting...", es: "Exportando..." },
   selectAll: { en: "Select all", es: "Seleccionar todos" },
+  select: { en: "Select", es: "Seleccionar" },
   previous: { en: "Previous", es: "Anterior" },
   next: { en: "Next", es: "Siguiente" },
   actions: { en: "Actions", es: "Acciones" },

@@ -45,6 +45,8 @@ function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
       const v = value as HuemulDateRangeValue | undefined
       return !!(v && (v.date || v.from || v.to))
     }
+    case 'custom':
+      return typeof value === 'string' && value.trim() !== ''
     default:
       return false
   }
@@ -148,6 +150,11 @@ export function useHuemulFilters({
             toLabel: t('dateTo'),
           })
           label = `${def.label}: ${formatted}`
+          break
+        }
+        case 'custom': {
+          const resolved = selectedLabels[def.key]
+          label = `${def.label}: ${resolved ?? value}`
           break
         }
       }

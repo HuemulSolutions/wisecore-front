@@ -11,6 +11,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableColumn } from "@/huemul/components/huemul-table"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,7 @@ import type { ExternalFunctionalityParamsTabProps, ExternalFunctionalityParamsEd
 
 export type { ExternalFunctionalityParamsTabProps } from "@/types/external-functionalities"
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const TYPE_BADGE_CLASS: Record<ExternalParameterType, string> = {
   query_string:

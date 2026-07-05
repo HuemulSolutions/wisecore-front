@@ -102,7 +102,14 @@ export function HuemulCombobox({
   const [isLoading, setIsLoading] = React.useState(false)
   const [isLoadingMore, setIsLoadingMore] = React.useState(false)
   const listRef = React.useRef<HTMLDivElement>(null)
-  const isInitialMount = React.useRef(true)
+  // Dueño exclusivo del efecto de fetch consolidado más abajo — ningún otro efecto
+  // debe leerlo ni escribirlo (evita la carrera entre dos efectos independientes
+  // reaccionando a la misma apertura del popup).
+  const isFirstOpenRef = React.useRef(true)
+  // Marca síncrona de "hay un fetch en curso" — a diferencia de isLoading/isLoadingMore
+  // (useState), está disponible de inmediato para otros efectos que corran en la misma
+  // pasada de commit (ver loadOptions y el efecto de auto-carga más abajo).
+  const isFetchingRef = React.useRef(false)
 
   // ── Option cache: resolves value ids → option objects for display ─────────
   // Persists across async list resets so selected labels survive a closed popup.
@@ -153,6 +160,8 @@ export function HuemulCombobox({
   const loadOptions = React.useCallback(
     async (searchTerm: string, pageNum: number, append = false) => {
       if (!fetchOptions) return
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
       const isPaginating = pageNum > 1
       if (isPaginating) setIsLoadingMore(true)
       else setIsLoading(true)
@@ -172,31 +181,37 @@ export function HuemulCombobox({
       } finally {
         setIsLoading(false)
         setIsLoadingMore(false)
+        isFetchingRef.current = false
       }
     },
     [fetchOptions, pageSize],
   )
 
-  // Load initial options the first time the popup opens; reset when it closes.
+  // Reset state when the popup closes, so the next open starts fresh.
   React.useEffect(() => {
-    if (!isAsync) return
-    if (open && isInitialMount.current) {
-      isInitialMount.current = false
-      loadOptions("", 1)
-    }
-    if (!open) {
-      setSearch("")
-      setPage(1)
-      setItems([])
-      setHasMore(true)
-      isInitialMount.current = true
-    }
-  }, [open, isAsync, loadOptions])
+    if (!isAsync || open) return
+    setSearch("")
+    setPage(1)
+    setItems([])
+    setHasMore(true)
+    isFirstOpenRef.current = true
+  }, [open, isAsync])
 
-  // Debounced server-side search (skipped on initial mount / searchOnEnter).
+  // Única fuente de verdad para "cuándo hacer fetch": se dispara una vez, de inmediato,
+  // la primera vez que se abre el popup, y luego (con debounce) cada vez que cambia el
+  // texto de búsqueda. Consolidado en un solo efecto — antes eran dos efectos separados
+  // reaccionando cada uno por su cuenta a la apertura del popup, lo que dejaba una
+  // ventana de carrera (uno podía marcar isFirstOpenRef como "ya no es la carga inicial"
+  // antes de que el otro leyera esa misma bandera) que terminaba disparando una segunda
+  // petición duplicada.
   React.useEffect(() => {
     if (!isAsync || !open) return
-    if (isInitialMount.current) return
+    if (isFirstOpenRef.current) {
+      isFirstOpenRef.current = false
+      setHasMore(true)
+      loadOptions(search, 1, false)
+      return
+    }
     if (searchOnEnter) return
     const timer = setTimeout(() => {
       setHasMore(true)
@@ -204,7 +219,7 @@ export function HuemulCombobox({
     }, debounceMs)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search])
+  }, [open, search])
 
   const handleInputValueChange = React.useCallback((next: string) => {
     setSearch(next)
@@ -232,7 +247,7 @@ export function HuemulCombobox({
 
   // Auto-load next page when all current items fit without triggering a scroll event.
   React.useEffect(() => {
-    if (!isAsync || !open || isLoading || isLoadingMore || !hasMore) return
+    if (!isAsync || !open || isLoading || isLoadingMore || !hasMore || isFetchingRef.current) return
     const list = listRef.current
     if (!list) return
     if (list.scrollHeight <= list.clientHeight) {

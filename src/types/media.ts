@@ -1,4 +1,4 @@
-export type MediaLevel = 'organization' | 'document_type' | 'document' | 'execution'
+export type MediaLevel = 'organization' | 'document_type' | 'document' | 'execution' | 'template'
 
 // ─── Main entities ────────────────────────────────────────────────────────────
 
@@ -25,6 +25,7 @@ export interface Media {
   document_type_id: string | null
   document_id: string | null
   execution_id: string | null
+  template_id: string | null
   current_version: MediaVersion | null
   created_at: string
   created_by: string | null

@@ -203,6 +203,20 @@ function FilterControl({ def, value, onChange, onSelectedLabel }: FilterControlP
         />
       );
 
+    case "custom":
+      return (
+        <div className="flex w-full flex-col gap-1.5">
+          <p className="text-sm font-medium leading-snug">{def.label}</p>
+          {def.render({
+            value,
+            setValue: (v, label) => {
+              onChange(def.key, v);
+              onSelectedLabel?.(def.key, label);
+            },
+          })}
+        </div>
+      );
+
     default:
       return null;
   }

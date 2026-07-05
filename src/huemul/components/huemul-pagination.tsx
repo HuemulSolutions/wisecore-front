@@ -26,6 +26,7 @@ function buildPageRange(page: number, totalPages: number): (number | "…")[] {
 }
 
 import type { HuemulPaginationProps } from "@/types/huemul"
+import { DEFAULT_PAGE_SIZE_OPTIONS } from "../constants"
 export type { HuemulPaginationProps }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ export function HuemulPagination({
   hasPrevious,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [100, 200, 500],
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   className,
 }: HuemulPaginationProps) {
   const { t } = useTranslation("common")

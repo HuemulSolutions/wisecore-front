@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Checkbox } from "@/components/ui/checkbox"
 import { HuemulButton } from "./huemul-button"
 import { HuemulPagination } from "./huemul-pagination"
 import { useColumnWidths } from "@/hooks/useColumnWidths"
@@ -42,6 +43,7 @@ import { useTranslation } from "react-i18next"
 // ── Constantes de redimensionado ─────────────────────────────────────────────
 const MIN_COL_WIDTH = 80
 const ACTIONS_COL_WIDTH = 64
+const SELECT_COL_WIDTH = 48
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -64,10 +66,46 @@ export function HuemulTable<T>({
   className,
   resizable = false,
   columnsStorageKey,
+  selectable = false,
+  selectedKeys,
+  onSelectionChange,
 }: HuemulTableProps<T>) {
   const { t } = useTranslation("common")
 
   const hasActions = !!actions && actions.length > 0
+
+  // ── Selección de filas ─────────────────────────────────────────────────────
+  const selected = selectedKeys ?? new Set<string>()
+  const visibleKeys = React.useMemo(() => data.map(getRowKey), [data, getRowKey])
+  const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selected.has(k))
+  const someVisibleSelected = visibleKeys.some((k) => selected.has(k))
+  const headerCheckState: boolean | "indeterminate" = allVisibleSelected
+    ? true
+    : someVisibleSelected
+    ? "indeterminate"
+    : false
+
+  const toggleAllVisible = React.useCallback(() => {
+    if (!onSelectionChange) return
+    const next = new Set(selected)
+    if (allVisibleSelected) {
+      visibleKeys.forEach((k) => next.delete(k))
+    } else {
+      visibleKeys.forEach((k) => next.add(k))
+    }
+    onSelectionChange(next)
+  }, [onSelectionChange, selected, allVisibleSelected, visibleKeys])
+
+  const toggleRow = React.useCallback(
+    (key: string) => {
+      if (!onSelectionChange) return
+      const next = new Set(selected)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      onSelectionChange(next)
+    },
+    [onSelectionChange, selected],
+  )
 
   // Anchos por columna (px) — solo relevantes en modo `resizable`.
   const { getWidth, setWidth } = useColumnWidths(columns, resizable ? columnsStorageKey : undefined)
@@ -75,8 +113,8 @@ export function HuemulTable<T>({
   const totalWidth = React.useMemo(() => {
     if (!resizable) return undefined
     const cols = columns.reduce((sum, col) => sum + getWidth(col.key), 0)
-    return cols + (hasActions ? ACTIONS_COL_WIDTH : 0)
-  }, [resizable, columns, getWidth, hasActions])
+    return cols + (hasActions ? ACTIONS_COL_WIDTH : 0) + (selectable ? SELECT_COL_WIDTH : 0)
+  }, [resizable, columns, getWidth, hasActions, selectable])
 
   // Arrastre del borde derecho de una cabecera. Usa pointer capture para seguir
   // el cursor aunque salga del handle.
@@ -183,6 +221,7 @@ export function HuemulTable<T>({
         >
           {resizable && (
             <colgroup>
+              {selectable && <col style={{ width: SELECT_COL_WIDTH }} />}
               {columns.map((col) => (
                 <col
                   key={col.key}
@@ -196,6 +235,16 @@ export function HuemulTable<T>({
           {/* ── Header ── */}
           <TableHeader className="sticky top-0 z-20 bg-muted">
             <TableRow className="border-b border-border hover:bg-transparent">
+              {selectable && (
+                <TableHead className="h-auto px-4 py-3 w-[1%] whitespace-nowrap">
+                  <Checkbox
+                    checked={headerCheckState}
+                    onCheckedChange={toggleAllVisible}
+                    aria-label={t("selectAll")}
+                    disabled={visibleKeys.length === 0}
+                  />
+                </TableHead>
+              )}
               {columns.map((col, index) => {
                 const canResize = resizable && col.resizable !== false
                 // Divisor sutil entre cabeceras; se omite en la última columna de
@@ -262,6 +311,11 @@ export function HuemulTable<T>({
             {isLoading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i} className="bg-background hover:bg-background">
+                    {selectable && (
+                      <TableCell className="px-4 py-3">
+                        <Skeleton className="h-4 w-4 rounded-[4px]" />
+                      </TableCell>
+                    )}
                     {columns.map((col) => (
                       <TableCell
                         key={col.key}
@@ -280,10 +334,20 @@ export function HuemulTable<T>({
               : data.map((item) => {
                   const key = getRowKey(item)
                   const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
-                  const rowExtraClass = getRowClassName?.(item) ?? ''
+                  const isSelected = selectable && selected.has(key)
+                  const rowExtraClass = getRowClassName?.(item) ?? (isSelected ? "bg-primary/5 hover:bg-primary/10" : "")
 
                   return (
-                    <TableRow key={key} className={cn("group", rowExtraClass || "bg-background hover:bg-muted/30")}>
+                    <TableRow key={key} className={cn("group", rowExtraClass || "bg-background hover:bg-muted/30")} data-selected={isSelected || undefined}>
+                      {selectable && (
+                        <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selected.has(key)}
+                            onCheckedChange={() => toggleRow(key)}
+                            aria-label={t("select")}
+                          />
+                        </TableCell>
+                      )}
                       {columns.map((col) => (
                         <TableCell
                           key={col.key}

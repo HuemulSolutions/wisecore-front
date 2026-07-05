@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,7 +21,7 @@ export default function AssignRolesSheet({ user, open, onOpenChange, onSuccess }
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [, setHasInitialized] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const queryClient = useQueryClient()

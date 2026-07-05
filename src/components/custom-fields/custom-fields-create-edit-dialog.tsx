@@ -113,16 +113,17 @@ export function CreateEditCustomFieldDialog({
             ...(formData.data_type === 'list' && { options: formData.options }),
           },
         })
+        onSuccess()
       } else {
-        await customFieldMutations.create.mutateAsync({
+        const created = await customFieldMutations.create.mutateAsync({
           name: formData.name,
           description: formData.description,
           data_type: formData.data_type,
           masc: formData.masc || "",
           ...(formData.data_type === 'list' && { options: formData.options }),
         })
+        onSuccess(created)
       }
-      onSuccess()
     } catch (error) {
       console.error("Error submitting custom field:", error)
     } finally {

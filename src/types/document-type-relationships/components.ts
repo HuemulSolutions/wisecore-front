@@ -31,12 +31,37 @@ export interface CanvasNodeAction {
   separator?: boolean
 }
 
+// A node to seed the canvas with on mount, at an explicit saved position
+// (used to reopen a previously-saved Diagram for editing).
+export interface InitialCanvasNode {
+  assetId: string
+  documentTypeId?: string
+  executionId: string
+  executionName: string
+  name: string
+  color: string
+  position: { x: number; y: number }
+}
+
+// When present, the canvas is editing an existing Diagram rather than starting a new one:
+// the "Save as Diagram" action becomes "Save changes" and updates this diagram instead of
+// creating a new one.
+export interface EditingDiagram {
+  id: string
+  name: string
+  description?: string | null
+  executionId: string
+  snapshotMediaId: string | null
+}
+
 export interface RelationshipsCanvasProps {
   organizationId: string
   documentTypes: DocumentType[]
   initialDocumentTypeId?: string
   nodeActions?: CanvasNodeAction[]
   mode?: 'document-type' | 'execution'
+  initialNodes?: InitialCanvasNode[]
+  editingDiagram?: EditingDiagram
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

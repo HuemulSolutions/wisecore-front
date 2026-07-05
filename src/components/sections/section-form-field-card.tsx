@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { SectionFormField } from "@/types/sections/core";
-import type { CustomFieldDataType } from "@/types/custom-fields/core";
 import type { QuestionType } from "@/types/question-types";
+import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import { SectionQuestionTypeFields } from "./section-question-type-fields";
 import {
   questionTypeIcon,
@@ -21,22 +21,17 @@ import {
   type FormFieldDraft,
 } from "./question-type-meta";
 
-export interface CustomFieldOption {
-  id: string;
-  name: string;
-  data_type: CustomFieldDataType;
-}
-
 interface SectionFormFieldCardProps {
   field: FormFieldDraft;
   index: number;
   isDuplicate: boolean;
   questionTypes: QuestionType[];
-  customFieldOptions: CustomFieldOption[];
+  fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
   onQuestionTypeChange: (questionType: string) => void;
   onCustomFieldChange: (customFieldId: string) => void;
+  onCreateCustomField: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
 }
@@ -46,11 +41,12 @@ export function SectionFormFieldCard({
   index,
   isDuplicate,
   questionTypes,
-  customFieldOptions,
+  fetchCustomFieldOptions,
   isPending,
   onUpdate,
   onQuestionTypeChange,
   onCustomFieldChange,
+  onCreateCustomField,
   onDuplicate,
   onRemove,
 }: SectionFormFieldCardProps) {
@@ -151,10 +147,11 @@ export function SectionFormFieldCard({
           {field.question_type && (
             <SectionQuestionTypeFields
               field={field}
-              customFieldOptions={customFieldOptions}
+              fetchCustomFieldOptions={fetchCustomFieldOptions}
               isPending={isPending}
               onUpdate={onUpdate}
               onCustomFieldChange={onCustomFieldChange}
+              onCreateCustomField={onCreateCustomField}
             />
           )}
 

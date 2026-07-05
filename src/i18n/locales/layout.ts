@@ -22,6 +22,7 @@ const translations = {
     assetTypeRelationships: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
     canvas: { en: "Canvas", es: "Canvas" },
+    diagrams: { en: "Diagrams", es: "Diagramas" },
     media: { en: "Media", es: "Media" },
     administration: { en: "Administration", es: "Administración" },
     organizations: { en: "Organizations", es: "Organizaciones" },

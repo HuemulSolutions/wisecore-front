@@ -457,6 +457,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
     enableCreateSection = true,
     toolbarTopOffset,
     organizationId,
+    mediaUploadTarget,
   }, ref) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { t } = useTranslation('editor');
@@ -471,9 +472,12 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
   }, []);
 
   const mediaReferenceCtx = React.useMemo(
-    () => ({ openPicker: organizationId && documentId ? openPicker : null }),
+    () => ({
+      openPicker: organizationId && documentId ? openPicker : null,
+      uploadTarget: mediaUploadTarget ?? null,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [organizationId, documentId],
+    [organizationId, documentId, mediaUploadTarget?.level, mediaUploadTarget?.parentId],
   );
 
   const editor = usePlateEditor({
@@ -600,6 +604,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
           editor={pickerEditorRef.current}
           organizationId={organizationId}
           documentId={documentId}
+          uploadTarget={mediaUploadTarget}
         />
       )}
     </TooltipProvider>

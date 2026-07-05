@@ -98,6 +98,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
   toolbarTopOffset,
   onValueChange,
   organizationId,
+  mediaUploadTarget,
 }, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
@@ -217,6 +218,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
         toolbarActions={actionButtons}
         documentId={documentId}
         sectionExecutionId={sectionExecutionId}
+        mediaUploadTarget={mediaUploadTarget}
         enableComments={enableComments}
         enableCreateSection={enableCreateSection}
         toolbarTopOffset={toolbarTopOffset}

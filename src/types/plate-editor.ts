@@ -1,5 +1,6 @@
 import type { Value } from 'platejs'
 import type { ReactNode } from 'react'
+import type { EditorMediaUploadTarget } from '@/contexts/media-reference-context'
 
 export interface PlateRichEditorRef {
   /** Serialize the current editor content to Markdown */
@@ -39,6 +40,11 @@ export interface PlateRichEditorProps {
    * become available in the editor.
    */
   organizationId?: string;
+  /**
+   * Where files uploaded from this editor should be attached (level + parent id).
+   * When omitted, uploads fall back to the organization level.
+   */
+  mediaUploadTarget?: EditorMediaUploadTarget | null;
   /**
    * Called immediately after a discussion is created or a comment is added.
    * Use this to auto-save plate_content so comment marks survive a page refresh.

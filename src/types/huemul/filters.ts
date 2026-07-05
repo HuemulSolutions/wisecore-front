@@ -93,12 +93,23 @@ export interface HuemulTextFilterDef extends HuemulFilterDefBase {
   placeholder?: string;
 }
 
+/** Escape hatch: render an arbitrary control for a filter. The control reports
+ *  its value via `setValue` (with an optional resolved label for the chip). */
+export interface HuemulCustomFilterDef extends HuemulFilterDefBase {
+  type: 'custom';
+  render: (ctx: {
+    value: HuemulFilterValue;
+    setValue: (value: HuemulFilterValue, label?: string) => void;
+  }) => ReactNode;
+}
+
 export type HuemulFilterDef =
   | HuemulSelectFilterDef
   | HuemulAsyncComboboxFilterDef
   | HuemulDateRangeFilterDef
   | HuemulBooleanFilterDef
-  | HuemulTextFilterDef;
+  | HuemulTextFilterDef
+  | HuemulCustomFilterDef;
 
 export interface HuemulFilterChip {
   /** Filter def key — what `clearValue(key)` / `onRemove(key)` targets. */

@@ -6,6 +6,7 @@ import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganiz
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 // Components
 import {
@@ -32,7 +33,7 @@ export default function Organizations() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Get permissions
   const { isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -189,7 +190,7 @@ export default function Organizations() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
                 canUpdate={canUpdateOrg}
                 canDelete={canDeleteOrg}

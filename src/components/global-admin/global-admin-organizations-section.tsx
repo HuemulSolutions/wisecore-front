@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { Plus, Building2 } from "lucide-react"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { getAllOrganizations, addOrganization, updateOrganization, deleteOrganization } from "@/services/organizations"
@@ -35,7 +36,7 @@ export function GlobalAdminOrganizationsSection() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
@@ -187,7 +188,7 @@ export function GlobalAdminOrganizationsSection() {
               setPageSize(newPageSize)
               setPage(1)
             },
-            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
           }}
           canUpdate={canUpdateOrg}
           canDelete={canDeleteOrg}

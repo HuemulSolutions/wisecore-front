@@ -24,6 +24,7 @@ export * from './loading-overlay'
 export * from './content-error-state'
 export * from './name-description-fields'
 export * from './section-history-sheet'
+export * from './asset-version-compare-sheet'
 export * from './section-separator'
 
 
@@ -81,6 +82,7 @@ export type { ExecutionLifecycleState, Execution, ExecutionsResponse, GetExecuti
 export * from './auth-types'
 export type { DocumentTypeDetail, DocumentTypeDetailResponse, DocumentTypesResponse, CreateDocumentTypeData, UpdateDocumentTypeData } from './document-types'
 export * from './folders'
+export * from './diagrams'
 export * from './generate'
 export type { EmptyStateProps as UserPageEmptyStateProps } from './users/components'
 export * from './rbac'

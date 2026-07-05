@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection } from '@/components/assets/content/asset-form-section';
+import { CUSTOM_FIELD_QUESTION_TYPE } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -55,7 +56,15 @@ function SectionExecutionInner({
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
     const queryClient = useQueryClient();
-    const [isEditing, setIsEditing] = useState(false);
+    // ¿El formulario tiene al menos un campo editable? Los custom_field son solo lectura.
+    const formHasEditableFields = (sectionExecution.form_fields ?? []).some(
+        (f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE
+    );
+    const isFormAnswered = !!status && status !== 'pending';
+    // Un formulario pendiente sin respuestas arranca directamente en modo edición.
+    const [isEditing, setIsEditing] = useState(
+        sectionType === 'form' && readyToEdit && canEditSections && formHasEditableFields && !isFormAnswered
+    );
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
@@ -95,7 +104,7 @@ function SectionExecutionInner({
     
     // Determine which actions are available based on section type
     const canExecute = sectionType === 'ai' || sectionType === null; // AI sections y null pueden ejecutarse
-    const canEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden editarse
+    const canEdit = sectionType !== 'reference' && (sectionType !== 'form' || formHasEditableFields); // Manual, AI y form (con campos editables) pueden editarse
     const canAiEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden usar AI edit
     const canDelete = sectionType !== 'reference'; // Manual, AI y form pueden eliminarse, reference no
     
@@ -768,6 +777,8 @@ function SectionExecutionInner({
                         organizationId={selectedOrganizationId ?? undefined}
                         documentId={documentId}
                         canInteract={readyToEdit && canEditSections}
+                        isEditing={isEditing}
+                        onExitEditing={handleCancelEdit}
                         responderName={responderName}
                         respondedAt={respondedAt}
                         onUpdate={onUpdate}
@@ -788,6 +799,13 @@ function SectionExecutionInner({
                         documentId={documentId}
                         sectionExecutionId={sectionExecution.id}
                         organizationId={selectedOrganizationId ?? undefined}
+                        mediaUploadTarget={
+                          executionId
+                            ? { level: 'execution', parentId: executionId }
+                            : documentId
+                              ? { level: 'document', parentId: documentId }
+                              : null
+                        }
                         toolbarTopOffset="36px"
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />

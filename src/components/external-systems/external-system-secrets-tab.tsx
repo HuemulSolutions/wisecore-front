@@ -11,6 +11,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableColumn } from "@/huemul/components/huemul-table"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ExternalSecret } from "@/types/external-secrets"
@@ -18,7 +19,7 @@ import type { ExternalSystemSecretsTabProps, ExternalSystemSecretsEditingState a
 
 export type { ExternalSystemSecretsTabProps } from "@/types/external-systems"
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 export function ExternalSystemSecretsTab({
   organizationId,

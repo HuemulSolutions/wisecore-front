@@ -27,6 +27,7 @@ import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-typ
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 const RELATIONSHIP_PAGE_SIZE = 100
 
@@ -47,11 +48,12 @@ export default function AssetTypesPage() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [viewMode, setViewMode] = useState<'table' | 'relationships'>('table')
   const [relSearchInput, setRelSearchInput] = useState("")
   const [relSearch, setRelSearch] = useState("")
   const [relPage, setRelPage] = useState(1)
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
 
   // Permisos
   const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -231,6 +233,7 @@ export default function AssetTypesPage() {
             onImport={() => updateState({ showImportSheet: true })}
             canExport={canExportDocumentTypes}
             canImport={canImportDocumentTypes}
+            exportSelectedCount={selectedExportIds.size}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
@@ -260,6 +263,8 @@ export default function AssetTypesPage() {
                 canDelete={canDeleteDocumentType}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
+                selectedIds={selectedExportIds}
+                onSelectionChange={setSelectedExportIds}
                 pagination={{
                   page: assetTypesResponse?.page || page,
                   pageSize: assetTypesResponse?.page_size || pageSize,
@@ -270,7 +275,7 @@ export default function AssetTypesPage() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
               />
             ),
@@ -341,6 +346,8 @@ export default function AssetTypesPage() {
         onUpdateState={updateState}
         assetTypeMutations={assetTypeMutations}
         onImportSuccess={handleRefresh}
+        exportSelectedIds={[...selectedExportIds]}
+        onExported={() => setSelectedExportIds(new Set())}
       />
     </>
   )

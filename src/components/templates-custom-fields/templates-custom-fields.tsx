@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Plus, RefreshCw } from "lucide-react"
 import { useCustomFieldTemplatesByTemplate, useCustomFieldTemplateMutations } from "@/hooks/useCustomFieldTemplates"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { CustomFieldTemplateTable } from "./templates-custom-field-table"
 import { CustomFieldTemplateEmptyState } from "./templates-custom-field-empty-state"
 import { AddCustomFieldTemplateDialog } from "./templates-custom-field-add-dialog"
@@ -21,7 +22,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
   const [customFieldEditMode, setCustomFieldEditMode] = useState<"content" | "configuration">("configuration")
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   const {
     data: customFieldTemplatesResponse,
@@ -204,7 +205,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
               setPageSize(newPageSize)
               setPage(1)
             },
-            pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+            pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
           }}
         />
       ) : (

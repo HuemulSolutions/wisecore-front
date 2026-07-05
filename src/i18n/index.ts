@@ -31,6 +31,7 @@ import chatbot from './locales/chatbot'
 import huemulFilters from './locales/huemul-filters'
 import huemulFileTree from './locales/huemul-file-tree'
 import canvas from './locales/canvas'
+import diagrams from './locales/diagrams'
 import documentTypeRelationships from './locales/document-type-relationships'
 import media from './locales/media'
 import subscriptions from './locales/subscriptions'
@@ -85,6 +86,7 @@ const modules = {
   'huemul-filters': huemulFilters,
   'huemul-file-tree': huemulFileTree,
   canvas,
+  diagrams,
   'document-type-relationships': documentTypeRelationships,
   media,
   subscriptions,

@@ -181,50 +181,64 @@ export function NodePanel({
             {t("nodePanel.actions")}
           </p>
           <div className="flex flex-col gap-1">
-            {/* Load relationships */}
+            {/* Load relationships (recursively expands the canvas with related nodes) */}
             {onLoadRelationships && (
               <button
                 onClick={handleLoadRelationships}
                 disabled={isLoadingRelationships}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground",
+                  "flex items-start gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground",
                   "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                 )}
               >
                 {isLoadingRelationships ? (
-                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin mt-0.5" />
                 ) : (
-                  <Network className="h-3.5 w-3.5 shrink-0" />
+                  <Network className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 )}
-                <span>
-                  {isLoadingRelationships
-                    ? t("nodePanel.loadingRelationships")
-                    : t("nodePanel.loadRelationships")}
+                <span className="flex flex-col items-start text-left gap-0.5">
+                  <span className="text-xs font-medium">
+                    {isLoadingRelationships
+                      ? t("nodePanel.loadingRelationships")
+                      : t("nodePanel.loadRelationships")}
+                  </span>
+                  {!isLoadingRelationships && (
+                    <span className="text-[11px] leading-snug text-muted-foreground/80 font-normal">
+                      {t("nodePanel.loadRelationshipsDescription")}
+                    </span>
+                  )}
                 </span>
               </button>
             )}
 
-            {/* Load canvas relationships (only between nodes already on canvas) */}
+            {/* Load canvas relationships (only connects nodes already on the canvas) */}
             {onLoadRelationshipsCanvasOnly && (
               <button
                 onClick={handleLoadRelationshipsCanvasOnly}
                 disabled={isLoadingRelationshipsCanvasOnly}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground",
+                  "flex items-start gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground",
                   "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                 )}
               >
                 {isLoadingRelationshipsCanvasOnly ? (
-                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin mt-0.5" />
                 ) : (
-                  <Network className="h-3.5 w-3.5 shrink-0" />
+                  <Network className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 )}
-                <span>
-                  {isLoadingRelationshipsCanvasOnly
-                    ? t("nodePanel.loadingRelationships")
-                    : t("nodePanel.loadRelationshipsCanvasOnly")}
+                <span className="flex flex-col items-start text-left gap-0.5">
+                  <span className="text-xs font-medium">
+                    {isLoadingRelationshipsCanvasOnly
+                      ? t("nodePanel.loadingRelationships")
+                      : t("nodePanel.loadRelationshipsCanvasOnly")}
+                  </span>
+                  {!isLoadingRelationshipsCanvasOnly && (
+                    <span className="text-[11px] leading-snug text-muted-foreground/80 font-normal">
+                      {t("nodePanel.loadRelationshipsCanvasOnlyDescription")}
+                    </span>
+                  )}
                 </span>
               </button>
             )}
