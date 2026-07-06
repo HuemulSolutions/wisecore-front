@@ -132,7 +132,7 @@ export interface SectionsConfigExecution {
 export interface SectionsConfigSection {
   id: string
   name: string
-  type?: "ai" | "manual" | "reference"
+  type?: "ai" | "manual" | "reference" | "form"
   prompt?: string
   order?: number
   dependencies?: Array<{ id: string; name: string }>
@@ -141,6 +141,7 @@ export interface SectionsConfigSection {
   reference_mode?: "latest" | "specific"
   reference_execution_id?: string
   not_in_execution?: boolean | null
+  form_fields?: import('../sections/core').SectionFormField[]
 }
 
 export interface SectionsConfigResponse {

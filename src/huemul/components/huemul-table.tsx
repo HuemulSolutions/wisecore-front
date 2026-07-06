@@ -36,7 +36,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { HuemulButton } from "./huemul-button"
 import { HuemulPagination } from "./huemul-pagination"
+import { useColumnWidths } from "@/hooks/useColumnWidths"
 import { useTranslation } from "react-i18next"
+
+// ── Constantes de redimensionado ─────────────────────────────────────────────
+const MIN_COL_WIDTH = 80
+const ACTIONS_COL_WIDTH = 64
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -57,10 +62,45 @@ export function HuemulTable<T>({
   onSortChange,
   maxHeight = "",
   className,
+  resizable = false,
+  columnsStorageKey,
 }: HuemulTableProps<T>) {
   const { t } = useTranslation("common")
 
   const hasActions = !!actions && actions.length > 0
+
+  // Anchos por columna (px) — solo relevantes en modo `resizable`.
+  const { getWidth, setWidth } = useColumnWidths(columns, resizable ? columnsStorageKey : undefined)
+
+  const totalWidth = React.useMemo(() => {
+    if (!resizable) return undefined
+    const cols = columns.reduce((sum, col) => sum + getWidth(col.key), 0)
+    return cols + (hasActions ? ACTIONS_COL_WIDTH : 0)
+  }, [resizable, columns, getWidth, hasActions])
+
+  // Arrastre del borde derecho de una cabecera. Usa pointer capture para seguir
+  // el cursor aunque salga del handle.
+  const startResize = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, colKey: string, minW: number) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const startX = e.clientX
+      const startWidth = getWidth(colKey)
+      const handleEl = e.currentTarget
+      handleEl.setPointerCapture(e.pointerId)
+      const onMove = (ev: PointerEvent) => {
+        setWidth(colKey, Math.max(minW, Math.round(startWidth + (ev.clientX - startX))))
+      }
+      const onUp = () => {
+        try { handleEl.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+        handleEl.removeEventListener("pointermove", onMove)
+        handleEl.removeEventListener("pointerup", onUp)
+      }
+      handleEl.addEventListener("pointermove", onMove)
+      handleEl.addEventListener("pointerup", onUp)
+    },
+    [getWidth, setWidth],
+  )
 
   function handleSortClick(sortKey: string) {
     if (!onSortChange) return
@@ -137,17 +177,39 @@ export function HuemulTable<T>({
 
       {/* Scrollable table area */}
       <div className={cn("overflow-auto flex-1", maxHeight)}>
-        <table className="w-full caption-bottom text-sm">
+        <table
+          className={cn("caption-bottom text-sm", resizable ? "w-max" : "w-full")}
+          style={resizable ? { tableLayout: "fixed", width: totalWidth } : undefined}
+        >
+          {resizable && (
+            <colgroup>
+              {columns.map((col) => (
+                <col
+                  key={col.key}
+                  style={{ width: getWidth(col.key) }}
+                  className={cn(col.hideOnMobile && "hidden sm:table-column")}
+                />
+              ))}
+              {hasActions && <col style={{ width: ACTIONS_COL_WIDTH }} />}
+            </colgroup>
+          )}
           {/* ── Header ── */}
           <TableHeader className="sticky top-0 z-20 bg-muted">
             <TableRow className="border-b border-border hover:bg-transparent">
-              {columns.map((col) => (
+              {columns.map((col, index) => {
+                const canResize = resizable && col.resizable !== false
+                // Divisor sutil entre cabeceras; se omite en la última columna de
+                // datos cuando hay columna de acciones (esa ya aporta su border-l).
+                const showDivider = resizable && !(index === columns.length - 1 && hasActions)
+                return (
                 <TableHead
                   key={col.key}
                   className={cn(
                     "h-auto px-4 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap",
                     col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
-                    col.width,
+                    !resizable && col.width,
+                    canResize && "relative",
+                    showDivider && "border-r border-border",
                     col.hideOnMobile && "hidden sm:table-cell"
                   )}
                 >
@@ -156,16 +218,32 @@ export function HuemulTable<T>({
                       type="button"
                       onClick={() => handleSortClick(col.sortKey!)}
                       className={cn(
-                        "inline-flex items-center gap-1 hover:cursor-pointer hover:text-foreground transition-colors",
+                        "inline-flex items-center gap-1 hover:cursor-pointer hover:text-foreground transition-colors max-w-full",
+                        resizable && "overflow-hidden",
                         (sort === `${col.sortKey}_asc` || sort === `${col.sortKey}_desc`) && "text-foreground"
                       )}
                     >
-                      {col.label}
+                      <span className={cn(resizable && "truncate")}>{col.label}</span>
                       <SortIcon sortKey={col.sortKey} />
                     </button>
-                  ) : col.label}
+                  ) : (
+                    <span className={cn(resizable && "block truncate")}>{col.label}</span>
+                  )}
+                  {canResize && (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      onPointerDown={(e) => startResize(e, col.key, col.minWidth ?? MIN_COL_WIDTH)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="group/rz absolute right-0 top-0 z-10 flex h-full w-2 justify-end cursor-col-resize touch-none select-none"
+                    >
+                      {/* El border-r del th es el divisor en reposo; este se ilumina sobre él al acercar el cursor. */}
+                      <div className="h-full w-0.5 bg-transparent transition-colors group-hover/rz:bg-primary group-active/rz:bg-primary" />
+                    </div>
+                  )}
                 </TableHead>
-              ))}
+                )
+              })}
               {hasActions && (
                 <TableHead className="h-auto px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-[1%] whitespace-nowrap sticky right-0 z-30 bg-muted border-l border-border">
                   {t("actions")}
@@ -216,6 +294,7 @@ export function HuemulTable<T>({
                               : col.align === "center"
                               ? "text-center"
                               : "text-left",
+                            resizable && "overflow-hidden text-ellipsis",
                             col.hideOnMobile && "hidden sm:table-cell"
                           )}
                         >

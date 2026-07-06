@@ -1,4 +1,4 @@
-import type { PaginationParams, ApiResponse } from './core'
+import type { PaginationParams, ApiResponse, CustomFieldOption } from './core'
 
 export type CustomFieldDocumentSource = "manual" | "inferred";
 
@@ -19,6 +19,7 @@ export interface CustomFieldDocument {
   value_number: number | null;
   value_bool: boolean | null;
   value_identifier: string | null;
+  options?: CustomFieldOption[];
   source: CustomFieldDocumentSource;
   created_at: string;
   updated_at: string;
@@ -27,6 +28,7 @@ export interface CustomFieldDocument {
 
 export interface CustomFieldDocumentListParams extends PaginationParams {
   document_id?: string | null;
+  search?: string;
 }
 
 export interface CustomFieldDocumentByDocumentParams extends PaginationParams {

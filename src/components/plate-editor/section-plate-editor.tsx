@@ -97,6 +97,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
   hideActions = false,
   toolbarTopOffset,
   onValueChange,
+  organizationId,
 }, ref) {
   const editorRef = useRef<PlateRichEditorRef>(null);
   const [dirty, setDirty] = useState(false);
@@ -219,6 +220,7 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
         enableComments={enableComments}
         enableCreateSection={enableCreateSection}
         toolbarTopOffset={toolbarTopOffset}
+        organizationId={organizationId}
         onAfterDiscussionMutation={onAutoSavePlateContent ? () => {
           // Read current editor state and persist plate_content silently
           // so comment marks survive a page refresh.

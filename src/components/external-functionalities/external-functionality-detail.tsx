@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 import type { ExternalFunctionalityDetailProps } from "@/types/external-functionalities"
 import type { ExternalFunctionalityTab as Tab } from "@/types/external-functionalities"
 import { ExternalFunctionalityParamsTab } from "./external-functionality-params-tab"
+import { ExternalFunctionalityPublishActionsTab } from "./external-functionality-publish-actions-tab"
+import { ExternalFunctionalityLogsTab } from "./external-functionality-logs-tab"
 
 export type { ExternalFunctionalityDetailProps } from "@/types/external-functionalities"
 
@@ -44,6 +46,9 @@ export function ExternalFunctionalityDetail({
     { id: "params", label: t("detail.tabs.params", "Params") },
     { id: "body", label: t("detail.tabs.body", "Body"), dot: !!functionality.body },
     { id: "logs", label: t("detail.tabs.logs", "Logs") },
+    ...(functionality.objective === "publish_asset"
+      ? [{ id: "lifecycle" as Tab, label: t("detail.tabs.lifecycle", "Lifecycle") }]
+      : []),
   ]
 
   return (
@@ -202,7 +207,18 @@ export function ExternalFunctionalityDetail({
                 )}
 
                 {activeTab === "logs" && (
-                  <EmptyTabState label={t("detail.tabs.logs", "Logs")} />
+                  <ExternalFunctionalityLogsTab
+                    organizationId={organizationId}
+                    systemId={systemId}
+                    functionalityId={functionality.id}
+                  />
+                )}
+
+                {activeTab === "lifecycle" && (
+                  <ExternalFunctionalityPublishActionsTab
+                    organizationId={organizationId}
+                    functionality={functionality}
+                  />
                 )}
               </>
             ),

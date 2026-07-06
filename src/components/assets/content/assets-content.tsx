@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2 } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2, Bell, Sparkles } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -17,9 +17,12 @@ import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
+import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DocumentAccessControl } from "@/components/assets/content/assets-access-control";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
+import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 
 import {
   DropdownMenu,
@@ -28,13 +31,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog";
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
+import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog";
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -49,6 +52,11 @@ import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/as
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
 import { CloneToNewDocumentDialog } from "@/components/assets/dialogs/assets-clone-to-new-document-dialog";
+import { ContentDeleteDialog } from "@/components/assets/dialogs/assets-content-delete-dialog";
+import { CloneExecutionDialog } from "@/components/assets/dialogs/assets-clone-execution-dialog";
+import { ApproveExecutionDialog } from "@/components/assets/dialogs/assets-approve-execution-dialog";
+import { DisapproveExecutionDialog } from "@/components/assets/dialogs/assets-disapprove-execution-dialog";
+import { DeleteCustomFieldDialog } from "@/components/assets/dialogs/assets-delete-custom-field-dialog";
 import { useOrganization } from "@/contexts/organization-context";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 import Markdown from "@/components/ui/markdown";
@@ -62,6 +70,7 @@ import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-expor
 import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
 import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
@@ -521,7 +530,7 @@ export function AssetContent({
   // Mutation for advancing lifecycle (publish / archive)
   const advanceLifecycleMutation = useMutation({
     mutationFn: withRefresh(
-      async (options?: { comment?: string; skip_published?: boolean }) => {
+      async (options?: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean }) => {
         preserveScrollPosition();
         const executionId = selectedExecutionId || documentContent?.execution_id;
         if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
@@ -540,6 +549,18 @@ export function AssetContent({
       setIsArchiveDialogOpen(false);
       handleApiError(error, { fallbackMessage: t('lifecycle.errorAdvance') });
     },
+  });
+
+  // Mutation for manual re-trigger of external publish
+  const runExternalPublishMutation = useMutation({
+    mutationFn: async () => {
+      const executionId = selectedExecutionId || documentContent?.execution_id;
+      const stepId = documentContent?.lifecycle_status?.current_step_id;
+      if (!executionId || !stepId || !selectedOrganizationId) throw new Error('Missing execution, step or organization');
+      return runExternalPublish(executionId, selectedOrganizationId, stepId);
+    },
+    meta: { successMessage: t('lifecycle.successRerunExternalPublish') },
+    onError: (error) => handleApiError(error, { fallbackMessage: t('lifecycle.errorRerunExternalPublish') }),
   });
 
   // Helper function to preserve scroll position
@@ -585,6 +606,7 @@ export function AssetContent({
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
+  const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -601,6 +623,7 @@ export function AssetContent({
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
+  const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
   useEffect(() => {
@@ -1893,34 +1916,34 @@ export function AssetContent({
                               onClick={() => setIsAssignVersionDialogOpen(true)}
                             />
                           )}
-                          {documentContent.lifecycle_status.can_check && (
-                            <>
-                              <HuemulButton
-                                variant="outline"
-                                size="sm"
-                                label={t('lifecycle.return')}
-                                icon={Undo2}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                                loading={rejectLifecycleMutation.isPending}
-                                tooltip={t('lifecycle.tooltipReturn')}
-                                onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                              />
-                              <HuemulButton
-                                variant="default"
-                                size="sm"
-                                label={t('lifecycle.complete')}
-                                icon={Check}
-                                iconPosition="left"
-                                iconClassName="h-3 w-3"
-                                className="h-6 text-xs px-2 hover:cursor-pointer"
-                                loading={checkLifecycleMutation.isPending}
-                                disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                                tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                                onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                              />
-                            </>
+                          {documentContent.lifecycle_status.can_rollback && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.return')}
+                              icon={Undo2}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={rejectLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipReturn')}
+                              onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                            />
+                          )}
+                          {documentContent.lifecycle_status.can_advance && (
+                            <HuemulButton
+                              variant="default"
+                              size="sm"
+                              label={t('lifecycle.complete')}
+                              icon={Check}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 hover:cursor-pointer"
+                              loading={checkLifecycleMutation.isPending}
+                              disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                              tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                              onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                            />
                           )}
                           {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
                             <HuemulButton
@@ -1948,6 +1971,19 @@ export function AssetContent({
                               loading={advanceLifecycleMutation.isPending}
                               tooltip={t('lifecycle.tooltipArchive')}
                               onClick={() => setIsArchiveDialogOpen(true)}
+                            />
+                          )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.rerunExternalPublish')}
+                              icon={RefreshCw}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={runExternalPublishMutation.isPending}
+                              onClick={() => runExternalPublishMutation.mutate()}
                             />
                           )}
                         </div>
@@ -2337,9 +2373,18 @@ export function AssetContent({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0 animate-in fade-in duration-300">
-                    <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <h1 className="text-lg font-semibold text-gray-900 wrap-break-word">{documentContent?.document_name || selectedFile.name}</h1>
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <h1 className="text-lg font-semibold text-gray-900 truncate cursor-default">{documentContent?.document_name || selectedFile.name}</h1>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-md">
+                              <p>{documentContent?.document_name || selectedFile.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <HuemulButton
                           requiredAccess="edit"
                           checkGlobalPermissions={true}
@@ -2357,7 +2402,7 @@ export function AssetContent({
 
                       </div>
                       {/* Mode Toggle + Version dropdown + More Options — always in the same position for muscle memory */}
-                      <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {canSwitchToEditorMode && (
                           <ViewModeToggle
                             isViewMode={isViewMode}
@@ -2388,6 +2433,15 @@ export function AssetContent({
                             dropdownAlign="end"
                           />
                         )}
+                        <HuemulButton
+                          size="sm"
+                          variant="ghost"
+                          icon={Bell}
+                          iconClassName="h-4 w-4"
+                          className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors"
+                          tooltip={t('content.notificationsTooltip')}
+                          onClick={() => setIsNotificationsSheetOpen(true)}
+                        />
                         {!isViewOnly && (
                           <MoreOptionsDropdown
                             isViewMode={isViewMode}
@@ -2412,6 +2466,7 @@ export function AssetContent({
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
+                            onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
                             onOpenContext={() => setIsContextSheetOpen(true)}
@@ -2429,30 +2484,122 @@ export function AssetContent({
                       </div>
                     </div>
                     
-                    {/* Metadata Row - Combined */}
-                    <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
-                      {selectedExecutionInfo && (
-                        <>
-                          <span>{selectedExecutionInfo.formattedDate}</span>
-                          {selectedExecutionInfo.isLatest && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
-                              {t('content.latest')}
+                    {/* Metadata Row - date/badges left, lifecycle buttons right (both modes) */}
+                    <div className="flex items-center justify-between gap-2">
+                      {/* Left: date + stage badges */}
+                      <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                        {selectedExecutionInfo && (
+                          <>
+                            <span>{selectedExecutionInfo.formattedDate}</span>
+                            {selectedExecutionInfo.isLatest && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-600">
+                                {t('content.latest')}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {documentContent?.lifecycle_status && (
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
+                              {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
                             </span>
-                          )}
-                        </>
-                      )}
+                            {documentContent.lifecycle_status.current_group && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                {documentContent.lifecycle_status.current_group}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {/* Right: lifecycle action buttons - always at end of line in both modes */}
                       {documentContent?.lifecycle_status && (
-                        <>
-                          <span className="text-gray-400">•</span>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
-                            {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
-                          </span>
-                          {documentContent.lifecycle_status.current_group && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                              {documentContent.lifecycle_status.current_group}
-                            </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('content.assignVersion')}
+                              icon={Tag}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={assignVersionMutation.isPending}
+                              tooltip={t('content.assignVersionTooltip')}
+                              onClick={() => setIsAssignVersionDialogOpen(true)}
+                              className="h-7 px-2.5 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
                           )}
-                        </>
+                          {documentContent.lifecycle_status.can_rollback && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.return')}
+                              icon={Undo2}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={rejectLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipReturn')}
+                              onClick={() => setIsRejectLifecycleDialogOpen(true)}
+                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
+                          )}
+                          {documentContent.lifecycle_status.can_advance && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.complete')}
+                              icon={Check}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={checkLifecycleMutation.isPending}
+                              disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
+                              tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
+                              onClick={() => setIsCheckLifecycleDialogOpen(true)}
+                              className="h-7 px-2.5 bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white hover:cursor-pointer transition-colors text-xs font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                          )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.publish')}
+                              icon={Globe}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={advanceLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipPublish')}
+                              onClick={() => setIsPublishDialogOpen(true)}
+                              className="h-7 px-2.5 bg-green-600 text-white hover:bg-green-700 hover:cursor-pointer transition-colors text-xs font-medium rounded-md"
+                            />
+                          )}
+                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.archive')}
+                              icon={Archive}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={advanceLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipArchive')}
+                              onClick={() => setIsArchiveDialogOpen(true)}
+                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
+                          )}
+                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.rerunExternalPublish')}
+                              icon={RefreshCw}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={runExternalPublishMutation.isPending}
+                              onClick={() => runExternalPublishMutation.mutate()}
+                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -2461,7 +2608,7 @@ export function AssetContent({
               </div>
             )}
             
-            {/* Action Buttons Section */}
+            {/* Action Buttons Section - editor mode only */}
             {!isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
@@ -2480,85 +2627,8 @@ export function AssetContent({
               </div>
             ) : (
             <div className="flex items-center justify-between gap-2 animate-in fade-in duration-300">
-              {/* LEFT GROUP - Lifecycle Actions, Sections, Dependencies, Context */}
+              {/* LEFT GROUP - Sections, Dependencies, Context */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Lifecycle action buttons */}
-                {documentContent?.lifecycle_status && (
-                  <>
-                    {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
-                      <HuemulButton
-                        size="sm"
-                        variant="ghost"
-                        label={t('content.assignVersion')}
-                        icon={Tag}
-                        iconPosition="left"
-                        iconClassName="h-3.5 w-3.5"
-                        loading={assignVersionMutation.isPending}
-                        tooltip={t('content.assignVersionTooltip')}
-                        onClick={() => setIsAssignVersionDialogOpen(true)}
-                        className="h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
-                      />
-                    )}
-                    {documentContent.lifecycle_status.can_check && (
-                      <>
-                        <HuemulButton
-                          size="sm"
-                          variant="ghost"
-                          label={t('lifecycle.return')}
-                          icon={Undo2}
-                          iconPosition="left"
-                          iconClassName="h-3.5 w-3.5"
-                          loading={rejectLifecycleMutation.isPending}
-                          tooltip={t('lifecycle.tooltipReturn')}
-                          onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                          className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                        />
-                        <HuemulButton
-                          size="sm"
-                          variant="ghost"
-                          label={t('lifecycle.complete')}
-                          icon={Check}
-                          iconPosition="left"
-                          iconClassName="h-3.5 w-3.5"
-                          loading={checkLifecycleMutation.isPending}
-                          disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                          tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                          onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                          className="h-7 px-2 text-[#4464f7] hover:bg-[#4464f7] hover:text-white hover:cursor-pointer transition-colors text-xs"
-                        />
-                      </>
-                    )}
-                    {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
-                      <HuemulButton
-                        size="sm"
-                        variant="ghost"
-                        label={t('lifecycle.publish')}
-                        icon={Globe}
-                        iconPosition="left"
-                        iconClassName="h-3.5 w-3.5"
-                        loading={advanceLifecycleMutation.isPending}
-                        tooltip={t('lifecycle.tooltipPublish')}
-                        onClick={() => setIsPublishDialogOpen(true)}
-                        className="h-7 px-2 text-green-600 hover:bg-green-600 hover:text-white hover:cursor-pointer transition-colors text-xs"
-                      />
-                    )}
-                    {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
-                      <HuemulButton
-                        size="sm"
-                        variant="ghost"
-                        label={t('lifecycle.archive')}
-                        icon={Archive}
-                        iconPosition="left"
-                        iconClassName="h-3.5 w-3.5"
-                        loading={advanceLifecycleMutation.isPending}
-                        tooltip={t('lifecycle.tooltipArchive')}
-                        onClick={() => setIsArchiveDialogOpen(true)}
-                        className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs"
-                      />
-                    )}
-                  </>
-                )}
-
                 {/* Sections sheet */}
                 {frontendPermissions.canAccessSectionSheet && (
                   <SectionSheet
@@ -2602,8 +2672,6 @@ export function AssetContent({
 
               {/* RIGHT GROUP - Refresh, TOC Toggle */}
               <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg min-w-0">
-                {/* Refresh button */}
-                {!isViewMode && (
                 <HuemulButton
                   size="sm"
                   variant="ghost"
@@ -2614,10 +2682,9 @@ export function AssetContent({
                   className="h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors hover:cursor-pointer"
                   tooltip={t('content.refreshContent')}
                 />
-                )}
 
-                {/* TOC Toggle button - desktop only, hidden in reader mode (moved to More Options) */}
-                {!isViewMode && selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
+                {/* TOC Toggle button - desktop only */}
+                {selectedFile.type === 'document' && documentContent?.content && tocItems.length > 0 &&
                  (!isSelectedVersionExecuting || (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))) && (
                   <HuemulButton
                     size="sm"
@@ -3015,7 +3082,30 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
-                        <div className="prose prose-gray prose-sm md:prose-base max-w-full">
+                        <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
+                          {/* Template instructions callout - shown once at the top */}
+                          {documentContent.template_instructions?.trim() && (
+                            <div className="not-prose mb-4">
+                              <HuemulExpandableText
+                                collapsible
+                                text={documentContent.template_instructions.trim()}
+                                collapsedLines={1}
+                                expandedMaxHeight={100}
+                                showMoreLabel={t('content.instructionsShowMore')}
+                                showLessLabel={t('content.instructionsShowLess')}
+                                triggerClassName="rounded-lg border border-gray-200 bg-white px-3 py-2"
+                                className="rounded-lg border border-gray-200 bg-white px-4 py-2.5"
+                                leading={
+                                  <span className="flex items-center gap-1.5 shrink-0">
+                                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {t('content.instructionsTitle')}
+                                    </span>
+                                  </span>
+                                }
+                              />
+                            </div>
+                          )}
                           {Array.isArray(documentContent.content) ? (
                             // New format: array of sections with separators
                             <>
@@ -3032,7 +3122,7 @@ export function AssetContent({
                           const realSectionId = section.section_id;
                           
                           // In reader mode, hide sections with empty content
-                          if (isViewMode && isSectionContentEmpty(section)) {
+                          if (isViewMode && section.section_type !== 'form' && isSectionContentEmpty(section)) {
                             return null;
                           }
                           
@@ -3049,7 +3139,14 @@ export function AssetContent({
                                     ai_suggestion_content: section.ai_suggestion_content,
                                     ai_suggestion_instruction: section.ai_suggestion_instruction,
                                     review_status: section.review_status,
+                                    form_fields: section.form_fields,
                                   }}
+                                  status={section.status}
+                                  responderName={
+                                    documentContent?.updated_by_user
+                                      ? `${documentContent.updated_by_user.name ?? ''} ${documentContent.updated_by_user.last_name ?? ''}`.trim()
+                                      : undefined
+                                  }
                                   onUpdate={handleSectionUpdate}
                                   readyToEdit={showEditorActions}
                                   sectionIndex={index}
@@ -3293,23 +3390,12 @@ export function AssetContent({
       />
 
       {/* Delete Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <ContentDeleteDialog
         open={isDeleteDialogOpen}
         onOpenChange={handleDeleteDialogChange}
-        title={deleteType === 'execution' ? t('content.deleteVersionTitle') : t('content.deleteDocumentTitle')}
-        description={
-          deleteType === 'execution' ? (
-            selectedExecutionInfo ? (
-              <>
-                {t('content.deleteExecutionDescription', { date: selectedExecutionInfo.formattedDate })}
-              </>
-            ) : (
-              t('content.deleteExecutionFallback')
-            )
-          ) : (
-            t('content.deleteDocumentDescription', { name: selectedFile?.name })
-          )
-        }
+        deleteType={deleteType}
+        documentName={selectedFile?.name}
+        executionFormattedDate={selectedExecutionInfo?.formattedDate}
         onAction={async () => {
           if (deleteType === 'document') {
             await handleDeleteDocument();
@@ -3317,25 +3403,14 @@ export function AssetContent({
             await deleteExecutionMutation.mutateAsync();
           }
         }}
-        actionLabel={t('content.deleteConfirm')}
-        actionVariant="destructive"
       />
 
       {/* Clone Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <CloneExecutionDialog
         open={isCloneDialogOpen}
         onOpenChange={handleCloneDialogChange}
-        title={t('content.cloneExecutionTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.cloneExecutionDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.cloneExecutionFallback')
-          )
-        }
+        executionName={selectedExecutionInfo?.name}
         onAction={() => cloneMutation.mutateAsync()}
-        actionLabel={t('content.cloneConfirm')}
-        actionVariant="default"
       />
 
       {/* Clone to New Document Dialog */}
@@ -3348,37 +3423,19 @@ export function AssetContent({
       />
 
       {/* Approve Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <ApproveExecutionDialog
         open={isApproveDialogOpen}
         onOpenChange={handleApproveDialogChange}
-        title={t('content.approveExecutionTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.approveExecutionDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.approveExecutionFallback')
-          )
-        }
+        executionName={selectedExecutionInfo?.name}
         onAction={() => approveMutation.mutateAsync()}
-        actionLabel={t('content.approveConfirm')}
-        actionVariant="default"
       />
 
       {/* Disapprove Confirmation AlertDialog */}
-      <HuemulAlertDialog
+      <DisapproveExecutionDialog
         open={isDisapproveDialogOpen}
         onOpenChange={handleDisapproveDialogChange}
-        title={t('content.disapproveTitle')}
-        description={
-          selectedExecutionInfo ? (
-            t('content.disapproveDescription', { name: selectedExecutionInfo.name })
-          ) : (
-            t('content.disapproveFallback')
-          )
-        }
+        executionName={selectedExecutionInfo?.name}
         onAction={() => disapproveMutation.mutateAsync()}
-        actionLabel={t('content.convertToDraft')}
-        actionVariant="destructive"
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
@@ -3409,18 +3466,18 @@ export function AssetContent({
         isProcessing={rejectLifecycleMutation.isPending}
       />
 
-      {/* Publish Confirmation AlertDialog */}
-      <LifecycleCommentDialog
+      {/* Publish Confirmation Dialog */}
+      <LifecyclePublishDialog
         open={isPublishDialogOpen}
         onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
-        title={t('lifecycle.publishTitle')}
-        description={t('lifecycle.publishDescription')}
-        onConfirm={(comment) => advanceLifecycleMutation.mutate({ comment })}
-        confirmLabel={t('lifecycle.publishConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
+        onConfirm={({ comment, run_external_publish }) =>
+          advanceLifecycleMutation.mutate({
+            comment,
+            publish_step_id: documentContent?.lifecycle_status?.current_step_id ?? undefined,
+            run_external_publish: run_external_publish || undefined,
+          })
+        }
         isProcessing={advanceLifecycleMutation.isPending}
-        variant="default"
       />
 
       {/* Archive Confirmation AlertDialog */}
@@ -3529,16 +3586,13 @@ export function AssetContent({
       />
 
       {/* Delete Custom Field Document Confirmation Dialog */}
-      <HuemulAlertDialog
+      <DeleteCustomFieldDialog
         open={isDeleteCustomFieldDocumentDialogOpen}
         onOpenChange={(open) => {
           if (!open) handleCancelDeleteCustomFieldDocument();
         }}
-        title={t('content.deleteCustomFieldTitle')}
-        description={t('content.deleteCustomFieldDescription', { name: customFieldDocumentToDelete?.name })}
+        fieldName={customFieldDocumentToDelete?.name}
         onAction={handleConfirmDeleteCustomFieldDocument}
-        actionLabel={t('content.deleteCustomFieldConfirm')}
-        actionVariant="destructive"
       />
 
       {/* Create Template from Document Dialog */}
@@ -3578,6 +3632,13 @@ export function AssetContent({
         isProcessing={renameVersionMutation.isPending}
       />
 
+      {/* Asset Permissions Sheet */}
+      <AssetLifecycleSheet
+        asset={selectedFile?.type === 'document' ? { id: selectedFile.id, name: documentContent?.document_name || selectedFile.name, document_type_id: documentContent?.document_type?.id ?? selectedFile.document_type?.id ?? null } : null}
+        open={isPermissionsSheetOpen}
+        onOpenChange={setIsPermissionsSheetOpen}
+      />
+
       {/* Asset Info Sheet */}
       <AssetsInfoSheet
         open={isInfoSheetOpen}
@@ -3598,6 +3659,16 @@ export function AssetContent({
           initialExecutionId={selectedExecutionId || documentContent?.execution_id}
         />
       )}
+
+      {/* Notifications Sheet */}
+      <AssetsNotificationsSheet
+        open={isNotificationsSheetOpen}
+        onOpenChange={setIsNotificationsSheetOpen}
+        documentId={selectedFile?.id ?? ''}
+        executionId={selectedExecutionId}
+        organizationId={selectedOrganizationId ?? ''}
+        allExecutions={allExecutions}
+      />
     </>
   );
 }

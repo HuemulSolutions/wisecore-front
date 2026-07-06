@@ -70,17 +70,17 @@ export function VersionSelectorDropdown({
   );
 
   return (
-    <div className="flex items-center bg-gray-50 p-1 rounded-lg">
+    <div className="flex items-center bg-gray-100 p-0.5 rounded-lg">
       {showCreateButton && (
         <HuemulButton
           size="sm"
           variant="ghost"
           onClick={onCreateExecution}
           disabled={isCreatingPending || hasExecutionInProcess}
-          className={`h-7 w-7 p-0 rounded-r-none transition-colors ${
+          className={`h-8 w-8 p-0 rounded-r-none transition-colors ${
             isCreatingPending || hasExecutionInProcess
               ? "text-gray-400 cursor-not-allowed"
-              : "text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer"
+              : "text-[#4464f7] hover:bg-gray-200 hover:text-[#3451e6] hover:cursor-pointer"
           }`}
           tooltip={
             isCreatingPending || hasExecutionInProcess
@@ -101,7 +101,7 @@ export function VersionSelectorDropdown({
           <HuemulButton
             size="sm"
             variant="ghost"
-            className={`h-7 px-2 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors text-xs hover:cursor-pointer flex items-center gap-1.5 ${
+            className={`h-8 px-2.5 text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-colors text-xs font-medium hover:cursor-pointer flex items-center gap-1.5 ${
               showCreateButton ? "rounded-l-none" : ""
             }`}
             tooltip={t("content.switchVersion")}

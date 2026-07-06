@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Edit3, Trash2, Sparkles, Copy } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { TemplateInfoSheet } from "./templates-info-sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,7 @@ import { useOrganization } from "@/contexts/organization-context";
 import { TemplateHeader } from "./templates-header";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
+import { CloneTemplateDialog } from "./templates-clone-dialog";
 import { AddSectionDialog } from "./templates-add-section-dialog";
 import { TemplateSectionsList } from "./templates-sections-list";
 import { TemplateEmptyState } from "./templates-empty-state";
@@ -27,7 +28,7 @@ export function TemplateContent({
   onTemplateDeleted,
   onTemplateCreated,
   onToggleSidebar,
-  // canCreate,
+  canCreate,
   canUpdate,
   canDelete,
   canListSections,
@@ -45,6 +46,7 @@ export function TemplateContent({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddingSectionOpen, setIsAddingSectionOpen] = useState(false);
   const [isCreateTemplateDialogOpen, setIsCreateTemplateDialogOpen] = useState(false);
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [isGeneratingIndividual, setIsGeneratingIndividual] = useState(false);
@@ -137,6 +139,7 @@ export function TemplateContent({
         <TemplateHeader
           templateName={templateData?.name || selectedTemplate.name}
           templateDescription={templateData?.description}
+          templateInstructions={templateData?.instructions ?? undefined}
           isMobile={isMobile}
           hasNoSections={!orderedSections || orderedSections.length === 0}
           isGenerating={isGenerating}
@@ -215,6 +218,18 @@ export function TemplateContent({
                       className="h-8 w-8 p-0 hover:bg-gray-100"
                       onClick={() => { refetch(); }}
                     />
+                    {canCreate && (
+                      <HuemulButton
+                        icon={Copy}
+                        iconClassName="h-4 w-4 text-gray-600"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isGenerating}
+                        tooltip={t('templates:content.cloneTemplate')}
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
+                        onClick={() => setIsCloneDialogOpen(true)}
+                      />
+                    )}
                     {canUpdate && (
                       <HuemulButton
                         icon={Edit3}
@@ -350,6 +365,7 @@ export function TemplateContent({
           templateId={selectedTemplate.id}
           templateName={templateData.name}
           templateDescription={templateData.description}
+          templateInstructions={templateData.instructions ?? undefined}
           organizationId={selectedOrganizationId!}
           onSuccess={() => {
             // Solo refrescar el template actual, no toda la lista
@@ -379,6 +395,17 @@ export function TemplateContent({
             organizationId={selectedOrganizationId!}
             existingSections={orderedSections}
             onGeneratingChange={setIsGeneratingIndividual}
+          />
+
+          <CloneTemplateDialog
+            open={isCloneDialogOpen}
+            onOpenChange={setIsCloneDialogOpen}
+            templateId={selectedTemplate.id}
+            organizationId={selectedOrganizationId!}
+            onSuccess={(cloned) => {
+              onRefresh();
+              onTemplateCreated?.(cloned);
+            }}
           />
         </>
       )}

@@ -12,18 +12,18 @@ export function ViewModeToggle({ isViewMode, onSwitchToReader, onSwitchToEditor 
   const { t } = useTranslation(["assets"]);
 
   return (
-    <div className="flex items-center bg-gray-100 p-0.5 rounded-md gap-0.5">
+    <div className="flex items-center bg-gray-100 p-0.5 rounded-lg gap-0.5">
       <HuemulButton
         size="sm"
         variant="ghost"
         onClick={onSwitchToReader}
         icon={Eye}
-        iconClassName="h-3 w-3"
+        iconClassName="h-3.5 w-3.5"
         label={t("content.reader")}
-        className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
+        className={`h-8 px-2.5 gap-1.5 text-xs font-medium rounded-md transition-all hover:cursor-pointer ${
           isViewMode
             ? "bg-white text-gray-900 shadow-sm"
-            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            : "text-gray-500 hover:text-gray-700"
         }`}
       />
       <HuemulButton
@@ -31,12 +31,12 @@ export function ViewModeToggle({ isViewMode, onSwitchToReader, onSwitchToEditor 
         variant="ghost"
         onClick={onSwitchToEditor}
         icon={Pencil}
-        iconClassName="h-3 w-3"
+        iconClassName="h-3.5 w-3.5"
         label={t("content.editor")}
-        className={`h-7 px-2 gap-1 text-xs font-medium rounded transition-all hover:cursor-pointer ${
+        className={`h-8 px-2.5 gap-1.5 text-xs font-medium rounded-md transition-all hover:cursor-pointer ${
           !isViewMode
-            ? "bg-white text-[#4464f7] shadow-sm"
-            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            ? "bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white shadow-sm"
+            : "text-gray-500 hover:text-gray-700"
         }`}
       />
     </div>

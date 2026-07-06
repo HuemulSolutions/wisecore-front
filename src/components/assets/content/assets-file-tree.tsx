@@ -22,6 +22,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
   (
     {
       onLoadChildren,
+      onRefresh,
       onCreateFile,
       onCreateFolder,
       onDelete,
@@ -83,10 +84,16 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       [onFileClick],
     )
 
+    const adaptedRefresh = useCallback(
+      onRefresh ? () => onRefresh() as Promise<HuemulTreeNode[]> : () => Promise.resolve([]),
+      [onRefresh],
+    )
+
     return (
       <HuemulFileTree
         ref={ref}
         onLoadChildren={onLoadChildren ? adaptedLoadChildren : undefined}
+        onRefresh={onRefresh ? adaptedRefresh : undefined}
         onCreateFile={onCreateFile ? adaptedCreateFile : undefined}
         onCreateFolder={onCreateFolder}
         onDelete={onDelete as ((nodeId: string, nodeType: string) => Promise<void>) | undefined}

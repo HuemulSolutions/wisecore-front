@@ -10,6 +10,7 @@ import {
   FileUpIcon,
   FilmIcon,
   ImageIcon,
+  LibraryIcon,
   LinkIcon,
 } from 'lucide-react';
 import { isUrl, KEYS } from 'platejs';
@@ -18,6 +19,8 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useFilePicker } from 'use-file-picker';
 import type { SelectedFilesOrErrors } from 'use-file-picker/types';
+
+import { useMediaReference } from '@/contexts/media-reference-context';
 
 import {
   AlertDialog,
@@ -89,6 +92,7 @@ export function MediaToolbarButton({
   const [open, setOpen] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const { t } = useTranslation('editor');
+  const { openPicker } = useMediaReference();
 
   const { openFilePicker } = useFilePicker({
     accept: currentConfig.accept,
@@ -147,6 +151,16 @@ export function MediaToolbarButton({
                 <LinkIcon />
                 {t('media.insertViaUrl')}
               </DropdownMenuItem>
+              {openPicker && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setTimeout(() => openPicker(editor), 0)
+                  }}
+                >
+                  <LibraryIcon />
+                  {t('media.insertMediaReference')}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

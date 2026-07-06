@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, GitMerge, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -41,6 +41,9 @@ import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import EditUserDialog from "@/components/users/users-edit-dialog"
+import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
+import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
+import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
 import { cn } from "@/lib/utils"
 import {
   ResizablePanelGroup,
@@ -189,9 +192,12 @@ export default function AppLayout() {
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const [profileDialogOpen, setProfileDialogOpen] = useState(false)
+  const [subscriptionsSheetOpen, setSubscriptionsSheetOpen] = useState(false)
+  const [notificationsSheetOpen, setNotificationsSheetOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isInSelectionFlow, setIsInSelectionFlow] = useState(false)
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
+  const unreadNotificationsCount = useUnreadNotificationsCount(selectedOrganizationId)
   const isSwitchingOrgRef = useRef(false)
   const lastSyncedUrlOrgRef = useRef<string | null>(null)
   const previousChatbotOrgRef = useRef<string | null>(null)
@@ -376,7 +382,7 @@ export default function AppLayout() {
   const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
   const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isOrgAdmin || isRootAdmin
-  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin
+  const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
 
   // Generate initials from user name
   const getUserInitials = (firstName: string, lastName: string): string => {
@@ -392,6 +398,18 @@ export default function AppLayout() {
   const handleUpdateProfile = () => {
     setTimeout(() => {
       setProfileDialogOpen(true)
+    }, 0)
+  }
+
+  const handleOpenSubscriptions = () => {
+    setTimeout(() => {
+      setSubscriptionsSheetOpen(true)
+    }, 0)
+  }
+
+  const handleOpenNotifications = () => {
+    setTimeout(() => {
+      setNotificationsSheetOpen(true)
     }, 0)
   }
 
@@ -587,7 +605,7 @@ export default function AppLayout() {
                 const currentPath = stripOrgPrefix(location.pathname)
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
-                  '/asset-types', '/custom-fields', '/asset-type-relationships', '/canvas',
+                  '/asset-types', '/custom-fields', '/canvas', '/media',
                   '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
                 ].some(isSettingsActive)
 
@@ -639,21 +657,22 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessDocumentTypes || isOrgAdmin) && (
-                          <DropdownMenuItem asChild>
-                            <Link to={buildPath("/asset-type-relationships")} className={settingsItemClass('/asset-type-relationships')}>
-                              <GitMerge className={settingsIconClass('/asset-type-relationships')} />
-                              <span className="flex-1">{t('settings.assetTypeRelationships')}</span>
-                              {isSettingsActive('/asset-type-relationships') && <Check className="h-3.5 w-3.5 ml-auto" />}
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
+
                         {(canAccessCanvas || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/canvas")} className={settingsItemClass('/canvas')}>
                               <LayoutPanelTop className={settingsIconClass('/canvas')} />
                               <span className="flex-1">{t('settings.canvas')}</span>
                               {isSettingsActive('/canvas') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {organizationToken && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/media")} className={settingsItemClass('/media')}>
+                              <Image className={settingsIconClass('/media')} />
+                              <span className="flex-1">{t('settings.media')}</span>
+                              {isSettingsActive('/media') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
@@ -741,13 +760,18 @@ export default function AppLayout() {
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="hover:cursor-pointer">
+                    <Button variant="ghost" size="icon" className="relative hover:cursor-pointer">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="" alt={`${user.name} ${user.last_name}`} />
                         <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold text-xs">
                           {getUserInitials(user.name, user.last_name)}
                         </AvatarFallback>
                       </Avatar>
+                      {organizationToken && unreadNotificationsCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
+                          {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                        </span>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -765,6 +789,29 @@ export default function AppLayout() {
                       <User className="h-4 w-4 mr-2" />
                       {t('header.updateProfile')}
                     </DropdownMenuItem>
+                    {organizationToken && (
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer"
+                        onSelect={handleOpenNotifications}
+                      >
+                        <BellRing className="h-4 w-4 mr-2" />
+                        {t('header.notifications')}
+                        {unreadNotificationsCount > 0 && (
+                          <span className="ml-auto inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-red-500 text-white text-[10px] font-medium leading-none">
+                            {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    )}
+                    {organizationToken && (
+                      <DropdownMenuItem
+                        className="hover:cursor-pointer"
+                        onSelect={handleOpenSubscriptions}
+                      >
+                        <Bell className="h-4 w-4 mr-2" />
+                        {t('header.mySubscriptions')}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="hover:cursor-pointer text-red-600" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
@@ -790,6 +837,24 @@ export default function AppLayout() {
             user={user}
             open={profileDialogOpen} 
             onOpenChange={setProfileDialogOpen} 
+          />
+        )}
+
+        {/* Subscriptions sheet */}
+        {organizationToken && selectedOrganizationId && (
+          <SubscriptionsSheet
+            open={subscriptionsSheetOpen}
+            onOpenChange={setSubscriptionsSheetOpen}
+            organizationId={selectedOrganizationId}
+          />
+        )}
+
+        {/* Notifications sheet */}
+        {organizationToken && selectedOrganizationId && (
+          <NotificationsSheet
+            open={notificationsSheetOpen}
+            onOpenChange={setNotificationsSheetOpen}
+            organizationId={selectedOrganizationId}
           />
         )}
         </NavKnowledgeProvider>

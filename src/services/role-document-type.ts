@@ -130,12 +130,17 @@ export const assignRoleDocumentTypePermissions = grantAccess;
 // This endpoint handles both admin and regular users - backend filters based on token
 export const getDocumentTypesWithInfo = async (
   page: number = 1,
-  pageSize: number = 100
+  pageSize: number = 100,
+  search?: string
 ): Promise<DocumentTypesWithInfoResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString()
   });
+
+  if (search?.trim()) {
+    params.set('search', search.trim());
+  }
 
   const response = await httpClient.fetch(
     `${backendUrl}/role-doctype/document_types/list_with_info?${params.toString()}`,

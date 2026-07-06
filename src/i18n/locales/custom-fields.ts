@@ -22,6 +22,7 @@ const translations = {
     bool: { en: "Boolean", es: "Booleano" },
     image: { en: "Image", es: "Imagen" },
     url: { en: "URL", es: "URL" },
+    list: { en: "List", es: "Lista" },
   },
   actions: {
     editCustomField: { en: "Edit Custom Field", es: "Editar Campo Personalizado" },
@@ -63,6 +64,15 @@ const translations = {
     nameTooLong: { en: "Name must be less than 255 characters", es: "El nombre debe tener menos de 255 caracteres" },
     descriptionTooLong: { en: "Description must be less than 1000 characters", es: "La descripción debe tener menos de 1000 caracteres" },
     dataTypeRequired: { en: "Data type is required", es: "El tipo de dato es requerido" },
+    listOptionsLabel: { en: "Options", es: "Opciones" },
+    listOptionsAddButton: { en: "Add option", es: "Agregar opción" },
+    optionIdLabel: { en: "ID", es: "ID" },
+    optionIdPlaceholder: { en: "e.g. cl", es: "ej. cl" },
+    optionNameLabel: { en: "Label", es: "Etiqueta" },
+    optionNamePlaceholder: { en: "e.g. Chile", es: "ej. Chile" },
+    optionsRequired: { en: "At least one option is required", es: "Se requiere al menos una opción" },
+    optionIdRequired: { en: "ID is required", es: "El ID es requerido" },
+    optionNameRequired: { en: "Label is required", es: "La etiqueta es requerida" },
   },
   addDialog: {
     title: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
@@ -93,6 +103,7 @@ const translations = {
     uploadFailed: { en: "Failed to upload image", es: "Error al subir la imagen" },
     saveExisting: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
     saveNew: { en: "Create & Add Field", es: "Crear y Agregar Campo" },
+    valuePlaceholderList: { en: "Select an option", es: "Selecciona una opción" },
   },
   emptyState: {
     accessDeniedDescription: { en: "You don't have permission to manage custom fields.", es: "No tienes permiso para gestionar campos personalizados." },

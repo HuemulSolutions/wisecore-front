@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { createTemplateSection } from "@/services/template_section";
 import { AddSectionFormSheet } from "@/components/sections/sections-add-form-sheet";
 import { Plus } from "lucide-react";
@@ -41,7 +41,7 @@ export function AddSectionDialog({
   });
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={(o) => {
         if (!o) setIsFormValid(false);
@@ -50,8 +50,7 @@ export function AddSectionDialog({
       title={t('sections:addDialog.title')}
       description={t('templates:addSection.description')}
       icon={Plus}
-      maxWidth="sm:max-w-3xl"
-      maxHeight="max-h-[90vh]"
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       cancelLabel={t('common:cancel')}
       saveAction={{
         label: addSectionMutation.isPending ? t('templates:addSection.saving') : t('templates:addSection.save'),
@@ -72,6 +71,6 @@ export function AddSectionDialog({
         onValidationChange={setIsFormValid}
         onGeneratingChange={handleGeneratingChange}
       />
-    </HuemulDialog>
+    </HuemulSheet>
   );
 }

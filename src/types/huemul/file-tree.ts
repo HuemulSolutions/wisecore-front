@@ -3,6 +3,7 @@ import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from 
 
 export interface HuemulFileTreeProps {
   onLoadChildren?: (folderId: string | null) => Promise<HuemulTreeNode[]>
+  onRefresh?: () => Promise<HuemulTreeNode[]>
   onCreateFile?: (parentId: string | null, name: string) => Promise<void>
   onCreateFolder?: (parentId: string | null, name: string) => Promise<void>
   onDelete?: (nodeId: string, nodeType: string) => Promise<void>

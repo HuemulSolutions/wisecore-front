@@ -56,6 +56,11 @@ export interface UpdateAssetTypeData {
   description?: string;
 }
 
+export interface CloneAssetTypeData {
+  name?: string | null;
+  include_relationships?: boolean;
+}
+
 // ========================================
 // Asset Type Page State & Actions
 // ========================================
@@ -69,9 +74,73 @@ export interface AssetTypePageState {
   rolePermissionsAssetType: AssetTypeWithRoles | null;
   lifecycleAssetType: AssetTypeWithRoles | null;
   viewRelationshipsAssetType: AssetTypeWithRoles | null;
+  templatesAssetType: AssetTypeWithRoles | null;
+  showExportDialog: boolean;
+  showImportSheet: boolean;
 }
 
 export interface AssetTypePageActions {
   updateState: (updates: Partial<AssetTypePageState>) => void;
   closeDialog: (dialog: keyof AssetTypePageState) => void;
+}
+
+// ========================================
+// Linked Templates (document_types/{id}/templates)
+// ========================================
+
+export type AssetKind = 'text' | 'design';
+
+export interface LinkedTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  instructions: string | null;
+  asset_kind: AssetKind | null;
+  canvas_id: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+}
+
+export interface DocumentTypeTemplatesResponse {
+  data: LinkedTemplate[];
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface DocumentTypeTemplateLinkResponse {
+  data: { message: string };
+  transaction_id: string;
+  timestamp: string;
+}
+
+// ========================================
+// Export / Import
+// ========================================
+
+export interface ExportAssetTypesBody {
+  document_type_ids: string[];
+  include_lifecycle?: boolean;
+  include_relationships?: boolean;
+}
+
+export interface ImportAssetTypesQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  document_type_ids?: string[];
+  include_lifecycle?: boolean;
+  include_relationships?: boolean;
+}
+
+export interface ImportAssetTypesData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportAssetTypesResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportAssetTypesData;
 }

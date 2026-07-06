@@ -21,10 +21,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X, Copy } from "lucide-react";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
+import { CloneTemplateDialog } from "./templates-clone-dialog";
 import type { TemplateItem } from '@/types/templates';
 import type { TemplatesSidebarProps } from '@/types/templates';
 export type { TemplatesSidebarProps } from '@/types/templates';
@@ -51,6 +53,7 @@ export function TemplatesSidebar({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editDialogTemplate, setEditDialogTemplate] = useState<TemplateItem | null>(null);
   const [deleteDialogTemplate, setDeleteDialogTemplate] = useState<TemplateItem | null>(null);
+  const [cloneDialogTemplate, setCloneDialogTemplate] = useState<TemplateItem | null>(null);
 
   const filteredTemplates = templates;
 
@@ -140,7 +143,8 @@ export function TemplatesSidebar({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-2 min-h-0">
+        <ScrollArea className="flex-1 min-h-0" type="hover">
+          <div className="px-2">
           <ContextMenu>
             <ContextMenuTrigger asChild>
               <div className="pt-1">
@@ -216,8 +220,8 @@ export function TemplatesSidebar({
                                 </p>
                               )}
                             </div>
-                            {(canUpdate || canDelete) && (
-                              <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {(canCreate || canUpdate || canDelete) && (
+                              <div className="shrink-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
@@ -230,6 +234,17 @@ export function TemplatesSidebar({
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    {canCreate && (
+                                      <DropdownMenuItem
+                                        className="hover:cursor-pointer"
+                                        onSelect={() => {
+                                          setTimeout(() => setCloneDialogTemplate(template), 0);
+                                        }}
+                                      >
+                                        <Copy className="mr-2 h-4 w-4" />
+                                        {t('templates:sidebar.cloneTemplate')}
+                                      </DropdownMenuItem>
+                                    )}
                                     {canUpdate && (
                                       <DropdownMenuItem
                                         className="hover:cursor-pointer"
@@ -238,7 +253,7 @@ export function TemplatesSidebar({
                                         }}
                                       >
                                         <Edit3 className="mr-2 h-4 w-4" />
-                                        Edit Template
+                                        {t('templates:sidebar.editTemplate')}
                                       </DropdownMenuItem>
                                     )}
                                     {canDelete && (
@@ -249,7 +264,7 @@ export function TemplatesSidebar({
                                         }}
                                       >
                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete Template
+                                        {t('templates:sidebar.deleteTemplate')}
                                       </DropdownMenuItem>
                                     )}
                                   </DropdownMenuContent>
@@ -260,6 +275,17 @@ export function TemplatesSidebar({
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent>
+                        {canCreate && (
+                          <ContextMenuItem
+                            className="hover:cursor-pointer"
+                            onSelect={() => {
+                              setTimeout(() => setCloneDialogTemplate(template), 0);
+                            }}
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            {t('templates:sidebar.cloneTemplate')}
+                          </ContextMenuItem>
+                        )}
                         {canUpdate && (
                           <ContextMenuItem
                             className="hover:cursor-pointer"
@@ -268,7 +294,7 @@ export function TemplatesSidebar({
                             }}
                           >
                             <Edit3 className="mr-2 h-4 w-4" />
-                            Edit Template
+                            {t('templates:sidebar.editTemplate')}
                           </ContextMenuItem>
                         )}
                         {canDelete && (
@@ -279,7 +305,7 @@ export function TemplatesSidebar({
                             }}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Template
+                            {t('templates:sidebar.deleteTemplate')}
                           </ContextMenuItem>
                         )}
                       </ContextMenuContent>
@@ -298,12 +324,13 @@ export function TemplatesSidebar({
                   }}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  New Template
+                  {t('templates:sidebar.newTemplate')}
                 </ContextMenuItem>
               )}
             </ContextMenuContent>
           </ContextMenu>
-        </div>
+          </div>
+        </ScrollArea>
       </div>
 
       <CreateTemplateDialog
@@ -340,6 +367,20 @@ export function TemplatesSidebar({
           onSuccess={() => {
             closeDeleteDialog();
             onTemplateDeleted?.();
+          }}
+        />
+      )}
+
+      {cloneDialogTemplate && organizationId && (
+        <CloneTemplateDialog
+          open={!!cloneDialogTemplate}
+          onOpenChange={(open) => { if (!open) setCloneDialogTemplate(null); }}
+          templateId={cloneDialogTemplate.id}
+          organizationId={organizationId}
+          onSuccess={(cloned) => {
+            setCloneDialogTemplate(null);
+            onRefresh?.();
+            onTemplateSelect(cloned);
           }}
         />
       )}

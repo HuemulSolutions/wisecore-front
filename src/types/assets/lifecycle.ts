@@ -28,6 +28,7 @@ export interface CreateStepContentProps {
   noOwner?: boolean
   useAllOrCustomOwner?: boolean
   onEditingChange?: (isEditing: boolean) => void
+  organizationId?: string
 }
 
 // ----------------------------------------
@@ -45,12 +46,14 @@ export interface StepContentProps {
   stepType: string
   stepLabel: string
   onEditingChange?: (isEditing: boolean) => void
+  organizationId?: string
 }
 
 export interface AssetTypeLifecycleDialogProps {
   assetType: AssetTypeWithRoles | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  organizationId?: string
 }
 
 // ----------------------------------------

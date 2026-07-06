@@ -22,11 +22,14 @@ export {
   deleteProvider,
 } from "@/services/llm-provider";
 
-export async function getLLMs(page: number = 1, pageSize: number = 10): Promise<LLMsResponse> {
+export async function getLLMs(page: number = 1, pageSize: number = 10, search?: string): Promise<LLMsResponse> {
     const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
     });
+    if (search?.trim()) {
+        params.set('search', search.trim());
+    }
     const response = await httpClient.get(`${backendUrl}/llms/?${params.toString()}`);
     return response.json();
 }

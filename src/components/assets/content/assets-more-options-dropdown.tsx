@@ -8,6 +8,7 @@ import {
   RefreshCw,
   List,
   Info,
+  ShieldCheck,
   BetweenHorizontalStart,
   Link2,
   Users,
@@ -32,7 +33,8 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 interface LifecycleStatus {
   stage: string;
   state: string;
-  can_check?: boolean;
+  can_advance?: boolean;
+  can_rollback?: boolean;
   version_required?: boolean;
   version?: string | null;
   current_group?: string | null;
@@ -80,6 +82,7 @@ interface MoreOptionsDropdownProps {
   onRefresh: () => void;
   onToggleToc: () => void;
   onOpenInfo: () => void;
+  onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenDependencies: () => void;
   onOpenContext: () => void;
@@ -118,6 +121,7 @@ export function MoreOptionsDropdown({
   onRefresh,
   onToggleToc,
   onOpenInfo,
+  onOpenPermissions,
   onOpenSections,
   onOpenDependencies,
   onOpenContext,
@@ -144,7 +148,8 @@ export function MoreOptionsDropdown({
 
   const hasLifecycleActions =
     lifecyclePermissions?.approve ||
-    lifecycleStatus?.can_check ||
+    lifecycleStatus?.can_advance ||
+    lifecycleStatus?.can_rollback ||
     lifecyclePermissions?.publish ||
     lifecyclePermissions?.archive;
 
@@ -175,24 +180,24 @@ export function MoreOptionsDropdown({
                   {t("content.assignVersion")}
                 </DropdownMenuItem>
               )}
-            {lifecycleStatus.can_check && (
-              <>
-                <DropdownMenuItem
-                  onSelect={() => setTimeout(onRejectLifecycle, 0)}
-                  className="hover:cursor-pointer"
-                >
-                  <Undo2 className="mr-2 h-4 w-4" />
-                  {t("lifecycle.return")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setTimeout(onCheckLifecycle, 0)}
-                  className="hover:cursor-pointer"
-                  disabled={lifecycleStatus.version_required && !lifecycleStatus.version}
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  {t("lifecycle.complete")}
-                </DropdownMenuItem>
-              </>
+            {lifecycleStatus.can_rollback && (
+              <DropdownMenuItem
+                onSelect={() => setTimeout(onRejectLifecycle, 0)}
+                className="hover:cursor-pointer"
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                {t("lifecycle.return")}
+              </DropdownMenuItem>
+            )}
+            {lifecycleStatus.can_advance && (
+              <DropdownMenuItem
+                onSelect={() => setTimeout(onCheckLifecycle, 0)}
+                className="hover:cursor-pointer"
+                disabled={lifecycleStatus.version_required && !lifecycleStatus.version}
+              >
+                <Check className="mr-2 h-4 w-4" />
+                {t("lifecycle.complete")}
+              </DropdownMenuItem>
             )}
             {lifecyclePermissions?.publish && lifecycleStatus.state === "approved" && (
               <DropdownMenuItem
@@ -217,7 +222,7 @@ export function MoreOptionsDropdown({
           </>
         )}
 
-        {/* ── Reader mode: refresh, TOC, info ── */}
+        {/* ── Reader mode: refresh, TOC ── */}
         {isViewMode && (
           <>
             <DropdownMenuItem
@@ -237,15 +242,26 @@ export function MoreOptionsDropdown({
                 {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              onSelect={() => setTimeout(onOpenInfo, 0)}
-              className="hover:cursor-pointer"
-            >
-              <Info className="mr-2 h-4 w-4" />
-              {t("content.assetInfo")}
-            </DropdownMenuItem>
           </>
         )}
+
+        {/* ── Asset Info (visible in both reader and editor mode) ── */}
+        <DropdownMenuItem
+          onSelect={() => setTimeout(onOpenInfo, 0)}
+          className="hover:cursor-pointer"
+        >
+          <Info className="mr-2 h-4 w-4" />
+          {t("content.assetInfo")}
+        </DropdownMenuItem>
+
+        {/* ── Asset Permissions (always visible) ── */}
+        <DropdownMenuItem
+          onSelect={() => setTimeout(onOpenPermissions, 0)}
+          className="hover:cursor-pointer"
+        >
+          <ShieldCheck className="mr-2 h-4 w-4" />
+          {t("content.assetPermissions")}
+        </DropdownMenuItem>
 
         {/* ── Sections / Dependencies / Context ── */}
         {frontendPermissions.canAccessSectionSheet &&

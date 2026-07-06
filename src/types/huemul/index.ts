@@ -1,5 +1,6 @@
 export * from './alert-dialog'
 export * from './button'
+export * from './combobox'
 export * from './dialog'
 export * from './field'
 export * from './file-tree'

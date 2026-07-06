@@ -45,6 +45,7 @@ export interface TemplateEmptyStateProps {
 export interface TemplateHeaderProps {
   templateName: string;
   templateDescription?: string;
+  templateInstructions?: string;
   isMobile: boolean;
   hasNoSections: boolean;
   isGenerating: boolean;

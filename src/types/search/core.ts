@@ -62,4 +62,5 @@ export interface SearchParams {
   sort?: string | null;
   page?: number;
   page_size?: number;
+  custom_field_filter?: string[];
 }

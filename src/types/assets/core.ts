@@ -136,6 +136,11 @@ export interface ExecutionInfo {
   version_major: number | null;
   version_minor: number | null;
   version_patch: number | null;
+  content_hash: string | null;
+  expiration_date: string | null;
+  estimated_publication_date: string | null;
+  review_date: string | null;
+  audit_date: string | null;
 }
 
 /**
@@ -160,7 +165,8 @@ export interface LifecycleStatus {
   current_group: string | null;
   current_group_order: number;
   current_step_id: string | null;
-  can_check: boolean;
+  can_advance: boolean;
+  can_rollback: boolean;
   will_advance_phase: boolean;
   version: string | null;
   version_required: boolean;
@@ -223,6 +229,7 @@ export interface AssetContentResponse {
     description?: string;
     execution_id: string;
     execution_name: string;
+    content_hash: string | null;
     template_id: string | null;
     template_name: string | null;
     document_type: DocumentType;
@@ -331,7 +338,7 @@ export interface ContentSection {
   id: string;
   section_id?: string;
   section_name?: string;
-  section_type?: 'ai' | 'manual' | 'reference';
+  section_type?: 'ai' | 'manual' | 'reference' | 'form';
   content: string;
   plate_content?: string[];
   source_section_id?: string | null;
@@ -345,6 +352,7 @@ export interface ContentSection {
   ai_suggestion_instruction?: string | null;
   ai_suggestion_error?: string | null;
   review_status?: 'editing' | 'reviewing' | 'finished' | null;
+  form_fields?: import('../sections/core').FormFieldValue[];
 }
 
 export interface LibraryContentProps {

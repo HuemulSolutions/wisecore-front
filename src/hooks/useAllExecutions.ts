@@ -41,6 +41,7 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
     template_id,
     document_type_id,
     sort,
+    custom_field_filter,
   } = options
 
   const params = {
@@ -68,6 +69,7 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
     template_id,
     document_type_id,
     sort,
+    custom_field_filter,
   }
 
   return useQuery({
@@ -98,6 +100,7 @@ export function useAllExecutions(organizationId: string, options: UseAllExecutio
         template_id,
         document_type_id,
         sort,
+        custom_field_filter,
       }),
     enabled: enabled && !!organizationId,
     placeholderData: (prev) => prev,

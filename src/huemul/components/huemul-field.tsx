@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Loader2 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { HelpCircle, Asterisk, Check, ChevronsUpDown, X, CalendarIcon, UploadIcon, Star, Clock } from "lucide-react";
+import { format, parse, parseISO, isValid } from "date-fns";
 import { ar, de, enUS, es, fr, it, ja, ptBR, zhCN, type Locale } from "date-fns/locale";
 import { tokenize, tokenStyle } from "./json-viewer";
 import type {
@@ -28,8 +28,10 @@ export type {
 }
 
 import SectionPlateEditor from "@/components/plate-editor/section-plate-editor";
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 
 import { cn } from "@/lib/utils";
+import { NUMERIC_DATE_PATTERN } from "@/lib/format-date-range";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,6 +51,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Tooltip,
   TooltipContent,
@@ -75,6 +83,111 @@ function getBrowserDateLocale(): Locale {
   return DATE_FNS_LOCALE_MAP[lang]
     ?? DATE_FNS_LOCALE_MAP[lang.split('-')[0]]
     ?? enUS;
+}
+
+// ── Date/Time helpers ──────────────────────────────────────────────────────
+
+// Localized short date pattern (e.g. "MM/dd/yyyy" en, "dd/MM/yyyy" es), used for
+// both display (`format`) and typed input parsing (`parse`) so they stay in sync.
+function getDatePattern(locale: Locale): string {
+  const short = locale.formatLong?.date({ width: "short" }) ?? "dd/MM/yyyy";
+  return short
+    .replace(/y+/, "yyyy")
+    .replace(/d+/, "dd")
+    .replace(/M+/, "MM");
+}
+
+const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+// Pad a typed/partial "H:m" or "HH:mm:ss" string to canonical "HH:mm" or "HH:mm:ss".
+function normalizeTime(str: string, withSeconds = true): string {
+  const [h = "0", m = "0", s = "0"] = str.split(":");
+  const pad = (n: string) => n.padStart(2, "0");
+  return withSeconds
+    ? `${pad(h)}:${pad(m)}:${pad(s)}`
+    : `${pad(h)}:${pad(m)}`;
+}
+
+// Scrollable hour/minute(/second) columns shared by the time and datetime pickers.
+// `value` is "HH:mm" or "HH:mm:ss"; `onChange` receives the recomposed string.
+function TimeColumns({
+  value,
+  onChange,
+  withSeconds = true,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  withSeconds?: boolean;
+}) {
+  const [h, m, s] = normalizeTime(value || "00:00:00").split(":");
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+  const seconds = Array.from({ length: 60 }, (_, i) => i);
+
+  const set = (part: "h" | "m" | "s", n: number) => {
+    const cur = normalizeTime(value || "00:00:00").split(":");
+    const idx = part === "h" ? 0 : part === "m" ? 1 : 2;
+    cur[idx] = String(n).padStart(2, "0");
+    onChange(normalizeTime(cur.join(":"), withSeconds));
+  };
+
+  const Column = ({
+    items,
+    selected,
+    part,
+  }: {
+    items: number[];
+    selected: string;
+    part: "h" | "m" | "s";
+  }) => {
+    const listRef = React.useRef<HTMLDivElement>(null);
+    const selectedRef = React.useRef<HTMLButtonElement>(null);
+
+    // Center the selected value when the popover opens / selection changes.
+    React.useEffect(() => {
+      const list = listRef.current;
+      const el = selectedRef.current;
+      if (list && el) {
+        list.scrollTop = el.offsetTop - list.clientHeight / 2 + el.clientHeight / 2;
+      }
+    }, [selected]);
+
+    return (
+      <div
+        ref={listRef}
+        className="relative flex max-h-72 w-20 flex-col overflow-y-auto p-1"
+        onWheel={(e) => e.stopPropagation()}
+      >
+        {items.map((n) => {
+          const label = String(n).padStart(2, "0");
+          const isSelected = label === selected;
+          return (
+            <button
+              key={n}
+              ref={isSelected ? selectedRef : undefined}
+              type="button"
+              onClick={() => set(part, n)}
+              className={cn(
+                "rounded-sm px-3 py-1.5 text-base tabular-nums outline-none hover:cursor-pointer",
+                "hover:bg-accent hover:text-accent-foreground",
+                isSelected && "bg-primary text-primary-foreground hover:bg-primary",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex divide-x divide-border">
+      <Column items={hours} selected={h} part="h" />
+      <Column items={minutes} selected={m} part="m" />
+      {withSeconds && <Column items={seconds} selected={s} part="s" />}
+    </div>
+  );
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -423,6 +536,7 @@ function FileInputField({
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileChange?: (files: FileList | null) => void;
 }) {
+  const { t } = useTranslation('common');
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = React.useState<string | null>(null);
 
@@ -432,7 +546,7 @@ function FileInputField({
       setFileName(
         files.length === 1
           ? files[0].name
-          : `${files.length} files selected`,
+          : t('filesSelected', { count: files.length }),
       );
     } else {
       setFileName(null);
@@ -472,7 +586,7 @@ function FileInputField({
       >
         <UploadIcon className="size-4 shrink-0" />
         <span className="truncate">
-          {fileName ?? "Choose a file..."}
+          {fileName ?? t('chooseFile')}
         </span>
       </Button>
     </>
@@ -499,40 +613,402 @@ function DateInputField({
   inputClassName?: string;
 }) {
   const { t } = useTranslation('common');
-  const [open, setOpen] = React.useState(false);
+  const locale = getBrowserDateLocale();
+  const pattern = getDatePattern(locale);
+
   const strValue = String(value ?? "");
   const selected = strValue ? parseISO(strValue) : undefined;
 
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+  const [open, setOpen] = React.useState(false);
+  const [month, setMonth] = React.useState<Date | undefined>(selected);
+  const [text, setText] = React.useState(
+    selected && isValid(selected) ? format(selected, pattern, { locale }) : "",
+  );
+
+  // Keep the visible text in sync when the controlled value changes externally.
+  React.useEffect(() => {
+    const next = strValue ? parseISO(strValue) : undefined;
+    setText(next && isValid(next) ? format(next, pattern, { locale }) : "");
+    if (next && isValid(next)) setMonth(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strValue]);
+
+  const handleTextChange = (raw: string) => {
+    setText(raw);
+    if (!raw.trim()) {
+      onChange?.("");
+      return;
+    }
+    const parsed = parse(raw, pattern, new Date(), { locale });
+    if (isValid(parsed)) {
+      onChange?.(parsed.toISOString());
+      setMonth(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    if (!text.trim()) {
+      onChange?.("");
+      return;
+    }
+    const parsed = parse(text, pattern, new Date(), { locale });
+    if (isValid(parsed)) {
+      setText(format(parsed, pattern, { locale }));
+    } else {
+      // Revert to the last valid value.
+      setText(selected && isValid(selected) ? format(selected, pattern, { locale }) : "");
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={fieldId}
-          type="button"
-          variant="outline"
-          disabled={disabled}
-          aria-invalid={!!error || undefined}
+      <div ref={anchorRef} className="w-full">
+        <InputGroup
           className={cn(
-            "w-full justify-start font-normal hover:cursor-pointer gap-2",
-            !strValue && "text-muted-foreground",
             error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
             inputClassName,
           )}
         >
-          <CalendarIcon className="h-4 w-4 shrink-0" />
-          {selected ? format(selected, "d MMM yyyy", { locale: getBrowserDateLocale() }) : (placeholder || t('pickDate'))}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+          <InputGroupInput
+            id={fieldId}
+            value={text}
+            placeholder={placeholder || pattern}
+            disabled={disabled}
+            aria-invalid={!!error || undefined}
+            onChange={(e) => handleTextChange(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={handleBlur}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setOpen(true);
+              }
+            }}
+          />
+          <InputGroupAddon align="inline-start">
+            <PopoverTrigger asChild>
+              <InputGroupButton
+                variant="ghost"
+                size="icon-xs"
+                disabled={disabled}
+                aria-label={t('selectDate')}
+              >
+                <CalendarIcon />
+              </InputGroupButton>
+            </PopoverTrigger>
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        alignOffset={0}
+        sideOffset={10}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+        }}
+      >
         <Calendar
           mode="single"
           selected={selected}
-          locale={getBrowserDateLocale()}
+          month={month}
+          onMonthChange={setMonth}
+          captionLayout="dropdown"
+          locale={locale}
           onSelect={(day) => {
             onChange?.(day ? day.toISOString() : "");
+            setText(day ? format(day, pattern, { locale }) : "");
             setOpen(false);
           }}
         />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── Time Field ──────────────────────────────────────────────────────────────
+
+function TimeInputField({
+  fieldId,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  error,
+  inputClassName,
+  withSeconds = true,
+}: {
+  fieldId: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+  withSeconds?: boolean;
+}) {
+  const { t } = useTranslation('common');
+  const strValue = String(value ?? "");
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+  const [open, setOpen] = React.useState(false);
+  const [text, setText] = React.useState(strValue);
+
+  React.useEffect(() => {
+    setText(strValue);
+  }, [strValue]);
+
+  const handleTextChange = (raw: string) => {
+    setText(raw);
+    if (!raw.trim()) {
+      onChange?.("");
+      return;
+    }
+    if (TIME_RE.test(raw)) {
+      onChange?.(normalizeTime(raw, withSeconds));
+    }
+  };
+
+  const handleBlur = () => {
+    if (!text.trim()) {
+      onChange?.("");
+      return;
+    }
+    if (TIME_RE.test(text)) {
+      const normalized = normalizeTime(text, withSeconds);
+      setText(normalized);
+      onChange?.(normalized);
+    } else {
+      setText(strValue);
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div ref={anchorRef} className="w-full">
+        <InputGroup
+          className={cn(
+            error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+            inputClassName,
+          )}
+        >
+          <InputGroupInput
+            id={fieldId}
+            value={text}
+            placeholder={placeholder || (withSeconds ? "HH:mm:ss" : "HH:mm")}
+            disabled={disabled}
+            aria-invalid={!!error || undefined}
+            onChange={(e) => handleTextChange(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={handleBlur}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setOpen(true);
+              }
+            }}
+          />
+          <InputGroupAddon align="inline-start">
+            <PopoverTrigger asChild>
+              <InputGroupButton
+                variant="ghost"
+                size="icon-xs"
+                disabled={disabled}
+                aria-label={t('selectTime')}
+              >
+                <Clock />
+              </InputGroupButton>
+            </PopoverTrigger>
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        alignOffset={0}
+        sideOffset={10}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+        }}
+      >
+        <TimeColumns
+          value={normalizeTime(strValue || "00:00:00", withSeconds)}
+          withSeconds={withSeconds}
+          onChange={(next) => {
+            setText(next);
+            onChange?.(next);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── DateTime Field ────────────────────────────────────────────────────────
+
+function DateTimeInputField({
+  fieldId,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  error,
+  inputClassName,
+  withSeconds = true,
+}: {
+  fieldId: string;
+  value?: string | number | boolean;
+  onChange?: (value: string | number | boolean) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  inputClassName?: string;
+  withSeconds?: boolean;
+}) {
+  const { t } = useTranslation('common');
+  const locale = getBrowserDateLocale();
+  const timeMask = withSeconds ? "HH:mm:ss" : "HH:mm";
+  const pattern = `${getDatePattern(locale)} ${timeMask}`;
+  const storePattern = withSeconds ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd'T'HH:mm";
+
+  const strValue = String(value ?? "");
+  // Stored as local "yyyy-MM-dd'T'HH:mm(:ss)" (no Z), like a native datetime-local input.
+  const selected = strValue ? parseISO(strValue) : undefined;
+  const hasValidValue = !!selected && isValid(selected);
+
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+  const [open, setOpen] = React.useState(false);
+  const [month, setMonth] = React.useState<Date | undefined>(
+    hasValidValue ? selected : undefined,
+  );
+  const [text, setText] = React.useState(
+    hasValidValue ? format(selected!, pattern, { locale }) : "",
+  );
+
+  React.useEffect(() => {
+    const next = strValue ? parseISO(strValue) : undefined;
+    const ok = !!next && isValid(next);
+    setText(ok ? format(next!, pattern, { locale }) : "");
+    if (ok) setMonth(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strValue]);
+
+  const emit = (date: Date) => onChange?.(format(date, storePattern));
+
+  const handleTextChange = (raw: string) => {
+    setText(raw);
+    if (!raw.trim()) {
+      onChange?.("");
+      return;
+    }
+    const parsed = parse(raw, pattern, new Date(), { locale });
+    if (isValid(parsed)) {
+      emit(parsed);
+      setMonth(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    if (!text.trim()) {
+      onChange?.("");
+      return;
+    }
+    const parsed = parse(text, pattern, new Date(), { locale });
+    if (isValid(parsed)) {
+      setText(format(parsed, pattern, { locale }));
+    } else {
+      setText(hasValidValue ? format(selected!, pattern, { locale }) : "");
+    }
+  };
+
+  // Current date+time as the base for popover edits (defaults to today @ 00:00:00).
+  const base = hasValidValue ? selected! : new Date(new Date().setHours(0, 0, 0, 0));
+  const timeStr = format(base, "HH:mm:ss");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div ref={anchorRef} className="w-full">
+        <InputGroup
+          className={cn(
+            error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+            inputClassName,
+          )}
+        >
+          <InputGroupInput
+            id={fieldId}
+            value={text}
+            placeholder={placeholder || pattern}
+            disabled={disabled}
+            aria-invalid={!!error || undefined}
+            onChange={(e) => handleTextChange(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={handleBlur}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setOpen(true);
+              }
+            }}
+          />
+          <InputGroupAddon align="inline-start">
+            <PopoverTrigger asChild>
+              <InputGroupButton
+                variant="ghost"
+                size="icon-xs"
+                disabled={disabled}
+                aria-label={t('selectDate')}
+              >
+                <CalendarIcon />
+              </InputGroupButton>
+            </PopoverTrigger>
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        alignOffset={0}
+        sideOffset={10}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+        }}
+      >
+        <div className="flex items-start">
+          <Calendar
+            mode="single"
+            selected={hasValidValue ? selected : undefined}
+            month={month}
+            onMonthChange={setMonth}
+            captionLayout="dropdown"
+            locale={locale}
+            onSelect={(day) => {
+              if (!day) return;
+              const [h, m, s] = timeStr.split(":").map(Number);
+              const next = new Date(day);
+              next.setHours(h, m, s, 0);
+              emit(next);
+              setText(format(next, pattern, { locale }));
+              setMonth(next);
+            }}
+          />
+          <div className="border-l border-border">
+            <TimeColumns
+              value={timeStr}
+              withSeconds={withSeconds}
+              onChange={(nextTime) => {
+                const [h, m, s = 0] = nextTime.split(":").map(Number);
+                const next = new Date(base);
+                next.setHours(h, m, s, 0);
+                emit(next);
+                setText(format(next, pattern, { locale }));
+                setMonth(next);
+              }}
+            />
+          </div>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -564,6 +1040,9 @@ function DateRangeField({
   inputClassName?: string;
 }) {
   const { t } = useTranslation('common');
+  const locale = getBrowserDateLocale();
+  const pattern = NUMERIC_DATE_PATTERN; // "dd/MM/yyyy"
+
   const [open, setOpen] = React.useState(false);
 
   // Derive initial mode from which values are set
@@ -574,37 +1053,91 @@ function DateRangeField({
   const selectedSingle = dateValue ? parseISO(dateValue) : undefined;
   const selectedFrom = valueFrom ? parseISO(valueFrom) : undefined;
   const selectedTo = valueTo ? parseISO(valueTo) : undefined;
-  const hasValue = mode === 'single' ? !!dateValue : !!(valueFrom || valueTo);
 
-  let displayText: string;
-  const browserLocale = getBrowserDateLocale();
-  if (mode === 'single') {
-    displayText = dateValue
-      ? format(parseISO(dateValue), 'd MMM yyyy', { locale: browserLocale })
-      : placeholder ?? t('anyDate');
-  } else if (valueFrom && valueTo) {
-    const from = parseISO(valueFrom);
-    const to = parseISO(valueTo);
-    const sameYear = from.getFullYear() === to.getFullYear();
-    displayText = sameYear
-      ? `${format(from, 'd MMM', { locale: browserLocale })} – ${format(to, 'd MMM yyyy', { locale: browserLocale })}`
-      : `${format(from, 'd MMM yyyy', { locale: browserLocale })} – ${format(to, 'd MMM yyyy', { locale: browserLocale })}`;
-  } else if (valueFrom) {
-    displayText = `${t('dateFrom')} ${format(parseISO(valueFrom), 'd MMM yyyy', { locale: browserLocale })}`;
-  } else if (valueTo) {
-    displayText = `${t('dateTo')} ${format(parseISO(valueTo), 'd MMM yyyy', { locale: browserLocale })}`;
-  } else {
-    displayText = placeholder ?? t('anyDate');
-  }
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+  const [month, setMonth] = React.useState<Date | undefined>(
+    selectedSingle ?? selectedFrom,
+  );
 
-  function handleClear(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (mode === 'single') {
+  const fmt = (d?: Date) => (d && isValid(d) ? format(d, pattern, { locale }) : "");
+
+  // Visible text for each input (kept in sync with the controlled ISO values).
+  const [text, setText] = React.useState(fmt(selectedSingle));
+  const [textFrom, setTextFrom] = React.useState(fmt(selectedFrom));
+  const [textTo, setTextTo] = React.useState(fmt(selectedTo));
+
+  React.useEffect(() => {
+    const d = dateValue ? parseISO(dateValue) : undefined;
+    setText(fmt(d));
+    if (d && isValid(d)) setMonth(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateValue]);
+
+  React.useEffect(() => {
+    const d = valueFrom ? parseISO(valueFrom) : undefined;
+    setTextFrom(fmt(d));
+    if (d && isValid(d)) setMonth(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueFrom]);
+
+  React.useEffect(() => {
+    setTextTo(fmt(valueTo ? parseISO(valueTo) : undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueTo]);
+
+  // ── Single-mode typing ─────────────────────────────────────────────────────
+  const handleSingleChange = (raw: string) => {
+    setText(raw);
+    if (!raw.trim()) {
       onDateChange?.('');
-    } else {
-      onDateRangeChange?.('', '');
+      return;
     }
-  }
+    const parsed = parse(raw, pattern, new Date(), { locale });
+    if (isValid(parsed)) {
+      onDateChange?.(parsed.toISOString());
+      setMonth(parsed);
+    }
+  };
+
+  const handleSingleBlur = () => {
+    if (!text.trim()) {
+      onDateChange?.('');
+      return;
+    }
+    const parsed = parse(text, pattern, new Date(), { locale });
+    setText(isValid(parsed) ? fmt(parsed) : fmt(selectedSingle));
+  };
+
+  // ── Range-mode typing ──────────────────────────────────────────────────────
+  const handleRangeChange = (which: 'from' | 'to', raw: string) => {
+    if (which === 'from') setTextFrom(raw);
+    else setTextTo(raw);
+
+    let fromIso = valueFrom ?? '';
+    let toIso = valueTo ?? '';
+    if (!raw.trim()) {
+      if (which === 'from') fromIso = '';
+      else toIso = '';
+      onDateRangeChange?.(fromIso, toIso);
+      return;
+    }
+    const parsed = parse(raw, pattern, new Date(), { locale });
+    if (isValid(parsed)) {
+      if (which === 'from') fromIso = parsed.toISOString();
+      else toIso = parsed.toISOString();
+      onDateRangeChange?.(fromIso, toIso);
+      setMonth(parsed);
+    }
+  };
+
+  const handleRangeBlur = (which: 'from' | 'to') => {
+    const value = which === 'from' ? textFrom : textTo;
+    const selected = which === 'from' ? selectedFrom : selectedTo;
+    const setTxt = which === 'from' ? setTextFrom : setTextTo;
+    if (!value.trim()) return;
+    const parsed = parse(value, pattern, new Date(), { locale });
+    setTxt(isValid(parsed) ? fmt(parsed) : fmt(selected));
+  };
 
   function handleModeChange(next: 'single' | 'range') {
     if (next === mode) return;
@@ -619,47 +1152,132 @@ function DateRangeField({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <Button
+      <div ref={anchorRef} className="w-full">
+        {mode === 'single' ? (
+          <InputGroup
+            className={cn(
+              error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+              inputClassName,
+            )}
+          >
+            <InputGroupInput
+              id={fieldId}
+              value={text}
+              placeholder={placeholder || pattern}
+              disabled={disabled}
+              aria-invalid={!!error || undefined}
+              onChange={(e) => handleSingleChange(e.target.value)}
+              onFocus={() => setOpen(true)}
+              onBlur={handleSingleBlur}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setOpen(true);
+                }
+              }}
+            />
+            <InputGroupAddon align="inline-start">
+              <PopoverTrigger asChild>
+                <InputGroupButton
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={disabled}
+                  aria-label={t('selectDate')}
+                >
+                  <CalendarIcon />
+                </InputGroupButton>
+              </PopoverTrigger>
+            </InputGroupAddon>
+            {!!dateValue && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  variant="ghost"
+                  size="icon-xs"
+                  disabled={disabled}
+                  aria-label="Clear"
+                  onClick={() => onDateChange?.('')}
+                >
+                  <X />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+        ) : (
+          <div className="flex w-full items-center gap-2">
+            <InputGroup
+              className={cn(
+                "flex-1",
+                error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+                inputClassName,
+              )}
+            >
+              <InputGroupInput
                 id={fieldId}
-                type="button"
-                variant="outline"
+                value={textFrom}
+                placeholder={`${t('dateFrom')} ${pattern}`}
+                aria-label={t('dateFrom')}
                 disabled={disabled}
                 aria-invalid={!!error || undefined}
-                className={cn(
-                  "w-full justify-start font-normal hover:cursor-pointer gap-2",
-                  !hasValue && "text-muted-foreground",
-                  error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
-                  inputClassName,
-                )}
-              >
-                <CalendarIcon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 truncate text-left">{displayText}</span>
-                {hasValue && (
-                  <span
-                    role="button"
-                    aria-label="Clear"
-                    tabIndex={-1}
-                    className="shrink-0 rounded-sm text-muted-foreground hover:text-foreground hover:cursor-pointer"
-                    onClick={handleClear}
+                onChange={(e) => handleRangeChange('from', e.target.value)}
+                onFocus={() => setOpen(true)}
+                onBlur={() => handleRangeBlur('from')}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setOpen(true);
+                  }
+                }}
+              />
+              <InputGroupAddon align="inline-start">
+                <PopoverTrigger asChild>
+                  <InputGroupButton
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={disabled}
+                    aria-label={t('selectDate')}
                   >
-                    <X className="size-3.5" />
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          {hasValue && (
-            <TooltipContent side="bottom">
-              {displayText}
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
-      <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarIcon />
+                  </InputGroupButton>
+                </PopoverTrigger>
+              </InputGroupAddon>
+            </InputGroup>
+            <span className="shrink-0 text-muted-foreground">–</span>
+            <InputGroup
+              className={cn(
+                "flex-1",
+                error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
+              )}
+            >
+              <InputGroupInput
+                value={textTo}
+                placeholder={`${t('dateTo')} ${pattern}`}
+                aria-label={t('dateTo')}
+                disabled={disabled}
+                aria-invalid={!!error || undefined}
+                onChange={(e) => handleRangeChange('to', e.target.value)}
+                onFocus={() => setOpen(true)}
+                onBlur={() => handleRangeBlur('to')}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setOpen(true);
+                  }
+                }}
+              />
+            </InputGroup>
+          </div>
+        )}
+      </div>
+      <PopoverContent
+        className="w-auto p-0"
+        align="start"
+        alignOffset={0}
+        sideOffset={10}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+        }}
+      >
         <div className="flex flex-col">
           {/* Mode toggle */}
           <div className="flex rounded-none border-b border-border overflow-hidden text-xs">
@@ -693,7 +1311,10 @@ function DateRangeField({
             <Calendar
               mode="single"
               selected={selectedSingle}
-              locale={getBrowserDateLocale()}
+              month={month}
+              onMonthChange={setMonth}
+              captionLayout="dropdown"
+              locale={locale}
               onSelect={(day) => {
                 onDateChange?.(day ? day.toISOString() : '');
                 if (day) setOpen(false);
@@ -702,8 +1323,9 @@ function DateRangeField({
           ) : (
             <Calendar
               mode="range"
-              defaultMonth={selectedFrom}
-              locale={getBrowserDateLocale()}
+              month={month}
+              onMonthChange={setMonth}
+              locale={locale}
               selected={{
                 from: selectedFrom,
                 to: selectedTo,
@@ -716,363 +1338,6 @@ function DateRangeField({
               }}
               numberOfMonths={2}
             />
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function AsyncSelectField({
-  fieldId,
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  error,
-  inputClassName,
-  fetchOptions,
-  pageSize = 10,
-  externalSelectedLabel,
-  externalSelectedColor,
-  staticOptions = [],
-  staticOptionsLabel,
-  asyncResultsLabel,
-  searchOnEnter = false,
-}: {
-  fieldId: string;
-  value?: string | number | boolean;
-  onChange?: (value: string | number | boolean) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  error?: string;
-  inputClassName?: string;
-  fetchOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
-  pageSize?: number;
-  externalSelectedLabel?: string;
-  externalSelectedColor?: string;
-  staticOptions?: AsyncSelectOption[];
-  staticOptionsLabel?: string;
-  asyncResultsLabel?: string;
-  searchOnEnter?: boolean;
-}) {
-  const { t } = useTranslation('common');
-  const [open, setOpen] = React.useState(false);
-  const [options, setOptions] = React.useState<AsyncSelectOption[]>([]);
-  const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
-  const [hasMore, setHasMore] = React.useState(true);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [selectedLabel, setSelectedLabel] = React.useState("");
-  const [selectedColor, setSelectedColor] = React.useState<string | undefined>(undefined);
-
-  const listRef = React.useRef<HTMLDivElement>(null);
-  const isInitialMount = React.useRef(true);
-  const lastManualSelection = React.useRef<{ value: string; label: string; color?: string } | null>(null);
-
-  const loadOptions = React.useCallback(
-    async (searchTerm: string, pageNum: number, append = false) => {
-      const isPaginating = pageNum > 1;
-      if (isPaginating) {
-        setIsLoadingMore(true);
-      } else {
-        setIsLoading(true);
-      }
-      try {
-        const [result] = await Promise.all([
-          fetchOptions({ search: searchTerm, page: pageNum, pageSize }),
-          isPaginating ? new Promise((r) => setTimeout(r, 400)) : Promise.resolve(),
-        ]);
-        setOptions((prev) => append ? [...prev, ...(result as FetchOptionsResult).options] : (result as FetchOptionsResult).options);
-        setHasMore((result as FetchOptionsResult).hasMore);
-        setPage(pageNum);
-      } catch (err) {
-        console.error("Error fetching options:", err);
-      } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
-      }
-    },
-    [fetchOptions, pageSize],
-  );
-
-  // Load initial options when popover opens
-  React.useEffect(() => {
-    if (open && isInitialMount.current) {
-      isInitialMount.current = false;
-      loadOptions("", 1);
-    }
-  }, [open, loadOptions]);
-
-  // Reset state when popover closes
-  React.useEffect(() => {
-    if (!open) {
-      setSearch("");
-      setPage(1);
-      setOptions([]);
-      setHasMore(true);
-      isInitialMount.current = true;
-    }
-  }, [open]);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-  };
-
-  // Debounce: auto-search 300 ms after the user stops typing
-  React.useEffect(() => {
-    if (isInitialMount.current) return;
-    if (searchOnEnter) return;
-    const timer = setTimeout(() => {
-      setPage(1);
-      setHasMore(true);
-      loadOptions(search, 1, false);
-    }, 300);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setPage(1);
-      setHasMore(true);
-      loadOptions(search, 1, false);
-    }
-  };
-
-  const handleScroll = React.useCallback(() => {
-    const list = listRef.current;
-    if (!list || isLoadingMore || !hasMore) return;
-    const { scrollTop, scrollHeight, clientHeight } = list;
-    if (scrollHeight - scrollTop - clientHeight < 50) {
-      loadOptions(search, page + 1, true);
-    }
-  }, [hasMore, isLoadingMore, loadOptions, page, search]);
-
-  // Keep selectedLabel / selectedColor in sync when options list changes
-  React.useEffect(() => {
-    if (value) {
-      const staticOpt = staticOptions.find((o) => o.value === String(value));
-      if (staticOpt) {
-        setSelectedLabel(staticOpt.label);
-        setSelectedColor(staticOpt.color);
-      } else {
-        const option = options.find((opt) => opt.value === String(value));
-        if (option) {
-          setSelectedLabel(option.label);
-          setSelectedColor(option.color);
-        } else if (lastManualSelection.current?.value === String(value)) {
-          // User just selected this value — options were cleared on close but the label is known
-          setSelectedLabel(lastManualSelection.current.label);
-          setSelectedColor(lastManualSelection.current.color);
-        } else if (externalSelectedLabel) {
-          setSelectedLabel(externalSelectedLabel);
-          setSelectedColor(externalSelectedColor);
-        }
-      }
-    } else {
-      setSelectedLabel("");
-      setSelectedColor(undefined);
-      lastManualSelection.current = null;
-    }
-  }, [value, options, staticOptions, externalSelectedLabel, externalSelectedColor]);
-
-  const strValue = String(value ?? "");
-
-  const handleSelect = (selectedValue: string) => {
-    const newValue = selectedValue === strValue ? "" : selectedValue;
-    onChange?.(newValue);
-    if (newValue) {
-      const option = options.find((opt) => opt.value === newValue);
-      if (option) {
-        setSelectedLabel(option.label);
-        setSelectedColor(option.color);
-        lastManualSelection.current = { value: newValue, label: option.label, color: option.color };
-      }
-    } else {
-      setSelectedLabel("");
-      setSelectedColor(undefined);
-      lastManualSelection.current = null;
-    }
-    setOpen(false);
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={fieldId}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-invalid={!!error || undefined}
-          disabled={disabled}
-          className={cn(
-            "w-full justify-between font-normal hover:cursor-pointer",
-            !strValue && "text-muted-foreground",
-            error && "border-destructive ring-destructive/20 dark:ring-destructive/40",
-            inputClassName,
-          )}
-        >
-          <span className="flex items-center gap-2 truncate">
-            {strValue && selectedColor && (
-              <span
-                className="shrink-0 size-3 rounded-full"
-                style={{ backgroundColor: selectedColor }}
-              />
-            )}
-            <span className="truncate">
-              {strValue && selectedLabel ? selectedLabel : (placeholder || t('selectPlaceholder'))}
-            </span>
-          </span>
-          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="min-w-[var(--radix-popover-trigger-width)] w-64 p-0" align="start">
-        <div className="flex items-center border-b px-3">
-          <Input
-            placeholder={t('searchPlaceholder')}
-            value={search}
-            onChange={handleSearchChange}
-            onKeyDown={handleSearchKeyDown}
-            className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 h-9"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                loadOptions("", 1, false);
-              }}
-              className="text-muted-foreground hover:text-foreground hover:cursor-pointer"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-        <div
-          ref={listRef}
-          className="max-h-60 overflow-y-auto p-1"
-          onScroll={handleScroll}
-          onWheel={(e) => e.stopPropagation()}
-        >
-          {/* All / clear option — always visible */}
-          <button
-            type="button"
-            className={cn(
-              "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-              "hover:bg-accent hover:text-accent-foreground",
-              !strValue && "bg-accent text-accent-foreground",
-            )}
-            onClick={() => {
-              onChange?.("");
-              setSelectedLabel("");
-              setSelectedColor(undefined);
-              setOpen(false);
-            }}
-          >
-            <span className="flex size-4 items-center justify-center">
-              {!strValue && <Check className="size-4" />}
-            </span>
-            <span className="truncate text-muted-foreground">{placeholder ?? t('selectPlaceholder')}</span>
-          </button>
-
-          {/* Static section label */}
-          {staticOptionsLabel && staticOptions.length > 0 && (
-            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {staticOptionsLabel}
-            </p>
-          )}
-
-          {/* Static options — always visible, pinned above async results */}
-          {staticOptions.map((option) => {
-            const isStaticSelected = strValue === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                className={cn(
-                  "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-                  "hover:bg-accent hover:text-accent-foreground",
-                  isStaticSelected && "bg-accent text-accent-foreground",
-                )}
-                onClick={() => handleSelect(option.value)}
-              >
-                <span className="flex size-4 shrink-0 items-center justify-center">
-                  {isStaticSelected && <Check className="size-4" />}
-                </span>
-                {option.color && (
-                  <span className="shrink-0 size-3 rounded-full" style={{ backgroundColor: option.color }} />
-                )}
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="truncate">{option.label}</span>
-                  {option.description && (
-                    <span className="text-xs text-muted-foreground truncate">{option.description}</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-
-          {/* Separator + async section label */}
-          {staticOptions.length > 0 && (
-            <div className="my-1 -mx-1 border-t border-border" />
-          )}
-          {asyncResultsLabel && (
-            <p className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {asyncResultsLabel}
-            </p>
-          )}
-
-          {/* Async results */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-sm text-muted-foreground">{t('loading')}</span>
-            </div>
-          ) : options.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">{t('noResults')}</p>
-          ) : (
-            <>
-              {options.map((option) => {
-                const isSelected = strValue === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={cn(
-                      "relative flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:cursor-pointer",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      isSelected && "bg-accent text-accent-foreground",
-                    )}
-                    onClick={() => handleSelect(option.value)}
-                  >
-                    <span className="flex size-4 items-center justify-center">
-                      {isSelected && <Check className="size-4" />}
-                    </span>
-                    {option.color && (
-                      <span
-                        className="shrink-0 size-3 rounded-full"
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <span className="truncate">{option.label}</span>
-                  </button>
-                );
-              })}
-              {isLoadingMore && (
-                <div className="flex items-center justify-center py-2">
-                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-xs text-muted-foreground">{t('loadingMore')}</span>
-                </div>
-              )}
-              {!hasMore && options.length > 0 && (
-                <p className="py-2 text-center text-xs text-muted-foreground">{t('noMoreResults')}</p>
-              )}
-            </>
           )}
         </div>
       </PopoverContent>
@@ -1282,6 +1547,7 @@ export function HuemulField({
   min,
   max,
   step,
+  withSeconds = true,
   checkLabel,
   richTextValue,
   onRichTextChange,
@@ -1299,8 +1565,10 @@ export function HuemulField({
   labelFirst,
   fetchOptions,
   pageSize = 10,
+  debounceMs,
   selectedLabel,
   selectedColor,
+  onSelectedLabelChange,
   asyncStaticOptions,
   asyncStaticOptionsLabel,
   asyncResultsLabel,
@@ -1309,6 +1577,8 @@ export function HuemulField({
   children,
   onKeyDown,
   searchOnEnter,
+  minLabel,
+  maxLabel,
 }: HuemulFieldProps) {
   const fieldId = id || generateId(name, label);
   const isInline = (type === "checkbox" || type === "switch") && inline !== false;
@@ -1377,7 +1647,9 @@ export function HuemulField({
               ...g.options,
             ])
           : options
-        const selectedLabel = flatOptions.find((o) => o.value === currentValue)?.label
+        const selectedOpt = flatOptions.find((o) => o.value === currentValue)
+        const selectedLabel = selectedOpt?.label
+        const selectedColor = selectedOpt?.color
 
         const selectTrigger = (
           <SelectTrigger
@@ -1387,7 +1659,17 @@ export function HuemulField({
             aria-invalid={baseInvalid || undefined}
           >
             <SelectValue placeholder={placeholder || t('selectPlaceholder')}>
-              {selectedLabel}
+              {selectedLabel && (
+                <span className="flex items-center gap-2">
+                  {selectedColor && (
+                    <span
+                      className="size-3 rounded-full shrink-0 border border-border/40 inline-block"
+                      style={{ backgroundColor: selectedColor }}
+                    />
+                  )}
+                  {selectedLabel}
+                </span>
+              )}
             </SelectValue>
           </SelectTrigger>
         );
@@ -1621,26 +1903,133 @@ export function HuemulField({
           </div>
         );
 
-      case "async-select":
+      case "async-combobox":
         return fetchOptions ? (
-          <AsyncSelectField
-            fieldId={fieldId}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            disabled={disabled}
-            error={error}
-            inputClassName={inputClassName}
+          <HuemulCombobox
+            id={fieldId}
+            value={String(value ?? "")}
+            onValueChange={(v) => onChange?.(v as string)}
             fetchOptions={fetchOptions}
             pageSize={pageSize}
-            externalSelectedLabel={selectedLabel}
-            externalSelectedColor={selectedColor}
+            debounceMs={debounceMs}
+            searchOnEnter={searchOnEnter}
             staticOptions={asyncStaticOptions}
             staticOptionsLabel={asyncStaticOptionsLabel}
             asyncResultsLabel={asyncResultsLabel}
-            searchOnEnter={searchOnEnter}
+            selectedOptions={
+              value && selectedLabel
+                ? [{ value: String(value), label: selectedLabel, color: selectedColor }]
+                : []
+            }
+            onSelectedLabelChange={onSelectedLabelChange}
+            placeholder={placeholder}
+            error={error}
+            disabled={disabled}
+            className={inputClassName}
           />
         ) : null;
+
+      case "yes-no": {
+        return (
+          <div className="flex items-center gap-2">
+            {([true, false] as const).map((opt) => {
+              const selected = value === opt;
+              return (
+                <button
+                  key={String(opt)}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onChange?.(opt)}
+                  className={cn(
+                    "inline-flex h-9 items-center rounded-md border px-4 text-sm transition-colors",
+                    selected
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : error
+                        ? "border-destructive bg-white text-gray-600 hover:bg-gray-50"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+                    disabled && "pointer-events-none opacity-50",
+                    inputClassName,
+                  )}
+                >
+                  {opt ? t("yes") : t("no")}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
+      case "linear-scale": {
+        const scaleMin = typeof min === "number" ? min : 1;
+        const scaleMax = typeof max === "number" ? max : 5;
+        const steps =
+          scaleMax > scaleMin && scaleMax - scaleMin <= 20
+            ? Array.from({ length: scaleMax - scaleMin + 1 }, (_, i) => scaleMin + i)
+            : [];
+        return (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {steps.map((n) => {
+                const selected = value === n;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onChange?.(n)}
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-md border text-sm transition-colors",
+                      selected
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : error
+                          ? "border-destructive bg-white text-gray-600 hover:bg-gray-50"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+                      disabled && "pointer-events-none opacity-50",
+                      inputClassName,
+                    )}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+            {(minLabel || maxLabel) && (
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>{minLabel}</span>
+                <span>{maxLabel}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "rating": {
+        const stars = typeof max === "number" ? max : 5;
+        const current = typeof value === "number" ? value : 0;
+        return (
+          <div className="flex flex-wrap items-center gap-1">
+            {Array.from({ length: stars }, (_, i) => {
+              const n = i + 1;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => !disabled && onChange?.(n)}
+                  className={cn("p-0.5", disabled && "pointer-events-none opacity-50")}
+                >
+                  <Star
+                    className={cn(
+                      "size-6 transition-colors",
+                      n <= current ? "fill-amber-400 text-amber-400" : "text-gray-300",
+                    )}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
 
       case "json":
         return (
@@ -1697,25 +2086,35 @@ export function HuemulField({
           />
         );
 
-      case "datetime":
+      case "time":
         return (
-          <Input
-            id={fieldId}
-            name={name}
-            type="datetime-local"
-            value={String(value ?? "")}
-            onChange={handleInputChange}
+          <TimeInputField
+            fieldId={fieldId}
+            value={value}
+            onChange={onChange}
             placeholder={placeholder}
             disabled={disabled}
-            readOnly={readOnly}
-            required={required}
-            autoFocus={autoFocus}
-            aria-invalid={baseInvalid || undefined}
-            className={inputClassName}
+            error={error}
+            inputClassName={inputClassName}
+            withSeconds={withSeconds}
           />
         );
 
-      // text, email, password, number, tel, url, time
+      case "datetime":
+        return (
+          <DateTimeInputField
+            fieldId={fieldId}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            error={error}
+            inputClassName={inputClassName}
+            withSeconds={withSeconds}
+          />
+        );
+
+      // text, email, password, number, tel, url
       default:
         return (
           <Input

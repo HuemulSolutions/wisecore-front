@@ -11,12 +11,20 @@ import {
   getDocumentStepGrants,
   grantLifecycleDocument,
   revokeLifecycleDocument,
+  getExternalPublishActions,
+  createExternalPublishAction,
+  updateExternalPublishAction,
+  deleteExternalPublishAction,
+  reorderExternalPublishActions,
   type UpdateLifecycleStepData,
   type CreateLifecycleStepData,
   type GrantLifecycleDocumentRequest,
   type GrantLifecycleDocumentResponse,
   type RevokeLifecycleDocumentRequest,
   type RevokeLifecycleDocumentResponse,
+  type CreateExternalPublishActionRequest,
+  type UpdateExternalPublishActionRequest,
+  type ReorderExternalPublishActionsRequest,
 } from '@/services/lifecycle'
 
 export const lifecycleQueryKeys = {
@@ -27,6 +35,9 @@ export const lifecycleQueryKeys = {
   slaUnits: () => [...lifecycleQueryKeys.all, 'sla-units'] as const,
   documentStepGrants: (organizationId: string, documentId: string, stepId: string) =>
     [...lifecycleQueryKeys.all, 'document-step-grants', organizationId, documentId, stepId] as const,
+  externalPublishActionsBase: () => [...lifecycleQueryKeys.all, 'external-publish-actions'] as const,
+  externalPublishActions: (stepId: string) =>
+    [...lifecycleQueryKeys.externalPublishActionsBase(), stepId] as const,
 }
 
 export function useLifecycleStepTypes(enabled: boolean = true) {
@@ -152,4 +163,55 @@ export function useDocumentGrantMutations(organizationId: string, documentId: st
   })
 
   return { grant, revoke }
+}
+
+// ─── External Publish Actions ─────────────────────────────────────────────────
+
+export function useExternalPublishActions(
+  organizationId: string,
+  stepId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: lifecycleQueryKeys.externalPublishActions(stepId),
+    queryFn: () => getExternalPublishActions(stepId, organizationId),
+    enabled: enabled && !!organizationId && !!stepId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 0,
+  })
+}
+
+export function useExternalPublishActionMutations(organizationId: string, stepId: string) {
+  const queryClient = useQueryClient()
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: lifecycleQueryKeys.externalPublishActions(stepId),
+    })
+
+  const createAction = useMutation({
+    mutationFn: (body: CreateExternalPublishActionRequest) =>
+      createExternalPublishAction(stepId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  const updateAction = useMutation({
+    mutationFn: ({ actionId, body }: { actionId: string; body: UpdateExternalPublishActionRequest }) =>
+      updateExternalPublishAction(stepId, actionId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  const deleteAction = useMutation({
+    mutationFn: (actionId: string) => deleteExternalPublishAction(stepId, actionId, organizationId),
+    onSuccess: invalidate,
+  })
+
+  const reorderActions = useMutation({
+    mutationFn: (body: ReorderExternalPublishActionsRequest) =>
+      reorderExternalPublishActions(stepId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  return { createAction, updateAction, deleteAction, reorderActions }
 }

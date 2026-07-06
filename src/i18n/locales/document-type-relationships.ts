@@ -69,6 +69,8 @@ const translations = {
     relationships: { en: "Relationships", es: "Relaciones" },
     connection: { en: "Connection", es: "Conexión" },
     cardinality: { en: "Cardinality", es: "Cardinalidad" },
+    type: { en: "Type", es: "Tipo" },
+    manual: { en: "Manual", es: "Manual" },
     actions: { en: "Actions", es: "Acciones" },
     empty: {
       en: "No relationships yet. Connect nodes on the canvas or use the selector above.",
@@ -82,6 +84,7 @@ const translations = {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     actions: { en: "Actions", es: "Acciones" },
     loadRelationships: { en: "Load Relationships", es: "Cargar Relaciones" },
+    loadRelationshipsCanvasOnly: { en: "Load Canvas Relationships", es: "Cargar Relaciones del Canvas" },
     loadingRelationships: { en: "Loading…", es: "Cargando…" },
     version: { en: "Version", es: "Versión" },
     versionRequired: {
@@ -91,6 +94,10 @@ const translations = {
     versionRequiredFor: {
       en: "Select a version for: {{names}}",
       es: "Selecciona una versión para: {{names}}",
+    },
+    versionAlreadyInCanvas: {
+      en: "That version is already on the canvas.",
+      es: "Esa versión ya está en el canvas.",
     },
   },
   relationship: {
@@ -107,11 +114,23 @@ const translations = {
       en: "No relationship types defined between these asset types.",
       es: "No hay tipos de relación definidos entre estos tipos de activo.",
     },
+    manualHint: {
+      en: "No relationship type is configured between these asset types — create a manual relationship.",
+      es: "No hay un tipo de relación configurado entre estos tipos de activo: crea una relación manual.",
+    },
+    manualName: { en: "Relationship name", es: "Nombre de la relación" },
+    addAttribute: { en: "Add attribute", es: "Agregar atributo" },
+    attributeName: { en: "Attribute name", es: "Nombre del atributo" },
+    attributeValue: { en: "Value", es: "Valor" },
     noAttributes: { en: "This relationship has no attributes.", es: "Esta relación no tiene atributos." },
     sourceExecution: { en: "Source version ({{name}})", es: "Versión origen ({{name}})" },
     targetExecution: { en: "Target version ({{name}})", es: "Versión destino ({{name}})" },
     selectExecution: { en: "Select version…", es: "Seleccionar versión…" },
     noExecutions: { en: "No versions available for this asset.", es: "No hay versiones disponibles para este activo." },
+    allVersionsInCanvas: {
+      en: "All versions are already on the canvas.",
+      es: "Todas las versiones ya están en el canvas.",
+    },
   },
   attributes: {
     title: { en: "Attributes", es: "Atributos" },

@@ -20,24 +20,32 @@ function executionLabel(ex: Execution): string {
 
 interface NodePanelProps {
   nodeId: string
+  /** In execution mode: the real asset/document ID (separate from the unique canvas node ID) */
+  assetId?: string
   nodeName: string
   nodeColor: string
+  /** In execution mode: the asset type name (separate from the asset name) */
+  assetTypeName?: string
   nodeActions?: CanvasNodeAction[]
   onLoadRelationships?: (id: string) => Promise<void> | void
+  onLoadRelationshipsCanvasOnly?: (id: string) => Promise<void> | void
   onClose: () => void
   // Execution mode
   mode?: "document-type" | "execution"
   executionId?: string
   organizationId?: string
-  onSelectExecution?: (nodeId: string, executionId: string) => void
+  onSelectExecution?: (nodeId: string, executionId: string, executionName: string) => void
 }
 
 export function NodePanel({
   nodeId,
+  assetId,
   nodeName,
   nodeColor,
+  assetTypeName,
   nodeActions,
   onLoadRelationships,
+  onLoadRelationshipsCanvasOnly,
   onClose,
   mode,
   executionId,
@@ -46,11 +54,12 @@ export function NodePanel({
 }: NodePanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const [isLoadingRelationships, setIsLoadingRelationships] = useState(false)
+  const [isLoadingRelationshipsCanvasOnly, setIsLoadingRelationshipsCanvasOnly] = useState(false)
 
   const isExecutionMode = mode === "execution"
 
   const { data: executions, isLoading: isLoadingExecutions } = useExecutionsByDocumentId(
-    nodeId,
+    assetId ?? nodeId,
     organizationId ?? "",
     isExecutionMode && !!organizationId,
   )
@@ -67,6 +76,16 @@ export function NodePanel({
       await onLoadRelationships(nodeId)
     } finally {
       setIsLoadingRelationships(false)
+    }
+  }
+
+  const handleLoadRelationshipsCanvasOnly = async () => {
+    if (!onLoadRelationshipsCanvasOnly || isLoadingRelationshipsCanvasOnly) return
+    setIsLoadingRelationshipsCanvasOnly(true)
+    try {
+      await onLoadRelationshipsCanvasOnly(nodeId)
+    } finally {
+      setIsLoadingRelationshipsCanvasOnly(false)
     }
   }
 
@@ -96,14 +115,25 @@ export function NodePanel({
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             {t("nodePanel.assetType")}
           </p>
-          <div className="rounded-lg border bg-muted/20 p-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <div
-                className="h-3 w-3 rounded-full shrink-0"
-                style={{ backgroundColor: nodeColor || "#94a3b8" }}
-              />
-              <span className="text-xs font-medium truncate">{nodeName}</span>
-            </div>
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-1.5">
+            {assetTypeName && (
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: nodeColor || "#94a3b8" }}
+                />
+                <span className="text-xs font-medium truncate">{assetTypeName}</span>
+              </div>
+            )}
+            {!assetTypeName && (
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: nodeColor || "#94a3b8" }}
+                />
+                <span className="text-xs font-medium truncate">{nodeName}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -126,7 +156,10 @@ export function NodePanel({
                 label={t("nodePanel.version")}
                 name="execution_version"
                 value={executionId ?? ""}
-                onChange={(v) => onSelectExecution?.(nodeId, v as string)}
+                onChange={(v) => {
+                  const label = execOptions.find((o) => o.value === v)?.label ?? ""
+                  onSelectExecution?.(nodeId, v as string, label)
+                }}
                 options={execOptions}
                 placeholder={t("relationship.selectExecution")}
                 description={execOptions.length === 0 ? t("relationship.noExecutions") : undefined}
@@ -172,8 +205,32 @@ export function NodePanel({
               </button>
             )}
 
+            {/* Load canvas relationships (only between nodes already on canvas) */}
+            {onLoadRelationshipsCanvasOnly && (
+              <button
+                onClick={handleLoadRelationshipsCanvasOnly}
+                disabled={isLoadingRelationshipsCanvasOnly}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground",
+                  "hover:bg-accent hover:text-foreground hover:cursor-pointer transition-colors",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                )}
+              >
+                {isLoadingRelationshipsCanvasOnly ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                ) : (
+                  <Network className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span>
+                  {isLoadingRelationshipsCanvasOnly
+                    ? t("nodePanel.loadingRelationships")
+                    : t("nodePanel.loadRelationshipsCanvasOnly")}
+                </span>
+              </button>
+            )}
+
             {/* Separator before custom actions */}
-            {onLoadRelationships && nodeActions && nodeActions.length > 0 && (
+            {(onLoadRelationships || onLoadRelationshipsCanvasOnly) && nodeActions && nodeActions.length > 0 && (
               <div className="border-t my-1" />
             )}
 

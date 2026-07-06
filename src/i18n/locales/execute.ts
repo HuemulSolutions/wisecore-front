@@ -192,6 +192,18 @@ const translations = {
     starting: { en: "Starting...", es: "Iniciando..." },
     processing: { en: "Processing...", es: "Procesando..." },
   },
+  otherVersionBanner: {
+    versionTitle: { en: "Version \"{{name}}\" is {{status}}", es: "La versión \"{{name}}\" está {{status}}" },
+    viewVersion: { en: "View Version", es: "Ver Versión" },
+    description: {
+      running: { en: "Content is being generated for this version...", es: "Se está generando el contenido para esta versión..." },
+      pending: { en: "Waiting in queue to start generation...", es: "Esperando en cola para iniciar la generación..." },
+      completed: { en: "Generation completed successfully!", es: "¡Generación completada exitosamente!" },
+      failed: { en: "Generation encountered an error.", es: "La generación encontró un error." },
+      cancelled: { en: "Generation was cancelled.", es: "La generación fue cancelada." },
+      paused: { en: "Generation is paused.", es: "La generación está pausada." },
+    },
+  },
   aiSuggestion: {
     status: {
       pending: { en: "AI suggestion pending...", es: "Sugerencia de IA pendiente..." },

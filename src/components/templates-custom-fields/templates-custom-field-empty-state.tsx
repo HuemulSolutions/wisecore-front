@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Plus, FileText } from "lucide-react"
@@ -9,6 +10,7 @@ export type { CustomFieldTemplateEmptyStateProps } from '@/types/templates';
 export function CustomFieldTemplateEmptyState({
   onAddCustomFieldTemplate,
 }: CustomFieldTemplateEmptyStateProps) {
+  const { t } = useTranslation('templates')
   return (
     <Card className="border border-dashed border-border/50 bg-card">
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
@@ -17,11 +19,11 @@ export function CustomFieldTemplateEmptyState({
         </div>
         
         <h3 className="mt-5 text-lg font-semibold text-foreground">
-          No custom fields
+          {t('customFields.emptyTitle')}
         </h3>
         
         <p className="mt-2 text-sm text-muted-foreground max-w-md">
-          This template doesn't have any custom fields yet. Add your first custom field to get started.
+          {t('customFields.emptyDescription')}
         </p>
         
         <Button
@@ -30,7 +32,7 @@ export function CustomFieldTemplateEmptyState({
           size="sm"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add Custom Field
+          {t('customFields.addCustomField')}
         </Button>
       </div>
     </Card>

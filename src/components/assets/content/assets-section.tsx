@@ -27,6 +27,7 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
+import { AssetFormSection } from '@/components/assets/content/asset-form-section';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -44,6 +45,9 @@ function SectionExecutionInner({
     showExecutionFeedback = false,
     sectionType = 'ai',
     sectionName,
+    status,
+    responderName,
+    respondedAt,
     canEditSections = false,
     onCreateSectionFromSelection,
     // onCopyLink,
@@ -91,9 +95,9 @@ function SectionExecutionInner({
     
     // Determine which actions are available based on section type
     const canExecute = sectionType === 'ai' || sectionType === null; // AI sections y null pueden ejecutarse
-    const canEdit = sectionType !== 'reference'; // Manual y AI pueden editarse, reference no
-    const canAiEdit = sectionType !== 'reference'; // Manual y AI pueden usar AI edit, reference no
-    const canDelete = sectionType !== 'reference'; // Manual y AI pueden eliminarse, reference no
+    const canEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden editarse
+    const canAiEdit = sectionType !== 'reference' && sectionType !== 'form'; // Manual y AI pueden usar AI edit
+    const canDelete = sectionType !== 'reference'; // Manual, AI y form pueden eliminarse, reference no
     
     // Check if there's an execution in progress
     const isExecutionInProgress = !!(executionStatus && !['completed', 'done', 'failed', 'cancelled', 'approved', 'approving'].includes(executionStatus));
@@ -363,7 +367,7 @@ function SectionExecutionInner({
     };
 
     return (
-        <div ref={containerRef} className="p-2 relative">
+        <div ref={containerRef} className={`${readyToEdit ? 'p-2' : 'py-0 px-2'} relative`}>
             {/* Action Buttons - Always sticky */}
             {readyToEdit && (
                 <div className="sticky top-0 z-50 justify-end py-1 px-2 bg-white backdrop-blur-sm -mx-2 -mt-2 mb-2 max-w-full w-full flex items-center">
@@ -390,11 +394,17 @@ function SectionExecutionInner({
                                 onChange={(v) => handleReviewStatusChange(v as ReviewStatus)}
                                 disabled={isUpdatingReviewStatus || !canEditSections}
                                 placeholder={t('section.reviewStatusPlaceholder')}
-                                options={[
-                                    { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
-                                    { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
-                                    { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
-                                ]}
+                                options={sectionType === 'form'
+                                    ? [
+                                        { value: 'editing', label: t('section.reviewStatusFormNotAnswered'), color: '#f59e0b' },
+                                        { value: 'finished', label: t('section.reviewStatusFormAnswered'), color: '#22c55e' },
+                                    ]
+                                    : [
+                                        { value: 'editing', label: t('section.reviewStatusEditing'), color: '#3b82f6' },
+                                        { value: 'reviewing', label: t('section.reviewStatusReviewing'), color: '#f59e0b' },
+                                        { value: 'finished', label: t('section.reviewStatusFinished'), color: '#22c55e' },
+                                    ]
+                                }
                                 className="w-auto"
                                 selectSize="xs"
                                 inputClassName="w-auto py-[3px] px-2 text-[10px] font-medium border-gray-200 bg-gray-50/80 shadow-none hover:bg-gray-100 hover:cursor-pointer [&_svg]:h-3 [&_svg]:w-3 [&_svg]:opacity-50"
@@ -748,6 +758,21 @@ function SectionExecutionInner({
                         </div>
                     </div>
                 </div>
+            ) : sectionType === 'form' ? (
+                /* Form section: render fillable/read-only form instead of the Plate editor */
+                <div className={`${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
+                    <AssetFormSection
+                        sectionExecutionId={sectionExecution.id}
+                        formFields={sectionExecution.form_fields ?? []}
+                        status={status}
+                        organizationId={selectedOrganizationId ?? undefined}
+                        documentId={documentId}
+                        canInteract={readyToEdit && canEditSections}
+                        responderName={responderName}
+                        respondedAt={respondedAt}
+                        onUpdate={onUpdate}
+                    />
+                </div>
             ) : (
                 /* Unified Plate view: readOnly when not editing, editable when editing */
                 <div className={isEditing ? 'pt-2 pr-0' : `${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
@@ -762,6 +787,7 @@ function SectionExecutionInner({
                         isSaving={isSaving}
                         documentId={documentId}
                         sectionExecutionId={sectionExecution.id}
+                        organizationId={selectedOrganizationId ?? undefined}
                         toolbarTopOffset="36px"
                         onCreateSectionFromSelection={readyToEdit && canEditSections ? onCreateSectionFromSelection : undefined}
                     />

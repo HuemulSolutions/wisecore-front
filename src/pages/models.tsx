@@ -110,7 +110,7 @@ export default function Models() {
 
   const { data: allProvidersResponse, isLoading: loadingProviders, error: errorProviders } = useQuery({
     queryKey: ['allProviders'],
-    queryFn: getAllProviders,
+    queryFn: () => getAllProviders(),
     retry: 0,
     enabled: canListProviders,
   })

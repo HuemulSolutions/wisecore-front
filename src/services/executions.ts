@@ -40,6 +40,7 @@ export async function getAllExecutions(
     template_id,
     document_type_id,
     sort,
+    custom_field_filter,
   } = params
   const qs = new URLSearchParams({
     page: page.toString(),
@@ -67,6 +68,7 @@ export async function getAllExecutions(
   if (template_id) qs.set('template_id', template_id)
   if (document_type_id) qs.set('document_type_id', document_type_id)
   if (sort) qs.set('sort', sort)
+  custom_field_filter?.forEach(f => qs.append('custom_field_filter', f))
   const response = await httpClient.get(`${backendUrl}/execution/?${qs}`, {
     headers: { 'X-Org-Id': organizationId },
   })
@@ -423,10 +425,21 @@ export async function completeExecutionLifecycleStep(executionId: string, stepId
     return data.data;
 }
 
-export async function advanceExecutionLifecycle(executionId: string, organizationId: string, options?: { comment?: string; skip_published?: boolean }) {
+export async function advanceExecutionLifecycle(
+    executionId: string,
+    organizationId: string,
+    options?: {
+        comment?: string
+        skip_published?: boolean
+        publish_step_id?: string
+        run_external_publish?: boolean
+    },
+) {
     const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/advance`, {
         comment: options?.comment || '',
         ...(options?.skip_published && { skip_published: true }),
+        ...(options?.publish_step_id && { publish_step_id: options.publish_step_id }),
+        ...(options?.run_external_publish && { run_external_publish: true }),
     }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -566,6 +579,20 @@ export async function bulkAiFixByTemplateSection({
     });
     const data = await response.json();
     return data.data;
+}
+
+export async function runExternalPublish(
+    executionId: string,
+    organizationId: string,
+    publishStepId: string,
+) {
+    const res = await httpClient.post(
+        `${backendUrl}/execution-lifecycle/${executionId}/run-external-publish`,
+        { publish_step_id: publishStepId },
+        { headers: { 'X-Org-Id': organizationId } },
+    )
+    const data = await res.json()
+    return data.data
 }
 
 export async function bulkExportExcel({

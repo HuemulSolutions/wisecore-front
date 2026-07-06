@@ -53,6 +53,10 @@ export const getCustomFieldDocuments = async (params?: CustomFieldDocumentListPa
     searchParams.append("document_id", params.document_id);
   }
 
+  if (params?.search?.trim()) {
+    searchParams.append("search", params.search.trim());
+  }
+
   const url = `${backendUrl}/custom_field_documents/${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const response = await httpClient.get(url, {
     headers: getHeaders(),

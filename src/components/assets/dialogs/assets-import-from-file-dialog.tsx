@@ -145,46 +145,7 @@ export function ImportAssetFromFileDialog({
       }}
     >
       <div className="grid gap-6">
-        <HuemulField
-          type="text"
-          label={t('form.assetName')}
-          name="name"
-          required
-          value={name}
-          onChange={(v) => setName(String(v))}
-          placeholder={t('form.assetNamePlaceholder')}
-        />
-
-        <HuemulField
-          type="text"
-          label={t('form.internalCode')}
-          name="internalCode"
-          value={internalCode}
-          onChange={(v) => setInternalCode(String(v))}
-          placeholder={t('form.internalCodePlaceholder')}
-          description={t('form.internalCodeDescription')}
-        />
-
-        <HuemulField
-          type="textarea"
-          label={t('form.description')}
-          name="description"
-          value={description}
-          onChange={(v) => setDescription(String(v))}
-          placeholder={t('form.descriptionPlaceholder')}
-          rows={3}
-        />
-
-        <HuemulField
-          type="file"
-          label={t('importFromFile.fileLabel')}
-          name="file"
-          required
-          accept=".pdf,.docx,.txt,.md"
-          onFileChange={(files) => setFile(files?.[0] ?? null)}
-          description={t('importFromFile.fileDescription')}
-        />
-
+        {/* 1 · Asset type */}
         <HuemulField
           type="select"
           label={t('form.assetType')}
@@ -199,14 +160,61 @@ export function ImportAssetFromFileDialog({
           error={docTypesError ? t('form.assetTypeError') : undefined}
         />
 
+        {/* 2 · File + force import (grouped as a pair) */}
+        <div className="flex flex-col gap-3">
+          <HuemulField
+            type="file"
+            label={t('importFromFile.fileLabel')}
+            name="file"
+            required
+            accept=".pdf,.docx,.txt,.md"
+            onFileChange={(files) => setFile(files?.[0] ?? null)}
+            description={t('importFromFile.fileDescription')}
+          />
+
+          <HuemulField
+            type="switch"
+            label={t('importFromFile.forceImportLabel')}
+            name="forceImport"
+            value={forceImport}
+            onChange={(v) => setForceImport(Boolean(v))}
+            description={t('importFromFile.forceImportDescription')}
+          />
+        </div>
+
+        {/* 3 · Asset name */}
         <HuemulField
-          type="switch"
-          label={t('importFromFile.forceImportLabel')}
-          name="forceImport"
-          value={forceImport}
-          onChange={(v) => setForceImport(Boolean(v))}
-          description={t('importFromFile.forceImportDescription')}
+          type="text"
+          label={t('form.assetName')}
+          name="name"
+          required
+          value={name}
+          onChange={(v) => setName(String(v))}
+          placeholder={t('form.assetNamePlaceholder')}
         />
+
+        {/* 4 · Internal code + description */}
+        <div className="grid grid-cols-2 gap-4">
+          <HuemulField
+            type="text"
+            label={t('form.internalCode')}
+            name="internalCode"
+            value={internalCode}
+            onChange={(v) => setInternalCode(String(v))}
+            placeholder={t('form.internalCodePlaceholder')}
+            description={t('form.internalCodeDescription')}
+          />
+
+          <HuemulField
+            type="text"
+            label={t('form.description')}
+            name="description"
+            value={description}
+            onChange={(v) => setDescription(String(v))}
+            placeholder={t('form.descriptionPlaceholder')}
+            description={t('form.descriptionFieldDescription')}
+          />
+        </div>
       </div>
     </HuemulDialog>
   )

@@ -5,6 +5,7 @@ import {
   createExternalFunctionality,
   updateExternalFunctionality,
   deleteExternalFunctionality,
+  getExternalExecutionLogs,
 } from '@/services/external-functionalities'
 import type {
   ExternalFunctionalityHttpMethod,
@@ -14,6 +15,7 @@ import type {
   CreateExternalFunctionalityRequest,
   UpdateExternalFunctionalityRequest,
 } from '@/types/external-functionalities'
+import type { ExternalExecutionLogsFilters } from '@/types/external-systems'
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
@@ -28,6 +30,8 @@ export const externalFunctionalityQueryKeys = {
       systemId,
       functionalityId,
     ] as const,
+  executionLogs: (systemId: string, functionalityId: string, organizationId: string, filters?: ExternalExecutionLogsFilters) =>
+    [...externalFunctionalityQueryKeys.all, 'execution-logs', systemId, functionalityId, organizationId, filters ?? {}] as const,
   list: (
     organizationId: string,
     systemId: string,
@@ -164,4 +168,23 @@ export function useExternalFunctionalityMutations(organizationId: string, system
     updateExternalFunctionality: updateMutation,
     deleteExternalFunctionality: deleteMutation,
   }
+}
+
+// ─── Execution logs ───────────────────────────────────────────────────────────
+
+export function useExternalExecutionLogs(
+  systemId: string,
+  functionalityId: string,
+  organizationId: string,
+  filters: ExternalExecutionLogsFilters = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: externalFunctionalityQueryKeys.executionLogs(systemId, functionalityId, organizationId, filters),
+    queryFn: () => getExternalExecutionLogs(systemId, functionalityId, organizationId, filters),
+    enabled: enabled && !!systemId && !!functionalityId && !!organizationId,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 0,
+  })
 }

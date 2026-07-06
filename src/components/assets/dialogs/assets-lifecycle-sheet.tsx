@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { Activity, X, Save, Pencil, Ban } from "lucide-react"
+import { ShieldCheck, X, Save, Pencil, Ban, Loader2 } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
@@ -28,6 +28,8 @@ interface StepGrantsPanelProps {
   documentId: string
   step: LifecycleStep
   stepType: string
+  /** When true, shows only step.name as title instead of the type label + description */
+  isGrouped?: boolean
   users: User[]
   fetchUserOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>
   onSaveGrants: (stepId: string, userIds: string[]) => void
@@ -42,6 +44,7 @@ function StepGrantsPanel({
   documentId,
   step,
   stepType,
+  isGrouped = false,
   users,
   fetchUserOptions,
   onSaveGrants,
@@ -61,6 +64,8 @@ function StepGrantsPanel({
   const [isEditing, setIsEditing] = useState(false)
   const [pendingUserIds, setPendingUserIds] = useState<string[]>([])
   const [pendingRevokeIds, setPendingRevokeIds] = useState<string[]>([])
+  // Optimistic: users added but not yet confirmed by the server refetch
+  const [optimisticUserIds, setOptimisticUserIds] = useState<string[]>([])
 
   const isMutating = isGrantPending || isRevokePending
 
@@ -71,6 +76,23 @@ function StepGrantsPanel({
   const grants = grantsData?.data?.grants ?? []
   const grantedUserIds = new Set(grants.map((g) => g.user_id))
   const userById = new Map(users.map((u) => [u.id, u]))
+
+  // Clear optimistic IDs once the server data confirms them
+  useEffect(() => {
+    if (optimisticUserIds.length > 0) {
+      const allConfirmed = optimisticUserIds.every((id) => grantedUserIds.has(id))
+      if (allConfirmed) setOptimisticUserIds([])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grants])
+
+  // Merged grants for display: real grants + optimistic ones not yet in server data
+  const displayGrants = [
+    ...grants,
+    ...optimisticUserIds
+      .filter((id) => !grantedUserIds.has(id))
+      .map((id) => ({ id: `opt-${id}`, user_id: id })),
+  ]
 
   const fetchOptions = useCallback(
     async (params: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -96,6 +118,7 @@ function StepGrantsPanel({
 
   const handleSaveAll = () => {
     if (pendingUserIds.length > 0) {
+      setOptimisticUserIds(pendingUserIds)
       onSaveGrants(step.id, pendingUserIds)
       setPendingUserIds([])
     }
@@ -124,16 +147,25 @@ function StepGrantsPanel({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={isGrouped
+      ? "flex flex-col gap-3 rounded-md border border-border bg-background p-4 shadow-sm"
+      : "flex flex-col gap-6"
+    }>
       {/* Header: title + description + edit/cancel/save buttons */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <p className="text-base font-semibold text-foreground">
-            {t(`lifecycle.stepTypes.${stepType}`, { defaultValue: step.name ?? stepType })}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t("lifecycle.grants.sectionDescription", { action: stepAction })}
-          </p>
+          {isGrouped ? (
+            <p className="text-sm font-medium text-foreground">{step.name}</p>
+          ) : (
+            <>
+              <p className="text-base font-semibold text-foreground">
+                {t(`lifecycle.stepTypes.${stepType}`, { defaultValue: step.name ?? stepType })}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t("lifecycle.grants.sectionDescription", { action: stepAction })}
+              </p>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {isEditing ? (
@@ -156,19 +188,30 @@ function StepGrantsPanel({
               />
             </>
           ) : (
-            <HuemulButton
-              icon={Pencil}
-              label={t("common:edit")}
-              variant="ghost"
-              onClick={handleEdit}
-              className="text-muted-foreground"
-            />
+            <div className="flex items-center gap-1">
+              {isMutating && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+              <HuemulButton
+                icon={Pencil}
+                label={t("common:edit")}
+                variant="ghost"
+                onClick={handleEdit}
+                disabled={isMutating}
+                className="text-muted-foreground"
+              />
+            </div>
           )}
         </div>
       </div>
 
+      {isGrouped && <div className="h-px bg-border" />}
+
       {/* Content card */}
-      <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4">
+      <div className={isGrouped
+        ? "flex flex-col gap-3"
+        : "flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-4"
+      }>
         {isLoading ? (
           <div className="flex flex-col gap-2">
             <Skeleton className="h-9 w-full" />
@@ -180,24 +223,25 @@ function StepGrantsPanel({
         ) : (
           <>
             {/* Grants */}
-            {grants.length > 0 ? (
+            {displayGrants.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <p className="text-xs text-muted-foreground font-medium">
                   {t("lifecycle.grants.currentUsersAction", { action: stepAction })}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {grants.map((g) => {
+                  {displayGrants.map((g) => {
                     const user = userById.get(g.user_id)
                     const label = user ? `${user.name} ${user.last_name}` : g.user_id
                     const isPendingRevoke = pendingRevokeIds.includes(g.user_id)
+                    const isOptimistic = g.id.startsWith('opt-')
                     return (
                       <Badge
                         key={g.id}
                         variant={isPendingRevoke ? "destructive" : "secondary"}
-                        className="flex items-center gap-1 pr-1.5"
+                        className={`flex items-center gap-1 pr-1.5 ${isOptimistic ? 'opacity-60' : ''}`}
                       >
                         <span className="text-xs">{label}</span>
-                        {isEditing && (
+                        {isEditing && !isOptimistic && (
                           <button
                             type="button"
                             className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
@@ -224,49 +268,46 @@ function StepGrantsPanel({
             ) : null}
 
             {/* Edit mode: user picker */}
-            <HuemulField
-              type="async-select"
-              label={t("lifecycle.grants.addUser")}
-              name={`add-user-${step.id}`}
-              placeholder={t("lifecycle.grants.addUserPlaceholder")}
-              value=""
-              fetchOptions={fetchOptions}
-              pageSize={20}
-              searchOnEnter
-              onChange={(userId) => handleAddPending(userId as string)}
-              disabled={!isEditing || isMutating}
-            >
-              {pendingUserIds.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {pendingUserIds.map((uid) => {
-                    const user = userById.get(uid)
-                    const label = user ? `${user.name} ${user.last_name}` : uid
-                    return (
-                      <Badge
-                        key={uid}
-                        variant="outline"
-                        className="flex items-center gap-1 pr-1.5 border-dashed"
-                      >
-                        <span className="text-xs">{label}</span>
-                        <button
-                          type="button"
-                          className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                          onClick={() => handleRemovePending(uid)}
-                          aria-label={`Remove ${label}`}
+            {isEditing && (
+              <HuemulField
+                type="async-combobox"
+                label={t("lifecycle.grants.addUser")}
+                name={`add-user-${step.id}`}
+                placeholder={t("lifecycle.grants.addUserPlaceholder")}
+                value=""
+                fetchOptions={fetchOptions}
+                pageSize={20}
+                searchOnEnter
+                onChange={(userId) => handleAddPending(userId as string)}
+                disabled={isMutating}
+              >
+                {pendingUserIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pendingUserIds.map((uid) => {
+                      const user = userById.get(uid)
+                      const label = user ? `${user.name} ${user.last_name}` : uid
+                      return (
+                        <Badge
+                          key={uid}
+                          variant="outline"
+                          className="flex items-center gap-1 pr-1.5 border-dashed"
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    )
-                  })}
-                </div>
-              )}
-              {grants.length === 0 && pendingUserIds.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {t("lifecycle.grants.noGrants")}
-                </p>
-              )}
-            </HuemulField>
+                          <span className="text-xs">{label}</span>
+                          <button
+                            type="button"
+                            className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
+                            onClick={() => handleRemovePending(uid)}
+                            aria-label={`Remove ${label}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                )}
+              </HuemulField>
+            )}
           </>
         )}
       </div>
@@ -408,7 +449,7 @@ export default function AssetLifecycleSheet({
         description={t("lifecycle.description", {
           name: asset?.name ?? "",
         })}
-        icon={Activity}
+        icon={ShieldCheck}
         showFooter={false}
         maxWidth="sm:max-w-5xl"
       >
@@ -453,7 +494,18 @@ export default function AssetLifecycleSheet({
               {t("lifecycle.noConfig")}
             </p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-6">
+              {steps.length > 1 && (
+                <div className="flex flex-col gap-1">
+                  <p className="text-base font-semibold text-foreground">
+                    {t(`lifecycle.stepTypes.${activeStep!}`, { defaultValue: activeStep! })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("lifecycle.grants.sectionDescription", { action: t(`lifecycle.stepActions.${activeStep!}`, { defaultValue: activeStep! }) })}
+                  </p>
+                </div>
+              )}
+              <div className={steps.length > 1 ? "flex flex-col gap-3" : "flex flex-col gap-6"}>
               {steps.map((step) => (
                 <StepGrantsPanel
                   key={step.id}
@@ -461,6 +513,7 @@ export default function AssetLifecycleSheet({
                   documentId={asset!.id}
                   step={step}
                   stepType={activeStep!}
+                  isGrouped={steps.length > 1}
                   users={users}
                   fetchUserOptions={fetchUserOptions}
                   onSaveGrants={handleSaveGrants}
@@ -470,6 +523,7 @@ export default function AssetLifecycleSheet({
                   isRevokePending={revoke.isPending}
                 />
               ))}
+              </div>
             </div>
           )}
         </div>

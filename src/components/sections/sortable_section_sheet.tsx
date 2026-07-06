@@ -25,6 +25,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { EditSectionDialog } from "./sections-edit-dialog";
+import { SectionFormFieldsView } from "./section-form-fields-view";
 import type { SortableSectionSheetProps, DeleteMode } from "@/types/sections";
 
 export type { SortableSectionSheetItem } from "@/types/sections";
@@ -45,6 +46,7 @@ export default function SortableSectionSheet({
   isAddToCurrentVersionPending = false,
   currentExecutionId = null,
   useExecutionDeleteDialog = false,
+  documentId,
 }: SortableSectionSheetProps) {
   const { t } = useTranslation(["sections", "common"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
@@ -140,6 +142,11 @@ export default function SortableSectionSheet({
                       {t("sections:sortableSection.typeBadgeReference")}
                     </Badge>
                   )}
+                  {sectionType === 'form' && (
+                    <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs">
+                      {t("sections:sortableSection.typeBadgeForm")}
+                    </Badge>
+                  )}
                 </div>
                 
                 {/* Description Preview */}
@@ -169,7 +176,18 @@ export default function SortableSectionSheet({
                       <Markdown>{referencedContent ? `${referencedContent.substring(0, 150)}...` : t("sections:sortableSection.noContentAvailable")}</Markdown>
                     );
                   }
-                  
+
+                  // Para tipo Form: mostrar lista de campos
+                  if (sectionType === 'form') {
+                    const fields: any[] = (item as any).form_fields || [];
+                    if (fields.length === 0) return <span className="text-xs text-gray-400">{t("sections:sortableSection.noContentAvailable")}</span>;
+                    return (
+                      <span className="text-xs text-gray-500">
+                        {fields.map(f => f.field_name || f.field_id).join(', ')}
+                      </span>
+                    );
+                  }
+
                   return null;
                 })()}
 
@@ -352,6 +370,20 @@ export default function SortableSectionSheet({
                   </div>
                 )}
 
+                {/* Form - vista de solo lectura de las preguntas */}
+                {sectionType === 'form' && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">{t("sections:sortableSection.formFieldsTitle")}</h4>
+                    {item.form_fields && item.form_fields.length > 0 ? (
+                      <SectionFormFieldsView fields={item.form_fields} />
+                    ) : (
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-sm text-gray-500 italic">{t("sections:sortableSection.noContentAvailable")}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Dependencies - Para todos los tipos cuando están expandidas */}
                 {item.dependencies && item.dependencies.length > 0 && (
                   <div>
@@ -485,6 +517,7 @@ export default function SortableSectionSheet({
         existingSections={existingSections as any}
         hasTemplate={hasTemplate}
         isTemplateSection={isTemplateSection}
+        documentId={documentId}
       />
     </div>
   );

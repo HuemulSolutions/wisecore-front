@@ -38,6 +38,11 @@ export interface SectionPlateEditorProps {
   documentId?: string;
   /** Section execution ID – required for creating discussions */
   sectionExecutionId?: string;
+  /**
+   * Organization ID – when provided alongside documentId, enables the media
+   * reference picker so users can insert existing media into the section.
+   */
+  organizationId?: string;
   /** Callback to create a new section from selected text */
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
   /**
