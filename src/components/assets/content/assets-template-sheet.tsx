@@ -260,6 +260,7 @@ export function TemplateConfigSheet({
                                 await deleteSectionMutation.mutateAsync({ sectionId, options });
                               }}
                               isTemplateSection={true}
+                              templateId={template!.id}
                             />
                           </div>
                         ))}

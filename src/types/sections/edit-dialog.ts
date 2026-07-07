@@ -13,4 +13,5 @@ export interface EditSectionDialogProps {
   hasTemplate?: boolean;
   isTemplateSection?: boolean;
   documentId?: string;
+  templateId?: string;
 }

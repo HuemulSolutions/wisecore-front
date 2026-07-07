@@ -12,6 +12,7 @@ export function EditSectionForm({
   hasTemplate = false,
   isTemplateSection = false,
   documentId,
+  templateId,
 }: EditSectionFormProps) {
   return (
     <SectionForm
@@ -27,6 +28,7 @@ export function EditSectionForm({
       hasTemplate={hasTemplate}
       isTemplateSection={isTemplateSection}
       documentId={documentId}
+      templateId={templateId}
     />
   );
 }

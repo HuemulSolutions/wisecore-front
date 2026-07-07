@@ -157,6 +157,7 @@ export function TemplateSectionsList({
                       await deleteSectionMutation.mutateAsync({ sectionId, options });
                     }}
                     isTemplateSection={true}
+                    templateId={templateId}
                     canUpdate={canUpdate}
                     canDelete={canDelete}
                   />
