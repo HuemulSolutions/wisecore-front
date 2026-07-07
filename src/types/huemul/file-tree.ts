@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { HuemulTreeNode, HuemulTreeMenuAction, HuemulFileTreeLabels } from './tree'
 
 export interface HuemulFileTreeProps {
-  onLoadChildren?: (folderId: string | null) => Promise<HuemulTreeNode[]>
+  onLoadChildren?: (folderId: string | null, node?: HuemulTreeNode) => Promise<HuemulTreeNode[]>
   onRefresh?: () => Promise<HuemulTreeNode[]>
   onCreateFile?: (parentId: string | null, name: string) => Promise<void>
   onCreateFolder?: (parentId: string | null, name: string) => Promise<void>
@@ -37,6 +37,20 @@ export interface HuemulFileTreeProps {
   minHeight?: string
   labels?: HuemulFileTreeLabels
   onDragStart?: (e: React.DragEvent, node: HuemulTreeNode) => void
+  // Multi-selección opt-in (checkboxes). Sin `selectable` el árbol se comporta
+  // exactamente igual que antes (highlight de un solo nodo activo).
+  selectable?: boolean
+  selectedIds?: Set<string>
+  onSelectionChange?: (next: Set<string>) => void
+  // Qué nodos pueden marcarse. Por defecto: solo hojas (type !== folderType).
+  isNodeSelectable?: (node: HuemulTreeNode) => boolean
+  // Selección tri-estado en cascada (carpetas seleccionan todos sus descendientes).
+  // Opt-in: activa checkboxes en todos los nodos (no solo hojas) y cascada la selección.
+  cascadeSelection?: boolean
+  // Qué nodos pueden expandirse. Por defecto: solo carpetas (type === folderType).
+  isNodeExpandable?: (node: HuemulTreeNode) => boolean
+  // Contenido adicional a mostrar después del nombre del nodo (ej. badge de versión).
+  renderNodeSuffix?: (node: HuemulTreeNode) => ReactNode
 }
 
 export interface HuemulFileTreeRef {

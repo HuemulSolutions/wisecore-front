@@ -65,3 +65,29 @@ export interface ChildDocumentsResponse {
   has_next: boolean;
   timestamp: string;
 }
+
+// ========================================
+// Export / Import (migración por JSON)
+// ========================================
+
+export interface ExportTemplatesBody {
+  template_ids: string[];
+}
+
+export interface ImportTemplatesQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  template_ids?: string[];
+}
+
+export interface ImportTemplatesData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportTemplatesResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportTemplatesData;
+}

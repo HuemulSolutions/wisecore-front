@@ -1,20 +1,17 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Input } from "@/components/ui/input";
+import { HuemulFileTree } from "@/huemul/components/huemul-file-tree";
+import type { HuemulFileTreeRef } from "@/huemul/components/huemul-file-tree";
+import type { HuemulTreeNode, HuemulTreeMenuAction } from "@/types/huemul";
 
 import {
   SidebarGroup,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,14 +19,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, FileText, Loader2, Search, Edit3, Trash2, FileCode, RefreshCw, MoreVertical, X, Copy } from "lucide-react";
+import { Plus, FileCode, Search, Edit3, Trash2, RefreshCw, MoreVertical, X, Copy, Upload, Download, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { exportTemplates } from "@/services/templates";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { EditTemplateDialog } from "./templates-edit-dialog";
 import { DeleteTemplateDialog } from "./templates-delete-dialog";
 import { CloneTemplateDialog } from "./templates-clone-dialog";
+import { TemplatesImportSheet } from "./templates-import-sheet";
 import type { TemplateItem } from '@/types/templates';
 import type { TemplatesSidebarProps } from '@/types/templates';
 export type { TemplatesSidebarProps } from '@/types/templates';
+
+const TEMPLATE_NODE_TYPE = "template";
+
+function templateToNode(template: TemplateItem): HuemulTreeNode {
+  return {
+    id: template.id,
+    name: template.name,
+    type: TEMPLATE_NODE_TYPE,
+    metadata: { description: template.description },
+  };
+}
 
 export function TemplatesSidebar({
   templates,
@@ -45,9 +56,10 @@ export function TemplatesSidebar({
   canCreate,
   canUpdate,
   canDelete,
+  canExport,
+  canImport,
 }: TemplatesSidebarProps) {
   const { t } = useTranslation(['templates', 'common']);
-  const queryClient = useQueryClient();
   const [localSearch, setLocalSearch] = useState(searchValue);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -55,23 +67,88 @@ export function TemplatesSidebar({
   const [deleteDialogTemplate, setDeleteDialogTemplate] = useState<TemplateItem | null>(null);
   const [cloneDialogTemplate, setCloneDialogTemplate] = useState<TemplateItem | null>(null);
 
-  const filteredTemplates = templates;
+  // Export selection mode + import
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  const [showImportSheet, setShowImportSheet] = useState(false);
 
-  const openEditDialog = (template: TemplateItem) => {
-    setEditDialogTemplate(template);
+  // El árbol maneja su propia data vía onLoadChildren/onRefresh; react-query sigue
+  // siendo la fuente de verdad (búsqueda + paginación). Mantenemos los templates en
+  // un ref para alimentar el árbol con callbacks estables y lo refrescamos cuando
+  // llega una nueva página/búsqueda.
+  const treeRef = useRef<HuemulFileTreeRef>(null);
+  const templatesRef = useRef<TemplateItem[]>(templates);
+  templatesRef.current = templates;
+
+  const loadTemplateNodes = useCallback(
+    () => Promise.resolve(templatesRef.current.map(templateToNode)),
+    [],
+  );
+
+  useEffect(() => {
+    treeRef.current?.refresh();
+  }, [templates]);
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
   };
 
-  const closeEditDialog = () => {
-    setEditDialogTemplate(null);
+  const isAllSelected = templates.length > 0 && selectedIds.size === templates.length;
+
+  const handleExport = async () => {
+    if (!organizationId) return;
+    if (selectedIds.size === 0) {
+      toast.error(t('templates:exportImport.exportSelectionRequired'));
+      return;
+    }
+    setIsExporting(true);
+    try {
+      await exportTemplates(organizationId, { template_ids: [...selectedIds] });
+      exitSelectionMode();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('templates:exportImport.exportError'));
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const openDeleteDialog = (template: TemplateItem) => {
-    setDeleteDialogTemplate(template);
-  };
+  // Acciones por nodo (clone/edit/delete), gateadas por permisos.
+  const menuActions: HuemulTreeMenuAction[] = [];
+  if (canCreate) {
+    menuActions.push({
+      label: t('templates:sidebar.cloneTemplate'),
+      icon: <Copy className="h-4 w-4" />,
+      onClick: async (id) => {
+        const tpl = templatesRef.current.find((t) => t.id === id);
+        if (tpl) setCloneDialogTemplate(tpl);
+      },
+    });
+  }
+  if (canUpdate) {
+    menuActions.push({
+      label: t('templates:sidebar.editTemplate'),
+      icon: <Edit3 className="h-4 w-4" />,
+      onClick: async (id) => {
+        const tpl = templatesRef.current.find((t) => t.id === id);
+        if (tpl) setEditDialogTemplate(tpl);
+      },
+    });
+  }
+  if (canDelete) {
+    menuActions.push({
+      variant: "destructive",
+      label: t('templates:sidebar.deleteTemplate'),
+      icon: <Trash2 className="h-4 w-4" />,
+      onClick: async (id) => {
+        const tpl = templatesRef.current.find((t) => t.id === id);
+        if (tpl) setDeleteDialogTemplate(tpl);
+      },
+    });
+  }
 
-  const closeDeleteDialog = () => {
-    setDeleteDialogTemplate(null);
-  };
+  const showActionsMenu = canImport || canExport;
 
   return (
     <>
@@ -104,26 +181,94 @@ export function TemplatesSidebar({
                   onClick={() => onRefresh?.()}
                 />
                 {canCreate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hover:cursor-pointer"
+                    onClick={() => setIsDialogOpen(true)}
+                    aria-label={t('templates:sidebar.newTemplate')}
+                    title={t('templates:sidebar.newTemplate')}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
+                {showActionsMenu && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
-                        <Plus className="h-4 w-4" />
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => {
-                        setTimeout(() => setIsDialogOpen(true), 0);
-                      }} className="hover:cursor-pointer">
-                        <FileText className="mr-2 h-4 w-4" />
-                        {t('templates:sidebar.newTemplate')}
-                      </DropdownMenuItem>
+                      {canExport && (
+                        <DropdownMenuItem
+                          className="hover:cursor-pointer"
+                          onSelect={() => { setTimeout(() => setIsSelectionMode(true), 0); }}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          {t('templates:exportImport.exportMenu')}
+                        </DropdownMenuItem>
+                      )}
+                      {canImport && (
+                        <DropdownMenuItem
+                          className="hover:cursor-pointer"
+                          onSelect={() => { setTimeout(() => setShowImportSheet(true), 0); }}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {t('templates:exportImport.importMenu')}
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
               </div>
             </div>
           </SidebarGroup>
-          
+
+          {/* Selection bar */}
+          {isSelectionMode && (
+            <div className="flex flex-col gap-2 mx-2 mt-1.5 px-2 py-2 rounded-md border bg-muted/40">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 hover:cursor-pointer"
+                  onClick={exitSelectionMode}
+                  aria-label={t('common:cancel')}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+                <span className="flex-1 min-w-0 truncate text-xs font-medium">
+                  {t('templates:exportImport.selectedCount', { count: selectedIds.size })}
+                </span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-6 px-0 text-xs shrink-0"
+                  onClick={() =>
+                    setSelectedIds(
+                      isAllSelected ? new Set() : new Set(templatesRef.current.map((tpl) => tpl.id)),
+                    )
+                  }
+                >
+                  {isAllSelected ? t('common:deselectAll') : t('common:selectAll')}
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs"
+                disabled={selectedIds.size === 0 || isExporting}
+                onClick={handleExport}
+              >
+                {isExporting ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />{t('common:exporting')}</>
+                ) : (
+                  <><Download className="h-3.5 w-3.5 mr-1.5" />{`${t('common:export')} (${selectedIds.size})`}</>
+                )}
+              </Button>
+            </div>
+          )}
+
           {/* Search bar */}
           {isSearchOpen && (
             <div className="px-2 pt-1 pb-1">
@@ -144,191 +289,65 @@ export function TemplatesSidebar({
 
         {/* Content */}
         <ScrollArea className="flex-1 min-h-0" type="hover">
-          <div className="px-2">
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <div className="pt-1">
-                  {error ? (
-                <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed p-6">
-                  <p className="text-red-600 mb-3 font-medium text-sm">
-                    {(error as Error).message || t('templates:sidebar.loadError')}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {t('templates:sidebar.loadErrorDescription')}
-                  </p>
-                  <HuemulButton
-                    icon={RefreshCw}
-                    iconClassName="h-3.5 w-3.5 mr-2"
-                    label={t('common:tryAgain')}
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ["templates", organizationId] })}
-                  />
-                </div>
-              ) : isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  <span className="ml-2 text-sm text-gray-500">{t('common:loading')}</span>
-                </div>
-              ) : filteredTemplates.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm mb-2">
-                    {searchValue ? t('templates:sidebar.noTemplatesMatchSearch') : t('templates:sidebar.noTemplatesFound')}
-                  </p>
-                  {!searchValue && (
-                    <p className="text-xs">{t('templates:sidebar.noTemplatesHint')}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {filteredTemplates.map((template) => (
-                    <ContextMenu key={template.id}>
-                      <ContextMenuTrigger asChild>
-                        <div
-                          className={`group p-1 rounded-md cursor-pointer transition-colors border ${
-                            selectedTemplateId === template.id
-                              ? 'bg-blue-50 border-blue-200'
-                              : 'border-transparent hover:bg-gray-50 hover:border-gray-200'
-                          }`}
-                          onClick={() => onTemplateSelect(template)}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <div className="shrink-0">
-                              <FileCode className={`h-3.5 w-3.5 ${
-                                selectedTemplateId === template.id
-                                  ? 'text-blue-600'
-                                  : 'text-gray-400'
-                              }`} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className={`font-medium text-xs truncate ${
-                                selectedTemplateId === template.id
-                                  ? 'text-blue-900'
-                                  : 'text-gray-900'
-                              }`}>
-                                {template.name}
-                              </h3>
-                              {template.description && (
-                                <p className={`text-[10px] truncate mt-0.5 ${
-                                  selectedTemplateId === template.id
-                                    ? 'text-blue-600'
-                                    : 'text-gray-500'
-                                }`}>
-                                  {template.description}
-                                </p>
-                              )}
-                            </div>
-                            {(canCreate || canUpdate || canDelete) && (
-                              <div className="shrink-0">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-5 w-5 hover:cursor-pointer"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MoreVertical className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    {canCreate && (
-                                      <DropdownMenuItem
-                                        className="hover:cursor-pointer"
-                                        onSelect={() => {
-                                          setTimeout(() => setCloneDialogTemplate(template), 0);
-                                        }}
-                                      >
-                                        <Copy className="mr-2 h-4 w-4" />
-                                        {t('templates:sidebar.cloneTemplate')}
-                                      </DropdownMenuItem>
-                                    )}
-                                    {canUpdate && (
-                                      <DropdownMenuItem
-                                        className="hover:cursor-pointer"
-                                        onSelect={() => {
-                                          setTimeout(() => openEditDialog(template), 0);
-                                        }}
-                                      >
-                                        <Edit3 className="mr-2 h-4 w-4" />
-                                        {t('templates:sidebar.editTemplate')}
-                                      </DropdownMenuItem>
-                                    )}
-                                    {canDelete && (
-                                      <DropdownMenuItem
-                                        className="hover:cursor-pointer text-red-600"
-                                        onSelect={() => {
-                                          setTimeout(() => openDeleteDialog(template), 0);
-                                        }}
-                                      >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        {t('templates:sidebar.deleteTemplate')}
-                                      </DropdownMenuItem>
-                                    )}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent>
-                        {canCreate && (
-                          <ContextMenuItem
-                            className="hover:cursor-pointer"
-                            onSelect={() => {
-                              setTimeout(() => setCloneDialogTemplate(template), 0);
-                            }}
-                          >
-                            <Copy className="mr-2 h-4 w-4" />
-                            {t('templates:sidebar.cloneTemplate')}
-                          </ContextMenuItem>
-                        )}
-                        {canUpdate && (
-                          <ContextMenuItem
-                            className="hover:cursor-pointer"
-                            onSelect={() => {
-                              setTimeout(() => openEditDialog(template), 0);
-                            }}
-                          >
-                            <Edit3 className="mr-2 h-4 w-4" />
-                            {t('templates:sidebar.editTemplate')}
-                          </ContextMenuItem>
-                        )}
-                        {canDelete && (
-                          <ContextMenuItem
-                            className="hover:cursor-pointer text-red-600"
-                            onSelect={() => {
-                              setTimeout(() => openDeleteDialog(template), 0);
-                            }}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t('templates:sidebar.deleteTemplate')}
-                          </ContextMenuItem>
-                        )}
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  ))}
-                </div>
-                  )}
+          <div className="px-2 pt-1">
+            {error ? (
+              <div className="flex flex-col items-center justify-center min-h-75 text-center rounded-lg border border-dashed p-6">
+                <p className="text-red-600 mb-3 font-medium text-sm">
+                  {(error as Error).message || t('templates:sidebar.loadError')}
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t('templates:sidebar.loadErrorDescription')}
+                </p>
+                <HuemulButton
+                  icon={RefreshCw}
+                  iconClassName="h-3.5 w-3.5 mr-2"
+                  label={t('common:tryAgain')}
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => onRefresh?.()}
+                />
               </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              {canCreate && (
-                <ContextMenuItem
-                  className="hover:cursor-pointer"
-                  onClick={() => {
-                    setTimeout(() => setIsDialogOpen(true), 0);
-                  }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('templates:sidebar.newTemplate')}
-                </ContextMenuItem>
-              )}
-            </ContextMenuContent>
-          </ContextMenu>
+            ) : isLoading && templates.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <span className="ml-2 text-sm text-gray-500">{t('common:loading')}</span>
+              </div>
+            ) : (
+              <HuemulFileTree
+                ref={treeRef}
+                onLoadChildren={loadTemplateNodes}
+                onRefresh={loadTemplateNodes}
+                folderType="folder"
+                showCreateButtons={false}
+                showDefaultActions={{ create: false, delete: false, share: false }}
+                showBorder={false}
+                minHeight="0"
+                activeNodeId={selectedTemplateId}
+                menuActions={menuActions}
+                onFileClick={(node) => {
+                  const tpl = templatesRef.current.find((tItem) => tItem.id === node.id);
+                  if (tpl) onTemplateSelect(tpl);
+                }}
+                renderLeafIcon={(node) => (
+                  <FileCode
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0",
+                      node.id === selectedTemplateId ? "text-blue-600" : "text-gray-400",
+                    )}
+                  />
+                )}
+                selectable={isSelectionMode}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                labels={{
+                  empty: searchValue
+                    ? t('templates:sidebar.noTemplatesMatchSearch')
+                    : t('templates:sidebar.noTemplatesFound'),
+                  loading: t('common:loading'),
+                }}
+              />
+            )}
           </div>
         </ScrollArea>
       </div>
@@ -345,14 +364,14 @@ export function TemplatesSidebar({
       {editDialogTemplate && organizationId && (
         <EditTemplateDialog
           open={!!editDialogTemplate}
-          onOpenChange={(open) => { if (!open) closeEditDialog(); }}
+          onOpenChange={(open) => { if (!open) setEditDialogTemplate(null); }}
           templateId={editDialogTemplate.id}
           templateName={editDialogTemplate.name}
           templateDescription={editDialogTemplate.description}
           organizationId={organizationId}
           onSuccess={() => {
             onRefresh?.();
-            closeEditDialog();
+            setEditDialogTemplate(null);
           }}
         />
       )}
@@ -360,12 +379,12 @@ export function TemplatesSidebar({
       {deleteDialogTemplate && organizationId && (
         <DeleteTemplateDialog
           open={!!deleteDialogTemplate}
-          onOpenChange={(open) => { if (!open) closeDeleteDialog(); }}
+          onOpenChange={(open) => { if (!open) setDeleteDialogTemplate(null); }}
           templateId={deleteDialogTemplate.id}
           templateName={deleteDialogTemplate.name}
           organizationId={organizationId}
           onSuccess={() => {
-            closeDeleteDialog();
+            setDeleteDialogTemplate(null);
             onTemplateDeleted?.();
           }}
         />
@@ -384,6 +403,13 @@ export function TemplatesSidebar({
           }}
         />
       )}
+
+      <TemplatesImportSheet
+        open={showImportSheet}
+        organizationId={organizationId}
+        onOpenChange={(open) => { if (!open) setShowImportSheet(false); }}
+        onImportSuccess={() => onRefresh?.()}
+      />
     </>
   );
 }

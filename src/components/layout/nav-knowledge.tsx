@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network } from "lucide-react"
+import { Plus, File, FileText, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network, Download, Loader2, MoreVertical } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -17,12 +17,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
-import type { FileNode } from "@/types/assets"
+import type { FileNode, ExecutionInfo } from "@/types/assets"
+import { exportDocuments } from "@/services/assets"
+import { getExecutionsByDocumentId } from "@/services/executions"
 import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
@@ -119,6 +123,10 @@ const NavKnowledgeContext = React.createContext<{
   setHasNextRootPage: (hasNext: boolean) => void
   isRelationsMode: boolean
   setIsRelationsMode: (mode: boolean) => void
+  isExportMode: boolean
+  setIsExportMode: (mode: boolean) => void
+  selectedIds: Set<string>
+  setSelectedIds: (ids: Set<string>) => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
@@ -150,6 +158,9 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
   const [isRelationsMode, setIsRelationsMode] = useState(false)
+  const [isExportMode, setIsExportModeState] = useState(false)
+  // selectedIds contiene execution_ids (versiones) seleccionadas para exportar.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const { selectedOrganizationId } = useOrganization()
 
   // Refs to keep callbacks stable across re-renders while accessing latest state
@@ -177,6 +188,17 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const handleCreateFolder = useCallback((folderId?: string) => {
     setCurrentFolderId(folderId)
     setCreateFolderDialogOpen(true)
+  }, [])
+
+  const setIsExportMode = useCallback((mode: boolean) => {
+    setIsExportModeState(mode)
+    if (mode) {
+      setIsRelationsMode(false)
+      setIsSearchOpen(false)
+      setCommittedSearch('')
+    } else {
+      setSelectedIds(new Set())
+    }
   }, [])
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
@@ -335,7 +357,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode, isExportMode, setIsExportMode, selectedIds, setSelectedIds }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetDialog
@@ -444,12 +466,13 @@ export function useNavKnowledgeMode() {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
-  const { canCreate } = useUserPermissions()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode, isExportMode, setIsExportMode } = useNavKnowledge()
+  const { canCreate, canRead } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
+  const canExportAssets = canRead('asset')
 
   if (!selectedOrganizationId) {
     return null
@@ -471,23 +494,14 @@ export function NavKnowledgeHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className={cn("h-6 w-6 hover:cursor-pointer", isRelationsMode && "bg-accent text-accent-foreground")}
-            onClick={() => setIsRelationsMode(!isRelationsMode)}
-            title={t('knowledge.relationsModeTooltip')}
-          >
-            <Network className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
             className="h-6 w-6 hover:cursor-pointer"
             onClick={handleToggleSearch}
           >
             {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-6 w-6 hover:cursor-pointer"
             onClick={() => fileTreeRef.current?.refresh()}
           >
@@ -537,6 +551,33 @@ export function NavKnowledgeHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem
+                checked={isRelationsMode}
+                onCheckedChange={() => setIsRelationsMode(!isRelationsMode)}
+                className="hover:cursor-pointer"
+              >
+                <Network className="mr-2 h-4 w-4" />
+                {t('knowledge.relationsModeTooltip')}
+              </DropdownMenuCheckboxItem>
+              {canExportAssets && (
+                <DropdownMenuCheckboxItem
+                  checked={isExportMode}
+                  onCheckedChange={() => setIsExportMode(!isExportMode)}
+                  className="hover:cursor-pointer"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {t('knowledge.exportModeTooltip')}
+                </DropdownMenuCheckboxItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {isSearchOpen && (
@@ -560,7 +601,8 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode, isExportMode, setIsExportMode, selectedIds, setSelectedIds } = useNavKnowledge()
+  const [isExporting, setIsExporting] = useState(false)
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -687,8 +729,24 @@ export function NavKnowledgeContent() {
   }, [rootPage, rootPageSize, fileTreeRef])
 
   const handleLoadChildren = useCallback(
-    async (folderId: string | null): Promise<FileNode[]> => {
+    async (folderId: string | null, node?: FileNode): Promise<FileNode[]> => {
       if (!selectedOrganizationId) return []
+
+      if (node?.type === "document") {
+        try {
+          const executions = (await getExecutionsByDocumentId(node.id, selectedOrganizationId)) as ExecutionInfo[]
+          return (executions ?? []).map((execution) => ({
+            id: execution.id,
+            name: execution.name || execution.version || t('assets:exportTree.versionFallback'),
+            type: "execution" as const,
+            version: execution.version,
+            status: execution.status,
+          }))
+        } catch (error) {
+          console.error("Error loading executions:", error)
+          return []
+        }
+      }
 
       try {
         const isRoot = folderId === null
@@ -779,7 +837,7 @@ export function NavKnowledgeContent() {
         return []
       }
     },
-    [selectedOrganizationId]
+    [selectedOrganizationId, t]
   )
 
   const handleRefreshTree = useCallback(
@@ -998,8 +1056,52 @@ export function NavKnowledgeContent() {
     [folderNames, documentNames, handleDeleteFolder, handleDeleteDocument]
   )
 
+  const handleExportClick = async () => {
+    if (!selectedOrganizationId || selectedIds.size === 0) return
+    setIsExporting(true)
+    try {
+      await exportDocuments(selectedOrganizationId, { execution_ids: [...selectedIds] })
+      setIsExportMode(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('knowledge.exportError'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <SidebarGroup>
+      {isExportMode && (
+        <div className="flex flex-col gap-2 mx-2 mb-1.5 px-2 py-2 rounded-md border bg-muted/40">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0 hover:cursor-pointer"
+              onClick={() => setIsExportMode(false)}
+              aria-label={t('common:cancel')}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+            <span className="flex-1 min-w-0 truncate text-xs font-medium">
+              {t('knowledge.exportSelectedCount', { count: selectedIds.size })}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            className="w-full h-8 text-xs"
+            disabled={selectedIds.size === 0 || isExporting}
+            onClick={handleExportClick}
+          >
+            {isExporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {`${t('common:export')} (${selectedIds.size})`}
+          </Button>
+        </div>
+      )}
       {committedSearch ? (
         isSearching ? (
           <div className="px-4 py-3 flex justify-center">
@@ -1074,7 +1176,11 @@ export function NavKnowledgeContent() {
           showRefreshButton={false}
           alwaysShowMenuActions={true}
           renderLeafIcon={(node) => {
-            const color = (node as FileNode).document_type?.color
+            const fileNode = node as FileNode
+            if (fileNode.type === "execution") {
+              return <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            }
+            const color = fileNode.document_type?.color
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
           onNodeDragStart={isRelationsMode ? (e, node) => {
@@ -1085,6 +1191,22 @@ export function NavKnowledgeContent() {
               JSON.stringify({ id: node.id, name: node.name, color: docType.color, documentTypeId: docType.id })
             )
           } : undefined}
+          cascadeSelection={isExportMode}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          isNodeExpandable={(node) => {
+            const fileNode = node as FileNode
+            return fileNode.type === "folder" || (isExportMode && fileNode.type === "document")
+          }}
+          renderNodeSuffix={(node) => {
+            const fileNode = node as FileNode
+            if (fileNode.type !== "execution" || !fileNode.version) return null
+            return (
+              <Badge variant="outline" className="text-[10px] font-normal shrink-0">
+                {fileNode.version}
+              </Badge>
+            )
+          }}
         />
       )}
     </SidebarGroup>

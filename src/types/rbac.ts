@@ -121,3 +121,29 @@ export interface AssignRolesData {
 export interface CloneRoleData {
   copy_users: boolean;
 }
+
+// ========================================
+// Export / Import (migración por JSON)
+// ========================================
+
+export interface ExportRolesBody {
+  role_ids: string[];
+}
+
+export interface ImportRolesQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  role_ids?: string[];
+}
+
+export interface ImportRolesData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportRolesResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportRolesData;
+}

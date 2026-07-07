@@ -43,6 +43,13 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       renderNodeClassName: renderNodeClassNameProp,
       alwaysShowMenuActions,
       onNodeDragStart,
+      selectable,
+      selectedIds,
+      onSelectionChange,
+      isNodeSelectable,
+      cascadeSelection,
+      isNodeExpandable,
+      renderNodeSuffix,
     },
     ref,
   ) => {
@@ -69,7 +76,8 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
     // HuemulFileTree from re-running loadInitialData on every parent render.
     const adaptedLoadChildren = useCallback(
       onLoadChildren
-        ? (folderId: string | null) => onLoadChildren(folderId) as Promise<HuemulTreeNode[]>
+        ? (folderId: string | null, node?: HuemulTreeNode) =>
+            onLoadChildren(folderId, node as FileNode | undefined) as Promise<HuemulTreeNode[]>
         : () => Promise.resolve([]),
       [onLoadChildren],
     )
@@ -128,6 +136,13 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         showBorder={showBorder}
         showRefreshButton={showRefreshButton}
         onDragStart={onNodeDragStart ? (e, node) => onNodeDragStart(e, node as FileNode) : undefined}
+        selectable={selectable}
+        selectedIds={selectedIds}
+        onSelectionChange={onSelectionChange}
+        isNodeSelectable={isNodeSelectable ? (node) => isNodeSelectable(node as FileNode) : undefined}
+        cascadeSelection={cascadeSelection}
+        isNodeExpandable={isNodeExpandable ? (node) => isNodeExpandable(node as FileNode) : undefined}
+        renderNodeSuffix={renderNodeSuffix ? (node) => renderNodeSuffix(node as FileNode) : undefined}
         minHeight={minHeight}
         labels={{
           newFile: t("fileTree.newFile"),

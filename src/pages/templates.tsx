@@ -26,6 +26,8 @@ export default function Templates() {
   const canCreateTemplate = isRootAdmin || hasPermission('template:c');
   const canUpdateTemplate = isRootAdmin || hasPermission('template:u');
   const canDeleteTemplate = isRootAdmin || hasPermission('template:d');
+  const canExportTemplate = isRootAdmin || hasPermission('template:r');
+  const canImportTemplate = isRootAdmin || (hasPermission('template:c') && hasPermission('template:u'));
   const canListSections = isRootAdmin || hasAnyPermission(['template_section:l', 'template_section:r']);
   const canCreateSection = isRootAdmin || hasPermission('template_section:c');
   const canUpdateSection = isRootAdmin || hasPermission('template_section:u');
@@ -97,6 +99,8 @@ export default function Templates() {
               canCreate={canCreateTemplate}
               canUpdate={canUpdateTemplate}
               canDelete={canDeleteTemplate}
+              canExport={canExportTemplate}
+              canImport={canImportTemplate}
             />
           ),
           defaultSize: 15,

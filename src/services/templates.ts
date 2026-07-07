@@ -1,8 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { TemplatesResponse, CloneTemplateRequest, CloneTemplateResult, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse } from "@/types/templates";
+import { downloadBlobResponse } from "@/lib/blob-download";
+import type { TemplatesResponse, CloneTemplateRequest, CloneTemplateResult, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse } from "@/types/templates";
 
-export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse };
+export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse };
 
 export async function getAllTemplates(organizationId: string, search?: string, page: number = 1, pageSize: number = 100): Promise<TemplatesResponse> {
     const params = new URLSearchParams({
@@ -145,6 +146,56 @@ export async function cloneTemplate(
         },
     });
     const data = await response.json();
+    return data.data;
+}
+
+// Exporta uno o más templates como archivo JSON descargable (requiere permiso template:r).
+// Distinto de exportTemplate (singular), que exporta la estructura de un template sin IDs.
+export async function exportTemplates(organizationId: string, body: ExportTemplatesBody): Promise<void> {
+    const orgToken = httpClient.getOrganizationToken();
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (orgToken) headers['Authorization'] = `Bearer ${orgToken}`;
+    if (organizationId) headers['X-Org-Id'] = organizationId;
+
+    const response = await fetch(`${backendUrl}/templates/export`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(errorBody?.message ?? 'Error al exportar templates');
+    }
+
+    await downloadBlobResponse(response, 'templates_export.json');
+}
+
+// Importa templates desde un archivo JSON exportado (requiere permisos template:c + template:u).
+export async function importTemplates(
+    organizationId: string,
+    file: File,
+    params: ImportTemplatesQueryParams = {},
+): Promise<ImportTemplatesData> {
+    const url = new URL(`${backendUrl}/templates/import`);
+    if (params.on_conflict) url.searchParams.append('on_conflict', params.on_conflict);
+    if (params.template_ids?.length) {
+        url.searchParams.append('template_ids', params.template_ids.join(','));
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await httpClient.fetch(url.toString(), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+
+    const data = (await response.json()) as ImportTemplatesResponse;
     return data.data;
 }
 

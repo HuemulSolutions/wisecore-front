@@ -57,7 +57,7 @@ export interface LibraryNavigationState {
 export interface FileNode {
   id: string;
   name: string;
-  type: "document" | "folder";
+  type: "document" | "folder" | "execution";
   document_type?: DocumentType;
   access_levels?: string[];
   children?: FileNode[];
@@ -65,6 +65,8 @@ export interface FileNode {
   isLoading?: boolean;
   hasChildren?: boolean;
   disabled?: boolean;
+  version?: string | null;
+  status?: string;
 }
 
 /**
@@ -483,6 +485,33 @@ export interface ImportDocumentFromFileParams {
   folder_id?: string | null;
   file: File;
   organizationId: string;
+}
+
+// ========================================
+// Export / Import de configuración (migración por JSON)
+// Distinto de ImportDocumentFromFileParams, que importa DOCX/PDF y los convierte.
+// ========================================
+
+export interface ExportDocumentsBody {
+  execution_ids: string[];
+}
+
+export interface ImportDocumentsConfigQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  document_ids?: string[];
+}
+
+export interface ImportDocumentsConfigData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportDocumentsConfigResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportDocumentsConfigData;
 }
 
 export interface PendingAiSuggestionSection {

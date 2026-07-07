@@ -625,6 +625,10 @@ const translations = {
     saveDates: { en: "Save Dates", es: "Guardar Fechas" },
     datesSaved: { en: "Business dates saved successfully!", es: "¡Fechas de negocio guardadas correctamente!" },
   },
+  exportTree: {
+    empty: { en: "No documents to export.", es: "No hay documentos para exportar." },
+    versionFallback: { en: "Version", es: "Versión" },
+  },
   notifications: {
     tab: { en: "Notifications", es: "Notificaciones" },
     subscriptionsTab: { en: "Subscriptions", es: "Suscripciones" },

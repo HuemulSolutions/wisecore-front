@@ -67,7 +67,7 @@ export interface AssetEmptyContentProps {
 // ----------------------------------------
 
 export interface AssetFileTreeProps {
-  onLoadChildren?: (folderId: string | null) => Promise<FileNode[]>
+  onLoadChildren?: (folderId: string | null, node?: FileNode) => Promise<FileNode[]>
   onRefresh?: () => Promise<FileNode[]>
   /** documentTypeId and templateId are passed by custom create-file dialogs */
   onCreateFile?: (parentId: string | null, name: string, documentTypeId?: string, templateId?: string) => Promise<void>
@@ -99,6 +99,14 @@ export interface AssetFileTreeProps {
   renderNodeClassName?: (node: FileNode) => string | undefined
   alwaysShowMenuActions?: boolean
   onNodeDragStart?: (e: React.DragEvent, node: FileNode) => void
+  // Multi-selección opt-in (checkboxes), para modo exportación.
+  selectable?: boolean
+  selectedIds?: Set<string>
+  onSelectionChange?: (next: Set<string>) => void
+  isNodeSelectable?: (node: FileNode) => boolean
+  cascadeSelection?: boolean
+  isNodeExpandable?: (node: FileNode) => boolean
+  renderNodeSuffix?: (node: FileNode) => React.ReactNode
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

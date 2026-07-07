@@ -77,6 +77,9 @@ const translations = {
     relationsMode: { en: "Relations", es: "Relaciones" },
     relationsModeTitle: { en: "Relations", es: "Relaciones" },
     relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
+    exportModeTooltip: { en: "Export mode", es: "Modo exportación" },
+    exportSelectedCount: { en: "{{count}} versions selected", es: "{{count}} versiones seleccionadas" },
+    exportError: { en: "Error exporting documents", es: "Error al exportar documentos" },
   },
   llmConfigBanner: {
     llmNotConfigured: {
