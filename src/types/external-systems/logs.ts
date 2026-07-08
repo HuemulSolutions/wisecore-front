@@ -3,6 +3,8 @@ export interface ExternalExecutionLog {
   external_functionality_id: string
   publish_run_id: string
   lifecycle_step_id: string
+  lifecycle_external_publish_action_id: string
+  job_id: string
   execution_order: number
   document_id: string
   execution_id: string
@@ -13,6 +15,8 @@ export interface ExternalExecutionLog {
   http_status_code: number | null
   response_body: string | null
   error_detail: string | null
+  created_by: string | null
+  updated_by: string | null
   created_at: string
   updated_at: string
 }
