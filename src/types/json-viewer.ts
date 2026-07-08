@@ -1,4 +1,4 @@
-export type TokenType = "key" | "string" | "number" | "boolean" | "null" | "punctuation" | "whitespace"
+export type TokenType = "key" | "string" | "number" | "boolean" | "null" | "punctuation" | "whitespace" | "text"
 
 export interface Token {
   type: TokenType
