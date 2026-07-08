@@ -1,3 +1,10 @@
+import type {
+  ExternalFunctionalityHttpMethod,
+  ExternalFunctionalityExecutionType,
+  ExternalFunctionalityClass,
+  ExternalFunctionalityObjective,
+} from '@/types/external-functionalities'
+
 export interface LifecycleStepType {
   value: string;
   label: string;
@@ -141,11 +148,27 @@ export interface RevokeLifecycleDocumentRequest {
 
 // ─── External Publish Actions ─────────────────────────────────────────────────
 
+export interface ExternalPublishActionFunctionality {
+  id: string
+  name: string
+  description: string
+  partial_url: string
+  http_method: ExternalFunctionalityHttpMethod
+  objective: ExternalFunctionalityObjective
+  execution_type: ExternalFunctionalityExecutionType
+  functionality_class: ExternalFunctionalityClass
+  system: {
+    id: string
+    name: string
+    status: string
+  }
+}
+
 export interface ExternalPublishAction {
   id: string
   lifecycle_step_id: string
   external_functionality_id: string
-  external_functionality_name?: string
+  external_functionality?: ExternalPublishActionFunctionality
   execution_order: number
   is_enabled: boolean
   stop_on_error: boolean

@@ -59,7 +59,6 @@ export function LifecyclePublishActionsSection({
   const [addForm, setAddForm]                 = useState<AddDialogState>(buildDefaultAdd(1))
   const [editingAction, setEditingAction]     = useState<ExternalPublishAction | null>(null)
   const [editForm, setEditForm]               = useState<ActionFormState>({ external_functionality_id: "", execution_order: 1, is_enabled: true, stop_on_error: true })
-  const [functionalityNames, setFunctionalityNames] = useState<Map<string, string>>(new Map())
 
   // ─── Data ───────────────────────────────────────────────────────────────────
 
@@ -90,10 +89,8 @@ export function LifecyclePublishActionsSection({
 
   // ─── Name resolution ────────────────────────────────────────────────────────
 
-  const resolveName = (action: ExternalPublishAction) => {
-    if (action.external_functionality_name) return action.external_functionality_name
-    return functionalityNames.get(action.external_functionality_id) ?? `${action.external_functionality_id.slice(0, 8)}…`
-  }
+  const resolveName = (action: ExternalPublishAction) =>
+    action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -104,7 +101,6 @@ export function LifecyclePublishActionsSection({
   }
 
   const handleSaveAdd = () => {
-    const selectedFunctionality = functionalities.find((f) => f.id === addForm.functionalityId)
     const body: CreateExternalPublishActionRequest = {
       external_functionality_id: addForm.functionalityId,
       execution_order: addForm.execution_order,
@@ -112,12 +108,7 @@ export function LifecyclePublishActionsSection({
       stop_on_error: addForm.stop_on_error,
     }
     createAction.mutate(body, {
-      onSuccess: () => {
-        if (selectedFunctionality) {
-          setFunctionalityNames((prev) => new Map(prev).set(selectedFunctionality.id, selectedFunctionality.name))
-        }
-        setShowAddDialog(false)
-      },
+      onSuccess: () => setShowAddDialog(false),
     })
   }
 
@@ -195,8 +186,13 @@ export function LifecyclePublishActionsSection({
                   <td className="px-3 py-2 text-center font-mono text-xs">
                     {action.execution_order}
                   </td>
-                  <td className="px-3 py-2 truncate max-w-[200px] text-xs">
-                    {resolveName(action)}
+                  <td className="px-3 py-2 max-w-[260px]">
+                    <div className="truncate text-xs font-medium">{resolveName(action)}</div>
+                    {action.external_functionality && (
+                      <div className="truncate text-xs text-muted-foreground font-mono">
+                        {action.external_functionality.system.name} · {action.external_functionality.http_method} {action.external_functionality.partial_url}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <HuemulField
