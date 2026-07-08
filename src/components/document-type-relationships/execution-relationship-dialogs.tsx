@@ -124,7 +124,7 @@ function ManualAttributeRows({
 
 // ─── Execution selector field ──────────────────────────────────────────────────
 
-function executionLabel(ex: Execution): string {
+export function executionLabel(ex: Execution): string {
   const ver =
     ex.version_major != null
       ? `v${ex.version_major}.${ex.version_minor ?? 0}.${ex.version_patch ?? 0}`

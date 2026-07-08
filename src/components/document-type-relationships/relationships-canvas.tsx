@@ -17,6 +17,7 @@ import {
   type Node,
   type Edge,
   type OnConnect,
+  type OnConnectEnd,
   BackgroundVariant,
   Panel,
 } from "@xyflow/react"
@@ -28,7 +29,7 @@ import { toast } from "sonner"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
 import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
-import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog } from "./execution-relationship-dialogs"
+import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog, executionLabel } from "./execution-relationship-dialogs"
 import { RelationshipDeleteDialog } from "./relationship-delete-dialog"
 import { RelationshipAttributesDialog } from "./relationship-attributes-dialog"
 import { SaveAsDiagramSheet } from "./save-as-diagram-sheet"
@@ -41,6 +42,9 @@ import { getDocumentTypeRelationships } from "@/services/document-type-relations
 import { getExecutionRelationshipsByExecution } from "@/services/execution-relationships"
 import { useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
+import { CreateAssetDialog } from "@/components/assets/dialogs"
+import { getDocumentById } from "@/services/assets"
+import { getExecutionsByDocumentId } from "@/services/executions"
 import type {
   DocumentTypeRelationship,
   InitialCanvasNode,
@@ -170,7 +174,7 @@ function RelationshipsCanvasFlow({
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
   const queryClient = useQueryClient()
   const { deleteExecutionRelationship } = useExecutionRelationshipMutations(organizationId)
-  const { isOrgAdmin, hasPermission } = useUserPermissions()
+  const { isOrgAdmin, hasPermission, canCreate } = useUserPermissions()
   const containerRef = useRef<HTMLDivElement>(null)
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
@@ -191,6 +195,12 @@ function RelationshipsCanvasFlow({
   // execution-mode drop state: asset dropped on canvas, waiting for the user to pick a version
   const [pendingDrop, setPendingDrop] = useState<{
     docType: { id: string; name: string; color: string; documentTypeId?: string }
+    position: { x: number; y: number }
+  } | null>(null)
+  // execution-mode drop state: connection dragged onto empty canvas, waiting for the user
+  // to create a brand-new asset that becomes the target of the relationship.
+  const [pendingNewAssetConnection, setPendingNewAssetConnection] = useState<{
+    sourceId: string
     position: { x: number; y: number }
   } | null>(null)
   // execution-mode delete state
@@ -583,6 +593,7 @@ function RelationshipsCanvasFlow({
       ])
       setSelectedNodeId(canvasNodeId)
       setSelectedEdgeId(null)
+      return canvasNodeId
     },
     [setNodes, handleRemoveNode],
   )
@@ -669,6 +680,72 @@ function RelationshipsCanvasFlow({
       setPendingConnection({ sourceId: params.source, targetId: params.target })
     }
   }, [mode, getNodes, t])
+
+  // ─── Connection dropped on empty canvas (execution mode) → create a new asset ──
+  const onConnectEnd: OnConnectEnd = useCallback(
+    (event, connectionState) => {
+      if (mode !== 'execution' || !canCreate('asset')) return
+      if (connectionState.isValid || connectionState.toNode || !connectionState.fromNode) return
+
+      const fromNodeId = connectionState.fromNode.id
+      const fromData = getNodes().find((n) => n.id === fromNodeId)?.data as AssetTypeNodeData | undefined
+      if (!fromData?.executionId) {
+        toast.warning(t("nodePanel.versionRequiredFor", { names: fromData?.name ?? '' }))
+        return
+      }
+
+      const { clientX, clientY } = 'changedTouches' in event ? event.changedTouches[0] : event
+      const position = screenToFlowPosition({ x: clientX, y: clientY })
+      setPendingNewAssetConnection({ sourceId: fromNodeId, position })
+    },
+    [mode, canCreate, getNodes, screenToFlowPosition, t],
+  )
+
+  // ─── New asset created from the empty-canvas drop → place node + open relationship dialog ──
+  const handleNewAssetCreated = useCallback(
+    async (created?: { id: string; name: string; type: string }) => {
+      const pending = pendingNewAssetConnection
+      setPendingNewAssetConnection(null)
+      if (!created || !pending) return
+
+      const [document, executions] = await Promise.all([
+        getDocumentById(created.id, organizationId),
+        getExecutionsByDocumentId(created.id, organizationId),
+      ])
+      const execution = executions?.[0]
+      if (!execution) return // the create-asset dialog always leaves an initial version created
+
+      const newCanvasNodeId = createExecutionNode(
+        {
+          id: created.id,
+          name: created.name,
+          color: document?.document_type?.color ?? '#94a3b8',
+          documentTypeId: document?.document_type?.id,
+        },
+        pending.position,
+        execution.id,
+        executionLabel(execution),
+      )
+
+      const sourceData = getNodes().find((n) => n.id === pending.sourceId)?.data as AssetTypeNodeData | undefined
+
+      setPendingConnection({
+        sourceId: pending.sourceId,
+        targetId: newCanvasNodeId,
+        sourceAssetId: sourceData?.assetId ?? pending.sourceId,
+        targetAssetId: created.id,
+        sourceDocumentTypeId: sourceData?.documentTypeId ?? sourceData?.id,
+        targetDocumentTypeId: document?.document_type?.id,
+        sourceName: sourceData?.name,
+        targetName: created.name,
+        sourceColor: sourceData?.color,
+        targetColor: document?.document_type?.color,
+        sourceExecutionId: sourceData?.executionId,
+        targetExecutionId: execution.id,
+      })
+    },
+    [pendingNewAssetConnection, organizationId, getNodes, createExecutionNode],
+  )
 
   const handleRelationshipUpdated = useCallback(
     (updated: DocumentTypeRelationship) => {
@@ -1168,6 +1245,7 @@ function RelationshipsCanvasFlow({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
           onDrop={handleDrop}
@@ -1361,6 +1439,15 @@ function RelationshipsCanvasFlow({
             createExecutionNode(pendingDrop.docType, pendingDrop.position, executionId, executionName)
             setPendingDrop(null)
           }}
+        />
+      )}
+
+      {/* Create-asset dialog — shown when a connection is dropped on empty canvas (execution mode) */}
+      {mode === 'execution' && (
+        <CreateAssetDialog
+          open={!!pendingNewAssetConnection}
+          onOpenChange={(o) => !o && setPendingNewAssetConnection(null)}
+          onAssetCreated={handleNewAssetCreated}
         />
       )}
 
