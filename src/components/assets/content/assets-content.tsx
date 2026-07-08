@@ -2483,6 +2483,8 @@ export function AssetContent({
                             onExportExcel={handleExportExcel}
                             onDeleteVersion={() => openDeleteDialog('execution')}
                             onDeleteDocument={() => openDeleteDialog('document')}
+                            isRerunningExternalPublish={runExternalPublishMutation.isPending}
+                            onRerunExternalPublish={() => runExternalPublishMutation.mutate()}
                           />
                         )}
                       </div>
@@ -2590,19 +2592,6 @@ export function AssetContent({
                               className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.rerunExternalPublish')}
-                              icon={RefreshCw}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={runExternalPublishMutation.isPending}
-                              onClick={() => runExternalPublishMutation.mutate()}
-                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
-                            />
-                          )}
                         </div>
                       )}
                     </div>
@@ -2611,7 +2600,7 @@ export function AssetContent({
                 )}
               </div>
             )}
-            
+
             {/* Action Buttons Section - editor mode only */}
             {!isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
