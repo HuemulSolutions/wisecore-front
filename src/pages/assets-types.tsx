@@ -54,6 +54,7 @@ export default function AssetTypesPage() {
   const [relSearch, setRelSearch] = useState("")
   const [relPage, setRelPage] = useState(1)
   const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
+  const [pinnedNewAssetType, setPinnedNewAssetType] = useState<AssetTypeWithRoles | null>(null)
 
   // Permisos
   const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -162,17 +163,37 @@ export default function AssetTypesPage() {
     return <AssetTypePageSkeleton />
   }
 
-  const assetTypes = assetTypesResponse?.data || []
+  const rawAssetTypes = assetTypesResponse?.data || []
+  const effectivePageSize = assetTypesResponse?.page_size || pageSize
+  const assetTypes = pinnedNewAssetType
+    ? [
+        rawAssetTypes.find((a) => a.document_type_id === pinnedNewAssetType.document_type_id) ?? pinnedNewAssetType,
+        ...rawAssetTypes.filter((a) => a.document_type_id !== pinnedNewAssetType.document_type_id),
+      ].slice(0, effectivePageSize)
+    : rawAssetTypes
 
   // Function to refresh data
   const handleRefresh = async () => {
     setIsRefreshing(true)
+    setPinnedNewAssetType(null)
     try {
       await queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       toast.success('Data refreshed')
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  // Fija el asset type recién creado al tope de la página actual (sin cambiar de página)
+  const handleAssetTypeCreated = (created: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => {
+    setPinnedNewAssetType({
+      document_type_id: created.id,
+      document_type_name: created.name,
+      document_type_color: created.color,
+      document_type_created_date: created.created_at ?? "",
+      document_count: created.document_count ?? 0,
+      roles: [],
+    })
   }
 
   // Asset type action handlers
@@ -225,6 +246,7 @@ export default function AssetTypesPage() {
             onSearchChange={(value) => {
               updateState({ searchTerm: value })
               setPage(1)
+              setPinnedNewAssetType(null)
             }}
             canCreate={canCreateDocumentType}
             viewMode={viewMode}
@@ -270,8 +292,12 @@ export default function AssetTypesPage() {
                   pageSize: assetTypesResponse?.page_size || pageSize,
                   hasNext: assetTypesResponse?.has_next,
                   hasPrevious: (assetTypesResponse?.page || page) > 1,
-                  onPageChange: (newPage: number) => setPage(newPage),
+                  onPageChange: (newPage: number) => {
+                    setPinnedNewAssetType(null)
+                    setPage(newPage)
+                  },
                   onPageSizeChange: (newPageSize: number) => {
+                    setPinnedNewAssetType(null)
                     setPageSize(newPageSize)
                     setPage(1)
                   },
@@ -348,6 +374,7 @@ export default function AssetTypesPage() {
         onImportSuccess={handleRefresh}
         exportSelectedIds={[...selectedExportIds]}
         onExported={() => setSelectedExportIds(new Set())}
+        onAssetTypeCreated={handleAssetTypeCreated}
       />
     </>
   )
