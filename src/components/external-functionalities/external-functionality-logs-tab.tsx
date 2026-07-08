@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { CheckCircle, XCircle, Clock, Loader2, Eye } from "lucide-react"
+import { CheckCircle, XCircle, Clock, Loader2, Eye, RefreshCw } from "lucide-react"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useExternalExecutionLogs } from "@/hooks/useExternalFunctionalities"
+import { Button } from "@/components/ui/button"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableColumn, HuemulTableAction } from "@/huemul/components/huemul-table"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
@@ -145,7 +146,7 @@ export function ExternalFunctionalityLogsTab({
   const [page, setPage] = useState(1)
   const [selectedLog, setSelectedLog] = useState<ExternalExecutionLog | null>(null)
 
-  const { data, isLoading, isFetching } = useExternalExecutionLogs(
+  const { data, isLoading, isFetching, refetch } = useExternalExecutionLogs(
     systemId,
     functionalityId,
     organizationId,
@@ -236,6 +237,19 @@ export function ExternalFunctionalityLogsTab({
 
   return (
     <div className="flex flex-col gap-3 p-4">
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 hover:cursor-pointer"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          title={t("logs.refresh")}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+        </Button>
+      </div>
+
       <HuemulTable
         data={logs}
         columns={columns}

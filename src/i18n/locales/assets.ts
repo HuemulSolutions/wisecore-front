@@ -119,7 +119,7 @@ const translations = {
     commentLabel: { en: "Comment", es: "Comentario" },
     commentPlaceholder: { en: "Add a comment about this action...", es: "Agrega un comentario sobre esta acción..." },
     publishWithExternalSystem: { en: "Publish with external system", es: "Publicar con sistema externo" },
-    rerunExternalPublish: { en: "Re-run external publish", es: "Relanzar publicación externa" },
+    rerunExternalPublish: { en: "Run external publish", es: "Ejecutar publicación externa" },
     successRerunExternalPublish: { en: "External publish triggered successfully", es: "Publicación externa iniciada correctamente" },
     errorRerunExternalPublish: { en: "Failed to trigger external publish. Please try again.", es: "Error al relanzar la publicación externa. Intenta de nuevo." },
     stateLabels: {

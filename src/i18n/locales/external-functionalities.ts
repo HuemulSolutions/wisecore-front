@@ -89,6 +89,7 @@ const translations = {
     delete: { en: "Delete Functionality", es: "Eliminar Funcionalidad" },
   },
   logs: {
+    refresh: { en: "Refresh logs", es: "Actualizar registros" },
     empty: { en: "No logs yet", es: "Sin registros aún" },
     emptyDescription: {
       en: "Logs will appear here once the functionality is executed",
