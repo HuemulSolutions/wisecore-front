@@ -59,6 +59,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       cascadeSelection = false,
       isNodeExpandable,
       renderNodeSuffix,
+      isSectionHeader,
     },
     ref,
   ) => {
@@ -199,37 +200,35 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       if (!onLoadChildren) return
       setIsLoading(true)
       try {
-        if (onRefreshProp) {
-          const data = await onRefreshProp()
-          setNodes(data)
-        } else {
-          const currentExpandedIds = Array.from(expandedFolders)
-          const rootData = await onLoadChildren(initialFolderId)
+        const currentExpandedIds = Array.from(expandedFolders)
 
-          const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
-            const result: HuemulTreeNode[] = []
-            for (const node of nodeList) {
-              const newNode = { ...node }
-              if (isExpandable(node) && currentExpandedIds.includes(node.id)) {
-                try {
-                  const children = await onLoadChildren(node.id, node)
-                  newNode.children = await reloadExpandedFolders(children)
-                  newNode.isExpanded = true
-                  newNode.hasChildren = children.length > 0
-                } catch (error) {
-                  console.error(`Error reloading folder ${node.id}:`, error)
-                  newNode.children = []
-                  newNode.isExpanded = false
-                }
+        const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
+          const result: HuemulTreeNode[] = []
+          for (const node of nodeList) {
+            const newNode = { ...node }
+            const alreadyExpanded = newNode.isExpanded && newNode.children
+            if (alreadyExpanded) {
+              newNode.children = await reloadExpandedFolders(newNode.children!)
+            } else if (isExpandable(node) && currentExpandedIds.includes(node.id)) {
+              try {
+                const children = await onLoadChildren(node.id, node)
+                newNode.children = await reloadExpandedFolders(children)
+                newNode.isExpanded = true
+                newNode.hasChildren = children.length > 0
+              } catch (error) {
+                console.error(`Error reloading folder ${node.id}:`, error)
+                newNode.children = []
+                newNode.isExpanded = false
               }
-              result.push(newNode)
             }
-            return result
+            result.push(newNode)
           }
-
-          const refreshedNodes = await reloadExpandedFolders(rootData)
-          setNodes(refreshedNodes)
+          return result
         }
+
+        const rootData = onRefreshProp ? await onRefreshProp() : await onLoadChildren(initialFolderId)
+        const refreshedNodes = await reloadExpandedFolders(rootData)
+        setNodes(refreshedNodes)
       } catch (error) {
         console.error("Error refreshing tree:", error)
       } finally {
@@ -556,6 +555,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isSelectable = canSelectNode(node)
       const checkState = cascadeSelection ? getCheckState(node) : undefined
       const isSelected = cascadeSelection ? checkState === "checked" : !!selectedIds?.has(node.id)
+      const isSection = level === 0 && !!isSectionHeader?.(node)
 
       const hasCustomMenuActions = menuActions.some((action) => (action.show ? action.show(node) : true))
       const hasVisibleMenuActions =
@@ -581,7 +581,8 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
           <div
             className={cn(
-              "group flex items-center gap-1 min-w-0 py-0.5 px-2 rounded-md transition-colors relative",
+              "group flex items-center gap-1 min-w-0 px-2 rounded-md transition-colors relative",
+              isSection ? "h-8" : "py-0.5",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
@@ -591,7 +592,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               renderNodeClassName?.(node),
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
-            draggable={!cascadeSelection && !node.disabled}
+            draggable={!cascadeSelection && !node.disabled && !isSection}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
             onDragEnd={() => { setDraggedNode(null); setDragOverNode(null); stopAutoScroll() }}
             onDragOver={(e) =>
@@ -615,7 +616,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               <HuemulButton
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 p-0 hover:bg-transparent"
+                className={cn("h-3 w-3 p-0 hover:bg-transparent", isSection && "text-sidebar-foreground/70")}
                 onClick={() => handleToggle(node)}
                 disabled={node.disabled}
               >
@@ -644,11 +645,17 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               }}
             >
               {isFolder
-                ? (renderFolderIcon ? renderFolderIcon(node, !!isExpanded) : defaultFolderIcon(node, !!isExpanded))
+                ? (isSection
+                    ? null
+                    : (renderFolderIcon ? renderFolderIcon(node, !!isExpanded) : defaultFolderIcon(node, !!isExpanded)))
                 : isNodeLoading
                   ? <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}
-              <p className={cn("text-sm truncate", isNodeLoading && "text-muted-foreground")}>{node.name}</p>
+              <p className={cn(
+                isSection ? "text-xs font-medium text-sidebar-foreground/70" : "text-sm",
+                "truncate",
+                isNodeLoading && "text-muted-foreground",
+              )}>{node.name}</p>
               {renderNodeSuffix?.(node)}
             </div>
 

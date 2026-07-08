@@ -34,6 +34,7 @@ export type PermissionResource =
   | 'llm_provider'
   | 'llm'
   | 'rbac'
-  | 'diagram';
+  | 'diagram'
+  | 'role_folder';
 
 export type Permission = `${PermissionResource}:${PermissionAction}`;

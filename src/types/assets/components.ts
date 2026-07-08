@@ -96,6 +96,7 @@ export interface AssetFileTreeProps {
   showRefreshButton?: boolean
   minHeight?: string
   renderLeafIcon?: (node: FileNode) => React.ReactNode
+  renderFolderIcon?: (node: FileNode, isExpanded: boolean) => React.ReactNode
   renderNodeClassName?: (node: FileNode) => string | undefined
   alwaysShowMenuActions?: boolean
   onNodeDragStart?: (e: React.DragEvent, node: FileNode) => void

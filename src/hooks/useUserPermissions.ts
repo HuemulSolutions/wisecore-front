@@ -98,6 +98,10 @@ export function useUserPermissions() {
     return hasAnyPermission(['folder:r', 'folder:l', 'folder:c', 'folder:u', 'folder:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessRoleFolders = useMemo(() => {
+    return hasAnyPermission(['role_folder:r', 'role_folder:l', 'role_folder:c', 'role_folder:u', 'role_folder:d']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
   const canAccessTemplates = useMemo(() => {
     return hasAnyPermission(['template:r', 'template:l', 'template:c', 'template:u', 'template:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
@@ -209,6 +213,7 @@ export function useUserPermissions() {
     canAccessRoles,
     canAccessAssets,
     canAccessFolders,
+    canAccessRoleFolders,
     canAccessTemplates,
     canAccessDocumentTypes,
     canAccessSections,

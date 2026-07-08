@@ -40,6 +40,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       showRefreshButton = false,
       minHeight = "530px",
       renderLeafIcon: renderLeafIconProp,
+      renderFolderIcon: renderFolderIconProp,
       renderNodeClassName: renderNodeClassNameProp,
       alwaysShowMenuActions,
       onNodeDragStart,
@@ -126,6 +127,10 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
               )
             }
         }
+        renderFolderIcon={renderFolderIconProp
+          ? (node, isExpanded) => renderFolderIconProp(node as FileNode, isExpanded)
+          : undefined
+        }
         renderNodeClassName={renderNodeClassNameProp
           ? (node) => renderNodeClassNameProp(node as FileNode)
           : undefined
@@ -143,6 +148,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         cascadeSelection={cascadeSelection}
         isNodeExpandable={isNodeExpandable ? (node) => isNodeExpandable(node as FileNode) : undefined}
         renderNodeSuffix={renderNodeSuffix ? (node) => renderNodeSuffix(node as FileNode) : undefined}
+        isSectionHeader={(node) => !!(node as FileNode).isSystem}
         minHeight={minHeight}
         labels={{
           newFile: t("fileTree.newFile"),

@@ -51,6 +51,9 @@ export interface HuemulFileTreeProps {
   isNodeExpandable?: (node: HuemulTreeNode) => boolean
   // Contenido adicional a mostrar después del nombre del nodo (ej. badge de versión).
   renderNodeSuffix?: (node: HuemulTreeNode) => ReactNode
+  // Nodos de nivel raíz que deben verse como encabezado de sección (estilo Notion):
+  // sin ícono de carpeta, texto en negrita, no arrastrables.
+  isSectionHeader?: (node: HuemulTreeNode) => boolean
 }
 
 export interface HuemulFileTreeRef {

@@ -401,6 +401,15 @@ const translations = {
     submitLabel: { en: "Save Changes", es: "Guardar Cambios" },
     nameLabel: { en: "Folder Name *", es: "Nombre de la Carpeta *" },
     namePlaceholder: { en: "Enter folder name", es: "Ingresa el nombre de la carpeta" },
+    notRenamableError: { en: "This folder can't be renamed", es: "Esta carpeta no se puede renombrar" },
+    administerRequiredError: {
+      en: "You need administer access to this folder",
+      es: "Necesitas acceso de administrador sobre esta carpeta",
+    },
+    orgAdminRequiredError: {
+      en: "Only an organization admin can do this",
+      es: "Solo un administrador de la organización puede hacer esto",
+    },
   },
   exportCustomWord: {
     templateUploaded: { en: "Word template uploaded successfully", es: "Plantilla de Word subida correctamente" },

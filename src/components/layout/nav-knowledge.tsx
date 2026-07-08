@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, FileText, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network, Download, Loader2, MoreVertical } from "lucide-react"
+import { Plus, File, FileText, Folder, FolderOpen, FolderPlus, Users, Share2, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network, Download, Loader2, MoreVertical } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -41,10 +41,59 @@ import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet"
+import { FolderPermissionsSheet } from "@/components/folders/role-folder-permissions-sheet"
 import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
+import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
+import type { LibraryContentFolderType } from "@/types/folders"
+
+// Orden fijo de las carpetas raíz del sistema, independiente del nombre (editable por el usuario).
+const ROOT_FOLDER_ORDER: Record<string, number> = {
+  personal: 0,
+  global: 1,
+  forms: 2,
+  grupal: 3,
+  sin_carpeta: 4,
+}
+
+function rootFolderSortKey(folderType: LibraryContentFolderType | null | undefined): number {
+  if (!folderType) return Number.MAX_SAFE_INTEGER
+  return ROOT_FOLDER_ORDER[folderType] ?? Number.MAX_SAFE_INTEGER
+}
+
+// Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
+function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
+  if (node.folder_type === "area") {
+    return <Users className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+  }
+  return isExpanded
+    ? <FolderOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+    : <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+}
+
+// Mensajes traducidos para los códigos de error de la matriz de permisos de carpetas.
+// La UI ya oculta los botones correspondientes; esto es una defensa ante permisos que
+// cambiaron a mitad de sesión (el mensaje del backend igual se muestra para el resto de códigos).
+function handleFolderActionError(error: unknown, t: (key: string) => string, fallbackMessage: string) {
+  handleApiError(error, {
+    fallbackMessage,
+    onErrorCode: (code) => {
+      const key: Record<string, string> = {
+        FOLDER_NOT_DELETABLE: "knowledge.errors.folderNotDeletable",
+        FOLDER_NOT_MOVABLE: "knowledge.errors.folderNotMovable",
+        FOLDER_NOT_RENAMABLE: "knowledge.errors.folderNotRenamable",
+        FOLDER_ADMINISTER_REQUIRED: "knowledge.errors.folderAdministerRequired",
+        ORG_ADMIN_REQUIRED: "knowledge.errors.orgAdminRequired",
+      }
+      const messageKey = key[code]
+      if (!messageKey) return false
+      toast.error(t(messageKey))
+      return true
+    },
+  })
+}
 
 function buildFocusedTree(content: LibraryContent): FileNode[] {
   const { folders, assets } = content
@@ -58,6 +107,9 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
       isExpanded: f.is_expanded,
       hasChildren: true,
       children: f.is_expanded ? [] : undefined,
+      isSystem: f.folder_type != null && f.folder_type !== 'area',
+      folder_type: f.folder_type,
+      access_levels: f.access_levels,
     })
   }
 
@@ -276,7 +328,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         }, 300)
       }
     } catch (error) {
-      handleApiError(error, { fallbackMessage: t('knowledge.folderDeleteError') })
+      handleFolderActionError(error, t, t('knowledge.folderDeleteError'))
       throw error
     }
   }, [folderToDelete, selectedOrganizationId, t])
@@ -608,7 +660,8 @@ export function NavKnowledgeContent() {
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
-  const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const { canCreate, canUpdate, canDelete, isOrgAdmin, canAccessRoleFolders } = useUserPermissions()
+  const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { guardedAction } = useOptionalEditingGuard()
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
@@ -816,12 +869,21 @@ export function NavKnowledgeContent() {
           return buildFocusedTree(content)
         }
 
-        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
+        let folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
           id: item.id,
           name: item.name,
           type: 'folder',
           hasChildren: true,
+          isSystem: item.folder_type != null && item.folder_type !== 'area',
+          folder_type: item.folder_type,
+          access_levels: item.access_levels,
         }))
+
+        if (isRoot) {
+          folderNodes = [...folderNodes].sort(
+            (a, b) => rootFolderSortKey(a.folder_type) - rootFolderSortKey(b.folder_type)
+          )
+        }
 
         const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
           id: item.id,
@@ -834,6 +896,11 @@ export function NavKnowledgeContent() {
         return [...folderNodes, ...assetNodes]
       } catch (error) {
         console.error("Error loading folder content:", error)
+        if (ApiError.isApiError(error) && (error.statusCode === 404 || error.code === 'FOLDER_NOT_FOUND')) {
+          toast.error(t('knowledge.errors.folderNotAccessible'))
+        } else {
+          toast.error(t('knowledge.errors.folderLoadError'))
+        }
         return []
       }
     },
@@ -879,7 +946,7 @@ export function NavKnowledgeContent() {
         toast.success(t('knowledge.folderMovedSuccess', { destination }))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        handleApiError(error, { fallbackMessage: t('knowledge.folderMoveError') })
+        handleFolderActionError(error, t, t('knowledge.folderMoveError'))
       }
     },
     [selectedOrganizationId, folderNames, t]
@@ -897,7 +964,7 @@ export function NavKnowledgeContent() {
         toast.success(t('knowledge.documentMovedSuccess', { destination }))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        handleApiError(error, { fallbackMessage: t('knowledge.documentMoveError') })
+        handleFolderActionError(error, t, t('knowledge.documentMoveError'))
       }
     },
     [selectedOrganizationId, folderNames, t]
@@ -912,7 +979,8 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level create
+        // Nadie crea contenido directo en Grupal (solo áreas) ni en Forms
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
         return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
@@ -925,6 +993,7 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
         return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
@@ -937,9 +1006,32 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level create
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
         return canCreate('folder') || node.access_levels?.includes('create') || false
       },
+      variant: "default",
+    },
+    {
+      label: t('knowledge.newArea'),
+      icon: <FolderPlus className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        handleCreateFolder(nodeId)
+      },
+      // Solo dentro de Grupal, y solo un org admin puede crear áreas.
+      show: (node) => node.type === "folder" && node.folder_type === 'grupal' && isOrgAdmin,
+      variant: "default",
+    },
+    {
+      label: t('knowledge.shareFolder'),
+      icon: <Share2 className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        setSharingFolder({ id: nodeId, name: folderNames.get(nodeId) || "" })
+      },
+      // Compartir accesos por rol solo aplica a Global/Forms/Área.
+      show: (node) =>
+        node.type === "folder" &&
+        (node.folder_type === 'global' || node.folder_type === 'forms' || node.folder_type === 'area') &&
+        canAccessRoleFolders,
       variant: "default",
     },
     {
@@ -951,7 +1043,11 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level edit
+        // Personal y "Sin carpeta" nunca se renombran (nombre fijo del sistema)
+        if (node.folder_type === 'personal' || node.folder_type === 'sin_carpeta') return false
+        // Grupal solo lo renombra un org admin
+        if (node.folder_type === 'grupal') return isOrgAdmin
+        // Global / Forms / Área: requieren administer (permiso global o access_level edit)
         return canUpdate('folder') || node.access_levels?.includes('edit') || false
       },
       variant: "default",
@@ -964,6 +1060,8 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
+        // Ninguna carpeta de sistema (incluida Área) es reparentable
+        if (node.folder_type) return false
         // Only show for folders that are NOT at root level
         if (nodeParentIds.get(node.id) === null) return false
         return canUpdate('folder') || node.access_levels?.includes('edit') || false
@@ -979,7 +1077,9 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level delete
+        // Personal/Global/Forms/Grupal/Sin carpeta: nunca eliminables por este endpoint
+        if (node.folder_type && node.folder_type !== 'area') return false
+        // Área: requiere administer. Carpetas normales: permiso genérico.
         return canDelete('folder') || node.access_levels?.includes('delete') || false
       },
       variant: "destructive",
@@ -1070,6 +1170,7 @@ export function NavKnowledgeContent() {
   }
 
   return (
+    <>
     <SidebarGroup>
       {isExportMode && (
         <div className="flex flex-col gap-2 mx-2 mb-1.5 px-2 py-2 rounded-md border bg-muted/40">
@@ -1183,6 +1284,7 @@ export function NavKnowledgeContent() {
             const color = fileNode.document_type?.color
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
+          renderFolderIcon={(node, isExpanded) => renderKnowledgeFolderIcon(node as FileNode, isExpanded)}
           onNodeDragStart={isRelationsMode ? (e, node) => {
             const docType = node.document_type
             if (!docType) return
@@ -1210,5 +1312,11 @@ export function NavKnowledgeContent() {
         />
       )}
     </SidebarGroup>
+    <FolderPermissionsSheet
+      folder={sharingFolder}
+      open={!!sharingFolder}
+      onOpenChange={(open: boolean) => { if (!open) setSharingFolder(null) }}
+    />
+    </>
   )
 }

@@ -1,5 +1,7 @@
 // Asset-related types extracted from components/assets
 
+import type { LibraryContentFolderType } from "@/types/folders";
+
 // ========================================
 // Core Asset Types
 // ========================================
@@ -67,6 +69,9 @@ export interface FileNode {
   disabled?: boolean;
   version?: string | null;
   status?: string;
+  /** True for the fixed set of default root folders (Forms, Global, Grupal, Mis documentos, Sin carpeta). */
+  isSystem?: boolean;
+  folder_type?: LibraryContentFolderType | null;
 }
 
 /**
