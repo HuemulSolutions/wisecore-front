@@ -1,20 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { Input } from "@/components/ui/input"
-import { Loader2, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useCustomFields, useCustomFieldDataTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { useOrganization } from "@/contexts/organization-context"
 import type { CustomField, CustomFieldOption } from "@/types/custom-fields"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
+import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { useTranslation } from "react-i18next"
 import type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
 
 export type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
 
-export function AddCustomFieldDialog({
+export function AddCustomFieldSheet({
   isOpen,
   onClose,
   entityId,
@@ -30,8 +31,8 @@ export function AddCustomFieldDialog({
   const [selectedCustomFieldId, setSelectedCustomFieldId] = useState<string>("")
   const [selectedSource, setSelectedSource] = useState<string>("")
   const [isRequired, setIsRequired] = useState(false)
-  const [prompt, setPrompt] = useState<string>("")  
-  const [value, setValue] = useState<string>("")  
+  const [prompt, setPrompt] = useState<string>("")
+  const [value, setValue] = useState<string>("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const { selectedOrganizationId } = useOrganization();
@@ -44,7 +45,7 @@ export function AddCustomFieldDialog({
   const [newOptions, setNewOptions] = useState<CustomFieldOption[]>([])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  // Fetch existing custom fields (lazy loading: only when dialog is open)
+  // Fetch existing custom fields (lazy loading: only when sheet is open)
   const {
     data: customFieldsResponse,
     isLoading: isLoadingCustomFields,
@@ -52,7 +53,7 @@ export function AddCustomFieldDialog({
 
   const customFields = customFieldsResponse?.data || []
 
-  // Fetch data types for new custom field creation (lazy loading: only when dialog is open)
+  // Fetch data types for new custom field creation (lazy loading: only when sheet is open)
   const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: isOpen })
   const dataTypes = dataTypesResponse?.data || []
 
@@ -60,7 +61,7 @@ export function AddCustomFieldDialog({
   const customFieldMutations = useCustomFieldMutations()
   const { t } = useTranslation(['custom-fields', 'common'])
 
-  // Reset form when dialog opens
+  // Reset form when sheet opens
   useEffect(() => {
     if (isOpen) {
       setFieldType("existing")
@@ -98,12 +99,10 @@ export function AddCustomFieldDialog({
   }
 
   const handleImageUpload = async (entityCustomFieldId: string, file: File) => {
-    console.log(`Starting image upload for ${entityType} field ID:`, entityCustomFieldId, "file:", file.name)
     setIsUploadingImage(true)
     onImageUploadStart?.(entityCustomFieldId)
     try {
       await uploadImageFn(entityCustomFieldId, file, selectedOrganizationId!)
-      console.log("Image uploaded successfully")
       onImageUploadComplete?.()
     } catch (error) {
       console.error("Error uploading image:", error)
@@ -116,7 +115,7 @@ export function AddCustomFieldDialog({
 
   const getValuePayload = (dataType: string) => {
     if (!value.trim()) return {}
-    
+
     switch (dataType) {
       case "bool":
         const boolValue = value === "true" || value === "1"
@@ -203,7 +202,7 @@ export function AddCustomFieldDialog({
     setFormErrors({})
   }
 
-  const closeDialog = () => {
+  const closeSheet = () => {
     resetForm()
     onClose()
   }
@@ -225,21 +224,18 @@ export function AddCustomFieldDialog({
       }
 
       try {
-        console.log(`Creating custom field ${entityType} with data:`, data)
         const createdEntity = await onAdd(data)
-        console.log(`Created ${entityType}:`, createdEntity)
-        
+
         // If it's an image and there's a file to upload, handle it after creation
         if (selectedField?.data_type === "image" && selectedFile) {
-          console.log(`Uploading image for ${entityType} field ID:`, createdEntity?.id)
           if (createdEntity?.id) {
             await handleImageUpload(createdEntity.id, selectedFile)
           } else {
             console.error(`No ${entityType} field ID returned from onAdd`)
           }
         }
-        
-        closeDialog()
+
+        closeSheet()
       } catch (error) {
         console.error(`Error adding custom field ${entityType}:`, error)
       }
@@ -259,12 +255,10 @@ export function AddCustomFieldDialog({
           ...(newCustomFieldData.data_type === 'list' && { options: newOptions }),
         })
 
-        console.log("Created new custom field:", newCustomField)
-        
         // Switch to existing mode and select the newly created field
         setFieldType("existing")
         setSelectedCustomFieldId(newCustomField.id)
-        
+
         // Reset new custom field form
         setNewCustomFieldData({
           name: "",
@@ -273,162 +267,11 @@ export function AddCustomFieldDialog({
           masc: "",
         })
         setFormErrors({})
-        
-        // Don't close the dialog - let user configure source, required, etc.
+
+        // Don't close the sheet - let user configure source, required, etc.
       } catch (error) {
         console.error("Error creating custom field:", error)
       }
-    }
-  }
-
-  const renderValueField = () => {
-    let dataType = ""
-    
-    if (fieldType === "existing") {
-      const selectedField = getSelectedCustomField()
-      dataType = selectedField?.data_type || ""
-    } else {
-      dataType = newCustomFieldData.data_type
-    }
-    
-    if (!dataType) {
-      return (
-        <Input
-          placeholder={t('addDialog.selectFirstPlaceholder')}
-          disabled
-        />
-      )
-    }
-    
-    switch (dataType) {
-      case "bool":
-        return (
-          <HuemulField
-            type="switch"
-            label={t('addDialog.valueLabel')}
-            value={value === "true" || value === "1"}
-            onChange={(v) => setValue(v.toString())}
-            checkLabel={(value === "true" || value === "1") ? "True" : "False"}
-          />
-        )
-      case "int":
-        return (
-          <HuemulField
-            type="number"
-            label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderInt')}
-            value={value}
-            step={1}
-            onChange={(v) => {
-              const strVal = String(v)
-              if (strVal === '' || /^-?\d+$/.test(strVal)) setValue(strVal)
-            }}
-            error={formErrors.value}
-          />
-        )
-      case "decimal":
-        return (
-          <HuemulField
-            type="number"
-            label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderDecimal')}
-            value={value}
-            onChange={(v) => setValue(String(v))}
-            error={formErrors.value}
-          />
-        )
-      case "date":
-        return (
-          <HuemulField
-            type="date"
-            label={t('addDialog.valueLabel')}
-            placeholder={t('common:pickDate')}
-            value={value}
-            onChange={(v) => setValue(String(v))}
-            error={formErrors.value}
-          />
-        )
-      case "time":
-        return (
-          <HuemulField
-            type="time"
-            label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderTime')}
-            value={value}
-            onChange={(v) => setValue(String(v))}
-            error={formErrors.value}
-          />
-        )
-      case "datetime":
-        return (
-          <HuemulField
-            type="datetime"
-            label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderDatetime')}
-            value={value}
-            onChange={(v) => setValue(String(v))}
-            error={formErrors.value}
-          />
-        )
-      case "image":
-        return (
-          <HuemulField
-            type="file"
-            label={t('addDialog.imageLabel')}
-            accept=".png,.jpg,.jpeg,.gif,.bmp"
-            disabled={isUploadingImage}
-            onFileChange={(files) => {
-              const file = files?.[0]
-              if (file) {
-                const VALID_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
-                const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-                if (!VALID_IMAGE_EXTENSIONS.includes(ext)) {
-                  setFormErrors(prev => ({ ...prev, value: 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, BMP.' }))
-                  return
-                }
-                setFormErrors(prev => ({ ...prev, value: '' }))
-                setSelectedFile(file)
-                setValue(file.name)
-              }
-            }}
-            description={!isUploadingImage
-              ? t(entityType === "document" ? 'addDialog.imageUploadDescDocument' : 'addDialog.imageUploadDescTemplate')
-              : undefined}
-            error={formErrors.value}
-          >
-            {isUploadingImage && (
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{t('addDialog.uploadingImage')}</span>
-              </div>
-            )}
-          </HuemulField>
-        )
-      case "list": {
-        const opts = getSelectedCustomField()?.options ?? []
-        return (
-          <HuemulField
-            type="select"
-            label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderList')}
-            value={value}
-            onChange={(v) => setValue(String(v))}
-            options={opts.map(o => ({ value: o.option_id, label: o.name }))}
-            error={formErrors.value}
-          />
-        )
-      }
-      default: // string, url
-        return (
-          <HuemulField
-            type={dataType === "url" ? "url" : "text"}
-            label={t('addDialog.valueLabel')}
-            placeholder={t('addDialog.valuePlaceholderGeneric')}
-            value={value}
-            onChange={(v) => setValue(String(v))}
-            error={formErrors.value}
-          />
-        )
     }
   }
 
@@ -437,16 +280,15 @@ export function AddCustomFieldDialog({
     : newCustomFieldData.name && newCustomFieldData.data_type
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={isOpen}
-      onOpenChange={(open) => { if (!open) closeDialog() }}
+      onOpenChange={(open) => { if (!open) closeSheet() }}
       title={t('addDialog.title')}
       description={entityType === "document"
         ? t('addDialog.descriptionDocument')
         : t('addDialog.descriptionTemplate')}
       icon={Plus}
-      maxWidth="sm:max-w-[600px]"
-      maxHeight="max-h-[90vh]"
+      maxWidth="sm:max-w-lg"
       cancelLabel={t('common:cancel', 'Cancel')}
       saveAction={{
         label: fieldType === "new" ? t('addDialog.saveNew') : t('addDialog.saveExisting'),
@@ -489,47 +331,74 @@ export function AddCustomFieldDialog({
               }))}
             />
 
-            {/* Source Radio Group */}
-            <HuemulField
-              type="radio"
-              label={t('addDialog.valueSource')}
-              name="source"
-              value={selectedSource}
-              onChange={(v) => setSelectedSource(String(v))}
-              disabled={isLoadingSources}
-              options={sources.map((source) => ({
-                label: source.charAt(0).toUpperCase() + source.slice(1),
-                value: source,
-              }))}
-              inputClassName="flex-col gap-2"
-            />
+            {selectedCustomFieldId && (
+              <>
+                {/* Source Radio Group */}
+                <HuemulField
+                  type="radio"
+                  label={t('addDialog.valueSource')}
+                  name="source"
+                  value={selectedSource}
+                  onChange={(v) => setSelectedSource(String(v))}
+                  disabled={isLoadingSources}
+                  options={sources.map((source) => ({
+                    label: source.charAt(0).toUpperCase() + source.slice(1),
+                    value: source,
+                  }))}
+                  inputClassName="flex-col gap-2"
+                />
 
-            {/* Required Switch */}
-            <HuemulField
-              type="switch"
-              label={t('addDialog.requiredField')}
-              description={entityType === "document"
-                ? t('addDialog.requiredFieldDescDocument')
-                : t('addDialog.requiredFieldDescTemplate')}
-              value={isRequired}
-              onChange={(v) => setIsRequired(Boolean(v))}
-            />
+                {/* Prompt - only show when source is inferred */}
+                {selectedSource === "inferred" && (
+                  <HuemulField
+                    type="textarea"
+                    label={t('addDialog.promptLabel')}
+                    name="existing-prompt"
+                    placeholder={t('addDialog.promptPlaceholder')}
+                    rows={3}
+                    value={prompt}
+                    onChange={(v) => setPrompt(String(v))}
+                  />
+                )}
 
-            {/* Prompt - only show when source is inferred */}
-            {selectedSource === "inferred" && (
-              <HuemulField
-                type="textarea"
-                label={t('addDialog.promptLabel')}
-                name="existing-prompt"
-                placeholder={t('addDialog.promptPlaceholder')}
-                rows={3}
-                value={prompt}
-                onChange={(v) => setPrompt(String(v))}
-              />
+                {/* Value */}
+                {selectedSource && selectedSource !== "inferred" && (
+                  <CustomFieldValueField
+                    dataType={getSelectedCustomField()?.data_type || ""}
+                    label={t('addDialog.valueLabel')}
+                    value={value}
+                    onChange={setValue}
+                    options={getSelectedCustomField()?.options ?? []}
+                    error={formErrors.value}
+                    disabled={isUploadingImage}
+                    isUploadingImage={isUploadingImage}
+                    imageUploadDescription={entityType === "document"
+                      ? t('addDialog.imageUploadDescDocument')
+                      : t('addDialog.imageUploadDescTemplate')}
+                    onImageFile={(file) => setSelectedFile(file)}
+                    onImageValidationError={(message) => setFormErrors(prev => ({ ...prev, value: message }))}
+                  />
+                )}
+
+                {!selectedSource && (
+                  <Input
+                    placeholder={t('addDialog.selectFirstPlaceholder')}
+                    disabled
+                  />
+                )}
+
+                {/* Required Switch */}
+                <HuemulField
+                  type="switch"
+                  label={t('addDialog.requiredField')}
+                  description={entityType === "document"
+                    ? t('addDialog.requiredFieldDescDocument')
+                    : t('addDialog.requiredFieldDescTemplate')}
+                  value={isRequired}
+                  onChange={(v) => setIsRequired(Boolean(v))}
+                />
+              </>
             )}
-
-            {/* Value */}
-            {selectedSource !== "inferred" && renderValueField()}
           </div>
         )}
 
@@ -558,6 +427,6 @@ export function AddCustomFieldDialog({
           </div>
         )}
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

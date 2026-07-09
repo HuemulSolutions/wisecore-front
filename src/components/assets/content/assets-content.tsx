@@ -44,8 +44,8 @@ import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
 import type { CustomFieldDocument } from '@/types/custom-fields';
-import { AddCustomFieldDocumentDialog } from "@/components/assets-custom-fields/assets-add-custom-field-dialog";
-import { EditCustomFieldAssetDialog } from "@/components/assets-custom-fields/assets-edit-custom-field-dialog";
+import { AddCustomFieldDocumentSheet } from "@/components/assets-custom-fields/assets-add-custom-field-sheet";
+import { EditCustomFieldAssetSheet } from "@/components/assets-custom-fields/assets-edit-custom-field-sheet";
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
 import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
@@ -3555,8 +3555,8 @@ export function AssetContent({
         }}
       />
 
-      {/* Add Custom Field Document Dialog */}
-      <AddCustomFieldDocumentDialog
+      {/* Add Custom Field Document Sheet */}
+      <AddCustomFieldDocumentSheet
         isOpen={isAddCustomFieldDocumentDialogOpen}
         onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
         documentId={selectedFile.id}
@@ -3565,8 +3565,8 @@ export function AssetContent({
         onImageUploadComplete={handleImageUploadComplete}
       />
 
-      {/* Edit Custom Field Document Dialog (Unified) */}
-      <EditCustomFieldAssetDialog
+      {/* Edit Custom Field Document Sheet (Unified) */}
+      <EditCustomFieldAssetSheet
         isOpen={isEditCustomFieldDocumentDialogOpen}
         onClose={() => {
           setIsEditCustomFieldDocumentDialogOpen(false);

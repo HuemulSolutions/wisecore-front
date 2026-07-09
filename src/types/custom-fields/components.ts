@@ -33,6 +33,28 @@ export interface CustomFieldFormFieldsProps {
   loadingDataTypes?: boolean
 }
 
+export interface CustomFieldValueFieldProps {
+  dataType: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options?: CustomFieldOption[]
+  error?: string
+  disabled?: boolean
+  onImageFile?: (file: File) => void
+  onImageValidationError?: (message: string) => void
+  isUploadingImage?: boolean
+  imageUploadDescription?: string
+}
+
+export interface CustomFieldInfoCardProps {
+  title: string
+  name: string
+  dataType: string
+  description?: string
+  formatDataType: (dataType: string) => string
+}
+
 export interface CustomFieldPageEmptyStateProps {
   type: "access-denied" | "error" | "empty"
   message?: string

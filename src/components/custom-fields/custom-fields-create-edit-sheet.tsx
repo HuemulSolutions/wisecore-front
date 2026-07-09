@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { PenLine, Plus } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
@@ -11,7 +11,7 @@ import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/type
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
-export function CreateEditCustomFieldDialog({
+export function CreateEditCustomFieldSheet({
   open,
   onOpenChange,
   customField,
@@ -31,11 +31,11 @@ export function CreateEditCustomFieldDialog({
   const isEditing = !!customField
   const { t } = useTranslation('custom-fields')
 
-  // Fetch data types (lazy loading: only when dialog is open)
+  // Fetch data types (lazy loading: only when sheet is open)
   const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: open })
   const dataTypes = dataTypesResponse?.data || []
 
-  // Reset form when dialog opens/closes or customField changes
+  // Reset form when sheet opens/closes or customField changes
   useEffect(() => {
     if (open) {
       if (customField) {
@@ -154,7 +154,7 @@ export function CreateEditCustomFieldDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={isEditing ? t('editDialog.title') : t('createDialog.title')}
@@ -164,8 +164,7 @@ export function CreateEditCustomFieldDialog({
           : t('createDialog.description')
       }
       icon={isEditing ? PenLine : Plus}
-      maxWidth="sm:max-w-[600px]"
-      maxHeight="max-h-[90vh]"
+      maxWidth="sm:max-w-lg"
       cancelLabel={t('common:cancel', 'Cancel')}
       saveAction={{
         label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
@@ -192,6 +191,6 @@ export function CreateEditCustomFieldDialog({
           loadingDataTypes={loadingDataTypes}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

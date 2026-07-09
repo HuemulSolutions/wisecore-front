@@ -40,6 +40,8 @@ export default function CustomFieldFormFields({
     onOptionsChange(updated)
   }
 
+  const MASK_APPLICABLE_TYPES = ['string', 'int', 'decimal', 'url']
+
   return (
     <div className="space-y-4">
       <HuemulField
@@ -52,17 +54,6 @@ export default function CustomFieldFormFields({
         disabled={disabled}
         error={errors.name}
         required
-      />
-      <HuemulField
-        type="textarea"
-        label={t('columns.description')}
-        name="description"
-        placeholder={t('form.descriptionPlaceholder')}
-        rows={3}
-        value={description}
-        onChange={(v) => onDescriptionChange(String(v))}
-        disabled={disabled}
-        error={errors.description}
       />
       <HuemulField
         type="select"
@@ -140,14 +131,28 @@ export default function CustomFieldFormFields({
         </div>
       )}
 
+      {MASK_APPLICABLE_TYPES.includes(dataType) && (
+        <HuemulField
+          type="text"
+          label={t('form.maskLabel')}
+          name="masc"
+          placeholder={t('form.maskPlaceholder')}
+          value={masc}
+          onChange={(v) => onMascChange(String(v))}
+          disabled={disabled}
+        />
+      )}
+
       <HuemulField
-        type="text"
-        label={t('form.maskLabel')}
-        name="masc"
-        placeholder={t('form.maskPlaceholder')}
-        value={masc}
-        onChange={(v) => onMascChange(String(v))}
+        type="textarea"
+        label={t('columns.description')}
+        name="description"
+        placeholder={t('form.descriptionPlaceholder')}
+        rows={3}
+        value={description}
+        onChange={(v) => onDescriptionChange(String(v))}
         disabled={disabled}
+        error={errors.description}
       />
     </div>
   );

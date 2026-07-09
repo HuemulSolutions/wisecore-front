@@ -1,10 +1,10 @@
-import { AddCustomFieldDialog } from "@/components/custom-fields/add-custom-field-dialog"
+import { AddCustomFieldSheet } from "@/components/custom-fields/add-custom-field-sheet"
 import { getCustomFieldDocumentSources, uploadCustomFieldDocumentValueBlob } from "@/services/custom-fieldds-documents"
 import { useQuery } from "@tanstack/react-query"
 import type { AddCustomFieldDocumentDialogProps } from '@/types/assets'
 export type { AddCustomFieldDocumentDialogProps } from '@/types/assets'
 
-export function AddCustomFieldDocumentDialog({
+export function AddCustomFieldDocumentSheet({
   isOpen,
   onClose,
   documentId,
@@ -12,19 +12,19 @@ export function AddCustomFieldDocumentDialog({
   onImageUploadStart,
   onImageUploadComplete,
 }: AddCustomFieldDocumentDialogProps) {
-  // Fetch custom field document sources (lazy loading: only when dialog is open)
+  // Fetch custom field document sources (lazy loading: only when sheet is open)
   const { data: sources = [], isLoading: isLoadingSources } = useQuery({
     queryKey: ['custom-field-document-sources'],
     queryFn: async () => {
       const response = await getCustomFieldDocumentSources();
       return response.data;
     },
-    enabled: isOpen, // Only fetch when dialog is actually open
+    enabled: isOpen, // Only fetch when sheet is actually open
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes - sources don't change often
   });
 
   return (
-    <AddCustomFieldDialog
+    <AddCustomFieldSheet
       isOpen={isOpen}
       onClose={onClose}
       entityId={documentId}
