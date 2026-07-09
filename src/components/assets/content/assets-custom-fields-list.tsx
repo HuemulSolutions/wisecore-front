@@ -127,8 +127,8 @@ export function CustomFieldsList({
       case 'list': {
         const optionId = field.value_identifier
         if (!optionId) return 'customFieldsList.empty'
-        const match = field.options?.find(o => o.option_id === optionId)
-        return match ? match.name : optionId
+        const match = field.options?.find(o => o.id === optionId)
+        return match ? match.label : optionId
       }
       case 'number':
         if (field.value_number !== null && field.value_number !== undefined) {

@@ -145,7 +145,7 @@ export function CustomFieldValueField({
           placeholder={t("addDialog.valuePlaceholderList")}
           value={value}
           onChange={(v) => onChange(String(v))}
-          options={options.map((o) => ({ value: o.option_id, label: o.name }))}
+          options={options.map((o) => ({ value: o.id, label: o.label }))}
           disabled={disabled}
           error={error}
         />

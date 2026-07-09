@@ -44,7 +44,7 @@ export function CreateEditCustomFieldSheet({
           description: customField.description,
           data_type: customField.data_type,
           masc: customField.masc || "",
-          options: customField.data_type === 'list' ? (customField.options ?? []) : [],
+          options: customField.data_type === 'list' ? (customField.default_value ?? []) : [],
         })
       } else {
         setFormData({
@@ -81,10 +81,10 @@ export function CreateEditCustomFieldSheet({
         newErrors.options = t('form.optionsRequired')
       } else {
         formData.options.forEach((opt, i) => {
-          if (!opt.option_id.trim()) {
+          if (!opt.id.trim()) {
             newErrors[`option_${i}_id`] = t('form.optionIdRequired')
           }
-          if (!opt.name.trim()) {
+          if (!opt.label.trim()) {
             newErrors[`option_${i}_name`] = t('form.optionNameRequired')
           }
         })
@@ -110,7 +110,7 @@ export function CreateEditCustomFieldSheet({
             description: formData.description,
             data_type: formData.data_type,
             masc: formData.masc || undefined,
-            ...(formData.data_type === 'list' && { options: formData.options }),
+            ...(formData.data_type === 'list' && { default_value: formData.options }),
           },
         })
         onSuccess()
@@ -120,7 +120,7 @@ export function CreateEditCustomFieldSheet({
           description: formData.description,
           data_type: formData.data_type,
           masc: formData.masc || "",
-          ...(formData.data_type === 'list' && { options: formData.options }),
+          ...(formData.data_type === 'list' && { default_value: formData.options }),
         })
         onSuccess(created)
       }

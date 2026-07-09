@@ -162,8 +162,8 @@ export function AddCustomFieldSheet({
         newErrors.options = t('form.optionsRequired')
       } else {
         newOptions.forEach((opt, i) => {
-          if (!opt.option_id.trim()) newErrors[`option_${i}_id`] = t('form.optionIdRequired')
-          if (!opt.name.trim()) newErrors[`option_${i}_name`] = t('form.optionNameRequired')
+          if (!opt.id.trim()) newErrors[`option_${i}_id`] = t('form.optionIdRequired')
+          if (!opt.label.trim()) newErrors[`option_${i}_name`] = t('form.optionNameRequired')
         })
       }
     }
@@ -252,7 +252,7 @@ export function AddCustomFieldSheet({
           description: newCustomFieldData.description,
           data_type: newCustomFieldData.data_type,
           masc: newCustomFieldData.masc || "",
-          ...(newCustomFieldData.data_type === 'list' && { options: newOptions }),
+          ...(newCustomFieldData.data_type === 'list' && { default_value: newOptions }),
         })
 
         // Switch to existing mode and select the newly created field
@@ -368,7 +368,7 @@ export function AddCustomFieldSheet({
                     label={t('addDialog.valueLabel')}
                     value={value}
                     onChange={setValue}
-                    options={getSelectedCustomField()?.options ?? []}
+                    options={getSelectedCustomField()?.default_value ?? []}
                     error={formErrors.value}
                     disabled={isUploadingImage}
                     isUploadingImage={isUploadingImage}

@@ -26,7 +26,7 @@ export default function CustomFieldFormFields({
   const { t } = useTranslation(['custom-fields', 'common'])
 
   const handleAddOption = () => {
-    onOptionsChange([...options, { option_id: '', name: '' }])
+    onOptionsChange([...options, { id: '', label: '' }])
   }
 
   const handleRemoveOption = (index: number) => {
@@ -88,8 +88,8 @@ export default function CustomFieldFormFields({
                     label={index === 0 ? t('form.optionIdLabel') : undefined}
                     name={`option_id_${index}`}
                     placeholder={t('form.optionIdPlaceholder')}
-                    value={option.option_id}
-                    onChange={(v) => handleOptionChange(index, 'option_id', String(v))}
+                    value={option.id}
+                    onChange={(v) => handleOptionChange(index, 'id', String(v))}
                     disabled={disabled}
                     error={errors[`option_${index}_id`]}
                   />
@@ -100,8 +100,8 @@ export default function CustomFieldFormFields({
                     label={index === 0 ? t('form.optionNameLabel') : undefined}
                     name={`option_name_${index}`}
                     placeholder={t('form.optionNamePlaceholder')}
-                    value={option.name}
-                    onChange={(v) => handleOptionChange(index, 'name', String(v))}
+                    value={option.label}
+                    onChange={(v) => handleOptionChange(index, 'label', String(v))}
                     disabled={disabled}
                     error={errors[`option_${index}_name`]}
                   />
