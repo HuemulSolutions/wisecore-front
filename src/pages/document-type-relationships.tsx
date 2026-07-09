@@ -42,6 +42,7 @@ export default function DocumentTypeRelationshipsPage() {
   const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
   const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
   const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
+  const canListRelationships = isRootAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
 
   // Search input (typed) vs committed search (sent to API on Enter)
   const [searchInput, setSearchInput] = useState("")
@@ -141,7 +142,7 @@ export default function DocumentTypeRelationshipsPage() {
   const hasPrevious = page > 1
 
   if (isLoadingPermissions) return <PageSkeleton />
-  if (!canListDocumentTypes) return <AssetTypePageEmptyState type="access-denied" />
+  if (!canListDocumentTypes || !canListRelationships) return <AssetTypePageEmptyState type="access-denied" />
 
   if (isLoading && !docTypesResponse) return <PageSkeleton />
 

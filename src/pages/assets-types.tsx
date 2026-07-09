@@ -68,7 +68,8 @@ export default function AssetTypesPage() {
   const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
   const canExportDocumentTypes = isRootAdmin || hasPermission('asset_type:r')
   const canImportDocumentTypes = isRootAdmin || (hasPermission('asset_type:c') && hasPermission('asset_type:u'))
-  
+  const canListRelationships = isRootAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
+
   // Fetch asset types and mutations - solo si tiene permisos
   const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
   const assetTypeMutations = useAssetTypeMutations()
@@ -250,7 +251,7 @@ export default function AssetTypesPage() {
             }}
             canCreate={canCreateDocumentType}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={canListRelationships ? setViewMode : undefined}
             onExport={() => updateState({ showExportDialog: true })}
             onImport={() => updateState({ showImportSheet: true })}
             canExport={canExportDocumentTypes}
@@ -259,7 +260,7 @@ export default function AssetTypesPage() {
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
-        columns={viewMode === 'table' ? [
+        columns={viewMode !== 'relationships' || !canListRelationships ? [
           {
             content: error ? (
               <AssetTypeContentEmptyState
@@ -283,6 +284,7 @@ export default function AssetTypesPage() {
                 onManageTemplates={handleManageTemplates}
                 canUpdate={canUpdateDocumentType}
                 canDelete={canDeleteDocumentType}
+                canViewRelationships={canListRelationships}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
                 selectedIds={selectedExportIds}

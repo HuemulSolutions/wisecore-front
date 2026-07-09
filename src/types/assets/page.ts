@@ -110,6 +110,7 @@ export interface AssetTypeTableProps {
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  canViewRelationships?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

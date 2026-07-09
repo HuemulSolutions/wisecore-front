@@ -519,12 +519,13 @@ export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
   const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode, isExportMode, setIsExportMode } = useNavKnowledge()
-  const { canCreate, canRead } = useUserPermissions()
+  const { canCreate, canRead, isOrgAdmin, hasAnyPermission } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
   const canExportAssets = canRead('asset')
+  const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
   if (!selectedOrganizationId) {
     return null
@@ -610,14 +611,16 @@ export function NavKnowledgeHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuCheckboxItem
-                checked={isRelationsMode}
-                onCheckedChange={() => setIsRelationsMode(!isRelationsMode)}
-                className="hover:cursor-pointer"
-              >
-                <Network className="mr-2 h-4 w-4" />
-                {t('knowledge.relationsModeTooltip')}
-              </DropdownMenuCheckboxItem>
+              {canListExecRelationships && (
+                <DropdownMenuCheckboxItem
+                  checked={isRelationsMode}
+                  onCheckedChange={() => setIsRelationsMode(!isRelationsMode)}
+                  className="hover:cursor-pointer"
+                >
+                  <Network className="mr-2 h-4 w-4" />
+                  {t('knowledge.relationsModeTooltip')}
+                </DropdownMenuCheckboxItem>
+              )}
               {canExportAssets && (
                 <DropdownMenuCheckboxItem
                   checked={isExportMode}

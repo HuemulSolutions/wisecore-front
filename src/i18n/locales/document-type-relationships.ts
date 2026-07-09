@@ -156,6 +156,10 @@ const translations = {
       en: "All versions are already on the canvas.",
       es: "Todas las versiones ya están en el canvas.",
     },
+    noCreatePermission: {
+      en: "You don't have permission to create relationships.",
+      es: "No tienes permiso para crear relaciones.",
+    },
   },
   attributes: {
     title: { en: "Attributes", es: "Atributos" },

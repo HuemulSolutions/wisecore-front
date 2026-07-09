@@ -210,29 +210,35 @@ export function RelationshipEdge({
             {edgeData.name}
           </span>
 
-          {selected && (
+          {selected && (edgeData.onEdit || edgeData.onManageAttributes || edgeData.onDelete) && (
             <div className="flex items-center gap-0.5 bg-background border rounded-md px-1 py-0.5 shadow-sm">
-              <button
-                onClick={() => edgeData.onEdit?.(edgeData.relationshipId)}
-                className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
-                title="Edit relationship"
-              >
-                <Edit2 className="h-3 w-3" />
-              </button>
-              <button
-                onClick={() => edgeData.onManageAttributes?.(edgeData.relationshipId)}
-                className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
-                title="Manage attributes"
-              >
-                <Settings2 className="h-3 w-3" />
-              </button>
-              <button
-                onClick={() => edgeData.onDelete?.(edgeData.relationshipId)}
-                className="p-1 rounded hover:bg-destructive/10 hover:cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
-                title="Delete relationship"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+              {edgeData.onEdit && (
+                <button
+                  onClick={() => edgeData.onEdit!(edgeData.relationshipId)}
+                  className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit relationship"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </button>
+              )}
+              {edgeData.onManageAttributes && (
+                <button
+                  onClick={() => edgeData.onManageAttributes!(edgeData.relationshipId)}
+                  className="p-1 rounded hover:bg-accent hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                  title="Manage attributes"
+                >
+                  <Settings2 className="h-3 w-3" />
+                </button>
+              )}
+              {edgeData.onDelete && (
+                <button
+                  onClick={() => edgeData.onDelete!(edgeData.relationshipId)}
+                  className="p-1 rounded hover:bg-destructive/10 hover:cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
+                  title="Delete relationship"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
             </div>
           )}
         </div>
