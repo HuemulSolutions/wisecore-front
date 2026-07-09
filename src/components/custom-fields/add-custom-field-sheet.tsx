@@ -1,15 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
+import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Plus } from "lucide-react"
-import { useCustomFields, useCustomFieldDataTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
+import { useCustomField, useCustomFieldDataTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
+import { getCustomFields } from "@/services/custom-fields"
 import { useOrganization } from "@/contexts/organization-context"
-import type { CustomField, CustomFieldOption } from "@/types/custom-fields"
+import type { CustomFieldOption } from "@/types/custom-fields"
+import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
+import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
 import { useTranslation } from "react-i18next"
 import type { AddCustomFieldDialogProps } from "@/types/add-custom-field-dialog"
 
@@ -44,14 +49,31 @@ export function AddCustomFieldSheet({
   })
   const [newOptions, setNewOptions] = useState<CustomFieldOption[]>([])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const { t } = useTranslation(['custom-fields', 'common'])
 
-  // Fetch existing custom fields (lazy loading: only when sheet is open)
-  const {
-    data: customFieldsResponse,
-    isLoading: isLoadingCustomFields,
-  } = useCustomFields({ enabled: isOpen })
+  const formatDataType = useCallback(
+    (dataType: string) => t(`dataTypes.${dataType}` as Parameters<typeof t>[0], { defaultValue: dataType }),
+    [t],
+  )
 
-  const customFields = customFieldsResponse?.data || []
+  // Fetch full details of the selected existing custom field (needed for its data_type/default_value)
+  const { data: selectedCustomField } = useCustomField(selectedCustomFieldId, !!selectedCustomFieldId)
+
+  // Async, server-side search for the existing custom field selector
+  const fetchCustomFieldOptions = useCallback(
+    async ({ search, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {
+      const res = await getCustomFields({ search: search || undefined, page, page_size: pageSize })
+      return {
+        options: res.data.map((field) => ({
+          value: field.id,
+          label: field.name,
+          description: formatDataType(field.data_type),
+        })),
+        hasMore: res.has_next,
+      }
+    },
+    [formatDataType],
+  )
 
   // Fetch data types for new custom field creation (lazy loading: only when sheet is open)
   const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: isOpen })
@@ -59,7 +81,6 @@ export function AddCustomFieldSheet({
 
   // Custom field mutations for creating new custom fields
   const customFieldMutations = useCustomFieldMutations()
-  const { t } = useTranslation(['custom-fields', 'common'])
 
   // Reset form when sheet opens
   useEffect(() => {
@@ -93,10 +114,6 @@ export function AddCustomFieldSheet({
       setFormErrors({})
     }
   }, [selectedCustomFieldId, fieldType])
-
-  const getSelectedCustomField = () => {
-    return customFields.find((field: CustomField) => field.id === selectedCustomFieldId)
-  }
 
   const handleImageUpload = async (entityCustomFieldId: string, file: File) => {
     setIsUploadingImage(true)
@@ -140,6 +157,19 @@ export function AddCustomFieldSheet({
     }
   }
 
+  const validateExistingValueForm = () => {
+    if (!selectedSource || selectedSource === "inferred") return true
+
+    const error = validateCustomFieldValue({
+      dataType: selectedCustomField?.data_type || "",
+      value,
+      required: isRequired,
+      t,
+    })
+    setFormErrors(prev => ({ ...prev, value: error || "" }))
+    return !error
+  }
+
   const validateNewCustomFieldForm = () => {
     const newErrors: Record<string, string> = {}
 
@@ -180,10 +210,6 @@ export function AddCustomFieldSheet({
     }
   }
 
-  const formatDataType = (dataType: string) => {
-    return t(`dataTypes.${dataType}` as Parameters<typeof t>[0], { defaultValue: dataType })
-  }
-
   const resetForm = () => {
     setFieldType("existing")
     setSelectedCustomFieldId("")
@@ -213,21 +239,24 @@ export function AddCustomFieldSheet({
         return // Validation
       }
 
-      const selectedField = getSelectedCustomField()
+      if (!validateExistingValueForm()) {
+        return
+      }
+
       const data = {
         [entityType === "document" ? "document_id" : "template_id"]: entityId,
         custom_field_id: selectedCustomFieldId,
         source: selectedSource,
         required: isRequired,
         prompt: prompt.trim() || undefined,
-        ...getValuePayload(selectedField?.data_type || ""),
+        ...getValuePayload(selectedCustomField?.data_type || ""),
       }
 
       try {
         const createdEntity = await onAdd(data)
 
         // If it's an image and there's a file to upload, handle it after creation
-        if (selectedField?.data_type === "image" && selectedFile) {
+        if (selectedCustomField?.data_type === "image" && selectedFile) {
           if (createdEntity?.id) {
             await handleImageUpload(createdEntity.id, selectedFile)
           } else {
@@ -316,20 +345,26 @@ export function AddCustomFieldSheet({
         {fieldType === "existing" && (
           <div className="space-y-4">
             {/* Custom Field Selector */}
-            <HuemulField
-              type="combobox"
-              label={t('addDialog.selectCustomField')}
-              name="custom-field"
-              placeholder={t('addDialog.selectCustomFieldPlaceholder')}
-              value={selectedCustomFieldId}
-              onChange={(v) => setSelectedCustomFieldId(String(v))}
-              disabled={isLoadingCustomFields}
-              options={customFields.map((field: CustomField) => ({
-                label: field.name,
-                value: field.id,
-                description: formatDataType(field.data_type),
-              }))}
-            />
+            <div className="flex w-full flex-col gap-1.5">
+              <Label htmlFor="custom-field" className="text-sm font-medium leading-snug">
+                {t('addDialog.selectCustomField')}
+              </Label>
+              <HuemulCombobox
+                id="custom-field"
+                value={selectedCustomFieldId}
+                onValueChange={(v) => setSelectedCustomFieldId(v as string)}
+                fetchOptions={fetchCustomFieldOptions}
+                pageSize={20}
+                selectedOptions={selectedCustomField
+                  ? [{
+                      value: selectedCustomField.id,
+                      label: selectedCustomField.name,
+                      description: formatDataType(selectedCustomField.data_type),
+                    }]
+                  : []}
+                placeholder={t('addDialog.selectCustomFieldPlaceholder')}
+              />
+            </div>
 
             {selectedCustomFieldId && (
               <>
@@ -364,11 +399,14 @@ export function AddCustomFieldSheet({
                 {/* Value */}
                 {selectedSource && selectedSource !== "inferred" && (
                   <CustomFieldValueField
-                    dataType={getSelectedCustomField()?.data_type || ""}
+                    dataType={selectedCustomField?.data_type || ""}
                     label={t('addDialog.valueLabel')}
                     value={value}
-                    onChange={setValue}
-                    options={getSelectedCustomField()?.default_value ?? []}
+                    onChange={(v) => {
+                      setValue(v)
+                      if (formErrors.value) setFormErrors(prev => ({ ...prev, value: "" }))
+                    }}
+                    options={selectedCustomField?.default_value ?? []}
                     error={formErrors.value}
                     disabled={isUploadingImage}
                     isUploadingImage={isUploadingImage}

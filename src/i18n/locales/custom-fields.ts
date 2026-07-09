@@ -105,6 +105,12 @@ const translations = {
     saveExisting: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
     saveNew: { en: "Create & Add Field", es: "Crear y Agregar Campo" },
     valuePlaceholderList: { en: "Select an option", es: "Selecciona una opción" },
+    valueRequired: { en: "This field is required", es: "Este campo es requerido" },
+    invalidInteger: { en: "Enter a valid integer", es: "Ingresa un número entero válido" },
+    invalidDecimal: { en: "Enter a valid decimal number", es: "Ingresa un número decimal válido" },
+    invalidUrl: { en: "Enter a valid URL", es: "Ingresa una URL válida" },
+    invalidDate: { en: "Enter a valid date", es: "Ingresa una fecha válida" },
+    invalidTime: { en: "Enter a valid time", es: "Ingresa una hora válida" },
   },
   editValueDialog: {
     infoCardTitle: { en: "Custom Field Information", es: "Información del Campo Personalizado" },

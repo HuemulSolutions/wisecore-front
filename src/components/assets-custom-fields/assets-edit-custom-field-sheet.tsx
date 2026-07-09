@@ -10,6 +10,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { useQuery } from "@tanstack/react-query"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-info-card"
+import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
 import type { CustomFieldDocument } from '@/types/custom-fields'
 import type { EditCustomFieldAssetDialogProps } from '@/types/assets'
 export type { EditCustomFieldAssetDialogProps } from '@/types/assets'
@@ -80,18 +81,36 @@ export function EditCustomFieldAssetSheet({
       case "image":
         return "" // Images are handled separately via blob upload
       case "list":
-        return document.value_identifier || ""
+        return document.value_identifier || document.value || ""
       default:
         return document.value || ""
     }
   }
 
+  const handleValueChange = (v: string) => {
+    setValue(v)
+    if (formErrors.value) setFormErrors(prev => ({ ...prev, value: "" }))
+  }
+
   const validateForm = () => {
+    if (!customFieldDocument) return false
+
     const newErrors: Record<string, string> = {}
 
     // Only validate source in configuration mode
     if (mode === "configuration" && !selectedSource) {
       newErrors.source = t('editValueDialog.sourceRequired')
+    }
+
+    const valueVisible = mode === "content" || selectedSource !== "inferred"
+    if (valueVisible) {
+      const valueError = validateCustomFieldValue({
+        dataType: customFieldDocument.data_type,
+        value,
+        required: isRequired,
+        t,
+      })
+      if (valueError) newErrors.value = valueError
     }
 
     setFormErrors(newErrors)
@@ -271,7 +290,7 @@ export function EditCustomFieldAssetSheet({
                 dataType={customFieldDocument.data_type}
                 label={t('editValueDialog.valueOptionalLabel')}
                 value={value}
-                onChange={setValue}
+                onChange={handleValueChange}
                 options={customFieldDocument.options ?? []}
                 error={formErrors.value}
                 isUploadingImage={isUploadingImage}
@@ -300,7 +319,7 @@ export function EditCustomFieldAssetSheet({
               dataType={customFieldDocument.data_type}
               label={t('addDialog.valueLabel')}
               value={value}
-              onChange={setValue}
+              onChange={handleValueChange}
               options={customFieldDocument.options ?? []}
               error={formErrors.value}
               isUploadingImage={isUploadingImage}

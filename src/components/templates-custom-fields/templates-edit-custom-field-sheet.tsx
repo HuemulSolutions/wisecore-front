@@ -10,6 +10,7 @@ import { uploadCustomFieldTemplateValueBlob } from "@/services/custom-fields-tem
 import { useOrganization } from "@/contexts/organization-context"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-info-card"
+import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
 import type { CustomFieldTemplate } from '@/types/custom-fields';
 import type { EditCustomFieldTemplateDialogProps } from '@/types/templates';
 export type { EditCustomFieldTemplateDialogProps } from '@/types/templates';
@@ -57,6 +58,11 @@ export function EditCustomFieldTemplateSheet({
     }
   }, [isOpen, customFieldTemplate])
 
+  const handleValueChange = (v: string) => {
+    setValue(v)
+    if (formErrors.value) setFormErrors(prev => ({ ...prev, value: "" }))
+  }
+
   const getValueForDataType = (template: CustomFieldTemplate) => {
     const dataType = template.data_type
     switch (dataType) {
@@ -77,18 +83,31 @@ export function EditCustomFieldTemplateSheet({
       case "image":
         return "" // Images are handled separately via blob upload
       case "list":
-        return template.value_identifier || ""
+        return template.value_identifier || template.value || ""
       default:
         return template.value_string || ""
     }
   }
 
   const validateForm = () => {
+    if (!customFieldTemplate) return false
+
     const newErrors: Record<string, string> = {}
 
     // Only validate source in configuration mode
     if (mode === "configuration" && !selectedSource) {
       newErrors.source = t('editValueDialog.sourceRequired')
+    }
+
+    const valueVisible = mode === "content" || selectedSource !== "inferred"
+    if (valueVisible) {
+      const valueError = validateCustomFieldValue({
+        dataType: customFieldTemplate.data_type,
+        value,
+        required: isRequired,
+        t,
+      })
+      if (valueError) newErrors.value = valueError
     }
 
     setFormErrors(newErrors)
@@ -267,7 +286,7 @@ export function EditCustomFieldTemplateSheet({
                 dataType={customFieldTemplate.data_type}
                 label={t('editValueDialog.valueOptionalLabel')}
                 value={value}
-                onChange={setValue}
+                onChange={handleValueChange}
                 options={customFieldTemplate.options ?? []}
                 error={formErrors.value}
                 isUploadingImage={isUploadingImage}
@@ -296,7 +315,7 @@ export function EditCustomFieldTemplateSheet({
               dataType={customFieldTemplate.data_type}
               label={t('addDialog.valueLabel')}
               value={value}
-              onChange={setValue}
+              onChange={handleValueChange}
               options={customFieldTemplate.options ?? []}
               error={formErrors.value}
               isUploadingImage={isUploadingImage}
