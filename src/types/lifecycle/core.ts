@@ -227,3 +227,66 @@ export interface AdvanceLifecycleResponse {
   new_state: string
   external_publish: ExternalPublishRun | null
 }
+
+// ─── External Review Actions ──────────────────────────────────────────────────
+
+export interface ExternalReviewActionFunctionality {
+  id: string
+  name: string
+  description: string
+  partial_url: string
+  http_method: ExternalFunctionalityHttpMethod
+  objective: ExternalFunctionalityObjective
+  execution_type: ExternalFunctionalityExecutionType
+  functionality_class: ExternalFunctionalityClass
+  system: {
+    id: string
+    name: string
+    status: string
+  }
+}
+
+export interface ExternalReviewAction {
+  id: string
+  lifecycle_step_id: string
+  external_functionality_id: string
+  external_functionality?: ExternalReviewActionFunctionality
+  execution_order: number
+  is_enabled: boolean
+  stop_on_error: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ExternalReviewActionsResponse {
+  data: ExternalReviewAction[]
+  transaction_id: string
+  timestamp: string
+}
+
+export interface ExternalReviewActionResponse {
+  data: ExternalReviewAction
+  transaction_id: string
+  timestamp: string
+}
+
+export interface CreateExternalReviewActionRequest {
+  external_functionality_id: string
+  execution_order: number
+  is_enabled?: boolean
+  stop_on_error?: boolean
+}
+
+export interface UpdateExternalReviewActionRequest {
+  external_functionality_id?: string
+  execution_order?: number
+  is_enabled?: boolean
+  stop_on_error?: boolean
+}
+
+export interface ReorderExternalReviewActionsRequest {
+  actions: Array<{
+    id: string
+    execution_order: number
+  }>
+}
