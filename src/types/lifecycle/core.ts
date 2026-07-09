@@ -290,3 +290,37 @@ export interface ReorderExternalReviewActionsRequest {
     execution_order: number
   }>
 }
+
+export interface ExternalReviewRun {
+  id: string
+  execution_id: string
+  document_id: string
+  lifecycle_step_id: string
+  triggered_by_user_id: string
+  trigger_mode: string
+  status: 'pending' | 'running' | 'completed' | 'completed_with_errors' | 'failed'
+  total_actions: number
+  successful_actions: number
+  failed_actions: number
+  started_at: string | null
+  finished_at: string | null
+  error_detail: string | null
+}
+
+export interface CompleteLifecycleStepExternalReview {
+  review_run: ExternalReviewRun | null
+  job: { id: string } | null
+  actions_enqueued: number
+}
+
+export interface CompleteLifecycleStepResponse {
+  step_id: string
+  completed_by: string
+  completed_at: string
+  remaining_steps: number
+  all_steps_completed: boolean
+  next_step: string | null
+  auto_advanced: boolean
+  new_state: string
+  external_review?: CompleteLifecycleStepExternalReview
+}

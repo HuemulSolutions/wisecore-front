@@ -29,6 +29,7 @@ import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { LifecycleReviewActionsSection } from "./assets-types-lifecycle-review-actions"
 import type { LifecycleStep } from "@/services/lifecycle"
 import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets'
 
@@ -67,6 +68,7 @@ function EditStepCard({
   canDelete,
   dragHandleProps,
   onEditingChange,
+  organizationId,
 }: EditStepCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -314,6 +316,14 @@ function EditStepCard({
           </HuemulField>
         </>
       )}
+
+      {/* External review actions — only for edit/review steps */}
+      {(stepType === "edit" || stepType === "review") && organizationId && (
+        <>
+          <div className="h-px bg-border" />
+          <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} />
+        </>
+      )}
     </div>
   )
 }
@@ -344,7 +354,7 @@ function SortableEditStepCard(
 
 // ─── EditStepContent ──────────────────────────────────────────────────────────
 
-export function EditStepContent({ documentTypeId, stepType, onEditingChange }: EditStepContentProps) {
+export function EditStepContent({ documentTypeId, stepType, onEditingChange, organizationId }: EditStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
@@ -495,6 +505,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange }: E
                 id={card.id}
                 card={card}
                 stepType={stepType}
+                organizationId={organizationId}
                 slaUnitOptions={slaUnitOptions}
                 allRoles={allRoles}
                 onChange={(updated) => handleCardChange(card.id, updated)}

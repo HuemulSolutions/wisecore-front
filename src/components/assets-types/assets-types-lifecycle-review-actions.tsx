@@ -15,12 +15,12 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useExternalSystems } from "@/hooks/useExternalSystems"
 import { useExternalFunctionalities } from "@/hooks/useExternalFunctionalities"
 import {
-  useExternalPublishActions,
-  useExternalPublishActionMutations,
+  useExternalReviewActions,
+  useExternalReviewActionMutations,
 } from "@/hooks/useLifecycle"
-import type { ExternalPublishAction, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest } from "@/types/lifecycle"
+import type { ExternalReviewAction, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest } from "@/types/lifecycle"
 
-interface LifecyclePublishActionsSectionProps {
+interface LifecycleReviewActionsSectionProps {
   organizationId: string
   stepId: string
 }
@@ -44,27 +44,27 @@ function buildDefaultAdd(nextOrder: number): AddDialogState {
   return { systemId: "", functionalityId: "", execution_order: nextOrder, is_enabled: true, stop_on_error: true }
 }
 
-export function LifecyclePublishActionsSection({
+export function LifecycleReviewActionsSection({
   organizationId,
   stepId,
-}: LifecyclePublishActionsSectionProps) {
+}: LifecycleReviewActionsSectionProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { isOrgAdmin, hasPermission } = useUserPermissions()
 
-  const canList   = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l" as never)
-  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:c" as never)
-  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:u" as never)
-  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_publish_action:d" as never)
+  const canList   = isOrgAdmin || hasPermission("lifecycle_external_review_action:l" as never)
+  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_review_action:c" as never)
+  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_review_action:u" as never)
+  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_review_action:d" as never)
 
   const [showAddDialog, setShowAddDialog]     = useState(false)
   const [addForm, setAddForm]                 = useState<AddDialogState>(buildDefaultAdd(1))
-  const [editingAction, setEditingAction]     = useState<ExternalPublishAction | null>(null)
+  const [editingAction, setEditingAction]     = useState<ExternalReviewAction | null>(null)
   const [editForm, setEditForm]               = useState<ActionFormState>({ external_functionality_id: "", execution_order: 1, is_enabled: true, stop_on_error: true })
-  const [deleteTarget, setDeleteTarget]       = useState<ExternalPublishAction | null>(null)
+  const [deleteTarget, setDeleteTarget]       = useState<ExternalReviewAction | null>(null)
 
   // ─── Data ───────────────────────────────────────────────────────────────────
 
-  const { data: actionsData, isLoading: isLoadingActions } = useExternalPublishActions(
+  const { data: actionsData, isLoading: isLoadingActions } = useExternalReviewActions(
     organizationId,
     stepId,
     canList && !!stepId,
@@ -72,7 +72,7 @@ export function LifecyclePublishActionsSection({
   const actions = [...(actionsData?.data ?? [])].sort((a, b) => a.execution_order - b.execution_order)
 
   const { createAction, updateAction, deleteAction, reorderActions } =
-    useExternalPublishActionMutations(organizationId, stepId)
+    useExternalReviewActionMutations(organizationId, stepId)
 
   // Systems combobox
   const { data: systemsData, isLoading: isLoadingSystems } = useExternalSystems(organizationId, {
@@ -85,13 +85,13 @@ export function LifecyclePublishActionsSection({
   const { data: functionalitiesData, isLoading: isLoadingFunctionalities } = useExternalFunctionalities(
     organizationId,
     addForm.systemId,
-    { objective: "publish_asset", pageSize: 200, enabled: showAddDialog && !!addForm.systemId },
+    { objective: "review_asset", pageSize: 200, enabled: showAddDialog && !!addForm.systemId },
   )
   const functionalities = functionalitiesData?.data ?? []
 
   // ─── Name resolution ────────────────────────────────────────────────────────
 
-  const resolveName = (action: ExternalPublishAction) =>
+  const resolveName = (action: ExternalReviewAction) =>
     action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ export function LifecyclePublishActionsSection({
   }
 
   const handleSaveAdd = () => {
-    const body: CreateExternalPublishActionRequest = {
+    const body: CreateExternalReviewActionRequest = {
       external_functionality_id: addForm.functionalityId,
       execution_order: addForm.execution_order,
       is_enabled: addForm.is_enabled,
@@ -114,7 +114,7 @@ export function LifecyclePublishActionsSection({
     })
   }
 
-  const handleOpenEdit = (action: ExternalPublishAction) => {
+  const handleOpenEdit = (action: ExternalReviewAction) => {
     setEditForm({
       external_functionality_id: action.external_functionality_id,
       execution_order: action.execution_order,
@@ -126,7 +126,7 @@ export function LifecyclePublishActionsSection({
 
   const handleSaveEdit = () => {
     if (!editingAction) return
-    const body: UpdateExternalPublishActionRequest = {
+    const body: UpdateExternalReviewActionRequest = {
       execution_order: editForm.execution_order,
       is_enabled: editForm.is_enabled,
       stop_on_error: editForm.stop_on_error,
@@ -136,7 +136,7 @@ export function LifecyclePublishActionsSection({
     })
   }
 
-  const handleDelete = (action: ExternalPublishAction) => {
+  const handleDelete = (action: ExternalReviewAction) => {
     setDeleteTarget(action)
   }
 
@@ -161,8 +161,8 @@ export function LifecyclePublishActionsSection({
   return (
     <div className="flex flex-col gap-3 pt-2">
       <div>
-        <p className="text-sm font-semibold">{t("lifecycle.publishActions.title")}</p>
-        <p className="text-xs text-muted-foreground">{t("lifecycle.publishActions.description")}</p>
+        <p className="text-sm font-semibold">{t("lifecycle.reviewActions.title")}</p>
+        <p className="text-xs text-muted-foreground">{t("lifecycle.reviewActions.description")}</p>
       </div>
 
       {isLoadingActions ? (
@@ -171,18 +171,18 @@ export function LifecyclePublishActionsSection({
         </p>
       ) : actions.length === 0 ? (
         <div className="flex flex-col items-center gap-1 py-6 text-center rounded-md border border-dashed">
-          <p className="text-sm font-medium text-muted-foreground">{t("lifecycle.publishActions.empty")}</p>
-          <p className="text-xs text-muted-foreground/60">{t("lifecycle.publishActions.emptyDescription")}</p>
+          <p className="text-sm font-medium text-muted-foreground">{t("lifecycle.reviewActions.empty")}</p>
+          <p className="text-xs text-muted-foreground/60">{t("lifecycle.reviewActions.emptyDescription")}</p>
         </div>
       ) : (
         <div className="rounded-md border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 border-b">
               <tr className="text-xs text-muted-foreground">
-                <th className="px-3 py-2 text-left w-16">{t("lifecycle.publishActions.executionOrder")}</th>
-                <th className="px-3 py-2 text-left">{t("lifecycle.publishActions.functionality")}</th>
-                <th className="px-3 py-2 text-center w-20">{t("lifecycle.publishActions.isEnabled")}</th>
-                <th className="px-3 py-2 text-center w-28">{t("lifecycle.publishActions.stopOnError")}</th>
+                <th className="px-3 py-2 text-left w-16">{t("lifecycle.reviewActions.executionOrder")}</th>
+                <th className="px-3 py-2 text-left">{t("lifecycle.reviewActions.functionality")}</th>
+                <th className="px-3 py-2 text-center w-20">{t("lifecycle.reviewActions.isEnabled")}</th>
+                <th className="px-3 py-2 text-center w-28">{t("lifecycle.reviewActions.stopOnError")}</th>
                 <th className="px-3 py-2 w-28" />
               </tr>
             </thead>
@@ -272,7 +272,7 @@ export function LifecyclePublishActionsSection({
         <div>
           <Button variant="outline" size="sm" onClick={handleOpenAdd}>
             <Plus className="h-4 w-4 mr-1.5" />
-            {t("lifecycle.publishActions.addAction")}
+            {t("lifecycle.reviewActions.addAction")}
           </Button>
         </div>
       )}
@@ -281,38 +281,38 @@ export function LifecyclePublishActionsSection({
       <Dialog open={showAddDialog} onOpenChange={(v) => !v && setShowAddDialog(false)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>{t("lifecycle.publishActions.addAction")}</DialogTitle>
+            <DialogTitle>{t("lifecycle.reviewActions.addAction")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <HuemulField
               type="combobox"
-              label={t("lifecycle.publishActions.selectSystem")}
+              label={t("lifecycle.reviewActions.selectSystem")}
               name="system"
               value={addForm.systemId}
               onChange={(v) => setAddForm((prev) => ({ ...prev, systemId: String(v), functionalityId: "" }))}
-              placeholder={isLoadingSystems ? t("common:loading", "Loading…") : t("lifecycle.publishActions.selectSystemPlaceholder")}
+              placeholder={isLoadingSystems ? t("common:loading", "Loading…") : t("lifecycle.reviewActions.selectSystemPlaceholder")}
               options={systems.map((s) => ({ value: s.id, label: s.name }))}
               disabled={isLoadingSystems}
             />
             <HuemulField
               type="combobox"
-              label={t("lifecycle.publishActions.selectFunctionality")}
+              label={t("lifecycle.reviewActions.selectFunctionality")}
               name="functionality"
               value={addForm.functionalityId}
               onChange={(v) => setAddForm((prev) => ({ ...prev, functionalityId: String(v) }))}
               placeholder={
                 !addForm.systemId
-                  ? t("lifecycle.publishActions.selectSystemPlaceholder")
+                  ? t("lifecycle.reviewActions.selectSystemPlaceholder")
                   : isLoadingFunctionalities
                   ? t("common:loading", "Loading…")
-                  : t("lifecycle.publishActions.selectFunctionalityPlaceholder")
+                  : t("lifecycle.reviewActions.selectFunctionalityPlaceholder")
               }
               options={functionalities.map((f) => ({ value: f.id, label: f.name }))}
               disabled={!addForm.systemId || isLoadingFunctionalities}
             />
             <HuemulField
               type="number"
-              label={t("lifecycle.publishActions.executionOrder")}
+              label={t("lifecycle.reviewActions.executionOrder")}
               name="execution_order"
               value={addForm.execution_order}
               onChange={(v) => setAddForm((prev) => ({ ...prev, execution_order: Number(v) || 1 }))}
@@ -320,14 +320,14 @@ export function LifecyclePublishActionsSection({
             />
             <HuemulField
               type="switch"
-              label={t("lifecycle.publishActions.isEnabled")}
+              label={t("lifecycle.reviewActions.isEnabled")}
               name="is_enabled"
               value={addForm.is_enabled}
               onChange={(v) => setAddForm((prev) => ({ ...prev, is_enabled: Boolean(v) }))}
             />
             <HuemulField
               type="switch"
-              label={t("lifecycle.publishActions.stopOnError")}
+              label={t("lifecycle.reviewActions.stopOnError")}
               name="stop_on_error"
               value={addForm.stop_on_error}
               onChange={(v) => setAddForm((prev) => ({ ...prev, stop_on_error: Boolean(v) }))}
@@ -335,13 +335,13 @@ export function LifecyclePublishActionsSection({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={createAction.isPending}>
-              {t("lifecycle.publishActions.cancel")}
+              {t("lifecycle.reviewActions.cancel")}
             </Button>
             <Button
               onClick={handleSaveAdd}
               disabled={createAction.isPending || !addForm.functionalityId || addForm.execution_order < 1}
             >
-              {createAction.isPending ? t("common:saving", "Saving…") : t("lifecycle.publishActions.save")}
+              {createAction.isPending ? t("common:saving", "Saving…") : t("lifecycle.reviewActions.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -351,12 +351,12 @@ export function LifecyclePublishActionsSection({
       <Dialog open={!!editingAction} onOpenChange={(v) => !v && setEditingAction(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>{t("lifecycle.publishActions.editAction")}</DialogTitle>
+            <DialogTitle>{t("lifecycle.reviewActions.editAction")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium text-muted-foreground">
-                {t("lifecycle.publishActions.functionality")}
+                {t("lifecycle.reviewActions.functionality")}
               </span>
               <span className="text-sm">
                 {editingAction ? resolveName(editingAction) : ""}
@@ -364,7 +364,7 @@ export function LifecyclePublishActionsSection({
             </div>
             <HuemulField
               type="number"
-              label={t("lifecycle.publishActions.executionOrder")}
+              label={t("lifecycle.reviewActions.executionOrder")}
               name="edit_execution_order"
               value={editForm.execution_order}
               onChange={(v) => setEditForm((prev) => ({ ...prev, execution_order: Number(v) || 1 }))}
@@ -372,14 +372,14 @@ export function LifecyclePublishActionsSection({
             />
             <HuemulField
               type="switch"
-              label={t("lifecycle.publishActions.isEnabled")}
+              label={t("lifecycle.reviewActions.isEnabled")}
               name="edit_is_enabled"
               value={editForm.is_enabled}
               onChange={(v) => setEditForm((prev) => ({ ...prev, is_enabled: Boolean(v) }))}
             />
             <HuemulField
               type="switch"
-              label={t("lifecycle.publishActions.stopOnError")}
+              label={t("lifecycle.reviewActions.stopOnError")}
               name="edit_stop_on_error"
               value={editForm.stop_on_error}
               onChange={(v) => setEditForm((prev) => ({ ...prev, stop_on_error: Boolean(v) }))}
@@ -387,13 +387,13 @@ export function LifecyclePublishActionsSection({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingAction(null)} disabled={updateAction.isPending}>
-              {t("lifecycle.publishActions.cancel")}
+              {t("lifecycle.reviewActions.cancel")}
             </Button>
             <Button
               onClick={handleSaveEdit}
               disabled={updateAction.isPending || editForm.execution_order < 1}
             >
-              {updateAction.isPending ? t("common:saving", "Saving…") : t("lifecycle.publishActions.save")}
+              {updateAction.isPending ? t("common:saving", "Saving…") : t("lifecycle.reviewActions.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -403,9 +403,9 @@ export function LifecyclePublishActionsSection({
       <HuemulAlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={t("lifecycle.publishActions.confirmDelete")}
+        title={t("lifecycle.reviewActions.confirmDelete")}
         actionLabel={t("common:delete")}
-        cancelLabel={t("lifecycle.publishActions.cancel")}
+        cancelLabel={t("lifecycle.reviewActions.cancel")}
         onAction={handleConfirmDelete}
       />
     </div>

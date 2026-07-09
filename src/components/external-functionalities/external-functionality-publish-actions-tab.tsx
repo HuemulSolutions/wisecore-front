@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import {
@@ -64,6 +65,7 @@ export function ExternalFunctionalityPublishActionsTab({
   const [formState, setFormState]                 = useState<ActionFormState>(
     buildDefaultForm(functionality.id, 1),
   )
+  const [deleteTarget, setDeleteTarget]           = useState<ExternalPublishAction | null>(null)
 
   // ─── Data ──────────────────────────────────────────────────────────────────
 
@@ -136,8 +138,12 @@ export function ExternalFunctionalityPublishActionsTab({
   }
 
   const handleDelete = (action: ExternalPublishAction) => {
-    if (!window.confirm(t("publishActions.confirmDelete"))) return
-    deleteAction.mutate(action.id)
+    setDeleteTarget(action)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    await deleteAction.mutateAsync(deleteTarget.id)
   }
 
   const handleMove = (index: number, direction: "up" | "down") => {
@@ -339,6 +345,16 @@ export function ExternalFunctionalityPublishActionsTab({
         onChange={setFormState}
         onSave={handleSaveEdit}
         onClose={() => setEditingAction(null)}
+      />
+
+      {/* Delete confirmation */}
+      <HuemulAlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={t("publishActions.confirmDelete")}
+        actionLabel={t("common:delete")}
+        cancelLabel={t("publishActions.cancel")}
+        onAction={handleConfirmDelete}
       />
     </div>
   )
