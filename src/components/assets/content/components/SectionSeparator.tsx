@@ -32,11 +32,8 @@ export function SectionSeparator({
           variant="ghost"
           size="sm"
           className={`
-            h-8 w-8 p-0 rounded-full 
-            ${isMobile 
-              ? 'opacity-100' 
-              : 'opacity-0 group-hover:opacity-100'
-            }
+            h-8 w-8 p-0 rounded-full
+            opacity-100
             transition-all duration-300 ease-in-out
             hover:bg-[#4464f7] hover:text-white
             text-gray-400 hover:cursor-pointer
