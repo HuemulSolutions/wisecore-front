@@ -463,6 +463,7 @@ export function SectionSheet({
                           }}
                           currentExecutionId={selectedConfigExecutionId}
                           documentId={selectedFile?.id}
+                          templateId={fullDocument?.template_id}
                           useExecutionDeleteDialog={true}
                           hasTemplate={!!fullDocument?.template_id}
                           isDisabledSection={section.not_in_execution === true}

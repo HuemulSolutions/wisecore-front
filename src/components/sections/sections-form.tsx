@@ -4,7 +4,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2, X } from "lucide-react";
+import { Sparkles, Loader2, X, Bot } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
 import { FileTree } from "@/components/assets/content/assets-file-tree";
@@ -18,6 +18,9 @@ import { SectionFormFieldsBuilder } from "./section-form-fields-builder";
 import { CUSTOM_FIELD_QUESTION_TYPE, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
+import { AiEditSectionDialog } from "@/components/assets/dialogs/assets-ai-edit-section-dialog";
+import { useEditWithAi } from "@/hooks/useEditWithAi";
+import { handleApiError } from "@/lib/error-utils";
 import type { SectionFormProps } from '@/types/sections';
 export type { SectionFormProps } from '@/types/sections';
 
@@ -78,6 +81,9 @@ export function SectionForm({
   );
   const [selectValue, setSelectValue] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAiEditOpen, setIsAiEditOpen] = useState(false);
+  const [promptBeforeAiEdit, setPromptBeforeAiEdit] = useState<string | null>(null);
+  const editWithAiMutation = useEditWithAi();
   const [propagateToTemplate, setPropagateToTemplate] = useState(false);
   const [propagatePrompt, setPropagatePrompt] = useState(false);
   const [propagateToAssets, setPropagateToAssets] = useState(false);
@@ -226,6 +232,7 @@ export function SectionForm({
     setName(item.name);
     setType((item as any).type || "ai");
     setPrompt(item.prompt);
+    setPromptBeforeAiEdit(null);
     const manualInputValue = (item as any).manual_input || "";
     setManualInput(manualInputValue);
     const refSectionId = (item as any).reference_section_id || "";
@@ -285,6 +292,34 @@ export function SectionForm({
       setIsGenerating(false);
       setEditorKey(prev => prev + 1);
     }
+  };
+
+  const handleEditPromptWithAi = async (instruction: string) => {
+    markDirty();
+    const previousPrompt = prompt;
+    try {
+      const edited = await editWithAiMutation.mutateAsync({
+        text: prompt,
+        prompt: instruction,
+        sectionId: item?.id,
+        templateId,
+        organizationId: selectedOrganizationId!,
+      });
+      setPromptBeforeAiEdit(previousPrompt);
+      setPrompt(edited);
+      setEditorKey(prev => prev + 1);
+      setIsAiEditOpen(false);
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t('form.prompt.editError') });
+    }
+  };
+
+  const handleUndoAiEdit = () => {
+    if (promptBeforeAiEdit === null) return;
+    setPrompt(promptBeforeAiEdit);
+    setEditorKey(prev => prev + 1);
+    setPromptBeforeAiEdit(null);
+    markDirty();
   };
 
   const addDependency = (sectionId: string) => {
@@ -504,27 +539,67 @@ export function SectionForm({
               <Label className="text-xs font-medium text-gray-700">
                 {t('form.prompt.label')} <span className="text-red-500">*</span>
               </Label>
-              <HuemulButton
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleGeneratePrompt}
-                disabled={!name.trim() || isGenerating || !!prompt.trim() || isPending}
-                className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    {t('form.prompt.generating')}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-1 h-3 w-3" />
-                    {t('form.prompt.generate')}
-                  </>
+              <div className="flex items-center gap-2">
+                <HuemulButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGeneratePrompt}
+                  disabled={!name.trim() || isGenerating || !!prompt.trim() || isPending}
+                  className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      {t('form.prompt.generating')}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      {t('form.prompt.generate')}
+                    </>
+                  )}
+                </HuemulButton>
+                {templateId && (
+                  <HuemulButton
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsAiEditOpen(true)}
+                    disabled={!prompt.trim() || isGenerating || isPending || editWithAiMutation.isPending}
+                    className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                  >
+                    {editWithAiMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        {t('form.prompt.editing')}
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="mr-1 h-3 w-3" />
+                        {t('form.prompt.edit')}
+                      </>
+                    )}
+                  </HuemulButton>
                 )}
-              </HuemulButton>
+              </div>
             </div>
+
+            {promptBeforeAiEdit !== null && !editWithAiMutation.isPending && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                <span className="text-xs text-amber-800">{t('form.prompt.aiEditApplied')}</span>
+                <HuemulButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleUndoAiEdit}
+                  disabled={isPending}
+                  className="h-7 text-xs"
+                >
+                  {t('form.prompt.undo')}
+                </HuemulButton>
+              </div>
+            )}
 
             {editorType === 'simple' ? (
               <Textarea
@@ -561,7 +636,20 @@ export function SectionForm({
                   {t('form.prompt.generatingHint')}
                 </div>
               )}
+              {editWithAiMutation.isPending && (
+                <div className="text-xs text-blue-600 flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {t('form.prompt.editingHint')}
+                </div>
+              )}
             </div>
+
+            <AiEditSectionDialog
+              open={isAiEditOpen}
+              onOpenChange={setIsAiEditOpen}
+              onSend={handleEditPromptWithAi}
+              isProcessing={editWithAiMutation.isPending}
+            />
           </div>
 
           {/* Dependencies - Solo para tipo AI */}

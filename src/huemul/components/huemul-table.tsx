@@ -42,7 +42,7 @@ import { useTranslation } from "react-i18next"
 
 // ── Constantes de redimensionado ─────────────────────────────────────────────
 const MIN_COL_WIDTH = 80
-const ACTIONS_COL_WIDTH = 64
+const ACTIONS_COL_WIDTH = 100
 const SELECT_COL_WIDTH = 48
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -216,8 +216,8 @@ export function HuemulTable<T>({
       {/* Scrollable table area */}
       <div className={cn("overflow-auto flex-1", maxHeight)}>
         <table
-          className={cn("caption-bottom text-sm", resizable ? "w-max" : "w-full")}
-          style={resizable ? { tableLayout: "fixed", width: totalWidth } : undefined}
+          className="w-full caption-bottom text-sm"
+          style={resizable ? { tableLayout: "fixed", minWidth: totalWidth } : undefined}
         >
           {resizable && (
             <colgroup>
@@ -229,6 +229,8 @@ export function HuemulTable<T>({
                   className={cn(col.hideOnMobile && "hidden sm:table-column")}
                 />
               ))}
+              {/* Absorbe el espacio sobrante cuando las columnas no llenan el contenedor. */}
+              <col />
               {hasActions && <col style={{ width: ACTIONS_COL_WIDTH }} />}
             </colgroup>
           )}
@@ -245,11 +247,10 @@ export function HuemulTable<T>({
                   />
                 </TableHead>
               )}
-              {columns.map((col, index) => {
+              {columns.map((col) => {
                 const canResize = resizable && col.resizable !== false
-                // Divisor sutil entre cabeceras; se omite en la última columna de
-                // datos cuando hay columna de acciones (esa ya aporta su border-l).
-                const showDivider = resizable && !(index === columns.length - 1 && hasActions)
+                // Divisor sutil entre cabeceras de columnas de datos.
+                const showDivider = resizable
                 return (
                 <TableHead
                   key={col.key}
@@ -293,9 +294,10 @@ export function HuemulTable<T>({
                 </TableHead>
                 )
               })}
+              {resizable && <TableHead aria-hidden className="p-0" />}
               {hasActions && (
                 <TableHead className="h-auto px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-[1%] whitespace-nowrap sticky right-0 z-30 bg-muted border-l border-border">
-                  {t("actions")}
+                  <span className={cn(resizable && "block truncate")}>{t("actions")}</span>
                 </TableHead>
               )}
             </TableRow>
@@ -324,8 +326,9 @@ export function HuemulTable<T>({
                         <Skeleton className="h-4 w-full max-w-[180px]" />
                       </TableCell>
                     ))}
+                    {resizable && <TableCell aria-hidden className="p-0" />}
                     {hasActions && (
-                      <TableCell className="px-4 py-3 text-right sticky right-0 bg-background border-l border-border">
+                      <TableCell className="px-4 py-3 text-right sticky right-0 z-10 bg-background border-l border-border">
                         <Skeleton className="h-7 w-7 ml-auto" />
                       </TableCell>
                     )}
@@ -335,7 +338,16 @@ export function HuemulTable<T>({
                   const key = getRowKey(item)
                   const visibleActions = actions?.filter((a) => !a.show || a.show(item)) ?? []
                   const isSelected = selectable && selected.has(key)
-                  const rowExtraClass = getRowClassName?.(item) ?? (isSelected ? "bg-primary/5 hover:bg-primary/10" : "")
+                  const customRowClass = getRowClassName?.(item)
+                  const rowExtraClass = customRowClass ?? (isSelected ? "bg-primary/5 hover:bg-primary/10" : "")
+                  // La celda de acciones es sticky: necesita un fondo siempre opaco (nunca
+                  // una clase con alpha) para tapar las columnas que quedan por debajo al
+                  // hacer scroll horizontal, así que no puede reusar `rowExtraClass` tal cual.
+                  const stickyExtraClass =
+                    customRowClass ??
+                    (isSelected
+                      ? "bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))] group-hover:bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))]"
+                      : "bg-background group-hover:bg-[color-mix(in_srgb,var(--muted)_30%,var(--card))]")
 
                   return (
                     <TableRow key={key} className={cn("group", rowExtraClass || "bg-background hover:bg-muted/30")} data-selected={isSelected || undefined}>
@@ -366,8 +378,9 @@ export function HuemulTable<T>({
                         </TableCell>
                       ))}
 
+                      {resizable && <TableCell aria-hidden className="p-0" />}
                       {hasActions && (
-                        <TableCell className={cn("px-4 py-3 text-right whitespace-nowrap sticky right-0 z-10 border-l border-border", rowExtraClass || "bg-background group-hover:bg-muted/30")}>
+                        <TableCell className={cn("px-4 py-3 text-right whitespace-nowrap sticky right-0 z-10 border-l border-border", stickyExtraClass)}>
                           {actionsMode === "inline" ? (
                             // ── Inline icon buttons ──
                             <div className="flex items-center justify-end gap-1">

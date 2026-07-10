@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type { EventSourceMessage } from "@microsoft/fetch-event-source";
-import type { SSEEvent, GenerateStreamParams, GenerateWorkerParams, ExecuteGenerationParams, FixSectionParams, RedactPromptParams, ChatbotParams } from "@/types/generate";
+import type { SSEEvent, GenerateStreamParams, GenerateWorkerParams, ExecuteGenerationParams, FixSectionParams, RedactPromptParams, ChatbotParams, EditWithAiParams, EditWithAiResponse } from "@/types/generate";
 
 // Generic SSE streaming helper to avoid duplication
 // Unifies error handling, queueing and closing logic
@@ -238,6 +238,33 @@ export const generateFirstSection = async (
         instructions,
         organizationId,
     });
+};
+
+/**
+ * Generic AI text generation/edit endpoint (e.g. template section content or prompt).
+ * Requires: text, prompt, organizationId
+ * Optional: templateId, sectionId, llmId (falls back to the organization's default LLM)
+ */
+export const editWithAi = async (params: EditWithAiParams): Promise<string> => {
+    if (!params) {
+        throw new TypeError("editWithAi: parameter 'params' is undefined. You must pass an object with the required properties.");
+    }
+
+    const { text, prompt, templateId, sectionId, llmId, organizationId } = params;
+
+    const payload: Record<string, unknown> = { text, prompt };
+    if (templateId) payload.template_id = templateId;
+    if (sectionId) payload.section_id = sectionId;
+    if (llmId) payload.llm_id = llmId;
+
+    const response = await httpClient.post(`${backendUrl}/generation/edit_with_ai`, payload, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+
+    const result = (await response.json()) as EditWithAiResponse;
+    return result.data.text;
 };
 
 /**

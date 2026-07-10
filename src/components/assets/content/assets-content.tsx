@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
+import { LifecycleReviewDialog } from "@/components/ui/lifecycle-review-dialog";
 import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog";
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
@@ -44,10 +45,10 @@ import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
 import type { CustomFieldDocument } from '@/types/custom-fields';
-import { AddCustomFieldDocumentDialog } from "@/components/assets-custom-fields/assets-add-custom-field-dialog";
-import { EditCustomFieldAssetDialog } from "@/components/assets-custom-fields/assets-edit-custom-field-dialog";
+import { AddCustomFieldDocumentSheet } from "@/components/assets-custom-fields/assets-add-custom-field-sheet";
+import { EditCustomFieldAssetSheet } from "@/components/assets-custom-fields/assets-edit-custom-field-sheet";
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
-import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
+import { AddSectionExecutionSheet } from "@/components/assets/dialogs/assets-add-section-execution-sheet";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
@@ -466,12 +467,12 @@ export function AssetContent({
   // Mutation for checking (advancing) execution lifecycle
   const checkLifecycleMutation = useMutation({
     mutationFn: withRefresh(
-      async (comment?: string) => {
+      async (options?: { comment?: string; run_external_review?: boolean }) => {
         const executionId = selectedExecutionId || documentContent?.execution_id;
         const stepId = documentContent?.lifecycle_status?.current_step_id;
         if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
         if (!stepId) throw new Error('Missing step ID');
-        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
+        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, options);
       },
       queryClient,
       () => [['document-content', selectedFile?.id], ['document', selectedFile?.id]],
@@ -2483,6 +2484,8 @@ export function AssetContent({
                             onExportExcel={handleExportExcel}
                             onDeleteVersion={() => openDeleteDialog('execution')}
                             onDeleteDocument={() => openDeleteDialog('document')}
+                            isRerunningExternalPublish={runExternalPublishMutation.isPending}
+                            onRerunExternalPublish={() => runExternalPublishMutation.mutate()}
                           />
                         )}
                       </div>
@@ -2590,19 +2593,6 @@ export function AssetContent({
                               className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.rerunExternalPublish')}
-                              icon={RefreshCw}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={runExternalPublishMutation.isPending}
-                              onClick={() => runExternalPublishMutation.mutate()}
-                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
-                            />
-                          )}
                         </div>
                       )}
                     </div>
@@ -2611,7 +2601,7 @@ export function AssetContent({
                 )}
               </div>
             )}
-            
+
             {/* Action Buttons Section - editor mode only */}
             {!isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
@@ -3372,7 +3362,7 @@ export function AssetContent({
       />
 
       {/* Section Execution Creation Dialog */}
-      <AddSectionExecutionDialog
+      <AddSectionExecutionSheet
         open={isSectionExecutionDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
@@ -3443,7 +3433,7 @@ export function AssetContent({
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
-      <LifecycleCommentDialog
+      <LifecycleReviewDialog
         open={isCheckLifecycleDialogOpen}
         onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
         title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
@@ -3452,12 +3442,13 @@ export function AssetContent({
             ? t('lifecycle.advanceStateDescription')
             : t('lifecycle.advanceStepDescription')
         }
-        onConfirm={(comment) => checkLifecycleMutation.mutate(comment)}
+        onConfirm={(data) => checkLifecycleMutation.mutate(data)}
         confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
+        showExternalReviewToggle={
+          documentContent?.lifecycle_status?.state === 'draft' ||
+          documentContent?.lifecycle_status?.state === 'in_review'
+        }
         isProcessing={checkLifecycleMutation.isPending}
-        variant="default"
       />
 
       {/* Lifecycle Reject (Go Back) Dialog */}
@@ -3566,8 +3557,8 @@ export function AssetContent({
         }}
       />
 
-      {/* Add Custom Field Document Dialog */}
-      <AddCustomFieldDocumentDialog
+      {/* Add Custom Field Document Sheet */}
+      <AddCustomFieldDocumentSheet
         isOpen={isAddCustomFieldDocumentDialogOpen}
         onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
         documentId={selectedFile.id}
@@ -3576,8 +3567,8 @@ export function AssetContent({
         onImageUploadComplete={handleImageUploadComplete}
       />
 
-      {/* Edit Custom Field Document Dialog (Unified) */}
-      <EditCustomFieldAssetDialog
+      {/* Edit Custom Field Document Sheet (Unified) */}
+      <EditCustomFieldAssetSheet
         isOpen={isEditCustomFieldDocumentDialogOpen}
         onClose={() => {
           setIsEditCustomFieldDocumentDialogOpen(false);

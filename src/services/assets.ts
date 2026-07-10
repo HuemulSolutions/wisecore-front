@@ -1,8 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse } from "@/types/assets";
+import { downloadBlobResponse } from "@/lib/blob-download";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse } from "@/types/assets";
 
-export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse };
+export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse };
 
 export async function getAllDocuments(organizationId: string, documentTypeId?: string, search?: string) {
   const url = new URL(`${backendUrl}/documents/`);
@@ -228,6 +229,57 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
 
   const data = await response.json();
   console.log('Document imported from file:', data.data);
+  return data.data;
+}
+
+// Exporta la configuración de uno o más documentos (por execution_id, es decir versión)
+// como archivo JSON descargable (requiere permiso asset:r).
+export async function exportDocuments(organizationId: string, body: ExportDocumentsBody): Promise<void> {
+  const orgToken = httpClient.getOrganizationToken();
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (orgToken) headers['Authorization'] = `Bearer ${orgToken}`;
+  if (organizationId) headers['X-Org-Id'] = organizationId;
+
+  const response = await fetch(`${backendUrl}/documents/export`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.message ?? 'Error al exportar documentos');
+  }
+
+  await downloadBlobResponse(response, 'documents_export.json');
+}
+
+// Importa documentos desde un JSON de configuración exportado (requiere permisos asset:c + asset:u).
+// Distinto de importDocumentFromFile (/documents/import-from-file), que convierte DOCX/PDF.
+export async function importDocumentsConfig(
+  organizationId: string,
+  file: File,
+  params: ImportDocumentsConfigQueryParams = {},
+): Promise<ImportDocumentsConfigData> {
+  const url = new URL(`${backendUrl}/documents/import-config`);
+  if (params.on_conflict) url.searchParams.append('on_conflict', params.on_conflict);
+  if (params.document_ids?.length) {
+    url.searchParams.append('document_ids', params.document_ids.join(','));
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await httpClient.fetch(url.toString(), {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = (await response.json()) as ImportDocumentsConfigResponse;
   return data.data;
 }
 

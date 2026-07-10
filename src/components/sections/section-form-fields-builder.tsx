@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuestionTypes } from "@/hooks/useQuestionTypes";
 import { useCustomFieldMutations } from "@/hooks/useCustomFields";
 import { getCustomFields } from "@/services/custom-fields";
-import { CreateEditCustomFieldDialog } from "@/components/custom-fields/custom-fields-create-edit-dialog";
+import { CreateEditCustomFieldSheet } from "@/components/custom-fields/custom-fields-create-edit-sheet";
 import type { SectionFormField } from "@/types/sections/core";
 import type { CustomField, CustomFieldDataType } from "@/types/custom-fields/core";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
@@ -262,7 +262,7 @@ export function SectionFormFieldsBuilder({
         </DndContext>
       )}
 
-      <CreateEditCustomFieldDialog
+      <CreateEditCustomFieldSheet
         open={createCustomFieldIndex !== null}
         onOpenChange={(open) => {
           if (!open) setCreateCustomFieldIndex(null);

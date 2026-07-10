@@ -27,6 +27,7 @@ export default function AssetTypeTable({
   pagination,
   canUpdate = true,
   canDelete = true,
+  canViewRelationships = true,
   isLoading = false,
   isFetching = false,
   selectedIds,
@@ -75,12 +76,12 @@ export default function AssetTypeTable({
 
   // Define actions - construir condicionalmente
   const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
-    {
-      key: "viewRelationships",
+    ...(canViewRelationships ? [{
+      key: "viewRelationships" as const,
       label: t('actions.viewRelationships'),
       icon: GitMerge,
       onClick: onViewRelationships
-    },
+    }] : []),
     {
       key: "manageTemplates",
       label: t('actions.manageTemplates'),

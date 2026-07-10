@@ -8,8 +8,8 @@ import { useCustomFieldTemplatesByTemplate, useCustomFieldTemplateMutations } fr
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { CustomFieldTemplateTable } from "./templates-custom-field-table"
 import { CustomFieldTemplateEmptyState } from "./templates-custom-field-empty-state"
-import { AddCustomFieldTemplateDialog } from "./templates-custom-field-add-dialog"
-import { EditCustomFieldTemplateDialog } from "./templates-edit-custom-field-dialog"
+import { AddCustomFieldTemplateSheet } from "./templates-custom-field-add-sheet"
+import { EditCustomFieldTemplateSheet } from "./templates-edit-custom-field-sheet"
 import type { CustomFieldTemplate } from '@/types/custom-fields'
 import type { TemplateCustomFieldsProps } from '@/types/templates';
 export type { TemplateCustomFieldsProps } from '@/types/templates';
@@ -214,16 +214,16 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
         />
       )}
 
-      {/* Add Custom Field Template Dialog */}
-      <AddCustomFieldTemplateDialog
+      {/* Add Custom Field Template Sheet */}
+      <AddCustomFieldTemplateSheet
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
         templateId={templateId}
         onAdd={handleAddCustomFieldTemplateSubmit}
       />
 
-      {/* Edit Custom Field Template Dialog */}
-      <EditCustomFieldTemplateDialog
+      {/* Edit Custom Field Template Sheet */}
+      <EditCustomFieldTemplateSheet
         isOpen={isEditDialogOpen}
         onClose={() => {
           setIsEditDialogOpen(false)

@@ -57,7 +57,7 @@ export interface SectionOption {
   name: string
 }
 
-export interface AddSectionExecutionDialogProps {
+export interface AddSectionExecutionSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   afterFromSectionId: string | null
@@ -178,7 +178,7 @@ export interface EditCustomFieldAssetDialogProps {
 // Import from File
 // ----------------------------------------
 
-export interface ImportAssetFromFileDialogProps {
+export interface ImportAssetFromFileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   folderId?: string

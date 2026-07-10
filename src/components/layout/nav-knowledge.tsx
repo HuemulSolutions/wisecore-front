@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network } from "lucide-react"
+import { Plus, File, FileText, Folder, FolderOpen, FolderPlus, Users, Share2, RefreshCw, Edit, Trash2, FileUp, Search, X, FolderUp, ShieldCheck, Network, Download, Loader2, MoreVertical } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -17,30 +17,83 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
-import type { FileNode } from "@/types/assets"
+import type { FileNode, ExecutionInfo } from "@/types/assets"
+import { exportDocuments } from "@/services/assets"
+import { getExecutionsByDocumentId } from "@/services/executions"
 import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
 import type { LibraryContent } from "@/types/folders"
 import { moveDocument, deleteDocument } from "@/services/assets"
-import { CreateAssetDialog } from "@/components/assets/dialogs/assets-create-dialog"
-import { ImportAssetFromFileDialog } from "@/components/assets/dialogs/assets-import-from-file-dialog"
-import { CreateFolderDialog } from "@/components/assets/dialogs/assets-create-folder-dialog"
+import { CreateAssetSheet } from "@/components/assets/dialogs/assets-create-sheet"
+import { ImportAssetFromFileSheet } from "@/components/assets/dialogs/assets-import-from-file-sheet"
+import { CreateFolderSheet } from "@/components/assets/dialogs/assets-create-folder-sheet"
 import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-folder-dialog"
 import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog"
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog"
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet"
+import { FolderPermissionsSheet } from "@/components/folders/role-folder-permissions-sheet"
 import { toast } from "sonner"
 import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
+import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
+import type { LibraryContentFolderType } from "@/types/folders"
+
+// Orden fijo de las carpetas raíz del sistema, independiente del nombre (editable por el usuario).
+const ROOT_FOLDER_ORDER: Record<string, number> = {
+  personal: 0,
+  global: 1,
+  forms: 2,
+  grupal: 3,
+  sin_carpeta: 4,
+}
+
+function rootFolderSortKey(folderType: LibraryContentFolderType | null | undefined): number {
+  if (!folderType) return Number.MAX_SAFE_INTEGER
+  return ROOT_FOLDER_ORDER[folderType] ?? Number.MAX_SAFE_INTEGER
+}
+
+// Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
+function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
+  if (node.folder_type === "area") {
+    return <Users className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+  }
+  return isExpanded
+    ? <FolderOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+    : <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+}
+
+// Mensajes traducidos para los códigos de error de la matriz de permisos de carpetas.
+// La UI ya oculta los botones correspondientes; esto es una defensa ante permisos que
+// cambiaron a mitad de sesión (el mensaje del backend igual se muestra para el resto de códigos).
+function handleFolderActionError(error: unknown, t: (key: string) => string, fallbackMessage: string) {
+  handleApiError(error, {
+    fallbackMessage,
+    onErrorCode: (code) => {
+      const key: Record<string, string> = {
+        FOLDER_NOT_DELETABLE: "knowledge.errors.folderNotDeletable",
+        FOLDER_NOT_MOVABLE: "knowledge.errors.folderNotMovable",
+        FOLDER_NOT_RENAMABLE: "knowledge.errors.folderNotRenamable",
+        FOLDER_ADMINISTER_REQUIRED: "knowledge.errors.folderAdministerRequired",
+        ORG_ADMIN_REQUIRED: "knowledge.errors.orgAdminRequired",
+      }
+      const messageKey = key[code]
+      if (!messageKey) return false
+      toast.error(t(messageKey))
+      return true
+    },
+  })
+}
 
 function buildFocusedTree(content: LibraryContent): FileNode[] {
   const { folders, assets } = content
@@ -54,6 +107,9 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
       isExpanded: f.is_expanded,
       hasChildren: true,
       children: f.is_expanded ? [] : undefined,
+      isSystem: f.folder_type != null && f.folder_type !== 'area',
+      folder_type: f.folder_type,
+      access_levels: f.access_levels,
     })
   }
 
@@ -119,6 +175,10 @@ const NavKnowledgeContext = React.createContext<{
   setHasNextRootPage: (hasNext: boolean) => void
   isRelationsMode: boolean
   setIsRelationsMode: (mode: boolean) => void
+  isExportMode: boolean
+  setIsExportMode: (mode: boolean) => void
+  selectedIds: Set<string>
+  setSelectedIds: (ids: Set<string>) => void
 } | null>(null)
 
 export function NavKnowledgeProvider({ children }: { children: React.ReactNode }) {
@@ -150,6 +210,9 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
   const [isRelationsMode, setIsRelationsMode] = useState(false)
+  const [isExportMode, setIsExportModeState] = useState(false)
+  // selectedIds contiene execution_ids (versiones) seleccionadas para exportar.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const { selectedOrganizationId } = useOrganization()
 
   // Refs to keep callbacks stable across re-renders while accessing latest state
@@ -177,6 +240,17 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const handleCreateFolder = useCallback((folderId?: string) => {
     setCurrentFolderId(folderId)
     setCreateFolderDialogOpen(true)
+  }, [])
+
+  const setIsExportMode = useCallback((mode: boolean) => {
+    setIsExportModeState(mode)
+    if (mode) {
+      setIsRelationsMode(false)
+      setIsSearchOpen(false)
+      setCommittedSearch('')
+    } else {
+      setSelectedIds(new Set())
+    }
   }, [])
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
@@ -254,7 +328,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         }, 300)
       }
     } catch (error) {
-      handleApiError(error, { fallbackMessage: t('knowledge.folderDeleteError') })
+      handleFolderActionError(error, t, t('knowledge.folderDeleteError'))
       throw error
     }
   }, [folderToDelete, selectedOrganizationId, t])
@@ -335,10 +409,10 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode, isExportMode, setIsExportMode, selectedIds, setSelectedIds }}>
       {children}
       {renderCreateAssetDialog && (
-        <CreateAssetDialog
+        <CreateAssetSheet
           open={createAssetDialogOpen}
           onOpenChange={handleCreateAssetDialogChange}
           folderId={currentFolderId}
@@ -346,14 +420,14 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         />
       )}
       {renderImportAssetDialog && (
-        <ImportAssetFromFileDialog
+        <ImportAssetFromFileSheet
           open={importAssetDialogOpen}
           onOpenChange={handleImportAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
         />
       )}
-      <CreateFolderDialog
+      <CreateFolderSheet
         open={createFolderDialogOpen}
         onOpenChange={setCreateFolderDialogOpen}
         parentFolder={currentFolderId}
@@ -444,12 +518,14 @@ export function useNavKnowledgeMode() {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
-  const { canCreate } = useUserPermissions()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode, isExportMode, setIsExportMode } = useNavKnowledge()
+  const { canCreate, canRead, isOrgAdmin, hasAnyPermission } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
+  const canExportAssets = canRead('asset')
+  const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
   if (!selectedOrganizationId) {
     return null
@@ -471,23 +547,14 @@ export function NavKnowledgeHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className={cn("h-6 w-6 hover:cursor-pointer", isRelationsMode && "bg-accent text-accent-foreground")}
-            onClick={() => setIsRelationsMode(!isRelationsMode)}
-            title={t('knowledge.relationsModeTooltip')}
-          >
-            <Network className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
             className="h-6 w-6 hover:cursor-pointer"
             onClick={handleToggleSearch}
           >
             {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-6 w-6 hover:cursor-pointer"
             onClick={() => fileTreeRef.current?.refresh()}
           >
@@ -537,6 +604,35 @@ export function NavKnowledgeHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 hover:cursor-pointer">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canListExecRelationships && (
+                <DropdownMenuCheckboxItem
+                  checked={isRelationsMode}
+                  onCheckedChange={() => setIsRelationsMode(!isRelationsMode)}
+                  className="hover:cursor-pointer"
+                >
+                  <Network className="mr-2 h-4 w-4" />
+                  {t('knowledge.relationsModeTooltip')}
+                </DropdownMenuCheckboxItem>
+              )}
+              {canExportAssets && (
+                <DropdownMenuCheckboxItem
+                  checked={isExportMode}
+                  onCheckedChange={() => setIsExportMode(!isExportMode)}
+                  className="hover:cursor-pointer"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {t('knowledge.exportModeTooltip')}
+                </DropdownMenuCheckboxItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {isSearchOpen && (
@@ -560,13 +656,15 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode, isExportMode, setIsExportMode, selectedIds, setSelectedIds } = useNavKnowledge()
+  const [isExporting, setIsExporting] = useState(false)
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
-  const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const { canCreate, canUpdate, canDelete, isOrgAdmin, canAccessRoleFolders } = useUserPermissions()
+  const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { guardedAction } = useOptionalEditingGuard()
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
@@ -687,8 +785,24 @@ export function NavKnowledgeContent() {
   }, [rootPage, rootPageSize, fileTreeRef])
 
   const handleLoadChildren = useCallback(
-    async (folderId: string | null): Promise<FileNode[]> => {
+    async (folderId: string | null, node?: FileNode): Promise<FileNode[]> => {
       if (!selectedOrganizationId) return []
+
+      if (node?.type === "document") {
+        try {
+          const executions = (await getExecutionsByDocumentId(node.id, selectedOrganizationId)) as ExecutionInfo[]
+          return (executions ?? []).map((execution) => ({
+            id: execution.id,
+            name: execution.name || execution.version || t('assets:exportTree.versionFallback'),
+            type: "execution" as const,
+            version: execution.version,
+            status: execution.status,
+          }))
+        } catch (error) {
+          console.error("Error loading executions:", error)
+          return []
+        }
+      }
 
       try {
         const isRoot = folderId === null
@@ -758,12 +872,21 @@ export function NavKnowledgeContent() {
           return buildFocusedTree(content)
         }
 
-        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
+        let folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
           id: item.id,
           name: item.name,
           type: 'folder',
           hasChildren: true,
+          isSystem: item.folder_type != null && item.folder_type !== 'area',
+          folder_type: item.folder_type,
+          access_levels: item.access_levels,
         }))
+
+        if (isRoot) {
+          folderNodes = [...folderNodes].sort(
+            (a, b) => rootFolderSortKey(a.folder_type) - rootFolderSortKey(b.folder_type)
+          )
+        }
 
         const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
           id: item.id,
@@ -776,10 +899,15 @@ export function NavKnowledgeContent() {
         return [...folderNodes, ...assetNodes]
       } catch (error) {
         console.error("Error loading folder content:", error)
+        if (ApiError.isApiError(error) && (error.statusCode === 404 || error.code === 'FOLDER_NOT_FOUND')) {
+          toast.error(t('knowledge.errors.folderNotAccessible'))
+        } else {
+          toast.error(t('knowledge.errors.folderLoadError'))
+        }
         return []
       }
     },
-    [selectedOrganizationId]
+    [selectedOrganizationId, t]
   )
 
   const handleRefreshTree = useCallback(
@@ -821,7 +949,7 @@ export function NavKnowledgeContent() {
         toast.success(t('knowledge.folderMovedSuccess', { destination }))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        handleApiError(error, { fallbackMessage: t('knowledge.folderMoveError') })
+        handleFolderActionError(error, t, t('knowledge.folderMoveError'))
       }
     },
     [selectedOrganizationId, folderNames, t]
@@ -839,7 +967,7 @@ export function NavKnowledgeContent() {
         toast.success(t('knowledge.documentMovedSuccess', { destination }))
         fileTreeRef.current?.refresh()
       } catch (error) {
-        handleApiError(error, { fallbackMessage: t('knowledge.documentMoveError') })
+        handleFolderActionError(error, t, t('knowledge.documentMoveError'))
       }
     },
     [selectedOrganizationId, folderNames, t]
@@ -854,7 +982,8 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level create
+        // Nadie crea contenido directo en Grupal (solo áreas) ni en Forms
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
         return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
@@ -867,6 +996,7 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
         return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
@@ -879,9 +1009,32 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level create
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
         return canCreate('folder') || node.access_levels?.includes('create') || false
       },
+      variant: "default",
+    },
+    {
+      label: t('knowledge.newArea'),
+      icon: <FolderPlus className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        handleCreateFolder(nodeId)
+      },
+      // Solo dentro de Grupal, y solo un org admin puede crear áreas.
+      show: (node) => node.type === "folder" && node.folder_type === 'grupal' && isOrgAdmin,
+      variant: "default",
+    },
+    {
+      label: t('knowledge.shareFolder'),
+      icon: <Share2 className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        setSharingFolder({ id: nodeId, name: folderNames.get(nodeId) || "" })
+      },
+      // Compartir accesos por rol solo aplica a Global/Forms/Área.
+      show: (node) =>
+        node.type === "folder" &&
+        (node.folder_type === 'global' || node.folder_type === 'forms' || node.folder_type === 'area') &&
+        canAccessRoleFolders,
       variant: "default",
     },
     {
@@ -893,7 +1046,11 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level edit
+        // Personal y "Sin carpeta" nunca se renombran (nombre fijo del sistema)
+        if (node.folder_type === 'personal' || node.folder_type === 'sin_carpeta') return false
+        // Grupal solo lo renombra un org admin
+        if (node.folder_type === 'grupal') return isOrgAdmin
+        // Global / Forms / Área: requieren administer (permiso global o access_level edit)
         return canUpdate('folder') || node.access_levels?.includes('edit') || false
       },
       variant: "default",
@@ -906,6 +1063,8 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
+        // Ninguna carpeta de sistema (incluida Área) es reparentable
+        if (node.folder_type) return false
         // Only show for folders that are NOT at root level
         if (nodeParentIds.get(node.id) === null) return false
         return canUpdate('folder') || node.access_levels?.includes('edit') || false
@@ -921,7 +1080,9 @@ export function NavKnowledgeContent() {
       },
       show: (node) => {
         if (node.type !== "folder") return false
-        // Mostrar si tiene permiso global O access_level delete
+        // Personal/Global/Forms/Grupal/Sin carpeta: nunca eliminables por este endpoint
+        if (node.folder_type && node.folder_type !== 'area') return false
+        // Área: requiere administer. Carpetas normales: permiso genérico.
         return canDelete('folder') || node.access_levels?.includes('delete') || false
       },
       variant: "destructive",
@@ -998,8 +1159,53 @@ export function NavKnowledgeContent() {
     [folderNames, documentNames, handleDeleteFolder, handleDeleteDocument]
   )
 
+  const handleExportClick = async () => {
+    if (!selectedOrganizationId || selectedIds.size === 0) return
+    setIsExporting(true)
+    try {
+      await exportDocuments(selectedOrganizationId, { execution_ids: [...selectedIds] })
+      setIsExportMode(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('knowledge.exportError'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
+    <>
     <SidebarGroup>
+      {isExportMode && (
+        <div className="flex flex-col gap-2 mx-2 mb-1.5 px-2 py-2 rounded-md border bg-muted/40">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0 hover:cursor-pointer"
+              onClick={() => setIsExportMode(false)}
+              aria-label={t('common:cancel')}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+            <span className="flex-1 min-w-0 truncate text-xs font-medium">
+              {t('knowledge.exportSelectedCount', { count: selectedIds.size })}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            className="w-full h-8 text-xs"
+            disabled={selectedIds.size === 0 || isExporting}
+            onClick={handleExportClick}
+          >
+            {isExporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {`${t('common:export')} (${selectedIds.size})`}
+          </Button>
+        </div>
+      )}
       {committedSearch ? (
         isSearching ? (
           <div className="px-4 py-3 flex justify-center">
@@ -1074,9 +1280,14 @@ export function NavKnowledgeContent() {
           showRefreshButton={false}
           alwaysShowMenuActions={true}
           renderLeafIcon={(node) => {
-            const color = (node as FileNode).document_type?.color
+            const fileNode = node as FileNode
+            if (fileNode.type === "execution") {
+              return <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            }
+            const color = fileNode.document_type?.color
             return <File className="h-3.5 w-3.5 shrink-0" style={{ color: color ?? undefined }} />
           }}
+          renderFolderIcon={(node, isExpanded) => renderKnowledgeFolderIcon(node as FileNode, isExpanded)}
           onNodeDragStart={isRelationsMode ? (e, node) => {
             const docType = node.document_type
             if (!docType) return
@@ -1085,8 +1296,30 @@ export function NavKnowledgeContent() {
               JSON.stringify({ id: node.id, name: node.name, color: docType.color, documentTypeId: docType.id })
             )
           } : undefined}
+          cascadeSelection={isExportMode}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          isNodeExpandable={(node) => {
+            const fileNode = node as FileNode
+            return fileNode.type === "folder" || (isExportMode && fileNode.type === "document")
+          }}
+          renderNodeSuffix={(node) => {
+            const fileNode = node as FileNode
+            if (fileNode.type !== "execution" || !fileNode.version) return null
+            return (
+              <Badge variant="outline" className="text-[10px] font-normal shrink-0">
+                {fileNode.version}
+              </Badge>
+            )
+          }}
         />
       )}
     </SidebarGroup>
+    <FolderPermissionsSheet
+      folder={sharingFolder}
+      open={!!sharingFolder}
+      onOpenChange={(open: boolean) => { if (!open) setSharingFolder(null) }}
+    />
+    </>
   )
 }

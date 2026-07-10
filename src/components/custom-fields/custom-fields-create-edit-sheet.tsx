@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { PenLine, Plus } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
@@ -11,7 +11,7 @@ import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/type
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
-export function CreateEditCustomFieldDialog({
+export function CreateEditCustomFieldSheet({
   open,
   onOpenChange,
   customField,
@@ -31,11 +31,11 @@ export function CreateEditCustomFieldDialog({
   const isEditing = !!customField
   const { t } = useTranslation('custom-fields')
 
-  // Fetch data types (lazy loading: only when dialog is open)
+  // Fetch data types (lazy loading: only when sheet is open)
   const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: open })
   const dataTypes = dataTypesResponse?.data || []
 
-  // Reset form when dialog opens/closes or customField changes
+  // Reset form when sheet opens/closes or customField changes
   useEffect(() => {
     if (open) {
       if (customField) {
@@ -44,7 +44,7 @@ export function CreateEditCustomFieldDialog({
           description: customField.description,
           data_type: customField.data_type,
           masc: customField.masc || "",
-          options: customField.data_type === 'list' ? (customField.options ?? []) : [],
+          options: customField.data_type === 'list' ? (customField.default_value ?? []) : [],
         })
       } else {
         setFormData({
@@ -81,10 +81,10 @@ export function CreateEditCustomFieldDialog({
         newErrors.options = t('form.optionsRequired')
       } else {
         formData.options.forEach((opt, i) => {
-          if (!opt.option_id.trim()) {
+          if (!opt.id.trim()) {
             newErrors[`option_${i}_id`] = t('form.optionIdRequired')
           }
-          if (!opt.name.trim()) {
+          if (!opt.label.trim()) {
             newErrors[`option_${i}_name`] = t('form.optionNameRequired')
           }
         })
@@ -110,7 +110,7 @@ export function CreateEditCustomFieldDialog({
             description: formData.description,
             data_type: formData.data_type,
             masc: formData.masc || undefined,
-            ...(formData.data_type === 'list' && { options: formData.options }),
+            ...(formData.data_type === 'list' && { default_value: formData.options }),
           },
         })
         onSuccess()
@@ -120,7 +120,7 @@ export function CreateEditCustomFieldDialog({
           description: formData.description,
           data_type: formData.data_type,
           masc: formData.masc || "",
-          ...(formData.data_type === 'list' && { options: formData.options }),
+          ...(formData.data_type === 'list' && { default_value: formData.options }),
         })
         onSuccess(created)
       }
@@ -154,7 +154,7 @@ export function CreateEditCustomFieldDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={isEditing ? t('editDialog.title') : t('createDialog.title')}
@@ -164,8 +164,7 @@ export function CreateEditCustomFieldDialog({
           : t('createDialog.description')
       }
       icon={isEditing ? PenLine : Plus}
-      maxWidth="sm:max-w-[600px]"
-      maxHeight="max-h-[90vh]"
+      maxWidth="sm:max-w-lg"
       cancelLabel={t('common:cancel', 'Cancel')}
       saveAction={{
         label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
@@ -192,6 +191,6 @@ export function CreateEditCustomFieldDialog({
           loadingDataTypes={loadingDataTypes}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

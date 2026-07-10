@@ -22,7 +22,7 @@ export interface AssetTypeContentEmptyStateProps {
 
 export interface CreateDocumentTypeProps {
   trigger?: ReactNode
-  onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string }) => void
+  onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void
   documentType?: AssetTypeWithRoles | null
@@ -59,6 +59,8 @@ export interface AssetTypePageDialogsProps {
   exportSelectedIds: string[]
   /** Llamado tras una exportación exitosa (p.ej. para limpiar la selección). */
   onExported?: () => void
+  /** Llamado tras crear (no editar) un asset type nuevo, para poder fijarlo al tope de la tabla. */
+  onAssetTypeCreated?: (assetType: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => void
 }
 
 // ----------------------------------------
@@ -108,6 +110,7 @@ export interface AssetTypeTableProps {
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  canViewRelationships?: boolean
   isLoading?: boolean
   isFetching?: boolean
   selectedIds: Set<string>

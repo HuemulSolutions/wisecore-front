@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { FileUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { importDocumentFromFile } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
@@ -15,15 +15,15 @@ import { toast } from "sonner"
 import { ApiError } from "@/types/api-error"
 import { handleApiError } from "@/lib/error-utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
-import type { ImportAssetFromFileDialogProps } from '@/types/assets'
-export type { ImportAssetFromFileDialogProps } from '@/types/assets'
+import type { ImportAssetFromFileSheetProps } from '@/types/assets'
+export type { ImportAssetFromFileSheetProps } from '@/types/assets'
 
-export function ImportAssetFromFileDialog({
+export function ImportAssetFromFileSheet({
   open,
   onOpenChange,
   folderId,
   onAssetCreated,
-}: ImportAssetFromFileDialogProps) {
+}: ImportAssetFromFileSheetProps) {
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
   const { t } = useTranslation('assets')
@@ -128,12 +128,13 @@ export function ImportAssetFromFileDialog({
   const isValid = !!name.trim() && !!file && !!documentTypeId && !!selectedOrganizationId
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('importFromFile.title')}
       description={t('importFromFile.description')}
       icon={FileUp}
+      side="right"
       maxWidth="sm:max-w-xl"
       cancelLabel={tCommon('cancel')}
       saveAction={{
@@ -216,6 +217,6 @@ export function ImportAssetFromFileDialog({
           />
         </div>
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

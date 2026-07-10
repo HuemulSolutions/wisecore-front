@@ -16,6 +16,11 @@ import {
   updateExternalPublishAction,
   deleteExternalPublishAction,
   reorderExternalPublishActions,
+  getExternalReviewActions,
+  createExternalReviewAction,
+  updateExternalReviewAction,
+  deleteExternalReviewAction,
+  reorderExternalReviewActions,
   type UpdateLifecycleStepData,
   type CreateLifecycleStepData,
   type GrantLifecycleDocumentRequest,
@@ -25,6 +30,9 @@ import {
   type CreateExternalPublishActionRequest,
   type UpdateExternalPublishActionRequest,
   type ReorderExternalPublishActionsRequest,
+  type CreateExternalReviewActionRequest,
+  type UpdateExternalReviewActionRequest,
+  type ReorderExternalReviewActionsRequest,
 } from '@/services/lifecycle'
 
 export const lifecycleQueryKeys = {
@@ -38,6 +46,9 @@ export const lifecycleQueryKeys = {
   externalPublishActionsBase: () => [...lifecycleQueryKeys.all, 'external-publish-actions'] as const,
   externalPublishActions: (stepId: string) =>
     [...lifecycleQueryKeys.externalPublishActionsBase(), stepId] as const,
+  externalReviewActionsBase: () => [...lifecycleQueryKeys.all, 'external-review-actions'] as const,
+  externalReviewActions: (stepId: string) =>
+    [...lifecycleQueryKeys.externalReviewActionsBase(), stepId] as const,
 }
 
 export function useLifecycleStepTypes(enabled: boolean = true) {
@@ -210,6 +221,57 @@ export function useExternalPublishActionMutations(organizationId: string, stepId
   const reorderActions = useMutation({
     mutationFn: (body: ReorderExternalPublishActionsRequest) =>
       reorderExternalPublishActions(stepId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  return { createAction, updateAction, deleteAction, reorderActions }
+}
+
+// ─── External Review Actions ─────────────────────────────────────────────────
+
+export function useExternalReviewActions(
+  organizationId: string,
+  stepId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: lifecycleQueryKeys.externalReviewActions(stepId),
+    queryFn: () => getExternalReviewActions(stepId, organizationId),
+    enabled: enabled && !!organizationId && !!stepId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 0,
+  })
+}
+
+export function useExternalReviewActionMutations(organizationId: string, stepId: string) {
+  const queryClient = useQueryClient()
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: lifecycleQueryKeys.externalReviewActions(stepId),
+    })
+
+  const createAction = useMutation({
+    mutationFn: (body: CreateExternalReviewActionRequest) =>
+      createExternalReviewAction(stepId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  const updateAction = useMutation({
+    mutationFn: ({ actionId, body }: { actionId: string; body: UpdateExternalReviewActionRequest }) =>
+      updateExternalReviewAction(stepId, actionId, organizationId, body),
+    onSuccess: invalidate,
+  })
+
+  const deleteAction = useMutation({
+    mutationFn: (actionId: string) => deleteExternalReviewAction(stepId, actionId, organizationId),
+    onSuccess: invalidate,
+  })
+
+  const reorderActions = useMutation({
+    mutationFn: (body: ReorderExternalReviewActionsRequest) =>
+      reorderExternalReviewActions(stepId, organizationId, body),
     onSuccess: invalidate,
   })
 

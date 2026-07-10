@@ -10,6 +10,7 @@ import CreateDocumentType from "@/components/assets-types/assets-types-create"
 import AssetTypeLifecycleDialog from "@/components/assets-types/assets-types-lifecycle-dialog"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { useAssetTypeMutations } from "@/hooks/useAssetTypes"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useOrganization } from "@/contexts/organization-context"
 import type { AssetTypeWithRoles } from "@/services/asset-types"
 import type { CanvasNodeAction } from "@/types/document-type-relationships"
@@ -46,6 +47,10 @@ export function AssetTypeRelationshipsSheet({
   const { data: docTypesResponse } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
   const mutations = useAssetTypeMutations()
+  const { isRootAdmin, hasPermission } = useUserPermissions()
+  const canCreateDocumentType = isRootAdmin || hasPermission('asset_type:c')
+  const canUpdateDocumentType = isRootAdmin || hasPermission('asset_type:u')
+  const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
 
   // Dialog state for actions triggered from the node panel
   const [editingAssetType, setEditingAssetType] = useState<AssetTypeWithRoles | null>(null)
@@ -82,44 +87,44 @@ export function AssetTypeRelationshipsSheet({
   }
 
   const nodeActions: CanvasNodeAction[] = [
-    {
+    ...(canUpdateDocumentType ? [{
       key: "edit",
       label: t("asset-types:actions.editAssetType"),
       icon: Edit2,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setEditingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
-    },
-    {
+    }] : []),
+    ...(canUpdateDocumentType ? [{
       key: "lifecycle",
       label: t("asset-types:actions.lifecycle"),
       icon: Activity,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setLifecycleAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
-    },
-    {
+    }] : []),
+    ...(canCreateDocumentType ? [{
       key: "clone",
       label: t("asset-types:actions.cloneAssetType"),
       icon: Copy,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setCloningAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
-    },
-    {
+    }] : []),
+    ...(canDeleteDocumentType ? [{
       key: "delete",
       label: t("asset-types:actions.deleteAssetType"),
       icon: Trash2,
-      onClick: (nodeId) => {
+      onClick: (nodeId: string) => {
         const node = documentTypes.find((d) => d.id === nodeId)
         setDeletingAssetType(toMinimalAssetType(nodeId, node?.name ?? nodeId, node?.color ?? "#94a3b8"))
       },
       destructive: true,
       separator: true,
-    },
+    }] : []),
   ]
 
   return (

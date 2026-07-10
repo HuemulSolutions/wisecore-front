@@ -136,7 +136,7 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="external-systems" element={
-              <PermissionProtectedRoute permissions={["user:r", "user:l"]}>
+              <PermissionProtectedRoute permissions={["external_system:r", "external_system:l"]}>
                 <ExternalSystemsPage />
               </PermissionProtectedRoute>
             } />

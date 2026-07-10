@@ -119,7 +119,8 @@ const translations = {
     commentLabel: { en: "Comment", es: "Comentario" },
     commentPlaceholder: { en: "Add a comment about this action...", es: "Agrega un comentario sobre esta acción..." },
     publishWithExternalSystem: { en: "Publish with external system", es: "Publicar con sistema externo" },
-    rerunExternalPublish: { en: "Re-run external publish", es: "Relanzar publicación externa" },
+    reviewWithExternalSystem: { en: "Validate with external system", es: "Validar con sistema externo" },
+    rerunExternalPublish: { en: "Run external publish", es: "Ejecutar publicación externa" },
     successRerunExternalPublish: { en: "External publish triggered successfully", es: "Publicación externa iniciada correctamente" },
     errorRerunExternalPublish: { en: "Failed to trigger external publish. Please try again.", es: "Error al relanzar la publicación externa. Intenta de nuevo." },
     stateLabels: {
@@ -401,6 +402,15 @@ const translations = {
     submitLabel: { en: "Save Changes", es: "Guardar Cambios" },
     nameLabel: { en: "Folder Name *", es: "Nombre de la Carpeta *" },
     namePlaceholder: { en: "Enter folder name", es: "Ingresa el nombre de la carpeta" },
+    notRenamableError: { en: "This folder can't be renamed", es: "Esta carpeta no se puede renombrar" },
+    administerRequiredError: {
+      en: "You need administer access to this folder",
+      es: "Necesitas acceso de administrador sobre esta carpeta",
+    },
+    orgAdminRequiredError: {
+      en: "Only an organization admin can do this",
+      es: "Solo un administrador de la organización puede hacer esto",
+    },
   },
   exportCustomWord: {
     templateUploaded: { en: "Word template uploaded successfully", es: "Plantilla de Word subida correctamente" },
@@ -624,6 +634,10 @@ const translations = {
     auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
     saveDates: { en: "Save Dates", es: "Guardar Fechas" },
     datesSaved: { en: "Business dates saved successfully!", es: "¡Fechas de negocio guardadas correctamente!" },
+  },
+  exportTree: {
+    empty: { en: "No documents to export.", es: "No hay documentos para exportar." },
+    versionFallback: { en: "Version", es: "Versión" },
   },
   notifications: {
     tab: { en: "Notifications", es: "Notificaciones" },

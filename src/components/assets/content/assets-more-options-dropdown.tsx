@@ -99,6 +99,8 @@ interface MoreOptionsDropdownProps {
   onExportExcel: () => void;
   onDeleteVersion: () => void;
   onDeleteDocument: () => void;
+  isRerunningExternalPublish: boolean;
+  onRerunExternalPublish: () => void;
 }
 
 export function MoreOptionsDropdown({
@@ -140,6 +142,8 @@ export function MoreOptionsDropdown({
   onExportExcel,
   onDeleteVersion,
   onDeleteDocument,
+  isRerunningExternalPublish,
+  onRerunExternalPublish,
 }: MoreOptionsDropdownProps) {
   const { t } = useTranslation(["assets"]);
 
@@ -248,6 +252,21 @@ export function MoreOptionsDropdown({
                 {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
               </DropdownMenuItem>
             )}
+          </>
+        )}
+
+        {/* ── Rerun external publish (visible in both reader and editor mode) ── */}
+        {lifecyclePermissions?.publish && lifecycleStatus?.state === "published" && (
+          <>
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onRerunExternalPublish, 0)}
+              className="hover:cursor-pointer"
+              disabled={isRerunningExternalPublish}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRerunningExternalPublish ? "animate-spin" : ""}`} />
+              {t("lifecycle.rerunExternalPublish")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
           </>
         )}
 

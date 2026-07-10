@@ -92,6 +92,8 @@ export interface TemplatesSidebarProps {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  canExport: boolean;
+  canImport: boolean;
 }
 
 export interface PaginationConfig {

@@ -21,6 +21,7 @@ export default function AssetTypePageDialogs({
   onImportSuccess,
   exportSelectedIds,
   onExported,
+  onAssetTypeCreated,
 }: AssetTypePageDialogsProps) {
   const { t } = useTranslation(['asset-types', 'common'])
   const { selectedOrganizationId } = useOrganization()
@@ -73,9 +74,13 @@ export default function AssetTypePageDialogs({
             onUpdateState({ showCreateDialog: false })
           }
         }}
-        onDocumentTypeCreated={() => {
+        onDocumentTypeCreated={(result) => {
+          const wasEditing = !!state.editingAssetType
           onCloseDialog('editingAssetType')
           onUpdateState({ showCreateDialog: false })
+          if (!wasEditing) {
+            onAssetTypeCreated?.(result)
+          }
         }}
       />
 

@@ -62,3 +62,18 @@ export interface ChatbotParams {
   onError: (error: Event) => void;
   onClose: () => void;
 }
+
+export interface EditWithAiParams {
+  text: string;
+  prompt: string;
+  templateId?: string;
+  sectionId?: string;
+  llmId?: string;
+  organizationId: string;
+}
+
+export interface EditWithAiResponse {
+  data: { text: string };
+  transaction_id: string;
+  timestamp: string;
+}

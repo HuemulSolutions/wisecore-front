@@ -1,3 +1,10 @@
+import type {
+  ExternalFunctionalityHttpMethod,
+  ExternalFunctionalityExecutionType,
+  ExternalFunctionalityClass,
+  ExternalFunctionalityObjective,
+} from '@/types/external-functionalities'
+
 export interface LifecycleStepType {
   value: string;
   label: string;
@@ -141,11 +148,27 @@ export interface RevokeLifecycleDocumentRequest {
 
 // ─── External Publish Actions ─────────────────────────────────────────────────
 
+export interface ExternalPublishActionFunctionality {
+  id: string
+  name: string
+  description: string
+  partial_url: string
+  http_method: ExternalFunctionalityHttpMethod
+  objective: ExternalFunctionalityObjective
+  execution_type: ExternalFunctionalityExecutionType
+  functionality_class: ExternalFunctionalityClass
+  system: {
+    id: string
+    name: string
+    status: string
+  }
+}
+
 export interface ExternalPublishAction {
   id: string
   lifecycle_step_id: string
   external_functionality_id: string
-  external_functionality_name?: string
+  external_functionality?: ExternalPublishActionFunctionality
   execution_order: number
   is_enabled: boolean
   stop_on_error: boolean
@@ -203,4 +226,101 @@ export interface AdvanceLifecycleResponse {
   previous_state: string
   new_state: string
   external_publish: ExternalPublishRun | null
+}
+
+// ─── External Review Actions ──────────────────────────────────────────────────
+
+export interface ExternalReviewActionFunctionality {
+  id: string
+  name: string
+  description: string
+  partial_url: string
+  http_method: ExternalFunctionalityHttpMethod
+  objective: ExternalFunctionalityObjective
+  execution_type: ExternalFunctionalityExecutionType
+  functionality_class: ExternalFunctionalityClass
+  system: {
+    id: string
+    name: string
+    status: string
+  }
+}
+
+export interface ExternalReviewAction {
+  id: string
+  lifecycle_step_id: string
+  external_functionality_id: string
+  external_functionality?: ExternalReviewActionFunctionality
+  execution_order: number
+  is_enabled: boolean
+  stop_on_error: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ExternalReviewActionsResponse {
+  data: ExternalReviewAction[]
+  transaction_id: string
+  timestamp: string
+}
+
+export interface ExternalReviewActionResponse {
+  data: ExternalReviewAction
+  transaction_id: string
+  timestamp: string
+}
+
+export interface CreateExternalReviewActionRequest {
+  external_functionality_id: string
+  execution_order: number
+  is_enabled?: boolean
+  stop_on_error?: boolean
+}
+
+export interface UpdateExternalReviewActionRequest {
+  external_functionality_id?: string
+  execution_order?: number
+  is_enabled?: boolean
+  stop_on_error?: boolean
+}
+
+export interface ReorderExternalReviewActionsRequest {
+  actions: Array<{
+    id: string
+    execution_order: number
+  }>
+}
+
+export interface ExternalReviewRun {
+  id: string
+  execution_id: string
+  document_id: string
+  lifecycle_step_id: string
+  triggered_by_user_id: string
+  trigger_mode: string
+  status: 'pending' | 'running' | 'completed' | 'completed_with_errors' | 'failed'
+  total_actions: number
+  successful_actions: number
+  failed_actions: number
+  started_at: string | null
+  finished_at: string | null
+  error_detail: string | null
+}
+
+export interface CompleteLifecycleStepExternalReview {
+  review_run: ExternalReviewRun | null
+  job: { id: string } | null
+  actions_enqueued: number
+}
+
+export interface CompleteLifecycleStepResponse {
+  step_id: string
+  completed_by: string
+  completed_at: string
+  remaining_steps: number
+  all_steps_completed: boolean
+  next_step: string | null
+  auto_advanced: boolean
+  new_state: string
+  external_review?: CompleteLifecycleStepExternalReview
 }

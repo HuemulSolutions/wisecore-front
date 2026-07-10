@@ -84,6 +84,12 @@ const translations = {
       generating: { en: "Generating...", es: "Generando..." },
       placeholder: { en: "Enter the prompt content for this section or use AI generation", es: "Ingresa el contenido del prompt para esta sección o usa la generación con IA" },
       generatingHint: { en: "AI is generating content based on the section name...", es: "La IA está generando contenido en base al nombre de la sección..." },
+      edit: { en: "Edit with AI", es: "Editar con IA" },
+      editing: { en: "Editing...", es: "Editando..." },
+      editingHint: { en: "AI is editing the prompt based on your instructions...", es: "La IA está editando el prompt según tus instrucciones..." },
+      editError: { en: "Could not edit the prompt with AI", es: "No se pudo editar el prompt con IA" },
+      aiEditApplied: { en: "AI edit applied to the prompt", es: "Edición con IA aplicada al prompt" },
+      undo: { en: "Undo", es: "Deshacer" },
     },
     dependencies: {
       label: { en: "Internal Dependencies", es: "Dependencias Internas" },

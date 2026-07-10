@@ -185,7 +185,14 @@ function StepContent({
     )
   }
   if (stepType === "edit" || stepType === "review" || stepType === "approve") {
-    return <EditStepContent documentTypeId={documentTypeId} stepType={stepType} onEditingChange={onEditingChange} />
+    return (
+      <EditStepContent
+        documentTypeId={documentTypeId}
+        stepType={stepType}
+        onEditingChange={onEditingChange}
+        organizationId={organizationId}
+      />
+    )
   }
   return (
     <DefaultStepContent

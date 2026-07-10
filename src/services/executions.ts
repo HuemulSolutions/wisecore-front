@@ -3,6 +3,7 @@ import { httpClient } from "@/lib/http-client";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
+import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
 export type { RollbackTarget, RollbackStep, RollbackTargetsResponse };
 
@@ -415,8 +416,16 @@ export async function cloneExecutionToNewDocument(
     return data.data;
 }
 
-export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string, comment?: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, { comment: comment || '' }, {
+export async function completeExecutionLifecycleStep(
+    executionId: string,
+    stepId: string,
+    organizationId: string,
+    options?: { comment?: string; run_external_review?: boolean },
+): Promise<CompleteLifecycleStepResponse> {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, {
+        comment: options?.comment || '',
+        ...(options?.run_external_review && { run_external_review: true }),
+    }, {
         headers: {
             'X-Org-Id': organizationId,
         },

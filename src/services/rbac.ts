@@ -1,8 +1,9 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { RbacPermission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, AssignRolesData, CloneRoleData } from '@/types/rbac';
+import { downloadBlobResponse } from '@/lib/blob-download';
+import type { RbacPermission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, AssignRolesData, CloneRoleData, ExportRolesBody, ImportRolesQueryParams, ImportRolesData, ImportRolesResponse } from '@/types/rbac';
 
-export type { RbacPermission as Permission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, AssignRolesData, CloneRoleData };
+export type { RbacPermission as Permission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, AssignRolesData, CloneRoleData, ExportRolesBody, ImportRolesQueryParams, ImportRolesData, ImportRolesResponse };
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {
@@ -185,4 +186,52 @@ export const cloneRole = async (roleId: string, data: CloneRoleData): Promise<Ro
   });
 
   return response.json();
+};
+
+// Exporta uno o más roles como archivo JSON descargable.
+// Los permisos se exportan por nombre para que el archivo sea portable entre entornos.
+export const exportRoles = async (body: ExportRolesBody): Promise<void> => {
+  const orgToken = httpClient.getOrganizationToken();
+  const orgId = getOrganizationId();
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (orgToken) headers['Authorization'] = `Bearer ${orgToken}`;
+  if (orgId) headers['X-Org-Id'] = orgId;
+
+  const response = await fetch(`${backendUrl}/rbac/roles/export`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.message ?? 'Error al exportar roles');
+  }
+
+  await downloadBlobResponse(response, 'roles_export.json');
+};
+
+// Importa roles desde un archivo JSON exportado.
+export const importRoles = async (
+  file: File,
+  params: ImportRolesQueryParams = {},
+): Promise<ImportRolesData> => {
+  const url = new URL(`${backendUrl}/rbac/roles/import`);
+  if (params.on_conflict) url.searchParams.append('on_conflict', params.on_conflict);
+  if (params.role_ids?.length) {
+    url.searchParams.append('role_ids', params.role_ids.join(','));
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await httpClient.fetch(url.toString(), {
+    method: 'POST',
+    body: formData,
+    headers: getHeaders(),
+  });
+
+  const data = (await response.json()) as ImportRolesResponse;
+  return data.data;
 };

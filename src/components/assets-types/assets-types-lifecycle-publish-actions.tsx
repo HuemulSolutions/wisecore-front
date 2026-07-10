@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useExternalSystems } from "@/hooks/useExternalSystems"
 import { useExternalFunctionalities } from "@/hooks/useExternalFunctionalities"
@@ -50,16 +51,18 @@ export function LifecyclePublishActionsSection({
   const { t } = useTranslation(["asset-types", "common"])
   const { isOrgAdmin, hasPermission } = useUserPermissions()
 
-  const canList   = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l" as never)
-  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:c" as never)
-  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:u" as never)
-  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_publish_action:d" as never)
+  const canList   = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l")
+  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:c")
+  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:u")
+  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_publish_action:d")
+  const canListSystems = isOrgAdmin || hasPermission("external_system:l") || hasPermission("external_system:r")
+  const canListFunctionalities = isOrgAdmin || hasPermission("external_functionality:l") || hasPermission("external_functionality:r")
 
   const [showAddDialog, setShowAddDialog]     = useState(false)
   const [addForm, setAddForm]                 = useState<AddDialogState>(buildDefaultAdd(1))
   const [editingAction, setEditingAction]     = useState<ExternalPublishAction | null>(null)
   const [editForm, setEditForm]               = useState<ActionFormState>({ external_functionality_id: "", execution_order: 1, is_enabled: true, stop_on_error: true })
-  const [functionalityNames, setFunctionalityNames] = useState<Map<string, string>>(new Map())
+  const [deleteTarget, setDeleteTarget]       = useState<ExternalPublishAction | null>(null)
 
   // ─── Data ───────────────────────────────────────────────────────────────────
 
@@ -76,7 +79,7 @@ export function LifecyclePublishActionsSection({
   // Systems combobox
   const { data: systemsData, isLoading: isLoadingSystems } = useExternalSystems(organizationId, {
     pageSize: 200,
-    enabled: showAddDialog,
+    enabled: showAddDialog && canListSystems,
   })
   const systems = systemsData?.data ?? []
 
@@ -84,16 +87,14 @@ export function LifecyclePublishActionsSection({
   const { data: functionalitiesData, isLoading: isLoadingFunctionalities } = useExternalFunctionalities(
     organizationId,
     addForm.systemId,
-    { objective: "publish_asset", pageSize: 200, enabled: showAddDialog && !!addForm.systemId },
+    { objective: "publish_asset", pageSize: 200, enabled: showAddDialog && !!addForm.systemId && canListFunctionalities },
   )
   const functionalities = functionalitiesData?.data ?? []
 
   // ─── Name resolution ────────────────────────────────────────────────────────
 
-  const resolveName = (action: ExternalPublishAction) => {
-    if (action.external_functionality_name) return action.external_functionality_name
-    return functionalityNames.get(action.external_functionality_id) ?? `${action.external_functionality_id.slice(0, 8)}…`
-  }
+  const resolveName = (action: ExternalPublishAction) =>
+    action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -104,7 +105,6 @@ export function LifecyclePublishActionsSection({
   }
 
   const handleSaveAdd = () => {
-    const selectedFunctionality = functionalities.find((f) => f.id === addForm.functionalityId)
     const body: CreateExternalPublishActionRequest = {
       external_functionality_id: addForm.functionalityId,
       execution_order: addForm.execution_order,
@@ -112,12 +112,7 @@ export function LifecyclePublishActionsSection({
       stop_on_error: addForm.stop_on_error,
     }
     createAction.mutate(body, {
-      onSuccess: () => {
-        if (selectedFunctionality) {
-          setFunctionalityNames((prev) => new Map(prev).set(selectedFunctionality.id, selectedFunctionality.name))
-        }
-        setShowAddDialog(false)
-      },
+      onSuccess: () => setShowAddDialog(false),
     })
   }
 
@@ -144,8 +139,12 @@ export function LifecyclePublishActionsSection({
   }
 
   const handleDelete = (action: ExternalPublishAction) => {
-    if (!window.confirm(t("lifecycle.publishActions.confirmDelete"))) return
-    deleteAction.mutate(action.id)
+    setDeleteTarget(action)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    await deleteAction.mutateAsync(deleteTarget.id)
   }
 
   const handleMove = (index: number, direction: "up" | "down") => {
@@ -195,8 +194,13 @@ export function LifecyclePublishActionsSection({
                   <td className="px-3 py-2 text-center font-mono text-xs">
                     {action.execution_order}
                   </td>
-                  <td className="px-3 py-2 truncate max-w-[200px] text-xs">
-                    {resolveName(action)}
+                  <td className="px-3 py-2 max-w-[260px]">
+                    <div className="truncate text-xs font-medium">{resolveName(action)}</div>
+                    {action.external_functionality && (
+                      <div className="truncate text-xs text-muted-foreground font-mono">
+                        {action.external_functionality.system.name} · {action.external_functionality.http_method} {action.external_functionality.partial_url}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <HuemulField
@@ -228,14 +232,14 @@ export function LifecyclePublishActionsSection({
                     <div className="flex items-center justify-end gap-0.5">
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={idx === 0 || reorderActions.isPending}
+                        disabled={!canUpdate || idx === 0 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "up")}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={idx === actions.length - 1 || reorderActions.isPending}
+                        disabled={!canUpdate || idx === actions.length - 1 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "down")}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />
@@ -396,6 +400,16 @@ export function LifecyclePublishActionsSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <HuemulAlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={t("lifecycle.publishActions.confirmDelete")}
+        actionLabel={t("common:delete")}
+        cancelLabel={t("lifecycle.publishActions.cancel")}
+        onAction={handleConfirmDelete}
+      />
     </div>
   )
 }

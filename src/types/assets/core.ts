@@ -1,5 +1,7 @@
 // Asset-related types extracted from components/assets
 
+import type { LibraryContentFolderType } from "@/types/folders";
+
 // ========================================
 // Core Asset Types
 // ========================================
@@ -57,7 +59,7 @@ export interface LibraryNavigationState {
 export interface FileNode {
   id: string;
   name: string;
-  type: "document" | "folder";
+  type: "document" | "folder" | "execution";
   document_type?: DocumentType;
   access_levels?: string[];
   children?: FileNode[];
@@ -65,6 +67,11 @@ export interface FileNode {
   isLoading?: boolean;
   hasChildren?: boolean;
   disabled?: boolean;
+  version?: string | null;
+  status?: string;
+  /** True for the fixed set of default root folders (Forms, Global, Grupal, Mis documentos, Sin carpeta). */
+  isSystem?: boolean;
+  folder_type?: LibraryContentFolderType | null;
 }
 
 /**
@@ -252,14 +259,14 @@ export interface AssetContentResponse {
 // Dialog Props Types
 // ========================================
 
-export interface CreateAssetDialogProps {
+export interface CreateAssetSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
 }
 
-export interface CreateFolderDialogProps {
+export interface CreateFolderSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentFolder?: string;
@@ -483,6 +490,33 @@ export interface ImportDocumentFromFileParams {
   folder_id?: string | null;
   file: File;
   organizationId: string;
+}
+
+// ========================================
+// Export / Import de configuración (migración por JSON)
+// Distinto de ImportDocumentFromFileParams, que importa DOCX/PDF y los convierte.
+// ========================================
+
+export interface ExportDocumentsBody {
+  execution_ids: string[];
+}
+
+export interface ImportDocumentsConfigQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  document_ids?: string[];
+}
+
+export interface ImportDocumentsConfigData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportDocumentsConfigResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportDocumentsConfigData;
 }
 
 export interface PendingAiSuggestionSection {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { JsonViewer } from "@/huemul/components/json-viewer"
 import { cn } from "@/lib/utils"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { ExternalFunctionalityDetailProps } from "@/types/external-functionalities"
 import type { ExternalFunctionalityTab as Tab } from "@/types/external-functionalities"
 import { ExternalFunctionalityParamsTab } from "./external-functionality-params-tab"
@@ -31,6 +32,7 @@ export function ExternalFunctionalityDetail({
   onDelete,
 }: ExternalFunctionalityDetailProps) {
   const { t } = useTranslation(["external-functionalities", "common"])
+  const { canAccessExternalParameters } = useUserPermissions()
   const [activeTab, setActiveTab] = useState<Tab>("docs")
 
   const methodVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -43,7 +45,7 @@ export function ExternalFunctionalityDetail({
 
   const tabs: { id: Tab; label: string; dot?: boolean }[] = [
     { id: "docs", label: t("detail.tabs.docs", "Docs") },
-    { id: "params", label: t("detail.tabs.params", "Params") },
+    ...(canAccessExternalParameters ? [{ id: "params" as Tab, label: t("detail.tabs.params", "Params") }] : []),
     { id: "body", label: t("detail.tabs.body", "Body"), dot: !!functionality.body },
     { id: "logs", label: t("detail.tabs.logs", "Logs") },
     ...(functionality.objective === "publish_asset"

@@ -218,6 +218,7 @@ export default function AppLayout() {
     canAccessSectionExecutions,
     canAccessCanvas,
     canAccessDiagrams,
+    canAccessExternalSystems,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -382,7 +383,7 @@ export default function AppLayout() {
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
   const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas || canAccessDiagrams
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isOrgAdmin || isRootAdmin
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
 
   // Generate initials from user name
@@ -750,7 +751,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessUsers || isOrgAdmin) && (
+                        {(canAccessExternalSystems || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/external-systems")} className={settingsItemClass('/external-systems')}>
                               <Network className={settingsIconClass('/external-systems')} />
