@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react"
 import { PlusCircle } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { AddSectionExecutionForm } from "@/components/sections/sections-execution-add-form"
 import { useTranslation } from "react-i18next"
-import type { AddSectionExecutionDialogProps } from '@/types/assets'
-export type { AddSectionExecutionDialogProps } from '@/types/assets'
+import type { AddSectionExecutionSheetProps } from '@/types/assets'
+export type { AddSectionExecutionSheetProps } from '@/types/assets'
 
-export function AddSectionExecutionDialog({
+export function AddSectionExecutionSheet({
   open,
   onOpenChange,
   afterFromSectionId,
@@ -16,7 +16,7 @@ export function AddSectionExecutionDialog({
   onClose,
   defaultType,
   defaultManualInput,
-}: AddSectionExecutionDialogProps) {
+}: AddSectionExecutionSheetProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const { t } = useTranslation(["assets", "common"])
 
@@ -32,18 +32,18 @@ export function AddSectionExecutionDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={handleOpenChange}
       title={t('addSectionExecution.title')}
       description={
-        afterFromSectionId 
+        afterFromSectionId
           ? t('addSectionExecution.afterDescription')
           : t('addSectionExecution.beginningDescription')
       }
       icon={PlusCircle}
+      side="right"
       maxWidth="sm:max-w-xl"
-      maxHeight="max-h-[90vh]"
       cancelLabel={t('common:cancel')}
       saveAction={{
         label: t('addSectionExecution.submitLabel'),
@@ -65,6 +65,6 @@ export function AddSectionExecutionDialog({
         defaultType={defaultType}
         defaultManualInput={defaultManualInput}
       />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

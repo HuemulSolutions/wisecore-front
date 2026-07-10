@@ -33,9 +33,9 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { getLibraryContent, moveFolder, deleteFolder } from "@/services/folders"
 import type { LibraryContent } from "@/types/folders"
 import { moveDocument, deleteDocument } from "@/services/assets"
-import { CreateAssetDialog } from "@/components/assets/dialogs/assets-create-dialog"
-import { ImportAssetFromFileDialog } from "@/components/assets/dialogs/assets-import-from-file-dialog"
-import { CreateFolderDialog } from "@/components/assets/dialogs/assets-create-folder-dialog"
+import { CreateAssetSheet } from "@/components/assets/dialogs/assets-create-sheet"
+import { ImportAssetFromFileSheet } from "@/components/assets/dialogs/assets-import-from-file-sheet"
+import { CreateFolderSheet } from "@/components/assets/dialogs/assets-create-folder-sheet"
 import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-folder-dialog"
 import { DeleteDocumentDialog } from "@/components/assets/dialogs/assets-delete-dialog"
 import EditFolder from "@/components/assets/dialogs/assets-edit_folder"
@@ -412,7 +412,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode, isExportMode, setIsExportMode, selectedIds, setSelectedIds }}>
       {children}
       {renderCreateAssetDialog && (
-        <CreateAssetDialog
+        <CreateAssetSheet
           open={createAssetDialogOpen}
           onOpenChange={handleCreateAssetDialogChange}
           folderId={currentFolderId}
@@ -420,14 +420,14 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         />
       )}
       {renderImportAssetDialog && (
-        <ImportAssetFromFileDialog
+        <ImportAssetFromFileSheet
           open={importAssetDialogOpen}
           onOpenChange={handleImportAssetDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
         />
       )}
-      <CreateFolderDialog
+      <CreateFolderSheet
         open={createFolderDialogOpen}
         onOpenChange={setCreateFolderDialogOpen}
         parentFolder={currentFolderId}

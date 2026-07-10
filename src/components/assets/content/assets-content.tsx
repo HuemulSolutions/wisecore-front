@@ -48,7 +48,7 @@ import type { CustomFieldDocument } from '@/types/custom-fields';
 import { AddCustomFieldDocumentSheet } from "@/components/assets-custom-fields/assets-add-custom-field-sheet";
 import { EditCustomFieldAssetSheet } from "@/components/assets-custom-fields/assets-edit-custom-field-sheet";
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
-import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
+import { AddSectionExecutionSheet } from "@/components/assets/dialogs/assets-add-section-execution-sheet";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
@@ -3362,7 +3362,7 @@ export function AssetContent({
       />
 
       {/* Section Execution Creation Dialog */}
-      <AddSectionExecutionDialog
+      <AddSectionExecutionSheet
         open={isSectionExecutionDialogOpen}
         onOpenChange={(open) => {
           if (!open) {

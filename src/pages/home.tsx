@@ -13,8 +13,8 @@ import { HuemulFilterChips } from '@/huemul/components/huemul-filter-chips';
 import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel';
 import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
 import { useHuemulFilters } from '@/hooks/useHuemulFilters';
-import { ImportAssetFromFileDialog } from '@/components/assets/dialogs/assets-import-from-file-dialog';
-import { CreateAssetDialog } from '@/components/assets/dialogs/assets-create-dialog';
+import { ImportAssetFromFileSheet } from '@/components/assets/dialogs/assets-import-from-file-sheet';
+import { CreateAssetSheet } from '@/components/assets/dialogs/assets-create-sheet';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
 import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useOrganization } from '@/contexts/organization-context';
@@ -491,7 +491,7 @@ export default function Home() {
         ]}
       />
 
-      <ImportAssetFromFileDialog
+      <ImportAssetFromFileSheet
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         onAssetCreated={handleAssetCreated}
@@ -509,7 +509,7 @@ export default function Home() {
         <ChangeHistoryPanel />
       </HuemulSheet>
 
-      <CreateAssetDialog
+      <CreateAssetSheet
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onAssetCreated={handleAssetCreated}

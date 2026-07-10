@@ -42,7 +42,7 @@ import { getDocumentTypeRelationships } from "@/services/document-type-relations
 import { getExecutionRelationshipsByExecution } from "@/services/execution-relationships"
 import { useExecutionRelationshipMutations } from "@/hooks/useExecutionRelationships"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
-import { CreateAssetDialog } from "@/components/assets/dialogs"
+import { CreateAssetSheet } from "@/components/assets/dialogs"
 import { getDocumentById } from "@/services/assets"
 import { getExecutionsByDocumentId } from "@/services/executions"
 import type {
@@ -1467,7 +1467,7 @@ function RelationshipsCanvasFlow({
 
       {/* Create-asset dialog — shown when a connection is dropped on empty canvas (execution mode) */}
       {mode === 'execution' && (
-        <CreateAssetDialog
+        <CreateAssetSheet
           open={!!pendingNewAssetConnection}
           onOpenChange={(o) => !o && setPendingNewAssetConnection(null)}
           onAssetCreated={handleNewAssetCreated}

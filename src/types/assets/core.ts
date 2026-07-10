@@ -259,14 +259,14 @@ export interface AssetContentResponse {
 // Dialog Props Types
 // ========================================
 
-export interface CreateAssetDialogProps {
+export interface CreateAssetSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
 }
 
-export interface CreateFolderDialogProps {
+export interface CreateFolderSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentFolder?: string;
