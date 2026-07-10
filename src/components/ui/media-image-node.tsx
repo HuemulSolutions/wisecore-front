@@ -29,9 +29,12 @@ export const ImageElement = withHOC(
       element: props.element,
     });
 
-    // previewUrl is the actual download URL stored at upload time for in-editor display.
-    // url may be a {{MEDIA:GUID}} token (resolved by the backend when serving saved content).
-    const displayUrl = element.previewUrl || element.url;
+    // previewUrl is only needed right after upload, while url is still an unresolved
+    // {{MEDIA:GUID}} token. Once content is saved and reloaded from the backend, url is a
+    // freshly signed blob URL — previewUrl becomes a stale/expired SAS token by then and
+    // must not be preferred over it.
+    const isUnresolvedMediaToken = typeof element.url === 'string' && element.url.startsWith('{{MEDIA:');
+    const displayUrl = isUnresolvedMediaToken ? (element.previewUrl || element.url) : element.url;
 
     return (
       <MediaToolbar plugin={ImagePlugin}>
