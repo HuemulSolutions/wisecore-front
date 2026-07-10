@@ -51,10 +51,12 @@ export function LifecyclePublishActionsSection({
   const { t } = useTranslation(["asset-types", "common"])
   const { isOrgAdmin, hasPermission } = useUserPermissions()
 
-  const canList   = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l" as never)
-  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:c" as never)
-  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:u" as never)
-  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_publish_action:d" as never)
+  const canList   = isOrgAdmin || hasPermission("lifecycle_external_publish_action:l")
+  const canCreate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:c")
+  const canUpdate = isOrgAdmin || hasPermission("lifecycle_external_publish_action:u")
+  const canDelete = isOrgAdmin || hasPermission("lifecycle_external_publish_action:d")
+  const canListSystems = isOrgAdmin || hasPermission("external_system:l") || hasPermission("external_system:r")
+  const canListFunctionalities = isOrgAdmin || hasPermission("external_functionality:l") || hasPermission("external_functionality:r")
 
   const [showAddDialog, setShowAddDialog]     = useState(false)
   const [addForm, setAddForm]                 = useState<AddDialogState>(buildDefaultAdd(1))
@@ -77,7 +79,7 @@ export function LifecyclePublishActionsSection({
   // Systems combobox
   const { data: systemsData, isLoading: isLoadingSystems } = useExternalSystems(organizationId, {
     pageSize: 200,
-    enabled: showAddDialog,
+    enabled: showAddDialog && canListSystems,
   })
   const systems = systemsData?.data ?? []
 
@@ -85,7 +87,7 @@ export function LifecyclePublishActionsSection({
   const { data: functionalitiesData, isLoading: isLoadingFunctionalities } = useExternalFunctionalities(
     organizationId,
     addForm.systemId,
-    { objective: "publish_asset", pageSize: 200, enabled: showAddDialog && !!addForm.systemId },
+    { objective: "publish_asset", pageSize: 200, enabled: showAddDialog && !!addForm.systemId && canListFunctionalities },
   )
   const functionalities = functionalitiesData?.data ?? []
 
@@ -230,14 +232,14 @@ export function LifecyclePublishActionsSection({
                     <div className="flex items-center justify-end gap-0.5">
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={idx === 0 || reorderActions.isPending}
+                        disabled={!canUpdate || idx === 0 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "up")}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={idx === actions.length - 1 || reorderActions.isPending}
+                        disabled={!canUpdate || idx === actions.length - 1 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "down")}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />

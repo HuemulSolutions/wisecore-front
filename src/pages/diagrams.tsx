@@ -42,11 +42,11 @@ export default function DiagramsPage() {
   const { t } = useTranslation(['diagrams', 'common'])
   const { t: tFilters } = useTranslation('huemul-filters')
   const { selectedOrganizationId, organizationToken } = useOrganization()
-  const { canAccessDiagrams, isOrgAdmin, hasPermission, isLoading: isLoadingPermissions } = useUserPermissions()
+  const { canAccessDiagrams, isOrgAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
 
   const canDelete = isOrgAdmin || hasPermission('diagram:d')
-  const canView = isOrgAdmin || hasPermission('diagram:u')
+  const canView = isOrgAdmin || hasAnyPermission(['diagram:r', 'diagram:u'])
 
   const fetchExecutionOptions = useCallback(
     async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {

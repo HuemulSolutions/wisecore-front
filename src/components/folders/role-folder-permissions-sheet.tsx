@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Share2, Plus, Trash2, Edit2, Check, X, Eye, ShieldCheck } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles } from "@/hooks/useRbac"
 import {
   useRoleFolderAccessLevels,
@@ -34,6 +35,10 @@ interface FolderPermissionsSheetProps {
 export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPermissionsSheetProps) {
   const { t } = useTranslation(["role-folder", "common"])
   const { selectedOrganizationId } = useOrganization()
+  const { canCreate, canUpdate, canDelete } = useUserPermissions()
+  const canCreateRoleFolder = canCreate('role_folder')
+  const canUpdateRoleFolder = canUpdate('role_folder')
+  const canDeleteRoleFolder = canDelete('role_folder')
   const [searchRole, setSearchRole] = useState("")
   const [selectedRoleId, setSelectedRoleId] = useState("")
   const [newLevels, setNewLevels] = useState<Set<RoleFolderAccessLevel>>(new Set())
@@ -148,7 +153,7 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
           </div>
         ) : (
           <div className="space-y-6">
-            {availableRoles.length > 0 && (
+            {availableRoles.length > 0 && canCreateRoleFolder && (
               <div className="border rounded-lg p-4 bg-muted/20 space-y-4">
                 <div>
                   <div className="text-sm font-medium">{t('role-folder:permissionsDialog.grantSection')}</div>
@@ -236,7 +241,7 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
                               label={t('common:save')}
                               icon={Check}
                               size="sm"
-                              disabled={editingGrant.levels.size === 0}
+                              disabled={!canUpdateRoleFolder || editingGrant.levels.size === 0}
                               loading={updateRoleFolder.isPending}
                               onClick={handleSaveEditingGrant}
                             />
@@ -269,27 +274,31 @@ export function FolderPermissionsSheet({ folder, open, onOpenChange }: FolderPer
                                 </Badge>
                               ))}
                           </div>
-                          <HuemulButton
-                            icon={Edit2}
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            disabled={isOtherRowEditing || revoking}
-                            onClick={() => startEditingGrant(role.id)}
-                            tooltip={t('role-folder:permissionsDialog.editButton')}
-                            tooltipSide="left"
-                          />
-                          <HuemulButton
-                            icon={Trash2}
-                            size="sm"
-                            variant="destructive"
-                            className="h-6 px-2"
-                            disabled={isOtherRowEditing}
-                            loading={revoking}
-                            onClick={() => setRoleToRevoke({ id: role.id, name: role.name })}
-                            tooltip={t('role-folder:permissionsDialog.removeButton')}
-                            tooltipSide="left"
-                          />
+                          {canUpdateRoleFolder && (
+                            <HuemulButton
+                              icon={Edit2}
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              disabled={isOtherRowEditing || revoking}
+                              onClick={() => startEditingGrant(role.id)}
+                              tooltip={t('role-folder:permissionsDialog.editButton')}
+                              tooltipSide="left"
+                            />
+                          )}
+                          {canDeleteRoleFolder && (
+                            <HuemulButton
+                              icon={Trash2}
+                              size="sm"
+                              variant="destructive"
+                              className="h-6 px-2"
+                              disabled={isOtherRowEditing}
+                              loading={revoking}
+                              onClick={() => setRoleToRevoke({ id: role.id, name: role.name })}
+                              tooltip={t('role-folder:permissionsDialog.removeButton')}
+                              tooltipSide="left"
+                            />
+                          )}
                         </div>
                       </div>
                     )

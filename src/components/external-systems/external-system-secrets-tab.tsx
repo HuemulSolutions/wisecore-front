@@ -28,10 +28,10 @@ export function ExternalSystemSecretsTab({
   const { t } = useTranslation(["external-secrets", "common"])
 
   const { isOrgAdmin, hasPermission } = useUserPermissions()
-  const canCreate = isOrgAdmin || hasPermission("external_secret:c" as never)
-  const canUpdate = isOrgAdmin || hasPermission("external_secret:u" as never)
-  const canDelete = isOrgAdmin || hasPermission("external_secret:d" as never)
-  const canList   = isOrgAdmin || hasPermission("external_secret:l" as never) || hasPermission("external_secret:r" as never)
+  const canCreate = isOrgAdmin || hasPermission("external_secret:c")
+  const canUpdate = isOrgAdmin || hasPermission("external_secret:u")
+  const canDelete = isOrgAdmin || hasPermission("external_secret:d")
+  const canList   = isOrgAdmin || hasPermission("external_secret:l") || hasPermission("external_secret:r")
 
   const [page, setPage] = useState(1)
   const [showAddDialog, setShowAddDialog] = useState(false)

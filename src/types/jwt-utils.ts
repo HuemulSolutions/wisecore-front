@@ -35,6 +35,12 @@ export type PermissionResource =
   | 'llm'
   | 'rbac'
   | 'diagram'
-  | 'role_folder';
+  | 'role_folder'
+  | 'external_system'
+  | 'external_functionality'
+  | 'external_parameter'
+  | 'external_secret'
+  | 'lifecycle_external_publish_action'
+  | 'lifecycle_external_review_action';
 
 export type Permission = `${PermissionResource}:${PermissionAction}`;

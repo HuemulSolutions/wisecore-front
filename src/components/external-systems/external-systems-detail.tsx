@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { ExternalSystemDetailProps } from "@/types/external-systems"
 import type { ExternalSystemDetailTab as Tab } from "@/types/external-systems"
 import { ExternalSystemParamsTab } from "./external-system-params-tab"
@@ -13,12 +14,13 @@ export type { ExternalSystemDetailProps } from "@/types/external-systems"
 
 export function ExternalSystemDetail({ system, organizationId = "", onAddFunctionality, onEdit, onDelete }: ExternalSystemDetailProps) {
   const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
+  const { canAccessExternalParameters, canAccessExternalSecrets } = useUserPermissions()
   const [activeTab, setActiveTab] = useState<Tab>("docs")
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "docs", label: t("external-functionalities:detail.tabs.docs") },
-    { id: "params", label: t("external-functionalities:detail.tabs.params") },
-    { id: "secrets", label: t("external-functionalities:detail.tabs.secrets") },
+    ...(canAccessExternalParameters ? [{ id: "params" as Tab, label: t("external-functionalities:detail.tabs.params") }] : []),
+    ...(canAccessExternalSecrets ? [{ id: "secrets" as Tab, label: t("external-functionalities:detail.tabs.secrets") }] : []),
   ]
 
   if (!system) {

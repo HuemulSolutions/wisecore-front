@@ -45,13 +45,13 @@ export default function ExternalSystemsPage() {
   } = useUserPermissions()
 
   const canListSystems  = isOrgAdmin || hasAnyPermission(["external_system:l", "external_system:r"])
-  const canCreateSystem = isOrgAdmin || hasPermission("external_system:c" as never)
-  const canEditSystem   = isOrgAdmin || hasPermission("external_system:u" as never)
-  const canDeleteSystem = isOrgAdmin || hasPermission("external_system:d" as never)
+  const canCreateSystem = isOrgAdmin || hasPermission("external_system:c")
+  const canEditSystem   = isOrgAdmin || hasPermission("external_system:u")
+  const canDeleteSystem = isOrgAdmin || hasPermission("external_system:d")
 
-  const canCreateFunctionality = isOrgAdmin || hasPermission("external_functionality:c" as never)
-  const canEditFunctionality   = isOrgAdmin || hasPermission("external_functionality:u" as never)
-  const canDeleteFunctionality = isOrgAdmin || hasPermission("external_functionality:d" as never)
+  const canCreateFunctionality = isOrgAdmin || hasPermission("external_functionality:c")
+  const canEditFunctionality   = isOrgAdmin || hasPermission("external_functionality:u")
+  const canDeleteFunctionality = isOrgAdmin || hasPermission("external_functionality:d")
 
   const [state, setState] = useState<ExternalSystemsPageState>({
     searchTerm: "",

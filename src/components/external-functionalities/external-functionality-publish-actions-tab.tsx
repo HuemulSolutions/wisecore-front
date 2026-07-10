@@ -269,7 +269,7 @@ export function ExternalFunctionalityPublishActionsTab({
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        disabled={idx === 0 || reorderActions.isPending}
+                        disabled={!canUpdate || idx === 0 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "up")}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
@@ -278,7 +278,7 @@ export function ExternalFunctionalityPublishActionsTab({
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        disabled={idx === actions.length - 1 || reorderActions.isPending}
+                        disabled={!canUpdate || idx === actions.length - 1 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "down")}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />
