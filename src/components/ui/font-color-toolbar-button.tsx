@@ -192,13 +192,13 @@ function PureColorPicker({
   );
 }
 
-const ColorPicker = React.memo(
-  PureColorPicker,
-  (prev, next) =>
-    prev.color === next.color &&
-    prev.colors === next.colors &&
-    prev.customColors === next.customColors
-);
+const ColorPicker = React.memo(PureColorPicker, (prev, next) => {
+  for (const key of Object.keys(next) as (keyof typeof next)[]) {
+    if (typeof next[key] === "function") continue;
+    if (!Object.is(prev[key], next[key])) return false;
+  }
+  return true;
+});
 
 function ColorCustom({
   className,

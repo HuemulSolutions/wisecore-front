@@ -25,6 +25,7 @@ const translations = {
     version: { en: "Version:", es: "Versión:" },
     selectVersion: { en: "Select version", es: "Seleccionar versión" },
     versionNumber: { en: "Version {{number}}", es: "Versión {{number}}" },
+    documentOption: { en: "Document", es: "Documento" },
   },
   sections: {
     title: { en: "Existing Sections ({{count}})", es: "Secciones existentes ({{count}})" },
@@ -144,7 +145,7 @@ const translations = {
       customFieldRequired: { en: "Select a custom field for custom field questions", es: "Selecciona un custom field para las preguntas de tipo custom field" },
     },
     fill: {
-      submitResponses: { en: "Submit responses", es: "Enviar respuestas" },
+      submitResponses: { en: "Submit responses", es: "Guardar respuestas" },
       requiredFieldsNote: { en: "Fields marked with * are required", es: "Los campos con * son obligatorios" },
       requiredError: { en: "Complete the required fields", es: "Completa los campos obligatorios" },
       fieldRequired: { en: "This field is required", es: "Este campo es obligatorio" },

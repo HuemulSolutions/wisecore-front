@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, List, PlusCircle, Sparkles, BetweenHorizontalStart, ChevronDown } from "lucide-react";
@@ -33,6 +33,8 @@ import { handleApiError } from "@/lib/error-utils";
 import { DndContext, closestCenter, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
+const DOCUMENT_OPTION_VALUE = "__document__";
+
 export function SectionSheet({
   selectedFile,
   fullDocument,
@@ -53,6 +55,7 @@ export function SectionSheet({
   const [orderedSections, setOrderedSections] = useState<any[]>([]);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [selectedConfigExecutionId, setSelectedConfigExecutionId] = useState<string | null>(executionInfo?.id || executionId || null);
+  const autoSelectedActiveRef = useRef(false);
 
   // Whether the current user can edit (add / update / delete / reorder) sections
   // Requires edit/create permission AND the document must be in the 'edit' stage
@@ -60,6 +63,7 @@ export function SectionSheet({
 
   useEffect(() => {
     setSelectedConfigExecutionId(executionInfo?.id || executionId || null);
+    autoSelectedActiveRef.current = false;
   }, [selectedFile?.id, executionInfo?.id, executionId]);
 
   const { data: sectionsConfig } = useQuery<SectionsConfigResponse>({
@@ -95,9 +99,10 @@ export function SectionSheet({
   }, [sectionsConfig?.executions]);
 
   useEffect(() => {
-    if (selectedConfigExecutionId || !sectionsConfig?.executions?.active?.id) {
+    if (autoSelectedActiveRef.current || selectedConfigExecutionId || !sectionsConfig?.executions?.active?.id) {
       return;
     }
+    autoSelectedActiveRef.current = true;
     setSelectedConfigExecutionId(sectionsConfig.executions.active.id);
   }, [sectionsConfig?.executions?.active?.id, selectedConfigExecutionId]);
 
@@ -421,13 +426,18 @@ export function SectionSheet({
                 <div className="flex items-center gap-2">
                   <span className="font-medium whitespace-nowrap">{t('assetInfo.version')}</span>
                   <Select
-                    value={selectedConfigExecutionId || undefined}
-                    onValueChange={(value) => setSelectedConfigExecutionId(value)}
+                    value={selectedConfigExecutionId || DOCUMENT_OPTION_VALUE}
+                    onValueChange={(value) =>
+                      setSelectedConfigExecutionId(value === DOCUMENT_OPTION_VALUE ? null : value)
+                    }
                   >
                     <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
                       <SelectValue placeholder={t('assetInfo.selectVersion')} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={DOCUMENT_OPTION_VALUE} className="cursor-pointer">
+                        {t('assetInfo.documentOption')}
+                      </SelectItem>
                       {availableExecutions.map((execution, index) => (
                         <SelectItem key={execution.id} value={execution.id} className="cursor-pointer">
                           {execution.name || t('assetInfo.versionNumber', { number: availableExecutions.length - index })}
@@ -452,9 +462,12 @@ export function SectionSheet({
                         <SortableSectionSheet
                           item={section}
                           existingSections={orderedSections}
-                          onSave={(sectionId: string, sectionData: object) =>
-                            updateSectionMutation.mutate({ sectionId, sectionData })
-                          }
+                          onSave={(sectionId: string, sectionData: object) => {
+                            const payload = selectedConfigExecutionId
+                              ? { ...sectionData, propagate_to_executions: true, execution_id: selectedConfigExecutionId }
+                              : sectionData;
+                            updateSectionMutation.mutate({ sectionId, sectionData: payload });
+                          }}
                           onDelete={async (sectionId: string, options?: { executionId?: string }) => {
                             await deleteSectionMutation.mutateAsync({
                               sectionId,
