@@ -10,9 +10,7 @@ export type { SectionSeparatorProps } from '@/types/section-separator';
 export function SectionSeparator({ 
   onAddSection, 
   index, 
-  isLastSection = false,
-  isMobile = false
-}: SectionSeparatorProps) {
+  isLastSection = false}: SectionSeparatorProps) {
   const { t } = useTranslation('assets');
   return (
     <div className="group relative flex items-center justify-center my-4 px-4 max-w-full">
