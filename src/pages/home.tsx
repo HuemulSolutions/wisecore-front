@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { format } from 'date-fns';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
 import {
   FileUp,
@@ -27,7 +28,10 @@ import { CreateAssetSheet } from '@/components/assets/dialogs/assets-create-shee
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
 import { useAllExecutions } from '@/hooks/useAllExecutions';
 import { useDocumentStatistics } from '@/hooks/useDocumentStatistics';
+import { useUnreadNotificationsCount } from '@/hooks/useUnreadNotificationsCount';
+import { NotificationsSheet } from '@/components/notifications/notifications-sheet';
 import { useOrganization } from '@/contexts/organization-context';
+import { useAuth } from '@/contexts/auth-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
 import { getCustomFields } from '@/services/custom-fields';
@@ -36,12 +40,47 @@ import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from '@
 import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/types/execution';
 import { ApiError } from '@/types/api-error';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
+import { getBrowserDateLocale } from '@/lib/format-date-range';
+
+const LIFECYCLE_STATE_COLORS: Record<ExecutionLifecycleState, string> = {
+  draft: 'bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200',
+  in_review: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  in_approval: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
+  approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+  published: 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-200',
+  archived: 'bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-200',
+};
+
+function getInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+}
 
 export default function Home() {
   const { t } = useTranslation('home');
   const { t: tAssets } = useTranslation('assets');
   const { selectedOrganizationId } = useOrganization();
+  const { user } = useAuth();
   const navigate = useOrgNavigate();
+
+  const unreadNotificationsCount = useUnreadNotificationsCount(selectedOrganizationId);
+
+  const greetingPeriod = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 19) return 'afternoon';
+    return 'evening';
+  }, []);
+
+  const formattedDate = useMemo(() => {
+    const raw = format(new Date(), "EEEE d 'de' MMMM", { locale: getBrowserDateLocale() });
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }, []);
 
   const handleAssetCreated = ({ id }: { id: string; name: string; type: string }) => {
     navigate(`/asset/${id}`);
@@ -50,6 +89,7 @@ export default function Home() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [reviewsSheetOpen, setReviewsSheetOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [notificationsSheetOpen, setNotificationsSheetOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<string | null>(null);
 
@@ -287,7 +327,7 @@ export default function Home() {
       defaultWidth: 150,
       render: (item) =>
         item.unresolved_comments_count > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200">
+          <span className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-400">
             <MessageCircle className="h-3.5 w-3.5" />
             {item.unresolved_comments_count}
           </span>
@@ -300,7 +340,7 @@ export default function Home() {
       label: t('executionsTable.columns.version'),
       defaultWidth: 120,
       render: (item) => (
-        <span className="text-muted-foreground">
+        <span className="text-blue-600 dark:text-blue-400">
           {item.version_major !== null && item.version_minor !== null && item.version_patch !== null
             ? `v${item.version_major}.${item.version_minor}.${item.version_patch}`
             : item.name}
@@ -313,7 +353,11 @@ export default function Home() {
       sortKey: 'lifecycle_state',
       defaultWidth: 150,
       render: (item) => (
-        <span className="text-muted-foreground">{tAssets(`lifecycle.stateLabels.${item.lifecycle_state}`)}</span>
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LIFECYCLE_STATE_COLORS[item.lifecycle_state]}`}
+        >
+          {tAssets(`lifecycle.stateLabels.${item.lifecycle_state}`)}
+        </span>
       ),
     },
     {
@@ -329,10 +373,18 @@ export default function Home() {
       key: 'owner',
       label: t('executionsTable.columns.owner'),
       sortKey: 'created_by_user_name',
-      defaultWidth: 160,
-      render: (item) => (
-        <span className="text-muted-foreground">{item.created_by_user_name ?? '—'}</span>
-      ),
+      defaultWidth: 180,
+      render: (item) =>
+        item.created_by_user_name ? (
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+              {getInitials(item.created_by_user_name)}
+            </span>
+            <span className="truncate text-muted-foreground">{item.created_by_user_name}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: 'updatedAt',
@@ -402,7 +454,11 @@ export default function Home() {
       value: stats?.owned_count ?? 0,
       label: t('kpis.owned.label'),
       active: values.ownerValue === '__me__',
-      onClick: () => handleFilterChange('ownerValue', values.ownerValue === '__me__' ? '' : '__me__'),
+      onClick: () => {
+        const next = values.ownerValue === '__me__' ? '' : '__me__';
+        handleFilterChange('ownerValue', next);
+        setSelectedLabel('ownerValue', next ? t('filters.ownerMe') : undefined);
+      },
     },
     {
       key: 'draft',
@@ -460,43 +516,18 @@ export default function Home() {
       active: !!values.hasUnresolvedComments,
       onClick: () => handleFilterChange('hasUnresolvedComments', !values.hasUnresolvedComments),
     },
-  ], [stats, t, values.ownerValue, values.lifecycleState, values.expiringSoon, values.hasUnresolvedComments, handleFilterChange, toggleLifecycleState]);
+  ], [stats, t, values.ownerValue, values.lifecycleState, values.expiringSoon, values.hasUnresolvedComments, handleFilterChange, toggleLifecycleState, setSelectedLabel]);
 
   const visibleKpiCards = statsLoading
     ? kpiCards
     : kpiCards.filter((card) => card.value > 0 || card.active);
 
   const header = (
-    <div className="flex flex-col">
-      {visibleKpiCards.length > 0 && (
-      <div className="m-4 flex divide-x divide-border overflow-hidden rounded-xl border bg-card">
-        {visibleKpiCards.map((card) => (
-          <HuemulStatCard
-            key={card.key}
-            color={card.color}
-            value={card.value}
-            label={card.label}
-            active={card.active}
-            loading={statsLoading}
-            onClick={card.onClick}
-          />
-        ))}
-      </div>
-      )}
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <HuemulFilterButton
-            count={activeCount}
-            open={filtersOpen}
-            onToggle={() => setFiltersOpen(!filtersOpen)}
-          />
-          <HuemulFilterInline
-            filters={filterDefs}
-            values={values}
-            onChange={handleFilterChange}
-            onSelectedLabel={setSelectedLabel}
-          />
-        </div>
+    <div className="flex flex-col gap-1 px-4 md:px-6 pt-4 pb-3">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+          {t(`greeting.${greetingPeriod}`, { name: user?.name ?? '' })}
+        </h1>
         <div className="flex items-center gap-2">
           <HuemulButton
             variant="outline"
@@ -517,12 +548,24 @@ export default function Home() {
           />
         </div>
       </div>
+      <p className="text-sm text-muted-foreground">
+        {formattedDate} ·{' '}
+        <button
+          type="button"
+          onClick={() => setNotificationsSheetOpen(true)}
+          className="text-primary underline-offset-2 hover:underline transition-colors"
+        >
+          {t('greeting.unreadNotifications', { count: unreadNotificationsCount })}
+        </button>
+      </p>
     </div>
   );
 
   return (
     <>
       <HuemulPageLayout
+        className="bg-gray-50"
+        headerClassName="border-b-0 bg-gray-50"
         header={header}
         columns={[
           {
@@ -544,17 +587,49 @@ export default function Home() {
           {
             content: (
               <div className="flex flex-col h-full overflow-hidden p-4 md:p-6 gap-4">
+                {visibleKpiCards.length > 0 && (
+                  <div className="shrink-0 flex flex-wrap gap-3">
+                    {visibleKpiCards.map((card) => (
+                      <HuemulStatCard
+                        key={card.key}
+                        color={card.color}
+                        value={card.value}
+                        label={card.label}
+                        active={card.active}
+                        loading={statsLoading}
+                        onClick={card.onClick}
+                        className="rounded-xl border bg-card"
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="shrink-0 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <HuemulFilterButton
+                      count={activeCount}
+                      open={filtersOpen}
+                      onToggle={() => setFiltersOpen(!filtersOpen)}
+                    />
+                    <HuemulFilterInline
+                      filters={filterDefs}
+                      values={values}
+                      onChange={handleFilterChange}
+                      onSelectedLabel={setSelectedLabel}
+                    />
+                  </div>
+                  {!isLoading && (
+                    <p className="shrink-0 text-sm text-muted-foreground">
+                      {t('executionsTable.resultsCount', { count: executions.length })}
+                    </p>
+                  )}
+                </div>
+
                 <HuemulFilterChips
                   chips={chips}
                   onRemove={handleChipRemove}
                   onClearAll={handleClearAll}
                 />
-
-                {!isLoading && (
-                  <p className="shrink-0 text-sm text-muted-foreground">
-                    {t('executionsTable.resultsCount', { count: executions.length })}
-                  </p>
-                )}
 
                 <div className="flex-1 min-h-0">
                   <HuemulTable
@@ -623,6 +698,14 @@ export default function Home() {
         onOpenChange={setCreateDialogOpen}
         onAssetCreated={handleAssetCreated}
       />
+
+      {selectedOrganizationId && (
+        <NotificationsSheet
+          open={notificationsSheetOpen}
+          onOpenChange={setNotificationsSheetOpen}
+          organizationId={selectedOrganizationId}
+        />
+      )}
     </>
   );
 }

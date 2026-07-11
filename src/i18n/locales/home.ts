@@ -1,4 +1,14 @@
 const translations = {
+  greeting: {
+    morning: { en: "Good morning, {{name}}", es: "Buenos días, {{name}}" },
+    afternoon: { en: "Good afternoon, {{name}}", es: "Buenas tardes, {{name}}" },
+    evening: { en: "Good evening, {{name}}", es: "Buenas noches, {{name}}" },
+    unreadNotifications: {
+      en: "{{count}} unread notifications",
+      es: "{{count}} notificaciones sin leer",
+    },
+  },
+
   hero: {
     title: { en: "Welcome to Wisecore", es: "Bienvenido a Wisecore" },
     description: {
