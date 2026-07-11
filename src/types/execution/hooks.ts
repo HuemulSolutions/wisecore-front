@@ -11,6 +11,7 @@ export interface UseAllExecutionsOptions {
   lifecycle_state?: ExecutionLifecycleState | null
   owner_scope?: 'all' | 'me' | null
   has_unresolved_comments?: boolean | null
+  expiring_soon?: boolean | null
   expiration_date?: string | null
   expiration_date_from?: string | null
   expiration_date_to?: string | null

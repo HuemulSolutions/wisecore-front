@@ -1,7 +1,14 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOrgNavigate } from '@/hooks/useOrgRouter';
-import { FileUp, ClipboardList, Plus, GitBranch, ExternalLink, MessageCircle } from 'lucide-react';
+import {
+  FileUp,
+  ClipboardList,
+  Plus,
+  GitBranch,
+  ExternalLink,
+  MessageCircle,
+} from 'lucide-react';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { HuemulPageLayout } from '@/huemul/components/huemul-page-layout';
 import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
@@ -12,11 +19,14 @@ import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button';
 import { HuemulFilterChips } from '@/huemul/components/huemul-filter-chips';
 import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel';
 import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
+import { HuemulStatCard } from '@/huemul/components/huemul-stat-card';
+import type { HuemulStatCardColor } from '@/huemul/components/huemul-stat-card';
 import { useHuemulFilters } from '@/hooks/useHuemulFilters';
 import { ImportAssetFromFileSheet } from '@/components/assets/dialogs/assets-import-from-file-sheet';
 import { CreateAssetSheet } from '@/components/assets/dialogs/assets-create-sheet';
 import { ChangeHistoryPanel } from '@/components/execution/change-history-panel';
 import { useAllExecutions } from '@/hooks/useAllExecutions';
+import { useDocumentStatistics } from '@/hooks/useDocumentStatistics';
 import { useOrganization } from '@/contexts/organization-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
@@ -42,6 +52,11 @@ export default function Home() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<string | null>(null);
+
+  const { data: stats, isLoading: statsLoading } = useDocumentStatistics(
+    selectedOrganizationId ?? '',
+    !!selectedOrganizationId,
+  );
 
   const fetchCustomFieldNames = useCallback(
     async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
@@ -159,6 +174,7 @@ export default function Home() {
       { key: 'reviewDate', type: 'date-range', group: dates, label: t('filters.reviewDate') },
       { key: 'auditDate', type: 'date-range', group: dates, label: t('filters.auditDate') },
       { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
+      { key: 'expiringSoon', type: 'boolean', group: other, label: t('filters.expiringSoon') },
       {
         key: 'customFieldFilter',
         type: 'async-combobox',
@@ -222,6 +238,7 @@ export default function Home() {
     owner_scope: values.ownerValue === '__me__' ? 'me' : undefined,
     created_by: values.ownerValue && values.ownerValue !== '__me__' ? String(values.ownerValue) : undefined,
     has_unresolved_comments: (values.hasUnresolvedComments as boolean) || undefined,
+    expiring_soon: (values.expiringSoon as boolean) || undefined,
     document_type_id: (values.documentTypeId as string) || undefined,
     expiration_date: expiration.date || undefined,
     expiration_date_from: expiration.from || undefined,
@@ -374,39 +391,131 @@ export default function Home() {
     },
   ];
 
+  const toggleLifecycleState = useCallback((state: ExecutionLifecycleState) => {
+    handleFilterChange('lifecycleState', values.lifecycleState === state ? '__all__' : state);
+  }, [handleFilterChange, values.lifecycleState]);
+
+  const kpiCards = useMemo(() => [
+    {
+      key: 'owned',
+      color: 'blue' as HuemulStatCardColor,
+      value: stats?.owned_count ?? 0,
+      label: t('kpis.owned.label'),
+      active: values.ownerValue === '__me__',
+      onClick: () => handleFilterChange('ownerValue', values.ownerValue === '__me__' ? '' : '__me__'),
+    },
+    {
+      key: 'draft',
+      color: 'slate' as HuemulStatCardColor,
+      value: stats?.draft_count ?? 0,
+      label: t('kpis.draft.label'),
+      active: values.lifecycleState === 'draft',
+      onClick: () => toggleLifecycleState('draft'),
+    },
+    {
+      key: 'inReview',
+      color: 'amber' as HuemulStatCardColor,
+      value: stats?.in_review_count ?? 0,
+      label: t('kpis.inReview.label'),
+      active: values.lifecycleState === 'in_review',
+      onClick: () => toggleLifecycleState('in_review'),
+    },
+    {
+      key: 'inApproval',
+      color: 'sky' as HuemulStatCardColor,
+      value: stats?.in_approval_count ?? 0,
+      label: t('kpis.inApproval.label'),
+      active: values.lifecycleState === 'in_approval',
+      onClick: () => toggleLifecycleState('in_approval'),
+    },
+    {
+      key: 'approved',
+      color: 'emerald' as HuemulStatCardColor,
+      value: stats?.approved_count ?? 0,
+      label: t('kpis.approved.label'),
+      active: values.lifecycleState === 'approved',
+      onClick: () => toggleLifecycleState('approved'),
+    },
+    {
+      key: 'published',
+      color: 'teal' as HuemulStatCardColor,
+      value: stats?.published_count ?? 0,
+      label: t('kpis.published.label'),
+      active: values.lifecycleState === 'published',
+      onClick: () => toggleLifecycleState('published'),
+    },
+    {
+      key: 'expiringSoon',
+      color: 'red' as HuemulStatCardColor,
+      value: stats?.expiring_soon_count ?? 0,
+      label: t('kpis.expiringSoon.label'),
+      active: !!values.expiringSoon,
+      onClick: () => handleFilterChange('expiringSoon', !values.expiringSoon),
+    },
+    {
+      key: 'unresolvedComments',
+      color: 'violet' as HuemulStatCardColor,
+      value: stats?.unresolved_comments_count ?? 0,
+      label: t('kpis.unresolvedComments.label'),
+      active: !!values.hasUnresolvedComments,
+      onClick: () => handleFilterChange('hasUnresolvedComments', !values.hasUnresolvedComments),
+    },
+  ], [stats, t, values.ownerValue, values.lifecycleState, values.expiringSoon, values.hasUnresolvedComments, handleFilterChange, toggleLifecycleState]);
+
+  const visibleKpiCards = statsLoading
+    ? kpiCards
+    : kpiCards.filter((card) => card.value > 0 || card.active);
+
   const header = (
-    <div className="flex items-center justify-between gap-2 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <HuemulFilterButton
-          count={activeCount}
-          open={filtersOpen}
-          onToggle={() => setFiltersOpen(!filtersOpen)}
-        />
-        <HuemulFilterInline
-          filters={filterDefs}
-          values={values}
-          onChange={handleFilterChange}
-          onSelectedLabel={setSelectedLabel}
-        />
+    <div className="flex flex-col">
+      {visibleKpiCards.length > 0 && (
+      <div className="m-4 flex divide-x divide-border overflow-hidden rounded-xl border bg-card">
+        {visibleKpiCards.map((card) => (
+          <HuemulStatCard
+            key={card.key}
+            color={card.color}
+            value={card.value}
+            label={card.label}
+            active={card.active}
+            loading={statsLoading}
+            onClick={card.onClick}
+          />
+        ))}
       </div>
-      <div className="flex items-center gap-2">
-        <HuemulButton
-          variant="outline"
-          icon={FileUp}
-          label={t('actions.uploadDocument')}
-          onClick={() => setImportDialogOpen(true)}
-        />
-        <HuemulButton
-          variant="outline"
-          icon={ClipboardList}
-          label={t('actions.pendingReviews')}
-          onClick={() => setReviewsSheetOpen(true)}
-        />
-        <HuemulButton
-          icon={Plus}
-          label={t('actions.createAsset')}
-          onClick={() => setCreateDialogOpen(true)}
-        />
+      )}
+      <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <HuemulFilterButton
+            count={activeCount}
+            open={filtersOpen}
+            onToggle={() => setFiltersOpen(!filtersOpen)}
+          />
+          <HuemulFilterInline
+            filters={filterDefs}
+            values={values}
+            onChange={handleFilterChange}
+            onSelectedLabel={setSelectedLabel}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <HuemulButton
+            variant="outline"
+            icon={FileUp}
+            label={t('actions.uploadDocument')}
+            onClick={() => setImportDialogOpen(true)}
+          />
+          <HuemulButton
+            variant="outline"
+            icon={ClipboardList}
+            label={t('actions.pendingReviews')}
+            onClick={() => setReviewsSheetOpen(true)}
+          />
+          <HuemulButton
+            icon={Plus}
+            label={t('actions.createAsset')}
+            onClick={() => setCreateDialogOpen(true)}
+          />
+        </div>
       </div>
     </div>
   );

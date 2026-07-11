@@ -1,9 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse } from "@/types/assets";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse } from "@/types/assets";
 
-export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse };
+export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
 export async function getAllDocuments(organizationId: string, documentTypeId?: string, search?: string) {
   const url = new URL(`${backendUrl}/documents/`);
@@ -35,6 +35,18 @@ export async function getDocumentById(documentId: string, organizationId: string
   });
   const data = await response.json();
   console.log('Document fetched:', data.data);
+  return data.data;
+}
+
+export async function getDocumentStatistics(
+  organizationId: string,
+): Promise<DocumentStatistics> {
+  const response = await httpClient.get(`${backendUrl}/documents/statistics`, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+  const data = (await response.json()) as DocumentStatisticsResponse;
   return data.data;
 }
 

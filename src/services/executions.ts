@@ -26,6 +26,7 @@ export async function getAllExecutions(
     lifecycle_state,
     owner_scope,
     has_unresolved_comments,
+    expiring_soon,
     expiration_date,
     expiration_date_from,
     expiration_date_to,
@@ -54,6 +55,7 @@ export async function getAllExecutions(
   if (lifecycle_state) qs.set('lifecycle_state', lifecycle_state)
   if (owner_scope) qs.set('owner_scope', owner_scope)
   if (has_unresolved_comments != null) qs.set('has_unresolved_comments', has_unresolved_comments.toString())
+  if (expiring_soon != null) qs.set('expiring_soon', expiring_soon.toString())
   if (expiration_date) qs.set('expiration_date', toDateParam(expiration_date))
   if (expiration_date_from) qs.set('expiration_date_from', toDateParam(expiration_date_from))
   if (expiration_date_to) qs.set('expiration_date_to', toDateParam(expiration_date_to))

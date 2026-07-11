@@ -554,3 +554,26 @@ export interface PendingChangesResponse {
   page_size: number;
   has_next: boolean;
 }
+
+/**
+ * Conteo de activos por categoría del dashboard
+ */
+export interface DocumentStatistics {
+  owned_count: number;
+  draft_count: number;
+  in_review_count: number;
+  in_approval_count: number;
+  approved_count: number;
+  published_count: number;
+  expiring_soon_count: number;
+  unresolved_comments_count: number;
+}
+
+/**
+ * Response de GET /documents/statistics
+ */
+export interface DocumentStatisticsResponse {
+  data: DocumentStatistics;
+  transaction_id: string;
+  timestamp: string;
+}
