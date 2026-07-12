@@ -30,6 +30,8 @@ export interface EditFormItemForBackend {
   dependencies: string[];
   propagate_to_template?: boolean;
   propagate_to_sections?: boolean;
+  propagate_to_executions?: boolean;
+  execution_id?: string;
 }
 
 export interface EditSectionFormProps {

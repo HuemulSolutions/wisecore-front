@@ -52,6 +52,8 @@ export async function updateSection(
         reference_execution_id?: string;
         dependencies?: string[];
         propagate_to_template?: boolean;
+        propagate_to_executions?: boolean;
+        execution_id?: string;
         form_fields?: SectionFormField[];
     },
     organizationId: string

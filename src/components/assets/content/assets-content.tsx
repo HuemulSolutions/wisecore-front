@@ -818,6 +818,23 @@ export function AssetContent({
     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileIdRef.current] });
   }, [queryClient]);
 
+  // Al cerrar el sheet de secciones, refrescar el contenido del asset.
+  // La edición de secciones propaga a la versión de forma asíncrona en el
+  // backend; el invalidate inmediato del sheet corre una carrera contra esa
+  // propagación y puede recachear contenido viejo como "fresh". Forzar un
+  // refetch al cerrar (cuando la propagación ya terminó) evita tener que
+  // recargar toda la página con Ctrl+F5.
+  const handleSectionSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      preserveScrollPosition();
+      const fileId = selectedFileIdRef.current;
+      queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['document', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', fileId] });
+    }
+    setIsSectionSheetOpen(open);
+  }, [queryClient]);
+
   // Handle add section
   const handleAddSection = () => {
     if (selectedFile && selectedFile.type === 'document') {
@@ -2086,10 +2103,7 @@ export function AssetContent({
                   fullDocument={fullDocument}
                   documentName={documentContent?.document_name}
                   isOpen={isSectionSheetOpen}
-                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
-                    if (!open) preserveScrollPosition();
-                    setIsSectionSheetOpen(open);
-                  }}
+                  onOpenChange={handleSectionSheetOpenChange}
                   isMobile={isMobile}
                   executionId={selectedExecutionId}
                   executionInfo={selectedExecutionInfo}
@@ -2629,7 +2643,7 @@ export function AssetContent({
                     selectedFile={selectedFile}
                     fullDocument={fullDocument}
                     isOpen={isSectionSheetOpen}
-                    onOpenChange={setIsSectionSheetOpen}
+                    onOpenChange={handleSectionSheetOpenChange}
                     executionId={selectedExecutionId}
                     executionInfo={selectedExecutionInfo}
                     lifecyclePermissions={lifecyclePermissions}

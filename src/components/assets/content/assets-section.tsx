@@ -879,40 +879,54 @@ function SectionExecutionInner({
 }
 
 /**
+ * Shallow-equal for arbitrary values, with array support: arrays are compared
+ * by length + per-item shallow equality (object items compared by their own keys).
+ * Used so array-typed fields (plate_content, form_fields, ...) don't need special-casing.
+ */
+function shallowEqualValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((item, i) => {
+      const other = b[i];
+      if (item && typeof item === "object" && other && typeof other === "object") {
+        const keys = new Set([...Object.keys(item), ...Object.keys(other)]);
+        for (const key of keys) {
+          if (!Object.is((item as Record<string, unknown>)[key], (other as Record<string, unknown>)[key])) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return Object.is(item, other);
+    });
+  }
+  return false;
+}
+
+/**
  * Custom equality check for React.memo.
- * Compares only the data-carrying props; callbacks are assumed stable enough
- * (they are recreated per render in the parent but point to the same logic).
+ * Compares every field of `sectionExecution` and every non-function top-level prop
+ * generically (Object.keys), rather than a hardcoded whitelist — so a field added
+ * later to `ContentSection`/`SectionExecutionProps` is covered without editing this
+ * function. Callbacks are skipped (assumed stable enough across renders).
  */
 function areSectionPropsEqual(prev: SectionExecutionProps, next: SectionExecutionProps): boolean {
-  // Section data
-  if (prev.sectionExecution.id !== next.sectionExecution.id) return false;
-  if (prev.sectionExecution.output !== next.sectionExecution.output) return false;
-  if (prev.sectionExecution.section_id !== next.sectionExecution.section_id) return false;
-  if (prev.sectionExecution.ai_suggestion_status !== next.sectionExecution.ai_suggestion_status) return false;
-  if (prev.sectionExecution.ai_suggestion_content !== next.sectionExecution.ai_suggestion_content) return false;
-  if (prev.sectionExecution.review_status !== next.sectionExecution.review_status) return false;
-
-  // plate_content: compare by reference first (fast path), then length + items
-  if (prev.sectionExecution.plate_content !== next.sectionExecution.plate_content) {
-    const ppc = prev.sectionExecution.plate_content;
-    const npc = next.sectionExecution.plate_content;
-    if (!ppc || !npc || ppc.length !== npc.length) return false;
-    for (let i = 0; i < ppc.length; i++) {
-      if (ppc[i] !== npc[i]) return false;
-    }
+  const sectionKeys = new Set([
+    ...Object.keys(prev.sectionExecution),
+    ...Object.keys(next.sectionExecution),
+  ]);
+  for (const key of sectionKeys) {
+    const k = key as keyof typeof next.sectionExecution;
+    if (!shallowEqualValue(prev.sectionExecution[k], next.sectionExecution[k])) return false;
   }
 
-  // Behavioral / display props
-  if (prev.readyToEdit !== next.readyToEdit) return false;
-  if (prev.sectionIndex !== next.sectionIndex) return false;
-  if (prev.documentId !== next.documentId) return false;
-  if (prev.executionId !== next.executionId) return false;
-  if (prev.executionStatus !== next.executionStatus) return false;
-  if (prev.executionMode !== next.executionMode) return false;
-  if (prev.showExecutionFeedback !== next.showExecutionFeedback) return false;
-  if (prev.sectionType !== next.sectionType) return false;
-  if (prev.sectionName !== next.sectionName) return false;
-  if (prev.canEditSections !== next.canEditSections) return false;
+  for (const key of Object.keys(next) as (keyof SectionExecutionProps)[]) {
+    if (key === "sectionExecution") continue;
+    const nextVal = next[key];
+    if (typeof nextVal === "function") continue;
+    if (!Object.is(prev[key], nextVal)) return false;
+  }
 
   return true;
 }

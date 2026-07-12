@@ -30,7 +30,7 @@ export function HuemulFilterChips({
       {chips.map((chip) => (
         <span
           key={chip.key}
-          className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 py-1 pl-3 pr-1.5 text-xs font-medium text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-full border bg-card py-1 pl-3 pr-1.5 text-xs font-medium text-foreground"
         >
           <span className="truncate max-w-[16rem]">{chip.label}</span>
           <button
