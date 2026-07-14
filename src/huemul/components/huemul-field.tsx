@@ -673,7 +673,7 @@ function DateInputField({
           <InputGroupInput
             id={fieldId}
             value={text}
-            placeholder={placeholder || pattern}
+            placeholder={placeholder || t('pickDate')}
             disabled={disabled}
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
@@ -796,7 +796,7 @@ function TimeInputField({
           <InputGroupInput
             id={fieldId}
             value={text}
-            placeholder={placeholder || (withSeconds ? "HH:mm:ss" : "HH:mm")}
+            placeholder={placeholder || t('pickTime')}
             disabled={disabled}
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
@@ -939,7 +939,7 @@ function DateTimeInputField({
           <InputGroupInput
             id={fieldId}
             value={text}
-            placeholder={placeholder || pattern}
+            placeholder={placeholder || t('pickDateTime')}
             disabled={disabled}
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
@@ -1163,7 +1163,7 @@ function DateRangeField({
             <InputGroupInput
               id={fieldId}
               value={text}
-              placeholder={placeholder || pattern}
+              placeholder={placeholder || t('pickDate')}
               disabled={disabled}
               aria-invalid={!!error || undefined}
               onChange={(e) => handleSingleChange(e.target.value)}
@@ -1214,7 +1214,7 @@ function DateRangeField({
               <InputGroupInput
                 id={fieldId}
                 value={textFrom}
-                placeholder={`${t('dateFrom')} ${pattern}`}
+                placeholder={t('dateFrom')}
                 aria-label={t('dateFrom')}
                 disabled={disabled}
                 aria-invalid={!!error || undefined}
@@ -1250,7 +1250,7 @@ function DateRangeField({
             >
               <InputGroupInput
                 value={textTo}
-                placeholder={`${t('dateTo')} ${pattern}`}
+                placeholder={t('dateTo')}
                 aria-label={t('dateTo')}
                 disabled={disabled}
                 aria-invalid={!!error || undefined}

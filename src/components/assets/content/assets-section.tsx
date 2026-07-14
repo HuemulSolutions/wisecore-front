@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection } from '@/components/assets/content/asset-form-section';
-import { CUSTOM_FIELD_QUESTION_TYPE } from '@/components/sections/question-type-meta';
+import { isFieldAnswerable } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -56,10 +56,9 @@ function SectionExecutionInner({
     const { selectedOrganizationId } = useOrganization();
     const { setIsSectionEditing } = useOptionalEditingGuard();
     const queryClient = useQueryClient();
-    // ¿El formulario tiene al menos un campo editable? Los custom_field son solo lectura.
-    const formHasEditableFields = (sectionExecution.form_fields ?? []).some(
-        (f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE
-    );
+    // ¿El formulario tiene al menos un campo editable? Los custom_field son solo lectura,
+    // y las preguntas condicionales inactivas (can_answer === false) tampoco se pueden responder.
+    const formHasEditableFields = (sectionExecution.form_fields ?? []).some(isFieldAnswerable);
     const isFormAnswered = !!status && status !== 'pending';
     // Un formulario pendiente sin respuestas arranca directamente en modo edición.
     const [isEditing, setIsEditing] = useState(

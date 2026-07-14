@@ -1,6 +1,7 @@
 import type { TemplateItem } from './core'
 import type { DocxTemplate } from '@/types/docx-templates'
 import type { CustomFieldTemplate } from '@/types/custom-fields'
+import type { SortableSectionItem } from '@/types/sections/core'
 
 export interface TemplateContentProps {
   selectedTemplate: TemplateItem | null;
@@ -70,10 +71,10 @@ export interface TemplateInfoSheetProps {
 }
 
 export interface TemplateSectionsListProps {
-  sections: any[];
+  sections: SortableSectionItem[];
   templateId: string;
   organizationId: string;
-  onSectionsReorder: (newSections: any[]) => void;
+  onSectionsReorder: (newSections: SortableSectionItem[]) => void;
   canUpdate?: boolean;
   canDelete?: boolean;
 }

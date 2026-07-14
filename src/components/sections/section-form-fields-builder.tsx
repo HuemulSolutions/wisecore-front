@@ -36,12 +36,15 @@ import {
 interface SectionFormFieldsBuilderProps {
   value: FormFieldDraft[];
   onChange: (next: FormFieldDraft[]) => void;
+  /** Preguntas de secciones con order menor a la actual, disponibles para depends_on cross-sección. */
+  earlierSectionsFields?: SectionFormField[];
   isPending?: boolean;
 }
 
 export function SectionFormFieldsBuilder({
   value,
   onChange,
+  earlierSectionsFields = [],
   isPending,
 }: SectionFormFieldsBuilderProps) {
   const { t } = useTranslation(["sections", "custom-fields"]);
@@ -128,7 +131,8 @@ export function SectionFormFieldsBuilder({
   ): Pick<SectionFormField, "min_value" | "max_value" | "default_value"> => {
     switch (questionType) {
       case QUESTION_TYPE.multipleChoice:
-      case QUESTION_TYPE.dropdown: {
+      case QUESTION_TYPE.dropdown:
+      case QUESTION_TYPE.dropdownMultiple: {
         const prevOptions = readFieldOptions(prev);
         return {
           min_value: null,
@@ -222,7 +226,7 @@ export function SectionFormFieldsBuilder({
           variant="outline"
           onClick={addField}
           disabled={isPending}
-          className="h-7 text-xs"
+          className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
           icon={Plus}
         >
           {t("form.formFields.addQuestion")}
@@ -239,6 +243,7 @@ export function SectionFormFieldsBuilder({
                 const isDuplicate = value.some(
                   (f, i) => i !== index && f.field_id.trim() && f.field_id.trim() === field.field_id.trim(),
                 );
+                const availableDependencyFields = [...value.slice(0, index), ...earlierSectionsFields];
                 return (
                   <SectionFormFieldCard
                     key={field.__key}
@@ -247,6 +252,7 @@ export function SectionFormFieldsBuilder({
                     isDuplicate={isDuplicate}
                     questionTypes={questionTypes}
                     fetchCustomFieldOptions={fetchCustomFieldOptions}
+                    availableDependencyFields={availableDependencyFields}
                     isPending={isPending}
                     onUpdate={(patch) => updateField(index, patch)}
                     onQuestionTypeChange={(qt) => handleQuestionTypeChange(index, qt)}

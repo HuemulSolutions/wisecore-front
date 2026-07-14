@@ -1,23 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulCheckboxGroup } from "@/huemul/components/huemul-checkbox-group";
 import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
 import type { ReviewStatus } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue } from "@/types/sections/core";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
+  isFieldAnswerable,
+  isFieldVisible,
   questionTypeLabel,
   readFieldConfig,
   readFieldOptions,
+  resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
 
 interface AssetFormSectionProps {
@@ -54,10 +59,13 @@ function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
 // Arrays de objetos (opciones) y objetos planos (config) no son respuestas del usuario.
 function hasAnswer(value: unknown): boolean {
   if (value === null || value === undefined) return false;
+  // Respuesta de multi-select (lista_desplegable_multiple): array de ids seleccionados.
+  if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "object") return false;
   if (typeof value === "string") return value.trim() !== "";
   return true; // number, boolean
 }
+
 
 export function AssetFormSection({
   sectionExecutionId,
@@ -78,12 +86,10 @@ export function AssetFormSection({
     [formFields],
   );
 
-  // ¿Hay al menos un campo editable? Los custom_field son solo lectura
-  // (se gestionan en la configuración de secciones), así que un formulario
-  // compuesto solo por custom_field no permite editar respuestas.
-  const hasEditableFields = sortedFields.some(
-    (f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE,
-  );
+  // ¿Hay al menos un campo editable? Los custom_field son solo lectura y las preguntas
+  // condicionales inactivas (can_answer === false) tampoco se pueden responder, así que
+  // un formulario compuesto solo por esos no permite editar respuestas.
+  const hasEditableFields = sortedFields.some(isFieldAnswerable);
 
   const [answers, setAnswers] = useState<AnswerMap>(() => buildInitialAnswers(sortedFields));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -91,6 +97,119 @@ export function AssetFormSection({
   const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
   // URL de descarga de archivos recién subidos (para previsualizar; el placeholder no es una URL)
   const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
+  // true mientras se auto-guarda un disparador y se espera el refetch con is_visible/can_answer
+  // recalculados — feedback de "actualizando formulario" para que el cambio no se sienta instantáneo/mágico.
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const recalcTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopRecalculating = () => {
+    if (recalcTimeoutRef.current) {
+      clearTimeout(recalcTimeoutRef.current);
+      recalcTimeoutRef.current = null;
+    }
+    setIsRecalculating(false);
+  };
+
+  // field_id de esta sección referenciados por algún depends_on: son los únicos "disparadores"
+  // cuyo cambio puede afectar la visibilidad/respondibilidad de otro campo. Al cambiar uno,
+  // se auto-guarda para que el backend recalcule is_visible/can_answer (única autoridad).
+  const triggerFieldIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const f of sortedFields) {
+      for (const cond of f.depends_on ?? []) ids.add(cond.field_id);
+    }
+    return ids;
+  }, [sortedFields]);
+
+  // Presencia local: cuando un campo pasa de visible a oculto (is_visible recalculado por el
+  // backend), se lo mantiene brevemente renderizado con fade-out en vez de desaparecer de golpe.
+  // No decide la visibilidad — solo retrasa el desmontaje de lo que el backend ya ocultó.
+  const [exitingFieldIds, setExitingFieldIds] = useState<Set<string>>(new Set());
+  const prevVisibleIdsRef = useRef<Set<string>>(new Set(sortedFields.filter(isFieldVisible).map((f) => f.id)));
+  useEffect(() => {
+    const currentVisibleIds = new Set(sortedFields.filter(isFieldVisible).map((f) => f.id));
+    const newlyHidden = [...prevVisibleIdsRef.current].filter((id) => !currentVisibleIds.has(id));
+    prevVisibleIdsRef.current = currentVisibleIds;
+    if (newlyHidden.length === 0) return;
+
+    setExitingFieldIds((prev) => new Set([...prev, ...newlyHidden]));
+    const timeout = setTimeout(() => {
+      setExitingFieldIds((prev) => {
+        const next = new Set(prev);
+        newlyHidden.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 220);
+    return () => clearTimeout(timeout);
+  }, [sortedFields]);
+
+  // Campos a renderizar: visibles según el backend, más los que están saliendo con fade-out.
+  const displayedFields = useMemo(
+    () => sortedFields.filter((f) => isFieldVisible(f) || exitingFieldIds.has(f.id)),
+    [sortedFields, exitingFieldIds],
+  );
+
+  // Último valor guardado en el backend por snapshot id — evita reenviar un PATCH si el
+  // valor del disparador no cambió desde el último auto-guardado (o desde la carga inicial).
+  const lastSavedAnswersRef = useRef<AnswerMap>(buildInitialAnswers(sortedFields));
+  // Evita solapar un auto-guardado con otro (o con el guardado final del botón).
+  const autoSavingRef = useRef(false);
+
+  const editing = isEditing && canInteract && hasEditableFields;
+
+  // Auto-guarda (debounced) los campos "disparadores" de depends_on cuando cambian, para que
+  // el backend recalcule is_visible/can_answer y el usuario vea aparecer/ocultarse los campos
+  // dependientes sin tener que terminar de llenar el formulario. El front NUNCA decide por su
+  // cuenta si un campo se muestra/habilita — solo refleja lo que el backend recalcula tras esto.
+  const debouncedAnswers = useDebounce(answers, 500);
+  useEffect(() => {
+    if (!editing || uploadingFields.size > 0 || isSaving || autoSavingRef.current) return;
+    if (triggerFieldIds.size === 0) return;
+
+    const valuesEqual = (a: unknown, b: unknown): boolean =>
+      Array.isArray(a) && Array.isArray(b)
+        ? a.length === b.length && a.every((v, i) => Object.is(v, b[i]))
+        : Object.is(a, b);
+
+    const changed = sortedFields.filter(
+      (f) =>
+        !!f.field_id &&
+        triggerFieldIds.has(f.field_id) &&
+        isFieldAnswerable(f) &&
+        !valuesEqual(debouncedAnswers[f.id], lastSavedAnswersRef.current[f.id]),
+    );
+    if (changed.length === 0) return;
+
+    autoSavingRef.current = true;
+    // Indicador "actualizando…": se mantiene hasta que lleguen los formFields recalculados
+    // (ver efecto sobre `formFields` más abajo) o, si eso no ocurre, tras 5s de seguridad.
+    setIsRecalculating(true);
+    if (recalcTimeoutRef.current) clearTimeout(recalcTimeoutRef.current);
+    recalcTimeoutRef.current = setTimeout(stopRecalculating, 5000);
+    const values = changed.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
+    updateSectionFormValues(sectionExecutionId, values, organizationId)
+      .then(() => {
+        for (const f of changed) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
+        onUpdate?.();
+      })
+      .catch(() => {
+        // Best-effort: si falla, se reintenta en el próximo cambio o al guardar con el botón.
+        stopRecalculating();
+      })
+      .finally(() => {
+        autoSavingRef.current = false;
+      });
+  }, [debouncedAnswers, editing, isSaving, onUpdate, organizationId, sectionExecutionId, sortedFields, triggerFieldIds, uploadingFields]);
+
+  // Los formFields recalculados (is_visible/can_answer) llegaron vía refetch tras el auto-guardado
+  // del disparador — el "actualizando…" ya cumplió su propósito.
+  useEffect(() => {
+    stopRecalculating();
+  }, [formFields]);
+
+  // Limpia el timeout de seguridad si el componente se desmonta a mitad de un recálculo.
+  useEffect(() => () => {
+    if (recalcTimeoutRef.current) clearTimeout(recalcTimeoutRef.current);
+  }, []);
 
   const setAnswer = (fieldId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
@@ -114,8 +233,8 @@ export function AssetFormSection({
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     for (const f of sortedFields) {
-      // Los custom_field son solo lectura (su valor se gestiona en los custom fields del documento)
-      if (f.question_type === CUSTOM_FIELD_QUESTION_TYPE) continue;
+      // custom_field es solo lectura; una pregunta oculta o inactiva (según el backend) no se puede responder
+      if (!isFieldAnswerable(f)) continue;
       const v = answers[f.id];
       if (f.required && !hasAnswer(v)) {
         errs[f.id] = t("form.fill.fieldRequired");
@@ -162,8 +281,8 @@ export function AssetFormSection({
     setIsSaving(true);
     try {
       const values = sortedFields
-        // custom_field es solo lectura: su valor se gestiona en los custom fields del documento
-        .filter((f) => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE)
+        // custom_field es solo lectura; una pregunta oculta o inactiva (según el backend) no se envía
+        .filter(isFieldAnswerable)
         // archivo: solo enviar si el usuario subió uno nuevo (placeholder), no la URL existente
         .filter((f) => {
           if (f.question_type !== QUESTION_TYPE.fileUpload) return true;
@@ -173,6 +292,8 @@ export function AssetFormSection({
         .map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
       await updateSectionFormValues(sectionExecutionId, values, organizationId);
       await updateReviewStatus(sectionExecutionId, "finished" as ReviewStatus, organizationId);
+      // Sincroniza lo guardado para que el auto-guardado de disparadores no reenvíe estos valores.
+      lastSavedAnswersRef.current = { ...lastSavedAnswersRef.current, ...answers };
       toast.success(t("form.fill.saved"));
       onExitEditing();
       onUpdate?.();
@@ -198,13 +319,14 @@ export function AssetFormSection({
     );
   }
 
-  const editing = isEditing && canInteract && hasEditableFields;
-
   // ── Render de un input editable según el tipo de pregunta ──────────────────
-  const renderInput = (field: FormFieldValue) => {
+  // opts.disabled: campo activo (is_visible) pero no respondible (can_answer=false por
+  // show_when_inactive) — se muestra el input real deshabilitado, no un texto de solo lectura.
+  const renderInput = (field: FormFieldValue, opts?: { disabled?: boolean }) => {
     const cfg = readFieldConfig(field);
     const value = answers[field.id];
     const error = fieldErrors[field.id];
+    const disabled = opts?.disabled;
 
     switch (field.question_type) {
       case QUESTION_TYPE.shortAnswer:
@@ -216,6 +338,7 @@ export function AssetFormSection({
             placeholder={t("form.formFields.previewShortAnswer")}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
 
@@ -229,6 +352,7 @@ export function AssetFormSection({
             placeholder={t("form.formFields.previewLongAnswer")}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
 
@@ -241,6 +365,7 @@ export function AssetFormSection({
             placeholder={t("form.formFields.previewEmail")}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
 
@@ -258,6 +383,7 @@ export function AssetFormSection({
             value={value === null || value === undefined ? "" : (value as number)}
             onChange={(v) => setAnswer(field.id, v === "" ? null : Number(v))}
             error={error}
+            disabled={disabled}
           />
         );
       }
@@ -270,6 +396,7 @@ export function AssetFormSection({
             value={value as boolean}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
       }
@@ -284,6 +411,7 @@ export function AssetFormSection({
             options={mcOptions.map((o) => ({ value: o.id, label: o.label }))}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
       }
@@ -299,6 +427,20 @@ export function AssetFormSection({
             placeholder={t("form.fill.selectOption")}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
+          />
+        );
+      }
+
+      case QUESTION_TYPE.dropdownMultiple: {
+        const options = readFieldOptions(field);
+        return (
+          <HuemulCheckboxGroup
+            options={options.map((o) => ({ value: o.id, label: o.label }))}
+            value={Array.isArray(value) ? (value as string[]) : []}
+            onChange={(next) => setAnswer(field.id, next)}
+            error={error}
+            disabled={disabled}
           />
         );
       }
@@ -315,6 +457,7 @@ export function AssetFormSection({
             value={value as number}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
       }
@@ -328,6 +471,7 @@ export function AssetFormSection({
             value={value as number}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
       }
@@ -340,6 +484,7 @@ export function AssetFormSection({
             value={(value as string) ?? ""}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
 
@@ -352,6 +497,7 @@ export function AssetFormSection({
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
             withSeconds={false}
+            disabled={disabled}
           />
         );
 
@@ -428,7 +574,7 @@ export function AssetFormSection({
               type="file"
               label=""
               accept={accept}
-              disabled={isUploading}
+              disabled={isUploading || disabled}
               onFileChange={handleFileChange}
               error={error}
             />
@@ -455,6 +601,7 @@ export function AssetFormSection({
               value={value === null || value === undefined ? "" : (value as number)}
               onChange={(v) => setAnswer(field.id, v === "" ? null : Number(v))}
               error={error}
+              disabled={disabled}
             />
           );
         }
@@ -466,6 +613,7 @@ export function AssetFormSection({
               value={(value as string) ?? ""}
               onChange={(v) => setAnswer(field.id, v)}
               error={error}
+              disabled={disabled}
             />
           );
         }
@@ -478,6 +626,7 @@ export function AssetFormSection({
               onChange={(v) => setAnswer(field.id, v)}
               error={error}
               withSeconds={false}
+              disabled={disabled}
             />
           );
         }
@@ -488,6 +637,7 @@ export function AssetFormSection({
             value={(value as string) ?? ""}
             onChange={(v) => setAnswer(field.id, v)}
             error={error}
+            disabled={disabled}
           />
         );
       }
@@ -531,9 +681,12 @@ export function AssetFormSection({
       field.question_type === QUESTION_TYPE.dropdown
     ) {
       const options = readFieldOptions(field);
-      const selectedId = value as string;
-      const found = options.find((o) => o.id === selectedId);
-      return <span className="text-sm text-gray-800">{found ? found.label : selectedId}</span>;
+      return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
+    }
+
+    if (field.question_type === QUESTION_TYPE.dropdownMultiple) {
+      const options = readFieldOptions(field);
+      return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
     }
 
     if (field.question_type === QUESTION_TYPE.fileUpload) {
@@ -590,9 +743,7 @@ export function AssetFormSection({
       }
       if (field.data_type === "list") {
         const options = readFieldOptions(field);
-        const selectedId = String(value);
-        const found = options.find((o) => o.id === selectedId);
-        return <span className="text-sm text-gray-800">{found ? found.label : selectedId}</span>;
+        return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
       }
       // date / time / numéricos / string → caen al manejo genérico de abajo
     }
@@ -628,7 +779,15 @@ export function AssetFormSection({
       {/* Barra de guardar/cancelar, arriba, igual que al editar contenido Plate */}
       {editing && (
         <div className="sticky top-9 z-40 mb-4 flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-sm shadow-sm">
-          <span className="text-xs text-gray-400">{t("form.fill.requiredFieldsNote")}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400">{t("form.fill.requiredFieldsNote")}</span>
+            {isRecalculating && (
+              <span className="flex items-center gap-1.5 text-xs text-gray-400 animate-in fade-in duration-200">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {t("form.fill.recalculating")}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <HuemulButton
               variant="outline"
@@ -652,10 +811,22 @@ export function AssetFormSection({
       )}
 
       <div className="space-y-5">
-        {sortedFields.map((field, index) => {
+        {displayedFields.map((field, index) => {
           const typeHint = questionTypeLabel(field.question_type ?? "", t);
+          const isExiting = exitingFieldIds.has(field.id);
+          // Campo cuya respuesta puede mostrar/ocultar otras preguntas (referenciado en algún depends_on).
+          const isTriggerField =
+            editing && !!field.field_id && triggerFieldIds.has(field.field_id) && isFieldAnswerable(field);
           return (
-            <div key={field.id || index} className="space-y-2">
+            <div
+              key={field.id || index}
+              className={cn(
+                "space-y-2",
+                isExiting
+                  ? "pointer-events-none animate-out fade-out slide-out-to-top-2 duration-200"
+                  : "animate-in fade-in slide-in-from-top-2 duration-300",
+              )}
+            >
               <label className="flex items-baseline gap-1.5 text-sm font-semibold text-gray-900">
                 <span>
                   {field.field_name}
@@ -663,7 +834,17 @@ export function AssetFormSection({
                 </span>
                 {typeHint && <span className="text-xs font-normal text-gray-400">· {typeHint}</span>}
               </label>
-              {editing ? renderInput(field) : renderReadOnly(field)}
+              {editing && isFieldAnswerable(field)
+                ? renderInput(field)
+                : editing && isFieldVisible(field) && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
+                  ? renderInput(field, { disabled: true })
+                  : renderReadOnly(field)}
+              {isTriggerField && (
+                <p className="flex items-center gap-1 text-xs text-gray-400">
+                  <Info className="h-3 w-3 shrink-0" />
+                  {t("form.fill.triggerHint")}
+                </p>
+              )}
             </div>
           );
         })}
