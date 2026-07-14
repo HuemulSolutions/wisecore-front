@@ -24,13 +24,15 @@ function emptyValue(def: HuemulFilterDef): HuemulFilterValue {
       return undefined
     case 'async-combobox':
       return def.multiSelect ? [] : ''
+    case 'custom':
+      return def.multiEntry ? [] : ''
     default:
       return ''
   }
 }
 
 /** Whether a value counts as an active (applied) filter. */
-function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
+export function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
   switch (def.type) {
     case 'select':
       return typeof value === 'string' && value !== '' && value !== def.allValue
@@ -46,6 +48,7 @@ function isActive(def: HuemulFilterDef, value: HuemulFilterValue): boolean {
       return !!(v && (v.date || v.from || v.to))
     }
     case 'custom':
+      if (def.multiEntry) return Array.isArray(value) && value.length > 0
       return typeof value === 'string' && value.trim() !== ''
     default:
       return false
@@ -103,6 +106,21 @@ export function useHuemulFilters({
 
   const clearValue = useCallback(
     (key: string) => {
+      // Composite chip key from a multiEntry `custom` filter: `${defKey}::${entry}`.
+      // Remove just that one entry instead of clearing the whole filter.
+      const sep = key.indexOf('::')
+      if (sep !== -1) {
+        const baseKey = key.slice(0, sep)
+        const entry = key.slice(sep + 2)
+        const def = defsByKey.get(baseKey)
+        if (def?.type === 'custom' && def.multiEntry) {
+          setValues((prev) => {
+            const current = Array.isArray(prev[baseKey]) ? (prev[baseKey] as string[]) : []
+            return { ...prev, [baseKey]: current.filter((v) => v !== entry) }
+          })
+          return
+        }
+      }
       const def = defsByKey.get(key)
       setValues((prev) => ({ ...prev, [key]: def ? emptyValue(def) : '' }))
       setSelectedLabel(key, undefined)
@@ -121,6 +139,18 @@ export function useHuemulFilters({
       if (def.toolbar || def.hidden) continue
       const value = values[def.key]
       if (!isActive(def, value)) continue
+
+      // multiEntry `custom` filters: each entry is independent and renders as
+      // its own removable chip (composite key `${def.key}::${entry}`), instead
+      // of a single chip for the whole array.
+      if (def.type === 'custom' && def.multiEntry && Array.isArray(value)) {
+        for (const entry of value as string[]) {
+          const sep = entry.indexOf(':')
+          const label = sep === -1 ? `${def.label}: ${entry}` : `${def.label}: ${entry.slice(0, sep)} = ${entry.slice(sep + 1)}`
+          result.push({ key: `${def.key}::${entry}`, label })
+        }
+        continue
+      }
 
       let label: string
       switch (def.type) {
