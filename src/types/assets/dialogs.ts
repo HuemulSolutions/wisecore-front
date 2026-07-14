@@ -186,6 +186,16 @@ export interface ImportAssetFromFileSheetProps {
 }
 
 // ----------------------------------------
+// Import Configuration (JSON migration)
+// ----------------------------------------
+
+export interface ImportConfigSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onImported?: () => void
+}
+
+// ----------------------------------------
 // Rename Version
 // ----------------------------------------
 

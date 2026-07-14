@@ -38,7 +38,7 @@ import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
+import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
@@ -1548,6 +1548,17 @@ export function AssetContent({
     }
   };
 
+  // Handle export version configuration (JSON) — reusable via import-config
+  const handleExportVersion = async () => {
+    const executionId = selectedExecutionId || documentContent?.execution_id;
+    if (!executionId || !selectedOrganizationId) return;
+    try {
+      await exportDocuments(selectedOrganizationId, { execution_ids: [executionId] });
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
+    }
+  };
+
   // Handle add custom field document
   const handleAddCustomFieldDocument = () => {
     setIsAddCustomFieldDocumentDialogOpen(true);
@@ -2496,6 +2507,7 @@ export function AssetContent({
                             onExportWord={handleExportWord}
                             onExportCustomWord={handleExportCustomWord}
                             onExportExcel={handleExportExcel}
+                            onExportVersion={handleExportVersion}
                             onDeleteVersion={() => openDeleteDialog('execution')}
                             onDeleteDocument={() => openDeleteDialog('document')}
                             isRerunningExternalPublish={runExternalPublishMutation.isPending}

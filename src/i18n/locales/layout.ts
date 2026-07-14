@@ -38,6 +38,7 @@ const translations = {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },
     newAsset: { en: "New Asset", es: "Nuevo Activo" },
     importAsset: { en: "New Asset from File", es: "Nuevo Activo desde Archivo" },
+    importConfig: { en: "Import portable", es: "Importar portable" },
     newFolder: { en: "New Folder", es: "Nueva Carpeta" },
     newArea: { en: "New Area", es: "Nueva Área" },
     shareFolder: { en: "Share", es: "Compartir" },
@@ -79,9 +80,6 @@ const translations = {
     relationsMode: { en: "Relations", es: "Relaciones" },
     relationsModeTitle: { en: "Relations", es: "Relaciones" },
     relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
-    exportModeTooltip: { en: "Export mode", es: "Modo exportación" },
-    exportSelectedCount: { en: "{{count}} versions selected", es: "{{count}} versiones seleccionadas" },
-    exportError: { en: "Error exporting documents", es: "Error al exportar documentos" },
     errors: {
       folderNotAccessible: {
         en: "You don't have access to this folder",
