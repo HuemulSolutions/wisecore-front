@@ -3,13 +3,13 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Plus } from "lucide-react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField, HuemulFieldGroup } from "@/huemul/components/huemul-field"
 import { useExternalSystemMutations } from "@/hooks/useExternalSystems"
 import type { CreateExternalSystemRequest, ExternalSystemStatus } from "@/types/external-systems"
-import type { ExternalSystemCreateDialogProps } from "@/types/external-systems"
+import type { ExternalSystemCreateSheetProps } from "@/types/external-systems"
 
-export type { ExternalSystemCreateDialogProps } from "@/types/external-systems"
+export type { ExternalSystemCreateSheetProps } from "@/types/external-systems"
 
 const INITIAL_FORM: CreateExternalSystemRequest = {
   name: "",
@@ -17,11 +17,11 @@ const INITIAL_FORM: CreateExternalSystemRequest = {
   status: "active",
 }
 
-export function ExternalSystemCreateDialog({
+export function ExternalSystemCreateSheet({
   open,
   onOpenChange,
   organizationId,
-}: ExternalSystemCreateDialogProps) {
+}: ExternalSystemCreateSheetProps) {
   const { t } = useTranslation(["external-systems", "common"])
   const [formData, setFormData] = useState<CreateExternalSystemRequest>(INITIAL_FORM)
   const { createExternalSystem } = useExternalSystemMutations(organizationId)
@@ -49,12 +49,13 @@ export function ExternalSystemCreateDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t("create.title")}
       icon={Plus}
-      maxWidth="sm:max-w-md"
+      maxWidth="sm:max-w-lg"
+      cancelLabel={t("common:cancel")}
       saveAction={{
         label: t("create.submitLabel"),
         onClick: handleSubmit,
@@ -88,7 +89,6 @@ export function ExternalSystemCreateDialog({
           placeholder={t("form.statusPlaceholder")}
         />
       </HuemulFieldGroup>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }
-
