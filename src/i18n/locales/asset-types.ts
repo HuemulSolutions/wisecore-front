@@ -177,6 +177,12 @@ const translations = {
     groupNameLabel: { en: "Group name", es: "Nombre del grupo" },
     groupNamePlaceholder: { en: "Group name...", es: "Nombre del grupo..." },
     slaValuePlaceholder: { en: "Value", es: "Valor" },
+    modeLabel: { en: "Step type", es: "Tipo de paso" },
+    modeManual: { en: "Manual", es: "Manual" },
+    modeAutomatic: { en: "Automatic", es: "Automático" },
+    modeManualDesc: { en: "Configure SLA and who can {{action}}.", es: "Configura el SLA y quién puede {{action}}." },
+    modeAutomaticDesc: { en: "Runs external functionalities automatically when reached.", es: "Ejecuta funcionalidades externas automáticamente al alcanzar este paso." },
+    automaticCreateHint: { en: "You'll be able to add functionalities after creating the step.", es: "Podrás agregar funcionalidades después de crear el paso." },
     slaUnits: {
       hours: { en: "Hours", es: "Horas" },
       days: { en: "Days", es: "Días" },

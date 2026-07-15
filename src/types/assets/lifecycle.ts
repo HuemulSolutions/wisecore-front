@@ -73,6 +73,7 @@ export interface AssetLifecycleSheetProps {
 export interface EditStepCardData {
   id: string
   name: string
+  mode: "manual" | "automatic"
   hasSla: boolean
   slaValue: string
   slaUnit: string

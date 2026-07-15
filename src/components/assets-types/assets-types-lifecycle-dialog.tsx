@@ -292,7 +292,7 @@ export default function AssetTypeLifecycleDialog({
       })}
       icon={Activity}
       showFooter={false}
-      maxWidth="sm:max-w-5xl"
+      maxWidth="sm:max-w-7xl"
     >
       <div className="flex flex-col gap-4 py-2">
         {/* Step type badge selector */}

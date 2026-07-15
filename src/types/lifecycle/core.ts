@@ -30,6 +30,7 @@ export interface LifecycleStep {
   type: string;
   name: string | null;
   order: number | null;
+  mode: 'manual' | 'automatic';
   access_type: 'all' | 'owner' | 'custom' | 'custom_owner';
   valid_from: string | null;
   valid_to: string | null;
@@ -54,6 +55,7 @@ export interface UpdateLifecycleStepData {
   access_type?: 'all' | 'owner' | 'custom' | 'custom_owner';
   name?: string;
   order?: number;
+  mode?: 'manual' | 'automatic';
   valid_from?: string | null;
   valid_to?: string | null;
   sla_value?: number | null;
@@ -79,6 +81,7 @@ export interface CreateLifecycleStepData {
   type: string;
   name?: string;
   order?: number;
+  mode?: 'manual' | 'automatic';
   access_type?: string;
   valid_from?: string | null;
   valid_to?: string | null;

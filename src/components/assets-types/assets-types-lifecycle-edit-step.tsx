@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { X, GripVertical, Trash2, Plus, Pencil, Save, Ban } from "lucide-react"
+import { X, GripVertical, Trash2, Plus, Pencil, Save, Ban, ChevronDown } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -16,7 +16,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
@@ -41,6 +41,7 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
   return {
     id: step.id,
     name: step.name ?? "",
+    mode: step.mode ?? "manual",
     hasSla: step.sla_value != null,
     slaValue: step.sla_value != null ? String(step.sla_value) : "",
     slaUnit: step.sla_unit ?? "",
@@ -73,11 +74,17 @@ function EditStepCard({
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [snapshot, setSnapshot] = useState<EditStepCardData | null>(null)
+  const [isExpanded, setIsExpanded] = useState(true)
 
   const assignedRoles = allRoles.filter((r) => card.roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !card.roleIds.includes(r.id))
   const ro = !isEditing
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
+
+  const toggleExpanded = () => {
+    if (isEditing) return
+    setIsExpanded((prev) => !prev)
+  }
 
   const handleCheckClick = async () => {
     if (isEditing) {
@@ -93,6 +100,7 @@ function EditStepCard({
     } else {
       setSnapshot({ ...card })
       setIsEditing(true)
+      setIsExpanded(true)
       onEditingChange?.(true)
     }
   }
@@ -108,10 +116,12 @@ function EditStepCard({
     <div
       className={cn(
         "flex flex-col gap-3 rounded-md border bg-background p-4 shadow-sm transition-colors",
-        isEditing ? "border-primary/50" : "border-border"
+        isEditing ? "border-primary/50" : "border-border",
+        !isEditing && "hover:cursor-pointer"
       )}
+      onClick={toggleExpanded}
     >
-      {/* Header: drag handle + name + edit/confirm + cancel + delete */}
+      {/* Header: drag handle + name + edit/confirm + cancel + delete + expand toggle — always visible */}
       <div className="flex items-center gap-2">
         {dragHandleProps && (
           <button
@@ -119,209 +129,241 @@ function EditStepCard({
             className="text-muted-foreground hover:text-foreground hover:cursor-grab active:cursor-grabbing shrink-0"
             aria-label="Drag to reorder"
             {...dragHandleProps}
+            onClick={(e) => e.stopPropagation()}
           >
             <GripVertical className="w-4 h-4" />
           </button>
         )}
-        <HuemulField
-          type="text"
-          label=""
-          name={`card-name-${card.id}`}
-          value={card.name}
-          onChange={(v) => onChange({ name: String(v) })}
-          placeholder={t("lifecycle.groupNamePlaceholder")}
-          disabled={ro}
-          inputClassName={cn(
-            "h-7 border-0 shadow-none px-0 focus-visible:ring-0 font-medium",
-            ro && "cursor-default"
-          )}
-          className="flex-1"
-        />
-        {isEditing ? (
-          <>
-            <HuemulButton
-              icon={Ban}
-              label={t("common:cancel")}
-              variant="ghost"
-              onClick={handleCancel}
-              disabled={isSaving}
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            />
-            <HuemulButton
-              icon={Save}
-              label={t("common:save")}
-              variant="default"
-              onClick={handleCheckClick}
-              loading={isSaving}
-              disabled={isSaving}
-            />
-          </>
-        ) : (
-          <HuemulButton
-            icon={Pencil}
-            label={t("common:edit")}
-            variant="ghost"
-            onClick={handleCheckClick}
-            className="text-muted-foreground"
-          />
-        )}
-        <HuemulButton
-          icon={Trash2}
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          disabled={isDeleting || !canDelete}
-          tooltip={t("lifecycle.deleteGroup")}
-          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        />
-      </div>
-
-      <div className="h-px bg-border" />
-
-      {/* SLA */}
-      <div className="flex flex-col gap-2">
-        <HuemulField
-          type="switch"
-          label={t("lifecycle.slaLabel")}
-          name={`sla-toggle-${card.id}`}
-          value={card.hasSla}
-          onChange={(v) =>
-            onChange({
-              hasSla: Boolean(v),
-              slaValue: v ? card.slaValue : "",
-              slaUnit: v ? card.slaUnit : "",
-            })
-          }
-          disabled={ro}
-          labelFirst
-        />
-        {card.hasSla && (
-          <div className="flex items-center gap-2 pl-1">
-            <HuemulField
-              type="number"
-              label=""
-              name={`sla-value-${card.id}`}
-              value={card.slaValue}
-              min={1}
-              onChange={(v) => onChange({ slaValue: String(v) })}
-              placeholder={t("lifecycle.slaValuePlaceholder")}
-              disabled={ro}
-              className="w-20"
-              inputClassName="h-8 text-sm"
-            />
-            <HuemulField
-              type="select"
-              label=""
-              name={`sla-unit-${card.id}`}
-              value={card.slaUnit}
-              options={slaUnitOptions}
-              onChange={(v) => onChange({ slaUnit: String(v) })}
-              disabled={ro}
-              className="w-40"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Allow anyone switch */}
-      <HuemulField
-        type="switch"
-        label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-        name={`access-all-${card.id}`}
-        value={card.accessType === "all"}
-        onChange={(v) => {
-          if (v) {
-            onChange({ accessType: "all", ownerCanExecute: false, roleIds: [] })
-          } else {
-            onChange({ accessType: "owner", ownerCanExecute: true, roleIds: [] })
-          }
-        }}
-        disabled={ro}
-        labelFirst
-      />
-
-      {/* When not "all": owner switch + role picker */}
-      {card.accessType !== "all" && (
-        <>
+        <div className="flex-1" onClick={(e) => e.stopPropagation()}>
           <HuemulField
-            type="switch"
-            label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
-            name={`access-owner-${card.id}`}
-            value={card.ownerCanExecute}
-            onChange={(v) => {
-              const newOwner = Boolean(v)
-              const newAccessType =
-                card.roleIds.length > 0
-                  ? newOwner ? "custom_owner" : "custom"
-                  : "owner"
-              onChange({ ownerCanExecute: newOwner, accessType: newAccessType })
-            }}
+            type="text"
+            label=""
+            name={`card-name-${card.id}`}
+            value={card.name}
+            onChange={(v) => onChange({ name: String(v) })}
+            placeholder={t("lifecycle.groupNamePlaceholder")}
             disabled={ro}
-            labelFirst
-          />
-
-          <HuemulField
-            type="combobox"
-            label={t("lifecycle.addRole", { action: stepAction })}
-            name={`role-${card.id}`}
-            placeholder={t("lifecycle.addRolePlaceholder")}
-            value=""
-            options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
-            onChange={(roleId) => {
-              if (!roleId) return
-              const role = allRoles.find((r) => r.id === roleId)
-              const newRoleIds = [...card.roleIds, String(roleId)]
-              const newAccessType = card.ownerCanExecute ? "custom_owner" : "custom"
-              onChange({
-                roleIds: newRoleIds,
-                roleNames: {
-                  ...card.roleNames,
-                  [String(roleId)]: role?.name ?? String(roleId),
-                },
-                accessType: newAccessType,
-              })
-            }}
-            disabled={ro}
-          >
-            {assignedRoles.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {assignedRoles.map((r) => (
-                  <Badge
-                    key={r.id}
-                    variant="secondary"
-                    className="flex items-center gap-1 pr-1.5"
-                  >
-                    <span className="text-xs">{r.name}</span>
-                    {!ro && (
-                      <button
-                        type="button"
-                        className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                        onClick={() => {
-                          const newRoleIds = card.roleIds.filter((id) => id !== r.id)
-                          const newAccessType =
-                            newRoleIds.length > 0
-                              ? card.ownerCanExecute ? "custom_owner" : "custom"
-                              : "owner"
-                          onChange({ roleIds: newRoleIds, accessType: newAccessType })
-                        }}
-                        aria-label={`Remove ${r.name}`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </Badge>
-                ))}
-              </div>
+            inputClassName={cn(
+              "h-7 border-0 shadow-none px-0 focus-visible:ring-0 font-medium",
+              ro && "cursor-default"
             )}
-          </HuemulField>
-        </>
-      )}
+          />
+        </div>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {isEditing ? (
+            <>
+              <HuemulButton
+                icon={Ban}
+                label={t("common:cancel")}
+                variant="ghost"
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              />
+              <HuemulButton
+                icon={Save}
+                label={t("common:save")}
+                variant="default"
+                onClick={handleCheckClick}
+                loading={isSaving}
+                disabled={isSaving}
+              />
+            </>
+          ) : (
+            <HuemulButton
+              icon={Pencil}
+              label={t("common:edit")}
+              variant="ghost"
+              onClick={handleCheckClick}
+              className="text-muted-foreground"
+            />
+          )}
+          <HuemulButton
+            icon={Trash2}
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            disabled={isDeleting || !canDelete}
+            tooltip={t("lifecycle.deleteGroup")}
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          />
+        </div>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform shrink-0",
+            isExpanded && "rotate-180"
+          )}
+        />
+      </div>
 
-      {/* External review actions — only for edit/review steps */}
-      {(stepType === "edit" || stepType === "review") && organizationId && (
+      {isExpanded && (
         <>
           <div className="h-px bg-border" />
-          <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} />
+
+          {/* Mode selector — only for edit/review steps (approve stays manual-only) */}
+          {(stepType === "edit" || stepType === "review") && (
+            <HuemulField
+              type="radio"
+              label={t("lifecycle.modeLabel")}
+              name={`mode-${card.id}`}
+              value={card.mode}
+              options={[
+                { value: "manual", label: t("lifecycle.modeManual") },
+                { value: "automatic", label: t("lifecycle.modeAutomatic") },
+              ]}
+              onChange={(v) => onChange({ mode: v as "manual" | "automatic" })}
+              disabled={ro}
+            />
+          )}
+
+          {/* Manual mode: SLA + access configuration */}
+          {card.mode === "manual" && (
+            <>
+              {/* SLA */}
+              <div className="flex flex-col gap-2">
+                <HuemulField
+                  type="switch"
+                  label={t("lifecycle.slaLabel")}
+                  name={`sla-toggle-${card.id}`}
+                  value={card.hasSla}
+                  onChange={(v) =>
+                    onChange({
+                      hasSla: Boolean(v),
+                      slaValue: v ? card.slaValue : "",
+                      slaUnit: v ? card.slaUnit : "",
+                    })
+                  }
+                  disabled={ro}
+                  labelFirst
+                />
+                {card.hasSla && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <HuemulField
+                      type="number"
+                      label=""
+                      name={`sla-value-${card.id}`}
+                      value={card.slaValue}
+                      min={1}
+                      onChange={(v) => onChange({ slaValue: String(v) })}
+                      placeholder={t("lifecycle.slaValuePlaceholder")}
+                      disabled={ro}
+                      className="w-20"
+                      inputClassName="h-8 text-sm"
+                    />
+                    <HuemulField
+                      type="select"
+                      label=""
+                      name={`sla-unit-${card.id}`}
+                      value={card.slaUnit}
+                      options={slaUnitOptions}
+                      onChange={(v) => onChange({ slaUnit: String(v) })}
+                      disabled={ro}
+                      className="w-40"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Allow anyone switch */}
+              <HuemulField
+                type="switch"
+                label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
+                name={`access-all-${card.id}`}
+                value={card.accessType === "all"}
+                onChange={(v) => {
+                  if (v) {
+                    onChange({ accessType: "all", ownerCanExecute: false, roleIds: [] })
+                  } else {
+                    onChange({ accessType: "owner", ownerCanExecute: true, roleIds: [] })
+                  }
+                }}
+                disabled={ro}
+                labelFirst
+              />
+
+              {/* When not "all": owner switch + role picker */}
+              {card.accessType !== "all" && (
+                <>
+                  <HuemulField
+                    type="switch"
+                    label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
+                    name={`access-owner-${card.id}`}
+                    value={card.ownerCanExecute}
+                    onChange={(v) => {
+                      const newOwner = Boolean(v)
+                      const newAccessType =
+                        card.roleIds.length > 0
+                          ? newOwner ? "custom_owner" : "custom"
+                          : "owner"
+                      onChange({ ownerCanExecute: newOwner, accessType: newAccessType })
+                    }}
+                    disabled={ro}
+                    labelFirst
+                  />
+
+                  <HuemulField
+                    type="combobox"
+                    label={t("lifecycle.addRole", { action: stepAction })}
+                    name={`role-${card.id}`}
+                    placeholder={t("lifecycle.addRolePlaceholder")}
+                    value=""
+                    options={availableRoles.map((r) => ({ value: r.id, label: r.name }))}
+                    onChange={(roleId) => {
+                      if (!roleId) return
+                      const role = allRoles.find((r) => r.id === roleId)
+                      const newRoleIds = [...card.roleIds, String(roleId)]
+                      const newAccessType = card.ownerCanExecute ? "custom_owner" : "custom"
+                      onChange({
+                        roleIds: newRoleIds,
+                        roleNames: {
+                          ...card.roleNames,
+                          [String(roleId)]: role?.name ?? String(roleId),
+                        },
+                        accessType: newAccessType,
+                      })
+                    }}
+                    disabled={ro}
+                  >
+                    {assignedRoles.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {assignedRoles.map((r) => (
+                          <Badge
+                            key={r.id}
+                            variant="secondary"
+                            className="flex items-center gap-1 pr-1.5"
+                          >
+                            <span className="text-xs">{r.name}</span>
+                            {!ro && (
+                              <button
+                                type="button"
+                                className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
+                                onClick={() => {
+                                  const newRoleIds = card.roleIds.filter((id) => id !== r.id)
+                                  const newAccessType =
+                                    newRoleIds.length > 0
+                                      ? card.ownerCanExecute ? "custom_owner" : "custom"
+                                      : "owner"
+                                  onChange({ roleIds: newRoleIds, accessType: newAccessType })
+                                }}
+                                aria-label={`Remove ${r.name}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </HuemulField>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Automatic mode: external functionalities table — only for edit/review steps */}
+          {card.mode === "automatic" && (stepType === "edit" || stepType === "review") && organizationId && (
+            <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} />
+          )}
         </>
       )}
     </div>
@@ -376,6 +418,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [addGroupOpen, setAddGroupOpen] = useState(false)
   const [newGroupName, setNewGroupName] = useState("")
+  const [newGroupMode, setNewGroupMode] = useState<"manual" | "automatic">("manual")
   const [newGroupHasSla, setNewGroupHasSla] = useState(false)
   const [newGroupSlaValue, setNewGroupSlaValue] = useState("")
   const [newGroupSlaUnit, setNewGroupSlaUnit] = useState("")
@@ -421,8 +464,12 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   }
 
   const handleAddGroup = async () => {
+    const isAutomatic =
+      (stepType === "edit" || stepType === "review") && newGroupMode === "automatic"
     let access_type: string
-    if (newGroupAccessType === "all") {
+    if (isAutomatic) {
+      access_type = "owner"
+    } else if (newGroupAccessType === "all") {
       access_type = "all"
     } else if (newGroupOwnerCanExecute && newGroupRoleIds.length > 0) {
       access_type = "custom_owner"
@@ -434,14 +481,16 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
     const res = await createStep.mutateAsync({
       type: stepType,
       name: newGroupName.trim() || t("lifecycle.newGroupName"),
+      mode: isAutomatic ? "automatic" : "manual",
       access_type,
       order: localSteps.length + 1,
-      sla_value: newGroupHasSla ? Number(newGroupSlaValue) || null : null,
-      sla_unit: newGroupHasSla ? newGroupSlaUnit || null : null,
-      ...(access_type !== "all" && access_type !== "owner" && { role_ids: newGroupRoleIds }),
+      sla_value: !isAutomatic && newGroupHasSla ? Number(newGroupSlaValue) || null : null,
+      sla_unit: !isAutomatic && newGroupHasSla ? newGroupSlaUnit || null : null,
+      ...(!isAutomatic && access_type !== "all" && access_type !== "owner" && { role_ids: newGroupRoleIds }),
     })
     setLocalSteps((prev) => [...prev, stepToCard(res.data)])
     setNewGroupName("")
+    setNewGroupMode("manual")
   }
 
   if (isLoading) {
@@ -473,6 +522,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
           type="button"
           onClick={() => {
             setNewGroupName("")
+            setNewGroupMode("manual")
             setNewGroupHasSla(false)
             setNewGroupSlaValue("")
             setNewGroupSlaUnit("")
@@ -515,19 +565,21 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
                 onSave={async () => {
                   const currentCard = localSteps.find((c) => c.id === card.id)!
                   const index = localSteps.findIndex((c) => c.id === card.id)
+                  const isAutomatic = currentCard.mode === "automatic"
                   await updateStep.mutateAsync({
                     stepId: currentCard.id,
                     data: {
                       name: currentCard.name || undefined,
                       order: index + 1,
-                      sla_value: currentCard.hasSla
+                      mode: currentCard.mode,
+                      sla_value: !isAutomatic && currentCard.hasSla
                         ? Number(currentCard.slaValue) || null
                         : null,
-                      sla_unit: currentCard.hasSla
+                      sla_unit: !isAutomatic && currentCard.hasSla
                         ? currentCard.slaUnit || null
                         : null,
-                      access_type: currentCard.accessType,
-                      ...(currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
+                      access_type: isAutomatic ? "owner" : currentCard.accessType,
+                      ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
                         role_ids: currentCard.roleIds,
                       }),
                     },
@@ -553,11 +605,12 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
         onAction={() => handleDelete(deleteConfirmId!)}
       />
 
-      {/* Add group dialog */}
-      <HuemulDialog
+      {/* Add group sheet */}
+      <HuemulSheet
         open={addGroupOpen}
         onOpenChange={setAddGroupOpen}
         title={t("lifecycle.addGroupTitle")}
+        icon={Plus}
         maxWidth="sm:max-w-md"
         saveAction={{
           label: t("common:add"),
@@ -575,119 +628,141 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
             placeholder={t("lifecycle.groupNamePlaceholder")}
           />
 
-          <div className="flex flex-col gap-2">
+          {(stepType === "edit" || stepType === "review") && (
             <HuemulField
-              type="switch"
-              label={t("lifecycle.slaLabel")}
-              name="new-group-sla"
-              value={newGroupHasSla}
-              onChange={(v) => {
-                setNewGroupHasSla(Boolean(v))
-                if (!v) {
-                  setNewGroupSlaValue("")
-                  setNewGroupSlaUnit("")
-                }
-              }}
-              labelFirst
-            />
-            {newGroupHasSla && (
-              <div className="flex items-center gap-2 pl-1">
-                <HuemulField
-                  type="number"
-                  label=""
-                  name="new-group-sla-value"
-                  value={newGroupSlaValue}
-                  min={1}
-                  onChange={(v) => setNewGroupSlaValue(String(v))}
-                  placeholder={t("lifecycle.slaValuePlaceholder")}
-                  className="w-20"
-                  inputClassName="h-8 text-sm"
-                />
-                <HuemulField
-                  type="select"
-                  label=""
-                  name="new-group-sla-unit"
-                  value={newGroupSlaUnit}
-                  options={slaUnitOptions}
-                  onChange={(v) => setNewGroupSlaUnit(String(v))}
-                  className="w-32"
-                />
-              </div>
-            )}
-          </div>
-
-          {stepType !== "review" && stepType !== "approve" && (
-            <HuemulField
-              type="switch"
-              label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
-              name="new-group-access-all"
-              value={newGroupAccessType === "all"}
-              onChange={(v) => {
-                setNewGroupAccessType(v ? "all" : "custom_owner")
-                setNewGroupOwnerCanExecute(true)
-                setNewGroupRoleIds([])
-              }}
-              labelFirst
+              type="radio"
+              label={t("lifecycle.modeLabel")}
+              name="new-group-mode"
+              value={newGroupMode}
+              options={[
+                { value: "manual", label: t("lifecycle.modeManual") },
+                { value: "automatic", label: t("lifecycle.modeAutomatic") },
+              ]}
+              onChange={(v) => setNewGroupMode(v as "manual" | "automatic")}
             />
           )}
 
-          {newGroupAccessType !== "all" && (
+          {newGroupMode === "automatic" ? (
+            <p className="text-sm text-muted-foreground">
+              {t("lifecycle.automaticCreateHint")}
+            </p>
+          ) : (
             <>
-              <HuemulField
-                type="switch"
-                label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
-                name="new-group-access-owner"
-                value={newGroupOwnerCanExecute}
-                onChange={(v) => setNewGroupOwnerCanExecute(Boolean(v))}
-                labelFirst
-              />
-
-              <HuemulField
-                type="combobox"
-                label={t("lifecycle.addRole", { action: stepAction })}
-                name="new-group-role"
-                placeholder={t("lifecycle.addRolePlaceholder")}
-                value=""
-                options={allRoles
-                  .filter((r) => !newGroupRoleIds.includes(r.id))
-                  .map((r) => ({ value: r.id, label: r.name }))}
-                onChange={(roleId) => {
-                  if (!roleId) return
-                  setNewGroupRoleIds((prev) => [...prev, String(roleId)])
-                }}
-              >
-                {newGroupRoleIds.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {allRoles
-                      .filter((r) => newGroupRoleIds.includes(r.id))
-                      .map((r) => (
-                        <Badge
-                          key={r.id}
-                          variant="secondary"
-                          className="flex items-center gap-1 pr-1.5"
-                        >
-                          <span className="text-xs">{r.name}</span>
-                          <button
-                            type="button"
-                            className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
-                            onClick={() =>
-                              setNewGroupRoleIds((prev) =>
-                                prev.filter((id) => id !== r.id)
-                              )
-                            }
-                            aria-label={`Remove ${r.name}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ))}
+              <div className="flex flex-col gap-2">
+                <HuemulField
+                  type="switch"
+                  label={t("lifecycle.slaLabel")}
+                  name="new-group-sla"
+                  value={newGroupHasSla}
+                  onChange={(v) => {
+                    setNewGroupHasSla(Boolean(v))
+                    if (!v) {
+                      setNewGroupSlaValue("")
+                      setNewGroupSlaUnit("")
+                    }
+                  }}
+                  labelFirst
+                />
+                {newGroupHasSla && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <HuemulField
+                      type="number"
+                      label=""
+                      name="new-group-sla-value"
+                      value={newGroupSlaValue}
+                      min={1}
+                      onChange={(v) => setNewGroupSlaValue(String(v))}
+                      placeholder={t("lifecycle.slaValuePlaceholder")}
+                      className="w-20"
+                      inputClassName="h-8 text-sm"
+                    />
+                    <HuemulField
+                      type="select"
+                      label=""
+                      name="new-group-sla-unit"
+                      value={newGroupSlaUnit}
+                      options={slaUnitOptions}
+                      onChange={(v) => setNewGroupSlaUnit(String(v))}
+                      className="w-32"
+                    />
                   </div>
                 )}
-              </HuemulField>
+              </div>
+
+              {stepType !== "review" && stepType !== "approve" && (
+                <HuemulField
+                  type="switch"
+                  label={t("lifecycle.allowAnyoneLabel", { action: stepAction })}
+                  name="new-group-access-all"
+                  value={newGroupAccessType === "all"}
+                  onChange={(v) => {
+                    setNewGroupAccessType(v ? "all" : "custom_owner")
+                    setNewGroupOwnerCanExecute(true)
+                    setNewGroupRoleIds([])
+                  }}
+                  labelFirst
+                />
+              )}
+
+              {newGroupAccessType !== "all" && (
+                <>
+                  <HuemulField
+                    type="switch"
+                    label={t("lifecycle.ownerCanExecuteLabel", { action: stepAction })}
+                    name="new-group-access-owner"
+                    value={newGroupOwnerCanExecute}
+                    onChange={(v) => setNewGroupOwnerCanExecute(Boolean(v))}
+                    labelFirst
+                  />
+
+                  <HuemulField
+                    type="combobox"
+                    label={t("lifecycle.addRole", { action: stepAction })}
+                    name="new-group-role"
+                    placeholder={t("lifecycle.addRolePlaceholder")}
+                    value=""
+                    options={allRoles
+                      .filter((r) => !newGroupRoleIds.includes(r.id))
+                      .map((r) => ({ value: r.id, label: r.name }))}
+                    onChange={(roleId) => {
+                      if (!roleId) return
+                      setNewGroupRoleIds((prev) => [...prev, String(roleId)])
+                    }}
+                  >
+                    {newGroupRoleIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {allRoles
+                          .filter((r) => newGroupRoleIds.includes(r.id))
+                          .map((r) => (
+                            <Badge
+                              key={r.id}
+                              variant="secondary"
+                              className="flex items-center gap-1 pr-1.5"
+                            >
+                              <span className="text-xs">{r.name}</span>
+                              <button
+                                type="button"
+                                className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
+                                onClick={() =>
+                                  setNewGroupRoleIds((prev) =>
+                                    prev.filter((id) => id !== r.id)
+                                  )
+                                }
+                                aria-label={`Remove ${r.name}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                      </div>
+                    )}
+                  </HuemulField>
+                </>
+              )}
             </>
           )}
         </div>
-      </HuemulDialog>
+      </HuemulSheet>
     </div>
   )
 }
