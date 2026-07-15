@@ -5,6 +5,7 @@ import {
   Check,
   Globe,
   Archive,
+  RotateCcw,
   RefreshCw,
   List,
   Info,
@@ -84,6 +85,7 @@ interface MoreOptionsDropdownProps {
   onCheckLifecycle: () => void;
   onPublish: () => void;
   onArchive: () => void;
+  onRestore: () => void;
   onRefresh: () => void;
   onToggleToc: () => void;
   onOpenInfo: () => void;
@@ -128,6 +130,7 @@ export function MoreOptionsDropdown({
   onCheckLifecycle,
   onPublish,
   onArchive,
+  onRestore,
   onRefresh,
   onToggleToc,
   onOpenInfo,
@@ -231,6 +234,15 @@ export function MoreOptionsDropdown({
                   {t("lifecycle.archive")}
                 </DropdownMenuItem>
               )}
+            {lifecyclePermissions?.archive && lifecycleStatus.state === "archived" && (
+              <DropdownMenuItem
+                onSelect={() => setTimeout(onRestore, 0)}
+                className="hover:cursor-pointer"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t("lifecycle.restore")}
+              </DropdownMenuItem>
+            )}
             {hasLifecycleActions && <DropdownMenuSeparator />}
           </>
         )}

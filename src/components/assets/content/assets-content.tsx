@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2, Bell, Sparkles } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, RotateCcw, Settings2, Bell, Sparkles } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -39,7 +39,7 @@ import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dial
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
@@ -553,6 +553,27 @@ export function AssetContent({
     },
   });
 
+  // Mutation for restoring an archived execution back to in_approval
+  const restoreLifecycleMutation = useMutation({
+    mutationFn: withRefresh(
+      async (options?: { comment?: string }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return restoreExecutionLifecycle(executionId, selectedOrganizationId, options);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id], ['rollback-targets']],
+    ),
+    onSuccess: () => {
+      setIsRestoreDialogOpen(false);
+    },
+    meta: { successMessage: t('lifecycle.successRestore') },
+    onError: (error) => {
+      setIsRestoreDialogOpen(false);
+      handleApiError(error, { fallbackMessage: t('lifecycle.errorRestore') });
+    },
+  });
+
   // Mutation for manual re-trigger of external publish
   const runExternalPublishMutation = useMutation({
     mutationFn: async () => {
@@ -606,6 +627,7 @@ export function AssetContent({
   const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
@@ -2004,6 +2026,20 @@ export function AssetContent({
                               onClick={() => setIsArchiveDialogOpen(true)}
                             />
                           )}
+                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'archived' && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.restore')}
+                              icon={RotateCcw}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={restoreLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipRestore')}
+                              onClick={() => setIsRestoreDialogOpen(true)}
+                            />
+                          )}
                           {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
                             <HuemulButton
                               variant="outline"
@@ -2493,6 +2529,7 @@ export function AssetContent({
                             onCheckLifecycle={() => setIsCheckLifecycleDialogOpen(true)}
                             onPublish={() => setIsPublishDialogOpen(true)}
                             onArchive={() => setIsArchiveDialogOpen(true)}
+                            onRestore={() => setIsRestoreDialogOpen(true)}
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
@@ -2616,6 +2653,20 @@ export function AssetContent({
                               loading={advanceLifecycleMutation.isPending}
                               tooltip={t('lifecycle.tooltipArchive')}
                               onClick={() => setIsArchiveDialogOpen(true)}
+                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
+                            />
+                          )}
+                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'archived' && (
+                            <HuemulButton
+                              size="sm"
+                              variant="ghost"
+                              label={t('lifecycle.restore')}
+                              icon={RotateCcw}
+                              iconPosition="left"
+                              iconClassName="h-3.5 w-3.5"
+                              loading={restoreLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipRestore')}
+                              onClick={() => setIsRestoreDialogOpen(true)}
                               className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
@@ -3519,6 +3570,20 @@ export function AssetContent({
         commentLabel={t('lifecycle.commentLabel')}
         commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={advanceLifecycleMutation.isPending}
+        variant="destructive"
+      />
+
+      {/* Restore Confirmation Dialog */}
+      <LifecycleCommentDialog
+        open={isRestoreDialogOpen}
+        onOpenChange={(open) => !restoreLifecycleMutation.isPending && setIsRestoreDialogOpen(open)}
+        title={t('lifecycle.restoreTitle')}
+        description={t('lifecycle.restoreDescription')}
+        onConfirm={(comment) => restoreLifecycleMutation.mutate({ comment })}
+        confirmLabel={t('lifecycle.restoreConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
+        isProcessing={restoreLifecycleMutation.isPending}
         variant="destructive"
       />
 
