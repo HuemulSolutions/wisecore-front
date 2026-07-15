@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType, cloneAssetType, getDocumentTypeTemplates, linkTemplateToDocumentType, unlinkTemplateFromDocumentType } from "@/services/asset-types"
+import { getAssetTypes, getAssetTypesWithRoles, getAssetType, createAssetType, updateAssetType, deleteAssetType, cloneAssetType, getDocumentTypeTemplates, linkTemplateToDocumentType, updateDocumentTypeTemplate, unlinkTemplateFromDocumentType } from "@/services/asset-types"
+import type { DocumentTypeTemplateLinkBody } from "@/types/assets"
 
 // Query keys
 export const assetTypeQueryKeys = {
@@ -116,6 +117,15 @@ export function useAssetTypeMutations() {
     },
   })
 
+  const updateTemplateLinkMutation = useMutation({
+    mutationFn: ({ documentTypeId, templateId, body }: { documentTypeId: string; templateId: string; body: DocumentTypeTemplateLinkBody }) =>
+      updateDocumentTypeTemplate(documentTypeId, templateId, body),
+    meta: { successMessage: 'Template updated successfully' },
+    onSuccess: (_data, { documentTypeId }) => {
+      queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.templates(documentTypeId) })
+    },
+  })
+
   const unlinkTemplateMutation = useMutation({
     mutationFn: ({ documentTypeId, templateId }: { documentTypeId: string; templateId: string }) =>
       unlinkTemplateFromDocumentType(documentTypeId, templateId),
@@ -131,6 +141,7 @@ export function useAssetTypeMutations() {
     deleteAssetType: deleteAssetTypeMutation,
     cloneAssetType: cloneAssetTypeMutation,
     linkTemplate: linkTemplateMutation,
+    updateTemplateLink: updateTemplateLinkMutation,
     unlinkTemplate: unlinkTemplateMutation,
   }
 }

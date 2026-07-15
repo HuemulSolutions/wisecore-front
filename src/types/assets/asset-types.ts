@@ -88,25 +88,25 @@ export interface AssetTypePageActions {
 // Linked Templates (document_types/{id}/templates)
 // ========================================
 
-export type AssetKind = 'text' | 'design';
-
 export interface LinkedTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  instructions: string | null;
-  asset_kind: AssetKind | null;
-  canvas_id: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by: string | null;
-  updated_by: string | null;
+  template_id: string;
+  template_name: string;
+  relation_name: string | null;
+  can_create_express: boolean;
+  require_name_on_express: boolean;
 }
 
 export interface DocumentTypeTemplatesResponse {
   data: LinkedTemplate[];
   transaction_id: string;
   timestamp: string;
+}
+
+// Body shared by the link (POST) and update (PATCH) endpoints
+export interface DocumentTypeTemplateLinkBody {
+  relation_name?: string | null;
+  can_create_express?: boolean;
+  require_name_on_express?: boolean;
 }
 
 export interface DocumentTypeTemplateLinkResponse {
