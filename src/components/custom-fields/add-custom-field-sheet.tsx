@@ -10,6 +10,7 @@ import { Plus } from "lucide-react"
 import { useCustomField, useCustomFieldDataTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { getCustomFields } from "@/services/custom-fields"
 import { useOrganization } from "@/contexts/organization-context"
+import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import type { CustomFieldOption } from "@/types/custom-fields"
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
@@ -37,7 +38,7 @@ export function AddCustomFieldSheet({
   const [selectedSource, setSelectedSource] = useState<string>("")
   const [isRequired, setIsRequired] = useState(false)
   const [prompt, setPrompt] = useState<string>("")
-  const [value, setValue] = useState<string>("")
+  const [value, setValue] = useState<string | string[]>("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const { selectedOrganizationId } = useOrganization();
@@ -46,6 +47,7 @@ export function AddCustomFieldSheet({
     description: "",
     data_type: "",
     masc: "",
+    question_type: "",
   })
   const [newOptions, setNewOptions] = useState<CustomFieldOption[]>([])
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
@@ -97,6 +99,7 @@ export function AddCustomFieldSheet({
         description: "",
         data_type: "",
         masc: "",
+        question_type: "",
       })
       setNewOptions([])
       setFormErrors({})
@@ -131,6 +134,9 @@ export function AddCustomFieldSheet({
   }
 
   const getValuePayload = (dataType: string) => {
+    if (Array.isArray(value)) {
+      return value.length === 0 ? {} : { value }
+    }
     if (!value.trim()) return {}
 
     switch (dataType) {
@@ -223,6 +229,7 @@ export function AddCustomFieldSheet({
       description: "",
       data_type: "",
       masc: "",
+      question_type: "",
     })
     setNewOptions([])
     setFormErrors({})
@@ -281,7 +288,10 @@ export function AddCustomFieldSheet({
           description: newCustomFieldData.description,
           data_type: newCustomFieldData.data_type,
           masc: newCustomFieldData.masc || "",
-          ...(newCustomFieldData.data_type === 'list' && { default_value: newOptions }),
+          ...(newCustomFieldData.data_type === 'list' && {
+            default_value: newOptions,
+            question_type: newCustomFieldData.question_type,
+          }),
         })
 
         // Switch to existing mode and select the newly created field
@@ -294,6 +304,7 @@ export function AddCustomFieldSheet({
           description: "",
           data_type: "",
           masc: "",
+          question_type: "",
         })
         setFormErrors({})
 
@@ -400,6 +411,7 @@ export function AddCustomFieldSheet({
                 {selectedSource && selectedSource !== "inferred" && (
                   <CustomFieldValueField
                     dataType={selectedCustomField?.data_type || ""}
+                    questionType={selectedCustomField?.question_type}
                     label={t('addDialog.valueLabel')}
                     value={value}
                     onChange={(v) => {
@@ -448,14 +460,21 @@ export function AddCustomFieldSheet({
               description={newCustomFieldData.description}
               dataType={newCustomFieldData.data_type}
               masc={newCustomFieldData.masc}
+              questionType={newCustomFieldData.question_type}
               options={newOptions}
               onNameChange={(value) => handleNewCustomFieldInputChange("name", value)}
               onDescriptionChange={(value) => handleNewCustomFieldInputChange("description", value)}
               onDataTypeChange={(value) => {
                 handleNewCustomFieldInputChange("data_type", value)
-                if (value !== 'list') setNewOptions([])
+                if (value !== 'list') {
+                  setNewOptions([])
+                  handleNewCustomFieldInputChange("question_type", "")
+                } else if (!newCustomFieldData.question_type) {
+                  handleNewCustomFieldInputChange("question_type", QUESTION_TYPE.dropdown)
+                }
               }}
               onMascChange={(value) => handleNewCustomFieldInputChange("masc", value)}
+              onQuestionTypeChange={(value) => handleNewCustomFieldInputChange("question_type", value)}
               onOptionsChange={setNewOptions}
               dataTypes={dataTypes}
               formatDataType={formatDataType}

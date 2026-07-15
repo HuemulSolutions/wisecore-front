@@ -11,6 +11,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-info-card"
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
+import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import type { CustomFieldTemplate } from '@/types/custom-fields';
 import type { EditCustomFieldTemplateDialogProps } from '@/types/templates';
 export type { EditCustomFieldTemplateDialogProps } from '@/types/templates';
@@ -26,7 +27,7 @@ export function EditCustomFieldTemplateSheet({
   const [selectedSource, setSelectedSource] = useState<string>("")
   const [isRequired, setIsRequired] = useState(false)
   const [prompt, setPrompt] = useState<string>("")
-  const [value, setValue] = useState<string>("")
+  const [value, setValue] = useState<string | string[]>("")
   const [, setSelectedFile] = useState<File | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const { selectedOrganizationId } = useOrganization()
@@ -58,13 +59,16 @@ export function EditCustomFieldTemplateSheet({
     }
   }, [isOpen, customFieldTemplate])
 
-  const handleValueChange = (v: string) => {
+  const handleValueChange = (v: string | string[]) => {
     setValue(v)
     if (formErrors.value) setFormErrors(prev => ({ ...prev, value: "" }))
   }
 
   const getValueForDataType = (template: CustomFieldTemplate) => {
     const dataType = template.data_type
+    if (dataType === "list" && template.question_type === QUESTION_TYPE.dropdownMultiple) {
+      return template.value_list ?? []
+    }
     switch (dataType) {
       case "bool":
         return template.value_bool !== null ? template.value_bool.toString() : ""
@@ -172,7 +176,11 @@ export function EditCustomFieldTemplateSheet({
   }
 
   const getValuePayload = () => {
-    if (!customFieldTemplate || !value.trim()) return {}
+    if (!customFieldTemplate) return {}
+    if (Array.isArray(value)) {
+      return value.length === 0 ? {} : { value }
+    }
+    if (!value.trim()) return {}
 
     const dataType = customFieldTemplate.data_type
     switch (dataType) {
@@ -284,6 +292,7 @@ export function EditCustomFieldTemplateSheet({
             {selectedSource !== "inferred" && (
               <CustomFieldValueField
                 dataType={customFieldTemplate.data_type}
+                questionType={customFieldTemplate.question_type}
                 label={t('editValueDialog.valueOptionalLabel')}
                 value={value}
                 onChange={handleValueChange}
@@ -313,6 +322,7 @@ export function EditCustomFieldTemplateSheet({
           <div className="space-y-4">
             <CustomFieldValueField
               dataType={customFieldTemplate.data_type}
+              questionType={customFieldTemplate.question_type}
               label={t('addDialog.valueLabel')}
               value={value}
               onChange={handleValueChange}

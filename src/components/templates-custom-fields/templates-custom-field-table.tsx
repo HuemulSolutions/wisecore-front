@@ -56,6 +56,17 @@ const getValueForDisplay = (template: CustomFieldTemplate) => {
       return template.value_url || ""
     case "image":
       return template.value ? "Image uploaded" : ""
+    case "list": {
+      if (template.value_list && template.value_list.length > 0) {
+        return template.value_list
+          .map(id => template.options?.find(o => o.id === id)?.label ?? id)
+          .join(", ")
+      }
+      const optionId = template.value_identifier
+      if (!optionId) return ""
+      const match = template.options?.find(o => o.id === optionId)
+      return match ? match.label : optionId
+    }
     default:
       return template.value_string || ""
   }

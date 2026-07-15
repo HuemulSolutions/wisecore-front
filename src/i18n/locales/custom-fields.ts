@@ -73,6 +73,10 @@ const translations = {
     optionsRequired: { en: "At least one option is required", es: "Se requiere al menos una opción" },
     optionIdRequired: { en: "ID is required", es: "El ID es requerido" },
     optionNameRequired: { en: "Label is required", es: "La etiqueta es requerida" },
+    questionTypeLabel: { en: "Selection type", es: "Tipo de selección" },
+    questionTypePlaceholder: { en: "Select selection type", es: "Selecciona el tipo de selección" },
+    questionTypeSingle: { en: "Single selection", es: "Selección única" },
+    questionTypeMultiple: { en: "Multiple selection", es: "Selección múltiple" },
   },
   addDialog: {
     title: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
@@ -105,6 +109,7 @@ const translations = {
     saveExisting: { en: "Add Custom Field", es: "Agregar Campo Personalizado" },
     saveNew: { en: "Create & Add Field", es: "Crear y Agregar Campo" },
     valuePlaceholderList: { en: "Select an option", es: "Selecciona una opción" },
+    valuePlaceholderListMultiple: { en: "Select one or more options", es: "Selecciona una o más opciones" },
     valueRequired: { en: "This field is required", es: "Este campo es requerido" },
     invalidInteger: { en: "Enter a valid integer", es: "Ingresa un número entero válido" },
     invalidDecimal: { en: "Enter a valid decimal number", es: "Ingresa un número decimal válido" },

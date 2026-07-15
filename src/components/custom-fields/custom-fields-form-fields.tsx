@@ -2,6 +2,7 @@ import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
+import { QUESTION_TYPE } from '@/components/sections/question-type-meta';
 import type { CustomFieldFormFieldsProps, CustomFieldOption } from '@/types/custom-fields';
 
 export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
@@ -11,11 +12,13 @@ export default function CustomFieldFormFields({
   description,
   dataType,
   masc,
+  questionType,
   options,
   onNameChange,
   onDescriptionChange,
   onDataTypeChange,
   onMascChange,
+  onQuestionTypeChange,
   onOptionsChange,
   dataTypes,
   formatDataType,
@@ -70,6 +73,22 @@ export default function CustomFieldFormFields({
           value: type,
         }))}
       />
+
+      {dataType === 'list' && (
+        <HuemulField
+          type="select"
+          label={t('form.questionTypeLabel')}
+          name="question_type"
+          placeholder={t('form.questionTypePlaceholder')}
+          value={questionType}
+          onChange={(v) => onQuestionTypeChange(String(v))}
+          disabled={disabled}
+          options={[
+            { label: t('form.questionTypeSingle'), value: QUESTION_TYPE.dropdown },
+            { label: t('form.questionTypeMultiple'), value: QUESTION_TYPE.dropdownMultiple },
+          ]}
+        />
+      )}
 
       {dataType === 'list' && (
         <div className="space-y-2">

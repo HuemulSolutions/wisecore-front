@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query"
 import { CustomFieldValueField } from "@/components/custom-fields/custom-field-value-field"
 import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-info-card"
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
+import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import type { CustomFieldDocument } from '@/types/custom-fields'
 import type { EditCustomFieldAssetDialogProps } from '@/types/assets'
 export type { EditCustomFieldAssetDialogProps } from '@/types/assets'
@@ -26,7 +27,7 @@ export function EditCustomFieldAssetSheet({
   const [selectedSource, setSelectedSource] = useState<string>("")
   const [isRequired, setIsRequired] = useState(false)
   const [prompt, setPrompt] = useState<string>("")
-  const [value, setValue] = useState<string>("")
+  const [value, setValue] = useState<string | string[]>("")
   const [, setSelectedFile] = useState<File | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const { selectedOrganizationId } = useOrganization()
@@ -63,6 +64,9 @@ export function EditCustomFieldAssetSheet({
 
   const getValueForDataType = (document: CustomFieldDocument) => {
     const dataType = document.data_type
+    if (dataType === "list" && document.question_type === QUESTION_TYPE.dropdownMultiple) {
+      return document.value_list ?? []
+    }
     switch (dataType) {
       case "bool":
         return document.value_bool !== null ? document.value_bool.toString() : ""
@@ -87,7 +91,7 @@ export function EditCustomFieldAssetSheet({
     }
   }
 
-  const handleValueChange = (v: string) => {
+  const handleValueChange = (v: string | string[]) => {
     setValue(v)
     if (formErrors.value) setFormErrors(prev => ({ ...prev, value: "" }))
   }
@@ -176,7 +180,11 @@ export function EditCustomFieldAssetSheet({
   }
 
   const getValuePayload = () => {
-    if (!customFieldDocument || !value.trim()) return {}
+    if (!customFieldDocument) return {}
+    if (Array.isArray(value)) {
+      return value.length === 0 ? {} : { value }
+    }
+    if (!value.trim()) return {}
 
     const dataType = customFieldDocument.data_type
     switch (dataType) {
@@ -288,6 +296,7 @@ export function EditCustomFieldAssetSheet({
             {selectedSource !== "inferred" && (
               <CustomFieldValueField
                 dataType={customFieldDocument.data_type}
+                questionType={customFieldDocument.question_type}
                 label={t('editValueDialog.valueOptionalLabel')}
                 value={value}
                 onChange={handleValueChange}
@@ -317,6 +326,7 @@ export function EditCustomFieldAssetSheet({
           <div className="space-y-4">
             <CustomFieldValueField
               dataType={customFieldDocument.data_type}
+              questionType={customFieldDocument.question_type}
               label={t('addDialog.valueLabel')}
               value={value}
               onChange={handleValueChange}

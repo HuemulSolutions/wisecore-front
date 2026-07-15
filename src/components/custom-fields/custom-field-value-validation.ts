@@ -2,12 +2,17 @@ import type { TFunction } from "i18next"
 
 interface ValidateCustomFieldValueParams {
   dataType: string
-  value: string
+  value: string | string[]
   required?: boolean
   t: TFunction
 }
 
 export function validateCustomFieldValue({ dataType, value, required, t }: ValidateCustomFieldValueParams): string | undefined {
+  if (Array.isArray(value)) {
+    if (required && value.length === 0) return t('addDialog.valueRequired')
+    return undefined
+  }
+
   const trimmed = value.trim()
 
   if (required && !trimmed) return t('addDialog.valueRequired')

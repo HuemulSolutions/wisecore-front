@@ -7,6 +7,7 @@ import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form
 import { useTranslation } from "react-i18next"
 
 import { useCustomFieldDataTypes } from "@/hooks/useCustomFields"
+import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
@@ -24,6 +25,7 @@ export function CreateEditCustomFieldSheet({
     description: "",
     data_type: "",
     masc: "",
+    question_type: "",
     options: [] as CustomFieldOption[],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -44,6 +46,7 @@ export function CreateEditCustomFieldSheet({
           description: customField.description,
           data_type: customField.data_type,
           masc: customField.masc || "",
+          question_type: customField.data_type === 'list' ? (customField.question_type || QUESTION_TYPE.dropdown) : "",
           options: customField.data_type === 'list' ? (customField.default_value ?? []) : [],
         })
       } else {
@@ -52,6 +55,7 @@ export function CreateEditCustomFieldSheet({
           description: "",
           data_type: "",
           masc: "",
+          question_type: "",
           options: [],
         })
       }
@@ -110,7 +114,10 @@ export function CreateEditCustomFieldSheet({
             description: formData.description,
             data_type: formData.data_type,
             masc: formData.masc || undefined,
-            ...(formData.data_type === 'list' && { default_value: formData.options }),
+            ...(formData.data_type === 'list' && {
+              default_value: formData.options,
+              question_type: formData.question_type,
+            }),
           },
         })
         onSuccess()
@@ -120,7 +127,10 @@ export function CreateEditCustomFieldSheet({
           description: formData.description,
           data_type: formData.data_type,
           masc: formData.masc || "",
-          ...(formData.data_type === 'list' && { default_value: formData.options }),
+          ...(formData.data_type === 'list' && {
+            default_value: formData.options,
+            question_type: formData.question_type,
+          }),
         })
         onSuccess(created)
       }
@@ -135,7 +145,8 @@ export function CreateEditCustomFieldSheet({
     setFormData(prev => ({
       ...prev,
       [field]: value,
-      ...(field === 'data_type' && value !== 'list' ? { options: [] } : {}),
+      ...(field === 'data_type' && value !== 'list' && { options: [], question_type: "" }),
+      ...(field === 'data_type' && value === 'list' && !prev.question_type && { question_type: QUESTION_TYPE.dropdown }),
     }))
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
@@ -178,11 +189,13 @@ export function CreateEditCustomFieldSheet({
           description={formData.description}
           dataType={formData.data_type}
           masc={formData.masc}
+          questionType={formData.question_type}
           options={formData.options}
           onNameChange={(value) => handleInputChange("name", value)}
           onDescriptionChange={(value) => handleInputChange("description", value)}
           onDataTypeChange={(value) => handleInputChange("data_type", value)}
           onMascChange={(value) => handleInputChange("masc", value)}
+          onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
           onOptionsChange={handleOptionsChange}
           dataTypes={dataTypes}
           formatDataType={formatDataType}

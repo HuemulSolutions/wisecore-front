@@ -97,8 +97,10 @@ export function CustomFieldsList({
   }
 
   const formatValue = (field: CustomFieldDocument) => {
-    // If no value is set, show "Vacío"
-    if (!field.value || (typeof field.value === 'string' && field.value.trim() === '')) {
+    // If no value is set, show "Vacío" — a multi-select list stores its data in
+    // value_list, so it must not be short-circuited by the generic value check.
+    const hasListValues = field.data_type === 'list' && (field.value_list?.length ?? 0) > 0;
+    if (!hasListValues && (!field.value || (typeof field.value === 'string' && field.value.trim() === ''))) {
       return 'customFieldsList.empty';
     }
 
@@ -125,6 +127,11 @@ export function CustomFieldsList({
         }
         return String(field.value);
       case 'list': {
+        if (field.value_list && field.value_list.length > 0) {
+          return field.value_list
+            .map(id => field.options?.find(o => o.id === id)?.label ?? id)
+            .join(', ')
+        }
         const optionId = field.value_identifier
         if (!optionId) return 'customFieldsList.empty'
         const match = field.options?.find(o => o.id === optionId)
