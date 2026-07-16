@@ -20,6 +20,7 @@ import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulButton } from "@/huemul/components/huemul-button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   useLifecycleSteps,
   useLifecycleMutations,
@@ -134,7 +135,7 @@ function EditStepCard({
             <GripVertical className="w-4 h-4" />
           </button>
         )}
-        <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex-1" onClick={(e) => { if (isEditing) e.stopPropagation() }}>
           <HuemulField
             type="text"
             label=""
@@ -362,7 +363,7 @@ function EditStepCard({
 
           {/* Automatic mode: external functionalities table — only for edit/review steps */}
           {card.mode === "automatic" && (stepType === "edit" || stepType === "review") && organizationId && (
-            <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} />
+            <LifecycleReviewActionsSection organizationId={organizationId} stepId={card.id} readOnly={ro} />
           )}
         </>
       )}
@@ -504,9 +505,9 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 h-full min-h-0">
       {/* Title */}
-      <div className="flex flex-col gap-1">
+      <div className="shrink-0 flex flex-col gap-1">
         <p className="text-base font-semibold text-foreground">
           {t(`lifecycle.stepTypes.${stepType}`, { defaultValue: t("lifecycle.editTitle") })}
         </p>
@@ -515,8 +516,8 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
         </p>
       </div>
 
-      {/* Groups label + Add group button */}
-      <div className="flex items-center justify-between">
+      {/* Groups label + Add group button — fixed, never scrolls */}
+      <div className="shrink-0 flex items-center justify-between py-2 border-b border-border">
         <p className="text-sm font-semibold">{t("lifecycle.groups")}</p>
         <button
           type="button"
@@ -538,60 +539,62 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
         </button>
       </div>
 
-      {/* Sortable card list */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={localSteps.map((s) => s.id)}
-          strategy={verticalListSortingStrategy}
+      {/* Sortable card list — only this area scrolls */}
+      <ScrollArea className="flex-1 min-h-0" viewportClassName="pr-3">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          <div className="flex flex-col gap-3">
-            {localSteps.map((card) => (
-              <SortableEditStepCard
-                key={card.id}
-                id={card.id}
-                card={card}
-                stepType={stepType}
-                organizationId={organizationId}
-                slaUnitOptions={slaUnitOptions}
-                allRoles={allRoles}
-                onChange={(updated) => handleCardChange(card.id, updated)}
-                onDelete={() => setDeleteConfirmId(card.id)}
-                canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
-                onEditingChange={(editing) => onEditingChange?.(editing)}
-                onSave={async () => {
-                  const currentCard = localSteps.find((c) => c.id === card.id)!
-                  const index = localSteps.findIndex((c) => c.id === card.id)
-                  const isAutomatic = currentCard.mode === "automatic"
-                  await updateStep.mutateAsync({
-                    stepId: currentCard.id,
-                    data: {
-                      name: currentCard.name || undefined,
-                      order: index + 1,
-                      mode: currentCard.mode,
-                      sla_value: !isAutomatic && currentCard.hasSla
-                        ? Number(currentCard.slaValue) || null
-                        : null,
-                      sla_unit: !isAutomatic && currentCard.hasSla
-                        ? currentCard.slaUnit || null
-                        : null,
-                      access_type: isAutomatic ? "owner" : currentCard.accessType,
-                      ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
-                        role_ids: currentCard.roleIds,
-                      }),
-                    },
-                  })
-                }}
-                t={t}
-                isDeleting={false}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={localSteps.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-3 pb-2">
+              {localSteps.map((card) => (
+                <SortableEditStepCard
+                  key={card.id}
+                  id={card.id}
+                  card={card}
+                  stepType={stepType}
+                  organizationId={organizationId}
+                  slaUnitOptions={slaUnitOptions}
+                  allRoles={allRoles}
+                  onChange={(updated) => handleCardChange(card.id, updated)}
+                  onDelete={() => setDeleteConfirmId(card.id)}
+                  canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
+                  onEditingChange={(editing) => onEditingChange?.(editing)}
+                  onSave={async () => {
+                    const currentCard = localSteps.find((c) => c.id === card.id)!
+                    const index = localSteps.findIndex((c) => c.id === card.id)
+                    const isAutomatic = currentCard.mode === "automatic"
+                    await updateStep.mutateAsync({
+                      stepId: currentCard.id,
+                      data: {
+                        name: currentCard.name || undefined,
+                        order: index + 1,
+                        mode: currentCard.mode,
+                        sla_value: !isAutomatic && currentCard.hasSla
+                          ? Number(currentCard.slaValue) || null
+                          : null,
+                        sla_unit: !isAutomatic && currentCard.hasSla
+                          ? currentCard.slaUnit || null
+                          : null,
+                        access_type: isAutomatic ? "owner" : currentCard.accessType,
+                        ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
+                          role_ids: currentCard.roleIds,
+                        }),
+                      },
+                    })
+                  }}
+                  t={t}
+                  isDeleting={false}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </ScrollArea>
 
       {/* Delete confirmation */}
       <HuemulAlertDialog

@@ -23,6 +23,7 @@ import type { ExternalReviewAction, CreateExternalReviewActionRequest, UpdateExt
 interface LifecycleReviewActionsSectionProps {
   organizationId: string
   stepId: string
+  readOnly?: boolean
 }
 
 interface ActionFormState {
@@ -47,6 +48,7 @@ function buildDefaultAdd(nextOrder: number): AddDialogState {
 export function LifecycleReviewActionsSection({
   organizationId,
   stepId,
+  readOnly = false,
 }: LifecycleReviewActionsSectionProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { isOrgAdmin, hasPermission } = useUserPermissions()
@@ -94,7 +96,7 @@ export function LifecycleReviewActionsSection({
   // ─── Name resolution ────────────────────────────────────────────────────────
 
   const resolveName = (action: ExternalReviewAction) =>
-    action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
+    action.external_functionality_name ?? action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -162,9 +164,17 @@ export function LifecycleReviewActionsSection({
 
   return (
     <div className="flex flex-col gap-3 pt-2">
-      <div>
-        <p className="text-sm font-semibold">{t("lifecycle.reviewActions.title")}</p>
-        <p className="text-xs text-muted-foreground">{t("lifecycle.reviewActions.description")}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold">{t("lifecycle.reviewActions.title")}</p>
+          <p className="text-xs text-muted-foreground">{t("lifecycle.reviewActions.description")}</p>
+        </div>
+        {canCreate && (
+          <Button variant="outline" size="sm" onClick={handleOpenAdd} disabled={readOnly} className="shrink-0">
+            <Plus className="h-4 w-4 mr-1.5" />
+            {t("lifecycle.reviewActions.addAction")}
+          </Button>
+        )}
       </div>
 
       {isLoadingActions ? (
@@ -212,7 +222,7 @@ export function LifecycleReviewActionsSection({
                         canUpdate &&
                         updateAction.mutate({ actionId: action.id, body: { is_enabled: Boolean(v) } })
                       }
-                      disabled={!canUpdate || updateAction.isPending}
+                      disabled={readOnly || !canUpdate || updateAction.isPending}
                     />
                   </td>
                   <td className="px-3 py-2 text-center">
@@ -225,21 +235,21 @@ export function LifecycleReviewActionsSection({
                         canUpdate &&
                         updateAction.mutate({ actionId: action.id, body: { stop_on_error: Boolean(v) } })
                       }
-                      disabled={!canUpdate || updateAction.isPending}
+                      disabled={readOnly || !canUpdate || updateAction.isPending}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-0.5">
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={!canUpdate || idx === 0 || reorderActions.isPending}
+                        disabled={readOnly || !canUpdate || idx === 0 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "up")}
                       >
                         <ChevronUp className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost" size="icon" className="h-6 w-6"
-                        disabled={!canUpdate || idx === actions.length - 1 || reorderActions.isPending}
+                        disabled={readOnly || !canUpdate || idx === actions.length - 1 || reorderActions.isPending}
                         onClick={() => handleMove(idx, "down")}
                       >
                         <ChevronDown className="h-3.5 w-3.5" />
@@ -247,6 +257,7 @@ export function LifecycleReviewActionsSection({
                       {canUpdate && (
                         <Button
                           variant="ghost" size="icon" className="h-6 w-6"
+                          disabled={readOnly}
                           onClick={() => handleOpenEdit(action)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -255,7 +266,7 @@ export function LifecycleReviewActionsSection({
                       {canDelete && (
                         <Button
                           variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive"
-                          disabled={deleteAction.isPending}
+                          disabled={readOnly || deleteAction.isPending}
                           onClick={() => handleDelete(action)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -267,15 +278,6 @@ export function LifecycleReviewActionsSection({
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {canCreate && (
-        <div>
-          <Button variant="outline" size="sm" onClick={handleOpenAdd}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("lifecycle.reviewActions.addAction")}
-          </Button>
         </div>
       )}
 

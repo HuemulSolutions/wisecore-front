@@ -171,6 +171,7 @@ export interface ExternalPublishAction {
   id: string
   lifecycle_step_id: string
   external_functionality_id: string
+  external_functionality_name?: string
   external_functionality?: ExternalPublishActionFunctionality
   execution_order: number
   is_enabled: boolean
@@ -253,6 +254,7 @@ export interface ExternalReviewAction {
   id: string
   lifecycle_step_id: string
   external_functionality_id: string
+  external_functionality_name?: string
   external_functionality?: ExternalReviewActionFunctionality
   execution_order: number
   is_enabled: boolean
