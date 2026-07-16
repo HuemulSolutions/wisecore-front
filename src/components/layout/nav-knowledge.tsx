@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -66,6 +66,11 @@ function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
   if (node.folder_type === "area") {
     return <Users className="h-3.5 w-3.5 text-blue-500 shrink-0" />
   }
+  if (node.isRootGroup) {
+    return <FolderKanban className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+  }
+  // Headers de sistema (Global/Forms/Personal/Grupal/Sin carpeta) van sin icono.
+  if (node.isSystem) return null
   return isExpanded
     ? <FolderOpen className="h-3.5 w-3.5 text-blue-500 shrink-0" />
     : <Folder className="h-3.5 w-3.5 text-blue-500 shrink-0" />
@@ -84,6 +89,8 @@ function handleFolderActionError(error: unknown, t: (key: string) => string, fal
         FOLDER_NOT_RENAMABLE: "knowledge.errors.folderNotRenamable",
         FOLDER_ADMINISTER_REQUIRED: "knowledge.errors.folderAdministerRequired",
         ORG_ADMIN_REQUIRED: "knowledge.errors.orgAdminRequired",
+        MANAGE_GROUPS_REQUIRED: "knowledge.errors.manageGroupsRequired",
+        FOLDER_NOT_GRANTABLE: "knowledge.errors.folderNotGrantable",
       }
       const messageKey = key[code]
       if (!messageKey) return false
@@ -91,6 +98,12 @@ function handleFolderActionError(error: unknown, t: (key: string) => string, fal
       return true
     },
   })
+}
+
+// Carpeta grupal custom: creada en la raíz real (parent_folder_id: "root"), sin folder_type,
+// hermana de Global/Forms/Grupal/Personal — distinta de las 5 carpetas fijas del sistema.
+function isRootGroupFolderNode(folderType: LibraryContentFolderType | null | undefined, parentFolderId: string | null | undefined): boolean {
+  return !folderType && parentFolderId === null
 }
 
 function buildFocusedTree(content: LibraryContent): FileNode[] {
@@ -107,6 +120,7 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
       children: f.is_expanded ? [] : undefined,
       isSystem: f.folder_type != null && f.folder_type !== 'area',
       folder_type: f.folder_type,
+      isRootGroup: isRootGroupFolderNode(f.folder_type, f.parent_folder_id),
       access_levels: f.access_levels,
     })
   }
@@ -154,6 +168,8 @@ const NavKnowledgeContext = React.createContext<{
   handleImportAsset: (folderId?: string) => void
   handleImportConfig: () => void
   handleCreateFolder: (folderId?: string) => void
+  handleCreateGroupFolder: () => void
+  handleShareFolder: (folder: { id: string; name: string }) => void
   handleDeleteFolder: (folderId: string, folderName: string) => void
   handleEditFolder: (folderId: string, currentName: string) => void
   handleDeleteDocument: (documentId: string, documentName: string) => void
@@ -207,7 +223,13 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [rootPageSize, setRootPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [hasNextRootPage, setHasNextRootPage] = useState(false)
   const [isRelationsMode, setIsRelationsMode] = useState(false)
+  const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
   const { selectedOrganizationId } = useOrganization()
+  const { canAccessRoleFolders } = useUserPermissions()
+  // Marca que la carpeta en creación es una carpeta grupal custom de raíz, para encadenar
+  // el sheet de permisos al terminar (sin esto, quien solo tiene folder:manage_groups
+  // se queda sin acceso a lo que acaba de crear).
+  const pendingGroupFolderRef = useRef(false)
 
   // Refs to keep callbacks stable across re-renders while accessing latest state
   const navigateRef = useRef(navigate)
@@ -237,8 +259,19 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const handleCreateFolder = useCallback((folderId?: string) => {
+    pendingGroupFolderRef.current = false
     setCurrentFolderId(folderId)
     setCreateFolderDialogOpen(true)
+  }, [])
+
+  const handleCreateGroupFolder = useCallback(() => {
+    pendingGroupFolderRef.current = true
+    setCurrentFolderId('root')
+    setCreateFolderDialogOpen(true)
+  }, [])
+
+  const handleShareFolder = useCallback((folder: { id: string; name: string }) => {
+    setSharingFolder(folder)
   }, [])
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
@@ -267,9 +300,18 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }, 300)
   }, []) // stable — uses ref for navigate
 
-  const handleFolderCreated = useCallback(() => {
+  const handleFolderCreated = useCallback((folder?: { id: string; name: string }) => {
     fileTreeRef.current?.refresh()
-  }, [])
+    if (pendingGroupFolderRef.current) {
+      pendingGroupFolderRef.current = false
+      // Sin un grant propio, quien solo tiene folder:manage_groups no verá esta carpeta
+      // después (queda 404 hasta que alguien con role_folder le otorgue acceso a un rol).
+      // Encadenamos el sheet de permisos en el mismo flujo de creación.
+      if (folder && canAccessRoleFolders) {
+        setSharingFolder(folder)
+      }
+    }
+  }, [canAccessRoleFolders])
 
   const handleDeleteFolder = useCallback((folderId: string, folderName: string) => {
     setFolderToDelete({ id: folderId, name: folderName })
@@ -404,7 +446,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet
@@ -469,6 +511,11 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         open={assetLifecycleSheetOpen}
         onOpenChange={setAssetLifecycleSheetOpen}
       />
+      <FolderPermissionsSheet
+        folder={sharingFolder}
+        open={!!sharingFolder}
+        onOpenChange={(open: boolean) => { if (!open) setSharingFolder(null) }}
+      />
     </NavKnowledgeContext.Provider>
   )
 }
@@ -520,11 +567,13 @@ export function useNavKnowledgeMode() {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
-  const { canCreate, isOrgAdmin, hasAnyPermission } = useUserPermissions()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
+  const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
 
   const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
+  // POST /folder/ con parent_folder_id: "root" requiere folder:c y (is_org_admin o folder:manage_groups).
+  const canCreateGroupFolder = canCreateFolder && canManageGroupFolders
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
   const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
@@ -603,14 +652,25 @@ export function NavKnowledgeHeader() {
                   </DropdownMenuItem>
                 )}
                 {canCreateFolder && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onSelect={() => {
                       setTimeout(() => handleCreateFolder(), 0)
-                    }} 
+                    }}
                     className="hover:cursor-pointer"
                   >
                     <Folder className="mr-2 h-4 w-4" />
                     {t('knowledge.newFolder')}
+                  </DropdownMenuItem>
+                )}
+                {canCreateGroupFolder && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setTimeout(() => handleCreateGroupFolder(), 0)
+                    }}
+                    className="hover:cursor-pointer"
+                  >
+                    <FolderKanban className="mr-2 h-4 w-4" />
+                    {t('knowledge.newGroupFolder')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -658,14 +718,13 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
-  const { canCreate, canUpdate, canDelete, isOrgAdmin, canAccessRoleFolders } = useUserPermissions()
-  const [sharingFolder, setSharingFolder] = useState<{ id: string; name: string } | null>(null)
+  const { canCreate, canUpdate, canDelete, isOrgAdmin, canAccessRoleFolders, canManageGroupFolders } = useUserPermissions()
   const { guardedAction } = useOptionalEditingGuard()
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
@@ -864,6 +923,7 @@ export function NavKnowledgeContent() {
           hasChildren: true,
           isSystem: item.folder_type != null && item.folder_type !== 'area',
           folder_type: item.folder_type,
+          isRootGroup: isRoot && isRootGroupFolderNode(item.folder_type, item.parent_folder_id),
           access_levels: item.access_levels,
         }))
 
@@ -1013,12 +1073,12 @@ export function NavKnowledgeContent() {
       label: t('knowledge.shareFolder'),
       icon: <Share2 className="h-4 w-4" />,
       onClick: async (nodeId) => {
-        setSharingFolder({ id: nodeId, name: folderNames.get(nodeId) || "" })
+        handleShareFolder({ id: nodeId, name: folderNames.get(nodeId) || "" })
       },
-      // Compartir accesos por rol solo aplica a Global/Forms/Área.
+      // Compartir accesos por rol aplica a Global/Forms/Área y a carpetas grupales custom de raíz.
       show: (node) =>
         node.type === "folder" &&
-        (node.folder_type === 'global' || node.folder_type === 'forms' || node.folder_type === 'area') &&
+        (node.folder_type === 'global' || node.folder_type === 'forms' || node.folder_type === 'area' || !!node.isRootGroup) &&
         canAccessRoleFolders,
       variant: "default",
     },
@@ -1067,8 +1127,12 @@ export function NavKnowledgeContent() {
         if (node.type !== "folder") return false
         // Personal/Global/Forms/Grupal/Sin carpeta: nunca eliminables por este endpoint
         if (node.folder_type && node.folder_type !== 'area') return false
-        // Área: requiere administer. Carpetas normales: permiso genérico.
-        return canDelete('folder') || node.access_levels?.includes('delete') || false
+        // Área: requiere administer. Carpeta grupal custom de raíz: administer O folder:manage_groups
+        // (sin necesitar grant propio). Carpetas normales: permiso genérico.
+        return canDelete('folder')
+          || node.access_levels?.includes('delete')
+          || (node.isRootGroup && canManageGroupFolders)
+          || false
       },
       variant: "destructive",
     },
@@ -1238,11 +1302,6 @@ export function NavKnowledgeContent() {
         />
       )}
     </SidebarGroup>
-    <FolderPermissionsSheet
-      folder={sharingFolder}
-      open={!!sharingFolder}
-      onOpenChange={(open: boolean) => { if (!open) setSharingFolder(null) }}
-    />
     </>
   )
 }

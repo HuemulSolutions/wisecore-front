@@ -72,6 +72,8 @@ export interface FileNode {
   /** True for the fixed set of default root folders (Forms, Global, Grupal, Mis documentos, Sin carpeta). */
   isSystem?: boolean;
   folder_type?: LibraryContentFolderType | null;
+  /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
+  isRootGroup?: boolean;
 }
 
 /**
@@ -270,7 +272,7 @@ export interface CreateFolderSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentFolder?: string;
-  onFolderCreated?: () => void;
+  onFolderCreated?: (folder?: { id: string; name: string }) => void;
 }
 
 export interface DeleteDocumentDialogProps {

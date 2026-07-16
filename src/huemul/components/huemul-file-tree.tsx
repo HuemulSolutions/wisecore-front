@@ -645,9 +645,9 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
               }}
             >
               {isFolder
-                ? (isSection
-                    ? null
-                    : (renderFolderIcon ? renderFolderIcon(node, !!isExpanded) : defaultFolderIcon(node, !!isExpanded)))
+                ? (renderFolderIcon
+                    ? renderFolderIcon(node, !!isExpanded)
+                    : (isSection ? null : defaultFolderIcon(node, !!isExpanded)))
                 : isNodeLoading
                   ? <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}

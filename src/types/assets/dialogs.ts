@@ -113,7 +113,7 @@ export interface AssignVersionDialogProps {
 export interface CreateFolderLegacyProps {
   trigger: ReactNode
   parentFolder?: string
-  onFolderCreated?: () => void
+  onFolderCreated?: (folder?: { id: string; name: string }) => void
 }
 
 // ----------------------------------------

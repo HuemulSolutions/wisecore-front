@@ -43,4 +43,4 @@ export type PermissionResource =
   | 'lifecycle_external_publish_action'
   | 'lifecycle_external_review_action';
 
-export type Permission = `${PermissionResource}:${PermissionAction}`;
+export type Permission = `${PermissionResource}:${PermissionAction}` | 'folder:manage_groups';
