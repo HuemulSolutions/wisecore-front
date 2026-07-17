@@ -984,13 +984,10 @@ export function AssetContent({
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Poll every 3 s while there is an importing execution; otherwise let the
-    // ExecutionStatusBanner drive refreshes through query invalidation.
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      const hasImporting = data?.executions?.some((e: any) => e.status === 'importing');
-      return hasImporting ? 3000 : false;
-    },
+    // No self-poll. The ExecutionStatusBanner polls /execution/{id}/status and,
+    // on completion, refreshes content via onExecutionComplete + query invalidation.
+    // This prevents /documents/.../content being re-hit on every status tick during import.
+    refetchInterval: false,
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });

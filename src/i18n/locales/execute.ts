@@ -154,7 +154,7 @@ const translations = {
         es: "Procesando tu solicitud...",
       },
     },
-    documentPrefix: { en: "Asset is {{status}}", es: "El activo está {{status}}" },
+    documentPrefix: { en: "Asset is {{status}}", es: "El activo se está {{status}}" },
     documentError: { en: "Asset {{status}}", es: "Activo {{status}}" },
   },
   sectionFeedback: {
