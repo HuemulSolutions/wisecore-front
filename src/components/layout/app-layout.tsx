@@ -40,7 +40,7 @@ import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-con
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
-import EditUserDialog from "@/components/users/users-edit-dialog"
+import EditUserSheet from "@/components/users/users-edit-sheet"
 import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
@@ -842,12 +842,13 @@ export default function AppLayout() {
         {/* Dialog de selección de organización */}
         <OrganizationSelectionDialog open={shouldShowDialog} />
         
-        {/* Edit profile dialog */}
+        {/* Edit profile sheet */}
         {user && (
-          <EditUserDialog 
+          <EditUserSheet
             user={user}
-            open={profileDialogOpen} 
-            onOpenChange={setProfileDialogOpen} 
+            open={profileDialogOpen}
+            onOpenChange={setProfileDialogOpen}
+            showDailyDigest
           />
         )}
 

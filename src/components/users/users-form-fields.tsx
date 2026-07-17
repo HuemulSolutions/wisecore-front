@@ -24,7 +24,10 @@ export default function UserFormFields({
   includePhoto = false,
   disabled = false,
   errors = {},
-  emailReadOnly = false
+  emailReadOnly = false,
+  notifyDailyDigest = false,
+  onNotifyDailyDigestChange,
+  includeNotifyDailyDigest = false
 }: UserFormFieldsProps) {
   const { t } = useTranslation(['users'])
 
@@ -117,6 +120,19 @@ export default function UserFormFields({
           onFileChange={onFileChange}
           description={t('users:form.profilePhotoDescription')}
           error={errors.photo_file}
+        />
+      )}
+
+      {includeNotifyDailyDigest && onNotifyDailyDigestChange && (
+        <HuemulField
+          type="switch"
+          name="notify_daily_digest"
+          label={t('users:form.notifyDailyDigest')}
+          checkLabel={t('users:form.notifyDailyDigestCheck')}
+          description={t('users:form.notifyDailyDigestDescription')}
+          value={notifyDailyDigest}
+          onChange={(v) => onNotifyDailyDigestChange(Boolean(v))}
+          disabled={disabled}
         />
       )}
     </div>
