@@ -115,6 +115,7 @@ const translations = {
     previous: { en: "Previous", es: "Anterior" },
     next: { en: "Next", es: "Siguiente" },
     searchingInPage: { en: "Showing results within current page", es: "Mostrando resultados en la página actual" },
+    unavailable: { en: "File unavailable", es: "Archivo no disponible" },
   },
   colors: {
     customColors: { en: "Custom Colors", es: "Colores personalizados" },

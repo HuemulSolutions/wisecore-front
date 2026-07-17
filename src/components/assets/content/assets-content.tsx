@@ -39,6 +39,8 @@ import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dial
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
+import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
+import { MediaUrlProvider } from "@/contexts/media-url-context";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { createSection, updateSectionsOrder } from "@/services/section";
@@ -990,6 +992,14 @@ export function AssetContent({
     },
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Lightweight periodic refresh of media download URLs (images/files embedded in
+  // the content), so a tab left open longer than the backend's SAS TTL doesn't end
+  // up with broken media. Cadence is derived from the backend's own ttl_seconds.
+  const { data: mediaUrlsData } = useDocumentMediaUrls(selectedFile?.id, selectedOrganizationId ?? undefined, {
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    executionId: selectedExecutionId || undefined,
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
@@ -3153,6 +3163,7 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
+                        <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -3272,9 +3283,10 @@ export function AssetContent({
                             <Markdown>{documentContent.content}</Markdown>
                           )}
                         </div>
+                        </MediaUrlProvider>
                       );
                     }
-                    
+
                     // Si no hay contenido disponible, mostrar mensaje
                     return (
                       <div className="flex items-center justify-center h-full min-h-100">

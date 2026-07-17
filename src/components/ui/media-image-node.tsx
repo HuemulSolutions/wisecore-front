@@ -1,5 +1,7 @@
 'use client';
 
+import * as React from 'react';
+
 import type { TImageElement } from 'platejs';
 import type { PlateElementProps } from 'platejs/react';
 
@@ -7,8 +9,11 @@ import { useDraggable } from '@platejs/dnd';
 import { ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
+import { ImageOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { useResolvedMediaUrl } from '@/contexts/media-url-context';
 
 import { Caption, CaptionTextarea } from './caption';
 import { MediaToolbar } from './media-toolbar';
@@ -24,17 +29,21 @@ export const ImageElement = withHOC(
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
     const element = props.element as TImageElement & { mediaId?: string; previewUrl?: string };
+    const { t } = useTranslation('editor');
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,
     });
 
-    // previewUrl is only needed right after upload, while url is still an unresolved
-    // {{MEDIA:GUID}} token. Once content is saved and reloaded from the backend, url is a
-    // freshly signed blob URL — previewUrl becomes a stale/expired SAS token by then and
-    // must not be preferred over it.
-    const isUnresolvedMediaToken = typeof element.url === 'string' && element.url.startsWith('{{MEDIA:');
-    const displayUrl = isUnresolvedMediaToken ? (element.previewUrl || element.url) : element.url;
+    // Resolve the freshest URL available: the live /media_urls map (by mediaId)
+    // when present, else the node's own url/previewUrl. See useResolvedMediaUrl
+    // for why previewUrl is only trusted while url is still an unresolved token.
+    const { src, isBroken } = useResolvedMediaUrl(element);
+    const [loadError, setLoadError] = React.useState(false);
+    // Clear a stale broken flag once the src actually changes (e.g. after a
+    // /media_urls refresh replaces an expired SAS url with a fresh one).
+    React.useEffect(() => setLoadError(false), [src]);
+    const showBroken = isBroken || loadError;
 
     return (
       <MediaToolbar plugin={ImagePlugin}>
@@ -51,17 +60,31 @@ export const ImageElement = withHOC(
                 className={mediaResizeHandleVariants({ direction: 'left' })}
                 options={{ direction: 'left' }}
               />
-              <img
-                ref={handleRef}
-                src={displayUrl}
-                className={cn(
-                  'block w-full max-w-full cursor-pointer object-cover px-0',
-                  'rounded-sm',
-                  focused && selected && 'ring-2 ring-ring ring-offset-2',
-                  isDragging && 'opacity-50'
-                )}
-                alt={props.attributes.alt as string | undefined}
-              />
+              {showBroken ? (
+                <div
+                  ref={handleRef}
+                  className={cn(
+                    'flex w-full max-w-full items-center justify-center gap-2 rounded-sm bg-muted py-8 text-muted-foreground',
+                    focused && selected && 'ring-2 ring-ring ring-offset-2'
+                  )}
+                >
+                  <ImageOff className="size-5" />
+                  <span className="text-sm">{t('media.unavailable')}</span>
+                </div>
+              ) : (
+                <img
+                  ref={handleRef}
+                  src={src}
+                  onError={() => setLoadError(true)}
+                  className={cn(
+                    'block w-full max-w-full cursor-pointer object-cover px-0',
+                    'rounded-sm',
+                    focused && selected && 'ring-2 ring-ring ring-offset-2',
+                    isDragging && 'opacity-50'
+                  )}
+                  alt={props.attributes.alt as string | undefined}
+                />
+              )}
               <ResizeHandle
                 className={mediaResizeHandleVariants({
                   direction: 'right',

@@ -14,10 +14,11 @@ import { useDiagramMutations } from "@/hooks/useDiagrams"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
 import { getExecutionById } from "@/services/executions"
-import { getNodesBounds, getViewportForBounds, type Node } from "@xyflow/react"
+import { getNodesBounds, getViewportForBounds, type Edge, type Node } from "@xyflow/react"
 import type { AssetTypeNodeData } from "./asset-type-node"
+import type { RelationshipEdgeData } from "./relationship-edge"
 import { executionLabel } from "./execution-relationship-dialogs"
-import type { DiagramDetailInput } from "@/types/diagrams"
+import type { DiagramDetailInput, DiagramRelationshipInput } from "@/types/diagrams"
 
 // Fixed export canvas size used to frame the captured nodes (react-flow's official
 // download-image recipe: https://reactflow.dev/examples/misc/download-image)
@@ -29,6 +30,7 @@ export interface SaveAsDiagramSheetProps {
   onOpenChange: (open: boolean) => void
   organizationId: string
   nodes: Node<AssetTypeNodeData>[]
+  edges: Edge<RelationshipEdgeData>[]
   containerRef: RefObject<HTMLDivElement | null>
   fitView: () => void
   /** When set, the sheet updates this existing diagram (PUT) instead of creating a new one (POST). */
@@ -46,6 +48,7 @@ export function SaveAsDiagramSheet({
   onOpenChange,
   organizationId,
   nodes,
+  edges,
   containerRef,
   fitView,
   diagramId,
@@ -63,6 +66,7 @@ export function SaveAsDiagramSheet({
   const [mainExecutionLabel, setMainExecutionLabel] = useState("")
 
   const validNodes = nodes.filter((n) => n.data.assetId && n.data.executionId)
+  const validNodeIds = new Set(validNodes.map((n) => n.id))
 
   // When editing an existing diagram we only have the executionId (no label) —
   // fetch it once to seed a readable label in the tree picker field.
@@ -150,6 +154,19 @@ export function SaveAsDiagramSheet({
             },
           }))
 
+          // Only edges whose both ends are in `details` survive — the backend rejects
+          // edges "hanging" off a box that isn't part of the same request (DIAGRAM_RELATIONSHIP_EXECUTION_NOT_IN_DETAILS).
+          const relIds = new Set<string>()
+          for (const e of edges) {
+            if (!e.id.startsWith('exec-rel-')) continue
+            if (!validNodeIds.has(e.source) || !validNodeIds.has(e.target)) continue
+            const relId = (e.data as RelationshipEdgeData | undefined)?.relationshipId
+            if (relId) relIds.add(relId)
+          }
+          const relationships: DiagramRelationshipInput[] = Array.from(relIds).map((id) => ({
+            execution_relationship_id: id,
+          }))
+
           const body = {
             name,
             execution_id: mainExecutionId,
@@ -157,6 +174,7 @@ export function SaveAsDiagramSheet({
             snapshot_media_id: snapshotMediaId,
             details,
             texts: [],
+            relationships,
           }
 
           if (diagramId) {

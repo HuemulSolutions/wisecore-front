@@ -8,6 +8,7 @@ import { PlateRichEditor, type PlateRichEditorRef } from './plate-editor';
 import { useTranslation } from 'react-i18next';
 import type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
 export type { SectionPlateEditorRef, SectionPlateEditorProps } from '@/types/section-plate-editor';
+import { normalizePlateMediaForSave } from '@/lib/plate-media-utils';
 
 /**
  * Ensure every element node has an iterable `children` array so Slate never crashes.
@@ -155,7 +156,12 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
     if (!dirty || isSaving) return;
     const md = editorRef.current?.getMarkdown() ?? content;
     const plateValue = editorRef.current?.getValue();
-    const newPlateContent = plateValue?.map((node) => JSON.stringify(node));
+    // Rewrite url/previewUrl back to {{MEDIA:<uuid>}} for every media node before
+    // persisting, so the backend always has a placeholder to re-resolve fresh on
+    // the next load (a resolved SAS previewUrl left in place would expire and
+    // never be refreshed again).
+    const normalized = plateValue ? normalizePlateMediaForSave(plateValue) : plateValue;
+    const newPlateContent = normalized?.map((node) => JSON.stringify(node));
     onSave?.(sectionId, md, newPlateContent);
   }, [dirty, isSaving, sectionId, content, onSave]);
 
@@ -229,7 +235,8 @@ const SectionPlateEditor = forwardRef<SectionPlateEditorRef, SectionPlateEditorP
           const md = editorRef.current?.getMarkdown() ?? content;
           const plateValue = editorRef.current?.getValue();
           if (plateValue) {
-            onAutoSavePlateContent(sectionId, md, plateValue.map((n) => JSON.stringify(n)));
+            const normalized = normalizePlateMediaForSave(plateValue);
+            onAutoSavePlateContent(sectionId, md, normalized.map((n) => JSON.stringify(n)));
           }
         } : undefined}
         onCreateSectionFromSelection={enableCreateSection ? onCreateSectionFromSelection : undefined}

@@ -1,7 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse } from "@/types/assets";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
 
 export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
@@ -114,6 +114,32 @@ export async function getDocumentContent(documentId: string, organizationId: str
   });
   const data = await response.json();
   console.log('Document content fetched:', data.data);
+  return data.data;
+}
+
+/**
+ * Lightweight refresh of media download URLs for a document, without
+ * re-fetching the whole content (avoids pisar ediciones en curso / audit log
+ * cost of /content). Poll this at `ttl_seconds - margin` to keep long-lived
+ * tabs' media links from expiring.
+ */
+export async function getDocumentMediaUrls(
+  documentId: string,
+  organizationId: string,
+  params: { executionId?: string; replaceCustomFields?: boolean } = {},
+): Promise<DocumentMediaUrls> {
+  const url = new URL(`${backendUrl}/documents/${documentId}/media_urls`);
+  if (params.executionId) {
+    url.searchParams.append('execution_id', params.executionId);
+  }
+  if (params.replaceCustomFields) {
+    url.searchParams.append('replace_custom_fields', 'true');
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: { 'X-Org-Id': organizationId },
+  });
+  const data = (await response.json()) as DocumentMediaUrlsResponse;
   return data.data;
 }
 

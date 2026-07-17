@@ -48,6 +48,7 @@ import { getExecutionsByDocumentId } from "@/services/executions"
 import type {
   DocumentTypeRelationship,
   InitialCanvasNode,
+  InitialCanvasRelationship,
   PendingConnection,
   RelationshipsCanvasProps,
 } from "@/types/document-type-relationships"
@@ -168,6 +169,7 @@ function RelationshipsCanvasFlow({
   nodeActions,
   mode = 'document-type',
   initialNodes,
+  initialRelationships,
   editingDiagram: editingDiagramProp,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
@@ -890,7 +892,7 @@ function RelationshipsCanvasFlow({
   // ─── Load execution relationships for a node ────────────────────────────────
   // Ref so new nodes created during load can reference the handler without stale closure
   const handleLoadExecRelRef = useRef<((nodeId: string) => void) | null>(null)
-  const handleLoadExecRelCanvasOnlyRef = useRef<((nodeId: string) => void) | null>(null)
+  const handleLoadExecRelCanvasOnlyRef = useRef<((nodeId: string, allowedRelIds?: Set<string>) => void) | null>(null)
 
   const doLoadExecutionRelationships = useCallback(
     async (nodeId: string, executionId: string) => {
@@ -1070,7 +1072,7 @@ function RelationshipsCanvasFlow({
 
   // ─── Load execution relationships — canvas-only (no new nodes, only edges between existing executions) ───
   const handleLoadExecRelCanvasOnly = useCallback(
-    async (nodeId: string) => {
+    async (nodeId: string, allowedRelIds?: Set<string>) => {
       if (!canListExecRelationships) return
       const node = getNodes().find((n) => n.id === nodeId)
       const nodeData = node?.data as AssetTypeNodeData | undefined
@@ -1118,6 +1120,9 @@ function RelationshipsCanvasFlow({
       })
 
       for (const rel of allRels) {
+        // When seeding a saved Diagram, draw only the relationships it persisted —
+        // live backend relationships created since the save must not reappear.
+        if (allowedRelIds && !allowedRelIds.has(rel.id)) continue
         const srcExecId = rel.source_execution.id
         const tgtExecId = rel.target_execution.id
         // Only draw edges between executions already on canvas
@@ -1191,8 +1196,90 @@ function RelationshipsCanvasFlow({
     setEdges((eds) => eds.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)))
   }, [nodes, setEdges])
 
+  // ─── Draw relationship edges for a freshly-seeded batch of nodes ──────────
+  // The saved Diagram's relationships arrive already resolved by the backend
+  // (source/target execution ids, document_type_relationship, etc.) — no fetch
+  // needed here, just build edges off the just-built `seeded` array so node
+  // lookup and parallel-offset counting can't race against react-flow's state.
+  const seedRelationshipEdges = useCallback(
+    (seeded: { canvasNodeId: string; node: Node<AssetTypeNodeData> }[], relationships?: InitialCanvasRelationship[]) => {
+      if (!canListExecRelationships || !relationships?.length) return
+
+      const execToNodeId = new Map<string, string>()
+      for (const { canvasNodeId, node } of seeded) {
+        if (node.data.executionId) execToNodeId.set(node.data.executionId, canvasNodeId)
+      }
+
+      const newEdges: Edge[] = []
+      const edgeIds = new Set<string>()
+      const countPerPair = new Map<string, number>()
+
+      for (const rel of relationships) {
+        const srcExecId = rel.source_execution_id
+        const tgtExecId = rel.target_execution_id
+        // Only draw edges between executions already on canvas
+        if (!execToNodeId.has(srcExecId) || !execToNodeId.has(tgtExecId)) continue
+        const srcCanvasId = execToNodeId.get(srcExecId)!
+        const tgtCanvasId = execToNodeId.get(tgtExecId)!
+        const edgeId = `exec-rel-${rel.execution_relationship_id}`
+        if (edgeIds.has(edgeId)) continue
+
+        const pairKey = `${srcCanvasId}::${tgtCanvasId}`
+        const existingCount = countPerPair.get(pairKey) ?? 0
+        const total = existingCount + 1
+        const dtr = rel.document_type_relationship
+        const isManual = rel.relationship_type === 'manual' || !dtr
+        const relName = isManual ? (rel.execution_relationship_name ?? '') : dtr!.name
+
+        newEdges.push({
+          id: edgeId,
+          source: srcCanvasId,
+          target: tgtCanvasId,
+          type: 'relationship',
+          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20 },
+          data: {
+            relationshipId: rel.execution_relationship_id,
+            name: relName,
+            relationshipType: rel.relationship_type,
+            minCount: dtr?.min_count ?? 0,
+            maxCount: dtr?.max_count ?? 0,
+            pathOffset: parallelOffset(existingCount, total),
+            onEdit: canUpdateExecRelationship ? () => {
+              setEditingExecRelationship({
+                id: rel.execution_relationship_id,
+                document_type_relationship_id: dtr?.id ?? null,
+                relationship_type: rel.relationship_type,
+                execution_relationship_name: rel.execution_relationship_name ?? null,
+                source_execution_id: rel.source_execution_id,
+                target_execution_id: rel.target_execution_id,
+                attributes: rel.attributes,
+                created_at: '',
+                updated_at: '',
+                created_by: null,
+                updated_by: null,
+              })
+              setEditingExecRelName(relName)
+            } : undefined,
+            onDelete: canDeleteExecRelationship ? () => {
+              setDeletingExecRelId(rel.execution_relationship_id)
+              setDeletingExecRelName(relName)
+            } : undefined,
+            onManageAttributes: undefined,
+          } satisfies RelationshipEdgeData,
+        })
+        edgeIds.add(edgeId)
+        countPerPair.set(pairKey, total)
+      }
+
+      if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
+    },
+    [setEdges, canListExecRelationships, canUpdateExecRelationship, canDeleteExecRelationship],
+  )
+
   // ─── Seed nodes at explicit saved positions (reopening/loading a Diagram) ──
-  const seedCanvasNodes = useCallback((nodesToSeed: InitialCanvasNode[]) => {
+  // `relationships`, when given, are the diagram's saved relationships (already
+  // resolved by the backend) — otherwise no edges are drawn for the seeded nodes.
+  const seedCanvasNodes = useCallback((nodesToSeed: InitialCanvasNode[], relationships?: InitialCanvasRelationship[]) => {
     const seeded = nodesToSeed.map((n) => {
       const canvasNodeId = `${n.assetId}-${Math.random().toString(36).slice(2, 9)}`
       const node: Node<AssetTypeNodeData> = {
@@ -1217,10 +1304,11 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
 
-    // Draw current backend relationships between the seeded nodes.
-    seeded.forEach(({ canvasNodeId }) => handleLoadExecRelCanvasOnlyRef.current?.(canvasNodeId))
+    // Draw relationships between the seeded nodes in a single pass off `seeded`
+    // (not react-flow's store, which hasn't caught up to the setNodes above yet).
+    seedRelationshipEdges(seeded, relationships)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setNodes, handleRemoveNode])
+  }, [setNodes, handleRemoveNode, seedRelationshipEdges])
 
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.
@@ -1228,7 +1316,7 @@ function RelationshipsCanvasFlow({
   useEffect(() => {
     if (hasSeededInitialNodesRef.current || !initialNodes?.length) return
     hasSeededInitialNodesRef.current = true
-    seedCanvasNodes(initialNodes)
+    seedCanvasNodes(initialNodes, initialRelationships)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialNodes])
 
@@ -1246,7 +1334,7 @@ function RelationshipsCanvasFlow({
       executionId: diagram.execution_id,
       snapshotMediaId: diagram.snapshot_media_id,
     })
-    seedCanvasNodes(nodesToSeed)
+    seedCanvasNodes(nodesToSeed, diagram.relationships)
   }, [seedCanvasNodes, setNodes, setEdges])
 
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
@@ -1542,6 +1630,7 @@ function RelationshipsCanvasFlow({
           onOpenChange={setShowSaveDiagramDialog}
           organizationId={organizationId}
           nodes={nodes as Node<AssetTypeNodeData>[]}
+          edges={edges as Edge<RelationshipEdgeData>[]}
           containerRef={containerRef}
           fitView={fitView}
           diagramId={editingDiagram?.id}

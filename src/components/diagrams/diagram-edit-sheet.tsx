@@ -4,10 +4,10 @@ import { useTranslation } from "react-i18next"
 import { Workflow } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { useDiagram } from "@/hooks/useDiagrams"
-import { useDiagramCanvasNodes } from "@/hooks/useDiagramCanvasNodes"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { isErrorCode } from "@/lib/error-utils"
 import { RelationshipsCanvas } from "@/components/document-type-relationships"
+import { buildInitialCanvasNodes } from "@/lib/diagram-utils"
 
 export interface DiagramEditSheetProps {
   open: boolean
@@ -31,14 +31,10 @@ export function DiagramEditSheet({
   const { data: docTypesResponse, isLoading: isLoadingDocTypes } = useDocumentTypes()
   const documentTypes = docTypesResponse?.data ?? []
 
-  const { initialNodes, isLoading: isLoadingLookups } = useDiagramCanvasNodes(
-    organizationId,
-    diagram,
-    open,
-  )
+  const initialNodes = diagram ? buildInitialCanvasNodes(diagram) : undefined
 
   const hasError = !!diagramError || (!isLoadingDiagram && !diagram)
-  const isReady = !!diagram && !!initialNodes && !isLoadingLookups && !isLoadingDocTypes
+  const isReady = !!diagram && !!initialNodes && !isLoadingDocTypes
 
   return (
     <HuemulSheet
@@ -62,6 +58,7 @@ export function DiagramEditSheet({
             documentTypes={documentTypes}
             mode="execution"
             initialNodes={initialNodes}
+            initialRelationships={diagram.relationships}
             editingDiagram={{
               id: diagram.id,
               name: diagram.name,

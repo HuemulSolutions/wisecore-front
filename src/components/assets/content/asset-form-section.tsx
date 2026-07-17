@@ -12,7 +12,8 @@ import { updateReviewStatus, updateSectionFormValues } from "@/services/section_
 import type { ReviewStatus } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue } from "@/types/sections/core";
-import { Check, Info, Loader2, X } from "lucide-react";
+import { isMediaToken } from "@/lib/plate-media-utils";
+import { Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   NUMERIC_DATA_TYPES,
@@ -229,6 +230,12 @@ export function AssetFormSection({
     if (typeof v === "string" && v.startsWith("http")) return v;
     return null;
   };
+
+  // El backend deja el placeholder {{MEDIA:...}} sin resolver cuando el media fue borrado
+  // o el usuario no tiene acceso (en vez de fallar todo /content). No confundir con una subida
+  // recién hecha en este mismo render: esa siempre tiene un filePreview en paralelo.
+  const isBrokenFileField = (field: FormFieldValue): boolean =>
+    !filePreviews[field.id] && isMediaToken(answers[field.id]);
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -551,10 +558,16 @@ export function AssetFormSection({
         };
 
         const currentUrl = fileDisplayUrl(field);
+        const isBroken = isBrokenFileField(field);
 
         return (
           <div className="space-y-1.5">
-            {currentUrl && (
+            {isBroken ? (
+              <p className="flex items-center gap-1.5 text-sm italic text-gray-400">
+                <FileX className="h-3.5 w-3.5" />
+                {t("form.fill.fileUnavailable")}
+              </p>
+            ) : currentUrl && (
               field.data_type === "image" ? (
                 <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
                   <img src={currentUrl} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
@@ -690,6 +703,14 @@ export function AssetFormSection({
     }
 
     if (field.question_type === QUESTION_TYPE.fileUpload) {
+      if (isBrokenFileField(field)) {
+        return (
+          <span className="flex items-center gap-1.5 text-sm italic text-gray-400">
+            <FileX className="h-3.5 w-3.5" />
+            {t("form.fill.fileUnavailable")}
+          </span>
+        );
+      }
       const url = fileDisplayUrl(field);
       if (!url) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
       if (field.data_type === "image") {

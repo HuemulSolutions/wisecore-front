@@ -174,6 +174,7 @@ const translations = {
       fileTooLarge: { en: "File exceeds the maximum size of {{max}} MB", es: "El archivo supera el tamaño máximo de {{max}} MB" },
       fileUploading_block: { en: "Wait for the file to finish uploading", es: "Espera a que el archivo termine de subirse" },
       fileDownload: { en: "Download file", es: "Descargar archivo" },
+      fileUnavailable: { en: "File unavailable", es: "Archivo no disponible" },
     },
     formFields: {
       label: { en: "Form Fields", es: "Campos del Formulario" },
