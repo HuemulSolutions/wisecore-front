@@ -43,6 +43,7 @@ import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
+import { useExternalReviewActions } from "@/hooks/useLifecycle";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
@@ -993,6 +994,18 @@ export function AssetContent({
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
   });
+
+  // Whether the current lifecycle step (edit/review) has an external system
+  // configured — if so, it must run automatically and the user cannot skip it.
+  const canHaveExternalReview =
+    documentContent?.lifecycle_status?.state === 'draft' ||
+    documentContent?.lifecycle_status?.state === 'in_review';
+  const { data: externalReviewActionsData } = useExternalReviewActions(
+    selectedOrganizationId!,
+    documentContent?.lifecycle_status?.current_step_id ?? '',
+    isCheckLifecycleDialogOpen && canHaveExternalReview && !!documentContent?.lifecycle_status?.current_step_id,
+  );
+  const hasExternalReview = (externalReviewActionsData?.data ?? []).some((a) => a.is_enabled);
 
   // Lightweight periodic refresh of media download URLs (images/files embedded in
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
@@ -3533,10 +3546,7 @@ export function AssetContent({
         }
         onConfirm={(data) => checkLifecycleMutation.mutate(data)}
         confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
-        showExternalReviewToggle={
-          documentContent?.lifecycle_status?.state === 'draft' ||
-          documentContent?.lifecycle_status?.state === 'in_review'
-        }
+        hasExternalReview={hasExternalReview}
         isProcessing={checkLifecycleMutation.isPending}
       />
 

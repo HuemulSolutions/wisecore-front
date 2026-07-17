@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
+import { Zap } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
-import { HuemulField } from "@/huemul/components/huemul-field"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface LifecycleReviewDialogProps {
   open: boolean
@@ -12,7 +13,7 @@ interface LifecycleReviewDialogProps {
   description: string
   confirmLabel: string
   onConfirm: (data: { comment: string; run_external_review: boolean }) => void
-  showExternalReviewToggle: boolean
+  hasExternalReview: boolean
   isProcessing?: boolean
 }
 
@@ -23,17 +24,15 @@ export function LifecycleReviewDialog({
   description,
   confirmLabel,
   onConfirm,
-  showExternalReviewToggle,
+  hasExternalReview,
   isProcessing = false,
 }: LifecycleReviewDialogProps) {
   const { t } = useTranslation(["assets", "common"])
   const [comment, setComment] = useState("")
-  const [runExternalReview, setRunExternalReview] = useState(true)
 
   useEffect(() => {
     if (!open) {
       setComment("")
-      setRunExternalReview(false)
     }
   }, [open])
 
@@ -46,7 +45,7 @@ export function LifecycleReviewDialog({
       cancelLabel={t("common:cancel", "Cancel")}
       saveAction={{
         label: confirmLabel,
-        onClick: () => onConfirm({ comment, run_external_review: showExternalReviewToggle && runExternalReview }),
+        onClick: () => onConfirm({ comment, run_external_review: hasExternalReview }),
         loading: isProcessing,
       }}
     >
@@ -62,15 +61,11 @@ export function LifecycleReviewDialog({
             rows={3}
           />
         </div>
-        {showExternalReviewToggle && (
-          <HuemulField
-            type="switch"
-            label={t("lifecycle.reviewWithExternalSystem")}
-            name="run_external_review"
-            value={runExternalReview}
-            onChange={(v) => setRunExternalReview(Boolean(v))}
-            disabled={isProcessing}
-          />
+        {hasExternalReview && (
+          <Alert>
+            <Zap />
+            <AlertDescription>{t("lifecycle.externalReviewWillRun")}</AlertDescription>
+          </Alert>
         )}
       </div>
     </HuemulDialog>
