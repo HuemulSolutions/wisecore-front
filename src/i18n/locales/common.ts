@@ -49,6 +49,8 @@ const translations = {
   accessDenied: { en: "Access Denied", es: "Acceso Denegado" },
   noPermission: { en: "You don't have permission to access this page.", es: "No tienes permiso para acceder a esta página." },
   pickDate: { en: "Pick a date", es: "Selecciona una fecha" },
+  pickTime: { en: "Pick a time", es: "Selecciona una hora" },
+  pickDateTime: { en: "Pick a date & time", es: "Selecciona fecha y hora" },
   selectDate: { en: "Select date", es: "Seleccionar fecha" },
   selectTime: { en: "Select time", es: "Seleccionar hora" },
   dateFrom: { en: "From", es: "Desde" },

@@ -488,6 +488,22 @@ export async function rejectExecutionLifecycle(
     return data.data;
 }
 
+export async function restoreExecutionLifecycle(
+    executionId: string,
+    organizationId: string,
+    options?: { comment?: string },
+) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/restore`, {
+        comment: options?.comment || '',
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
 export async function assignExecutionVersion(
     executionId: string,
     version: { major: number; minor: number; patch: number },

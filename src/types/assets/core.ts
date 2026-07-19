@@ -72,6 +72,8 @@ export interface FileNode {
   /** True for the fixed set of default root folders (Forms, Global, Grupal, Mis documentos, Sin carpeta). */
   isSystem?: boolean;
   folder_type?: LibraryContentFolderType | null;
+  /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
+  isRootGroup?: boolean;
 }
 
 /**
@@ -255,6 +257,23 @@ export interface AssetContentResponse {
   timestamp: string;
 }
 
+/**
+ * Lightweight media URL refresh payload — `GET /documents/{id}/media_urls`.
+ * `media_urls` maps mediaId -> freshly-signed download URL for every media
+ * referenced in the document's current content. A media id referenced in the
+ * document but omitted here means it is broken (deleted or no access) and
+ * should be rendered as unavailable rather than retried.
+ */
+export interface DocumentMediaUrls {
+  media_urls: Record<string, string>;
+  ttl_seconds: number;
+}
+
+export interface DocumentMediaUrlsResponse {
+  data: DocumentMediaUrls;
+  transaction_id: string;
+}
+
 // ========================================
 // Dialog Props Types
 // ========================================
@@ -270,7 +289,7 @@ export interface CreateFolderSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentFolder?: string;
-  onFolderCreated?: () => void;
+  onFolderCreated?: (folder?: { id: string; name: string }) => void;
 }
 
 export interface DeleteDocumentDialogProps {

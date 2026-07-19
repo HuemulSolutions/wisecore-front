@@ -20,6 +20,7 @@ import { HuemulFilterButton } from '@/huemul/components/huemul-filter-button';
 import { HuemulFilterChips } from '@/huemul/components/huemul-filter-chips';
 import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel';
 import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
+import { HuemulCustomFieldFilter } from '@/huemul/components/huemul-custom-field-filter';
 import { HuemulStatCard } from '@/huemul/components/huemul-stat-card';
 import type { HuemulStatCardColor } from '@/huemul/components/huemul-stat-card';
 import { useHuemulFilters } from '@/hooks/useHuemulFilters';
@@ -34,7 +35,6 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useAuth } from '@/contexts/auth-context';
 import { getUsers } from '@/services/users';
 import { getDocumentTypes } from '@/services/document-types';
-import { getCustomFields } from '@/services/custom-fields';
 import type { FetchOptionsParams, FetchOptionsResult } from '@/huemul/components/huemul-field';
 import type { HuemulFilterDef, HuemulFilterValue, HuemulDateRangeValue } from '@/types/huemul';
 import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/types/execution';
@@ -96,17 +96,6 @@ export default function Home() {
   const { data: stats, isLoading: statsLoading } = useDocumentStatistics(
     selectedOrganizationId ?? '',
     !!selectedOrganizationId,
-  );
-
-  const fetchCustomFieldNames = useCallback(
-    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
-      const res = await getCustomFields({ search: s || undefined, page: p, page_size: ps });
-      return {
-        options: res.data.map((cf) => ({ value: cf.name, label: cf.name })),
-        hasMore: res.has_next,
-      };
-    },
-    [],
   );
 
   const fetchDocumentTypes = useCallback(
@@ -213,21 +202,23 @@ export default function Home() {
       { key: 'estimatedPublicationDate', type: 'date-range', group: dates, label: t('filters.estimatedPublicationDate') },
       { key: 'reviewDate', type: 'date-range', group: dates, label: t('filters.reviewDate') },
       { key: 'auditDate', type: 'date-range', group: dates, label: t('filters.auditDate') },
-      { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
-      { key: 'expiringSoon', type: 'boolean', group: other, label: t('filters.expiringSoon') },
       {
         key: 'customFieldFilter',
-        type: 'async-combobox',
-        multiSelect: true,
+        type: 'custom',
+        multiEntry: true,
         group: t('filters.customFieldsGroup'),
         label: t('filters.customFields'),
-        placeholder: t('filters.customFieldsPlaceholder'),
-        fetchOptions: fetchCustomFieldNames,
-        pageSize: 50,
-        searchOnEnter: true,
+        render: ({ value, setValue }) => (
+          <HuemulCustomFieldFilter
+            value={Array.isArray(value) ? (value as string[]) : []}
+            onChange={(next) => setValue(next)}
+          />
+        ),
       },
+      { key: 'hasUnresolvedComments', type: 'boolean', group: other, label: t('filters.unresolvedComments') },
+      { key: 'expiringSoon', type: 'boolean', group: other, label: t('filters.expiringSoon') },
     ];
-  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers, fetchCustomFieldNames]);
+  }, [t, tAssets, tFilters, fetchDocumentTypes, fetchUsers]);
 
   const {
     values,

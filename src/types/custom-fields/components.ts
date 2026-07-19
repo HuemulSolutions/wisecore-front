@@ -14,10 +14,12 @@ export interface CustomFieldFormFieldsProps {
   description: string
   dataType: string
   masc: string
+  questionType: string
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onDataTypeChange: (value: string) => void
   onMascChange: (value: string) => void
+  onQuestionTypeChange: (value: string) => void
   dataTypes: string[]
   formatDataType: (dataType: string) => string
   options: CustomFieldOption[]
@@ -35,9 +37,10 @@ export interface CustomFieldFormFieldsProps {
 
 export interface CustomFieldValueFieldProps {
   dataType: string
+  questionType?: string
   label: string
-  value: string
-  onChange: (value: string) => void
+  value: string | string[]
+  onChange: (value: string | string[]) => void
   options?: CustomFieldOption[]
   error?: string
   disabled?: boolean

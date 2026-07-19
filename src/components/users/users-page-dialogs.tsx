@@ -1,4 +1,4 @@
-import EditUserDialog from "@/components/users/users-edit-dialog"
+import EditUserSheet from "@/components/users/users-edit-sheet"
 import UserOrganizationsDialog from "@/components/users/users-organizations-dialog"
 import CreateUserDialog from "@/components/users/users-create-dialog"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
@@ -17,7 +17,7 @@ export default function UserPageDialogs({
 }: UserPageDialogsProps) {
   return (
     <>
-      <EditUserDialog
+      <EditUserSheet
         user={state.editingUser}
         open={!!state.editingUser}
         onOpenChange={(open) => !open && onCloseDialog('editingUser')}

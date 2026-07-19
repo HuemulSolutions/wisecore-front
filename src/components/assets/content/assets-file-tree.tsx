@@ -148,7 +148,10 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         cascadeSelection={cascadeSelection}
         isNodeExpandable={isNodeExpandable ? (node) => isNodeExpandable(node as FileNode) : undefined}
         renderNodeSuffix={renderNodeSuffix ? (node) => renderNodeSuffix(node as FileNode) : undefined}
-        isSectionHeader={(node) => !!(node as FileNode).isSystem}
+        isSectionHeader={(node) => {
+          const fileNode = node as FileNode
+          return !!fileNode.isSystem || !!fileNode.isRootGroup
+        }}
         minHeight={minHeight}
         labels={{
           newFile: t("fileTree.newFile"),

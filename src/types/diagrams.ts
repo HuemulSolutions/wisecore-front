@@ -1,3 +1,5 @@
+import type { ExecutionRelationshipType, ExecutionRelationshipAttributeValue } from './execution-relationships'
+
 // Persisted entities (shape returned by GET, embedded in Diagram.details / Diagram.texts)
 export interface DiagramDetail {
   id: string
@@ -9,6 +11,11 @@ export interface DiagramDetail {
   updated_at: string
   created_by: string | null
   updated_by: string | null
+  // Denormalized by the backend so the canvas can render a node without
+  // re-fetching the execution/document per detail (avoids an N+1 on load).
+  execution_name: string
+  document_name: string
+  document_type: { id: string; name: string; color: string }
 }
 
 export interface DiagramText {
@@ -27,6 +34,24 @@ export interface DiagramText {
   updated_by: string | null
 }
 
+export interface DiagramRelationshipDetail {
+  id: string
+  diagram_id: string
+  execution_relationship_id: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+  // Denormalized by the backend so the canvas can draw the saved edge without
+  // re-fetching execution relationships per node (avoids an N+1 on load).
+  relationship_type: ExecutionRelationshipType
+  execution_relationship_name: string | null
+  source_execution_id: string
+  target_execution_id: string
+  document_type_relationship: { id: string; name: string; min_count: number; max_count: number } | null
+  attributes: ExecutionRelationshipAttributeValue[]
+}
+
 export interface Diagram {
   id: string
   name: string
@@ -35,6 +60,7 @@ export interface Diagram {
   snapshot_media_id: string | null
   details: DiagramDetail[]
   texts: DiagramText[]
+  relationships: DiagramRelationshipDetail[]
   created_at: string
   updated_at: string
   created_by: string | null
@@ -81,6 +107,10 @@ export interface DiagramTextInput {
   font_family?: string
 }
 
+export interface DiagramRelationshipInput {
+  execution_relationship_id: string
+}
+
 export interface CreateDiagramRequest {
   name: string
   execution_id: string
@@ -89,9 +119,10 @@ export interface CreateDiagramRequest {
   // Backend requires at least 1 item (DIAGRAM_DETAILS_REQUIRED)
   details: DiagramDetailInput[]
   texts: DiagramTextInput[]
+  relationships: DiagramRelationshipInput[]
 }
 
-// PUT fully replaces details/texts (not a partial patch) — both required, mirroring CreateDiagramRequest
+// PUT fully replaces details/texts/relationships (not a partial patch) — all required, mirroring CreateDiagramRequest
 export interface UpdateDiagramRequest {
   name?: string
   execution_id?: string
@@ -99,4 +130,5 @@ export interface UpdateDiagramRequest {
   snapshot_media_id?: string | null
   details: DiagramDetailInput[]
   texts: DiagramTextInput[]
+  relationships: DiagramRelationshipInput[]
 }

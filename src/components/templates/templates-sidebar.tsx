@@ -261,9 +261,9 @@ export function TemplatesSidebar({
                 onClick={handleExport}
               >
                 {isExporting ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />{t('common:exporting')}</>
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />{t('templates:exportImport.exportingAction')}</>
                 ) : (
-                  <><Download className="h-3.5 w-3.5 mr-1.5" />{`${t('common:export')} (${selectedIds.size})`}</>
+                  <><Download className="h-3.5 w-3.5 mr-1.5" />{`${t('templates:exportImport.exportAction')} (${selectedIds.size})`}</>
                 )}
               </Button>
             </div>

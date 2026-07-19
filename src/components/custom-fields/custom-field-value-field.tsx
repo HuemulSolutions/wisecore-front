@@ -1,6 +1,8 @@
 import { Loader2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
+import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import type { CustomFieldValueFieldProps } from "@/types/custom-fields"
 export type { CustomFieldValueFieldProps } from "@/types/custom-fields"
 
@@ -8,6 +10,7 @@ const VALID_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "bmp"]
 
 export function CustomFieldValueField({
   dataType,
+  questionType,
   label,
   value,
   onChange,
@@ -21,13 +24,29 @@ export function CustomFieldValueField({
 }: CustomFieldValueFieldProps) {
   const { t } = useTranslation("custom-fields")
 
+  if (dataType === "list" && questionType === QUESTION_TYPE.dropdownMultiple) {
+    return (
+      <HuemulCombobox
+        multiSelect
+        value={Array.isArray(value) ? value : []}
+        onValueChange={(v) => onChange(v as string[])}
+        options={options.map((o) => ({ value: o.id, label: o.label }))}
+        placeholder={t("addDialog.valuePlaceholderListMultiple")}
+        disabled={disabled}
+        error={error}
+      />
+    )
+  }
+
+  const stringValue = typeof value === "string" ? value : ""
+
   switch (dataType) {
     case "bool":
       return (
         <HuemulField
           type="switch"
           label={label}
-          value={value === "true" || value === "1"}
+          value={stringValue === "true" || stringValue === "1"}
           onChange={(v) => onChange(Boolean(v).toString())}
           disabled={disabled}
           error={error}
@@ -39,7 +58,7 @@ export function CustomFieldValueField({
           type="number"
           label={label}
           placeholder={t("addDialog.valuePlaceholderInt")}
-          value={value}
+          value={stringValue}
           step={1}
           onChange={(v) => {
             const strVal = String(v)
@@ -55,7 +74,7 @@ export function CustomFieldValueField({
           type="number"
           label={label}
           placeholder={t("addDialog.valuePlaceholderDecimal")}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -66,7 +85,7 @@ export function CustomFieldValueField({
         <HuemulField
           type="date"
           label={label}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -78,7 +97,7 @@ export function CustomFieldValueField({
           type="time"
           label={label}
           placeholder={t("addDialog.valuePlaceholderTime")}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -90,7 +109,7 @@ export function CustomFieldValueField({
           type="datetime"
           label={label}
           placeholder={t("addDialog.valuePlaceholderDatetime")}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -102,7 +121,7 @@ export function CustomFieldValueField({
           type="url"
           label={label}
           placeholder={t("addDialog.valuePlaceholderGeneric")}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}
@@ -143,7 +162,7 @@ export function CustomFieldValueField({
           type="select"
           label={label}
           placeholder={t("addDialog.valuePlaceholderList")}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           options={options.map((o) => ({ value: o.id, label: o.label }))}
           disabled={disabled}
@@ -156,7 +175,7 @@ export function CustomFieldValueField({
           type="text"
           label={label}
           placeholder={t("addDialog.valuePlaceholderGeneric")}
-          value={value}
+          value={stringValue}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
           error={error}

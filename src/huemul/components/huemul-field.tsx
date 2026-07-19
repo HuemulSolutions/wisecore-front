@@ -321,6 +321,7 @@ function ComboboxField({
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
             className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-0 h-9"
           />
           {search && (
@@ -497,6 +498,7 @@ function ColorField({
                 value={inputValue}
                 onChange={handleInputChange}
                 onBlur={handleInputBlur}
+                autoComplete="off"
                 className="flex-1 font-mono uppercase"
                 placeholder="#000000"
                 maxLength={7}
@@ -673,8 +675,9 @@ function DateInputField({
           <InputGroupInput
             id={fieldId}
             value={text}
-            placeholder={placeholder || pattern}
+            placeholder={placeholder || t('pickDate')}
             disabled={disabled}
+            autoComplete="off"
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
             onFocus={() => setOpen(true)}
@@ -796,8 +799,9 @@ function TimeInputField({
           <InputGroupInput
             id={fieldId}
             value={text}
-            placeholder={placeholder || (withSeconds ? "HH:mm:ss" : "HH:mm")}
+            placeholder={placeholder || t('pickTime')}
             disabled={disabled}
+            autoComplete="off"
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
             onFocus={() => setOpen(true)}
@@ -939,8 +943,9 @@ function DateTimeInputField({
           <InputGroupInput
             id={fieldId}
             value={text}
-            placeholder={placeholder || pattern}
+            placeholder={placeholder || t('pickDateTime')}
             disabled={disabled}
+            autoComplete="off"
             aria-invalid={!!error || undefined}
             onChange={(e) => handleTextChange(e.target.value)}
             onFocus={() => setOpen(true)}
@@ -1163,8 +1168,9 @@ function DateRangeField({
             <InputGroupInput
               id={fieldId}
               value={text}
-              placeholder={placeholder || pattern}
+              placeholder={placeholder || t('pickDate')}
               disabled={disabled}
+              autoComplete="off"
               aria-invalid={!!error || undefined}
               onChange={(e) => handleSingleChange(e.target.value)}
               onFocus={() => setOpen(true)}
@@ -1214,9 +1220,10 @@ function DateRangeField({
               <InputGroupInput
                 id={fieldId}
                 value={textFrom}
-                placeholder={`${t('dateFrom')} ${pattern}`}
+                placeholder={t('dateFrom')}
                 aria-label={t('dateFrom')}
                 disabled={disabled}
+                autoComplete="off"
                 aria-invalid={!!error || undefined}
                 onChange={(e) => handleRangeChange('from', e.target.value)}
                 onFocus={() => setOpen(true)}
@@ -1250,9 +1257,10 @@ function DateRangeField({
             >
               <InputGroupInput
                 value={textTo}
-                placeholder={`${t('dateTo')} ${pattern}`}
+                placeholder={t('dateTo')}
                 aria-label={t('dateTo')}
                 disabled={disabled}
+                autoComplete="off"
                 aria-invalid={!!error || undefined}
                 onChange={(e) => handleRangeChange('to', e.target.value)}
                 onFocus={() => setOpen(true)}
@@ -1481,6 +1489,7 @@ function JsonEditorField({
           disabled={disabled}
           readOnly={readOnly}
           autoFocus={autoFocus}
+          autoComplete="off"
           spellCheck={false}
           aria-invalid={!!error || undefined}
           style={{
@@ -1560,7 +1569,6 @@ export function HuemulField({
   className,
   inputClassName,
   autoFocus,
-  autoComplete,
   inline,
   labelFirst,
   fetchOptions,
@@ -1634,6 +1642,7 @@ export function HuemulField({
             rows={rows}
             required={required}
             autoFocus={autoFocus}
+            autoComplete="off"
             aria-invalid={baseInvalid || undefined}
             className={inputClassName}
           />
@@ -2129,7 +2138,7 @@ export function HuemulField({
             readOnly={readOnly}
             required={required}
             autoFocus={autoFocus}
-            autoComplete={autoComplete}
+            autoComplete="off"
             min={min}
             max={max}
             step={step}

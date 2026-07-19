@@ -102,6 +102,12 @@ export function useUserPermissions() {
     return hasAnyPermission(['role_folder:r', 'role_folder:l', 'role_folder:c', 'role_folder:u', 'role_folder:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  // Permite crear/eliminar carpetas grupales custom en la raíz (hermanas de Global/Forms/Grupal),
+  // sin necesitar ser org admin. Ver ia context/rbac-permissions-guide.md.
+  const canManageGroupFolders = useMemo(() => {
+    return hasPermission('folder:manage_groups') || isOrgAdmin;
+  }, [hasPermission, isOrgAdmin]);
+
   const canAccessTemplates = useMemo(() => {
     return hasAnyPermission(['template:r', 'template:l', 'template:c', 'template:u', 'template:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
@@ -214,6 +220,7 @@ export function useUserPermissions() {
     canAccessAssets,
     canAccessFolders,
     canAccessRoleFolders,
+    canManageGroupFolders,
     canAccessTemplates,
     canAccessDocumentTypes,
     canAccessSections,

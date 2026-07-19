@@ -1,19 +1,24 @@
 "use client"
 
-import { useState, type RefObject } from "react"
+import { useEffect, useState, type RefObject } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { toPng } from "html-to-image"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { Workflow } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { HuemulAssetTreePickerField } from "@/huemul/components/huemul-asset-tree-picker"
 import { useMediaMutations } from "@/hooks/useMedia"
 import { useDiagramMutations } from "@/hooks/useDiagrams"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { handleApiError } from "@/lib/error-utils"
-import { getNodesBounds, getViewportForBounds, type Node } from "@xyflow/react"
+import { getExecutionById } from "@/services/executions"
+import { getNodesBounds, getViewportForBounds, type Edge, type Node } from "@xyflow/react"
 import type { AssetTypeNodeData } from "./asset-type-node"
-import type { DiagramDetailInput } from "@/types/diagrams"
+import type { RelationshipEdgeData } from "./relationship-edge"
+import { executionLabel } from "./execution-relationship-dialogs"
+import type { DiagramDetailInput, DiagramRelationshipInput } from "@/types/diagrams"
 
 // Fixed export canvas size used to frame the captured nodes (react-flow's official
 // download-image recipe: https://reactflow.dev/examples/misc/download-image)
@@ -25,6 +30,7 @@ export interface SaveAsDiagramSheetProps {
   onOpenChange: (open: boolean) => void
   organizationId: string
   nodes: Node<AssetTypeNodeData>[]
+  edges: Edge<RelationshipEdgeData>[]
   containerRef: RefObject<HTMLDivElement | null>
   fitView: () => void
   /** When set, the sheet updates this existing diagram (PUT) instead of creating a new one (POST). */
@@ -42,6 +48,7 @@ export function SaveAsDiagramSheet({
   onOpenChange,
   organizationId,
   nodes,
+  edges,
   containerRef,
   fitView,
   diagramId,
@@ -56,18 +63,28 @@ export function SaveAsDiagramSheet({
   const [name, setName] = useState(initialValues?.name ?? "")
   const [description, setDescription] = useState(initialValues?.description ?? "")
   const [mainExecutionId, setMainExecutionId] = useState(initialValues?.executionId ?? "")
+  const [mainExecutionLabel, setMainExecutionLabel] = useState("")
 
   const validNodes = nodes.filter((n) => n.data.assetId && n.data.executionId)
+  const validNodeIds = new Set(validNodes.map((n) => n.id))
 
-  const executionOptions = validNodes.map((n) => ({
-    value: n.data.executionId as string,
-    label: `${n.data.name} — ${n.data.executionName ?? n.data.executionId}`,
-  }))
+  // When editing an existing diagram we only have the executionId (no label) —
+  // fetch it once to seed a readable label in the tree picker field.
+  const { data: seedExecution } = useQuery({
+    queryKey: ['save-as-diagram-main-execution', organizationId, initialValues?.executionId],
+    queryFn: () => getExecutionById(initialValues!.executionId, organizationId),
+    enabled: open && !!initialValues?.executionId && !mainExecutionLabel,
+  })
+
+  useEffect(() => {
+    if (seedExecution) setMainExecutionLabel(executionLabel(seedExecution))
+  }, [seedExecution])
 
   const reset = () => {
     setName(initialValues?.name ?? "")
     setDescription(initialValues?.description ?? "")
     setMainExecutionId(initialValues?.executionId ?? "")
+    setMainExecutionLabel("")
   }
 
   const handleSave = () =>
@@ -137,6 +154,19 @@ export function SaveAsDiagramSheet({
             },
           }))
 
+          // Only edges whose both ends are in `details` survive — the backend rejects
+          // edges "hanging" off a box that isn't part of the same request (DIAGRAM_RELATIONSHIP_EXECUTION_NOT_IN_DETAILS).
+          const relIds = new Set<string>()
+          for (const e of edges) {
+            if (!e.id.startsWith('exec-rel-')) continue
+            if (!validNodeIds.has(e.source) || !validNodeIds.has(e.target)) continue
+            const relId = (e.data as RelationshipEdgeData | undefined)?.relationshipId
+            if (relId) relIds.add(relId)
+          }
+          const relationships: DiagramRelationshipInput[] = Array.from(relIds).map((id) => ({
+            execution_relationship_id: id,
+          }))
+
           const body = {
             name,
             execution_id: mainExecutionId,
@@ -144,6 +174,7 @@ export function SaveAsDiagramSheet({
             snapshot_media_id: snapshotMediaId,
             details,
             texts: [],
+            relationships,
           }
 
           if (diagramId) {
@@ -199,14 +230,15 @@ export function SaveAsDiagramSheet({
           value={description}
           onChange={(v) => setDescription(String(v))}
         />
-        <HuemulField
-          type="select"
+        <HuemulAssetTreePickerField
+          mode="execution"
+          organizationId={organizationId}
           label={t('saveAsDiagramDialog.mainExecutionLabel')}
           placeholder={t('saveAsDiagramDialog.mainExecutionPlaceholder')}
-          value={mainExecutionId}
-          onChange={(v) => setMainExecutionId(String(v))}
-          options={executionOptions}
-          required
+          valueId={mainExecutionId || undefined}
+          valueLabel={mainExecutionLabel || undefined}
+          onPick={(id, label) => { setMainExecutionId(id); setMainExecutionLabel(label) }}
+          onClear={() => { setMainExecutionId(""); setMainExecutionLabel("") }}
         />
       </div>
     </HuemulSheet>

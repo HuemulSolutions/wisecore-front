@@ -32,9 +32,9 @@ export function CreateFolderSheet({ open, onOpenChange, parentFolder, onFolderCr
       return createFolder(data.name, data.organization_id, data.parent_folder_id)
     },
     meta: { successMessage: t('createFolder.success') },
-    onSuccess: () => {
+    onSuccess: (folder) => {
       queryClient.invalidateQueries({ queryKey: ["library", selectedOrganizationId] })
-      onFolderCreated?.()
+      onFolderCreated?.(folder)
       onOpenChange(false)
     },
   })

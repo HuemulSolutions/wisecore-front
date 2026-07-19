@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { Edit2, Globe, Plus, RefreshCw, Search, Trash2, X, Zap } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useOrganization } from "@/contexts/organization-context"
 import { useExternalSystems } from "@/hooks/useExternalSystems"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
@@ -18,7 +24,7 @@ import {
   ExternalSystemsLoadingState,
   ExternalSystemsErrorState,
   ExternalSystemDetail,
-  ExternalSystemCreateDialog,
+  ExternalSystemCreateSheet,
   ExternalSystemEditDialog,
   ExternalSystemDeleteDialog,
 } from "@/components/external-systems"
@@ -297,6 +303,14 @@ export default function ExternalSystemsPage() {
     )
   }
 
+  // System that "+" should target for a new functionality: the selected system,
+  // or the system owning the selected functionality.
+  const activeSystemId =
+    state.selectedSystem?.id ??
+    (state.selectedFunctionality
+      ? functionalitiesRef.current.get(state.selectedFunctionality.id)?.systemId ?? null
+      : null)
+
   return (
     <>
       <HuemulPageLayout
@@ -329,16 +343,47 @@ export default function ExternalSystemsPage() {
                       loading={isFetching}
                       onClick={() => { refetch() }}
                     />
-                    {canCreateSystem && (
-                      <HuemulButton
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        icon={Plus}
-                        iconClassName="h-4 w-4"
-                        tooltip={t("header.newSystem")}
-                        onClick={() => setState((s) => ({ ...s, showCreateDialog: true }))}
-                      />
+                    {(canCreateSystem || canCreateFunctionality) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <HuemulButton
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            icon={Plus}
+                            iconClassName="h-4 w-4"
+                            tooltip={t("common:create")}
+                          />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canCreateSystem && (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setTimeout(() => setState((s) => ({ ...s, showCreateDialog: true })), 0)
+                              }}
+                              className="hover:cursor-pointer"
+                            >
+                              <Globe className="mr-2 h-4 w-4" />
+                              {t("header.newSystem")}
+                            </DropdownMenuItem>
+                          )}
+                          {canCreateFunctionality && activeSystemId && (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setTimeout(() => setState((s) => ({
+                                  ...s,
+                                  showCreateFunctionalityDialog: true,
+                                  createFunctionalitySystemId: activeSystemId,
+                                })), 0)
+                              }}
+                              className="hover:cursor-pointer"
+                            >
+                              <Zap className="mr-2 h-4 w-4" />
+                              {t("external-functionalities:addFunctionality")}
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
                 </div>
@@ -396,7 +441,7 @@ export default function ExternalSystemsPage() {
         ]}
       />
 
-      <ExternalSystemCreateDialog
+      <ExternalSystemCreateSheet
         open={state.showCreateDialog}
         onOpenChange={(open) => setState((s) => ({ ...s, showCreateDialog: open }))}
         organizationId={orgId}

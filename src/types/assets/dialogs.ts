@@ -113,7 +113,7 @@ export interface AssignVersionDialogProps {
 export interface CreateFolderLegacyProps {
   trigger: ReactNode
   parentFolder?: string
-  onFolderCreated?: () => void
+  onFolderCreated?: (folder?: { id: string; name: string }) => void
 }
 
 // ----------------------------------------
@@ -183,6 +183,16 @@ export interface ImportAssetFromFileSheetProps {
   onOpenChange: (open: boolean) => void
   folderId?: string
   onAssetCreated?: (asset: { id: string; name: string; type: string }) => void
+}
+
+// ----------------------------------------
+// Import Configuration (JSON migration)
+// ----------------------------------------
+
+export interface ImportConfigSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onImported?: () => void
 }
 
 // ----------------------------------------

@@ -6,9 +6,9 @@ import { Workflow } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField, type FetchOptionsParams, type FetchOptionsResult } from "@/huemul/components/huemul-field"
 import { useDiagram } from "@/hooks/useDiagrams"
-import { useDiagramCanvasNodes } from "@/hooks/useDiagramCanvasNodes"
 import { getDiagrams } from "@/services/diagrams"
 import { isErrorCode } from "@/lib/error-utils"
+import { buildInitialCanvasNodes } from "@/lib/diagram-utils"
 import type { Diagram } from "@/types/diagrams"
 import type { InitialCanvasNode } from "@/types/document-type-relationships"
 
@@ -29,13 +29,10 @@ export function LoadDiagramSheet({ open, onOpenChange, organizationId, onLoad }:
     organizationId,
     selectedDiagramId ?? '',
   )
-  const { initialNodes, isLoading: isLoadingNodes } = useDiagramCanvasNodes(
-    organizationId,
-    diagram,
-    !!selectedDiagramId,
-  )
 
-  const isResolving = !!selectedDiagramId && (isLoadingDiagram || isLoadingNodes)
+  const initialNodes: InitialCanvasNode[] | undefined = diagram ? buildInitialCanvasNodes(diagram) : undefined
+
+  const isResolving = !!selectedDiagramId && isLoadingDiagram
   const hasError = !!selectedDiagramId && !!diagramError
 
   const fetchDiagramOptions = async ({ search, page, pageSize }: FetchOptionsParams): Promise<FetchOptionsResult> => {

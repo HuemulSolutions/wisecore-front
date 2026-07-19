@@ -5,6 +5,7 @@ import {
   Check,
   Globe,
   Archive,
+  RotateCcw,
   RefreshCw,
   List,
   Info,
@@ -18,6 +19,7 @@ import {
   FileText,
   Download,
   FileSpreadsheet,
+  FileJson,
   Trash2,
   FileX,
 } from "lucide-react";
@@ -83,6 +85,7 @@ interface MoreOptionsDropdownProps {
   onCheckLifecycle: () => void;
   onPublish: () => void;
   onArchive: () => void;
+  onRestore: () => void;
   onRefresh: () => void;
   onToggleToc: () => void;
   onOpenInfo: () => void;
@@ -97,6 +100,7 @@ interface MoreOptionsDropdownProps {
   onExportWord: () => void;
   onExportCustomWord: () => void;
   onExportExcel: () => void;
+  onExportVersion: () => void;
   onDeleteVersion: () => void;
   onDeleteDocument: () => void;
   isRerunningExternalPublish: boolean;
@@ -126,6 +130,7 @@ export function MoreOptionsDropdown({
   onCheckLifecycle,
   onPublish,
   onArchive,
+  onRestore,
   onRefresh,
   onToggleToc,
   onOpenInfo,
@@ -140,6 +145,7 @@ export function MoreOptionsDropdown({
   onExportWord,
   onExportCustomWord,
   onExportExcel,
+  onExportVersion,
   onDeleteVersion,
   onDeleteDocument,
   isRerunningExternalPublish,
@@ -228,6 +234,15 @@ export function MoreOptionsDropdown({
                   {t("lifecycle.archive")}
                 </DropdownMenuItem>
               )}
+            {lifecyclePermissions?.archive && lifecycleStatus.state === "archived" && (
+              <DropdownMenuItem
+                onSelect={() => setTimeout(onRestore, 0)}
+                className="hover:cursor-pointer"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t("lifecycle.restore")}
+              </DropdownMenuItem>
+            )}
             {hasLifecycleActions && <DropdownMenuSeparator />}
           </>
         )}
@@ -389,6 +404,10 @@ export function MoreOptionsDropdown({
             <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportExcel}>
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               {t("content.exportAsExcel")}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportVersion}>
+              <FileJson className="mr-2 h-4 w-4" />
+              {t("content.exportAsVersionConfig")}
             </DropdownMenuItem>
           </>
         )}

@@ -49,6 +49,9 @@ const translations = {
     birthDayPlaceholder: { en: "Day", es: "Día" },
     profilePhoto: { en: "Profile Photo", es: "Foto de Perfil" },
     profilePhotoDescription: { en: "Accepted formats: JPG, PNG, GIF (Max 5MB)", es: "Formatos aceptados: JPG, PNG, GIF (Máx. 5MB)" },
+    notifyDailyDigest: { en: "Daily email digest", es: "Resumen diario por correo" },
+    notifyDailyDigestCheck: { en: "Receive daily digest", es: "Recibir resumen diario" },
+    notifyDailyDigestDescription: { en: "Get a daily email summarizing new document activity.", es: "Recibe un correo diario con las novedades de documentos." },
     months: {
       january: { en: "January", es: "Enero" },
       february: { en: "February", es: "Febrero" },

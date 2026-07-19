@@ -38,7 +38,9 @@ const translations = {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },
     newAsset: { en: "New Asset", es: "Nuevo Activo" },
     importAsset: { en: "New Asset from File", es: "Nuevo Activo desde Archivo" },
+    importConfig: { en: "Import portable", es: "Importar portable" },
     newFolder: { en: "New Folder", es: "Nueva Carpeta" },
+    newGroupFolder: { en: "New Group Folder", es: "Nueva Carpeta Grupal" },
     newArea: { en: "New Area", es: "Nueva Área" },
     shareFolder: { en: "Share", es: "Compartir" },
     editFolder: { en: "Edit Folder", es: "Editar Carpeta" },
@@ -79,9 +81,6 @@ const translations = {
     relationsMode: { en: "Relations", es: "Relaciones" },
     relationsModeTitle: { en: "Relations", es: "Relaciones" },
     relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
-    exportModeTooltip: { en: "Export mode", es: "Modo exportación" },
-    exportSelectedCount: { en: "{{count}} versions selected", es: "{{count}} versiones seleccionadas" },
-    exportError: { en: "Error exporting documents", es: "Error al exportar documentos" },
     errors: {
       folderNotAccessible: {
         en: "You don't have access to this folder",
@@ -110,6 +109,14 @@ const translations = {
       orgAdminRequired: {
         en: "Only an organization admin can do this",
         es: "Solo un administrador de la organización puede hacer esto",
+      },
+      manageGroupsRequired: {
+        en: "You need the 'manage groups' permission to do this",
+        es: "Necesitas el permiso de 'administrar grupos' para hacer esto",
+      },
+      folderNotGrantable: {
+        en: "Access can't be granted on this folder",
+        es: "No se puede otorgar acceso sobre esta carpeta",
       },
     },
   },

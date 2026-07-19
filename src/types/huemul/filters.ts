@@ -101,6 +101,10 @@ export interface HuemulCustomFilterDef extends HuemulFilterDefBase {
     value: HuemulFilterValue;
     setValue: (value: HuemulFilterValue, label?: string) => void;
   }) => ReactNode;
+  /** When true, the value is a string[] of independent entries and each one
+   *  renders as its own removable chip (key: `${def.key}::${entry}`), instead
+   *  of the default single string value / single chip. */
+  multiEntry?: boolean;
 }
 
 export type HuemulFilterDef =
@@ -176,5 +180,14 @@ export interface HuemulFilterInlineProps {
   onChange: (key: string, value: HuemulFilterValue) => void;
   /** Called when an async-combobox resolves a label, so chips can show names. */
   onSelectedLabel?: (key: string, label?: string) => void;
+  className?: string;
+}
+
+// ── Custom field value filter (guided field + value picker) ─────────────────
+
+export interface HuemulCustomFieldFilterProps {
+  /** Current `custom_field_filter` entries (each `"name"` or `"name:value"`). */
+  value: string[];
+  onChange: (next: string[]) => void;
   className?: string;
 }

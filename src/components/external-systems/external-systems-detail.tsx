@@ -3,6 +3,7 @@ import { Network, Plus, Edit2, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { cn } from "@/lib/utils"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { ExternalSystemDetailProps } from "@/types/external-systems"
@@ -48,15 +49,13 @@ export function ExternalSystemDetail({ system, organizationId = "", onAddFunctio
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {onAddFunctionality && (
-              <Button
-                variant="ghost"
+              <HuemulButton
+                variant="secondary"
                 size="sm"
-                className="h-8 text-xs px-2 hover:cursor-pointer"
+                icon={Plus}
+                label={t("external-functionalities:addFunctionality")}
                 onClick={onAddFunctionality}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {t("external-functionalities:addFunctionality")}
-              </Button>
+              />
             )}
             {onEdit && (
               <Button

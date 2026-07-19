@@ -94,7 +94,7 @@ export function LifecyclePublishActionsSection({
   // ─── Name resolution ────────────────────────────────────────────────────────
 
   const resolveName = (action: ExternalPublishAction) =>
-    action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
+    action.external_functionality_name ?? action.external_functionality?.name ?? `${action.external_functionality_id.slice(0, 8)}…`
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -162,9 +162,17 @@ export function LifecyclePublishActionsSection({
 
   return (
     <div className="flex flex-col gap-3 pt-2">
-      <div>
-        <p className="text-sm font-semibold">{t("lifecycle.publishActions.title")}</p>
-        <p className="text-xs text-muted-foreground">{t("lifecycle.publishActions.description")}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold">{t("lifecycle.publishActions.title")}</p>
+          <p className="text-xs text-muted-foreground">{t("lifecycle.publishActions.description")}</p>
+        </div>
+        {canCreate && (
+          <Button variant="outline" size="sm" onClick={handleOpenAdd} className="shrink-0">
+            <Plus className="h-4 w-4 mr-1.5" />
+            {t("lifecycle.publishActions.addAction")}
+          </Button>
+        )}
       </div>
 
       {isLoadingActions ? (
@@ -267,15 +275,6 @@ export function LifecyclePublishActionsSection({
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {canCreate && (
-        <div>
-          <Button variant="outline" size="sm" onClick={handleOpenAdd}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            {t("lifecycle.publishActions.addAction")}
-          </Button>
         </div>
       )}
 

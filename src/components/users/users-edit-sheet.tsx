@@ -1,34 +1,35 @@
 import React, { useState } from "react"
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { updateUser, getUserById } from "@/services/users"
 import { type UpdateUserData } from "@/types/users"
 import { userQueryKeys } from "@/hooks/useUsers"
 import { UserPen } from "lucide-react"
 import UserFormFields from "@/components/users/users-form-fields"
-import type { EditUserDialogProps } from '@/types/users'
-export type { EditUserDialogProps } from '@/types/users'
+import type { EditUserSheetProps } from '@/types/users'
+export type { EditUserSheetProps } from '@/types/users'
 
-export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: EditUserDialogProps) {
+export default function EditUserSheet({ user, open, onOpenChange, onSuccess, showDailyDigest = false }: EditUserSheetProps) {
   const [formData, setFormData] = useState({
     name: '',
     last_name: '',
     email: '',
     birth_day: '',
     birth_month: '',
-    photo_file: ''
+    photo_file: '',
+    notify_daily_digest: false
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const queryClient = useQueryClient()
   const { t } = useTranslation(['users'])
 
-  // Fetch user data when dialog opens
+  // Fetch user data when sheet opens
   const { data: fetchedUser, isLoading: isLoadingUser } = useQuery({
     queryKey: ['user', user?.id],
     queryFn: () => getUserById(user!.id),
     enabled: !!user?.id && open,
-    staleTime: 0, // Always fetch fresh data when dialog opens
+    staleTime: 0, // Always fetch fresh data when sheet opens
   })
 
   // Reset form when user data is fetched
@@ -37,14 +38,15 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
       // Use birth_day and birth_month directly from the API response
       const birthDay = fetchedUser.birth_day ? fetchedUser.birth_day.toString() : ''
       const birthMonth = fetchedUser.birth_month ? fetchedUser.birth_month.toString() : ''
-      
+
       setFormData({
         name: fetchedUser.name || '',
         last_name: fetchedUser.last_name || '',
         email: fetchedUser.email || '',
         birth_day: birthDay,
         birth_month: birthMonth,
-        photo_file: ''
+        photo_file: '',
+        notify_daily_digest: fetchedUser.notify_daily_digest ?? false
       })
       setErrors({})
     }
@@ -116,7 +118,8 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
       email: formData.email.trim(),
       ...(formData.birth_day && { birth_day: parseInt(formData.birth_day) }),
       ...(formData.birth_month && { birth_month: parseInt(formData.birth_month) }),
-      ...(formData.photo_file && { photo_file: formData.photo_file })
+      ...(formData.photo_file && { photo_file: formData.photo_file }),
+      ...(showDailyDigest && { notify_daily_digest: formData.notify_daily_digest })
     }
 
     await new Promise<void>((resolve, reject) => {
@@ -130,14 +133,13 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
   if (!user) return null
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('users:edit.title')}
       description={t('users:edit.description')}
       icon={UserPen}
       maxWidth="sm:max-w-lg"
-      maxHeight="max-h-[90vh]"
       bodyLoading={isLoadingUser}
       saveAction={{
         label: t('users:edit.button'),
@@ -163,8 +165,11 @@ export default function EditUserDialog({ user, open, onOpenChange, onSuccess }: 
           disabled={updateUserMutation.isPending}
           errors={errors}
           emailReadOnly={true}
+          notifyDailyDigest={formData.notify_daily_digest}
+          onNotifyDailyDigestChange={(notify_daily_digest) => setFormData(prev => ({ ...prev, notify_daily_digest }))}
+          includeNotifyDailyDigest={showDailyDigest}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

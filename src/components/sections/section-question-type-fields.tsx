@@ -129,7 +129,7 @@ export function SectionQuestionTypeFields({
 
   // ── Editor de opciones (opcion_multiple / desplegable) ────────────────────
   // default_value es directamente FormFieldOption[] (array, no objeto envuelto).
-  const renderOptions = (variant: "radio" | "ordered") => {
+  const renderOptions = (variant: "radio" | "ordered" | "checkbox") => {
     const options = readFieldOptions(field);
     const setOptions = (next: FormFieldOption[]) => onUpdate({ default_value: next });
     const slugify = (label: string) =>
@@ -140,6 +140,8 @@ export function SectionQuestionTypeFields({
           <div key={opt.id || i} className="flex items-center gap-2">
             {variant === "radio" ? (
               <span className="size-4 shrink-0 rounded-full border border-gray-300 bg-white" />
+            ) : variant === "checkbox" ? (
+              <span className="size-4 shrink-0 rounded border border-gray-300 bg-white" />
             ) : (
               <span className="w-4 shrink-0 text-xs text-gray-500">{i + 1}.</span>
             )}
@@ -273,6 +275,9 @@ export function SectionQuestionTypeFields({
 
     case QUESTION_TYPE.dropdown:
       return renderOptions("ordered");
+
+    case QUESTION_TYPE.dropdownMultiple:
+      return renderOptions("checkbox");
 
     // ── Carga de archivos ───────────────────────────────────────────────────
     case QUESTION_TYPE.fileUpload: {

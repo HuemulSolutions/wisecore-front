@@ -1,6 +1,6 @@
 import type { ExternalSystem } from './core'
 
-export interface ExternalSystemCreateDialogProps {
+export interface ExternalSystemCreateSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   organizationId: string

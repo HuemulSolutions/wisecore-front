@@ -24,7 +24,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { EditSectionDialog } from "./sections-edit-dialog";
+import { EditSectionDialog } from "./sections-edit-sheet";
 import { SectionFormFieldsView } from "./section-form-fields-view";
 import type { SortableSectionSheetProps, DeleteMode } from "@/types/sections";
 
