@@ -14,7 +14,7 @@ export function buildInitialCanvasNodes(diagram: Diagram): InitialCanvasNode[] {
       documentTypeId: d.document_type.id,
       executionId: d.execution_id,
       executionName: d.execution_name,
-      name: d.document_type.name,
+      name: d.document_name ?? d.document_type.name,
       color: d.document_type.color,
       position: { x: Number(position?.x ?? 0), y: Number(position?.y ?? 0) },
     }

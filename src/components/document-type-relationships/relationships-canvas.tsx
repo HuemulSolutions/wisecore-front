@@ -12,6 +12,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useNodesInitialized,
   ConnectionMode,
   MarkerType,
   type Node,
@@ -1203,7 +1204,10 @@ function RelationshipsCanvasFlow({
   // lookup and parallel-offset counting can't race against react-flow's state.
   const seedRelationshipEdges = useCallback(
     (seeded: { canvasNodeId: string; node: Node<AssetTypeNodeData> }[], relationships?: InitialCanvasRelationship[]) => {
-      if (!canListExecRelationships || !relationships?.length) return
+      // No gate on canListExecRelationships here: these edges come from the saved
+      // Diagram's own denormalized data (no fetch involved), not a live exec-rel
+      // list request — a viewer with only diagram:r must still see them.
+      if (!relationships?.length) return
 
       const execToNodeId = new Map<string, string>()
       for (const { canvasNodeId, node } of seeded) {
@@ -1273,12 +1277,24 @@ function RelationshipsCanvasFlow({
 
       if (newEdges.length > 0) setEdges((eds) => [...eds, ...newEdges])
     },
-    [setEdges, canListExecRelationships, canUpdateExecRelationship, canDeleteExecRelationship],
+    [setEdges, canUpdateExecRelationship, canDeleteExecRelationship],
   )
 
   // ─── Seed nodes at explicit saved positions (reopening/loading a Diagram) ──
   // `relationships`, when given, are the diagram's saved relationships (already
   // resolved by the backend) — otherwise no edges are drawn for the seeded nodes.
+  //
+  // Edges are NOT drawn synchronously here: react-flow needs a render pass to
+  // register/measure freshly-seeded nodes before it can resolve edge endpoints
+  // (getEdgeParams / useInternalNode return null otherwise, so edges never
+  // appear). The pending batch is stashed in a ref and flushed by the
+  // useNodesInitialized effect below, once react-flow reports the new nodes
+  // are actually initialized.
+  const pendingEdgeSeedRef = useRef<{
+    seeded: { canvasNodeId: string; node: Node<AssetTypeNodeData> }[]
+    relationships?: InitialCanvasRelationship[]
+  } | null>(null)
+
   const seedCanvasNodes = useCallback((nodesToSeed: InitialCanvasNode[], relationships?: InitialCanvasRelationship[]) => {
     const seeded = nodesToSeed.map((n) => {
       const canvasNodeId = `${n.assetId}-${Math.random().toString(36).slice(2, 9)}`
@@ -1303,12 +1319,19 @@ function RelationshipsCanvasFlow({
     })
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
+    pendingEdgeSeedRef.current = { seeded, relationships }
+  }, [setNodes, handleRemoveNode])
 
-    // Draw relationships between the seeded nodes in a single pass off `seeded`
-    // (not react-flow's store, which hasn't caught up to the setNodes above yet).
+  // Flush any pending edge seed once react-flow reports the current nodes are
+  // initialized (measured). Depends on `nodes` too (not just the boolean) so a
+  // batch queued while the flag was already `true` still gets a fresh check.
+  const nodesInitialized = useNodesInitialized()
+  useEffect(() => {
+    if (!nodesInitialized || !pendingEdgeSeedRef.current) return
+    const { seeded, relationships } = pendingEdgeSeedRef.current
+    pendingEdgeSeedRef.current = null
     seedRelationshipEdges(seeded, relationships)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setNodes, handleRemoveNode, seedRelationshipEdges])
+  }, [nodesInitialized, nodes, seedRelationshipEdges])
 
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.

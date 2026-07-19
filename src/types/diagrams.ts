@@ -14,6 +14,7 @@ export interface DiagramDetail {
   // Denormalized by the backend so the canvas can render a node without
   // re-fetching the execution/document per detail (avoids an N+1 on load).
   execution_name: string
+  document_name: string
   document_type: { id: string; name: string; color: string }
 }
 

@@ -72,24 +72,28 @@ export function RelationshipCreateDialog({
     >
       <HuemulFieldGroup className="py-2">
         {/* Source → Target display */}
-        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-xs">
-          <div
-            className="h-3 w-3 rounded-full shrink-0"
-            style={{ backgroundColor: sourceDocumentType?.color || "#94a3b8" }}
-          />
-          <span className="font-medium truncate">
-            {sourceDocumentType?.name ?? sourceDocumentTypeId}
-          </span>
-          <span className="text-muted-foreground mx-1">→</span>
-          <div
-            className="h-3 w-3 rounded-full shrink-0"
-            style={{ backgroundColor: targetDocumentType?.color || "#94a3b8" }}
-          />
-          <span className="font-medium truncate">
-            {targetDocumentType?.name ?? targetDocumentTypeId}
-          </span>
+        <div className="flex flex-col gap-1.5 p-3 bg-muted/50 rounded-lg text-xs">
+          <div className="flex items-start gap-2">
+            <div
+              className="h-3 w-3 rounded-full shrink-0 mt-0.5"
+              style={{ backgroundColor: sourceDocumentType?.color || "#94a3b8" }}
+            />
+            <span className="font-medium line-clamp-2 break-words">
+              {sourceDocumentType?.name ?? sourceDocumentTypeId}
+            </span>
+          </div>
+          <span className="text-muted-foreground pl-1">↓</span>
+          <div className="flex items-start gap-2">
+            <div
+              className="h-3 w-3 rounded-full shrink-0 mt-0.5"
+              style={{ backgroundColor: targetDocumentType?.color || "#94a3b8" }}
+            />
+            <span className="font-medium line-clamp-2 break-words">
+              {targetDocumentType?.name ?? targetDocumentTypeId}
+            </span>
+          </div>
           {isSelf && (
-            <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            <span className="self-start text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
               {t("relationship.selfRelation")}
             </span>
           )}
