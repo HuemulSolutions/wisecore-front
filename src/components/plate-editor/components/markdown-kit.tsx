@@ -3,8 +3,7 @@ import { KEYS } from 'platejs';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 
-/** Matches {{MEDIA:<uuid>}} tokens stored as image URLs. */
-const MEDIA_TOKEN_RE = /^\{\{MEDIA:([0-9a-f-]{36})\}\}$/i;
+import { MEDIA_TOKEN_RE } from '@/lib/plate-media-utils';
 
 export const MarkdownKit = [
   MarkdownPlugin.configure({

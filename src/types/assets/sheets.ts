@@ -168,7 +168,7 @@ export interface TemplateConfigSheetProps {
     id: string
     name: string
     description?: string
-    template_sections?: any[]
+    template_sections?: SectionsConfigSection[]
   } | null
   isOpen: boolean
   onOpenChange: (open: boolean) => void

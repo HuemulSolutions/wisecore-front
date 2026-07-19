@@ -19,11 +19,13 @@ export interface CustomFieldDocument {
   value_number: number | null;
   value_bool: boolean | null;
   value_identifier: string | null;
+  value_list: string[] | null;
   options?: CustomFieldOption[];
   source: CustomFieldDocumentSource;
   created_at: string;
   updated_at: string;
   data_type: string;
+  question_type?: string;
 }
 
 export interface CustomFieldDocumentListParams extends PaginationParams {
@@ -44,13 +46,13 @@ export interface CreateCustomFieldDocumentRequest {
   custom_field_id: string;
   required: boolean;
   prompt: string;
-  value: string;
+  value: string | number | boolean | string[];
   source: CustomFieldDocumentSource;
 }
 
 export interface UpdateCustomFieldDocumentRequest {
   required?: boolean;
   prompt?: string;
-  value?: string;
+  value?: string | number | boolean | string[];
   source?: CustomFieldDocumentSource;
 }

@@ -3,6 +3,7 @@ import { httpClient } from "@/lib/http-client";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
+import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
 export type { RollbackTarget, RollbackStep, RollbackTargetsResponse };
 
@@ -25,6 +26,7 @@ export async function getAllExecutions(
     lifecycle_state,
     owner_scope,
     has_unresolved_comments,
+    expiring_soon,
     expiration_date,
     expiration_date_from,
     expiration_date_to,
@@ -53,6 +55,7 @@ export async function getAllExecutions(
   if (lifecycle_state) qs.set('lifecycle_state', lifecycle_state)
   if (owner_scope) qs.set('owner_scope', owner_scope)
   if (has_unresolved_comments != null) qs.set('has_unresolved_comments', has_unresolved_comments.toString())
+  if (expiring_soon != null) qs.set('expiring_soon', expiring_soon.toString())
   if (expiration_date) qs.set('expiration_date', toDateParam(expiration_date))
   if (expiration_date_from) qs.set('expiration_date_from', toDateParam(expiration_date_from))
   if (expiration_date_to) qs.set('expiration_date_to', toDateParam(expiration_date_to))
@@ -415,8 +418,16 @@ export async function cloneExecutionToNewDocument(
     return data.data;
 }
 
-export async function completeExecutionLifecycleStep(executionId: string, stepId: string, organizationId: string, comment?: string) {
-    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, { comment: comment || '' }, {
+export async function completeExecutionLifecycleStep(
+    executionId: string,
+    stepId: string,
+    organizationId: string,
+    options?: { comment?: string; run_external_review?: boolean },
+): Promise<CompleteLifecycleStepResponse> {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/steps/${stepId}/complete`, {
+        comment: options?.comment || '',
+        ...(options?.run_external_review && { run_external_review: true }),
+    }, {
         headers: {
             'X-Org-Id': organizationId,
         },
@@ -468,6 +479,22 @@ export async function rejectExecutionLifecycle(
         comment: options?.comment || '',
         ...(options?.target_state && { target_state: options.target_state }),
         ...(options?.target_step_id && { target_step_id: options.target_step_id }),
+    }, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    return data.data;
+}
+
+export async function restoreExecutionLifecycle(
+    executionId: string,
+    organizationId: string,
+    options?: { comment?: string },
+) {
+    const response = await httpClient.post(`${backendUrl}/execution-lifecycle/${executionId}/restore`, {
+        comment: options?.comment || '',
     }, {
         headers: {
             'X-Org-Id': organizationId,

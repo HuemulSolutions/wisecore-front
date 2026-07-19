@@ -5,7 +5,7 @@ export interface CreateEditCustomFieldDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   customField: CustomField | null
-  onSuccess: () => void
+  onSuccess: (created?: CustomField) => void
   customFieldMutations: ReturnType<typeof useCustomFieldMutations>
 }
 

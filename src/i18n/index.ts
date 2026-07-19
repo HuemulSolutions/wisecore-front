@@ -31,10 +31,12 @@ import chatbot from './locales/chatbot'
 import huemulFilters from './locales/huemul-filters'
 import huemulFileTree from './locales/huemul-file-tree'
 import canvas from './locales/canvas'
+import diagrams from './locales/diagrams'
 import documentTypeRelationships from './locales/document-type-relationships'
 import media from './locales/media'
 import subscriptions from './locales/subscriptions'
 import notifications from './locales/notifications'
+import roleFolder from './locales/role-folder'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -85,10 +87,12 @@ const modules = {
   'huemul-filters': huemulFilters,
   'huemul-file-tree': huemulFileTree,
   canvas,
+  diagrams,
   'document-type-relationships': documentTypeRelationships,
   media,
   subscriptions,
   notifications,
+  'role-folder': roleFolder,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const

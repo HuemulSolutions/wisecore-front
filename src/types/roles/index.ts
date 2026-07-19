@@ -96,6 +96,14 @@ export interface RolesSearchProps {
   onCreateRole: () => void
   hasError?: boolean
   canManage?: boolean
+  onExport?: () => void
+  onImport?: () => void
+  canExport?: boolean
+  canImport?: boolean
+  /** Cantidad de filas seleccionadas para exportar; deshabilita Exportar si es 0. */
+  exportSelectedCount?: number
+  /** Exportación en curso; deshabilita el botón mientras se descarga el archivo. */
+  isExporting?: boolean
 }
 
 export interface RolesTableProps {
@@ -109,6 +117,8 @@ export interface RolesTableProps {
   onCloneRole: (role: Role) => void
   pagination?: HuemulTablePagination
   canManage?: boolean
+  selectedIds?: Set<string>
+  onSelectionChange?: (next: Set<string>) => void
 }
 
 export interface DocumentTypeForRole {

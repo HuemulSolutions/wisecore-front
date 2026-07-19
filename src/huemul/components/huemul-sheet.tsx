@@ -68,6 +68,7 @@ export function HuemulSheet({
   side = "right",
   maxWidth = "sm:max-w-md",
   className,
+  bodyClassName,
   headerExtra,
   children,
 }: HuemulSheetProps) {
@@ -198,7 +199,12 @@ export function HuemulSheet({
         </SheetHeader>
 
         {/* ── Body ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-2">
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto px-6 py-2 [scrollbar-gutter:stable]",
+            bodyClassName,
+          )}
+        >
           {bodyLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-4 w-3/4" />

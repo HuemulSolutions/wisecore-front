@@ -6,14 +6,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { createFolder } from "@/services/folders"
 import { useOrganization } from "@/contexts/organization-context"
 import { toast } from "sonner"
-import type { CreateFolderRequest, CreateFolderDialogProps } from "@/types/assets"
+import type { CreateFolderRequest, CreateFolderSheetProps } from "@/types/assets"
 import { HuemulField } from "@/huemul/components/huemul-field"
 
-export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderCreated }: CreateFolderDialogProps) {
+export function CreateFolderSheet({ open, onOpenChange, parentFolder, onFolderCreated }: CreateFolderSheetProps) {
   const queryClient = useQueryClient()
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
@@ -32,9 +32,9 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
       return createFolder(data.name, data.organization_id, data.parent_folder_id)
     },
     meta: { successMessage: t('createFolder.success') },
-    onSuccess: () => {
+    onSuccess: (folder) => {
       queryClient.invalidateQueries({ queryKey: ["library", selectedOrganizationId] })
-      onFolderCreated?.()
+      onFolderCreated?.(folder)
       onOpenChange(false)
     },
   })
@@ -58,14 +58,14 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('createFolder.title')}
       description={t('createFolder.description')}
       icon={Plus}
+      side="right"
       maxWidth="sm:max-w-lg"
-      maxHeight="max-h-[90vh]"
       cancelLabel={tCommon('cancel')}
       saveAction={{
         label: t('createFolder.submitLabel'),
@@ -83,7 +83,7 @@ export function CreateFolderDialog({ open, onOpenChange, parentFolder, onFolderC
         placeholder={t('createFolder.folderNamePlaceholder')}
         disabled={createFolderMutation.isPending}
       />
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }
 
@@ -99,7 +99,7 @@ export default function CreateFolder({ trigger, parentFolder, onFolderCreated }:
       <div onClick={() => setOpen(true)}>
         {trigger}
       </div>
-      <CreateFolderDialog
+      <CreateFolderSheet
         open={open}
         onOpenChange={setOpen}
         parentFolder={parentFolder}

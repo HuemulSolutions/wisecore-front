@@ -5,6 +5,19 @@ export type Dependency = {
   name: string
 }
 
+// Operadores soportados por depends_on (ver "ia context/dependencias-condicionales-formularios-guide.md").
+export type FieldDependencyOperator =
+  | "eq" | "neq" | "gt" | "gte" | "lt" | "lte"
+  | "in" | "not_in" | "contains" | "not_contains"
+  | "is_empty" | "is_not_empty";
+
+// Una condición de depends_on: todas las condiciones de un field se combinan con AND.
+export interface FieldDependencyCondition {
+  field_id: string;
+  operator: FieldDependencyOperator;
+  value?: unknown; // omitido/ignorado para is_empty / is_not_empty
+}
+
 export interface SectionFormField {
   id?: string;                          // id de la fila section_form (presente en lecturas)
   field_id: string;
@@ -17,6 +30,8 @@ export interface SectionFormField {
   min_value?: unknown | null;           // JSONB
   max_value?: unknown | null;           // JSONB
   custom_field_id?: string | null;      // solo si question_type === "custom_field"
+  depends_on?: FieldDependencyCondition[] | null;
+  show_when_inactive?: boolean;
 }
 
 // Valor de un form field en el snapshot de una section_execution (contenido del asset).
@@ -37,6 +52,11 @@ export interface FormFieldValue {
   default_value?: unknown | null;       // config UI (options, startLabel, stars, ...)
   min_value?: unknown | null;
   max_value?: unknown | null;
+  depends_on?: FieldDependencyCondition[] | null;
+  show_when_inactive?: boolean;
+  // Calculados por el backend a partir de depends_on/show_when_inactive y las respuestas actuales.
+  is_visible?: boolean;
+  can_answer?: boolean;
 }
 
 // Una opción de opcion_multiple / lista_desplegable.

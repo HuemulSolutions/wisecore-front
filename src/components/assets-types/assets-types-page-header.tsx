@@ -20,6 +20,7 @@ export default function AssetTypePageHeader({
   onImport,
   canExport,
   canImport,
+  exportSelectedCount = 0,
 }: AssetTypePageHeaderProps) {
   const { t } = useTranslation('asset-types')
 
@@ -34,7 +35,12 @@ export default function AssetTypePageHeader({
       isLoading={isLoading}
       hasError={hasError}
       additionalActions={[
-        ...(canExport && onExport ? [{ label: t('exportImport.exportButton'), icon: Upload, onClick: onExport }] : []),
+        ...(canExport && onExport ? [{
+          label: exportSelectedCount > 0 ? `${t('exportImport.exportButton')} (${exportSelectedCount})` : t('exportImport.exportButton'),
+          icon: Upload,
+          onClick: onExport,
+          disabled: exportSelectedCount === 0,
+        }] : []),
         ...(canImport && onImport ? [{ label: t('exportImport.importButton'), icon: Download, onClick: onImport }] : []),
         ...(viewMode !== undefined && onViewModeChange ? [
           {

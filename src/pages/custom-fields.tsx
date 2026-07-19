@@ -8,6 +8,7 @@ import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 // Components
 import {
@@ -29,7 +30,7 @@ export default function CustomFieldsPage() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Get permissions
   const { isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -155,7 +156,7 @@ export default function CustomFieldsPage() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
               />
             ),

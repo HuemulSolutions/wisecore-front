@@ -7,11 +7,12 @@ export interface UserDeleteDialogProps {
   onAction: () => Promise<void>
 }
 
-export interface EditUserDialogProps {
+export interface EditUserSheetProps {
   user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  showDailyDigest?: boolean
 }
 
 export interface UserOrganizationsDialogProps {

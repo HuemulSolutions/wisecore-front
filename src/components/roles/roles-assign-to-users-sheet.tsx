@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +28,7 @@ export default function AssignRoleToUsersDialog({
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [, setHasInitialized] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const queryClient = useQueryClient()
 
   // Fetch role with all users when sheet is open

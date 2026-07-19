@@ -73,6 +73,7 @@ export interface AssetLifecycleSheetProps {
 export interface EditStepCardData {
   id: string
   name: string
+  mode: "manual" | "automatic"
   hasSla: boolean
   slaValue: string
   slaUnit: string
@@ -86,6 +87,7 @@ export interface EditStepContentProps {
   documentTypeId: string
   stepType: string
   onEditingChange?: (isEditing: boolean) => void
+  organizationId?: string
 }
 
 export interface EditStepCardProps {
@@ -101,4 +103,5 @@ export interface EditStepCardProps {
   canDelete: boolean
   dragHandleProps?: HTMLAttributes<HTMLButtonElement>
   onEditingChange?: (isEditing: boolean) => void
+  organizationId?: string
 }

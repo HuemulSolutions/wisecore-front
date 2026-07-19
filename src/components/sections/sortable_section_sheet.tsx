@@ -24,7 +24,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { EditSectionDialog } from "./sections-edit-dialog";
+import { EditSectionDialog } from "./sections-edit-sheet";
 import { SectionFormFieldsView } from "./section-form-fields-view";
 import type { SortableSectionSheetProps, DeleteMode } from "@/types/sections";
 
@@ -47,6 +47,7 @@ export default function SortableSectionSheet({
   currentExecutionId = null,
   useExecutionDeleteDialog = false,
   documentId,
+  templateId,
 }: SortableSectionSheetProps) {
   const { t } = useTranslation(["sections", "common"]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: isOverlay || isDisabledSection });
@@ -518,6 +519,7 @@ export default function SortableSectionSheet({
         hasTemplate={hasTemplate}
         isTemplateSection={isTemplateSection}
         documentId={documentId}
+        templateId={templateId}
       />
     </div>
   );

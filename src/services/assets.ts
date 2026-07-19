@@ -1,8 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
-import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse } from "@/types/assets";
+import { downloadBlobResponse } from "@/lib/blob-download";
+import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
 
-export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse };
+export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
 
 export async function getAllDocuments(organizationId: string, documentTypeId?: string, search?: string) {
   const url = new URL(`${backendUrl}/documents/`);
@@ -34,6 +35,18 @@ export async function getDocumentById(documentId: string, organizationId: string
   });
   const data = await response.json();
   console.log('Document fetched:', data.data);
+  return data.data;
+}
+
+export async function getDocumentStatistics(
+  organizationId: string,
+): Promise<DocumentStatistics> {
+  const response = await httpClient.get(`${backendUrl}/documents/statistics`, {
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+  const data = (await response.json()) as DocumentStatisticsResponse;
   return data.data;
 }
 
@@ -104,6 +117,32 @@ export async function getDocumentContent(documentId: string, organizationId: str
   return data.data;
 }
 
+/**
+ * Lightweight refresh of media download URLs for a document, without
+ * re-fetching the whole content (avoids pisar ediciones en curso / audit log
+ * cost of /content). Poll this at `ttl_seconds - margin` to keep long-lived
+ * tabs' media links from expiring.
+ */
+export async function getDocumentMediaUrls(
+  documentId: string,
+  organizationId: string,
+  params: { executionId?: string; replaceCustomFields?: boolean } = {},
+): Promise<DocumentMediaUrls> {
+  const url = new URL(`${backendUrl}/documents/${documentId}/media_urls`);
+  if (params.executionId) {
+    url.searchParams.append('execution_id', params.executionId);
+  }
+  if (params.replaceCustomFields) {
+    url.searchParams.append('replace_custom_fields', 'true');
+  }
+
+  const response = await httpClient.get(url.toString(), {
+    headers: { 'X-Org-Id': organizationId },
+  });
+  const data = (await response.json()) as DocumentMediaUrlsResponse;
+  return data.data;
+}
+
 
 export async function generateDocumentStructure(documentId: string, organizationId: string) {
   const response = await httpClient.post(`${backendUrl}/documents/${documentId}/generate`, {}, {
@@ -118,8 +157,8 @@ export async function generateDocumentStructure(documentId: string, organization
 }
 
 export async function updateDocument(
-  documentId: string, 
-  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string }, 
+  documentId: string,
+  documentData: { name?: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string },
   organizationId: string
 ) {
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}`, documentData, {
@@ -231,6 +270,57 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
   return data.data;
 }
 
+// Exporta la configuración de uno o más documentos (por execution_id, es decir versión)
+// como archivo JSON descargable (requiere permiso asset:r).
+export async function exportDocuments(organizationId: string, body: ExportDocumentsBody): Promise<void> {
+  const orgToken = httpClient.getOrganizationToken();
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (orgToken) headers['Authorization'] = `Bearer ${orgToken}`;
+  if (organizationId) headers['X-Org-Id'] = organizationId;
+
+  const response = await fetch(`${backendUrl}/documents/export`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.message ?? 'Error al exportar documentos');
+  }
+
+  await downloadBlobResponse(response, 'documents_export.json');
+}
+
+// Importa documentos desde un JSON de configuración exportado (requiere permisos asset:c + asset:u).
+// Distinto de importDocumentFromFile (/documents/import-from-file), que convierte DOCX/PDF.
+export async function importDocumentsConfig(
+  organizationId: string,
+  file: File,
+  params: ImportDocumentsConfigQueryParams = {},
+): Promise<ImportDocumentsConfigData> {
+  const url = new URL(`${backendUrl}/documents/import-config`);
+  if (params.on_conflict) url.searchParams.append('on_conflict', params.on_conflict);
+  if (params.document_ids?.length) {
+    url.searchParams.append('document_ids', params.document_ids.join(','));
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await httpClient.fetch(url.toString(), {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Org-Id': organizationId,
+    },
+  });
+
+  const data = (await response.json()) as ImportDocumentsConfigResponse;
+  return data.data;
+}
+
 export async function checkDocumentLifecycle(documentId: string, organizationId: string) {
   const response = await httpClient.post(`${backendUrl}/documents/${documentId}/lifecycle/check`, {}, {
     headers: {
@@ -264,7 +354,7 @@ export async function getDocumentsWithPendingChanges(
     hasPendingAiSuggestion?: boolean
   } = {}
 ): Promise<PendingChangesResponse> {
-  const { page = 1, pageSize = 20, search, hasPendingAiSuggestion = true } = options
+  const { page = 1, pageSize = 100, search, hasPendingAiSuggestion = true } = options
   const url = new URL(`${backendUrl}/documents/`)
   url.searchParams.append('page', String(page))
   url.searchParams.append('page_size', String(pageSize))

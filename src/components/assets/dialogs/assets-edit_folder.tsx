@@ -7,6 +7,7 @@ import { Edit3 } from "lucide-react"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { editFolder } from "@/services/folders"
 import { toast } from "sonner"
+import { handleApiError } from "@/lib/error-utils"
 import { useOrganizationId } from "@/hooks/use-organization"
 import NameDescriptionFields from "@/components/assets/content/name-description-fields"
 import type { EditFolderDialogProps } from "@/types/assets"
@@ -43,6 +44,21 @@ export default function EditFolder({
       toast.success(t('editFolder.renameSuccess', { name: name.trim() }))
       onFolderEdited?.()
       onOpenChange(false)
+    },
+    onError: (error) => {
+      handleApiError(error, {
+        onErrorCode: (code) => {
+          const key: Record<string, string> = {
+            FOLDER_NOT_RENAMABLE: 'editFolder.notRenamableError',
+            FOLDER_ADMINISTER_REQUIRED: 'editFolder.administerRequiredError',
+            ORG_ADMIN_REQUIRED: 'editFolder.orgAdminRequiredError',
+          }
+          const messageKey = key[code]
+          if (!messageKey) return false
+          toast.error(t(messageKey))
+          return true
+        },
+      })
     },
   })
 

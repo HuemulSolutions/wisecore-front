@@ -20,7 +20,7 @@ export function ExternalFunctionalityForm({ formData, onChange }: ExternalFuncti
   )
 
   const objectiveOptions = (
-    ["import_asset", "export_asset", "edit_section", "review_section", "publish_asset"] as ExternalFunctionalityObjective[]
+    ["import_asset", "export_asset", "edit_section", "review_section", "review_asset", "publish_asset"] as ExternalFunctionalityObjective[]
   ).map((o) => ({ value: o, label: t(`objective.${o}`) }))
 
   const executionTypeOptions = (["sync", "async"] as ExternalFunctionalityExecutionType[]).map((e) => ({

@@ -2,9 +2,11 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Sparkles, Loader2, X, Bot, RefreshCw } from "lucide-react";
 import { redactPrompt } from "@/services/generate";
 import { useOrganization } from "@/contexts/organization-context";
 import { FileTree } from "@/components/assets/content/assets-file-tree";
@@ -16,8 +18,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { FileNode } from "@/types/assets";
 import { SectionFormFieldsBuilder } from "./section-form-fields-builder";
 import { CUSTOM_FIELD_QUESTION_TYPE, withFieldKey, stripFieldKey, type FormFieldDraft } from "./question-type-meta";
+import { formFieldsHaveValidDependencies } from "./validate-form-field-dependencies";
 import Markdown from "@/components/ui/markdown";
 import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/plate-editor/section-plate-editor";
+import { AiEditSectionDialog } from "@/components/assets/dialogs/assets-ai-edit-section-dialog";
+import { useEditWithAi } from "@/hooks/useEditWithAi";
+import { handleApiError } from "@/lib/error-utils";
 import type { SectionFormProps } from '@/types/sections';
 export type { SectionFormProps } from '@/types/sections';
 
@@ -50,12 +56,23 @@ export function SectionForm({
       onDirtyChange?.(true);
     }
   }, [onDirtyChange]);
+
+  // Attach files uploaded from the section editor to the template or document.
+  const mediaUploadTarget = useMemo(
+    () =>
+      templateId
+        ? { level: 'template' as const, parentId: templateId }
+        : documentId
+          ? { level: 'document' as const, parentId: documentId }
+          : null,
+    [templateId, documentId],
+  );
   
   // Estado inicial basado en el modo
   const [name, setName] = useState(mode === 'edit' && item ? item.name : "");
   const [type, setType] = useState<"ai" | "manual" | "reference" | "form">(mode === 'edit' && item ? (item as any).type || "ai" : (defaultType || "ai"));
   const [formFields, setFormFields] = useState<FormFieldDraft[]>(mode === 'edit' && item ? (item.form_fields || []).map(withFieldKey) : []);
-  const [prompt, setPrompt] = useState(mode === 'edit' && item ? item.prompt : "");
+  const [prompt, setPrompt] = useState(mode === 'edit' && item ? (item.prompt ?? "") : "");
   // Key para forzar el render del editor cuando cambia el prompt generado
   const [editorKey, setEditorKey] = useState(0);
   const [manualInput, setManualInput] = useState(mode === 'edit' && item ? (item as any).manual_input || "" : (defaultManualInput || ""));
@@ -65,8 +82,10 @@ export function SectionForm({
   const [selectedDependencies, setSelectedDependencies] = useState<Array<{id: string; name: string}>>(
     mode === 'edit' && item ? item.dependencies : []
   );
-  const [selectValue, setSelectValue] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isAiEditOpen, setIsAiEditOpen] = useState(false);
+  const [promptBeforeAiEdit, setPromptBeforeAiEdit] = useState<string | null>(null);
+  const editWithAiMutation = useEditWithAi();
   const [propagateToTemplate, setPropagateToTemplate] = useState(false);
   const [propagatePrompt, setPropagatePrompt] = useState(false);
   const [propagateToAssets, setPropagateToAssets] = useState(false);
@@ -131,40 +150,20 @@ export function SectionForm({
     }
   }, [assetSections, referenceSectionId, mode]);
 
-  // Debug: log de los datos recibidos
-  useEffect(() => {
-    console.log('assetExecutions:', assetExecutions);
-    console.log('assetSections:', assetSections);
-    console.log('isLoadingExecutions:', isLoadingExecutions);
-    console.log('isLoadingSections:', isLoadingSections);
-    console.log('type:', type);
-    console.log('referenceMode:', referenceMode);
-    console.log('selectedAsset:', selectedAsset);
-    console.log('referenceSectionId:', referenceSectionId);
-  }, [assetExecutions, assetSections, isLoadingExecutions, isLoadingSections, type, referenceMode, selectedAsset, referenceSectionId]);
-
   // Lista de ejecuciones disponibles (todas las que tengan status completed o approved)
   const availableExecutions = useMemo(() => {
-    console.log('useMemo ejecutándose. assetExecutions:', assetExecutions);
-    console.log('assetExecutions?.data:', assetExecutions?.data);
-    console.log('Array.isArray(assetExecutions):', Array.isArray(assetExecutions));
-    console.log('Array.isArray(assetExecutions?.data):', Array.isArray(assetExecutions?.data));
-    
     // Verificar si assetExecutions es directamente un array o tiene una propiedad data
-    const executionsArray = Array.isArray(assetExecutions) 
-      ? assetExecutions 
+    const executionsArray = Array.isArray(assetExecutions)
+      ? assetExecutions
       : assetExecutions?.data;
-    
+
     if (!executionsArray || !Array.isArray(executionsArray)) {
-      console.log('No hay datos o no es un array');
       return [];
     }
-    
-    const filtered = executionsArray.filter((exec: any) => 
+
+    return executionsArray.filter((exec: any) =>
       exec.status === 'completed' || exec.status === 'approved'
     );
-    console.log('Available executions filtered:', filtered);
-    return filtered;
   }, [assetExecutions]);
 
   // Función para cargar contenido del árbol
@@ -214,7 +213,8 @@ export function SectionForm({
     isInitialSyncDone.current = false;
     setName(item.name);
     setType((item as any).type || "ai");
-    setPrompt(item.prompt);
+    setPrompt(item.prompt ?? "");
+    setPromptBeforeAiEdit(null);
     const manualInputValue = (item as any).manual_input || "";
     setManualInput(manualInputValue);
     const refSectionId = (item as any).reference_section_id || "";
@@ -276,20 +276,41 @@ export function SectionForm({
     }
   };
 
-  const addDependency = (sectionId: string) => {
-    if (!selectedDependencies.some(dep => dep.id === sectionId)) {
-      const sectionInfo = existingSections.find(section => section.id === sectionId);
-      setSelectedDependencies(prev => [
-        ...prev,
-        { id: sectionId, name: sectionInfo?.name || `Section ${sectionId}` }
-      ]);
-      markDirty();
+  const handleEditPromptWithAi = async (instruction: string) => {
+    markDirty();
+    const previousPrompt = prompt;
+    try {
+      const edited = await editWithAiMutation.mutateAsync({
+        text: prompt,
+        prompt: instruction,
+        sectionId: item?.id,
+        templateId,
+        organizationId: selectedOrganizationId!,
+      });
+      setPromptBeforeAiEdit(previousPrompt);
+      setPrompt(edited);
+      setEditorKey(prev => prev + 1);
+      setIsAiEditOpen(false);
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t('form.prompt.editError') });
     }
-    setSelectValue("");
   };
 
-  const removeDependency = (sectionId: string) => {
-    setSelectedDependencies(prev => prev.filter(dep => dep.id !== sectionId));
+  const handleUndoAiEdit = () => {
+    if (promptBeforeAiEdit === null) return;
+    setPrompt(promptBeforeAiEdit);
+    setEditorKey(prev => prev + 1);
+    setPromptBeforeAiEdit(null);
+    markDirty();
+  };
+
+  const handleDependenciesChange = (ids: string[]) => {
+    setSelectedDependencies(
+      ids.map(id => {
+        const section = existingSections.find(s => s.id === id);
+        return { id, name: section?.name || `Section ${id}` };
+      })
+    );
     markDirty();
   };
 
@@ -396,14 +417,21 @@ export function SectionForm({
     markDirty();
   };
 
-  // Filtrar secciones disponibles
+  // Preguntas de secciones anteriores (order menor a la actual), disponibles para
+  // depends_on cross-sección en el builder de form_fields. No requiere fetch adicional:
+  // existingSections ya trae form_fields completos (ver ia context/dependencias-condicionales-formularios-guide.md).
+  const currentSectionOrder = mode === 'edit' && item ? item.order : existingSections.length + 1;
+  const earlierSectionsFormFields = existingSections
+    .filter(section => section.type === 'form' && (section.order ?? 0) < currentSectionOrder)
+    .flatMap(section => section.form_fields ?? []);
+
+  // Secciones disponibles como dependencia (excluye la sección actual en modo edit).
+  // El combobox multi-select maneja el toggle de las ya seleccionadas por su cuenta.
   const availableSections = existingSections.filter(section => {
-    // En modo edit, excluir la sección actual
     if (mode === 'edit' && item && section.id === item.id) {
       return false;
     }
-    // Excluir dependencias ya seleccionadas
-    return !selectedDependencies.some(dep => dep.id === section.id);
+    return true;
   });
 
   // Notificar cambios en la validación
@@ -426,7 +454,8 @@ export function SectionForm({
       const customOk = formFields.every(
         f => f.question_type !== CUSTOM_FIELD_QUESTION_TYPE || !!f.custom_field_id
       );
-      return allFilled && unique && customOk;
+      const dependenciesOk = formFieldsHaveValidDependencies(formFields, earlierSectionsFormFields);
+      return allFilled && unique && customOk && dependenciesOk;
     }
 
     return false;
@@ -446,43 +475,44 @@ export function SectionForm({
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      {/* Section Name */}
-      <HuemulField
-        type="text"
-        label={t('form.sectionName.label')}
-        name="section-name"
-        placeholder={t('form.sectionName.placeholder')}
-        value={name}
-        onChange={(val) => { setName(val as string); markDirty(); }}
-        disabled={isPending || isFromTemplate}
-        autoFocus={mode === 'create'}
-        autoComplete="off"
-        required
-        description={isFromTemplate ? t('form.sectionName.descriptionFromTemplate') : undefined}
-      />
+      {/* Section Name + Section Type */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <HuemulField
+          type="text"
+          label={t('form.sectionName.label')}
+          name="section-name"
+          placeholder={t('form.sectionName.placeholder')}
+          value={name}
+          onChange={(val) => { setName(val as string); markDirty(); }}
+          disabled={isPending || isFromTemplate}
+          autoFocus={mode === 'create'}
+          autoComplete="off"
+          required
+          description={isFromTemplate ? t('form.sectionName.descriptionFromTemplate') : undefined}
+        />
 
-      {/* Section Type */}
-      <HuemulField
-        type="select"
-        label={t('form.sectionType.label')}
-        name="section-type"
-        options={[
-          { value: "ai", label: t('form.sectionType.optionAi') },
-          { value: "manual", label: t('form.sectionType.optionManual') },
-          { value: "reference", label: t('form.sectionType.optionReference') },
-          { value: "form", label: t('form.sectionType.optionForm') },
-        ]}
-        value={type}
-        onChange={(val) => { setType(val as "ai" | "manual" | "reference" | "form"); markDirty(); }}
-        disabled={isPending}
-        placeholder={t('form.sectionType.placeholder')}
-        description={
-          type === "ai" ? t('form.sectionType.descriptionAi') :
-          type === "manual" ? t('form.sectionType.descriptionManual') :
-          type === "reference" ? t('form.sectionType.descriptionReference') :
-          t('form.sectionType.descriptionForm')
-        }
-      />
+        <HuemulField
+          type="select"
+          label={t('form.sectionType.label')}
+          name="section-type"
+          options={[
+            { value: "ai", label: t('form.sectionType.optionAi') },
+            { value: "manual", label: t('form.sectionType.optionManual') },
+            { value: "reference", label: t('form.sectionType.optionReference') },
+            { value: "form", label: t('form.sectionType.optionForm') },
+          ]}
+          value={type}
+          onChange={(val) => { setType(val as "ai" | "manual" | "reference" | "form"); markDirty(); }}
+          disabled={isPending}
+          placeholder={t('form.sectionType.placeholder')}
+          description={
+            type === "ai" ? t('form.sectionType.descriptionAi') :
+            type === "manual" ? t('form.sectionType.descriptionManual') :
+            type === "reference" ? t('form.sectionType.descriptionReference') :
+            t('form.sectionType.descriptionForm')
+          }
+        />
+      </div>
 
       {/* Campos específicos para tipo AI */}
       {type === "ai" && (
@@ -493,27 +523,67 @@ export function SectionForm({
               <Label className="text-xs font-medium text-gray-700">
                 {t('form.prompt.label')} <span className="text-red-500">*</span>
               </Label>
-              <HuemulButton
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleGeneratePrompt}
-                disabled={!name.trim() || isGenerating || !!prompt.trim() || isPending}
-                className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    {t('form.prompt.generating')}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-1 h-3 w-3" />
-                    {t('form.prompt.generate')}
-                  </>
+              <div className="flex items-center gap-2">
+                <HuemulButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGeneratePrompt}
+                  disabled={!name.trim() || isGenerating || !!prompt.trim() || isPending}
+                  className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      {t('form.prompt.generating')}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      {t('form.prompt.generate')}
+                    </>
+                  )}
+                </HuemulButton>
+                {templateId && (
+                  <HuemulButton
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsAiEditOpen(true)}
+                    disabled={!prompt.trim() || isGenerating || isPending || editWithAiMutation.isPending}
+                    className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                  >
+                    {editWithAiMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        {t('form.prompt.editing')}
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="mr-1 h-3 w-3" />
+                        {t('form.prompt.edit')}
+                      </>
+                    )}
+                  </HuemulButton>
                 )}
-              </HuemulButton>
+              </div>
             </div>
+
+            {promptBeforeAiEdit !== null && !editWithAiMutation.isPending && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                <span className="text-xs text-amber-800">{t('form.prompt.aiEditApplied')}</span>
+                <HuemulButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleUndoAiEdit}
+                  disabled={isPending}
+                  className="h-7 text-xs"
+                >
+                  {t('form.prompt.undo')}
+                </HuemulButton>
+              </div>
+            )}
 
             {editorType === 'simple' ? (
               <Textarea
@@ -535,6 +605,7 @@ export function SectionForm({
                 enableCreateSection={false}
                 organizationId={selectedOrganizationId ?? undefined}
                 documentId={documentId}
+                mediaUploadTarget={mediaUploadTarget}
                 onValueChange={() => {
                   const md = promptEditorRef.current?.getMarkdown?.() || "";
                   handlePromptChange(md);
@@ -549,44 +620,41 @@ export function SectionForm({
                   {t('form.prompt.generatingHint')}
                 </div>
               )}
+              {editWithAiMutation.isPending && (
+                <div className="text-xs text-blue-600 flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {t('form.prompt.editingHint')}
+                </div>
+              )}
             </div>
+
+            <AiEditSectionDialog
+              open={isAiEditOpen}
+              onOpenChange={setIsAiEditOpen}
+              onSend={handleEditPromptWithAi}
+              isProcessing={editWithAiMutation.isPending}
+            />
           </div>
 
           {/* Dependencies - Solo para tipo AI */}
-          <HuemulField
-            type="select"
-            label={t('form.dependencies.label')}
-            options={availableSections.map(s => ({ value: s.id, label: s.name }))}
-            value={selectValue}
-            onChange={(val) => addDependency(val as string)}
-            disabled={isPending || availableSections.length === 0}
-            placeholder={availableSections.length === 0 ? t('form.dependencies.placeholderEmpty') : t('form.dependencies.placeholder')}
-            description={availableSections.length === 0 ? t('form.dependencies.descriptionEmpty') : undefined}
-          >
-            {selectedDependencies.length > 0 && (
-              <div className="flex flex-wrap gap-1 w-full">
-                {selectedDependencies.map(dep => {
-                  const section = existingSections.find(s => s.id === dep.id);
-                  return (
-                    <span
-                      key={dep.id}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-md text-xs border border-orange-200"
-                    >
-                      {section?.name || dep.name}
-                      <button
-                        type="button"
-                        onClick={() => removeDependency(dep.id)}
-                        className="text-orange-600 hover:text-orange-800 hover:cursor-pointer ml-1"
-                        disabled={isPending}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-sm font-medium leading-snug">
+              {t('form.dependencies.label')}
+            </Label>
+            <HuemulCombobox
+              value={selectedDependencies.map(dep => dep.id)}
+              onValueChange={(val) => handleDependenciesChange(val as string[])}
+              multiSelect
+              options={availableSections.map(s => ({ value: s.id, label: s.name }))}
+              disabled={isPending || availableSections.length === 0}
+              placeholder={availableSections.length === 0 ? t('form.dependencies.placeholderEmpty') : t('form.dependencies.placeholder')}
+            />
+            {availableSections.length === 0 && (
+              <p className="text-muted-foreground text-sm leading-normal">
+                {t('form.dependencies.descriptionEmpty')}
+              </p>
             )}
-          </HuemulField>
+          </div>
         </>
       )}
 
@@ -607,6 +675,7 @@ export function SectionForm({
             enableCreateSection={false}
             organizationId={selectedOrganizationId ?? undefined}
             documentId={documentId}
+            mediaUploadTarget={mediaUploadTarget}
             onValueChange={() => markDirty()}
           />
           <p className="text-xs text-gray-500">
@@ -762,40 +831,40 @@ export function SectionForm({
         <SectionFormFieldsBuilder
           value={formFields}
           onChange={(next) => { setFormFields(next); markDirty(); }}
-          templateId={templateId}
+          earlierSectionsFields={earlierSectionsFormFields}
           isPending={isPending}
         />
       )}
 
       {/* Propagate to Template - Solo mostrar en modo edit cuando hasTemplate es true */}
       {mode === 'edit' && hasTemplate && (
-        <HuemulField
-          type="checkbox"
-          label={t('form.propagate.toTemplate')}
-          value={propagateToTemplate}
-          onChange={(val) => { setPropagateToTemplate(val as boolean); markDirty(); }}
+        <PropagateCallout
+          title={t('form.propagate.toTemplate')}
+          description={t('form.propagate.toTemplateDescription')}
+          checked={propagateToTemplate}
+          onCheckedChange={(checked) => { setPropagateToTemplate(checked); markDirty(); }}
           disabled={isPending}
         />
       )}
 
       {/* Propagate to Assets - Solo mostrar en modo create cuando es template */}
       {mode === 'create' && templateId && (
-        <HuemulField
-          type="checkbox"
-          label={t('form.propagate.toAssets')}
-          value={propagateToAssets}
-          onChange={(val) => { setPropagateToAssets(val as boolean); markDirty(); }}
+        <PropagateCallout
+          title={t('form.propagate.toAssets')}
+          description={t('form.propagate.toAssetsDescription')}
+          checked={propagateToAssets}
+          onCheckedChange={(checked) => { setPropagateToAssets(checked); markDirty(); }}
           disabled={isPending}
         />
       )}
 
       {/* Propagate Prompt - Solo mostrar en modo edit cuando isTemplateSection es true */}
       {mode === 'edit' && isTemplateSection && (
-        <HuemulField
-          type="checkbox"
-          label={t('form.propagate.toAssetsSections')}
-          value={propagatePrompt}
-          onChange={(val) => { setPropagatePrompt(val as boolean); markDirty(); }}
+        <PropagateCallout
+          title={t('form.propagate.toAssetsSections')}
+          description={t('form.propagate.toAssetsSectionsDescription')}
+          checked={propagatePrompt}
+          onCheckedChange={(checked) => { setPropagatePrompt(checked); markDirty(); }}
           disabled={isPending}
         />
       )}
@@ -829,5 +898,33 @@ export function SectionForm({
         )}
       </div>
     </form>
+  );
+}
+
+// Callout destacado para las opciones de propagación de cambios (a la plantilla o a los
+// activos/secciones relacionadas) — reemplaza el checkbox suelto por un bloque con
+// ícono, título, descripción del efecto y un switch.
+function PropagateCallout({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+  disabled,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+      <RefreshCw className="mt-0.5 size-4 shrink-0 text-[#4464f7]" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900">{title}</p>
+        <p className="text-xs text-gray-500">{description}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+    </div>
   );
 }

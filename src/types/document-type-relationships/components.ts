@@ -1,4 +1,5 @@
 import type { DocumentType } from '@/types/document-types'
+import type { ExecutionRelationshipType, ExecutionRelationshipAttributeValue } from '@/types/execution-relationships'
 import type React from 'react'
 
 // ─── Canvas ───────────────────────────────────────────────────────────────────
@@ -31,12 +32,51 @@ export interface CanvasNodeAction {
   separator?: boolean
 }
 
+// A node to seed the canvas with on mount, at an explicit saved position
+// (used to reopen a previously-saved Diagram for editing).
+export interface InitialCanvasNode {
+  assetId: string
+  documentTypeId?: string
+  executionId: string
+  executionName: string
+  name: string
+  color: string
+  position: { x: number; y: number }
+}
+
+// A saved Diagram relationship, already resolved by the backend — the shape the
+// canvas needs to draw an edge without re-fetching execution relationships per node.
+export interface InitialCanvasRelationship {
+  execution_relationship_id: string
+  relationship_type: ExecutionRelationshipType
+  execution_relationship_name: string | null
+  source_execution_id: string
+  target_execution_id: string
+  document_type_relationship: { id: string; name: string; min_count: number; max_count: number } | null
+  attributes: ExecutionRelationshipAttributeValue[]
+}
+
+// When present, the canvas is editing an existing Diagram rather than starting a new one:
+// the "Save as Diagram" action becomes "Save changes" and updates this diagram instead of
+// creating a new one.
+export interface EditingDiagram {
+  id: string
+  name: string
+  description?: string | null
+  executionId: string
+  snapshotMediaId: string | null
+}
+
 export interface RelationshipsCanvasProps {
   organizationId: string
   documentTypes: DocumentType[]
   initialDocumentTypeId?: string
   nodeActions?: CanvasNodeAction[]
   mode?: 'document-type' | 'execution'
+  initialNodes?: InitialCanvasNode[]
+  // Saved relationships to draw as edges between `initialNodes` (already resolved by the backend).
+  initialRelationships?: InitialCanvasRelationship[]
+  editingDiagram?: EditingDiagram
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────

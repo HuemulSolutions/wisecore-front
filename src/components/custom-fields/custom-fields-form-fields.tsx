@@ -2,6 +2,7 @@ import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
+import { QUESTION_TYPE } from '@/components/sections/question-type-meta';
 import type { CustomFieldFormFieldsProps, CustomFieldOption } from '@/types/custom-fields';
 
 export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
@@ -11,11 +12,13 @@ export default function CustomFieldFormFields({
   description,
   dataType,
   masc,
+  questionType,
   options,
   onNameChange,
   onDescriptionChange,
   onDataTypeChange,
   onMascChange,
+  onQuestionTypeChange,
   onOptionsChange,
   dataTypes,
   formatDataType,
@@ -26,7 +29,7 @@ export default function CustomFieldFormFields({
   const { t } = useTranslation(['custom-fields', 'common'])
 
   const handleAddOption = () => {
-    onOptionsChange([...options, { option_id: '', name: '' }])
+    onOptionsChange([...options, { id: '', label: '' }])
   }
 
   const handleRemoveOption = (index: number) => {
@@ -40,6 +43,8 @@ export default function CustomFieldFormFields({
     onOptionsChange(updated)
   }
 
+  const MASK_APPLICABLE_TYPES = ['string', 'int', 'decimal', 'url']
+
   return (
     <div className="space-y-4">
       <HuemulField
@@ -52,17 +57,6 @@ export default function CustomFieldFormFields({
         disabled={disabled}
         error={errors.name}
         required
-      />
-      <HuemulField
-        type="textarea"
-        label={t('columns.description')}
-        name="description"
-        placeholder={t('form.descriptionPlaceholder')}
-        rows={3}
-        value={description}
-        onChange={(v) => onDescriptionChange(String(v))}
-        disabled={disabled}
-        error={errors.description}
       />
       <HuemulField
         type="select"
@@ -81,6 +75,22 @@ export default function CustomFieldFormFields({
       />
 
       {dataType === 'list' && (
+        <HuemulField
+          type="select"
+          label={t('form.questionTypeLabel')}
+          name="question_type"
+          placeholder={t('form.questionTypePlaceholder')}
+          value={questionType}
+          onChange={(v) => onQuestionTypeChange(String(v))}
+          disabled={disabled}
+          options={[
+            { label: t('form.questionTypeSingle'), value: QUESTION_TYPE.dropdown },
+            { label: t('form.questionTypeMultiple'), value: QUESTION_TYPE.dropdownMultiple },
+          ]}
+        />
+      )}
+
+      {dataType === 'list' && (
         <div className="space-y-2">
           <p className="text-sm font-medium">
             {t('form.listOptionsLabel')}
@@ -97,8 +107,8 @@ export default function CustomFieldFormFields({
                     label={index === 0 ? t('form.optionIdLabel') : undefined}
                     name={`option_id_${index}`}
                     placeholder={t('form.optionIdPlaceholder')}
-                    value={option.option_id}
-                    onChange={(v) => handleOptionChange(index, 'option_id', String(v))}
+                    value={option.id}
+                    onChange={(v) => handleOptionChange(index, 'id', String(v))}
                     disabled={disabled}
                     error={errors[`option_${index}_id`]}
                   />
@@ -109,8 +119,8 @@ export default function CustomFieldFormFields({
                     label={index === 0 ? t('form.optionNameLabel') : undefined}
                     name={`option_name_${index}`}
                     placeholder={t('form.optionNamePlaceholder')}
-                    value={option.name}
-                    onChange={(v) => handleOptionChange(index, 'name', String(v))}
+                    value={option.label}
+                    onChange={(v) => handleOptionChange(index, 'label', String(v))}
                     disabled={disabled}
                     error={errors[`option_${index}_name`]}
                   />
@@ -140,14 +150,28 @@ export default function CustomFieldFormFields({
         </div>
       )}
 
+      {MASK_APPLICABLE_TYPES.includes(dataType) && (
+        <HuemulField
+          type="text"
+          label={t('form.maskLabel')}
+          name="masc"
+          placeholder={t('form.maskPlaceholder')}
+          value={masc}
+          onChange={(v) => onMascChange(String(v))}
+          disabled={disabled}
+        />
+      )}
+
       <HuemulField
-        type="text"
-        label={t('form.maskLabel')}
-        name="masc"
-        placeholder={t('form.maskPlaceholder')}
-        value={masc}
-        onChange={(v) => onMascChange(String(v))}
+        type="textarea"
+        label={t('columns.description')}
+        name="description"
+        placeholder={t('form.descriptionPlaceholder')}
+        rows={3}
+        value={description}
+        onChange={(v) => onDescriptionChange(String(v))}
         disabled={disabled}
+        error={errors.description}
       />
     </div>
   );

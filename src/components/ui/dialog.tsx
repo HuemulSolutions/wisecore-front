@@ -63,10 +63,18 @@ function DialogContent({
           className
         )}
         onInteractOutside={(e) => {
-          // Keep the dialog open when interacting with a Base UI combobox popup,
-          // which portals outside the dialog DOM.
+          // Keep the dialog open when interacting with portaled overlays that render
+          // outside the dialog DOM: Base UI combobox popups, sheets opened from within
+          // the dialog (e.g. the version-compare sheet), and alert dialogs. Otherwise
+          // clicking/closing them dismisses this dialog too.
           const target = e.target as HTMLElement | null
-          if (target?.closest('[data-slot="combobox-content"]')) {
+          if (
+            target?.closest('[data-slot="combobox-content"]') ||
+            target?.closest('[data-slot="sheet-content"]') ||
+            target?.closest('[data-slot="sheet-overlay"]') ||
+            target?.closest('[data-slot="alert-dialog-content"]') ||
+            target?.closest('[data-slot="alert-dialog-overlay"]')
+          ) {
             e.preventDefault()
           }
           onInteractOutside?.(e)

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { HuemulAlertDialog } from '@/huemul/components/huemul-alert-dialog';
 import { HuemulButton } from '@/huemul/components/huemul-button';
+import { DEFAULT_PAGE_SIZE } from '@/huemul/constants';
 import type { Conversation } from '@/types/chatbot';
 import type { ConversationListProps } from '@/types/chatbot';
 
@@ -193,7 +194,7 @@ function ConversationItem({
 // Conversation list
 // ========================================
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 export function ConversationList({
   onSelectConversation,

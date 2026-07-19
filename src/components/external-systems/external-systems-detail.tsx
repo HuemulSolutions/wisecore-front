@@ -3,7 +3,9 @@ import { Network, Plus, Edit2, Trash2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { cn } from "@/lib/utils"
+import { useUserPermissions } from "@/hooks/useUserPermissions"
 import type { ExternalSystemDetailProps } from "@/types/external-systems"
 import type { ExternalSystemDetailTab as Tab } from "@/types/external-systems"
 import { ExternalSystemParamsTab } from "./external-system-params-tab"
@@ -13,12 +15,13 @@ export type { ExternalSystemDetailProps } from "@/types/external-systems"
 
 export function ExternalSystemDetail({ system, organizationId = "", onAddFunctionality, onEdit, onDelete }: ExternalSystemDetailProps) {
   const { t } = useTranslation(["external-systems", "external-functionalities", "common"])
+  const { canAccessExternalParameters, canAccessExternalSecrets } = useUserPermissions()
   const [activeTab, setActiveTab] = useState<Tab>("docs")
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "docs", label: t("external-functionalities:detail.tabs.docs") },
-    { id: "params", label: t("external-functionalities:detail.tabs.params") },
-    { id: "secrets", label: t("external-functionalities:detail.tabs.secrets") },
+    ...(canAccessExternalParameters ? [{ id: "params" as Tab, label: t("external-functionalities:detail.tabs.params") }] : []),
+    ...(canAccessExternalSecrets ? [{ id: "secrets" as Tab, label: t("external-functionalities:detail.tabs.secrets") }] : []),
   ]
 
   if (!system) {
@@ -46,15 +49,13 @@ export function ExternalSystemDetail({ system, organizationId = "", onAddFunctio
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {onAddFunctionality && (
-              <Button
-                variant="ghost"
+              <HuemulButton
+                variant="secondary"
                 size="sm"
-                className="h-8 text-xs px-2 hover:cursor-pointer"
+                icon={Plus}
+                label={t("external-functionalities:addFunctionality")}
                 onClick={onAddFunctionality}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {t("external-functionalities:addFunctionality")}
-              </Button>
+              />
             )}
             {onEdit && (
               <Button

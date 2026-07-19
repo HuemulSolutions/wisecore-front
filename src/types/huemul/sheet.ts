@@ -30,6 +30,7 @@ export interface HuemulSheetProps {
   side?: "top" | "right" | "bottom" | "left";
   maxWidth?: string;
   className?: string;
+  bodyClassName?: string;
   headerExtra?: ReactNode;
   children: ReactNode;
 }

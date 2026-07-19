@@ -20,6 +20,7 @@ export function EditSectionDialog({
   hasTemplate = false,
   isTemplateSection = false,
   documentId,
+  templateId,
 }: EditSectionDialogProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -107,6 +108,7 @@ export function EditSectionDialog({
         hasTemplate={hasTemplate}
         isTemplateSection={isTemplateSection}
         documentId={documentId}
+        templateId={templateId}
       />
     </HuemulSheet>
   )

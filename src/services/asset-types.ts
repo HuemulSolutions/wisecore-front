@@ -1,6 +1,6 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData, CloneAssetTypeData, LinkedTemplate, DocumentTypeTemplatesResponse, ExportAssetTypesBody, ImportAssetTypesQueryParams, ImportAssetTypesData, ImportAssetTypesResponse } from '@/types/assets';
+import type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData, CloneAssetTypeData, LinkedTemplate, DocumentTypeTemplatesResponse, DocumentTypeTemplateLinkBody, ExportAssetTypesBody, ImportAssetTypesQueryParams, ImportAssetTypesData, ImportAssetTypesResponse } from '@/types/assets';
 
 export type { AssetType, AssetTypesResponse, RoleAccess, AssetTypeWithRoles, AssetTypesWithRolesResponse, CreateAssetTypeData, UpdateAssetTypeData, CloneAssetTypeData, LinkedTemplate, DocumentTypeTemplatesResponse, ExportAssetTypesBody, ImportAssetTypesQueryParams, ImportAssetTypesData, ImportAssetTypesResponse };
 
@@ -116,10 +116,24 @@ export const getDocumentTypeTemplates = async (
 export const linkTemplateToDocumentType = async (
   documentTypeId: string,
   templateId: string,
+  body: DocumentTypeTemplateLinkBody = {},
 ): Promise<void> => {
   await httpClient.post(
     `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
-    {},
+    body,
+    { headers: getHeaders() },
+  );
+};
+
+// Update a document type's template link configuration (requiere permiso asset_type:u)
+export const updateDocumentTypeTemplate = async (
+  documentTypeId: string,
+  templateId: string,
+  body: DocumentTypeTemplateLinkBody,
+): Promise<void> => {
+  await httpClient.patch(
+    `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}`,
+    body,
     { headers: getHeaders() },
   );
 };

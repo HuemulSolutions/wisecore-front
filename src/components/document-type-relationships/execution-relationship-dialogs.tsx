@@ -124,7 +124,7 @@ function ManualAttributeRows({
 
 // ─── Execution selector field ──────────────────────────────────────────────────
 
-function executionLabel(ex: Execution): string {
+export function executionLabel(ex: Execution): string {
   const ver =
     ex.version_major != null
       ? `v${ex.version_major}.${ex.version_minor ?? 0}.${ex.version_patch ?? 0}`
@@ -384,12 +384,16 @@ export function ExecutionRelationshipCreateDialog({
     >
       <HuemulFieldGroup className="py-2">
         {/* Source → Target visual header */}
-        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg text-xs">
-          <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: source.color || "#94a3b8" }} />
-          <span className="font-medium truncate">{source.name}</span>
-          <span className="text-muted-foreground mx-1">→</span>
-          <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: target.color || "#94a3b8" }} />
-          <span className="font-medium truncate">{target.name}</span>
+        <div className="flex flex-col gap-1.5 p-3 bg-muted/50 rounded-lg text-xs">
+          <div className="flex items-start gap-2">
+            <div className="h-3 w-3 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: source.color || "#94a3b8" }} />
+            <span className="font-medium line-clamp-2 break-words">{source.name}</span>
+          </div>
+          <span className="text-muted-foreground pl-1">↓</span>
+          <div className="flex items-start gap-2">
+            <div className="h-3 w-3 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: target.color || "#94a3b8" }} />
+            <span className="font-medium line-clamp-2 break-words">{target.name}</span>
+          </div>
         </div>
 
         {/* Source execution selector — hidden when pre-filled from node panel */}
