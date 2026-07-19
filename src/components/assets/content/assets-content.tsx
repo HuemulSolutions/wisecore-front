@@ -41,7 +41,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
 import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish, getExecutionById } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
 import { useExternalReviewActions } from "@/hooks/useLifecycle";
 import { createSection, updateSectionsOrder } from "@/services/section";
@@ -651,6 +651,7 @@ export function AssetContent({
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
   const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
+  const [versionCompareOverride, setVersionCompareOverride] = useState<{ left?: string; right?: string } | null>(null);
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
@@ -1003,6 +1004,27 @@ export function AssetContent({
     isCheckLifecycleDialogOpen && canHaveExternalReview && !!documentContent?.lifecycle_status?.current_step_id,
   );
   const hasExternalReview = (externalReviewActionsData?.data ?? []).some((a) => a.is_enabled);
+
+  // Whether the current lifecycle step is the approval step — shows the
+  // AI-generated "change summary" instead of a plain comment box.
+  const isApprovalStep = documentContent?.lifecycle_status?.state === 'in_approval';
+  const approvalExecutionId = selectedExecutionId || documentContent?.execution_id;
+  const changeSummaryQuery = useQuery({
+    queryKey: ['execution-change-summary', approvalExecutionId],
+    queryFn: () => getExecutionById(approvalExecutionId!, selectedOrganizationId!),
+    enabled: isCheckLifecycleDialogOpen && isApprovalStep && !!approvalExecutionId && !!selectedOrganizationId,
+    refetchInterval: (query) => (query.state.data?.change_summary_status === 'pending' ? 3000 : false),
+  });
+  const isChangeSummaryLoading =
+    isApprovalStep &&
+    (changeSummaryQuery.isLoading || changeSummaryQuery.data?.change_summary_status === 'pending');
+
+  const handleViewChanges = () => {
+    const previousExecutionId = changeSummaryQuery.data?.previous_execution_id;
+    if (!previousExecutionId || !approvalExecutionId) return;
+    setVersionCompareOverride({ left: previousExecutionId, right: approvalExecutionId });
+    setIsVersionCompareSheetOpen(true);
+  };
 
   // Lightweight periodic refresh of media download URLs (images/files embedded in
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
@@ -3545,6 +3567,13 @@ export function AssetContent({
         confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
         hasExternalReview={hasExternalReview}
         isProcessing={checkLifecycleMutation.isPending}
+        isApprovalStep={isApprovalStep}
+        changeSummary={changeSummaryQuery.data?.change_summary ?? null}
+        changeSummaryStatus={changeSummaryQuery.data?.change_summary_status ?? null}
+        changeSummaryError={changeSummaryQuery.data?.change_summary_error ?? null}
+        canViewChanges={!!changeSummaryQuery.data?.previous_execution_id}
+        isSummaryLoading={isChangeSummaryLoading}
+        onViewChanges={handleViewChanges}
       />
 
       {/* Lifecycle Reject (Go Back) Dialog */}
@@ -3768,11 +3797,16 @@ export function AssetContent({
       {/* Version Compare Sheet */}
       {allExecutions && allExecutions.length > 1 && selectedFile && selectedOrganizationId && (
         <AssetVersionCompareSheet
+          key={versionCompareOverride ? `${versionCompareOverride.left}-${versionCompareOverride.right}` : 'default'}
           open={isVersionCompareSheetOpen}
-          onOpenChange={setIsVersionCompareSheetOpen}
+          onOpenChange={(open) => {
+            setIsVersionCompareSheetOpen(open);
+            if (!open) setVersionCompareOverride(null);
+          }}
           documentId={selectedFile.id}
           executions={allExecutions}
-          defaultRightExecutionId={selectedExecutionId ?? documentContent?.execution_id}
+          defaultRightExecutionId={versionCompareOverride?.right ?? selectedExecutionId ?? documentContent?.execution_id}
+          defaultLeftExecutionId={versionCompareOverride?.left}
         />
       )}
 
