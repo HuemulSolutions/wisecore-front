@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection } from '@/components/assets/content/asset-form-section';
-import { isFieldAnswerable } from '@/components/sections/question-type-meta';
+import { formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -98,7 +98,7 @@ function SectionExecutionInner({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
-    const { t } = useTranslation(["assets", "common"]);
+    const { t } = useTranslation(["assets", "common", "sections"]);
     const isExecutionApproved = executionStatus === 'approved';
     
     // Determine which actions are available based on section type
@@ -222,7 +222,13 @@ function SectionExecutionInner({
 
     const handleCopy = async () => {
         try {
-            const contentToCopy = displayedContent;
+            const contentToCopy = sectionType === 'form'
+                ? (sectionExecution.form_fields ?? [])
+                    .filter(isFieldVisible)
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                    .map((field) => `${field.field_name}: ${formatFieldValueForCopy(field, t)}`)
+                    .join('\n')
+                : displayedContent;
             await navigator.clipboard.writeText(contentToCopy);
             toast.success(t('section.contentCopied'));
         } catch (error) {

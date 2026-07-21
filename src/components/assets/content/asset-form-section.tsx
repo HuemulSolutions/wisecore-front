@@ -18,6 +18,7 @@ import { Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   QUESTION_TYPE,
+  hasAnswer,
   isFieldAnswerable,
   isFieldVisible,
   questionTypeLabel,
@@ -55,18 +56,6 @@ function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
   for (const f of fields) map[f.id] = hasAnswer(f.value) ? f.value : null;
   return map;
 }
-
-// ¿El campo tiene una respuesta no vacía?
-// Arrays de objetos (opciones) y objetos planos (config) no son respuestas del usuario.
-function hasAnswer(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  // Respuesta de multi-select (lista_desplegable_multiple): array de ids seleccionados.
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === "object") return false;
-  if (typeof value === "string") return value.trim() !== "";
-  return true; // number, boolean
-}
-
 
 export function AssetFormSection({
   sectionExecutionId,
