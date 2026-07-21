@@ -31,6 +31,18 @@ const translations = {
     loadingError: { en: "Failed to load the diagram.", es: "Error al cargar el diagrama." },
     notFound: { en: "Diagram not found.", es: "Diagrama no encontrado." },
   },
+  relatedSheet: {
+    title: { en: "Related Diagrams", es: "Diagramas Relacionados" },
+    description: {
+      en: "Diagrams that include this document.",
+      es: "Diagramas que incluyen este documento.",
+    },
+    loadingError: { en: "Failed to load diagrams.", es: "Error al cargar los diagramas." },
+    empty: {
+      en: "This document isn't part of any diagram yet.",
+      es: "Este documento aún no forma parte de ningún diagrama.",
+    },
+  },
   emptyState: {
     accessDeniedDescription: {
       en: "You don't have permission to view diagrams.",

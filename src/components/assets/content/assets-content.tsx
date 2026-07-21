@@ -25,6 +25,7 @@ import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
 import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
+import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 
 import {
   DropdownMenu,
@@ -166,7 +167,7 @@ export function AssetContent({
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  const { canCreate, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
@@ -636,6 +637,7 @@ export function AssetContent({
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
   const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
+  const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -2578,6 +2580,8 @@ export function AssetContent({
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
                             onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
+                            canAccessDiagrams={canAccessDiagrams}
+                            onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
@@ -3830,6 +3834,14 @@ export function AssetContent({
         executionId={selectedExecutionId || documentContent?.execution_id || ''}
         organizationId={selectedOrganizationId ?? ''}
         allExecutions={allExecutions ?? []}
+      />
+
+      {/* Related Diagrams Sheet */}
+      <AssetDiagramsSheet
+        open={isDiagramsSheetOpen}
+        onOpenChange={setIsDiagramsSheetOpen}
+        documentId={selectedFile?.id ?? ''}
+        organizationId={selectedOrganizationId ?? ''}
       />
     </>
   );

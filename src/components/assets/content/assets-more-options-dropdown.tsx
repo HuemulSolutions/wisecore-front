@@ -10,6 +10,7 @@ import {
   List,
   Info,
   History,
+  Workflow,
   ShieldCheck,
   BetweenHorizontalStart,
   Link2,
@@ -91,6 +92,8 @@ interface MoreOptionsDropdownProps {
   onToggleToc: () => void;
   onOpenInfo: () => void;
   onOpenLifecycleHistory: () => void;
+  canAccessDiagrams: boolean;
+  onOpenDiagrams: () => void;
   onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenDependencies: () => void;
@@ -137,6 +140,8 @@ export function MoreOptionsDropdown({
   onToggleToc,
   onOpenInfo,
   onOpenLifecycleHistory,
+  canAccessDiagrams,
+  onOpenDiagrams,
   onOpenPermissions,
   onOpenSections,
   onOpenDependencies,
@@ -305,6 +310,17 @@ export function MoreOptionsDropdown({
           >
             <History className="mr-2 h-4 w-4" />
             {t("lifecycleHistory.moreOptionsItem")}
+          </DropdownMenuItem>
+        )}
+
+        {/* ── Related Diagrams (visible when user can access diagrams) ── */}
+        {canAccessDiagrams && (
+          <DropdownMenuItem
+            onSelect={() => setTimeout(onOpenDiagrams, 0)}
+            className="hover:cursor-pointer"
+          >
+            <Workflow className="mr-2 h-4 w-4" />
+            {t("content.diagramsLabel")}
           </DropdownMenuItem>
         )}
 
