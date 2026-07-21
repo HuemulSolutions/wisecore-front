@@ -1,6 +1,6 @@
 "use client"
 
-import { CreateEditCustomFieldDialog } from "./custom-fields-create-edit-dialog"
+import { CreateEditCustomFieldSheet } from "./custom-fields-create-edit-sheet"
 import { DeleteCustomFieldDialog } from "./custom-fields-delete-dialog"
 import type { CustomFieldPageDialogsProps } from '@/types/custom-fields'
 
@@ -14,7 +14,7 @@ export function CustomFieldPageDialogs({
   return (
     <>
       {/* Create Dialog */}
-      <CreateEditCustomFieldDialog
+      <CreateEditCustomFieldSheet
         open={state.showCreateDialog}
         onOpenChange={(open: boolean) => {
           if (!open) onCloseDialog('showCreateDialog')
@@ -27,7 +27,7 @@ export function CustomFieldPageDialogs({
       />
 
       {/* Edit Dialog */}
-      <CreateEditCustomFieldDialog
+      <CreateEditCustomFieldSheet
         open={!!state.editingCustomField}
         onOpenChange={(open: boolean) => {
           if (!open) onCloseDialog('editingCustomField')

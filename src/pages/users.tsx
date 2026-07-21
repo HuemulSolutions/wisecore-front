@@ -11,6 +11,7 @@ import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { toast } from "sonner"
 import { handleApiError } from "@/lib/error-utils"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 // Components
 import {
@@ -37,7 +38,7 @@ export default function UsersPage() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Get permissions and organization context
   const { canAccessUsers, isOrgAdmin, isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -228,7 +229,7 @@ export default function UsersPage() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
               />
             ),

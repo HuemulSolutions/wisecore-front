@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
@@ -51,6 +52,14 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       minHeight = "530px",
       labels: labelOverrides,
       onDragStart: onDragStartProp,
+      selectable = false,
+      selectedIds,
+      onSelectionChange,
+      isNodeSelectable,
+      cascadeSelection = false,
+      isNodeExpandable,
+      renderNodeSuffix,
+      isSectionHeader,
     },
     ref,
   ) => {
@@ -118,6 +127,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     }, [])
     const [isLoading, setIsLoading] = useState(false)
     const [loadingNodeId, setLoadingNodeId] = useState<string | null>(null)
+    const [cascadeLoadingIds, setCascadeLoadingIds] = useState<Set<string>>(new Set())
     const [isInitialized, setIsInitialized] = useState(false)
     const [activeDialog, setActiveDialog] = useState<{
       type: "createFile" | "createFolder" | "delete" | "share"
@@ -125,11 +135,16 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       nodeType?: string
     } | null>(null)
 
+    const isExpandable = useCallback(
+      (node: HuemulTreeNode) => (isNodeExpandable ? isNodeExpandable(node) : node.type === folderType),
+      [isNodeExpandable, folderType],
+    )
+
     useEffect(() => {
       const getExpandedIds = (nodeList: HuemulTreeNode[]): string[] => {
         const expanded: string[] = []
         for (const node of nodeList) {
-          if (node.isExpanded && node.type === folderType) {
+          if (node.isExpanded && isExpandable(node)) {
             expanded.push(node.id)
           }
           if (node.children) {
@@ -139,7 +154,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         return expanded
       }
       setExpandedFolders(new Set(getExpandedIds(nodes)))
-    }, [nodes, folderType])
+    }, [nodes, isExpandable])
 
     // Clear per-node loading indicator when activeNodeId changes to match
     useEffect(() => {
@@ -185,43 +200,41 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       if (!onLoadChildren) return
       setIsLoading(true)
       try {
-        if (onRefreshProp) {
-          const data = await onRefreshProp()
-          setNodes(data)
-        } else {
-          const currentExpandedIds = Array.from(expandedFolders)
-          const rootData = await onLoadChildren(initialFolderId)
+        const currentExpandedIds = Array.from(expandedFolders)
 
-          const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
-            const result: HuemulTreeNode[] = []
-            for (const node of nodeList) {
-              const newNode = { ...node }
-              if (node.type === folderType && currentExpandedIds.includes(node.id)) {
-                try {
-                  const children = await onLoadChildren(node.id)
-                  newNode.children = await reloadExpandedFolders(children)
-                  newNode.isExpanded = true
-                  newNode.hasChildren = children.length > 0
-                } catch (error) {
-                  console.error(`Error reloading folder ${node.id}:`, error)
-                  newNode.children = []
-                  newNode.isExpanded = false
-                }
+        const reloadExpandedFolders = async (nodeList: HuemulTreeNode[]): Promise<HuemulTreeNode[]> => {
+          const result: HuemulTreeNode[] = []
+          for (const node of nodeList) {
+            const newNode = { ...node }
+            const alreadyExpanded = newNode.isExpanded && newNode.children
+            if (alreadyExpanded) {
+              newNode.children = await reloadExpandedFolders(newNode.children!)
+            } else if (isExpandable(node) && currentExpandedIds.includes(node.id)) {
+              try {
+                const children = await onLoadChildren(node.id, node)
+                newNode.children = await reloadExpandedFolders(children)
+                newNode.isExpanded = true
+                newNode.hasChildren = children.length > 0
+              } catch (error) {
+                console.error(`Error reloading folder ${node.id}:`, error)
+                newNode.children = []
+                newNode.isExpanded = false
               }
-              result.push(newNode)
             }
-            return result
+            result.push(newNode)
           }
-
-          const refreshedNodes = await reloadExpandedFolders(rootData)
-          setNodes(refreshedNodes)
+          return result
         }
+
+        const rootData = onRefreshProp ? await onRefreshProp() : await onLoadChildren(initialFolderId)
+        const refreshedNodes = await reloadExpandedFolders(rootData)
+        setNodes(refreshedNodes)
       } catch (error) {
         console.error("Error refreshing tree:", error)
       } finally {
         setIsLoading(false)
       }
-    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, folderType])
+    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, isExpandable])
 
     useImperativeHandle(ref, () => ({ refresh }))
 
@@ -258,7 +271,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
     )
 
     const handleToggle = async (node: HuemulTreeNode) => {
-      if (node.disabled || node.type !== folderType) return
+      if (node.disabled || !isExpandable(node)) return
 
       if (node.isExpanded) {
         setExpandedFolders((prev) => {
@@ -275,7 +288,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       if (!node.children && onLoadChildren) {
         setNodes((prev) => updateNode(node.id, { isLoading: true }, prev))
         try {
-          const children = await onLoadChildren(node.id)
+          const children = await onLoadChildren(node.id, node)
           setNodes((prev) =>
             updateNode(node.id, { children, isExpanded: true, isLoading: false, hasChildren: children.length > 0 }, prev),
           )
@@ -436,6 +449,94 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       await refresh()
     }
 
+    // ─── Selección (opt-in) ───────────────────────────────────────────────────────
+    const selectionEnabled = selectable || cascadeSelection
+
+    const canSelectNode = useCallback(
+      (node: HuemulTreeNode) => {
+        if (cascadeSelection) return isNodeSelectable ? isNodeSelectable(node) : true
+        return selectable && (isNodeSelectable ? isNodeSelectable(node) : node.type !== folderType)
+      },
+      [selectable, cascadeSelection, isNodeSelectable, folderType],
+    )
+
+    const toggleSelection = useCallback(
+      (nodeId: string) => {
+        if (!onSelectionChange) return
+        const next = new Set(selectedIds)
+        if (next.has(nodeId)) next.delete(nodeId)
+        else next.add(nodeId)
+        onSelectionChange(next)
+      },
+      [onSelectionChange, selectedIds],
+    )
+
+    // ─── Selección en cascada tri-estado (opt-in) ──────────────────────────────
+    const getCheckState = useCallback(
+      (node: HuemulTreeNode): "checked" | "indeterminate" | "unchecked" => {
+        if (!isExpandable(node)) {
+          return selectedIds?.has(node.id) ? "checked" : "unchecked"
+        }
+        if (!node.children || node.children.length === 0) return "unchecked"
+        let allChecked = true
+        let anyChecked = false
+        for (const child of node.children) {
+          const state = getCheckState(child)
+          if (state !== "unchecked") anyChecked = true
+          if (state !== "checked") allChecked = false
+        }
+        return allChecked ? "checked" : anyChecked ? "indeterminate" : "unchecked"
+      },
+      [isExpandable, selectedIds],
+    )
+
+    const collectLeafIds = useCallback(
+      async (node: HuemulTreeNode): Promise<string[]> => {
+        if (!isExpandable(node)) return [node.id]
+        let children = node.children
+        if (!children && onLoadChildren) {
+          children = await onLoadChildren(node.id, node)
+          setNodes((prev) => updateNode(node.id, { children, hasChildren: children!.length > 0 }, prev))
+        }
+        const result: string[] = []
+        for (const child of children ?? []) {
+          result.push(...(await collectLeafIds(child)))
+        }
+        return result
+      },
+      [isExpandable, onLoadChildren, updateNode],
+    )
+
+    const toggleCascade = useCallback(
+      async (node: HuemulTreeNode) => {
+        if (!onSelectionChange) return
+        const turnOn = getCheckState(node) !== "checked"
+
+        if (!isExpandable(node)) {
+          const next = new Set(selectedIds)
+          if (turnOn) next.add(node.id)
+          else next.delete(node.id)
+          onSelectionChange(next)
+          return
+        }
+
+        setCascadeLoadingIds((prev) => new Set(prev).add(node.id))
+        try {
+          const ids = await collectLeafIds(node)
+          const next = new Set(selectedIds)
+          ids.forEach((id) => (turnOn ? next.add(id) : next.delete(id)))
+          onSelectionChange(next)
+        } finally {
+          setCascadeLoadingIds((prev) => {
+            const next = new Set(prev)
+            next.delete(node.id)
+            return next
+          })
+        }
+      },
+      [onSelectionChange, selectedIds, getCheckState, isExpandable, collectLeafIds],
+    )
+
     // ─── Renderers ──────────────────────────────────────────────────────────────
     const defaultLeafIcon = () => <File className="h-3.5 w-3.5 shrink-0" />
     const defaultFolderIcon = (_node: HuemulTreeNode, expanded: boolean) =>
@@ -450,7 +551,11 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       const isDragging = draggedNode === node.id
       const isDragOver = dragOverNode === node.id
       const isActive = activeNodeId === node.id
-      const isNodeLoading = loadingNodeId === node.id
+      const isNodeLoading = loadingNodeId === node.id || cascadeLoadingIds.has(node.id)
+      const isSelectable = canSelectNode(node)
+      const checkState = cascadeSelection ? getCheckState(node) : undefined
+      const isSelected = cascadeSelection ? checkState === "checked" : !!selectedIds?.has(node.id)
+      const isSection = level === 0 && !!isSectionHeader?.(node)
 
       const hasCustomMenuActions = menuActions.some((action) => (action.show ? action.show(node) : true))
       const hasVisibleMenuActions =
@@ -476,16 +581,18 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
           <div
             className={cn(
-              "group flex items-center gap-1 min-w-0 py-0.5 px-2 rounded-md transition-colors relative",
+              "group flex items-center gap-1 min-w-0 px-2 rounded-md transition-colors relative",
+              isSection ? "h-8" : "py-0.5",
               node.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-accent hover:cursor-pointer",
               isDragging && "opacity-50",
               isDragOver && isFolder && "bg-primary/10 border-2 border-primary border-dashed",
               isActive && "bg-accent font-medium",
+              isSelected && "bg-primary/5",
               isNodeLoading && "bg-accent/50",
               renderNodeClassName?.(node),
             )}
             style={{ paddingLeft: `${level * 12 + 6}px` }}
-            draggable={!node.disabled}
+            draggable={!cascadeSelection && !node.disabled && !isSection}
             onDragStart={(e) => handleDragStart(e, node.id, node)}
             onDragEnd={() => { setDraggedNode(null); setDragOverNode(null); stopAutoScroll() }}
             onDragOver={(e) =>
@@ -494,11 +601,22 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             onDragLeave={handleDragLeave}
             onDrop={(e) => (isFolder && !node.disabled ? handleDrop(e, node.id) : e.preventDefault())}
           >
-            {isFolder && (
+            {selectionEnabled && isSelectable && (
+              <Checkbox
+                checked={cascadeSelection ? checkState === "indeterminate" ? "indeterminate" : checkState === "checked" : isSelected}
+                onCheckedChange={() => (cascadeSelection ? toggleCascade(node) : toggleSelection(node.id))}
+                onClick={(e) => e.stopPropagation()}
+                disabled={node.disabled || isNodeLoading}
+                className="shrink-0 border-muted-foreground/50 data-[state=unchecked]:bg-background"
+                aria-label={node.name}
+              />
+            )}
+
+            {isExpandable(node) && (
               <HuemulButton
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 p-0 hover:bg-transparent"
+                className={cn("h-3 w-3 p-0 hover:bg-transparent", isSection && "text-sidebar-foreground/70")}
                 onClick={() => handleToggle(node)}
                 disabled={node.disabled}
               >
@@ -514,17 +632,34 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
 
             <div
               className="flex items-center gap-1.5 flex-1 min-w-0"
-              onClick={() => (isFolder ? handleFolderClick(node) : handleFileClick(node))}
+              onClick={() => {
+                if (cascadeSelection) {
+                  isExpandable(node) ? handleToggle(node) : toggleCascade(node)
+                } else if (selectable && isSelectable) {
+                  toggleSelection(node.id)
+                } else if (isFolder) {
+                  handleFolderClick(node)
+                } else {
+                  handleFileClick(node)
+                }
+              }}
             >
               {isFolder
-                ? (renderFolderIcon ? renderFolderIcon(node, !!isExpanded) : defaultFolderIcon(node, !!isExpanded))
+                ? (renderFolderIcon
+                    ? renderFolderIcon(node, !!isExpanded)
+                    : (isSection ? null : defaultFolderIcon(node, !!isExpanded)))
                 : isNodeLoading
                   ? <div className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   : (renderLeafIcon ? renderLeafIcon(node) : defaultLeafIcon())}
-              <p className={cn("text-sm truncate", isNodeLoading && "text-muted-foreground")}>{node.name}</p>
+              <p className={cn(
+                isSection ? "text-xs font-medium text-sidebar-foreground/70" : "text-sm",
+                "truncate",
+                isNodeLoading && "text-muted-foreground",
+              )}>{node.name}</p>
+              {renderNodeSuffix?.(node)}
             </div>
 
-            {((hasVisibleMenuActions && !node.disabled) || (hasCustomMenuActions && node.disabled)) && (
+            {!selectionEnabled && ((hasVisibleMenuActions && !node.disabled) || (hasCustomMenuActions && node.disabled)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <HuemulButton
@@ -639,7 +774,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             </div>
           )}
 
-          {isExpanded && node.children && node.children.map((child, index) =>
+          {isExpandable(node) && isExpanded && node.children && node.children.map((child, index) =>
             renderNode(child, level + 1, index === node.children!.length - 1)
           )}
         </div>

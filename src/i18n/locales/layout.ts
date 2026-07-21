@@ -22,6 +22,7 @@ const translations = {
     assetTypeRelationships: { en: "Asset Type Relationships", es: "Relaciones de Tipos de Activo" },
     customFields: { en: "Custom Fields", es: "Campos Personalizados" },
     canvas: { en: "Canvas", es: "Canvas" },
+    diagrams: { en: "Diagrams", es: "Diagramas" },
     media: { en: "Media", es: "Media" },
     administration: { en: "Administration", es: "Administración" },
     organizations: { en: "Organizations", es: "Organizaciones" },
@@ -37,7 +38,11 @@ const translations = {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },
     newAsset: { en: "New Asset", es: "Nuevo Activo" },
     importAsset: { en: "New Asset from File", es: "Nuevo Activo desde Archivo" },
+    importConfig: { en: "Import portable", es: "Importar portable" },
     newFolder: { en: "New Folder", es: "Nueva Carpeta" },
+    newGroupFolder: { en: "New Group Folder", es: "Nueva Carpeta Grupal" },
+    newArea: { en: "New Area", es: "Nueva Área" },
+    shareFolder: { en: "Share", es: "Compartir" },
     editFolder: { en: "Edit Folder", es: "Editar Carpeta" },
     deleteFolder: { en: "Delete Folder", es: "Eliminar Carpeta" },
     editFile: { en: "Edit File", es: "Editar Archivo" },
@@ -76,6 +81,44 @@ const translations = {
     relationsMode: { en: "Relations", es: "Relaciones" },
     relationsModeTitle: { en: "Relations", es: "Relaciones" },
     relationsModeTooltip: { en: "Relations mode", es: "Modo relaciones" },
+    errors: {
+      folderNotAccessible: {
+        en: "You don't have access to this folder",
+        es: "No tienes acceso a esta carpeta",
+      },
+      folderLoadError: {
+        en: "Failed to load folder content. Please try again.",
+        es: "Error al cargar el contenido de la carpeta. Inténtalo de nuevo.",
+      },
+      folderNotDeletable: {
+        en: "This folder can't be deleted",
+        es: "Esta carpeta no se puede eliminar",
+      },
+      folderNotMovable: {
+        en: "This folder can't be moved",
+        es: "Esta carpeta no se puede mover",
+      },
+      folderNotRenamable: {
+        en: "This folder can't be renamed",
+        es: "Esta carpeta no se puede renombrar",
+      },
+      folderAdministerRequired: {
+        en: "You need administer access to this folder",
+        es: "Necesitas acceso de administrador sobre esta carpeta",
+      },
+      orgAdminRequired: {
+        en: "Only an organization admin can do this",
+        es: "Solo un administrador de la organización puede hacer esto",
+      },
+      manageGroupsRequired: {
+        en: "You need the 'manage groups' permission to do this",
+        es: "Necesitas el permiso de 'administrar grupos' para hacer esto",
+      },
+      folderNotGrantable: {
+        en: "Access can't be granted on this folder",
+        es: "No se puede otorgar acceso sobre esta carpeta",
+      },
+    },
   },
   llmConfigBanner: {
     llmNotConfigured: {

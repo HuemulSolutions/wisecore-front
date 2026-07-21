@@ -12,12 +12,12 @@ import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button";
 import { HuemulFilterInline } from "@/huemul/components/huemul-filter-inline";
 import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel";
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips";
+import { HuemulCustomFieldFilter } from "@/huemul/components/huemul-custom-field-filter";
 import { useHuemulFilters } from "@/hooks/useHuemulFilters";
 
 import { search } from "@/services/search";
 import type { SearchType, SearchResultDocument, SearchResponse } from "@/services/search";
 import { getAssetTypes } from "@/services/asset-types";
-import { getCustomFields } from "@/services/custom-fields";
 import { getUsers } from "@/services/users";
 import { getAllTemplates } from "@/services/templates";
 import { useOrganization } from "@/contexts/organization-context";
@@ -144,17 +144,6 @@ export default function SearchPage() {
     [selectedOrganizationId],
   );
 
-  const fetchCustomFieldNames = useCallback(
-    async ({ search: s, page: p, pageSize: ps }: FetchOptionsParams): Promise<FetchOptionsResult> => {
-      const res = await getCustomFields({ search: s || undefined, page: p, page_size: ps });
-      return {
-        options: res.data.map((cf) => ({ value: cf.name, label: cf.name })),
-        hasMore: res.has_next,
-      };
-    },
-    [],
-  );
-
   const initialValues = useMemo(() => parseValuesFromURL(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derive the active searchType from the URL (kept in sync with `values` by the
@@ -247,6 +236,19 @@ export default function SearchPage() {
       { key: "reviewDate", type: "date-range", group: dates, label: t("filters.reviewDate") },
       { key: "auditDate", type: "date-range", group: dates, label: t("filters.auditDate") },
       {
+        key: "customFieldFilter",
+        type: "custom",
+        multiEntry: true,
+        group: t("filters.customFieldsGroup"),
+        label: t("filters.customFields"),
+        render: ({ value, setValue }) => (
+          <HuemulCustomFieldFilter
+            value={Array.isArray(value) ? (value as string[]) : []}
+            onChange={(next) => setValue(next)}
+          />
+        ),
+      },
+      {
         key: "filterWithLlm",
         type: "boolean",
         group: other,
@@ -258,19 +260,8 @@ export default function SearchPage() {
       },
       { key: "hasUnresolvedComments", type: "boolean", group: other, label: t("filters.unresolvedComments") },
       { key: "hasPendingAiSuggestion", type: "boolean", group: other, label: t("filters.pendingAiSuggestion") },
-      {
-        key: "customFieldFilter",
-        type: "async-combobox",
-        multiSelect: true,
-        group: t("filters.customFieldsGroup"),
-        label: t("filters.customFields"),
-        placeholder: t("filters.customFieldsPlaceholder"),
-        fetchOptions: fetchCustomFieldNames,
-        pageSize: 50,
-        searchOnEnter: true,
-      },
     ];
-  }, [t, tAssets, tFilters, fetchAssetTypes, fetchTemplates, fetchUsers, fetchCustomFieldNames, currentSearchType]);
+  }, [t, tAssets, tFilters, fetchAssetTypes, fetchTemplates, fetchUsers, currentSearchType]);
 
   const {
     values,

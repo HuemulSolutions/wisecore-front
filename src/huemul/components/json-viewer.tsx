@@ -12,11 +12,19 @@ const TOKEN_REGEX =
 export function tokenize(json: string): Token[] {
   const tokens: Token[] = []
   let match: RegExpExecArray | null
+  let lastIndex = 0
 
   TOKEN_REGEX.lastIndex = 0
 
   while ((match = TOKEN_REGEX.exec(json)) !== null) {
     const [full, key, str, bool, nil, num, punct, ws] = match
+
+    // Preserve any characters the regex couldn't classify (e.g. mid-edit invalid JSON)
+    // so the highlighted layer never silently drops text the user typed.
+    if (match.index > lastIndex) {
+      tokens.push({ type: "text", value: json.slice(lastIndex, match.index) })
+    }
+    lastIndex = TOKEN_REGEX.lastIndex
 
     if (key !== undefined) {
       // Split trailing colon from the key string so we can colour them separately
@@ -41,6 +49,10 @@ export function tokenize(json: string): Token[] {
     }
   }
 
+  if (lastIndex < json.length) {
+    tokens.push({ type: "text", value: json.slice(lastIndex) })
+  }
+
   return tokens
 }
 
@@ -59,6 +71,8 @@ export const tokenStyle: Record<TokenType, React.CSSProperties> = {
   // punctuation → muted-foreground
   punctuation: { color: "var(--muted-foreground)" },
   whitespace: {},
+  // fallback for characters the tokenizer can't classify (e.g. mid-edit invalid JSON)
+  text: { color: "var(--foreground)" },
 }
 
 // ── Public component ─────────────────────────────────────────────────────────

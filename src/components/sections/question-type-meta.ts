@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TFunction } from "i18next";
-import type { FormFieldConfig, FormFieldOption, SectionFormField } from "@/types/sections/core";
+import type { FormFieldConfig, FormFieldOption, FormFieldValue, SectionFormField } from "@/types/sections/core";
 
 // question_type que referencia un custom field
 export const CUSTOM_FIELD_QUESTION_TYPE = "custom_field";
@@ -37,6 +37,7 @@ export const QUESTION_TYPE = {
   yesNo: "booleano",
   multipleChoice: "opcion_multiple",
   dropdown: "lista_desplegable",
+  dropdownMultiple: "lista_desplegable_multiple",
   fileUpload: "carga_de_archivos",
   linearScale: "escala_lineal",
   rating: "calificacion",
@@ -86,6 +87,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   casillas: CheckSquare,
   opcion_multiple: CircleDot,
   lista_desplegable: ListChecks,
+  lista_desplegable_multiple: CheckSquare,
   booleano: ToggleLeft,
   si_no: ToggleLeft,
 };
@@ -97,6 +99,12 @@ export const questionTypeIcon = (slug: string): LucideIcon =>
 export const questionTypeLabel = (slug: string, t: TFunction): string =>
   slug
     ? t(`form.formFields.questionTypeLabels.${slug}`, { defaultValue: humanizeQuestionType(slug) })
+    : "";
+
+// Etiqueta visible de un data_type de custom field (namespace custom-fields).
+export const customFieldDataTypeLabel = (dataType: string, t: TFunction): string =>
+  dataType
+    ? t(`custom-fields:dataTypes.${dataType}`, { defaultValue: dataType })
     : "";
 
 // ── Config de UI alojada en default_value (JSONB) ───────────────────────────
@@ -117,6 +125,23 @@ export const readFieldOptions = (field: { default_value?: unknown | null }): For
   return Array.isArray(raw) ? (raw as FormFieldOption[]) : [];
 };
 
+// Resuelve el valor de una respuesta de selección a etiquetas visibles.
+// Acepta: id (string), opción {id, label}, o array de cualquiera (datos legacy/backend).
+// Nunca retorna el valor crudo — evita renderizar objetos directamente en JSX.
+export function resolveOptionLabels(value: unknown, options: FormFieldOption[]): string[] {
+  const toLabel = (entry: unknown): string => {
+    if (entry && typeof entry === "object") {
+      const opt = entry as { id?: unknown; label?: unknown };
+      if (typeof opt.label === "string") return opt.label;
+      const byId = options.find((o) => o.id === String(opt.id ?? ""));
+      return byId?.label ?? String(opt.id ?? "");
+    }
+    const id = String(entry);
+    return options.find((o) => o.id === id)?.label ?? id;
+  };
+  return (Array.isArray(value) ? value : [value]).map(toLabel);
+}
+
 // Devuelve el nuevo default_value resultante de mergear un patch de config.
 export const writeFieldConfig = (
   field: SectionFormField,
@@ -130,3 +155,21 @@ export const jsonbToInputValue = (v: unknown): string | number =>
 // Genera un field_id seguro a partir del enunciado del campo.
 export const slugifyFieldId = (name: string): string =>
   name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 64) || "";
+
+// ── Dependencias condicionales (depends_on) en tiempo de ejecución ──────────
+
+// ¿El front debe mostrar la pregunta? false solo cuando el backend calculó
+// is_visible === false (depends_on inactivo y show_when_inactive en false/ausente).
+export function isFieldVisible(field: FormFieldValue): boolean {
+  return field.is_visible !== false;
+}
+
+// ¿El usuario puede responder la pregunta? custom_field siempre es solo lectura;
+// una pregunta condicional inactiva (can_answer === false) también lo es, aunque
+// se muestre deshabilitada por show_when_inactive.
+export function isFieldAnswerable(field: FormFieldValue): boolean {
+  if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) return false;
+  if (field.is_visible === false) return false;
+  if (field.can_answer === false) return false;
+  return true;
+}

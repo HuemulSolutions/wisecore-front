@@ -1,4 +1,5 @@
 import type { Value } from 'platejs'
+import type { EditorMediaUploadTarget } from '@/contexts/media-reference-context'
 
 export interface SectionPlateEditorRef {
   getMarkdown: () => string;
@@ -43,6 +44,11 @@ export interface SectionPlateEditorProps {
    * reference picker so users can insert existing media into the section.
    */
   organizationId?: string;
+  /**
+   * Where files uploaded from this editor should be attached (level + parent id).
+   * When omitted, uploads fall back to the organization level.
+   */
+  mediaUploadTarget?: EditorMediaUploadTarget | null;
   /** Callback to create a new section from selected text */
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void;
   /**

@@ -1,10 +1,10 @@
-import { AddCustomFieldDialog } from "@/components/custom-fields/add-custom-field-dialog"
+import { AddCustomFieldSheet } from "@/components/custom-fields/add-custom-field-sheet"
 import { useCustomFieldTemplateSources } from "@/hooks/useCustomFieldTemplates"
 import { uploadCustomFieldTemplateValueBlob } from "@/services/custom-fields-templates"
 import type { AddCustomFieldTemplateDialogProps } from '@/types/templates';
 export type { AddCustomFieldTemplateDialogProps } from '@/types/templates';
 
-export function AddCustomFieldTemplateDialog({
+export function AddCustomFieldTemplateSheet({
   isOpen,
   onClose,
   templateId,
@@ -17,7 +17,7 @@ export function AddCustomFieldTemplateDialog({
   } = useCustomFieldTemplateSources()
 
   return (
-    <AddCustomFieldDialog
+    <AddCustomFieldSheet
       isOpen={isOpen}
       onClose={onClose}
       entityId={templateId}

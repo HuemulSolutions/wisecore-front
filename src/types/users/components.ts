@@ -26,6 +26,9 @@ export interface UserFormFieldsProps {
   disabled?: boolean
   errors?: Record<string, string>
   emailReadOnly?: boolean
+  notifyDailyDigest?: boolean
+  onNotifyDailyDigestChange?: (value: boolean) => void
+  includeNotifyDailyDigest?: boolean
 }
 
 export interface UserPageDialogsProps {

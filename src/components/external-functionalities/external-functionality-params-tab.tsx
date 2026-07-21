@@ -11,6 +11,7 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulTable } from "@/huemul/components/huemul-table"
 import type { HuemulTableColumn } from "@/huemul/components/huemul-table"
+import { DEFAULT_PAGE_SIZE } from "@/huemul/constants"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,7 @@ import type { ExternalFunctionalityParamsTabProps, ExternalFunctionalityParamsEd
 
 export type { ExternalFunctionalityParamsTabProps } from "@/types/external-functionalities"
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const TYPE_BADGE_CLASS: Record<ExternalParameterType, string> = {
   query_string:
@@ -37,10 +38,10 @@ export function ExternalFunctionalityParamsTab({
   const { t } = useTranslation(["external-parameters", "common"])
 
   const { isOrgAdmin, hasPermission } = useUserPermissions()
-  const canCreate = isOrgAdmin || hasPermission("external_parameter:c" as never)
-  const canUpdate = isOrgAdmin || hasPermission("external_parameter:u" as never)
-  const canDelete = isOrgAdmin || hasPermission("external_parameter:d" as never)
-  const canList   = isOrgAdmin || hasPermission("external_parameter:l" as never) || hasPermission("external_parameter:r" as never)
+  const canCreate = isOrgAdmin || hasPermission("external_parameter:c")
+  const canUpdate = isOrgAdmin || hasPermission("external_parameter:u")
+  const canDelete = isOrgAdmin || hasPermission("external_parameter:d")
+  const canList   = isOrgAdmin || hasPermission("external_parameter:l") || hasPermission("external_parameter:r")
 
   const typeOptions = [
     { label: t("typeOptions.queryString"), value: "query_string" },

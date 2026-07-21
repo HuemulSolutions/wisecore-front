@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Edit2, Trash2, FileEdit } from "lucide-react"
 import type { CustomFieldTemplate } from '@/types/custom-fields';
 import type { CustomFieldTemplateTableProps } from '@/types/templates';
@@ -55,6 +56,17 @@ const getValueForDisplay = (template: CustomFieldTemplate) => {
       return template.value_url || ""
     case "image":
       return template.value ? "Image uploaded" : ""
+    case "list": {
+      if (template.value_list && template.value_list.length > 0) {
+        return template.value_list
+          .map(id => template.options?.find(o => o.id === id)?.label ?? id)
+          .join(", ")
+      }
+      const optionId = template.value_identifier
+      if (!optionId) return ""
+      const match = template.options?.find(o => o.id === optionId)
+      return match ? match.label : optionId
+    }
     default:
       return template.value_string || ""
   }
@@ -257,7 +269,7 @@ export function CustomFieldTemplateTable({
           hasPrevious: pagination.hasPrevious,
           onPageChange: pagination.onPageChange,
           onPageSizeChange: pagination.onPageSizeChange,
-          pageSizeOptions: pagination.pageSizeOptions || [10, 25, 50, 100, 250, 500, 1000]
+          pageSizeOptions: pagination.pageSizeOptions || DEFAULT_PAGE_SIZE_OPTIONS
         } : undefined}
         showFooterStats={false}
       />

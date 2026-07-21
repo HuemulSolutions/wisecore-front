@@ -6,6 +6,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { HuemulDialog } from '@/huemul/components/huemul-dialog';
 import { HuemulField, HuemulFieldGroup, type FetchOptionsParams } from '@/huemul/components/huemul-field';
 import { getAssetTypes } from '@/services/asset-types';
+import { getUsers } from '@/services/users';
 import { toast } from 'sonner';
 import { Edit3 } from 'lucide-react';
 import type { EditDocumentDialogProps } from "@/types/assets";
@@ -29,6 +30,9 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   const [documentTypeId, setDocumentTypeId] = useState(currentDocumentTypeId || '');
   const [documentTypeName, setDocumentTypeName] = useState('');
   const [documentTypeColor, setDocumentTypeColor] = useState<string | undefined>(undefined);
+  const [createdBy, setCreatedBy] = useState('');
+  const [createdByLabel, setCreatedByLabel] = useState('');
+  const [initialCreatedBy, setInitialCreatedBy] = useState('');
 
   // Prefill cuando se abre o cambia el doc
   useEffect(() => {
@@ -37,7 +41,10 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       if (!open) return;
       setName(currentName);
       setDescription(currentDescription || '');
-      
+      setCreatedBy('');
+      setCreatedByLabel('');
+      setInitialCreatedBy('');
+
       // Siempre cargar datos del documento para obtener todos los campos
       try {
         const doc = await getDocumentById(documentId, selectedOrganizationId!);
@@ -47,6 +54,13 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           setDocumentTypeId(doc?.document_type?.id || '');
           setDocumentTypeName(doc?.document_type?.name || '');
           setDocumentTypeColor(doc?.document_type?.color ?? undefined);
+
+          const creator = doc?.created_by_user;
+          if (creator) {
+            setCreatedBy(creator.id);
+            setInitialCreatedBy(creator.id);
+            setCreatedByLabel(`${creator.name} ${creator.last_name} (${creator.email})`);
+          }
         }
       } catch (e) {
         console.error('Error loading document:', e);
@@ -60,7 +74,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
   }, [open, currentName, currentDescription, currentDocumentTypeId, documentId, selectedOrganizationId]);
 
   const mutation = useMutation({
-    mutationFn: async (payload: { name: string; description?: string; internal_code?: string; document_type_id?: string }) => {
+    mutationFn: async (payload: { name: string; description?: string; internal_code?: string; document_type_id?: string; created_by?: string }) => {
       if (!selectedOrganizationId) throw new Error('Organization not selected');
       return updateDocument(documentId, payload, selectedOrganizationId);
     },
@@ -85,6 +99,17 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
     };
   }, []);
 
+  const fetchCreatedByOptions = useCallback(async ({ search, page, pageSize }: FetchOptionsParams) => {
+    const response = await getUsers(selectedOrganizationId ?? undefined, page, pageSize, search);
+    return {
+      options: (response.data ?? []).map((u) => ({
+        value: u.id,
+        label: `${u.name} ${u.last_name} (${u.email})`,
+      })),
+      hasMore: response.has_next ?? false,
+    };
+  }, [selectedOrganizationId]);
+
   const handleSave = useCallback(() => {
     if (!name.trim()) {
       toast.error(t('assets:edit.errorNameRequired'));
@@ -95,22 +120,26 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       return;
     }
     
-    const payload: { name: string; description?: string; internal_code?: string; document_type_id: string } = {
+    const payload: { name: string; description?: string; internal_code?: string; document_type_id: string; created_by?: string } = {
       name: name.trim(),
       document_type_id: documentTypeId.trim(),
     };
-    
+
     if (description.trim()) {
       payload.description = description.trim();
     }
-    
+
     if (internalCode.trim()) {
       payload.internal_code = internalCode.trim();
     }
-    
+
+    if (createdBy.trim() && createdBy.trim() !== initialCreatedBy) {
+      payload.created_by = createdBy.trim();
+    }
+
     console.log('Updating document with payload:', payload);
     mutation.mutate(payload);
-  }, [name, description, internalCode, documentTypeId, mutation]);
+  }, [name, description, internalCode, documentTypeId, createdBy, initialCreatedBy, mutation]);
 
   return (
     <HuemulDialog
@@ -174,6 +203,21 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           selectedLabel={documentTypeName}
           selectedColor={documentTypeColor}
           pageSize={100}
+        />
+
+        <HuemulField
+          type="async-combobox"
+          label={t('assets:form.createdBy')}
+          name="createdBy"
+          value={createdBy}
+          onChange={(v) => setCreatedBy(String(v))}
+          placeholder={t('assets:form.createdByPlaceholder')}
+          description={t('assets:form.createdByDescription')}
+          disabled={mutation.isPending}
+          fetchOptions={fetchCreatedByOptions}
+          selectedLabel={createdByLabel}
+          onSelectedLabelChange={(label) => setCreatedByLabel(label ?? '')}
+          pageSize={20}
         />
       </HuemulFieldGroup>
     </HuemulDialog>

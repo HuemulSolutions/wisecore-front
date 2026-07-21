@@ -248,12 +248,19 @@ export function HuemulInfoGroup({
   items,
   children,
   className,
+  layout = "vertical",
 }: HuemulInfoGroupProps) {
+  const isGrid = layout === "grid-2";
   return (
     <InfoLayoutContext.Provider value="vertical">
-      <div className={cn("flex flex-col gap-4", className)}>
+      <div
+        className={cn(
+          isGrid ? "grid grid-cols-2 gap-x-4 gap-y-3" : "flex flex-col gap-4",
+          className,
+        )}
+      >
         {label && (
-          <div className="flex items-center gap-2 py-1">
+          <div className={cn("flex items-center gap-2 py-1", isGrid && "col-span-2")}>
             <p className="text-xs font-semibold text-foreground/60 uppercase tracking-wider shrink-0">
               {label}
             </p>

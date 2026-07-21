@@ -45,8 +45,9 @@ export const createDocumentType = async (data: CreateDocumentTypeData): Promise<
     },
     body: JSON.stringify(data),
   });
-  
-  return response.json();
+
+  const json = await response.json();
+  return json.data;
 };
 
 // Get document type by ID
@@ -69,8 +70,9 @@ export const updateDocumentType = async (id: string, data: UpdateDocumentTypeDat
     },
     body: JSON.stringify(data),
   });
-  
-  return response.json();
+
+  const json = await response.json();
+  return json.data;
 };
 
 // Delete document type

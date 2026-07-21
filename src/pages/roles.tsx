@@ -1,25 +1,29 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useRoles, useRoleMutations } from "@/hooks/useRbac"
 import { useUsers } from "@/hooks/useUsers"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { type Role } from "@/services/rbac"
+import { type Role, exportRoles } from "@/services/rbac"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import CreateRoleSheet from "@/components/roles/roles-create-sheet"
 import EditRoleSheet from "@/components/roles/roles-edit-sheet"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import AssignRoleToUsersDialog from "@/components/roles/roles-assign-to-users-sheet"
-import { 
-  RolesLoadingState, 
-  RolesContentEmptyState, 
-  RolesAccessDenied, 
-  RolesSearch, 
+import {
+  RolesLoadingState,
+  RolesContentEmptyState,
+  RolesAccessDenied,
+  RolesSearch,
   RolesTable,
   DeleteRoleDialog,
-  CloneRoleDialog
+  CloneRoleDialog,
+  RolesImportSheet
 } from "@/components/roles"
 
 /**
@@ -28,7 +32,8 @@ import {
  */
 export default function Roles() {
   useAuth()
-  
+  const { t } = useTranslation('roles')
+
   // State management
   const [searchTerm, setSearchTerm] = useState("")
   const [editingRole, setEditingRole] = useState<Role | null>(null)
@@ -40,14 +45,19 @@ export default function Roles() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoadingUsers] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [isExportingRoles, setIsExportingRoles] = useState(false)
+  const [showImportSheet, setShowImportSheet] = useState(false)
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
 
   // Permissions check
   const { canAccessRoles, hasPermission, hasAnyPermission, isRootAdmin, isLoading: isLoadingPermissions } = useUserPermissions()
-  
+
   // Permisos específicos
   const canReadRbac = isRootAdmin || hasPermission('rbac:r')
   const canManageRbac = isRootAdmin || hasAnyPermission(['rbac:c', 'rbac:u', 'rbac:d'])
+  const canExportRoles = isRootAdmin || hasPermission('rbac:r')
+  const canImportRoles = isRootAdmin || (hasPermission('rbac:c') && hasPermission('rbac:u'))
 
   // Data fetching - solo si tiene permisos de lectura
   const { data: rolesResponse, isLoading, isFetching, error, refetch: refetchRoles } = useRoles(canReadRbac, page, pageSize, searchTerm)
@@ -73,6 +83,22 @@ export default function Roles() {
       await refetchRoles()
     } finally {
       setIsRefreshing(false)
+    }
+  }
+
+  const handleExportRoles = async () => {
+    if (selectedExportIds.size === 0) {
+      toast.error(t('exportImport.exportSelectionRequired'))
+      return
+    }
+    setIsExportingRoles(true)
+    try {
+      await exportRoles({ role_ids: [...selectedExportIds] })
+      setSelectedExportIds(new Set())
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('exportImport.exportError'))
+    } finally {
+      setIsExportingRoles(false)
     }
   }
 
@@ -157,6 +183,12 @@ export default function Roles() {
             onCreateRole={openDialog.create}
             hasError={!!error}
             canManage={canManageRbac}
+            onExport={handleExportRoles}
+            onImport={() => setShowImportSheet(true)}
+            canExport={canExportRoles}
+            canImport={canImportRoles}
+            exportSelectedCount={selectedExportIds.size}
+            isExporting={isExportingRoles}
           />
         }
         headerClassName="p-2 sm:p-4 md:p-4 lg:p-6 pb-0 sm:pb-0 md:pb-0 lg:pb-0"
@@ -175,6 +207,8 @@ export default function Roles() {
                 onDeleteRole={openDialog.delete}
                 onCloneRole={openDialog.clone}
                 canManage={canManageRbac}
+                selectedIds={selectedExportIds}
+                onSelectionChange={setSelectedExportIds}
                 pagination={{
                   page: rolesResponse?.page || page,
                   pageSize: rolesResponse?.page_size || pageSize,
@@ -185,7 +219,7 @@ export default function Roles() {
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
               />
             ),
@@ -238,6 +272,12 @@ export default function Roles() {
         }}
         role={cloningRole}
         onConfirm={confirmCloneRole}
+      />
+
+      <RolesImportSheet
+        open={showImportSheet}
+        onOpenChange={(open) => !open && setShowImportSheet(false)}
+        onImportSuccess={handleRefresh}
       />
     </>
   )

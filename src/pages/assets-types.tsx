@@ -27,6 +27,7 @@ import { AssetTypeSidebar, RelationshipsCanvas } from "@/components/document-typ
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 const RELATIONSHIP_PAGE_SIZE = 100
 
@@ -47,11 +48,13 @@ export default function AssetTypesPage() {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [viewMode, setViewMode] = useState<'table' | 'relationships'>('table')
   const [relSearchInput, setRelSearchInput] = useState("")
   const [relSearch, setRelSearch] = useState("")
   const [relPage, setRelPage] = useState(1)
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(new Set())
+  const [pinnedNewAssetType, setPinnedNewAssetType] = useState<AssetTypeWithRoles | null>(null)
 
   // Permisos
   const { isRootAdmin, hasPermission, hasAnyPermission, isLoading: isLoadingPermissions } = useUserPermissions()
@@ -65,7 +68,8 @@ export default function AssetTypesPage() {
   const canDeleteDocumentType = isRootAdmin || hasPermission('asset_type:d')
   const canExportDocumentTypes = isRootAdmin || hasPermission('asset_type:r')
   const canImportDocumentTypes = isRootAdmin || (hasPermission('asset_type:c') && hasPermission('asset_type:u'))
-  
+  const canListRelationships = isRootAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
+
   // Fetch asset types and mutations - solo si tiene permisos
   const { data: assetTypesResponse, isLoading, isFetching, error } = useAssetTypesWithRoles(page, pageSize, canListDocumentTypes, state.searchTerm || undefined)
   const assetTypeMutations = useAssetTypeMutations()
@@ -160,17 +164,37 @@ export default function AssetTypesPage() {
     return <AssetTypePageSkeleton />
   }
 
-  const assetTypes = assetTypesResponse?.data || []
+  const rawAssetTypes = assetTypesResponse?.data || []
+  const effectivePageSize = assetTypesResponse?.page_size || pageSize
+  const assetTypes = pinnedNewAssetType
+    ? [
+        rawAssetTypes.find((a) => a.document_type_id === pinnedNewAssetType.document_type_id) ?? pinnedNewAssetType,
+        ...rawAssetTypes.filter((a) => a.document_type_id !== pinnedNewAssetType.document_type_id),
+      ].slice(0, effectivePageSize)
+    : rawAssetTypes
 
   // Function to refresh data
   const handleRefresh = async () => {
     setIsRefreshing(true)
+    setPinnedNewAssetType(null)
     try {
       await queryClient.invalidateQueries({ queryKey: ['asset-types', 'list-with-roles'] })
       toast.success('Data refreshed')
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  // Fija el asset type recién creado al tope de la página actual (sin cambiar de página)
+  const handleAssetTypeCreated = (created: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => {
+    setPinnedNewAssetType({
+      document_type_id: created.id,
+      document_type_name: created.name,
+      document_type_color: created.color,
+      document_type_created_date: created.created_at ?? "",
+      document_count: created.document_count ?? 0,
+      roles: [],
+    })
   }
 
   // Asset type action handlers
@@ -223,18 +247,20 @@ export default function AssetTypesPage() {
             onSearchChange={(value) => {
               updateState({ searchTerm: value })
               setPage(1)
+              setPinnedNewAssetType(null)
             }}
             canCreate={canCreateDocumentType}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={canListRelationships ? setViewMode : undefined}
             onExport={() => updateState({ showExportDialog: true })}
             onImport={() => updateState({ showImportSheet: true })}
             canExport={canExportDocumentTypes}
             canImport={canImportDocumentTypes}
+            exportSelectedCount={selectedExportIds.size}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"
-        columns={viewMode === 'table' ? [
+        columns={viewMode !== 'relationships' || !canListRelationships ? [
           {
             content: error ? (
               <AssetTypeContentEmptyState
@@ -258,19 +284,26 @@ export default function AssetTypesPage() {
                 onManageTemplates={handleManageTemplates}
                 canUpdate={canUpdateDocumentType}
                 canDelete={canDeleteDocumentType}
+                canViewRelationships={canListRelationships}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}
+                selectedIds={selectedExportIds}
+                onSelectionChange={setSelectedExportIds}
                 pagination={{
                   page: assetTypesResponse?.page || page,
                   pageSize: assetTypesResponse?.page_size || pageSize,
                   hasNext: assetTypesResponse?.has_next,
                   hasPrevious: (assetTypesResponse?.page || page) > 1,
-                  onPageChange: (newPage: number) => setPage(newPage),
+                  onPageChange: (newPage: number) => {
+                    setPinnedNewAssetType(null)
+                    setPage(newPage)
+                  },
                   onPageSizeChange: (newPageSize: number) => {
+                    setPinnedNewAssetType(null)
                     setPageSize(newPageSize)
                     setPage(1)
                   },
-                  pageSizeOptions: [10, 25, 50, 100, 250, 500, 1000]
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS
                 }}
               />
             ),
@@ -341,6 +374,9 @@ export default function AssetTypesPage() {
         onUpdateState={updateState}
         assetTypeMutations={assetTypeMutations}
         onImportSuccess={handleRefresh}
+        exportSelectedIds={[...selectedExportIds]}
+        onExported={() => setSelectedExportIds(new Set())}
+        onAssetTypeCreated={handleAssetTypeCreated}
       />
     </>
   )

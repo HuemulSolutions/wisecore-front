@@ -28,7 +28,7 @@ export async function generateOrganizationToken(organizationId: string) {
   return data;
 }
 
-export async function getAllOrganizations(page = 1, pageSize = 10, search?: string) {
+export async function getAllOrganizations(page = 1, pageSize = 100, search?: string) {
   const params = new URLSearchParams({
     page: page.toString(),
     page_size: pageSize.toString(),

@@ -14,6 +14,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn, formatApiDateTime } from "@/lib/utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
@@ -154,7 +155,7 @@ export function NotificationsSheet({
 
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all")
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   // Reset to the first page whenever the sheet is (re)opened or the filter changes
   useEffect(() => {
@@ -289,7 +290,7 @@ export function NotificationsSheet({
               setPageSize(s)
               setPage(1)
             }}
-            pageSizeOptions={[25, 50, 100]}
+            pageSizeOptions={DEFAULT_PAGE_SIZE_OPTIONS}
           />
         </div>
       </div>

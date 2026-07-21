@@ -1,5 +1,7 @@
 // Asset-related types extracted from components/assets
 
+import type { LibraryContentFolderType } from "@/types/folders";
+
 // ========================================
 // Core Asset Types
 // ========================================
@@ -57,7 +59,7 @@ export interface LibraryNavigationState {
 export interface FileNode {
   id: string;
   name: string;
-  type: "document" | "folder";
+  type: "document" | "folder" | "execution";
   document_type?: DocumentType;
   access_levels?: string[];
   children?: FileNode[];
@@ -65,6 +67,13 @@ export interface FileNode {
   isLoading?: boolean;
   hasChildren?: boolean;
   disabled?: boolean;
+  version?: string | null;
+  status?: string;
+  /** True for the fixed set of default root folders (Forms, Global, Grupal, Mis documentos, Sin carpeta). */
+  isSystem?: boolean;
+  folder_type?: LibraryContentFolderType | null;
+  /** True for custom group folders created directly at the real root (folder_type: null, no parent). */
+  isRootGroup?: boolean;
 }
 
 /**
@@ -248,22 +257,39 @@ export interface AssetContentResponse {
   timestamp: string;
 }
 
+/**
+ * Lightweight media URL refresh payload — `GET /documents/{id}/media_urls`.
+ * `media_urls` maps mediaId -> freshly-signed download URL for every media
+ * referenced in the document's current content. A media id referenced in the
+ * document but omitted here means it is broken (deleted or no access) and
+ * should be rendered as unavailable rather than retried.
+ */
+export interface DocumentMediaUrls {
+  media_urls: Record<string, string>;
+  ttl_seconds: number;
+}
+
+export interface DocumentMediaUrlsResponse {
+  data: DocumentMediaUrls;
+  transaction_id: string;
+}
+
 // ========================================
 // Dialog Props Types
 // ========================================
 
-export interface CreateAssetDialogProps {
+export interface CreateAssetSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   folderId?: string;
   onAssetCreated?: (asset: { id: string; name: string; type: "document" }) => void;
 }
 
-export interface CreateFolderDialogProps {
+export interface CreateFolderSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentFolder?: string;
-  onFolderCreated?: () => void;
+  onFolderCreated?: (folder?: { id: string; name: string }) => void;
 }
 
 export interface DeleteDocumentDialogProps {
@@ -485,6 +511,33 @@ export interface ImportDocumentFromFileParams {
   organizationId: string;
 }
 
+// ========================================
+// Export / Import de configuración (migración por JSON)
+// Distinto de ImportDocumentFromFileParams, que importa DOCX/PDF y los convierte.
+// ========================================
+
+export interface ExportDocumentsBody {
+  execution_ids: string[];
+}
+
+export interface ImportDocumentsConfigQueryParams {
+  on_conflict?: 'skip' | 'overwrite';
+  document_ids?: string[];
+}
+
+export interface ImportDocumentsConfigData {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportDocumentsConfigResponse {
+  transaction_id: string;
+  timestamp: string;
+  data: ImportDocumentsConfigData;
+}
+
 export interface PendingAiSuggestionSection {
   section_execution_id: string;
   section_id: string;
@@ -519,4 +572,27 @@ export interface PendingChangesResponse {
   page: number;
   page_size: number;
   has_next: boolean;
+}
+
+/**
+ * Conteo de activos por categoría del dashboard
+ */
+export interface DocumentStatistics {
+  owned_count: number;
+  draft_count: number;
+  in_review_count: number;
+  in_approval_count: number;
+  approved_count: number;
+  published_count: number;
+  expiring_soon_count: number;
+  unresolved_comments_count: number;
+}
+
+/**
+ * Response de GET /documents/statistics
+ */
+export interface DocumentStatisticsResponse {
+  data: DocumentStatistics;
+  transaction_id: string;
+  timestamp: string;
 }

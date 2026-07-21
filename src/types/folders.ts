@@ -20,6 +20,8 @@ export interface LibraryContentAsset {
   matching_execution_ids?: string[];
 }
 
+export type LibraryContentFolderType = 'personal' | 'global' | 'forms' | 'grupal' | 'area' | 'sin_carpeta';
+
 export interface LibraryContentFolder {
   id: string;
   name: string;
@@ -28,6 +30,8 @@ export interface LibraryContentFolder {
   is_match: boolean;
   is_context: boolean;
   is_expanded: boolean;
+  folder_type?: LibraryContentFolderType | null;
+  access_levels?: string[];
 }
 
 export interface LibraryContent {

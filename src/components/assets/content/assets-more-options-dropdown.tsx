@@ -5,6 +5,7 @@ import {
   Check,
   Globe,
   Archive,
+  RotateCcw,
   RefreshCw,
   List,
   Info,
@@ -13,10 +14,12 @@ import {
   Link2,
   Users,
   Copy,
+  GitCompare,
   FileCode,
   FileText,
   Download,
   FileSpreadsheet,
+  FileJson,
   Trash2,
   FileX,
 } from "lucide-react";
@@ -73,12 +76,16 @@ interface MoreOptionsDropdownProps {
   isDocumentType: boolean;
   hasDocumentContent: boolean;
   isTocSidebarOpen: boolean;
+  /** True when there are ≥2 versions to compare */
+  canCompareVersions: boolean;
   // Callbacks
   onAssignVersion: () => void;
+  onCompareVersions: () => void;
   onRejectLifecycle: () => void;
   onCheckLifecycle: () => void;
   onPublish: () => void;
   onArchive: () => void;
+  onRestore: () => void;
   onRefresh: () => void;
   onToggleToc: () => void;
   onOpenInfo: () => void;
@@ -93,8 +100,11 @@ interface MoreOptionsDropdownProps {
   onExportWord: () => void;
   onExportCustomWord: () => void;
   onExportExcel: () => void;
+  onExportVersion: () => void;
   onDeleteVersion: () => void;
   onDeleteDocument: () => void;
+  isRerunningExternalPublish: boolean;
+  onRerunExternalPublish: () => void;
 }
 
 export function MoreOptionsDropdown({
@@ -113,11 +123,14 @@ export function MoreOptionsDropdown({
   isDocumentType,
   hasDocumentContent,
   isTocSidebarOpen,
+  canCompareVersions,
   onAssignVersion,
+  onCompareVersions,
   onRejectLifecycle,
   onCheckLifecycle,
   onPublish,
   onArchive,
+  onRestore,
   onRefresh,
   onToggleToc,
   onOpenInfo,
@@ -132,8 +145,11 @@ export function MoreOptionsDropdown({
   onExportWord,
   onExportCustomWord,
   onExportExcel,
+  onExportVersion,
   onDeleteVersion,
   onDeleteDocument,
+  isRerunningExternalPublish,
+  onRerunExternalPublish,
 }: MoreOptionsDropdownProps) {
   const { t } = useTranslation(["assets"]);
 
@@ -218,6 +234,15 @@ export function MoreOptionsDropdown({
                   {t("lifecycle.archive")}
                 </DropdownMenuItem>
               )}
+            {lifecyclePermissions?.archive && lifecycleStatus.state === "archived" && (
+              <DropdownMenuItem
+                onSelect={() => setTimeout(onRestore, 0)}
+                className="hover:cursor-pointer"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t("lifecycle.restore")}
+              </DropdownMenuItem>
+            )}
             {hasLifecycleActions && <DropdownMenuSeparator />}
           </>
         )}
@@ -242,6 +267,21 @@ export function MoreOptionsDropdown({
                 {isTocSidebarOpen ? t("content.hideSidebar") : t("content.showSidebar")}
               </DropdownMenuItem>
             )}
+          </>
+        )}
+
+        {/* ── Rerun external publish (visible in both reader and editor mode) ── */}
+        {lifecyclePermissions?.publish && lifecycleStatus?.state === "published" && (
+          <>
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onRerunExternalPublish, 0)}
+              className="hover:cursor-pointer"
+              disabled={isRerunningExternalPublish}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRerunningExternalPublish ? "animate-spin" : ""}`} />
+              {t("lifecycle.rerunExternalPublish")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
           </>
         )}
 
@@ -292,6 +332,20 @@ export function MoreOptionsDropdown({
               {!isViewMode && <DropdownMenuSeparator />}
             </>
           )}
+
+        {/* ── Compare versions ── */}
+        {canCompareVersions && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => setTimeout(onCompareVersions, 0)}
+              className="hover:cursor-pointer"
+            >
+              <GitCompare className="mr-2 h-4 w-4" />
+              {t("content.compareVersions")}
+            </DropdownMenuItem>
+          </>
+        )}
 
         {/* ── Clone ── */}
         {lifecyclePermissions?.create && selectedExecutionId && (
@@ -350,6 +404,10 @@ export function MoreOptionsDropdown({
             <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportExcel}>
               <FileSpreadsheet className="mr-2 h-4 w-4" />
               {t("content.exportAsExcel")}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="hover:cursor-pointer" onClick={onExportVersion}>
+              <FileJson className="mr-2 h-4 w-4" />
+              {t("content.exportAsVersionConfig")}
             </DropdownMenuItem>
           </>
         )}

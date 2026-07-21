@@ -57,7 +57,7 @@ export interface SectionOption {
   name: string
 }
 
-export interface AddSectionExecutionDialogProps {
+export interface AddSectionExecutionSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   afterFromSectionId: string | null
@@ -113,7 +113,7 @@ export interface AssignVersionDialogProps {
 export interface CreateFolderLegacyProps {
   trigger: ReactNode
   parentFolder?: string
-  onFolderCreated?: () => void
+  onFolderCreated?: (folder?: { id: string; name: string }) => void
 }
 
 // ----------------------------------------
@@ -178,11 +178,21 @@ export interface EditCustomFieldAssetDialogProps {
 // Import from File
 // ----------------------------------------
 
-export interface ImportAssetFromFileDialogProps {
+export interface ImportAssetFromFileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   folderId?: string
   onAssetCreated?: (asset: { id: string; name: string; type: string }) => void
+}
+
+// ----------------------------------------
+// Import Configuration (JSON migration)
+// ----------------------------------------
+
+export interface ImportConfigSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onImported?: () => void
 }
 
 // ----------------------------------------

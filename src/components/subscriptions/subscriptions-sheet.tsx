@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
+import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useSubscriptions } from "@/hooks/useSubscriptions"
@@ -188,7 +189,7 @@ export function SubscriptionsSheet({ open, onOpenChange, organizationId }: Subsc
                   setPageSize(s)
                   setPage(1)
                 },
-                pageSizeOptions: [25, 50, 100, 200, 500],
+                pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
               }}
             />
           )}

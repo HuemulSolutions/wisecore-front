@@ -21,14 +21,6 @@ const translations = {
     minCount: { en: "Min", es: "Mín" },
     maxCount: { en: "Max", es: "Máx" },
     unlimited: { en: "Unlimited", es: "Sin límite" },
-    loadRelationships: {
-      en: "Load Existing Relationships",
-      es: "Cargar Relaciones Existentes",
-    },
-    loadingRelationships: {
-      en: "Loading Relationships...",
-      es: "Cargando Relaciones...",
-    },
     removeFromCanvas: {
       en: "Remove from Canvas",
       es: "Quitar del Canvas",
@@ -62,6 +54,31 @@ const translations = {
       es: "Conecta dos nodos de tipos de activo para crear una relación",
     },
     clearAll: { en: "Clear canvas", es: "Limpiar canvas" },
+    saveAsDiagram: { en: "Save as Diagram", es: "Guardar como Diagrama" },
+    saveChanges: { en: "Save changes", es: "Guardar cambios" },
+    loadDiagram: { en: "Load Diagram", es: "Cargar Diagrama" },
+  },
+  loadDiagramSheet: {
+    title: { en: "Load Diagram", es: "Cargar Diagrama" },
+    diagramLabel: { en: "Diagram", es: "Diagrama" },
+    diagramPlaceholder: { en: "Search a diagram by name", es: "Busca un diagrama por nombre" },
+    load: { en: "Load Diagram", es: "Cargar Diagrama" },
+    notFound: { en: "Diagram not found.", es: "Diagrama no encontrado." },
+    loadingError: { en: "Failed to load the diagram.", es: "Error al cargar el diagrama." },
+  },
+  saveAsDiagramDialog: {
+    title: { en: "Save as Diagram", es: "Guardar como Diagrama" },
+    updateTitle: { en: "Save changes to Diagram", es: "Guardar cambios del Diagrama" },
+    nameLabel: { en: "Name", es: "Nombre" },
+    namePlaceholder: { en: "e.g. Main content map", es: "ej. Mapa de contenido principal" },
+    descriptionLabel: { en: "Description", es: "Descripción" },
+    mainExecutionLabel: { en: "Main execution", es: "Ejecución principal" },
+    mainExecutionPlaceholder: { en: "Select a version placed on the canvas", es: "Selecciona una versión ubicada en el lienzo" },
+    save: { en: "Save Diagram", es: "Guardar Diagrama" },
+    update: { en: "Save changes", es: "Guardar cambios" },
+    successToast: { en: "Diagram created successfully", es: "Diagrama creado correctamente" },
+    updateSuccessToast: { en: "Diagram updated successfully", es: "Diagrama actualizado correctamente" },
+    viewDiagrams: { en: "View diagrams", es: "Ver diagramas" },
   },
   panel: {
     newRelationship: { en: "New Relationship", es: "Nueva Relación" },
@@ -83,8 +100,16 @@ const translations = {
   nodePanel: {
     assetType: { en: "Asset Type", es: "Tipo de Activo" },
     actions: { en: "Actions", es: "Acciones" },
-    loadRelationships: { en: "Load Relationships", es: "Cargar Relaciones" },
-    loadRelationshipsCanvasOnly: { en: "Load Canvas Relationships", es: "Cargar Relaciones del Canvas" },
+    loadRelationships: { en: "Expand Relationships", es: "Expandir Relaciones" },
+    loadRelationshipsDescription: {
+      en: "Adds related nodes to the canvas, following the relationship chain",
+      es: "Agrega al canvas los nodos relacionados, siguiendo la cadena de relaciones",
+    },
+    loadRelationshipsCanvasOnly: { en: "Connect Canvas Nodes", es: "Conectar Nodos del Canvas" },
+    loadRelationshipsCanvasOnlyDescription: {
+      en: "Only draws connections between nodes already on the canvas — no new nodes are added",
+      es: "Solo dibuja conexiones entre los nodos que ya están en el canvas — no agrega nodos nuevos",
+    },
     loadingRelationships: { en: "Loading…", es: "Cargando…" },
     version: { en: "Version", es: "Versión" },
     versionRequired: {
@@ -130,6 +155,10 @@ const translations = {
     allVersionsInCanvas: {
       en: "All versions are already on the canvas.",
       es: "Todas las versiones ya están en el canvas.",
+    },
+    noCreatePermission: {
+      en: "You don't have permission to create relationships.",
+      es: "No tienes permiso para crear relaciones.",
     },
   },
   attributes: {

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -40,7 +40,7 @@ import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-con
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"
 import { EditingGuardProvider, useOptionalEditingGuard } from "@/contexts/editing-guard-context"
-import EditUserDialog from "@/components/users/users-edit-dialog"
+import EditUserSheet from "@/components/users/users-edit-sheet"
 import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-sheet"
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
@@ -217,6 +217,8 @@ export default function AppLayout() {
     canAccessTemplates,
     canAccessSectionExecutions,
     canAccessCanvas,
+    canAccessDiagrams,
+    canAccessExternalSystems,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -379,9 +381,9 @@ export default function AppLayout() {
   
   // Filtrar opciones del menú de configuración basándose en permisos
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
-  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas
+  const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas || canAccessDiagrams
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || isOrgAdmin || isRootAdmin
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
 
   // Generate initials from user name
@@ -605,7 +607,7 @@ export default function AppLayout() {
                 const currentPath = stripOrgPrefix(location.pathname)
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
-                  '/asset-types', '/custom-fields', '/canvas', '/media',
+                  '/asset-types', '/custom-fields', '/canvas', '/diagrams', '/media',
                   '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
                 ].some(isSettingsActive)
 
@@ -664,6 +666,15 @@ export default function AppLayout() {
                               <LayoutPanelTop className={settingsIconClass('/canvas')} />
                               <span className="flex-1">{t('settings.canvas')}</span>
                               {isSettingsActive('/canvas') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {(canAccessDiagrams || isOrgAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/diagrams")} className={settingsItemClass('/diagrams')}>
+                              <Workflow className={settingsIconClass('/diagrams')} />
+                              <span className="flex-1">{t('settings.diagrams')}</span>
+                              {isSettingsActive('/diagrams') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}
@@ -740,7 +751,7 @@ export default function AppLayout() {
                             </Link>
                           </DropdownMenuItem>
                         )}
-                        {(canAccessUsers || isOrgAdmin) && (
+                        {(canAccessExternalSystems || isOrgAdmin) && (
                           <DropdownMenuItem asChild>
                             <Link to={buildPath("/external-systems")} className={settingsItemClass('/external-systems')}>
                               <Network className={settingsIconClass('/external-systems')} />
@@ -831,12 +842,13 @@ export default function AppLayout() {
         {/* Dialog de selección de organización */}
         <OrganizationSelectionDialog open={shouldShowDialog} />
         
-        {/* Edit profile dialog */}
+        {/* Edit profile sheet */}
         {user && (
-          <EditUserDialog 
+          <EditUserSheet
             user={user}
-            open={profileDialogOpen} 
-            onOpenChange={setProfileDialogOpen} 
+            open={profileDialogOpen}
+            onOpenChange={setProfileDialogOpen}
+            showDailyDigest
           />
         )}
 

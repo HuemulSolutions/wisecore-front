@@ -22,7 +22,7 @@ export interface AssetTypeContentEmptyStateProps {
 
 export interface CreateDocumentTypeProps {
   trigger?: ReactNode
-  onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string }) => void
+  onDocumentTypeCreated?: (documentType: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void
   documentType?: AssetTypeWithRoles | null
@@ -55,6 +55,12 @@ export interface AssetTypePageDialogsProps {
   onUpdateState: (updates: Partial<AssetTypePageState>) => void
   assetTypeMutations: ReturnType<typeof useAssetTypeMutations>
   onImportSuccess: () => void
+  /** Ids de tipos de activo seleccionados en la tabla para exportar. */
+  exportSelectedIds: string[]
+  /** Llamado tras una exportación exitosa (p.ej. para limpiar la selección). */
+  onExported?: () => void
+  /** Llamado tras crear (no editar) un asset type nuevo, para poder fijarlo al tope de la tabla. */
+  onAssetTypeCreated?: (assetType: { id: string; name: string; color: string; created_at?: string; document_count?: number }) => void
 }
 
 // ----------------------------------------
@@ -85,6 +91,8 @@ export interface AssetTypePageHeaderProps {
   onImport?: () => void
   canExport?: boolean
   canImport?: boolean
+  /** Cantidad de filas seleccionadas para exportar; deshabilita Exportar si es 0. */
+  exportSelectedCount?: number
 }
 
 // ----------------------------------------
@@ -102,6 +110,9 @@ export interface AssetTypeTableProps {
   pagination?: HuemulTablePagination
   canUpdate?: boolean
   canDelete?: boolean
+  canViewRelationships?: boolean
   isLoading?: boolean
   isFetching?: boolean
+  selectedIds: Set<string>
+  onSelectionChange: (keys: Set<string>) => void
 }

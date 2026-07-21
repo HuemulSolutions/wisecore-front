@@ -27,8 +27,11 @@ export default function AssetTypeTable({
   pagination,
   canUpdate = true,
   canDelete = true,
+  canViewRelationships = true,
   isLoading = false,
   isFetching = false,
+  selectedIds,
+  onSelectionChange,
 }: AssetTypeTableProps) {
   const { t } = useTranslation('asset-types')
 
@@ -73,12 +76,12 @@ export default function AssetTypeTable({
 
   // Define actions - construir condicionalmente
   const actions: HuemulTableAction<AssetTypeWithRoles>[] = [
-    {
-      key: "viewRelationships",
+    ...(canViewRelationships ? [{
+      key: "viewRelationships" as const,
       label: t('actions.viewRelationships'),
       icon: GitMerge,
       onClick: onViewRelationships
-    },
+    }] : []),
     {
       key: "manageTemplates",
       label: t('actions.manageTemplates'),
@@ -127,6 +130,9 @@ export default function AssetTypeTable({
       pagination={pagination}
       isLoading={isLoading}
       isFetching={isFetching}
+      selectable
+      selectedKeys={selectedIds}
+      onSelectionChange={onSelectionChange}
     />
   )
 }

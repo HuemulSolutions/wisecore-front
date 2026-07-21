@@ -4,6 +4,7 @@ import { Activity, X } from "lucide-react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   useLifecycleStepTypes,
   useLifecycleSteps,
@@ -170,29 +171,41 @@ function StepContent({
   onEditingChange,
   organizationId,
 }: StepContentProps) {
-  if (stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read") {
+  // Edit-style steps manage their own internal scroll area (header fixed, cards scroll)
+  if (stepType === "edit" || stepType === "review" || stepType === "approve") {
     return (
-      <CreateStepContent
+      <EditStepContent
         documentTypeId={documentTypeId}
         stepType={stepType}
-        hasSla={stepType === "publish" || stepType === "archive"}
-        hasValidity={stepType === "create"}
-        noOwner={stepType === "create"}
-        useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
         onEditingChange={onEditingChange}
         organizationId={organizationId}
       />
     )
   }
-  if (stepType === "edit" || stepType === "review" || stepType === "approve") {
-    return <EditStepContent documentTypeId={documentTypeId} stepType={stepType} onEditingChange={onEditingChange} />
-  }
+
+  // Other step types don't have their own scroll container — wrap them so they scroll
+  // within the fixed-height sheet body instead of relying on the sheet itself to scroll.
   return (
-    <DefaultStepContent
-      documentTypeId={documentTypeId}
-      stepType={stepType}
-      stepLabel={stepLabel}
-    />
+    <ScrollArea className="h-full">
+      {stepType === "create" || stepType === "view" || stepType === "publish" || stepType === "archive" || stepType === "read" ? (
+        <CreateStepContent
+          documentTypeId={documentTypeId}
+          stepType={stepType}
+          hasSla={stepType === "publish" || stepType === "archive"}
+          hasValidity={stepType === "create"}
+          noOwner={stepType === "create"}
+          useAllOrCustomOwner={stepType === "publish" || stepType === "archive" || stepType === "read" || stepType === "view"}
+          onEditingChange={onEditingChange}
+          organizationId={organizationId}
+        />
+      ) : (
+        <DefaultStepContent
+          documentTypeId={documentTypeId}
+          stepType={stepType}
+          stepLabel={stepLabel}
+        />
+      )}
+    </ScrollArea>
   )
 }
 
@@ -285,11 +298,12 @@ export default function AssetTypeLifecycleDialog({
       })}
       icon={Activity}
       showFooter={false}
-      maxWidth="sm:max-w-5xl"
+      maxWidth="sm:max-w-7xl"
+      bodyClassName="flex flex-col overflow-hidden py-0"
     >
-      <div className="flex flex-col gap-4 py-2">
-        {/* Step type badge selector */}
-        <div className="pb-2 -mx-6 px-6">
+      <div className="flex flex-col gap-4 h-full py-2">
+        {/* Step type badge selector — fixed, never scrolls */}
+        <div className="shrink-0 bg-background pb-2 border-b border-border">
           {loadingStepTypes ? (
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -316,14 +330,16 @@ export default function AssetTypeLifecycleDialog({
 
         {/* Active step content */}
         {assetType && activeStep && (
-          <StepContent
-            key={`${assetType.document_type_id}-${activeStep}`}
-            documentTypeId={assetType.document_type_id}
-            stepType={activeStep}
-            stepLabel={activeStepLabel}
-            onEditingChange={setActiveStepIsEditing}
-            organizationId={organizationId}
-          />
+          <div className="flex-1 min-h-0">
+            <StepContent
+              key={`${assetType.document_type_id}-${activeStep}`}
+              documentTypeId={assetType.document_type_id}
+              stepType={activeStep}
+              stepLabel={activeStepLabel}
+              onEditingChange={setActiveStepIsEditing}
+              organizationId={organizationId}
+            />
+          </div>
         )}
       </div>
     </HuemulSheet>

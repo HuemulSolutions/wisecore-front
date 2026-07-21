@@ -1,6 +1,9 @@
 export interface Section {
   id: string;
   name: string;
+  order?: number;
+  type?: string;
+  form_fields?: import('./core').SectionFormField[];
 }
 
 export interface AddSectionFormProps {

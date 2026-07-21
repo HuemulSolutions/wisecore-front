@@ -19,6 +19,8 @@ import { TemplateEmptyState } from "./templates-empty-state";
 import { TemplateCustomFields } from "../templates-custom-fields/templates-custom-fields";
 import { CreateTemplateDialog } from "./templates-create-dialog";
 import { TemplateDocxList } from "./templates-docx-list";
+import { TemplateMediaTab } from "./templates-media-tab";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import type { TemplateContentProps } from '@/types/templates';
 export type { TemplateContentProps } from '@/types/templates';
 
@@ -40,6 +42,12 @@ export function TemplateContent({
   const isMobile = useIsMobile();
   const { t } = useTranslation(['templates', 'common']);
   const { selectedOrganizationId } = useOrganization();
+
+  // Permisos de media (gobiernan la pestaña Media del template)
+  const { canList, canCreate: canCreatePerm, canDelete: canDeletePerm } = useUserPermissions();
+  const canListMedia = canList('media');
+  const canCreateMedia = canCreatePerm('media');
+  const canDeleteMedia = canDeletePerm('media');
 
   // Estados principales
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -197,8 +205,16 @@ export function TemplateContent({
                     >
                       {t('templates:content.customFieldsTab')}
                     </TabsTrigger>
-                    <TabsTrigger 
-                      value="docx-templates" 
+                    {canListMedia && (
+                      <TabsTrigger
+                        value="media"
+                        className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
+                      >
+                        {t('templates:content.mediaTab')}
+                      </TabsTrigger>
+                    )}
+                    <TabsTrigger
+                      value="docx-templates"
                       className="relative h-10 px-4 py-2 bg-transparent border-0 rounded-none text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none hover:text-foreground transition-colors data-[state=active]:after:absolute data-[state=active]:after:-bottom-px data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary data-[state=active]:after:content-['']"
                     >
                       {t('templates:content.docxTemplatesTab')}
@@ -340,6 +356,19 @@ export function TemplateContent({
                   <TemplateCustomFields templateId={selectedTemplate.id} />
                 )}
               </TabsContent>
+
+              {canListMedia && (
+                <TabsContent value="media" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
+                  {selectedTemplate && (
+                    <TemplateMediaTab
+                      templateId={selectedTemplate.id}
+                      organizationId={selectedOrganizationId!}
+                      canCreate={canCreateMedia}
+                      canDelete={canDeleteMedia}
+                    />
+                  )}
+                </TabsContent>
+              )}
 
               <TabsContent value="docx-templates" className="mt-0 flex-1 flex flex-col overflow-hidden bg-gray-50">
                 {selectedTemplate && (

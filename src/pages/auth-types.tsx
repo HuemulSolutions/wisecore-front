@@ -14,6 +14,7 @@ import { AuthTypesTable } from "@/components/auth-types/auth-types-table"
 import { AuthTypesLoadingState } from "@/components/auth-types/auth-types-loading-state"
 import { AuthTypesErrorState } from "@/components/auth-types/auth-types-error-state"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
 /**
  * Authentication Types management page
@@ -24,7 +25,7 @@ export default function AuthTypes() {
   const [inputSearch, setInputSearch] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [editingAuthType, setEditingAuthType] = useState<AuthType | null>(null)
   const [deletingAuthType, setDeletingAuthType] = useState<AuthType | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -117,7 +118,7 @@ export default function AuthTypes() {
                   totalItems: authTypes.length,
                   onPageChange: setPage,
                   onPageSizeChange: (size) => { setPageSize(size); setPage(1) },
-                  pageSizeOptions: [5, 10, 25],
+                  pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
                 }}
               />
             ),

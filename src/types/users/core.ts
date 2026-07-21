@@ -23,6 +23,7 @@ export interface User {
   is_root_admin: boolean
   photo_url: string | null
   user_metadata: any | null
+  notify_daily_digest: boolean
   roles: UserRole[]
 }
 
@@ -64,6 +65,7 @@ export interface UpdateUserData {
   last_name?: string
   email?: string
   birthdate?: string | null
+  notify_daily_digest?: boolean
 }
 
 export interface CreateUserData {

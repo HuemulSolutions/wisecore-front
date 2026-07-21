@@ -1,4 +1,14 @@
 const translations = {
+  greeting: {
+    morning: { en: "Good morning, {{name}}", es: "Buenos días, {{name}}" },
+    afternoon: { en: "Good afternoon, {{name}}", es: "Buenas tardes, {{name}}" },
+    evening: { en: "Good evening, {{name}}", es: "Buenas noches, {{name}}" },
+    unreadNotifications: {
+      en: "{{count}} unread notifications",
+      es: "{{count}} notificaciones sin leer",
+    },
+  },
+
   hero: {
     title: { en: "Welcome to Wisecore", es: "Bienvenido a Wisecore" },
     description: {
@@ -287,6 +297,7 @@ const translations = {
     ownerSpecificPlaceholder: { en: "Search user...", es: "Buscar usuario..." },
     pendingAiSuggestion: { en: "AI Suggestions", es: "Sugerencias IA" },
     unresolvedComments: { en: "Unresolved Comments", es: "Con comentarios sin resolver" },
+    expiringSoon: { en: "Expiring soon", es: "Próximos a expirar" },
     documentType: { en: "Document Type", es: "Tipo de Documento" },
     allDocumentTypes: { en: "All types", es: "Todos los tipos" },
     expirationDate: { en: "Expiration Date", es: "Fecha de Expiración" },
@@ -305,6 +316,33 @@ const translations = {
     customFieldsGroup: { en: "Custom Fields", es: "Campos Personalizados" },
     customFields: { en: "Custom Fields", es: "Campos personalizados" },
     customFieldsPlaceholder: { en: "Search field...", es: "Buscar campo..." },
+  },
+
+  kpis: {
+    owned: {
+      label: { en: "Assets you own", es: "Activos de tu autoría" },
+    },
+    draft: {
+      label: { en: "In elaboration (draft)", es: "En elaboración (borrador)" },
+    },
+    inReview: {
+      label: { en: "Awaiting review", es: "Esperando revisión" },
+    },
+    inApproval: {
+      label: { en: "Pending approval", es: "Pendientes de aprobación" },
+    },
+    approved: {
+      label: { en: "Approved, not yet published", es: "Aprobados, sin publicar" },
+    },
+    published: {
+      label: { en: "Currently published", es: "Publicados actualmente" },
+    },
+    expiringSoon: {
+      label: { en: "Expiring in the next 7 days", es: "Vencen en los próximos 7 días" },
+    },
+    unresolvedComments: {
+      label: { en: "With unresolved comments", es: "Con comentarios sin resolver" },
+    },
   },
 
   executionsTable: {

@@ -57,10 +57,18 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         onInteractOutside={(e) => {
-          // Keep the sheet open when interacting with a Base UI combobox popup,
-          // which portals outside the sheet DOM.
+          // Keep the sheet open when interacting with portaled overlays that
+          // render outside the sheet DOM: Base UI combobox popups, alert
+          // dialogs, and nested sheets (e.g. an edit sheet opened from within
+          // this one). Otherwise clicking/cancelling them dismisses this sheet.
           const target = e.target as HTMLElement | null
-          if (target?.closest('[data-slot="combobox-content"]')) {
+          if (
+            target?.closest('[data-slot="combobox-content"]') ||
+            target?.closest('[data-slot="alert-dialog-content"]') ||
+            target?.closest('[data-slot="alert-dialog-overlay"]') ||
+            target?.closest('[data-slot="sheet-content"]') ||
+            target?.closest('[data-slot="sheet-overlay"]')
+          ) {
             e.preventDefault()
           }
           onInteractOutside?.(e)

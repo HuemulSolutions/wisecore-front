@@ -31,6 +31,10 @@ export interface Execution {
   task_status: string | null
   has_unresolved_comments: boolean
   unresolved_comments_count: number
+  change_summary_status: 'pending' | 'completed' | 'failed' | null
+  change_summary: string | null
+  change_summary_error: string | null
+  previous_execution_id: string | null
 }
 
 export interface ExecutionsResponse {
@@ -54,6 +58,7 @@ export interface GetExecutionsParams {
   lifecycle_state?: ExecutionLifecycleState | null
   owner_scope?: 'all' | 'me' | null
   has_unresolved_comments?: boolean | null
+  expiring_soon?: boolean | null
   expiration_date?: string | null
   expiration_date_from?: string | null
   expiration_date_to?: string | null

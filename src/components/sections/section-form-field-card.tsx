@@ -10,10 +10,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { SectionFormField } from "@/types/sections/core";
-import type { CustomFieldDataType } from "@/types/custom-fields/core";
+import type { FieldDependencyCondition, SectionFormField } from "@/types/sections/core";
 import type { QuestionType } from "@/types/question-types";
+import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import { SectionQuestionTypeFields } from "./section-question-type-fields";
+import { SectionFormFieldDependencyEditor } from "./section-form-field-dependency-editor";
 import {
   questionTypeIcon,
   questionTypeLabel,
@@ -21,22 +22,18 @@ import {
   type FormFieldDraft,
 } from "./question-type-meta";
 
-export interface CustomFieldOption {
-  id: string;
-  name: string;
-  data_type: CustomFieldDataType;
-}
-
 interface SectionFormFieldCardProps {
   field: FormFieldDraft;
   index: number;
   isDuplicate: boolean;
   questionTypes: QuestionType[];
-  customFieldOptions: CustomFieldOption[];
+  fetchCustomFieldOptions: (params: FetchOptionsParams) => Promise<FetchOptionsResult>;
+  availableDependencyFields: SectionFormField[];
   isPending?: boolean;
   onUpdate: (patch: Partial<SectionFormField>) => void;
   onQuestionTypeChange: (questionType: string) => void;
   onCustomFieldChange: (customFieldId: string) => void;
+  onCreateCustomField: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
 }
@@ -46,17 +43,20 @@ export function SectionFormFieldCard({
   index,
   isDuplicate,
   questionTypes,
-  customFieldOptions,
+  fetchCustomFieldOptions,
+  availableDependencyFields,
   isPending,
   onUpdate,
   onQuestionTypeChange,
   onCustomFieldChange,
+  onCreateCustomField,
   onDuplicate,
   onRemove,
 }: SectionFormFieldCardProps) {
   const { t } = useTranslation("sections");
   const [isExpanded, setIsExpanded] = useState(!field.field_name);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [dependencyOpen, setDependencyOpen] = useState(false);
   const [idCustomized, setIdCustomized] = useState(
     () => field.field_id !== "" && field.field_id !== slugifyFieldId(field.field_name),
   );
@@ -151,10 +151,11 @@ export function SectionFormFieldCard({
           {field.question_type && (
             <SectionQuestionTypeFields
               field={field}
-              customFieldOptions={customFieldOptions}
+              fetchCustomFieldOptions={fetchCustomFieldOptions}
               isPending={isPending}
               onUpdate={onUpdate}
               onCustomFieldChange={onCustomFieldChange}
+              onCreateCustomField={onCreateCustomField}
             />
           )}
 
@@ -197,6 +198,38 @@ export function SectionFormFieldCard({
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* Dependencia condicional */}
+          {availableDependencyFields.length > 0 && (
+            <Collapsible open={dependencyOpen} onOpenChange={setDependencyOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+                >
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${dependencyOpen ? "rotate-180" : ""}`} />
+                  {t("form.formFields.dependency.title")}
+                  {(field.depends_on?.length ?? 0) > 0 && (
+                    <Badge variant="secondary" className="font-normal">
+                      {field.depends_on!.length}
+                    </Badge>
+                  )}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <SectionFormFieldDependencyEditor
+                  ownFieldId={field.field_id}
+                  conditions={field.depends_on ?? []}
+                  showWhenInactive={field.show_when_inactive ?? false}
+                  availableFields={availableDependencyFields}
+                  onChange={(conditions: FieldDependencyCondition[], showWhenInactive: boolean) =>
+                    onUpdate({ depends_on: conditions, show_when_inactive: showWhenInactive })
+                  }
+                  disabled={isPending}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
           {/* Footer */}
           <div className="flex items-center justify-end gap-1 border-t border-gray-100 pt-3">

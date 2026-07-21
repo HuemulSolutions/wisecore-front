@@ -2,30 +2,30 @@
 
 import * as React from "react"
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { FileUp } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
+import type { FetchOptionsParams } from "@/huemul/components/huemul-field"
 import { importDocumentFromFile } from "@/services/assets"
+import { getAssetTypes } from "@/services/asset-types"
 import { useOrganization } from "@/contexts/organization-context"
-import { useRoleDocumentTypes } from "@/hooks/useRoleDocumentTypes"
 import { toast } from "sonner"
 import { ApiError } from "@/types/api-error"
 import { handleApiError } from "@/lib/error-utils"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
-import type { ImportAssetFromFileDialogProps } from '@/types/assets'
-export type { ImportAssetFromFileDialogProps } from '@/types/assets'
+import type { ImportAssetFromFileSheetProps } from '@/types/assets'
+export type { ImportAssetFromFileSheetProps } from '@/types/assets'
 
-export function ImportAssetFromFileDialog({
+export function ImportAssetFromFileSheet({
   open,
   onOpenChange,
   folderId,
   onAssetCreated,
-}: ImportAssetFromFileDialogProps) {
+}: ImportAssetFromFileSheetProps) {
   const { selectedOrganizationId } = useOrganization()
-  const queryClient = useQueryClient()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
   const navigate = useOrgNavigate()
@@ -45,15 +45,19 @@ export function ImportAssetFromFileDialog({
       setFile(null)
       setDocumentTypeId("")
       setForceImport(false)
-
-      if (selectedOrganizationId) {
-        queryClient.invalidateQueries({ queryKey: ['role-document-types'] })
-      }
     }
-  }, [open, selectedOrganizationId, queryClient])
+  }, [open, selectedOrganizationId])
 
-  const { data: documentTypes = [], isLoading: isLoadingDocTypes, error: docTypesError } =
-    useRoleDocumentTypes(open && !!selectedOrganizationId)
+  const fetchDocumentTypeOptions = React.useCallback(
+    async ({ search, page, pageSize }: FetchOptionsParams) => {
+      const res = await getAssetTypes(page, pageSize, search)
+      return {
+        options: res.data.map(dt => ({ value: dt.id, label: dt.name, color: dt.color ?? undefined })),
+        hasMore: res.has_next ?? false,
+      }
+    },
+    [],
+  )
 
   const importMutation = useMutation({
     mutationFn: async () => {
@@ -128,12 +132,13 @@ export function ImportAssetFromFileDialog({
   const isValid = !!name.trim() && !!file && !!documentTypeId && !!selectedOrganizationId
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={t('importFromFile.title')}
       description={t('importFromFile.description')}
       icon={FileUp}
+      side="right"
       maxWidth="sm:max-w-xl"
       cancelLabel={tCommon('cancel')}
       saveAction={{
@@ -147,17 +152,16 @@ export function ImportAssetFromFileDialog({
       <div className="grid gap-6">
         {/* 1 · Asset type */}
         <HuemulField
-          type="select"
+          type="async-combobox"
           label={t('form.assetType')}
           name="documentType"
           id="documentType"
           required
           value={documentTypeId}
           onChange={(v) => setDocumentTypeId(String(v))}
-          options={documentTypes.map((dt: any) => ({ label: dt.name, value: dt.id, color: dt.color }))}
-          placeholder={isLoadingDocTypes ? t('form.assetTypeLoading') : t('form.assetTypePlaceholder')}
-          disabled={isLoadingDocTypes}
-          error={docTypesError ? t('form.assetTypeError') : undefined}
+          fetchOptions={fetchDocumentTypeOptions}
+          pageSize={100}
+          placeholder={t('form.assetTypePlaceholder')}
         />
 
         {/* 2 · File + force import (grouped as a pair) */}
@@ -216,6 +220,6 @@ export function ImportAssetFromFileDialog({
           />
         </div>
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

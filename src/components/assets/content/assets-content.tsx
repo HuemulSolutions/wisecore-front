@@ -3,7 +3,7 @@ import { handleApiError } from "@/lib/error-utils";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, Settings2, Bell, Sparkles } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, RotateCcw, Settings2, Bell, Sparkles } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -16,6 +16,7 @@ import { ExecutionStatusBanner } from "@/components/execution/execution-status-b
 import { ChatbotContextSync } from "@/components/chatbot/chatbot-context-sync";
 import { DependenciesSheet, ContextSheet, TemplateConfigSheet, ExecuteSheet, SectionSheet } from "@/components/assets/content";
 import { VersionManagementSheet } from "@/components/assets/content/assets-version-management-sheet";
+import { AssetVersionCompareSheet } from "@/components/assets/content/asset-version-compare-sheet";
 import { AssetsInfoSheet } from "@/components/assets/content/assets-info-sheet";
 import AssetLifecycleSheet from "@/components/assets/dialogs/assets-lifecycle-sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -32,21 +33,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
+import { LifecycleReviewDialog } from "@/components/ui/lifecycle-review-dialog";
 import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog";
 import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
 
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { getDocumentContent, deleteDocument, getDocumentById } from "@/services/assets";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, updateExecutionName, runExternalPublish } from "@/services/executions";
+import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
+import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
+import { MediaUrlProvider } from "@/contexts/media-url-context";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish, getExecutionById } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
+import { useExternalReviewActions } from "@/hooks/useLifecycle";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
 import type { CustomFieldDocument } from '@/types/custom-fields';
-import { AddCustomFieldDocumentDialog } from "@/components/assets-custom-fields/assets-add-custom-field-dialog";
-import { EditCustomFieldAssetDialog } from "@/components/assets-custom-fields/assets-edit-custom-field-dialog";
+import { AddCustomFieldDocumentSheet } from "@/components/assets-custom-fields/assets-add-custom-field-sheet";
+import { EditCustomFieldAssetSheet } from "@/components/assets-custom-fields/assets-edit-custom-field-sheet";
 import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section-dialog";
-import { AddSectionExecutionDialog } from "@/components/assets/dialogs/assets-add-section-execution-dialog";
+import { AddSectionExecutionSheet } from "@/components/assets/dialogs/assets-add-section-execution-sheet";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
 import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
@@ -465,12 +470,12 @@ export function AssetContent({
   // Mutation for checking (advancing) execution lifecycle
   const checkLifecycleMutation = useMutation({
     mutationFn: withRefresh(
-      async (comment?: string) => {
+      async (options?: { comment?: string; run_external_review?: boolean }) => {
         const executionId = selectedExecutionId || documentContent?.execution_id;
         const stepId = documentContent?.lifecycle_status?.current_step_id;
         if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
         if (!stepId) throw new Error('Missing step ID');
-        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, comment);
+        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, options);
       },
       queryClient,
       () => [['document-content', selectedFile?.id], ['document', selectedFile?.id]],
@@ -551,6 +556,27 @@ export function AssetContent({
     },
   });
 
+  // Mutation for restoring an archived execution back to in_approval
+  const restoreLifecycleMutation = useMutation({
+    mutationFn: withRefresh(
+      async (options?: { comment?: string }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return restoreExecutionLifecycle(executionId, selectedOrganizationId, options);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id], ['rollback-targets']],
+    ),
+    onSuccess: () => {
+      setIsRestoreDialogOpen(false);
+    },
+    meta: { successMessage: t('lifecycle.successRestore') },
+    onError: (error) => {
+      setIsRestoreDialogOpen(false);
+      handleApiError(error, { fallbackMessage: t('lifecycle.errorRestore') });
+    },
+  });
+
   // Mutation for manual re-trigger of external publish
   const runExternalPublishMutation = useMutation({
     mutationFn: async () => {
@@ -604,6 +630,7 @@ export function AssetContent({
   const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
@@ -623,6 +650,8 @@ export function AssetContent({
   const [isContextSheetOpen, setIsContextSheetOpen] = useState(false);
   const [isInfoSheetOpen, setIsInfoSheetOpen] = useState(false);
   const [isVersionManagementSheetOpen, setIsVersionManagementSheetOpen] = useState(false);
+  const [isVersionCompareSheetOpen, setIsVersionCompareSheetOpen] = useState(false);
+  const [versionCompareOverride, setVersionCompareOverride] = useState<{ left?: string; right?: string } | null>(null);
   const [isPermissionsSheetOpen, setIsPermissionsSheetOpen] = useState(false);
   
   // Effects to trigger on-demand loading
@@ -815,6 +844,23 @@ export function AssetContent({
     queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileIdRef.current] });
   }, [queryClient]);
 
+  // Al cerrar el sheet de secciones, refrescar el contenido del asset.
+  // La edición de secciones propaga a la versión de forma asíncrona en el
+  // backend; el invalidate inmediato del sheet corre una carrera contra esa
+  // propagación y puede recachear contenido viejo como "fresh". Forzar un
+  // refetch al cerrar (cuando la propagación ya terminó) evita tener que
+  // recargar toda la página con Ctrl+F5.
+  const handleSectionSheetOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      preserveScrollPosition();
+      const fileId = selectedFileIdRef.current;
+      queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['document', fileId] });
+      queryClient.invalidateQueries({ queryKey: ['document-sections-config', fileId] });
+    }
+    setIsSectionSheetOpen(open);
+  }, [queryClient]);
+
   // Handle add section
   const handleAddSection = () => {
     if (selectedFile && selectedFile.type === 'document') {
@@ -939,15 +985,53 @@ export function AssetContent({
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
-    // Poll every 3 s while there is an importing execution; otherwise let the
-    // ExecutionStatusBanner drive refreshes through query invalidation.
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      const hasImporting = data?.executions?.some((e: any) => e.status === 'importing');
-      return hasImporting ? 3000 : false;
-    },
+    // No self-poll. The ExecutionStatusBanner polls /execution/{id}/status and,
+    // on completion, refreshes content via onExecutionComplete + query invalidation.
+    // This prevents /documents/.../content being re-hit on every status tick during import.
+    refetchInterval: false,
     refetchOnWindowFocus: false,
     staleTime: 30000, // Cache for 30 seconds
+  });
+
+  // Whether the current lifecycle step (edit/review) has an external system
+  // configured — if so, it must run automatically and the user cannot skip it.
+  const canHaveExternalReview =
+    documentContent?.lifecycle_status?.state === 'draft' ||
+    documentContent?.lifecycle_status?.state === 'in_review';
+  const { data: externalReviewActionsData } = useExternalReviewActions(
+    selectedOrganizationId!,
+    documentContent?.lifecycle_status?.current_step_id ?? '',
+    isCheckLifecycleDialogOpen && canHaveExternalReview && !!documentContent?.lifecycle_status?.current_step_id,
+  );
+  const hasExternalReview = (externalReviewActionsData?.data ?? []).some((a) => a.is_enabled);
+
+  // Whether the current lifecycle step is the approval step — shows the
+  // AI-generated "change summary" instead of a plain comment box.
+  const isApprovalStep = documentContent?.lifecycle_status?.state === 'in_approval';
+  const approvalExecutionId = selectedExecutionId || documentContent?.execution_id;
+  const changeSummaryQuery = useQuery({
+    queryKey: ['execution-change-summary', approvalExecutionId],
+    queryFn: () => getExecutionById(approvalExecutionId!, selectedOrganizationId!),
+    enabled: isCheckLifecycleDialogOpen && isApprovalStep && !!approvalExecutionId && !!selectedOrganizationId,
+    refetchInterval: (query) => (query.state.data?.change_summary_status === 'pending' ? 3000 : false),
+  });
+  const isChangeSummaryLoading =
+    isApprovalStep &&
+    (changeSummaryQuery.isLoading || changeSummaryQuery.data?.change_summary_status === 'pending');
+
+  const handleViewChanges = () => {
+    const previousExecutionId = changeSummaryQuery.data?.previous_execution_id;
+    if (!previousExecutionId || !approvalExecutionId) return;
+    setVersionCompareOverride({ left: previousExecutionId, right: approvalExecutionId });
+    setIsVersionCompareSheetOpen(true);
+  };
+
+  // Lightweight periodic refresh of media download URLs (images/files embedded in
+  // the content), so a tab left open longer than the backend's SAS TTL doesn't end
+  // up with broken media. Cadence is derived from the backend's own ttl_seconds.
+  const { data: mediaUrlsData } = useDocumentMediaUrls(selectedFile?.id, selectedOrganizationId ?? undefined, {
+    enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
+    executionId: selectedExecutionId || undefined,
   });
 
   // Fetch full document details only when needed (sections management, sheet operations)
@@ -1528,6 +1612,17 @@ export function AssetContent({
     }
   };
 
+  // Handle export version configuration (JSON) — reusable via import-config
+  const handleExportVersion = async () => {
+    const executionId = selectedExecutionId || documentContent?.execution_id;
+    if (!executionId || !selectedOrganizationId) return;
+    try {
+      await exportDocuments(selectedOrganizationId, { execution_ids: [executionId] });
+    } catch (error) {
+      handleApiError(error, { fallbackMessage: t('mutations.exportFailed') });
+    }
+  };
+
   // Handle add custom field document
   const handleAddCustomFieldDocument = () => {
     setIsAddCustomFieldDocumentDialogOpen(true);
@@ -1973,6 +2068,20 @@ export function AssetContent({
                               onClick={() => setIsArchiveDialogOpen(true)}
                             />
                           )}
+                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'archived' && (
+                            <HuemulButton
+                              variant="outline"
+                              size="sm"
+                              label={t('lifecycle.restore')}
+                              icon={RotateCcw}
+                              iconPosition="left"
+                              iconClassName="h-3 w-3"
+                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
+                              loading={restoreLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipRestore')}
+                              onClick={() => setIsRestoreDialogOpen(true)}
+                            />
+                          )}
                           {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
                             <HuemulButton
                               variant="outline"
@@ -2083,10 +2192,7 @@ export function AssetContent({
                   fullDocument={fullDocument}
                   documentName={documentContent?.document_name}
                   isOpen={isSectionSheetOpen}
-                  onOpenChange={(open: boolean | ((prevState: boolean) => boolean)) => {
-                    if (!open) preserveScrollPosition();
-                    setIsSectionSheetOpen(open);
-                  }}
+                  onOpenChange={handleSectionSheetOpenChange}
                   isMobile={isMobile}
                   executionId={selectedExecutionId}
                   executionInfo={selectedExecutionInfo}
@@ -2458,11 +2564,14 @@ export function AssetContent({
                             isDocumentType={selectedFile.type === 'document'}
                             hasDocumentContent={!!documentContent?.content}
                             isTocSidebarOpen={isTocSidebarOpen}
+                            canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
                             onAssignVersion={() => setIsAssignVersionDialogOpen(true)}
+                            onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
                             onRejectLifecycle={() => setIsRejectLifecycleDialogOpen(true)}
                             onCheckLifecycle={() => setIsCheckLifecycleDialogOpen(true)}
                             onPublish={() => setIsPublishDialogOpen(true)}
                             onArchive={() => setIsArchiveDialogOpen(true)}
+                            onRestore={() => setIsRestoreDialogOpen(true)}
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
@@ -2477,8 +2586,11 @@ export function AssetContent({
                             onExportWord={handleExportWord}
                             onExportCustomWord={handleExportCustomWord}
                             onExportExcel={handleExportExcel}
+                            onExportVersion={handleExportVersion}
                             onDeleteVersion={() => openDeleteDialog('execution')}
                             onDeleteDocument={() => openDeleteDialog('document')}
+                            isRerunningExternalPublish={runExternalPublishMutation.isPending}
+                            onRerunExternalPublish={() => runExternalPublishMutation.mutate()}
                           />
                         )}
                       </div>
@@ -2586,16 +2698,17 @@ export function AssetContent({
                               className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
+                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'archived' && (
                             <HuemulButton
                               size="sm"
                               variant="ghost"
-                              label={t('lifecycle.rerunExternalPublish')}
-                              icon={RefreshCw}
+                              label={t('lifecycle.restore')}
+                              icon={RotateCcw}
                               iconPosition="left"
                               iconClassName="h-3.5 w-3.5"
-                              loading={runExternalPublishMutation.isPending}
-                              onClick={() => runExternalPublishMutation.mutate()}
+                              loading={restoreLifecycleMutation.isPending}
+                              tooltip={t('lifecycle.tooltipRestore')}
+                              onClick={() => setIsRestoreDialogOpen(true)}
                               className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
                             />
                           )}
@@ -2607,7 +2720,7 @@ export function AssetContent({
                 )}
               </div>
             )}
-            
+
             {/* Action Buttons Section - editor mode only */}
             {!isViewMode && (isLoadingContent && !documentContent ? (
               <div className="flex items-center justify-between gap-2">
@@ -2635,7 +2748,7 @@ export function AssetContent({
                     selectedFile={selectedFile}
                     fullDocument={fullDocument}
                     isOpen={isSectionSheetOpen}
-                    onOpenChange={setIsSectionSheetOpen}
+                    onOpenChange={handleSectionSheetOpenChange}
                     executionId={selectedExecutionId}
                     executionInfo={selectedExecutionInfo}
                     lifecyclePermissions={lifecyclePermissions}
@@ -3082,6 +3195,7 @@ export function AssetContent({
                     // Si hay contenido disponible, renderizar el contenido
                     if (documentContent?.content) {
                       return (
+                        <MediaUrlProvider freshUrls={mediaUrlsData?.media_urls ?? null}>
                         <div className={`prose prose-gray prose-sm md:prose-base max-w-full${isViewMode ? ' [&>*+*]:mt-0' : ''}`}>
                           {/* Template instructions callout - shown once at the top */}
                           {documentContent.template_instructions?.trim() && (
@@ -3201,9 +3315,10 @@ export function AssetContent({
                             <Markdown>{documentContent.content}</Markdown>
                           )}
                         </div>
+                        </MediaUrlProvider>
                       );
                     }
-                    
+
                     // Si no hay contenido disponible, mostrar mensaje
                     return (
                       <div className="flex items-center justify-center h-full min-h-100">
@@ -3368,7 +3483,7 @@ export function AssetContent({
       />
 
       {/* Section Execution Creation Dialog */}
-      <AddSectionExecutionDialog
+      <AddSectionExecutionSheet
         open={isSectionExecutionDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
@@ -3439,7 +3554,7 @@ export function AssetContent({
       />
 
       {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
-      <LifecycleCommentDialog
+      <LifecycleReviewDialog
         open={isCheckLifecycleDialogOpen}
         onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
         title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
@@ -3448,12 +3563,17 @@ export function AssetContent({
             ? t('lifecycle.advanceStateDescription')
             : t('lifecycle.advanceStepDescription')
         }
-        onConfirm={(comment) => checkLifecycleMutation.mutate(comment)}
+        onConfirm={(data) => checkLifecycleMutation.mutate(data)}
         confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
+        hasExternalReview={hasExternalReview}
         isProcessing={checkLifecycleMutation.isPending}
-        variant="default"
+        isApprovalStep={isApprovalStep}
+        changeSummary={changeSummaryQuery.data?.change_summary ?? null}
+        changeSummaryStatus={changeSummaryQuery.data?.change_summary_status ?? null}
+        changeSummaryError={changeSummaryQuery.data?.change_summary_error ?? null}
+        canViewChanges={!!changeSummaryQuery.data?.previous_execution_id}
+        isSummaryLoading={isChangeSummaryLoading}
+        onViewChanges={handleViewChanges}
       />
 
       {/* Lifecycle Reject (Go Back) Dialog */}
@@ -3498,6 +3618,20 @@ export function AssetContent({
         commentLabel={t('lifecycle.commentLabel')}
         commentPlaceholder={t('lifecycle.commentPlaceholder')}
         isProcessing={advanceLifecycleMutation.isPending}
+        variant="destructive"
+      />
+
+      {/* Restore Confirmation Dialog */}
+      <LifecycleCommentDialog
+        open={isRestoreDialogOpen}
+        onOpenChange={(open) => !restoreLifecycleMutation.isPending && setIsRestoreDialogOpen(open)}
+        title={t('lifecycle.restoreTitle')}
+        description={t('lifecycle.restoreDescription')}
+        onConfirm={(comment) => restoreLifecycleMutation.mutate({ comment })}
+        confirmLabel={t('lifecycle.restoreConfirm')}
+        commentLabel={t('lifecycle.commentLabel')}
+        commentPlaceholder={t('lifecycle.commentPlaceholder')}
+        isProcessing={restoreLifecycleMutation.isPending}
         variant="destructive"
       />
 
@@ -3562,8 +3696,8 @@ export function AssetContent({
         }}
       />
 
-      {/* Add Custom Field Document Dialog */}
-      <AddCustomFieldDocumentDialog
+      {/* Add Custom Field Document Sheet */}
+      <AddCustomFieldDocumentSheet
         isOpen={isAddCustomFieldDocumentDialogOpen}
         onClose={() => setIsAddCustomFieldDocumentDialogOpen(false)}
         documentId={selectedFile.id}
@@ -3572,8 +3706,8 @@ export function AssetContent({
         onImageUploadComplete={handleImageUploadComplete}
       />
 
-      {/* Edit Custom Field Document Dialog (Unified) */}
-      <EditCustomFieldAssetDialog
+      {/* Edit Custom Field Document Sheet (Unified) */}
+      <EditCustomFieldAssetSheet
         isOpen={isEditCustomFieldDocumentDialogOpen}
         onClose={() => {
           setIsEditCustomFieldDocumentDialogOpen(false);
@@ -3657,6 +3791,22 @@ export function AssetContent({
           documentId={selectedFile?.id ?? ''}
           canEdit={!!(lifecyclePermissions?.create && lifecyclePermissions?.edit)}
           initialExecutionId={selectedExecutionId || documentContent?.execution_id}
+        />
+      )}
+
+      {/* Version Compare Sheet */}
+      {allExecutions && allExecutions.length > 1 && selectedFile && selectedOrganizationId && (
+        <AssetVersionCompareSheet
+          key={versionCompareOverride ? `${versionCompareOverride.left}-${versionCompareOverride.right}` : 'default'}
+          open={isVersionCompareSheetOpen}
+          onOpenChange={(open) => {
+            setIsVersionCompareSheetOpen(open);
+            if (!open) setVersionCompareOverride(null);
+          }}
+          documentId={selectedFile.id}
+          executions={allExecutions}
+          defaultRightExecutionId={versionCompareOverride?.right ?? selectedExecutionId ?? documentContent?.execution_id}
+          defaultLeftExecutionId={versionCompareOverride?.left}
         />
       )}
 

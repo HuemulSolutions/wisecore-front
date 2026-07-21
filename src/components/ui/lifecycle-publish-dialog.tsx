@@ -20,7 +20,7 @@ export function LifecyclePublishDialog({
 }: LifecyclePublishDialogProps) {
   const { t } = useTranslation(["assets", "common"])
   const [comment, setComment] = useState("")
-  const [runExternalPublish, setRunExternalPublish] = useState(false)
+  const [runExternalPublish, setRunExternalPublish] = useState(true)
 
   useEffect(() => {
     if (!open) {

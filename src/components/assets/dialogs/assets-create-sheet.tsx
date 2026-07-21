@@ -6,7 +6,7 @@ import { useMutation } from "@tanstack/react-query"
 import { Plus, FileText, LayoutTemplate, PlusCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulField } from "@/huemul/components/huemul-field"
 import { createDocument } from "@/services/assets"
 import { getAllTemplates } from "@/services/templates"
@@ -17,11 +17,11 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { isRootAdmin } from "@/lib/jwt-utils"
 import CreateDocumentType from "@/components/assets-types/assets-types-create"
-import type { CreateAssetRequest, CreateAssetDialogProps } from "@/types/assets"
+import type { CreateAssetRequest, CreateAssetSheetProps } from "@/types/assets"
 
 type ContentMode = "blank" | "template"
 
-function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetDialogProps) {
+function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }: CreateAssetSheetProps) {
   const { selectedOrganizationId } = useOrganization()
   const { t } = useTranslation('assets')
   const { t: tCommon } = useTranslation('common')
@@ -173,14 +173,14 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
 
   return (
     <>
-      <HuemulDialog
+      <HuemulSheet
         open={open}
         onOpenChange={onOpenChange}
         title={t('create.title')}
         description={t('create.description')}
         icon={Plus}
+        side="right"
         maxWidth="sm:max-w-2xl"
-        maxHeight="max-h-[90vh]"
         cancelLabel={tCommon('cancel')}
         saveAction={{
           label: t('create.submitLabel'),
@@ -292,7 +292,7 @@ function CreateAssetDialogInner({ open, onOpenChange, folderId, onAssetCreated }
             />
           </div>
         </form>
-      </HuemulDialog>
+      </HuemulSheet>
 
       {/* Create Document Type Dialog */}
       {showCreateDocTypeDialog && (
@@ -347,4 +347,4 @@ function ContentModeCard({
   )
 }
 
-export const CreateAssetDialog = React.memo(CreateAssetDialogInner)
+export const CreateAssetSheet = React.memo(CreateAssetSheetInner)

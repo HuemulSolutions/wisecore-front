@@ -6,8 +6,8 @@ import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/h
 import type { RolesTableProps } from '@/types/roles'
 export type { RolesTableProps } from '@/types/roles'
 
-export function RolesTable({ 
-  roles, 
+export function RolesTable({
+  roles,
   isLoadingUsers,
   isTableLoading = false,
   isTableFetching = false,
@@ -16,7 +16,9 @@ export function RolesTable({
   onDeleteRole,
   onCloneRole,
   pagination,
-  canManage = false
+  canManage = false,
+  selectedIds,
+  onSelectionChange
 }: RolesTableProps) {
   const { t } = useTranslation(['roles', 'common'])
   // Define columns
@@ -126,6 +128,9 @@ export function RolesTable({
       pagination={pagination}
       isLoading={isTableLoading}
       isFetching={isTableFetching}
+      selectable={!!onSelectionChange}
+      selectedKeys={selectedIds}
+      onSelectionChange={onSelectionChange}
     />
   )
 }

@@ -1,17 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { HuemulDialog } from "@/huemul/components/huemul-dialog"
+import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { PenLine, Plus } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
 import { useCustomFieldDataTypes } from "@/hooks/useCustomFields"
+import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
-export function CreateEditCustomFieldDialog({
+export function CreateEditCustomFieldSheet({
   open,
   onOpenChange,
   customField,
@@ -24,6 +25,7 @@ export function CreateEditCustomFieldDialog({
     description: "",
     data_type: "",
     masc: "",
+    question_type: "",
     options: [] as CustomFieldOption[],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -31,11 +33,11 @@ export function CreateEditCustomFieldDialog({
   const isEditing = !!customField
   const { t } = useTranslation('custom-fields')
 
-  // Fetch data types (lazy loading: only when dialog is open)
+  // Fetch data types (lazy loading: only when sheet is open)
   const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: open })
   const dataTypes = dataTypesResponse?.data || []
 
-  // Reset form when dialog opens/closes or customField changes
+  // Reset form when sheet opens/closes or customField changes
   useEffect(() => {
     if (open) {
       if (customField) {
@@ -44,7 +46,8 @@ export function CreateEditCustomFieldDialog({
           description: customField.description,
           data_type: customField.data_type,
           masc: customField.masc || "",
-          options: customField.data_type === 'list' ? (customField.options ?? []) : [],
+          question_type: customField.data_type === 'list' ? (customField.question_type || QUESTION_TYPE.dropdown) : "",
+          options: customField.data_type === 'list' ? (customField.default_value ?? []) : [],
         })
       } else {
         setFormData({
@@ -52,6 +55,7 @@ export function CreateEditCustomFieldDialog({
           description: "",
           data_type: "",
           masc: "",
+          question_type: "",
           options: [],
         })
       }
@@ -81,10 +85,10 @@ export function CreateEditCustomFieldDialog({
         newErrors.options = t('form.optionsRequired')
       } else {
         formData.options.forEach((opt, i) => {
-          if (!opt.option_id.trim()) {
+          if (!opt.id.trim()) {
             newErrors[`option_${i}_id`] = t('form.optionIdRequired')
           }
-          if (!opt.name.trim()) {
+          if (!opt.label.trim()) {
             newErrors[`option_${i}_name`] = t('form.optionNameRequired')
           }
         })
@@ -110,19 +114,26 @@ export function CreateEditCustomFieldDialog({
             description: formData.description,
             data_type: formData.data_type,
             masc: formData.masc || undefined,
-            ...(formData.data_type === 'list' && { options: formData.options }),
+            ...(formData.data_type === 'list' && {
+              default_value: formData.options,
+              question_type: formData.question_type,
+            }),
           },
         })
+        onSuccess()
       } else {
-        await customFieldMutations.create.mutateAsync({
+        const created = await customFieldMutations.create.mutateAsync({
           name: formData.name,
           description: formData.description,
           data_type: formData.data_type,
           masc: formData.masc || "",
-          ...(formData.data_type === 'list' && { options: formData.options }),
+          ...(formData.data_type === 'list' && {
+            default_value: formData.options,
+            question_type: formData.question_type,
+          }),
         })
+        onSuccess(created)
       }
-      onSuccess()
     } catch (error) {
       console.error("Error submitting custom field:", error)
     } finally {
@@ -134,7 +145,8 @@ export function CreateEditCustomFieldDialog({
     setFormData(prev => ({
       ...prev,
       [field]: value,
-      ...(field === 'data_type' && value !== 'list' ? { options: [] } : {}),
+      ...(field === 'data_type' && value !== 'list' && { options: [], question_type: "" }),
+      ...(field === 'data_type' && value === 'list' && !prev.question_type && { question_type: QUESTION_TYPE.dropdown }),
     }))
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
@@ -153,7 +165,7 @@ export function CreateEditCustomFieldDialog({
   }
 
   return (
-    <HuemulDialog
+    <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
       title={isEditing ? t('editDialog.title') : t('createDialog.title')}
@@ -163,8 +175,7 @@ export function CreateEditCustomFieldDialog({
           : t('createDialog.description')
       }
       icon={isEditing ? PenLine : Plus}
-      maxWidth="sm:max-w-[600px]"
-      maxHeight="max-h-[90vh]"
+      maxWidth="sm:max-w-lg"
       cancelLabel={t('common:cancel', 'Cancel')}
       saveAction={{
         label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
@@ -178,11 +189,13 @@ export function CreateEditCustomFieldDialog({
           description={formData.description}
           dataType={formData.data_type}
           masc={formData.masc}
+          questionType={formData.question_type}
           options={formData.options}
           onNameChange={(value) => handleInputChange("name", value)}
           onDescriptionChange={(value) => handleInputChange("description", value)}
           onDataTypeChange={(value) => handleInputChange("data_type", value)}
           onMascChange={(value) => handleInputChange("masc", value)}
+          onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
           onOptionsChange={handleOptionsChange}
           dataTypes={dataTypes}
           formatDataType={formatDataType}
@@ -191,6 +204,6 @@ export function CreateEditCustomFieldDialog({
           loadingDataTypes={loadingDataTypes}
         />
       </div>
-    </HuemulDialog>
+    </HuemulSheet>
   )
 }

@@ -11,8 +11,8 @@ export type CustomFieldDataType =
   | "list";
 
 export interface CustomFieldOption {
-  option_id: string;
-  name: string;
+  id: string;
+  label: string;
 }
 
 export interface CustomField {
@@ -25,6 +25,12 @@ export interface CustomField {
   description: string;
   updated_at: string;
   updated_by: string | null;
+  question_type: string;
+  required: boolean;
+  order: number;
+  default_value: CustomFieldOption[] | null;
+  min_value: unknown | null;
+  max_value: unknown | null;
   options?: CustomFieldOption[];
 }
 
@@ -54,7 +60,12 @@ export interface CreateCustomFieldRequest {
   description: string;
   data_type: string;
   masc: string;
-  options?: CustomFieldOption[];
+  question_type?: string;
+  required?: boolean;
+  order?: number;
+  default_value?: CustomFieldOption[] | null;
+  min_value?: unknown | null;
+  max_value?: unknown | null;
 }
 
 export interface UpdateCustomFieldRequest {
@@ -62,5 +73,10 @@ export interface UpdateCustomFieldRequest {
   description?: string;
   data_type?: string;
   masc?: string;
-  options?: CustomFieldOption[];
+  question_type?: string;
+  required?: boolean;
+  order?: number;
+  default_value?: CustomFieldOption[] | null;
+  min_value?: unknown | null;
+  max_value?: unknown | null;
 }
