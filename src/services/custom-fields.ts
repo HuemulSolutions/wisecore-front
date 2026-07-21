@@ -3,6 +3,7 @@ import { httpClient } from "@/lib/http-client";
 import type {
   CustomField,
   CustomFieldDataType,
+  CustomFieldQuestionType,
   PaginationParams,
   ApiResponse,
   CreateCustomFieldRequest,
@@ -13,6 +14,7 @@ import type {
 // Type aliases for API responses
 export type CustomFieldResponse = ApiResponse<CustomField>;
 export type DataTypesResponse = ApiResponse<CustomFieldDataType[]>;
+export type QuestionTypesResponse = ApiResponse<CustomFieldQuestionType[]>;
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {
@@ -37,6 +39,15 @@ export const getCustomFieldDataTypes = async (): Promise<DataTypesResponse> => {
     headers: getHeaders(),
   });
   
+  return response.json();
+};
+
+// Get available question types for custom fields (drives data_type derivation)
+export const getCustomFieldQuestionTypes = async (): Promise<QuestionTypesResponse> => {
+  const response = await httpClient.get(`${backendUrl}/custom_fields/question_types`, {
+    headers: getHeaders(),
+  });
+
   return response.json();
 };
 

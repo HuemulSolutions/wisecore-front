@@ -1,5 +1,6 @@
-import type { CustomField, CustomFieldOption } from './core'
+import type { CustomField, CustomFieldOption, CustomFieldQuestionType } from './core'
 import type { HuemulTablePagination } from '@/huemul/components/huemul-table'
+import type { FormFieldConfig } from '@/types/sections/core'
 
 export interface CustomFieldContentEmptyStateProps {
   type: "error" | "empty" | "no-results"
@@ -17,22 +18,27 @@ export interface CustomFieldFormFieldsProps {
   questionType: string
   onNameChange: (value: string) => void
   onDescriptionChange: (value: string) => void
-  onDataTypeChange: (value: string) => void
   onMascChange: (value: string) => void
   onQuestionTypeChange: (value: string) => void
-  dataTypes: string[]
-  formatDataType: (dataType: string) => string
+  questionTypes: CustomFieldQuestionType[]
+  formatQuestionType: (questionType: string) => string
   options: CustomFieldOption[]
   onOptionsChange: (options: CustomFieldOption[]) => void
+  minValue: number | null
+  maxValue: number | null
+  onMinValueChange: (value: number | null) => void
+  onMaxValueChange: (value: number | null) => void
+  config: FormFieldConfig
+  onConfigChange: (patch: Partial<FormFieldConfig>) => void
   errors?: {
     name?: string
     description?: string
-    data_type?: string
+    question_type?: string
     options?: string
     [key: string]: string | undefined
   }
   disabled?: boolean
-  loadingDataTypes?: boolean
+  loadingQuestionTypes?: boolean
 }
 
 export interface CustomFieldValueFieldProps {
@@ -48,6 +54,10 @@ export interface CustomFieldValueFieldProps {
   onImageValidationError?: (message: string) => void
   isUploadingImage?: boolean
   imageUploadDescription?: string
+  minValue?: unknown
+  maxValue?: unknown
+  minLabel?: string
+  maxLabel?: string
 }
 
 export interface CustomFieldInfoCardProps {

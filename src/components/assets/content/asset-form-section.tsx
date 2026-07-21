@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
-import { HuemulCheckboxGroup } from "@/huemul/components/huemul-checkbox-group";
+import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input";
+import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
 import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -16,7 +17,6 @@ import { isMediaToken } from "@/lib/plate-media-utils";
 import { Check, FileX, Info, Loader2, X } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
-  NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
   isFieldAnswerable,
   isFieldVisible,
@@ -329,6 +329,18 @@ export function AssetFormSection({
   // ── Render de un input editable según el tipo de pregunta ──────────────────
   // opts.disabled: campo activo (is_visible) pero no respondible (can_answer=false por
   // show_when_inactive) — se muestra el input real deshabilitado, no un texto de solo lectura.
+  // El mapeo question_type/data_type → widget vive en HuemulQuestionInput (único, compartido
+  // con la entrada de valor de custom fields) — acá solo se resuelven placeholders de i18n
+  // y los dos casos que no delega: carga de archivos (upload propio) y custom_field (solo lectura).
+  const PLACEHOLDER_BY_QUESTION_TYPE: Partial<Record<string, string>> = {
+    [QUESTION_TYPE.shortAnswer]: t("form.formFields.previewShortAnswer"),
+    [QUESTION_TYPE.paragraph]: t("form.formFields.previewLongAnswer"),
+    [QUESTION_TYPE.email]: t("form.formFields.previewEmail"),
+    [QUESTION_TYPE.number]: "0",
+    [QUESTION_TYPE.decimal]: "1.2",
+    [QUESTION_TYPE.dropdown]: t("form.fill.selectOption"),
+  };
+
   const renderInput = (field: FormFieldValue, opts?: { disabled?: boolean }) => {
     const cfg = readFieldConfig(field);
     const value = answers[field.id];
@@ -336,178 +348,6 @@ export function AssetFormSection({
     const disabled = opts?.disabled;
 
     switch (field.question_type) {
-      case QUESTION_TYPE.shortAnswer:
-        return (
-          <HuemulField
-            type="text"
-            label=""
-            value={(value as string) ?? ""}
-            placeholder={t("form.formFields.previewShortAnswer")}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-
-      case QUESTION_TYPE.paragraph:
-        return (
-          <HuemulField
-            type="textarea"
-            label=""
-            rows={3}
-            value={(value as string) ?? ""}
-            placeholder={t("form.formFields.previewLongAnswer")}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-
-      case QUESTION_TYPE.email:
-        return (
-          <HuemulField
-            type="email"
-            label=""
-            value={(value as string) ?? ""}
-            placeholder={t("form.formFields.previewEmail")}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-
-      case QUESTION_TYPE.number:
-      case QUESTION_TYPE.decimal: {
-        const isDecimal = field.question_type === QUESTION_TYPE.decimal || field.data_type === "decimal";
-        return (
-          <HuemulField
-            type="number"
-            label=""
-            step={isDecimal ? undefined : 1}
-            min={typeof field.min_value === "number" ? field.min_value : undefined}
-            max={typeof field.max_value === "number" ? field.max_value : undefined}
-            placeholder={isDecimal ? "1.2" : "0"}
-            value={value === null || value === undefined ? "" : (value as number)}
-            onChange={(v) => setAnswer(field.id, v === "" ? null : Number(v))}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.yesNo: {
-        return (
-          <HuemulField
-            type="yes-no"
-            label=""
-            value={value as boolean}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.multipleChoice: {
-        const mcOptions = readFieldOptions(field);
-        return (
-          <HuemulField
-            type="radio"
-            label=""
-            value={(value as string) ?? ""}
-            options={mcOptions.map((o) => ({ value: o.id, label: o.label }))}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.dropdown: {
-        const ddOptions = readFieldOptions(field);
-        return (
-          <HuemulField
-            type="select"
-            label=""
-            value={(value as string) ?? ""}
-            options={ddOptions.map((o) => ({ value: o.id, label: o.label }))}
-            placeholder={t("form.fill.selectOption")}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.dropdownMultiple: {
-        const options = readFieldOptions(field);
-        return (
-          <HuemulCheckboxGroup
-            options={options.map((o) => ({ value: o.id, label: o.label }))}
-            value={Array.isArray(value) ? (value as string[]) : []}
-            onChange={(next) => setAnswer(field.id, next)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.linearScale: {
-        return (
-          <HuemulField
-            type="linear-scale"
-            label=""
-            min={typeof field.min_value === "number" ? field.min_value : 1}
-            max={typeof field.max_value === "number" ? field.max_value : 5}
-            minLabel={cfg.min_label}
-            maxLabel={cfg.max_label}
-            value={value as number}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.rating: {
-        return (
-          <HuemulField
-            type="rating"
-            label=""
-            max={typeof field.max_value === "number" ? field.max_value : 5}
-            value={value as number}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-      }
-
-      case QUESTION_TYPE.date:
-        return (
-          <HuemulField
-            type="date"
-            label=""
-            value={(value as string) ?? ""}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            disabled={disabled}
-          />
-        );
-
-      case QUESTION_TYPE.time:
-        return (
-          <HuemulField
-            type="time"
-            label=""
-            value={(value as string) ?? ""}
-            onChange={(v) => setAnswer(field.id, v)}
-            error={error}
-            withSeconds={false}
-            disabled={disabled}
-          />
-        );
-
       case QUESTION_TYPE.fileUpload: {
         const fileCfg = readFieldConfig(field);
         const accept = fileCfg.allowed_types?.map((ext) => `.${ext}`).join(", ");
@@ -605,55 +445,23 @@ export function AssetFormSection({
         // Solo lectura: el valor se gestiona en los custom fields del documento
         return renderReadOnly(field);
 
-      default: {
-        if (NUMERIC_DATA_TYPES.includes(field.data_type as string)) {
-          return (
-            <HuemulField
-              type="number"
-              label=""
-              value={value === null || value === undefined ? "" : (value as number)}
-              onChange={(v) => setAnswer(field.id, v === "" ? null : Number(v))}
-              error={error}
-              disabled={disabled}
-            />
-          );
-        }
-        if (field.data_type === "date") {
-          return (
-            <HuemulField
-              type="date"
-              label=""
-              value={(value as string) ?? ""}
-              onChange={(v) => setAnswer(field.id, v)}
-              error={error}
-              disabled={disabled}
-            />
-          );
-        }
-        if (field.data_type === "time") {
-          return (
-            <HuemulField
-              type="time"
-              label=""
-              value={(value as string) ?? ""}
-              onChange={(v) => setAnswer(field.id, v)}
-              error={error}
-              withSeconds={false}
-              disabled={disabled}
-            />
-          );
-        }
+      default:
         return (
-          <HuemulField
-            type="text"
-            label=""
-            value={(value as string) ?? ""}
+          <HuemulQuestionInput
+            questionType={field.question_type}
+            dataType={field.data_type}
+            placeholder={PLACEHOLDER_BY_QUESTION_TYPE[field.question_type ?? ""]}
+            value={value as HuemulQuestionInputValue}
             onChange={(v) => setAnswer(field.id, v)}
+            options={readFieldOptions(field)}
+            min={typeof field.min_value === "number" ? field.min_value : undefined}
+            max={typeof field.max_value === "number" ? field.max_value : undefined}
+            minLabel={cfg.min_label}
+            maxLabel={cfg.max_label}
             error={error}
             disabled={disabled}
           />
         );
-      }
     }
   };
 

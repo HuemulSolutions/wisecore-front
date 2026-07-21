@@ -1,14 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { PenLine, Plus } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
-import { useCustomFieldDataTypes } from "@/hooks/useCustomFields"
-import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
+import { useCustomFieldQuestionTypes } from "@/hooks/useCustomFields"
+import {
+  questionTypeLabel,
+  readFieldConfig,
+  QUESTION_TYPE,
+  NUMERIC_DATA_TYPES,
+} from "@/components/sections/question-type-meta"
 import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
+import type { FormFieldConfig } from '@/types/sections/core'
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
 
@@ -23,19 +29,29 @@ export function CreateEditCustomFieldSheet({
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    data_type: "",
     masc: "",
     question_type: "",
     options: [] as CustomFieldOption[],
+    min_value: null as number | null,
+    max_value: null as number | null,
+    config: {} as FormFieldConfig,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const isEditing = !!customField
   const { t } = useTranslation('custom-fields')
+  const { t: tSections } = useTranslation('sections')
 
-  // Fetch data types (lazy loading: only when sheet is open)
-  const { data: dataTypesResponse, isLoading: loadingDataTypes } = useCustomFieldDataTypes({ enabled: open })
-  const dataTypes = dataTypesResponse?.data || []
+  // Fetch question types (lazy loading: only when sheet is open). data_type is derived from this catalog.
+  const { data: questionTypesResponse, isLoading: loadingQuestionTypes } = useCustomFieldQuestionTypes({ enabled: open })
+  const questionTypes = useMemo(() => questionTypesResponse?.data ?? [], [questionTypesResponse])
+  const questionTypeDataMap = useMemo(
+    () => new Map(questionTypes.map((qt) => [qt.question_type, qt.data_type])),
+    [questionTypes],
+  )
+  // Legacy custom fields created before this change may have question_type: null —
+  // fall back to the stored data_type so their conditional UI (options/mask) still works.
+  const dataType = questionTypeDataMap.get(formData.question_type) ?? customField?.data_type ?? ""
 
   // Reset form when sheet opens/closes or customField changes
   useEffect(() => {
@@ -44,19 +60,23 @@ export function CreateEditCustomFieldSheet({
         setFormData({
           name: customField.name,
           description: customField.description,
-          data_type: customField.data_type,
           masc: customField.masc || "",
-          question_type: customField.data_type === 'list' ? (customField.question_type || QUESTION_TYPE.dropdown) : "",
-          options: customField.data_type === 'list' ? (customField.default_value ?? []) : [],
+          question_type: customField.question_type || "",
+          options: customField.data_type === 'list' ? ((customField.default_value as CustomFieldOption[]) ?? []) : [],
+          min_value: typeof customField.min_value === 'number' ? customField.min_value : null,
+          max_value: typeof customField.max_value === 'number' ? customField.max_value : null,
+          config: readFieldConfig(customField),
         })
       } else {
         setFormData({
           name: "",
           description: "",
-          data_type: "",
           masc: "",
           question_type: "",
           options: [],
+          min_value: null,
+          max_value: null,
+          config: {},
         })
       }
       setErrors({})
@@ -76,11 +96,13 @@ export function CreateEditCustomFieldSheet({
       newErrors.description = t('form.descriptionTooLong')
     }
 
-    if (!formData.data_type) {
-      newErrors.data_type = t('form.dataTypeRequired')
+    // question_type is only mandatory when creating; legacy fields (question_type: null)
+    // can still be edited without picking one — the stored data_type is preserved.
+    if (!isEditing && !formData.question_type) {
+      newErrors.question_type = t('form.questionTypeRequired')
     }
 
-    if (formData.data_type === 'list') {
+    if (dataType === 'list') {
       if (formData.options.length === 0) {
         newErrors.options = t('form.optionsRequired')
       } else {
@@ -95,8 +117,49 @@ export function CreateEditCustomFieldSheet({
       }
     }
 
+    // Numeric range (respuesta_numerica/decimal) and linear scale share min_value/max_value —
+    // only flag when both bounds are set and inverted.
+    const usesMinMax = NUMERIC_DATA_TYPES.includes(dataType) || formData.question_type === QUESTION_TYPE.linearScale
+    if (formData.question_type === QUESTION_TYPE.linearScale && (formData.min_value === null || formData.max_value === null)) {
+      newErrors.min_value = t('form.minMaxInvalid')
+    } else if (usesMinMax && formData.min_value !== null && formData.max_value !== null && formData.min_value > formData.max_value) {
+      newErrors.min_value = t('form.minMaxInvalid')
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  // Config específica por question_type — mismo modelo de datos que los form fields de sección:
+  // numérico → min/max; escala lineal → min/max + etiquetas en default_value; calificación →
+  // estrellas en max_value; carga de archivos → allowed_types/max_size_mb en default_value;
+  // lista → opciones en default_value (ya existía).
+  const getTypeSpecificPayload = () => {
+    if (dataType === 'list') {
+      return { default_value: formData.options }
+    }
+    if (formData.question_type === QUESTION_TYPE.linearScale) {
+      return {
+        min_value: formData.min_value,
+        max_value: formData.max_value,
+        default_value: { min_label: formData.config.min_label, max_label: formData.config.max_label },
+      }
+    }
+    if (formData.question_type === QUESTION_TYPE.rating) {
+      return { max_value: formData.max_value }
+    }
+    if (formData.question_type === QUESTION_TYPE.fileUpload) {
+      return {
+        default_value: {
+          allowed_types: formData.config.allowed_types ?? [],
+          max_size_mb: formData.config.max_size_mb ?? 10,
+        },
+      }
+    }
+    if (NUMERIC_DATA_TYPES.includes(dataType)) {
+      return { min_value: formData.min_value, max_value: formData.max_value }
+    }
+    return {}
   }
 
   const handleSave = async () => {
@@ -112,12 +175,11 @@ export function CreateEditCustomFieldSheet({
           data: {
             name: formData.name,
             description: formData.description,
-            data_type: formData.data_type,
             masc: formData.masc || undefined,
-            ...(formData.data_type === 'list' && {
-              default_value: formData.options,
-              question_type: formData.question_type,
-            }),
+            // Partial PATCH: only send question_type if the user picked one, so legacy
+            // fields (question_type: null) keep their existing data_type untouched.
+            ...(formData.question_type && { question_type: formData.question_type }),
+            ...getTypeSpecificPayload(),
           },
         })
         onSuccess()
@@ -125,12 +187,9 @@ export function CreateEditCustomFieldSheet({
         const created = await customFieldMutations.create.mutateAsync({
           name: formData.name,
           description: formData.description,
-          data_type: formData.data_type,
           masc: formData.masc || "",
-          ...(formData.data_type === 'list' && {
-            default_value: formData.options,
-            question_type: formData.question_type,
-          }),
+          question_type: formData.question_type,
+          ...getTypeSpecificPayload(),
         })
         onSuccess(created)
       }
@@ -142,12 +201,35 @@ export function CreateEditCustomFieldSheet({
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-      ...(field === 'data_type' && value !== 'list' && { options: [], question_type: "" }),
-      ...(field === 'data_type' && value === 'list' && !prev.question_type && { question_type: QUESTION_TYPE.dropdown }),
-    }))
+    setFormData(prev => {
+      const next = { ...prev, [field]: value }
+      if (field === 'question_type') {
+        const newDataType = questionTypeDataMap.get(value) ?? customField?.data_type ?? ""
+        // Drop config that no longer applies to the newly chosen type — same pattern for
+        // options/min-max/config, mirrors the form-fields section builder's type-switch reset.
+        if (newDataType !== 'list') {
+          next.options = []
+        }
+        if (!NUMERIC_DATA_TYPES.includes(newDataType) && value !== QUESTION_TYPE.linearScale) {
+          next.min_value = null
+          next.max_value = null
+        }
+        // La escala lineal y la calificación por estrellas muestran un default en el
+        // select (1/5), pero ese default es solo visual — si no se inicializa el estado
+        // real, el payload sale con min_value/max_value null y el backend lo rechaza.
+        if (value === QUESTION_TYPE.linearScale) {
+          if (next.min_value === null) next.min_value = 1
+          if (next.max_value === null) next.max_value = 5
+        }
+        if (value === QUESTION_TYPE.rating && next.max_value === null) {
+          next.max_value = 5
+        }
+        if (value !== QUESTION_TYPE.linearScale && value !== QUESTION_TYPE.fileUpload) {
+          next.config = {}
+        }
+      }
+      return next
+    })
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }))
     }
@@ -160,9 +242,18 @@ export function CreateEditCustomFieldSheet({
     }
   }
 
-  const formatDataType = (dataType: string) => {
-    return t(`dataTypes.${dataType}` as Parameters<typeof t>[0], { defaultValue: dataType })
+  const handleNumericChange = (field: 'min_value' | 'max_value', value: number | null) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    if (errors.min_value) {
+      setErrors(prev => ({ ...prev, min_value: "" }))
+    }
   }
+
+  const handleConfigChange = (patch: Partial<FormFieldConfig>) => {
+    setFormData(prev => ({ ...prev, config: { ...prev.config, ...patch } }))
+  }
+
+  const formatQuestionType = (questionType: string) => questionTypeLabel(questionType, tSections)
 
   return (
     <HuemulSheet
@@ -187,21 +278,26 @@ export function CreateEditCustomFieldSheet({
         <CustomFieldFormFields
           name={formData.name}
           description={formData.description}
-          dataType={formData.data_type}
+          dataType={dataType}
           masc={formData.masc}
           questionType={formData.question_type}
           options={formData.options}
+          minValue={formData.min_value}
+          maxValue={formData.max_value}
+          config={formData.config}
           onNameChange={(value) => handleInputChange("name", value)}
           onDescriptionChange={(value) => handleInputChange("description", value)}
-          onDataTypeChange={(value) => handleInputChange("data_type", value)}
           onMascChange={(value) => handleInputChange("masc", value)}
           onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
           onOptionsChange={handleOptionsChange}
-          dataTypes={dataTypes}
-          formatDataType={formatDataType}
+          onMinValueChange={(value) => handleNumericChange('min_value', value)}
+          onMaxValueChange={(value) => handleNumericChange('max_value', value)}
+          onConfigChange={handleConfigChange}
+          questionTypes={questionTypes}
+          formatQuestionType={formatQuestionType}
           errors={errors}
           disabled={isSubmitting}
-          loadingDataTypes={loadingDataTypes}
+          loadingQuestionTypes={loadingQuestionTypes}
         />
       </div>
     </HuemulSheet>
