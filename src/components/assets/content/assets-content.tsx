@@ -24,6 +24,7 @@ import { DocumentAccessControl } from "@/components/assets/content/assets-access
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
+import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
 
 import {
   DropdownMenu,
@@ -634,6 +635,7 @@ export function AssetContent({
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
+  const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -2575,6 +2577,7 @@ export function AssetContent({
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
+                            onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
@@ -3818,6 +3821,15 @@ export function AssetContent({
         executionId={selectedExecutionId}
         organizationId={selectedOrganizationId ?? ''}
         allExecutions={allExecutions}
+      />
+
+      {/* Lifecycle History Sheet */}
+      <LifecycleHistorySheet
+        open={isLifecycleHistorySheetOpen}
+        onOpenChange={setIsLifecycleHistorySheetOpen}
+        executionId={selectedExecutionId || documentContent?.execution_id || ''}
+        organizationId={selectedOrganizationId ?? ''}
+        allExecutions={allExecutions ?? []}
       />
     </>
   );

@@ -9,6 +9,7 @@ import {
   RefreshCw,
   List,
   Info,
+  History,
   ShieldCheck,
   BetweenHorizontalStart,
   Link2,
@@ -89,6 +90,7 @@ interface MoreOptionsDropdownProps {
   onRefresh: () => void;
   onToggleToc: () => void;
   onOpenInfo: () => void;
+  onOpenLifecycleHistory: () => void;
   onOpenPermissions: () => void;
   onOpenSections: () => void;
   onOpenDependencies: () => void;
@@ -134,6 +136,7 @@ export function MoreOptionsDropdown({
   onRefresh,
   onToggleToc,
   onOpenInfo,
+  onOpenLifecycleHistory,
   onOpenPermissions,
   onOpenSections,
   onOpenDependencies,
@@ -293,6 +296,17 @@ export function MoreOptionsDropdown({
           <Info className="mr-2 h-4 w-4" />
           {t("content.assetInfo")}
         </DropdownMenuItem>
+
+        {/* ── Lifecycle History (visible whenever there's content to show history for) ── */}
+        {hasDocumentContent && (
+          <DropdownMenuItem
+            onSelect={() => setTimeout(onOpenLifecycleHistory, 0)}
+            className="hover:cursor-pointer"
+          >
+            <History className="mr-2 h-4 w-4" />
+            {t("lifecycleHistory.moreOptionsItem")}
+          </DropdownMenuItem>
+        )}
 
         {/* ── Asset Permissions (always visible) ── */}
         <DropdownMenuItem
