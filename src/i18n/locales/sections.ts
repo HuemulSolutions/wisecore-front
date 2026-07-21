@@ -149,6 +149,7 @@ const translations = {
     },
     fill: {
       submitResponses: { en: "Submit responses", es: "Guardar respuestas" },
+      doneEditing: { en: "Done editing", es: "Dejar de editar" },
       requiredFieldsNote: { en: "Fields marked with * are required", es: "Los campos con * son obligatorios" },
       requiredError: { en: "Complete the required fields", es: "Completa los campos obligatorios" },
       fieldRequired: { en: "This field is required", es: "Este campo es obligatorio" },
@@ -159,6 +160,9 @@ const translations = {
       saving: { en: "Saving...", es: "Guardando..." },
       saved: { en: "Responses saved", es: "Respuestas guardadas" },
       saveError: { en: "Could not save responses", es: "No se pudieron guardar las respuestas" },
+      autoSaved: { en: "Changes saved", es: "Cambios guardados" },
+      autoSaveError: { en: "Could not save changes", es: "No se pudieron guardar los cambios" },
+      savedField: { en: "Saved", es: "Guardado" },
       triggerHint: { en: "Your answer may show or hide other questions", es: "Tu respuesta puede mostrar u ocultar otras preguntas" },
       recalculating: { en: "Updating form...", es: "Actualizando formulario..." },
       noAnswer: { en: "No answer", es: "Sin respuesta" },

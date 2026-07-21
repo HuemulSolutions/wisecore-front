@@ -1,20 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input";
 import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
 import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
-import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
-import type { ReviewStatus } from "@/services/section_execution";
+import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue } from "@/types/sections/core";
 import { isMediaToken } from "@/lib/plate-media-utils";
-import { Check, FileX, Info, Loader2, X } from "lucide-react";
+import { Check, FileX, Info, Loader2 } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
   QUESTION_TYPE,
@@ -39,15 +37,30 @@ interface AssetFormSectionProps {
   canInteract: boolean;
   /** Modo edición, controlado por el padre (mismo botón de lápiz que las demás secciones). */
   isEditing: boolean;
-  /** El padre sale del modo edición (cancelar o tras guardar). */
+  /** El padre sale del modo edición (tras el flush final de "Dejar de editar"). */
   onExitEditing: () => void;
   responderName?: string;
   respondedAt?: string;
   /** Refresca el contenido del asset tras guardar */
   onUpdate?: () => void;
+  /** Notifica al padre el estado de isSaving (para deshabilitar/mostrar loading en sus propios botones) */
+  onSavingChange?: (isSaving: boolean) => void;
+}
+
+/** Acción que el padre (assets-section.tsx) dispara desde su propia barra de edición. */
+export interface AssetFormSectionHandle {
+  exit: () => void;
 }
 
 type AnswerMap = Record<string, unknown>;
+
+// Compara dos valores de respuesta (soporta arrays, usado tanto en el diff del
+// autosave como en el flush final al salir de edición).
+function valuesEqual(a: unknown, b: unknown): boolean {
+  return Array.isArray(a) && Array.isArray(b)
+    ? a.length === b.length && a.every((v, i) => Object.is(v, b[i]))
+    : Object.is(a, b);
+}
 
 // Inicializa el mapa de respuestas desde los valores actuales del snapshot.
 // Si value es config (array de opciones u objeto de configuración), no es una respuesta → null.
@@ -57,7 +70,7 @@ function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
   return map;
 }
 
-export function AssetFormSection({
+export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSectionProps>(function AssetFormSection({
   sectionExecutionId,
   formFields,
   organizationId,
@@ -68,7 +81,8 @@ export function AssetFormSection({
   responderName,
   respondedAt,
   onUpdate,
-}: AssetFormSectionProps) {
+  onSavingChange,
+}, ref) {
   const { t } = useTranslation(["sections", "common"]);
 
   const sortedFields = useMemo(
@@ -87,17 +101,19 @@ export function AssetFormSection({
   const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
   // URL de descarga de archivos recién subidos (para previsualizar; el placeholder no es una URL)
   const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
-  // true mientras se auto-guarda un disparador y se espera el refetch con is_visible/can_answer
-  // recalculados — feedback de "actualizando formulario" para que el cambio no se sienta instantáneo/mágico.
-  const [isRecalculating, setIsRecalculating] = useState(false);
-  const recalcTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stopRecalculating = () => {
-    if (recalcTimeoutRef.current) {
-      clearTimeout(recalcTimeoutRef.current);
-      recalcTimeoutRef.current = null;
-    }
-    setIsRecalculating(false);
-  };
+  // ids de campos con un auto-guardado en curso — pinta el loader junto al campo respectivo
+  // (en vez de un spinner global en una barra) mientras se espera la respuesta del PATCH.
+  const [savingFieldIds, setSavingFieldIds] = useState<Set<string>>(new Set());
+  // ids con "Guardado" transitorio recién confirmado — se limpian solos a los 1.5s.
+  const [savedFieldIds, setSavedFieldIds] = useState<Set<string>>(new Set());
+  const savedTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const timeouts = savedTimeoutsRef.current;
+    return () => {
+      Object.values(timeouts).forEach(clearTimeout);
+    };
+  }, []);
 
   // field_id de esta sección referenciados por algún depends_on: son los únicos "disparadores"
   // cuyo cambio puede afectar la visibilidad/respondibilidad de otro campo. Al cambiar uno,
@@ -139,67 +155,68 @@ export function AssetFormSection({
   );
 
   // Último valor guardado en el backend por snapshot id — evita reenviar un PATCH si el
-  // valor del disparador no cambió desde el último auto-guardado (o desde la carga inicial).
+  // valor del campo no cambió desde el último auto-guardado (o desde la carga inicial).
   const lastSavedAnswersRef = useRef<AnswerMap>(buildInitialAnswers(sortedFields));
-  // Evita solapar un auto-guardado con otro (o con el guardado final del botón).
-  const autoSavingRef = useRef(false);
 
   const editing = isEditing && canInteract && hasEditableFields;
 
-  // Auto-guarda (debounced) los campos "disparadores" de depends_on cuando cambian, para que
-  // el backend recalcule is_visible/can_answer y el usuario vea aparecer/ocultarse los campos
-  // dependientes sin tener que terminar de llenar el formulario. El front NUNCA decide por su
-  // cuenta si un campo se muestra/habilita — solo refleja lo que el backend recalcula tras esto.
+  // Notifica al padre el isSaving del guardado final (botón Enviar), para que pueda
+  // deshabilitar/mostrar loading en su propia barra de acciones.
+  useEffect(() => {
+    onSavingChange?.(isSaving);
+  }, [isSaving, onSavingChange]);
+
+  // Auto-guarda (debounced) cualquier campo respondible que cambie — no solo los "disparadores"
+  // de depends_on — para que el valor quede persistido sin depender del botón Enviar. Cuando el
+  // campo es disparador, esto además hace que el backend recalcule is_visible/can_answer y el
+  // usuario vea aparecer/ocultarse los campos dependientes. El front NUNCA decide por su cuenta
+  // si un campo se muestra/habilita — solo refleja lo que el backend recalcula tras esto.
   const debouncedAnswers = useDebounce(answers, 500);
   useEffect(() => {
-    if (!editing || uploadingFields.size > 0 || isSaving || autoSavingRef.current) return;
-    if (triggerFieldIds.size === 0) return;
-
-    const valuesEqual = (a: unknown, b: unknown): boolean =>
-      Array.isArray(a) && Array.isArray(b)
-        ? a.length === b.length && a.every((v, i) => Object.is(v, b[i]))
-        : Object.is(a, b);
+    if (!editing || uploadingFields.size > 0 || isSaving) return;
 
     const changed = sortedFields.filter(
-      (f) =>
-        !!f.field_id &&
-        triggerFieldIds.has(f.field_id) &&
-        isFieldAnswerable(f) &&
-        !valuesEqual(debouncedAnswers[f.id], lastSavedAnswersRef.current[f.id]),
+      (f) => isFieldAnswerable(f) && !valuesEqual(debouncedAnswers[f.id], lastSavedAnswersRef.current[f.id]),
     );
     if (changed.length === 0) return;
 
-    autoSavingRef.current = true;
-    // Indicador "actualizando…": se mantiene hasta que lleguen los formFields recalculados
-    // (ver efecto sobre `formFields` más abajo) o, si eso no ocurre, tras 5s de seguridad.
-    setIsRecalculating(true);
-    if (recalcTimeoutRef.current) clearTimeout(recalcTimeoutRef.current);
-    recalcTimeoutRef.current = setTimeout(stopRecalculating, 5000);
+    const ids = changed.map((f) => f.id);
+    setSavingFieldIds((prev) => new Set([...prev, ...ids]));
+    // Toast reutilizable: mismo id por sección, se actualiza in-place (loading -> success/error)
+    // en vez de apilar un toast por cada campo/tick de autosave.
+    const toastId = `form-autosave-${sectionExecutionId}`;
+    toast.loading(t("common:saving"), { id: toastId });
     const values = changed.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
     updateSectionFormValues(sectionExecutionId, values, organizationId)
       .then(() => {
         for (const f of changed) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
         onUpdate?.();
+        toast.success(t("form.fill.autoSaved"), { id: toastId });
+        setSavedFieldIds((prev) => new Set([...prev, ...ids]));
+        ids.forEach((id) => {
+          clearTimeout(savedTimeoutsRef.current[id]);
+          savedTimeoutsRef.current[id] = setTimeout(() => {
+            setSavedFieldIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            delete savedTimeoutsRef.current[id];
+          }, 1500);
+        });
       })
       .catch(() => {
         // Best-effort: si falla, se reintenta en el próximo cambio o al guardar con el botón.
-        stopRecalculating();
+        toast.error(t("form.fill.autoSaveError"), { id: toastId });
       })
       .finally(() => {
-        autoSavingRef.current = false;
+        setSavingFieldIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
       });
-  }, [debouncedAnswers, editing, isSaving, onUpdate, organizationId, sectionExecutionId, sortedFields, triggerFieldIds, uploadingFields]);
-
-  // Los formFields recalculados (is_visible/can_answer) llegaron vía refetch tras el auto-guardado
-  // del disparador — el "actualizando…" ya cumplió su propósito.
-  useEffect(() => {
-    stopRecalculating();
-  }, [formFields]);
-
-  // Limpia el timeout de seguridad si el componente se desmonta a mitad de un recálculo.
-  useEffect(() => () => {
-    if (recalcTimeoutRef.current) clearTimeout(recalcTimeoutRef.current);
-  }, []);
+  }, [debouncedAnswers, editing, isSaving, onUpdate, organizationId, sectionExecutionId, sortedFields, t, uploadingFields]);
 
   const setAnswer = (fieldId: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
@@ -226,86 +243,43 @@ export function AssetFormSection({
   const isBrokenFileField = (field: FormFieldValue): boolean =>
     !filePreviews[field.id] && isMediaToken(answers[field.id]);
 
-  const validate = (): boolean => {
-    const errs: Record<string, string> = {};
-    for (const f of sortedFields) {
-      // custom_field es solo lectura; una pregunta oculta o inactiva (según el backend) no se puede responder
-      if (!isFieldAnswerable(f)) continue;
-      const v = answers[f.id];
-      if (f.required && !hasAnswer(v)) {
-        errs[f.id] = t("form.fill.fieldRequired");
-      } else if (hasAnswer(v)) {
-        if (f.question_type === QUESTION_TYPE.email) {
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v))) {
-            errs[f.id] = t("form.fill.invalidEmail");
-          }
-        } else if (f.question_type === QUESTION_TYPE.number) {
-          if (!Number.isInteger(Number(v))) {
-            errs[f.id] = t("form.fill.invalidInteger");
-          } else {
-            const n = Number(v);
-            if (typeof f.min_value === "number" && n < f.min_value) {
-              errs[f.id] = t("form.fill.valueTooSmall", { min: f.min_value });
-            } else if (typeof f.max_value === "number" && n > f.max_value) {
-              errs[f.id] = t("form.fill.valueTooBig", { max: f.max_value });
-            }
-          }
-        } else if (f.question_type === QUESTION_TYPE.decimal) {
-          const n = Number(v);
-          if (typeof f.min_value === "number" && n < f.min_value) {
-            errs[f.id] = t("form.fill.valueTooSmall", { min: f.min_value });
-          } else if (typeof f.max_value === "number" && n > f.max_value) {
-            errs[f.id] = t("form.fill.valueTooBig", { max: f.max_value });
-          }
-        }
-      }
-    }
-    setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = async () => {
+  // Sale del modo edición. Los valores ya quedan persistidos por el auto-guardado
+  // mientras se escribe; acá solo se hace un flush best-effort de lo que pudiera
+  // seguir pendiente dentro de la ventana del debounce (por ej. si el usuario sale
+  // justo después de tipear), sin validar requeridos ni tocar review_status —
+  // ambas cosas se manejan aparte (validación no aplica a autosave, el estado de
+  // revisión lo controla el selector de la barra de acciones).
+  const handleDoneEditing = async () => {
     if (uploadingFields.size > 0) {
       toast.error(t("form.fill.fileUploading_block"));
       return;
     }
-    if (!validate()) {
-      toast.error(t("form.fill.requiredError"));
+
+    const changed = sortedFields.filter(
+      (f) => isFieldAnswerable(f) && !valuesEqual(answers[f.id], lastSavedAnswersRef.current[f.id]),
+    );
+    if (changed.length === 0) {
+      onExitEditing();
       return;
     }
 
     setIsSaving(true);
     try {
-      const values = sortedFields
-        // custom_field es solo lectura; una pregunta oculta o inactiva (según el backend) no se envía
-        .filter(isFieldAnswerable)
-        // archivo: solo enviar si el usuario subió uno nuevo (placeholder), no la URL existente
-        .filter((f) => {
-          if (f.question_type !== QUESTION_TYPE.fileUpload) return true;
-          const a = answers[f.id];
-          return typeof a === "string" && a.startsWith("{{MEDIA:");
-        })
-        .map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
+      const values = changed.map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
       await updateSectionFormValues(sectionExecutionId, values, organizationId);
-      await updateReviewStatus(sectionExecutionId, "finished" as ReviewStatus, organizationId);
-      // Sincroniza lo guardado para que el auto-guardado de disparadores no reenvíe estos valores.
-      lastSavedAnswersRef.current = { ...lastSavedAnswersRef.current, ...answers };
-      toast.success(t("form.fill.saved"));
-      onExitEditing();
+      for (const f of changed) lastSavedAnswersRef.current[f.id] = answers[f.id];
       onUpdate?.();
     } catch (error) {
       handleApiError(error, { fallbackMessage: t("form.fill.saveError") });
+      return;
     } finally {
       setIsSaving(false);
     }
-  };
-
-  // Descarta los cambios en curso y vuelve a solo lectura.
-  const handleCancel = () => {
-    setAnswers(buildInitialAnswers(sortedFields));
-    setFieldErrors({});
     onExitEditing();
   };
+
+  // El padre (barra de acciones de assets-section.tsx) dispara "Dejar de editar" a través de esta ref.
+  useImperativeHandle(ref, () => ({ exit: handleDoneEditing }), [handleDoneEditing]);
 
   if (sortedFields.length === 0) {
     return (
@@ -594,40 +568,6 @@ export function AssetFormSection({
 
   return (
     <div className="w-full">
-      {/* Barra de guardar/cancelar, arriba, igual que al editar contenido Plate */}
-      {editing && (
-        <div className="sticky top-9 z-40 mb-4 flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-sm shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400">{t("form.fill.requiredFieldsNote")}</span>
-            {isRecalculating && (
-              <span className="flex items-center gap-1.5 text-xs text-gray-400 animate-in fade-in duration-200">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                {t("form.fill.recalculating")}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <HuemulButton
-              variant="outline"
-              size="sm"
-              icon={X}
-              disabled={isSaving}
-              label={t("common:cancel")}
-              onClick={handleCancel}
-            />
-            <HuemulButton
-              variant="default"
-              size="sm"
-              icon={Check}
-              className="bg-[#4464f7] hover:bg-[#3451e6]"
-              loading={isSaving}
-              label={isSaving ? t("common:saving") : t("form.fill.submitResponses")}
-              onClick={handleSubmit}
-            />
-          </div>
-        </div>
-      )}
-
       <div className="space-y-5">
         {displayedFields.map((field, index) => {
           const typeHint = questionTypeLabel(field.question_type ?? "", t);
@@ -651,6 +591,18 @@ export function AssetFormSection({
                   {field.required && <span className="text-red-500"> *</span>}
                 </span>
                 {typeHint && <span className="text-xs font-normal text-gray-400">· {typeHint}</span>}
+                {savingFieldIds.has(field.id) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 animate-in fade-in duration-200">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    {t("common:saving")}
+                  </span>
+                )}
+                {!savingFieldIds.has(field.id) && savedFieldIds.has(field.id) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 animate-in fade-in duration-200">
+                    <Check className="h-3 w-3" />
+                    {t("form.fill.savedField")}
+                  </span>
+                )}
               </label>
               {editing && isFieldAnswerable(field)
                 ? renderInput(field)
@@ -683,7 +635,7 @@ export function AssetFormSection({
       )}
     </div>
   );
-}
+});
 
 // Badge de estado (Pendiente / Respondido) usado en el header de la sección.
 export function FormStatusBadge({ status }: { status?: string }) {
