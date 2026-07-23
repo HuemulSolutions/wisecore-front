@@ -28,6 +28,7 @@ import DocumentTypeRelationshipsPage from "./pages/document-type-relationships";
 import MediaPage from "./pages/media";
 import { RootRedirect } from "./components/organization/root-redirect";
 import HuemulLayoutDemoPage from "./pages/huemul-layout-demo";
+import WorkflowPage from "./pages/workflow";
 
 export default function App() {
   return (
@@ -146,6 +147,11 @@ export default function App() {
               </PermissionProtectedRoute>
             } />
             <Route path="media" element={<MediaPage />} />
+            <Route path="workflow" element={
+              <PermissionProtectedRoute permissions={["asset:l"]}>
+                <WorkflowPage />
+              </PermissionProtectedRoute>
+            } />
           </Route>
 
           {/* Catch-all: redirect unknown paths to root */}
