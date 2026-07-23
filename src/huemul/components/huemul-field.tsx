@@ -1976,7 +1976,7 @@ export function HuemulField({
             ? Array.from({ length: scaleMax - scaleMin + 1 }, (_, i) => scaleMin + i)
             : [];
         return (
-          <div className="space-y-2">
+          <div className="w-fit max-w-full space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               {steps.map((n) => {
                 const selected = value === n;

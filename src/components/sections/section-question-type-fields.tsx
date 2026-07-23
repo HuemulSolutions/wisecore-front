@@ -25,6 +25,7 @@ import {
   type FormFieldDraft,
 } from "./question-type-meta";
 import { QuestionTypePreview } from "./question-type-preview";
+import { SectionFieldSeparator } from "./section-field-separator";
 
 interface SectionQuestionTypeFieldsProps {
   field: FormFieldDraft;
@@ -347,6 +348,10 @@ export function SectionQuestionTypeFields({
         </div>
       );
     }
+
+    // ── Etiqueta: separador visual, sin configuración ───────────────────────
+    case QUESTION_TYPE.label:
+      return <SectionFieldSeparator name={field.field_name || t("form.formFields.statement")} />;
 
     // ── Campo personalizado ─────────────────────────────────────────────────
     case CUSTOM_FIELD_QUESTION_TYPE:
