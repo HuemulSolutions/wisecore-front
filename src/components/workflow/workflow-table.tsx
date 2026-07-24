@@ -78,6 +78,8 @@ export function WorkflowTable({
     <HuemulTable
       data={data}
       columns={columns}
+      className="h-full"
+      maxHeight=""
       getRowKey={(item) => item.execution_id}
       getRowClassName={(item) =>
         cn(item.execution_id === selectedExecutionId && "bg-primary/5 hover:bg-primary/10")

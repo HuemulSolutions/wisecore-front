@@ -1,42 +1,144 @@
-import { useQuery } from "@tanstack/react-query"
+import * as React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2 } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
-import { AssetFormSection } from "@/components/assets/content/asset-form-section"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
-import type { AssetContentResponse } from "@/types/assets"
+import { workflowQueryKeys } from "@/hooks/useWorkflows"
+import type { AssetContentResponse, ContentSection } from "@/types/assets"
 import type { WorkflowItem } from "@/types/workflow"
+import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
+import type { FormValuesSectionPayload } from "@/types/sections/core"
 
 interface WorkflowDetailPanelProps {
-  row: WorkflowItem
+  /** Fila existente seleccionada en la tabla. */
+  row?: WorkflowItem | null
+  /** Template elegido desde las tarjetas para iniciar un express nuevo. */
+  template?: WorkflowTemplateItem | null
+  /** Documento ya creado por el padre para este template (express sin/ con nombre). */
+  createdDoc?: CreateExpressResult | null
+  /** El padre está creando el documento express (mutación en curso). */
+  isCreating?: boolean
+  /** El usuario envió el paso de nombre/descripción — el padre dispara la creación. */
+  onSubmitName?: (name: string, description?: string) => void
   onClose: () => void
 }
 
-/** Panel derecho: campos del formulario (solo lectura) de la sección `current_step` de la fila seleccionada. */
-export function WorkflowDetailPanel({ row, onClose }: WorkflowDetailPanelProps) {
-  const { t } = useTranslation("workflow")
+/**
+ * Panel derecho: asistente por pasos (una sección form por vez) para responder el
+ * formulario de un workflow, sin salir de la página. Cubre dos orígenes:
+ * - `row`: fila ya existente en la tabla → se edita el documento/ejecución tal cual.
+ * - `template`: tarjeta "Iniciar" → crea el documento express (pidiendo nombre acá
+ *   mismo si el template lo requiere) y luego continúa con el mismo asistente.
+ */
+export function WorkflowDetailPanel({
+  row,
+  template,
+  createdDoc,
+  isCreating,
+  onSubmitName,
+  onClose,
+}: WorkflowDetailPanelProps) {
+  const { t } = useTranslation(["workflow", "sections"])
   const { selectedOrganizationId } = useOrganization()
+  const queryClient = useQueryClient()
+
+  const [step, setStep] = React.useState(0)
+  const [nameValue, setNameValue] = React.useState("")
+  const [descriptionValue, setDescriptionValue] = React.useState("")
+  const [isFormSaving, setIsFormSaving] = React.useState(false)
+  const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
+
+  const documentId = row?.document_id ?? createdDoc?.id ?? null
+  const executionId = row?.execution_id
+
+  const nameRequired = !!template?.require_name_on_express
+  // Bloquea el resto del asistente hasta que se envíe el nombre (solo templates nuevos que lo exigen).
+  const needsNameStep = !row && !!template && nameRequired && !createdDoc
+
+  // Resetea el paso/formulario de nombre cada vez que cambia el origen (otra fila u otro template).
+  // La creación del documento (createdDoc) la controla el padre.
+  React.useEffect(() => {
+    setStep(0)
+    setNameValue("")
+    setDescriptionValue("")
+  }, [row?.execution_id, template?.id])
+
+  const handleCreateWithName = () => {
+    onSubmitName?.(nameValue.trim(), descriptionValue.trim() || undefined)
+  }
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["document-content", row.document_id, row.execution_id],
+    queryKey: ["document-content", documentId, executionId],
     queryFn: () =>
-      getDocumentContent(row.document_id, selectedOrganizationId ?? "", row.execution_id) as Promise<
+      getDocumentContent(documentId ?? "", selectedOrganizationId ?? "", executionId) as Promise<
         AssetContentResponse["data"]
       >,
-    enabled: !!selectedOrganizationId && !!row.current_step,
+    enabled: !!selectedOrganizationId && !!documentId,
     staleTime: 60 * 1000,
     retry: 0,
   })
 
-  const section = data?.content.find((s) => s.id === row.current_step?.section_execution_id)
+  const formSections = React.useMemo(
+    () => (data?.content ?? []).filter((s) => s.section_type === "form"),
+    [data],
+  )
+  const currentSection = formSections[step]
+  const isLastStep = step >= formSections.length - 1
+
+  // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
+  // sin refetch de /content — mismo patrón que assets-content.tsx.
+  const handleSectionUpdate = React.useCallback(
+    (payload?: FormValuesSectionPayload[]) => {
+      if (!payload?.length || !documentId) return
+      const formFieldsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p.form_fields]))
+      queryClient.setQueriesData(
+        { queryKey: ["document-content", documentId] },
+        (old: { content?: ContentSection[] } | undefined) => {
+          if (!old?.content || !Array.isArray(old.content)) return old
+          return {
+            ...old,
+            content: old.content.map((s) =>
+              formFieldsBySectionId.has(s.id) ? { ...s, form_fields: formFieldsBySectionId.get(s.id) } : s,
+            ),
+          }
+        },
+      )
+    },
+    [queryClient, documentId],
+  )
+
+  const handleFinish = React.useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
+    onClose()
+  }, [queryClient, onClose])
+
+  // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
+  const goNext = React.useCallback(() => {
+    if (isLastStep) {
+      handleFinish()
+    } else {
+      setStep((s) => s + 1)
+    }
+  }, [isLastStep, handleFinish])
+
+  const documentName = row?.document_name ?? createdDoc?.name ?? template?.name
+  const internalCode = row?.internal_code
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 border-b p-4 shrink-0">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{row.document_name}</p>
-          <p className="truncate text-xs font-mono text-muted-foreground">{row.internal_code}</p>
+          <p className="truncate text-sm font-semibold">{documentName}</p>
+          {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
+          {currentSection?.section_name && (
+            <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+          )}
         </div>
         <HuemulButton
           variant="ghost"
@@ -49,9 +151,41 @@ export function WorkflowDetailPanel({ row, onClose }: WorkflowDetailPanelProps) 
       </div>
 
       <div className="flex-1 overflow-auto p-4">
-        {!row.current_step ? (
-          <p className="text-sm text-muted-foreground">{t("panel.noCurrentStep")}</p>
-        ) : isLoading ? (
+        {needsNameStep ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="workflow-express-name" className="text-xs text-muted-foreground font-normal">
+                {t("expressSheet.name")}
+                <span className="text-destructive"> *</span>
+              </Label>
+              <Input
+                id="workflow-express-name"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                placeholder={t("expressSheet.namePlaceholder")}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="workflow-express-description" className="text-xs text-muted-foreground font-normal">
+                {t("expressSheet.description")}
+              </Label>
+              <Textarea
+                id="workflow-express-description"
+                value={descriptionValue}
+                onChange={(e) => setDescriptionValue(e.target.value)}
+                placeholder={t("expressSheet.descriptionPlaceholder")}
+                rows={4}
+              />
+            </div>
+            <HuemulButton
+              label={t("wizard.next")}
+              loading={isCreating}
+              disabled={nameValue.trim().length === 0}
+              onClick={handleCreateWithName}
+              className="self-end"
+            />
+          </div>
+        ) : !documentId || isLoading || isCreating ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
@@ -60,20 +194,45 @@ export function WorkflowDetailPanel({ row, onClose }: WorkflowDetailPanelProps) 
             <AlertCircle className="h-4 w-4 shrink-0" />
             {t("panel.loadError")}
           </div>
-        ) : !section ? (
-          <p className="text-sm text-muted-foreground">{t("panel.sectionNotFound")}</p>
+        ) : formSections.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("wizard.noFormSections")}</p>
         ) : (
           <AssetFormSection
-            sectionExecutionId={section.id}
-            formFields={section.form_fields ?? []}
+            key={currentSection.id}
+            ref={formSectionRef}
+            sectionExecutionId={currentSection.id}
+            formFields={currentSection.form_fields ?? []}
             organizationId={selectedOrganizationId ?? undefined}
-            documentId={row.document_id}
-            canInteract={false}
-            isEditing={false}
-            onExitEditing={() => {}}
+            documentId={documentId}
+            canInteract
+            isEditing
+            onExitEditing={goNext}
+            onUpdate={handleSectionUpdate}
+            onSavingChange={setIsFormSaving}
           />
         )}
       </div>
+
+      {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && (
+        <div className="flex items-center justify-between gap-2 border-t p-4 shrink-0">
+          <HuemulButton
+            variant="outline"
+            size="sm"
+            icon={ChevronLeft}
+            label={t("wizard.back")}
+            disabled={step === 0 || isFormSaving}
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+          />
+          <HuemulButton
+            size="sm"
+            icon={isLastStep ? Check : ChevronRight}
+            iconPosition="right"
+            label={isLastStep ? t("wizard.finish") : t("wizard.next")}
+            disabled={isFormSaving}
+            onClick={() => formSectionRef.current?.exit()}
+          />
+        </div>
+      )}
     </div>
   )
 }

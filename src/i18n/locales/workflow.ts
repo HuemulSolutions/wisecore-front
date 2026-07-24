@@ -6,7 +6,7 @@ const translations = {
   },
   columns: {
     internalCode: { en: "Code", es: "Código" },
-    template: { en: "Template", es: "Plantilla" },
+    template: { en: "Workflow", es: "Workflow" },
     lifecycleState: { en: "State", es: "Estado" },
     progress: { en: "Progress", es: "Progreso" },
     currentStep: { en: "Current step", es: "Paso actual" },
@@ -34,6 +34,13 @@ const translations = {
     description: { en: "Description", es: "Descripción" },
     descriptionPlaceholder: { en: "Briefly describe this request...", es: "Describe brevemente esta solicitud..." },
     success: { en: "Document created successfully", es: "Documento creado correctamente" },
+  },
+  wizard: {
+    next: { en: "Next", es: "Siguiente" },
+    back: { en: "Back", es: "Atrás" },
+    finish: { en: "Finish", es: "Finalizar" },
+    creating: { en: "Creating...", es: "Creando..." },
+    noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
   },
 }
 
