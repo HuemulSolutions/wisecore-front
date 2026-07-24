@@ -11,9 +11,12 @@ import { useOrganization } from '@/contexts/organization-context';
 import { parseApiDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { getExecutionDisplayLabel } from './utils/version-utils';
+import { formatFieldValueForCopy, LABEL_QUESTION_TYPE } from '@/components/sections/question-type-meta';
 import type { ContentSection } from '@/types/assets';
+import type { FormFieldValue } from '@/types/sections/core';
 import type { HuemulFieldOption } from '@/types/huemul';
 import type { AssetVersionCompareSheetProps } from '@/types/asset-version-compare-sheet';
+import type { TFunction } from 'i18next';
 export type { AssetVersionCompareSheetProps } from '@/types/asset-version-compare-sheet';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -70,6 +73,31 @@ function normalizeContent(value: string | undefined | null): string {
     return (value ?? '').replace(/\\n/g, '\n');
 }
 
+// Serializa las respuestas de una sección form a texto plano comparable, un campo
+// por párrafo (orden estable por `order`). Reutiliza formatFieldValueForCopy —
+// mismo formateo que "Copiar" en asset-form-section.tsx (opciones id→label, fechas,
+// booleanos, etc.) — para no duplicar esas reglas por question_type.
+function serializeFormFields(fields: FormFieldValue[], t: TFunction): string {
+    return [...fields]
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map((f) =>
+            f.question_type === LABEL_QUESTION_TYPE
+                ? `**${f.field_name}**`
+                : `**${f.field_name}:** ${formatFieldValueForCopy(f, t)}`,
+        )
+        .join('\n\n');
+}
+
+// Texto comparable de una sección: para secciones form (content siempre "" —
+// las respuestas viven en form_fields) se serializan los campos; el resto sigue
+// comparando por `content` como antes.
+function sectionToComparableText(section: ContentSection, t: TFunction): string {
+    if (section.form_fields && section.form_fields.length > 0) {
+        return serializeFormFields(section.form_fields, t);
+    }
+    return normalizeContent(section.content);
+}
+
 /**
  * Merge the sections of two versions, joined by `section_id` (stable across
  * versions). Right-version order is primary; left-only sections (removed) are
@@ -78,6 +106,7 @@ function normalizeContent(value: string | undefined | null): string {
 function mergeSections(
     left: ContentSection[],
     right: ContentSection[],
+    t: TFunction,
 ): MergedSection[] {
     const leftById = new Map<string, ContentSection>();
     for (const s of left) {
@@ -90,8 +119,8 @@ function mergeSections(
         if (!rs.section_id) continue;
         rightIds.add(rs.section_id);
         const ls = leftById.get(rs.section_id);
-        const leftContent = normalizeContent(ls?.content);
-        const rightContent = normalizeContent(rs.content);
+        const leftContent = ls ? sectionToComparableText(ls, t) : '';
+        const rightContent = sectionToComparableText(rs, t);
         merged.push({
             sectionId: rs.section_id,
             name: rs.section_name || ls?.section_name || rs.section_id,
@@ -110,7 +139,7 @@ function mergeSections(
         merged.push({
             sectionId: ls.section_id,
             name: ls.section_name || ls.section_id,
-            leftContent: normalizeContent(ls.content),
+            leftContent: sectionToComparableText(ls, t),
             rightContent: '',
             changeStatus: 'removed',
         });
@@ -203,7 +232,7 @@ export function AssetVersionCompareSheet({
     defaultRightExecutionId,
     defaultLeftExecutionId,
 }: AssetVersionCompareSheetProps) {
-    const { t } = useTranslation('assets');
+    const { t } = useTranslation(['assets', 'sections']);
     const { selectedOrganizationId } = useOrganization();
 
     // Executions sorted newest-first, used for defaults and selector options.
@@ -254,8 +283,8 @@ export function AssetVersionCompareSheet({
         if (sameVersion) return [];
         const leftSections: ContentSection[] = leftQuery.data?.content ?? [];
         const rightSections: ContentSection[] = rightQuery.data?.content ?? [];
-        return mergeSections(leftSections, rightSections);
-    }, [sameVersion, leftQuery.data, rightQuery.data]);
+        return mergeSections(leftSections, rightSections, t);
+    }, [sameVersion, leftQuery.data, rightQuery.data, t]);
 
     const effectiveSelectedId = selectedSectionId ?? merged[0]?.sectionId ?? null;
     const selectedSection = merged.find((s) => s.sectionId === effectiveSelectedId) ?? null;

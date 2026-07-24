@@ -304,6 +304,7 @@ const translations = {
       manual: { en: "Manual edit", es: "Edición manual" },
       modify_ai: { en: "AI edit", es: "Edición IA" },
       run_ai: { en: "AI run", es: "Ejecución IA" },
+      modify_form: { en: "Form edit", es: "Edición de formulario" },
     },
   },
   versionCompare: {
