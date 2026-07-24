@@ -2534,7 +2534,7 @@ export function AssetContent({
 
                       </div>
                       {/* Mode Toggle + Version dropdown + More Options — always in the same position for muscle memory */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {canSwitchToEditorMode && (
                           <ViewModeToggle
                             isViewMode={isViewMode}
@@ -2760,7 +2760,7 @@ export function AssetContent({
                   <Skeleton className="h-7 w-18 rounded-md" />
                 </div>
                 <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-lg">
-                  <Skeleton className="h-7 w-[106px] rounded-md" />
+                  <Skeleton className="h-7 w-26.5 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
                   <Skeleton className="h-7 w-8 rounded-md" />
@@ -2856,7 +2856,7 @@ export function AssetContent({
           <ScrollArea className="h-full max-w-full">
             <div 
               ref={scrollRestoration.viewportRef}
-              className={`${isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5'} px-4 md:px-6 [contain:inline-size]`}
+              className={`${isViewMode ? 'pt-2 md:pt-3 pb-4 md:pb-5' : 'py-4 md:py-5'} px-4 md:px-6 contain-[inline-size]`}
             >
             {selectedFile.type === 'document' ? (
               <>

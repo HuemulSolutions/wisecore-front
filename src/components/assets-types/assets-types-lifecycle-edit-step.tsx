@@ -776,7 +776,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
           closeOnSuccess: true,
         }}
       >
-        <div className="flex flex-col gap-4 py-2 min-h-[280px]">
+        <div className="flex flex-col gap-4 py-2 min-h-70">
           <HuemulField
             type="text"
             label={t("lifecycle.groupNameLabel")}

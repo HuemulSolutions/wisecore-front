@@ -7,7 +7,7 @@ import { useDiagram } from "@/hooks/useDiagrams"
 import { useDocumentTypes } from "@/hooks/useDocumentTypes"
 import { isErrorCode } from "@/lib/error-utils"
 import { RelationshipsCanvas } from "@/components/document-type-relationships"
-import { buildInitialCanvasNodes } from "@/lib/diagram-utils"
+import { buildInitialCanvasNodes, buildInitialCanvasElements } from "@/lib/diagram-utils"
 
 export interface DiagramEditSheetProps {
   open: boolean
@@ -32,6 +32,7 @@ export function DiagramEditSheet({
   const documentTypes = docTypesResponse?.data ?? []
 
   const initialNodes = diagram ? buildInitialCanvasNodes(diagram) : undefined
+  const initialElements = diagram ? buildInitialCanvasElements(diagram) : undefined
 
   const hasError = !!diagramError || (!isLoadingDiagram && !diagram)
   const isReady = !!diagram && !!initialNodes && !isLoadingDocTypes
@@ -59,6 +60,7 @@ export function DiagramEditSheet({
             mode="execution"
             initialNodes={initialNodes}
             initialRelationships={diagram.relationships}
+            initialElements={initialElements}
             editingDiagram={{
               id: diagram.id,
               name: diagram.name,

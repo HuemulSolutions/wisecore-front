@@ -1,5 +1,5 @@
 import type { Diagram } from "@/types/diagrams"
-import type { InitialCanvasNode } from "@/types/document-type-relationships"
+import type { InitialCanvasNode, InitialCanvasElement, CanvasElementKind } from "@/types/document-type-relationships"
 
 /**
  * Builds the RelationshipsCanvas seed nodes from a saved Diagram. The backend
@@ -17,6 +17,30 @@ export function buildInitialCanvasNodes(diagram: Diagram): InitialCanvasNode[] {
       name: d.document_name ?? d.document_type.name,
       color: d.document_type.color,
       position: { x: Number(position?.x ?? 0), y: Number(position?.y ?? 0) },
+    }
+  })
+}
+
+const DEFAULT_ELEMENT_WIDTH = 160
+const DEFAULT_ELEMENT_HEIGHT = 80
+
+/**
+ * Builds the RelationshipsCanvas seed text/container elements from a saved Diagram's
+ * `texts`. A container is a bordered text row (has_border) whose `content` is its
+ * title; a plain text row (no border) is a free-floating label. `kind` is stashed in
+ * `position` on save so this reconstructs the exact element type on reload.
+ */
+export function buildInitialCanvasElements(diagram: Diagram): InitialCanvasElement[] {
+  return diagram.texts.map((txt) => {
+    const position = txt.position as { x?: number; y?: number; width?: number; height?: number; kind?: CanvasElementKind }
+    const kind: CanvasElementKind = position?.kind ?? (txt.has_border ? "container" : "text")
+    return {
+      kind,
+      content: txt.content,
+      color: (kind === "container" ? txt.border_color : txt.font_color) ?? (kind === "container" ? "#94a3b8" : "#0f172a"),
+      position: { x: Number(position?.x ?? 0), y: Number(position?.y ?? 0) },
+      width: Number(position?.width ?? DEFAULT_ELEMENT_WIDTH),
+      height: Number(position?.height ?? DEFAULT_ELEMENT_HEIGHT),
     }
   })
 }

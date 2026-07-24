@@ -201,7 +201,7 @@ export function HuemulSheet({
         {/* ── Body ───────────────────────────────────────────────────── */}
         <div
           className={cn(
-            "flex-1 overflow-y-auto px-6 py-2 [scrollbar-gutter:stable]",
+            "flex-1 overflow-y-auto px-6 py-2 scrollbar-gutter-stable",
             bodyClassName,
           )}
         >

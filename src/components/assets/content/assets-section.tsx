@@ -398,7 +398,7 @@ function SectionExecutionInner({
                     <div className="mr-auto flex items-center gap-1.5">
                         {(sectionName || sectionType) && (
                             <div className="flex items-center rounded-md border border-blue-100 bg-blue-50/55 px-2.5 py-1 backdrop-blur-[1px]">
-                                <span className="max-w-[240px] truncate text-xs font-medium text-blue-700/80">
+                                <span className="max-w-60 truncate text-xs font-medium text-blue-700/80">
                                     {sectionName || t('section.untitled')}
                                 </span>
                                 <span className="mx-1.5 text-[10px] text-blue-300">•</span>
