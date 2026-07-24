@@ -23,6 +23,18 @@ const translations = {
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
     close: { en: "Close", es: "Cerrar" },
   },
+  availableTemplates: {
+    title: { en: "Available workflows", es: "Workflows disponibles" },
+    start: { en: "Start", es: "Iniciar" },
+  },
+  expressSheet: {
+    title: { en: "Start workflow", es: "Iniciar workflow" },
+    name: { en: "Name", es: "Nombre" },
+    namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
+    description: { en: "Description", es: "Descripción" },
+    descriptionPlaceholder: { en: "Briefly describe this request...", es: "Describe brevemente esta solicitud..." },
+    success: { en: "Document created successfully", es: "Documento creado correctamente" },
+  },
 }
 
 export default translations

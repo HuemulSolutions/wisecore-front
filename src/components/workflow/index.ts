@@ -1,3 +1,5 @@
 export { WorkflowTable } from "./workflow-table"
 export { WorkflowDetailPanel } from "./workflow-detail-panel"
 export { WorkflowProgressBar } from "./workflow-progress-bar"
+export { WorkflowTemplateCards } from "./workflow-template-cards"
+export { WorkflowExpressSheet } from "./workflow-express-sheet"
