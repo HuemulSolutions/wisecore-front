@@ -3522,6 +3522,7 @@ export function AssetContent({
         }}
         afterFromSectionId={afterFromSectionId}
         existingSections={sectionOptionsForExecutionDialog}
+        documentId={selectedFile?.id}
         onSubmit={handleSectionExecutionSubmit}
         isPending={createSectionExecutionMutation.isPending}
         onClose={() => {
