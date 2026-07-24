@@ -10,20 +10,24 @@ import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
 import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
-import type { FormFieldValue } from "@/types/sections/core";
+import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
 import { isMediaToken } from "@/lib/plate-media-utils";
 import { Check, FileX, Info, Loader2 } from "lucide-react";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
+  MULTI_SELECT_QUESTION_TYPES,
   QUESTION_TYPE,
+  SINGLE_SELECT_QUESTION_TYPES,
   hasAnswer,
   isFieldAnswerable,
   isFieldVisible,
+  normalizeSelectionValue,
   questionTypeLabel,
   readFieldConfig,
   readFieldOptions,
   resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
+import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
 
 interface AssetFormSectionProps {
   /** id del section_execution → se usa en el PATCH /form_values */
@@ -41,8 +45,12 @@ interface AssetFormSectionProps {
   onExitEditing: () => void;
   responderName?: string;
   respondedAt?: string;
-  /** Refresca el contenido del asset tras guardar */
-  onUpdate?: () => void;
+  /**
+   * Refresca el contenido del asset tras guardar. Cuando el autoguardado o el flush
+   * final trae la respuesta del PATCH /form_values, se pasa el payload (agrupado por
+   * section_execution_id) para que el padre parchee el caché sin refetch completo.
+   */
+  onUpdate?: (payload?: FormValuesSectionPayload[]) => void;
   /** Notifica al padre el estado de isSaving (para deshabilitar/mostrar loading en sus propios botones) */
   onSavingChange?: (isSaving: boolean) => void;
 }
@@ -64,9 +72,18 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 
 // Inicializa el mapa de respuestas desde los valores actuales del snapshot.
 // Si value es config (array de opciones u objeto de configuración), no es una respuesta → null.
+// Para campos de selección, normaliza primero: el backend inicializa value = default_value
+// (las opciones de config) en campos sin responder, y algunos guardados legacy quedaron con
+// esas opciones mezcladas junto a los ids reales — normalizeSelectionValue descarta el ruido
+// de config y deja solo los ids realmente seleccionados.
 function buildInitialAnswers(fields: FormFieldValue[]): AnswerMap {
   const map: AnswerMap = {};
-  for (const f of fields) map[f.id] = hasAnswer(f.value) ? f.value : null;
+  for (const f of fields) {
+    const isMulti = MULTI_SELECT_QUESTION_TYPES.includes(f.question_type ?? "");
+    const isSingle = SINGLE_SELECT_QUESTION_TYPES.includes(f.question_type ?? "");
+    const value = isMulti || isSingle ? normalizeSelectionValue(f.value, isMulti) : f.value;
+    map[f.id] = hasAnswer(value) ? value : null;
+  }
   return map;
 }
 
@@ -188,9 +205,9 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     toast.loading(t("common:saving"), { id: toastId });
     const values = changed.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
     updateSectionFormValues(sectionExecutionId, values, organizationId)
-      .then(() => {
+      .then((payload) => {
         for (const f of changed) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
-        onUpdate?.();
+        onUpdate?.(payload);
         toast.success(t("form.fill.autoSaved"), { id: toastId });
         setSavedFieldIds((prev) => new Set([...prev, ...ids]));
         ids.forEach((id) => {
@@ -266,9 +283,9 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     setIsSaving(true);
     try {
       const values = changed.map((f) => ({ id: f.id, value: answers[f.id] ?? null }));
-      await updateSectionFormValues(sectionExecutionId, values, organizationId);
+      const payload = await updateSectionFormValues(sectionExecutionId, values, organizationId);
       for (const f of changed) lastSavedAnswersRef.current[f.id] = answers[f.id];
-      onUpdate?.();
+      onUpdate?.(payload);
     } catch (error) {
       handleApiError(error, { fallbackMessage: t("form.fill.saveError") });
       return;
@@ -302,6 +319,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     [QUESTION_TYPE.number]: "0",
     [QUESTION_TYPE.decimal]: "1.2",
     [QUESTION_TYPE.dropdown]: t("form.fill.selectOption"),
+    [QUESTION_TYPE.dropdownMultiple]: t("form.fill.selectOptions"),
   };
 
   const renderInput = (field: FormFieldValue, opts?: { disabled?: boolean }) => {
@@ -570,8 +588,26 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     <div className="w-full">
       <div className="space-y-5">
         {displayedFields.map((field, index) => {
-          const typeHint = questionTypeLabel(field.question_type ?? "", t);
           const isExiting = exitingFieldIds.has(field.id);
+
+          // Etiqueta: separador visual de sub-sección, no es una pregunta — no lleva
+          // label/badge/input, solo el título con línea divisoria.
+          if (field.question_type === QUESTION_TYPE.label) {
+            return (
+              <div
+                key={field.id || index}
+                className={cn(
+                  isExiting
+                    ? "pointer-events-none animate-out fade-out slide-out-to-top-2 duration-200"
+                    : "animate-in fade-in slide-in-from-top-2 duration-300",
+                )}
+              >
+                <SectionFieldSeparator name={field.field_name} />
+              </div>
+            );
+          }
+
+          const typeHint = questionTypeLabel(field.question_type ?? "", t);
           // Campo cuya respuesta puede mostrar/ocultar otras preguntas (referenciado en algún depends_on).
           const isTriggerField =
             editing && !!field.field_id && triggerFieldIds.has(field.field_id) && isFieldAnswerable(field);

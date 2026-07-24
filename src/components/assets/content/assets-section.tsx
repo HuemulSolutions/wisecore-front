@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
-import { formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
+import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -230,7 +230,12 @@ function SectionExecutionInner({
                 ? (sectionExecution.form_fields ?? [])
                     .filter(isFieldVisible)
                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-                    .map((field) => `${field.field_name}: ${formatFieldValueForCopy(field, t)}`)
+                    .map((field) =>
+                        // Etiqueta es un separador visual, no una pregunta: solo el título, sin "campo: valor".
+                        field.question_type === QUESTION_TYPE.label
+                            ? formatFieldValueForCopy(field, t)
+                            : `${field.field_name}: ${formatFieldValueForCopy(field, t)}`,
+                    )
                     .join('\n')
                 : displayedContent;
             await navigator.clipboard.writeText(contentToCopy);

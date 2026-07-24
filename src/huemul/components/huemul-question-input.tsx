@@ -1,5 +1,5 @@
 import { HuemulField } from "@/huemul/components/huemul-field"
-import { HuemulCheckboxGroup } from "@/huemul/components/huemul-checkbox-group"
+import { HuemulCombobox } from "@/huemul/components/huemul-combobox"
 import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
 
 export interface HuemulQuestionInputOption {
@@ -158,11 +158,12 @@ export function HuemulQuestionInput({
 
     case QUESTION_TYPE.dropdownMultiple:
       return (
-        <HuemulCheckboxGroup
-          label={label}
+        <HuemulCombobox
+          multiSelect
           value={arrayValue as string[]}
           options={mappedOptions}
-          onChange={(next) => onChange(next)}
+          onValueChange={(next) => onChange(next as string[])}
+          placeholder={placeholder}
           disabled={disabled}
           error={error}
         />

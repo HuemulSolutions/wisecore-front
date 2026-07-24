@@ -13,6 +13,7 @@ import {
   readFieldConfig,
   readFieldOptions,
 } from "./question-type-meta";
+import { SectionFieldSeparator } from "./section-field-separator";
 
 interface SectionFormFieldsViewProps {
   fields: SectionFormField[];
@@ -186,6 +187,9 @@ export function SectionFormFieldsView({ fields }: SectionFormFieldsViewProps) {
   return (
     <div className="space-y-3">
       {sorted.map((field, index) => {
+        if (field.question_type === QUESTION_TYPE.label) {
+          return <SectionFieldSeparator key={field.field_id || index} name={field.field_name} />;
+        }
         const TypeIcon = questionTypeIcon(field.question_type);
         return (
           <div key={field.field_id || index} className="rounded-lg border border-gray-200 bg-gray-50 p-4">

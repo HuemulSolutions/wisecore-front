@@ -16,6 +16,7 @@ import {
   Upload,
   Star,
   CircleHelp,
+  Heading,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TFunction } from "i18next";
@@ -24,10 +25,14 @@ import { isMediaToken } from "@/lib/plate-media-utils";
 
 // question_type que referencia un custom field
 export const CUSTOM_FIELD_QUESTION_TYPE = "custom_field";
+// question_type puramente visual: separador/título de sub-sección, no se responde ni se
+// persiste valor. No es un control editable — no lleva case en HuemulQuestionInput, se
+// detecta a nivel de loop en cada consumidor (ver ia context/question-type-input-guide.md).
+export const LABEL_QUESTION_TYPE = "etiqueta";
 // data_types que admiten min/max
 export const NUMERIC_DATA_TYPES = ["int", "decimal"];
 
-// Catálogo canónico de los 14 question types soportados (slugs del backend).
+// Catálogo canónico de los 15 question types soportados (slugs del backend).
 // ⚠️ Deben coincidir con los slugs reales que devuelve /question_types/.
 export const QUESTION_TYPE = {
   shortAnswer: "respuesta_corta",
@@ -45,6 +50,7 @@ export const QUESTION_TYPE = {
   date: "fecha",
   time: "hora",
   customField: CUSTOM_FIELD_QUESTION_TYPE,
+  label: LABEL_QUESTION_TYPE,
 } as const;
 
 // Estado de edición de un form field con una clave transitoria para dnd-kit
@@ -91,6 +97,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   lista_desplegable_multiple: CheckSquare,
   booleano: ToggleLeft,
   si_no: ToggleLeft,
+  etiqueta: Heading,
 };
 
 export const questionTypeIcon = (slug: string): LucideIcon =>
@@ -153,6 +160,24 @@ export const writeFieldConfig = (
 export const jsonbToInputValue = (v: unknown): string | number =>
   v === null || v === undefined || typeof v === "boolean" ? "" : (v as string | number);
 
+// question_types de selección single / multi — usados para normalizar el value que
+// llega desde el backend (ver normalizeSelectionValue).
+export const SINGLE_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.multipleChoice, QUESTION_TYPE.dropdown];
+export const MULTI_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.dropdownMultiple];
+
+// Extrae los ids seleccionados de un value de selección, descartando los objetos-opción
+// (el backend inicializa value = default_value en campos sin responder, y default_value
+// para estos question_types es el array de opciones de config, no una respuesta). La
+// respuesta real siempre son entradas primitivas (id string/number); los objetos {id,label}
+// son ruido de config y se descartan. isMulti → string[]; single → string | null.
+export function normalizeSelectionValue(value: unknown, isMulti: boolean): string[] | string | null {
+  const entries = Array.isArray(value) ? value : [value];
+  const ids = entries
+    .filter((e) => e != null && typeof e !== "object")
+    .map((e) => String(e));
+  return isMulti ? ids : (ids[0] ?? null);
+}
+
 // Genera un field_id seguro a partir del enunciado del campo.
 export const slugifyFieldId = (name: string): string =>
   name.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 64) || "";
@@ -166,10 +191,12 @@ export function isFieldVisible(field: FormFieldValue): boolean {
 }
 
 // ¿El usuario puede responder la pregunta? custom_field siempre es solo lectura;
-// una pregunta condicional inactiva (can_answer === false) también lo es, aunque
-// se muestre deshabilitada por show_when_inactive.
+// etiqueta es puramente visual (no hay nada que responder); una pregunta condicional
+// inactiva (can_answer === false) también lo es, aunque se muestre deshabilitada por
+// show_when_inactive.
 export function isFieldAnswerable(field: FormFieldValue): boolean {
   if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) return false;
+  if (field.question_type === LABEL_QUESTION_TYPE) return false;
   if (field.is_visible === false) return false;
   if (field.can_answer === false) return false;
   return true;
@@ -190,6 +217,9 @@ export function hasAnswer(value: unknown): boolean {
 // Replica en texto las ramas de renderReadOnly (asset-form-section.tsx) sin JSX.
 export function formatFieldValueForCopy(field: FormFieldValue, t: TFunction): string {
   const value = field.value;
+
+  // Etiqueta: solo el título, sin "sin respuesta" (no es una pregunta real).
+  if (field.question_type === LABEL_QUESTION_TYPE) return field.field_name;
 
   if (!hasAnswer(value)) return t("sections:form.fill.noAnswer");
 

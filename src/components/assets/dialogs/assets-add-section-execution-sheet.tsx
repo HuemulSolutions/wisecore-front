@@ -16,6 +16,7 @@ export function AddSectionExecutionSheet({
   onClose,
   defaultType,
   defaultManualInput,
+  documentId,
 }: AddSectionExecutionSheetProps) {
   const [isFormValid, setIsFormValid] = useState(false)
   const { t } = useTranslation(["assets", "common"])
@@ -43,7 +44,7 @@ export function AddSectionExecutionSheet({
       }
       icon={PlusCircle}
       side="right"
-      maxWidth="sm:max-w-xl"
+      maxWidth="w-full sm:max-w-2xl lg:max-w-3xl"
       cancelLabel={t('common:cancel')}
       saveAction={{
         label: t('addSectionExecution.submitLabel'),
@@ -64,6 +65,7 @@ export function AddSectionExecutionSheet({
         onValidationChange={setIsFormValid}
         defaultType={defaultType}
         defaultManualInput={defaultManualInput}
+        documentId={documentId}
       />
     </HuemulSheet>
   )

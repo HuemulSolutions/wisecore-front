@@ -16,6 +16,7 @@ import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/fiel
 import { SectionQuestionTypeFields } from "./section-question-type-fields";
 import { SectionFormFieldDependencyEditor } from "./section-form-field-dependency-editor";
 import {
+  QUESTION_TYPE,
   questionTypeIcon,
   questionTypeLabel,
   slugifyFieldId,
@@ -253,17 +254,19 @@ export function SectionFormFieldCard({
               tooltip={t("form.formFields.delete")}
               className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
             />
-            <div className="ml-2 flex items-center gap-2">
-              <Label htmlFor={`required-${field.__key}`} className="text-xs text-gray-600">
-                {t("form.formFields.required")}
-              </Label>
-              <Switch
-                id={`required-${field.__key}`}
-                checked={field.required ?? false}
-                onCheckedChange={(checked) => onUpdate({ required: !!checked })}
-                disabled={isPending}
-              />
-            </div>
+            {field.question_type !== QUESTION_TYPE.label && (
+              <div className="ml-2 flex items-center gap-2">
+                <Label htmlFor={`required-${field.__key}`} className="text-xs text-gray-600">
+                  {t("form.formFields.required")}
+                </Label>
+                <Switch
+                  id={`required-${field.__key}`}
+                  checked={field.required ?? false}
+                  onCheckedChange={(checked) => onUpdate({ required: !!checked })}
+                  disabled={isPending}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

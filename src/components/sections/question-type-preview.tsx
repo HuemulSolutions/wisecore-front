@@ -3,6 +3,7 @@ import { Mail, Star, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { NUMERIC_DATA_TYPES, QUESTION_TYPE } from "./question-type-meta";
+import { SectionFieldSeparator } from "./section-field-separator";
 
 // Caja gris de vista previa (mismo estilo compartido entre sections y custom fields).
 export function PreviewBox({ children }: { children: React.ReactNode }) {
@@ -166,6 +167,9 @@ export function QuestionTypePreview({
 
     case QUESTION_TYPE.customField:
       return null;
+
+    case QUESTION_TYPE.label:
+      return <SectionFieldSeparator name={fieldName || t("form.formFields.fieldName")} />;
 
     default: {
       if (NUMERIC_DATA_TYPES.includes(dataType as string)) {

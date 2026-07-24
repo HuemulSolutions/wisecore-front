@@ -81,6 +81,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
 import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
+import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
@@ -844,8 +845,29 @@ export function AssetContent({
   const selectedFileIdRef = useRef(selectedFile?.id);
   selectedFileIdRef.current = selectedFile?.id;
 
-  const handleSectionUpdate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileIdRef.current] });
+  // Con payload (autoguardado de formularios): parchea en el caché solo las secciones
+  // form devueltas por el PATCH /form_values, sin refetch de /documents/{id}/content
+  // (que traería también las secciones ai/manual/reference sin necesidad).
+  // Sin payload (resto de ediciones de sección): comportamiento previo, invalida y refetch.
+  const handleSectionUpdate = useCallback((payload?: FormValuesSectionPayload[]) => {
+    const fileId = selectedFileIdRef.current;
+    if (payload?.length) {
+      const formFieldsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p.form_fields]));
+      queryClient.setQueriesData(
+        { queryKey: ['document-content', fileId] },
+        (old: { content?: ContentSection[] } | undefined) => {
+          if (!old?.content || !Array.isArray(old.content)) return old;
+          return {
+            ...old,
+            content: old.content.map((s) =>
+              formFieldsBySectionId.has(s.id) ? { ...s, form_fields: formFieldsBySectionId.get(s.id) } : s,
+            ),
+          };
+        },
+      );
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
   }, [queryClient]);
 
   // Al cerrar el sheet de secciones, refrescar el contenido del asset.
@@ -3500,6 +3522,7 @@ export function AssetContent({
         }}
         afterFromSectionId={afterFromSectionId}
         existingSections={sectionOptionsForExecutionDialog}
+        documentId={selectedFile?.id}
         onSubmit={handleSectionExecutionSubmit}
         isPending={createSectionExecutionMutation.isPending}
         onClose={() => {

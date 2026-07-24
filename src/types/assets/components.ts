@@ -130,7 +130,8 @@ export interface SectionExecutionProps {
     /** Valores del formulario (solo para secciones type="form") */
     form_fields?: import('../sections/core').FormFieldValue[]
   }
-  onUpdate?: () => void
+  /** payload solo lo envía el autoguardado de formularios (ver FormValuesSectionPayload) */
+  onUpdate?: (payload?: import('../sections/core').FormValuesSectionPayload[]) => void
   readyToEdit: boolean
   sectionIndex?: number
   documentId?: string

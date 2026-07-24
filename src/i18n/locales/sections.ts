@@ -167,6 +167,7 @@ const translations = {
       recalculating: { en: "Updating form...", es: "Actualizando formulario..." },
       noAnswer: { en: "No answer", es: "Sin respuesta" },
       selectOption: { en: "Select an option...", es: "Seleccionar opción..." },
+      selectOptions: { en: "Select options...", es: "Seleccionar opciones..." },
       emptyForm: { en: "This form has no questions.", es: "Este formulario no tiene preguntas." },
       editResponses: { en: "Edit responses", es: "Editar respuestas" },
       statusPending: { en: "Pending", es: "Pendiente" },
@@ -242,6 +243,7 @@ const translations = {
         fecha: { en: "Date", es: "Fecha" },
         hora: { en: "Time", es: "Hora" },
         custom_field: { en: "Custom field", es: "Campo personalizado" },
+        etiqueta: { en: "Label / separator", es: "Etiqueta / separador" },
       },
       dependency: {
         title: { en: "Conditional dependency", es: "Dependencia condicional" },

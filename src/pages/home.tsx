@@ -22,6 +22,7 @@ import { HuemulFilterPanel } from '@/huemul/components/huemul-filter-panel';
 import { HuemulFilterInline } from '@/huemul/components/huemul-filter-inline';
 import { HuemulCustomFieldFilter } from '@/huemul/components/huemul-custom-field-filter';
 import { HuemulStatCard } from '@/huemul/components/huemul-stat-card';
+import { HuemulLifecycleBadge } from '@/huemul/components/huemul-lifecycle-badge';
 import type { HuemulStatCardColor } from '@/huemul/components/huemul-stat-card';
 import { useHuemulFilters } from '@/hooks/useHuemulFilters';
 import { ImportAssetFromFileSheet } from '@/components/assets/dialogs/assets-import-from-file-sheet';
@@ -41,15 +42,6 @@ import type { Execution, ExecutionLifecycleState, ExecutionSearchType } from '@/
 import { ApiError } from '@/types/api-error';
 import { formatRelativeTime, formatAbsoluteDate } from '@/lib/format-relative-time';
 import { getBrowserDateLocale } from '@/lib/format-date-range';
-
-const LIFECYCLE_STATE_COLORS: Record<ExecutionLifecycleState, string> = {
-  draft: 'bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-200',
-  in_review: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
-  in_approval: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
-  approved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
-  published: 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-200',
-  archived: 'bg-gray-100 text-gray-800 dark:bg-gray-950 dark:text-gray-200',
-};
 
 function getInitials(name: string): string {
   return name
@@ -343,13 +335,7 @@ export default function Home() {
       label: t('executionsTable.columns.lifecycleState'),
       sortKey: 'lifecycle_state',
       defaultWidth: 150,
-      render: (item) => (
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${LIFECYCLE_STATE_COLORS[item.lifecycle_state]}`}
-        >
-          {tAssets(`lifecycle.stateLabels.${item.lifecycle_state}`)}
-        </span>
-      ),
+      render: (item) => <HuemulLifecycleBadge state={item.lifecycle_state} />,
     },
     {
       key: 'taskStatus',

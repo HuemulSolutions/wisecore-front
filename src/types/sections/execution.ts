@@ -25,6 +25,7 @@ export interface AddSectionExecutionFormProps {
   onValidationChange?: (isValid: boolean) => void;
   defaultType?: 'ai' | 'manual' | 'reference';
   defaultManualInput?: string;
+  documentId?: string;
 }
 
 export interface SectionExecutionFeedbackProps {

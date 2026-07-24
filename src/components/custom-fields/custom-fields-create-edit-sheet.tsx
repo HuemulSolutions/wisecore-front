@@ -43,8 +43,13 @@ export function CreateEditCustomFieldSheet({
   const { t: tSections } = useTranslation('sections')
 
   // Fetch question types (lazy loading: only when sheet is open). data_type is derived from this catalog.
+  // "etiqueta" es un separador visual exclusivo de form fields de sección — no se puede crear
+  // como custom field suelto, se excluye del catálogo ofrecido acá.
   const { data: questionTypesResponse, isLoading: loadingQuestionTypes } = useCustomFieldQuestionTypes({ enabled: open })
-  const questionTypes = useMemo(() => questionTypesResponse?.data ?? [], [questionTypesResponse])
+  const questionTypes = useMemo(
+    () => (questionTypesResponse?.data ?? []).filter((qt) => qt.question_type !== QUESTION_TYPE.label),
+    [questionTypesResponse],
+  )
   const questionTypeDataMap = useMemo(
     () => new Map(questionTypes.map((qt) => [qt.question_type, qt.data_type])),
     [questionTypes],
