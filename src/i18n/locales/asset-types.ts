@@ -214,6 +214,19 @@ const translations = {
       archive: { en: "Archive", es: "Archivado" },
       view: { en: "Reader", es: "Lector" },
     },
+    accessRules: {
+      title: { en: "Additional access rules", es: "Reglas adicionales de acceso" },
+      add: { en: "Add rule", es: "Agregar regla" },
+      addPlaceholder: { en: "Select a rule...", es: "Selecciona una regla..." },
+      sourceStepPlaceholder: { en: "Select the earlier step...", es: "Selecciona el paso anterior..." },
+      stepActorManagerNote: { en: "This rule only applies once a concrete version has completed the earlier step — it won't show up in general access lists.", es: "Esta regla solo aplica una vez que una versión concreta completó el paso anterior — no se refleja en listados generales de acceso." },
+    },
+    accessRuleTypes: {
+      creator: { en: "Creator", es: "Creador" },
+      creator_manager: { en: "Creator's manager", es: "Jefe del creador" },
+      owner_manager: { en: "Owner's manager", es: "Jefe del propietario" },
+      step_actor_manager: { en: "Manager of who completed an earlier step", es: "Jefe de quien completó un paso anterior" },
+    },
     unsavedChanges: {
       title: { en: "Unsaved changes", es: "Cambios sin guardar" },
       description: { en: "You have unsaved changes. If you continue, your changes will be lost.", es: "Tienes cambios sin guardar. Si continúas, se perderán los cambios." },

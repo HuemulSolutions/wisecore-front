@@ -252,6 +252,10 @@ export interface AssetContentResponse {
     latest_discussion?: LatestDiscussion | null;
     created_by_user: UserInfo | null;
     updated_by_user: UserInfo | null;
+    /** Real, immutable creator — distinct from created_by_user (the reassignable owner). */
+    creator_id: string | null;
+    /** Whether created_by (the owner) was ever reassigned away from the original creator. */
+    owner_changed?: boolean;
   };
   transaction_id: string;
   timestamp: string;

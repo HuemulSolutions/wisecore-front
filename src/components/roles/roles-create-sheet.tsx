@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { Plus } from "lucide-react"
-import { usePermissions, useRoleMutations } from "@/hooks/useRbac"
+import { usePermissions, useRoleMutations, useRoles } from "@/hooks/useRbac"
 import PermissionSelector from "./roles-permission-selector"
 import RoleFormFields from "./roles-form-fields"
 import type { CreateRoleSheetProps } from '@/types/roles'
@@ -15,12 +15,16 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
     description: '',
   })
   const [permissions, setPermissions] = useState<string[]>([])
-  
+  const [isPosition, setIsPosition] = useState(false)
+  const [parentRoleId, setParentRoleId] = useState<string | null>(null)
+
   // Only fetch permissions when the sheet is actually open
   const { data: permissionsResponse, isLoading: permissionsLoading } = usePermissions(open)
+  const { data: rolesResponse } = useRoles(open, 1, 1000)
   const { createRole } = useRoleMutations()
 
   const availablePermissions = Array.isArray(permissionsResponse?.data) ? permissionsResponse.data : []
+  const positionRoleOptions = (rolesResponse?.data ?? []).filter((r) => r.is_position)
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -30,6 +34,8 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
         description: '',
       })
       setPermissions([])
+      setIsPosition(false)
+      setParentRoleId(null)
     }
   }, [open])
 
@@ -39,6 +45,8 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
         name: formData.name,
         description: formData.description,
         permissions,
+        is_position: isPosition,
+        parent_role_id: isPosition ? parentRoleId : null,
       }, {
         onSuccess: () => resolve(),
         onError: (error) => reject(error),
@@ -76,6 +84,11 @@ export default function CreateRoleSheet({ open, onOpenChange }: CreateRoleSheetP
           description={formData.description}
           onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
           onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
+          isPosition={isPosition}
+          onIsPositionChange={setIsPosition}
+          parentRoleId={parentRoleId}
+          onParentRoleIdChange={setParentRoleId}
+          positionRoleOptions={positionRoleOptions}
         />
 
         <PermissionSelector

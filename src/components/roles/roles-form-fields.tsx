@@ -10,7 +10,12 @@ export default function RoleFormFields({
   onDescriptionChange,
   nameLabel,
   descriptionLabel,
-  includeTextarea = true
+  includeTextarea = true,
+  isPosition,
+  onIsPositionChange,
+  parentRoleId,
+  onParentRoleIdChange,
+  positionRoleOptions,
 }: RoleFormFieldsProps) {
   const { t } = useTranslation('roles')
   return (
@@ -31,6 +36,29 @@ export default function RoleFormFields({
         rows={3}
         required
       />
+      <HuemulField
+        type="switch"
+        label={t('form.isPosition')}
+        description={t('form.isPositionDescription')}
+        value={isPosition}
+        onChange={(v) => {
+          const next = Boolean(v)
+          onIsPositionChange(next)
+          if (!next) onParentRoleIdChange(null)
+        }}
+        labelFirst
+      />
+      {isPosition && (
+        <HuemulField
+          type="combobox"
+          label={t('form.parentRole')}
+          placeholder={t('form.parentRolePlaceholder')}
+          description={t('form.parentRoleDescription')}
+          value={parentRoleId ?? ''}
+          options={positionRoleOptions.map((r) => ({ value: r.id, label: r.name }))}
+          onChange={(v) => onParentRoleIdChange(v ? String(v) : null)}
+        />
+      )}
     </div>
   )
 }

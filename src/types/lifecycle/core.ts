@@ -24,6 +24,38 @@ export interface LifecycleStepRole {
   role_name?: string;
 }
 
+// ─── Access rules (creator / manager-based access) ──────────────────────────
+
+export type AccessRuleType = 'creator' | 'creator_manager' | 'owner_manager' | 'step_actor_manager';
+
+export interface AccessRuleTypeOption {
+  value: AccessRuleType;
+  label: string;
+}
+
+export interface AccessRuleTypesResponse {
+  data: AccessRuleTypeOption[];
+  transaction_id: string;
+  timestamp: string;
+}
+
+export interface LifecycleAccessRule {
+  id: string;
+  rule_type: AccessRuleType;
+  source_step_id: string | null;
+}
+
+export interface CreateAccessRuleData {
+  rule_type: AccessRuleType;
+  source_step_id?: string | null;
+}
+
+export interface LifecycleAccessRuleResponse {
+  data: LifecycleStep;
+  transaction_id: string;
+  timestamp: string;
+}
+
 export interface LifecycleStep {
   id: string;
   document_type_id: string;
@@ -37,6 +69,7 @@ export interface LifecycleStep {
   sla_value: number | null;
   sla_unit: string | null;
   step_roles: LifecycleStepRole[];
+  access_rules: LifecycleAccessRule[];
 }
 
 export interface LifecycleStepsResponse {
@@ -61,6 +94,8 @@ export interface UpdateLifecycleStepData {
   sla_value?: number | null;
   sla_unit?: string | null;
   role_ids?: string[];
+  /** Replaces the step's full access_rules list — same semantics as role_ids. */
+  access_rules?: CreateAccessRuleData[];
 }
 
 export interface SlaUnit {
@@ -88,6 +123,7 @@ export interface CreateLifecycleStepData {
   sla_value?: number | null;
   sla_unit?: string | null;
   role_ids?: string[];
+  access_rules?: CreateAccessRuleData[];
 }
 
 export interface LifecycleStepResponse {

@@ -21,6 +21,9 @@ import {
   updateExternalReviewAction,
   deleteExternalReviewAction,
   reorderExternalReviewActions,
+  getAccessRuleTypes,
+  addAccessRuleToStep,
+  removeAccessRuleFromStep,
   type UpdateLifecycleStepData,
   type CreateLifecycleStepData,
   type GrantLifecycleDocumentRequest,
@@ -33,11 +36,13 @@ import {
   type CreateExternalReviewActionRequest,
   type UpdateExternalReviewActionRequest,
   type ReorderExternalReviewActionsRequest,
+  type CreateAccessRuleData,
 } from '@/services/lifecycle'
 
 export const lifecycleQueryKeys = {
   all: ['lifecycle'] as const,
   stepTypes: () => [...lifecycleQueryKeys.all, 'step-types'] as const,
+  accessRuleTypes: () => [...lifecycleQueryKeys.all, 'access-rule-types'] as const,
   steps: (documentTypeId: string, stepType: string | null) =>
     [...lifecycleQueryKeys.all, 'steps', documentTypeId, stepType] as const,
   slaUnits: () => [...lifecycleQueryKeys.all, 'sla-units'] as const,
@@ -63,6 +68,18 @@ export function useLifecycleStepTypes(enabled: boolean = true) {
   })
 }
 
+export function useLifecycleAccessRuleTypes(enabled: boolean = true) {
+  return useQuery({
+    queryKey: lifecycleQueryKeys.accessRuleTypes(),
+    queryFn: getAccessRuleTypes,
+    enabled,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 0,
+  })
+}
+
 export function useLifecycleSteps(
   documentTypeId: string | null,
   stepType: string | null,
@@ -72,6 +89,20 @@ export function useLifecycleSteps(
     queryKey: lifecycleQueryKeys.steps(documentTypeId ?? '', stepType),
     queryFn: () => getLifecycleSteps(documentTypeId!, stepType ?? undefined),
     enabled: enabled && !!documentTypeId && !!stepType,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 0,
+  })
+}
+
+// All steps of a document type, regardless of step type — used to build the
+// "earlier step" candidate list for the step_actor_manager access rule.
+export function useAllLifecycleSteps(documentTypeId: string | null, enabled: boolean = true) {
+  return useQuery({
+    queryKey: lifecycleQueryKeys.steps(documentTypeId ?? '', null),
+    queryFn: () => getLifecycleSteps(documentTypeId!),
+    enabled: enabled && !!documentTypeId,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -129,7 +160,19 @@ export function useLifecycleMutations(documentTypeId: string, stepType: string |
     onSuccess: invalidateSteps,
   })
 
-  return { updateStep, addRole, removeRole, createStep, deleteStep }
+  const addAccessRule = useMutation({
+    mutationFn: ({ stepId, data }: { stepId: string; data: CreateAccessRuleData }) =>
+      addAccessRuleToStep(stepId, data),
+    onSuccess: invalidateSteps,
+  })
+
+  const removeAccessRule = useMutation({
+    mutationFn: ({ stepId, ruleId }: { stepId: string; ruleId: string }) =>
+      removeAccessRuleFromStep(stepId, ruleId),
+    onSuccess: invalidateSteps,
+  })
+
+  return { updateStep, addRole, removeRole, createStep, deleteStep, addAccessRule, removeAccessRule }
 }
 
 // ─── Document grants ────────────────────────────────────────────────────────
