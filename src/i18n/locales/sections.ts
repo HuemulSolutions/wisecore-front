@@ -153,6 +153,7 @@ const translations = {
       requiredFieldsNote: { en: "Fields marked with * are required", es: "Los campos con * son obligatorios" },
       requiredError: { en: "Complete the required fields", es: "Completa los campos obligatorios" },
       fieldRequired: { en: "This field is required", es: "Este campo es obligatorio" },
+      requiredFieldsPending: { en: "Answer the required fields before leaving", es: "Responde los campos obligatorios antes de salir" },
       invalidEmail: { en: "Enter a valid email address", es: "Ingresa un correo electrónico válido" },
       invalidInteger: { en: "Enter a whole number (no decimals)", es: "El valor debe ser un número entero (sin decimales)" },
       valueTooSmall: { en: "Minimum value is {{min}}", es: "El valor mínimo es {{min}}" },

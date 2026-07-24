@@ -28,6 +28,7 @@ import {
   resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
+import { validateFormFieldValue } from "@/components/sections/validate-form-field-value";
 
 interface AssetFormSectionProps {
   /** id del section_execution → se usa en el PATCH /form_values */
@@ -197,16 +198,33 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     );
     if (changed.length === 0) return;
 
-    const ids = changed.map((f) => f.id);
+    // Valida formato/rango (min/max, entero, email) antes de autoguardar. Un campo inválido
+    // no se envía — se marca su error inline y se reintenta solo cuando el usuario lo corrija
+    // (queda "changed" en el próximo tick porque no se actualiza lastSavedAnswersRef). Los
+    // demás campos cambiados del mismo lote sí se guardan. required no se valida acá (no
+    // bloquea el autosave, solo bloquea salir de edición en handleDoneEditing).
+    const invalidErrors: Record<string, string> = {};
+    const valid = changed.filter((f) => {
+      const err = validateFormFieldValue(f, debouncedAnswers[f.id]);
+      if (!err) return true;
+      invalidErrors[f.id] = t(`form.fill.${err.key}`, err.params);
+      return false;
+    });
+    if (Object.keys(invalidErrors).length > 0) {
+      setFieldErrors((prev) => ({ ...prev, ...invalidErrors }));
+    }
+    if (valid.length === 0) return;
+
+    const ids = valid.map((f) => f.id);
     setSavingFieldIds((prev) => new Set([...prev, ...ids]));
     // Toast reutilizable: mismo id por sección, se actualiza in-place (loading -> success/error)
     // en vez de apilar un toast por cada campo/tick de autosave.
     const toastId = `form-autosave-${sectionExecutionId}`;
     toast.loading(t("common:saving"), { id: toastId });
-    const values = changed.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
+    const values = valid.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
     updateSectionFormValues(sectionExecutionId, values, organizationId)
       .then((payload) => {
-        for (const f of changed) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
+        for (const f of valid) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
         onUpdate?.(payload);
         toast.success(t("form.fill.autoSaved"), { id: toastId });
         setSavedFieldIds((prev) => new Set([...prev, ...ids]));
@@ -261,14 +279,34 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     !filePreviews[field.id] && isMediaToken(answers[field.id]);
 
   // Sale del modo edición. Los valores ya quedan persistidos por el auto-guardado
-  // mientras se escribe; acá solo se hace un flush best-effort de lo que pudiera
-  // seguir pendiente dentro de la ventana del debounce (por ej. si el usuario sale
-  // justo después de tipear), sin validar requeridos ni tocar review_status —
-  // ambas cosas se manejan aparte (validación no aplica a autosave, el estado de
-  // revisión lo controla el selector de la barra de acciones).
+  // mientras se escribe; acá se hace un flush best-effort de lo que pudiera seguir
+  // pendiente dentro de la ventana del debounce (por ej. si el usuario sale justo
+  // después de tipear). Antes de salir, bloquea si queda algún obligatorio sin
+  // responder o algún valor con error de formato/rango — al ser obligatorio debe
+  // contestarse sí o sí; no toca review_status, eso lo controla el selector de la
+  // barra de acciones.
   const handleDoneEditing = async () => {
     if (uploadingFields.size > 0) {
       toast.error(t("form.fill.fileUploading_block"));
+      return;
+    }
+
+    const missing = sortedFields.filter(
+      (f) => isFieldAnswerable(f) && f.required && !hasAnswer(answers[f.id]),
+    );
+    const invalidErrors: Record<string, string> = {};
+    for (const f of sortedFields) {
+      if (!isFieldAnswerable(f)) continue;
+      const err = validateFormFieldValue(f, answers[f.id]);
+      if (err) invalidErrors[f.id] = t(`form.fill.${err.key}`, err.params);
+    }
+    if (missing.length > 0 || Object.keys(invalidErrors).length > 0) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        ...invalidErrors,
+        ...Object.fromEntries(missing.map((f) => [f.id, t("form.fill.fieldRequired")])),
+      }));
+      toast.error(t("form.fill.requiredFieldsPending"));
       return;
     }
 
