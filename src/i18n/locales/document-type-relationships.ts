@@ -43,6 +43,8 @@ const translations = {
     empty: { en: "No asset types found", es: "No se encontraron tipos de activo" },
     noResults: { en: "No results for \"{{term}}\"", es: "Sin resultados para \"{{term}}\"" },
     refresh: { en: "Refresh list", es: "Refrescar lista" },
+    container: { en: "Container", es: "Contenedor" },
+    text: { en: "Text", es: "Texto" },
   },
   canvas: {
     empty: {
@@ -57,6 +59,8 @@ const translations = {
     saveAsDiagram: { en: "Save as Diagram", es: "Guardar como Diagrama" },
     saveChanges: { en: "Save changes", es: "Guardar cambios" },
     loadDiagram: { en: "Load Diagram", es: "Cargar Diagrama" },
+    addContainer: { en: "Add Container", es: "Agregar Contenedor" },
+    addText: { en: "Add Text", es: "Agregar Texto" },
   },
   loadDiagramSheet: {
     title: { en: "Load Diagram", es: "Cargar Diagrama" },
@@ -124,6 +128,16 @@ const translations = {
       en: "That version is already on the canvas.",
       es: "Esa versión ya está en el canvas.",
     },
+  },
+  elementPanel: {
+    containerTitle: { en: "Container", es: "Contenedor" },
+    textTitle: { en: "Text", es: "Texto" },
+    title: { en: "Title", es: "Título" },
+    content: { en: "Content", es: "Contenido" },
+    borderColor: { en: "Border color", es: "Color de borde" },
+    textColor: { en: "Text color", es: "Color de texto" },
+    defaultContainerTitle: { en: "Container", es: "Contenedor" },
+    defaultTextContent: { en: "Text", es: "Texto" },
   },
   relationship: {
     name: { en: "Name", es: "Nombre" },
