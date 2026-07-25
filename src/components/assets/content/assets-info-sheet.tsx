@@ -8,6 +8,7 @@ import {
   HuemulInfoItem,
 } from "@/huemul/components/huemul-info-display";
 import { formatApiDateTime } from "@/lib/utils";
+import { useUserById } from "@/hooks/useUsers";
 import type { AssetsInfoSheetProps } from '@/types/assets';
 export type { AssetsInfoSheetProps } from '@/types/assets';
 
@@ -96,6 +97,18 @@ export function AssetsInfoSheet({
       toast.success(t("content.info.copied"));
     });
   };
+
+  // The creator (creator_id) is immutable and distinct from the owner (created_by_user,
+  // which is reassignable). When they're the same person, reuse the owner's already-loaded
+  // data instead of firing an extra lookup.
+  const creatorId: string | null = documentContent?.creator_id ?? null;
+  const ownerUser = documentContent?.created_by_user ?? null;
+  const creatorMatchesOwner = !!creatorId && ownerUser?.id === creatorId;
+  const { data: resolvedCreator } = useUserById(
+    creatorId,
+    !!open && !!creatorId && !creatorMatchesOwner
+  );
+  const creatorUser = creatorMatchesOwner ? ownerUser : resolvedCreator ?? null;
 
   return (
     <HuemulSheet
@@ -208,9 +221,17 @@ export function AssetsInfoSheet({
 
         {/* Audit */}
         <HuemulInfoSection title={t("content.info.audit")}>
+          {creatorUser && (
+            <UserAuditRow
+              label={t("content.info.creator")}
+              user={creatorUser}
+              accentColor="blue"
+              onCopy={copyId}
+            />
+          )}
           {documentContent?.created_by_user && (
             <UserAuditRow
-              label={t("content.info.createdBy")}
+              label={t("content.info.owner")}
               user={documentContent.created_by_user}
               accentColor="blue"
               onCopy={copyId}

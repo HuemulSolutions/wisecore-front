@@ -544,28 +544,26 @@ export function SectionForm({
                     </>
                   )}
                 </HuemulButton>
-                {templateId && (
-                  <HuemulButton
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsAiEditOpen(true)}
-                    disabled={!prompt.trim() || isGenerating || isPending || editWithAiMutation.isPending}
-                    className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
-                  >
-                    {editWithAiMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        {t('form.prompt.editing')}
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="mr-1 h-3 w-3" />
-                        {t('form.prompt.edit')}
-                      </>
-                    )}
-                  </HuemulButton>
-                )}
+                <HuemulButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsAiEditOpen(true)}
+                  disabled={!prompt.trim() || isGenerating || isPending || editWithAiMutation.isPending}
+                  className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+                >
+                  {editWithAiMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      {t('form.prompt.editing')}
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="mr-1 h-3 w-3" />
+                      {t('form.prompt.edit')}
+                    </>
+                  )}
+                </HuemulButton>
               </div>
             </div>
 

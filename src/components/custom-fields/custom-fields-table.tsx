@@ -4,6 +4,7 @@ import type { CustomField, CustomFieldTableProps } from '@/types/custom-fields'
 export type { CustomFieldTableProps } from '@/types/custom-fields'
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
 import { useTranslation } from "react-i18next"
+import { questionTypeLabel } from "@/components/sections/question-type-meta"
 
 export function CustomFieldTable({
   customFields,
@@ -15,6 +16,7 @@ export function CustomFieldTable({
   isFetching = false
 }: CustomFieldTableProps) {
   const { t, i18n } = useTranslation(['custom-fields', 'common'])
+  const { t: tSections } = useTranslation('sections')
 
   const formatDataType = (dataType: string) => {
     const key = dataType as keyof object
@@ -45,11 +47,13 @@ export function CustomFieldTable({
       )
     },
     {
-      key: "dataType",
-      label: t('columns.dataType'),
+      key: "fieldType",
+      label: t('columns.fieldType'),
       render: (customField) => (
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-          {formatDataType(customField.data_type)}
+          {customField.question_type
+            ? questionTypeLabel(customField.question_type, tSections)
+            : formatDataType(customField.data_type)}
         </Badge>
       )
     },

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query"
-import { getUsers, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
+import { getUsers, getUserById, approveUser, rejectUser, deleteUser, updateUser, createUser, getUserOrganizations, updateUserRootAdmin } from "@/services/users"
 import type { UpdateUserData } from "@/types/users"
 
 // Query keys
@@ -29,6 +29,18 @@ export function useUsers(enabled: boolean = true, organizationId?: string, page:
     retry: 0, // No retries to avoid multiple error requests
     enabled,
     placeholderData: (prev) => prev, // Keep previous data while loading new page
+  })
+}
+
+// Hook for fetching a single user by id (e.g. resolving a document's creator_id to a name)
+export function useUserById(userId?: string | null, enabled: boolean = true) {
+  return useQuery({
+    queryKey: userQueryKeys.detail(userId ?? ''),
+    queryFn: () => getUserById(userId!),
+    enabled: enabled && !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 0,
   })
 }
 

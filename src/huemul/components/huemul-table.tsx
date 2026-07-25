@@ -206,7 +206,7 @@ export function HuemulTable<T>({
       {/* Refetch indicator */}
       <div
         className={cn(
-          "h-[2px] w-full transition-opacity duration-300",
+          "h-0.5 w-full transition-opacity duration-300",
           isFetching ? "opacity-100" : "opacity-0"
         )}
       >
@@ -315,7 +315,7 @@ export function HuemulTable<T>({
                   <TableRow key={i} className="bg-background hover:bg-background">
                     {selectable && (
                       <TableCell className="px-4 py-3">
-                        <Skeleton className="h-4 w-4 rounded-[4px]" />
+                        <Skeleton className="h-4 w-4 rounded-lg" />
                       </TableCell>
                     )}
                     {columns.map((col) => (
@@ -323,7 +323,7 @@ export function HuemulTable<T>({
                         key={col.key}
                         className={cn("px-4 py-3", col.hideOnMobile && "hidden sm:table-cell")}
                       >
-                        <Skeleton className="h-4 w-full max-w-[180px]" />
+                        <Skeleton className="h-4 w-full max-w-45" />
                       </TableCell>
                     ))}
                     {resizable && <TableCell aria-hidden className="p-0" />}
@@ -420,7 +420,7 @@ export function HuemulTable<T>({
                                   className="h-7 w-7 p-0 hover:bg-muted"
                                 />
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="min-w-[160px]">
+                              <DropdownMenuContent align="end" className="min-w-40">
                                 {visibleActions.map((action, idx, arr) => {
                                   const ActionIcon = action.icon
                                   return (

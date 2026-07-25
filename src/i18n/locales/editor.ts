@@ -142,6 +142,11 @@ const translations = {
     copied: { en: "Copied!", es: "¡Copiado!" },
     download: { en: "Download .md", es: "Descargar .md" },
   },
+  mention: {
+    searchAssets: { en: "Search assets…", es: "Buscar activos…" },
+    noResults: { en: "No assets found", es: "No se encontraron activos" },
+    loading: { en: "Searching…", es: "Buscando…" },
+  },
   slash: {
     noResults: { en: "No results", es: "Sin resultados" },
     groups: {

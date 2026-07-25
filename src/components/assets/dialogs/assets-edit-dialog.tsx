@@ -207,12 +207,12 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
 
         <HuemulField
           type="async-combobox"
-          label={t('assets:form.createdBy')}
+          label={t('assets:form.owner')}
           name="createdBy"
           value={createdBy}
           onChange={(v) => setCreatedBy(String(v))}
-          placeholder={t('assets:form.createdByPlaceholder')}
-          description={t('assets:form.createdByDescription')}
+          placeholder={t('assets:form.ownerPlaceholder')}
+          description={t('assets:form.ownerDescription')}
           disabled={mutation.isPending}
           fetchOptions={fetchCreatedByOptions}
           selectedLabel={createdByLabel}

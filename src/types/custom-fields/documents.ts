@@ -26,6 +26,8 @@ export interface CustomFieldDocument {
   updated_at: string;
   data_type: string;
   question_type?: string;
+  min_value?: number | null;
+  max_value?: number | null;
 }
 
 export interface CustomFieldDocumentListParams extends PaginationParams {

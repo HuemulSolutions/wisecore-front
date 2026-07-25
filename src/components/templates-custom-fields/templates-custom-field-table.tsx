@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { DataTable, type TableColumn, type TableAction } from "@/components/ui/data-table"
@@ -8,34 +9,10 @@ import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { HuemulDialog } from "@/huemul/components/huemul-dialog"
 import { DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { Edit2, Trash2, FileEdit } from "lucide-react"
+import { questionTypeLabel } from "@/components/sections/question-type-meta"
 import type { CustomFieldTemplate } from '@/types/custom-fields';
 import type { CustomFieldTemplateTableProps } from '@/types/templates';
 export type { CustomFieldTemplateTableProps } from '@/types/templates';
-
-const formatDataType = (dataType: string) => {
-  switch (dataType) {
-    case "string":
-      return "STRING"
-    case "int":
-      return "INTEGER"
-    case "decimal":
-      return "DECIMAL"
-    case "date":
-      return "DATE"
-    case "time":
-      return "TIME"
-    case "datetime":
-      return "DATETIME"
-    case "bool":
-      return "BOOLEAN"
-    case "image":
-      return "IMAGE"
-    case "url":
-      return "URL"
-    default:
-      return dataType.toUpperCase()
-  }
-}
 
 const getValueForDisplay = (template: CustomFieldTemplate) => {
   const dataType = template.data_type
@@ -79,6 +56,8 @@ export function CustomFieldTemplateTable({
   onDeleteCustomFieldTemplate,
   pagination,
 }: CustomFieldTemplateTableProps) {
+  const { t } = useTranslation(['templates', 'common', 'custom-fields'])
+  const { t: tSections } = useTranslation('sections')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [customFieldToDelete, setCustomFieldToDelete] = useState<CustomFieldTemplate | null>(null)
   const [imageDialogOpen, setImageDialogOpen] = useState(false)
@@ -108,10 +87,10 @@ export function CustomFieldTemplateTable({
           <div className="flex items-center gap-1.5">
             <img 
               src={imageUrl} 
-              alt={template.name || 'Image'} 
+              alt={template.name || t('customFields.table.image')}
               className="w-8 h-8 object-cover rounded border border-gray-200 hover:cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => {
-                setSelectedImage({ url: imageUrl, name: template.name || 'Image' })
+                setSelectedImage({ url: imageUrl, name: template.name || t('customFields.table.image') })
                 setImageDialogOpen(true)
               }}
               onError={(e) => {
@@ -120,22 +99,22 @@ export function CustomFieldTemplateTable({
               }}
             />
             <span className="text-xs text-gray-600 hidden">
-              Error loading image
+              {t('customFields.table.errorLoadingImage')}
             </span>
           </div>
         )
       }
       return (
         <div className="text-xs text-muted-foreground">
-          No image
+          {t('customFields.table.noImage')}
         </div>
       )
     }
-    
+
     const displayValue = getValueForDisplay(template)
     return (
       <div className="text-xs text-foreground max-w-xs truncate" title={displayValue}>
-        {displayValue || "No value set"}
+        {displayValue || t('customFields.table.noValueSet')}
       </div>
     )
   }
@@ -167,7 +146,7 @@ export function CustomFieldTemplateTable({
   const columns: TableColumn<CustomFieldTemplate>[] = [
     {
       key: "name",
-      label: "Field Name",
+      label: t('customFields.table.fieldName'),
       render: (template) => (
         <div className="text-xs font-medium text-foreground">
           {template.name}
@@ -176,24 +155,26 @@ export function CustomFieldTemplateTable({
     },
     {
       key: "type",
-      label: "Type",
+      label: t('customFields.table.type'),
       render: (template) => (
         <Badge variant="outline" className="text-xs px-1.5 py-0.5">
-          {formatDataType(template.data_type)}
+          {template.question_type
+            ? questionTypeLabel(template.question_type, tSections)
+            : t(`custom-fields:dataTypes.${template.data_type}` as Parameters<typeof t>[0], { defaultValue: template.data_type })}
         </Badge>
       ),
     },
     {
       key: "values",
-      label: "Values",
+      label: t('customFields.table.values'),
       render: (template) => renderValueDisplay(template),
     },
     {
       key: "required",
-      label: "Required",
+      label: t('customFields.table.required'),
       render: (template) => (
-        <Switch 
-          checked={template.required} 
+        <Switch
+          checked={template.required}
           disabled
           className="data-[state=checked]:bg-primary scale-75"
         />
@@ -201,7 +182,7 @@ export function CustomFieldTemplateTable({
     },
     {
       key: "prompt",
-      label: "Prompt",
+      label: t('customFields.table.prompt'),
       render: (template) => (
         <div className="text-xs text-foreground max-w-xs truncate" title={template.prompt}>
           {template.prompt ? (
@@ -221,19 +202,19 @@ export function CustomFieldTemplateTable({
   const actions: TableAction<CustomFieldTemplate>[] = [
     {
       key: "edit-content",
-      label: "Edit Content",
+      label: t('customFields.table.editContent'),
       icon: FileEdit,
       onClick: onEditContentCustomFieldTemplate,
     },
     {
       key: "edit-configuration",
-      label: "Edit Configuration",
+      label: t('customFields.table.editConfiguration'),
       icon: Edit2,
       onClick: onEditCustomFieldTemplate,
     },
     {
       key: "delete",
-      label: "Delete",
+      label: t('common:delete'),
       icon: Trash2,
       onClick: handleDeleteClick,
       destructive: true,
@@ -244,12 +225,12 @@ export function CustomFieldTemplateTable({
   // Define footer stats
   const footerStats = [
     {
-      label: `${customFieldTemplates.length} field${customFieldTemplates.length !== 1 ? 's' : ''}`,
-      value: "",
+      label: t('customFields.table.fieldName'),
+      value: customFieldTemplates.length.toString(),
     },
     {
-      label: "",
-      value: `${customFieldTemplates.filter(t => t.required).length} required`,
+      label: t('customFields.table.required'),
+      value: customFieldTemplates.filter(field => field.required).length.toString(),
     },
   ]
 
@@ -281,10 +262,10 @@ export function CustomFieldTemplateTable({
           setDeleteDialogOpen(open)
           if (!open) setCustomFieldToDelete(null)
         }}
-        title="Delete Custom Field Template"
-        description={`Are you sure you want to delete the custom field template "${customFieldToDelete?.name}"? This action cannot be undone and will remove this field from the template.`}
+        title={t('customFields.table.deleteTitle')}
+        description={t('customFields.table.deleteDescription', { name: customFieldToDelete?.name })}
         onAction={handleConfirmDelete}
-        actionLabel="Delete"
+        actionLabel={t('common:delete')}
         actionVariant="destructive"
       />
 
@@ -292,7 +273,7 @@ export function CustomFieldTemplateTable({
       <HuemulDialog
         open={imageDialogOpen}
         onOpenChange={setImageDialogOpen}
-        title={selectedImage?.name || "Image Preview"}
+        title={selectedImage?.name || t('customFields.table.imagePreview')}
         maxWidth="sm:max-w-2xl"
         maxHeight="max-h-[90vh]"
         showFooter={false}

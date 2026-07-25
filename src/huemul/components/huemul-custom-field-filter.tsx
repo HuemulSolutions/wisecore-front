@@ -8,7 +8,7 @@ import { getCustomFields } from "@/services/custom-fields"
 import { customFieldDataTypeLabel } from "@/components/sections/question-type-meta"
 import { HuemulField } from "./huemul-field"
 import { HuemulCombobox } from "./huemul-combobox"
-import type { CustomField, CustomFieldDataType } from "@/types/custom-fields"
+import type { CustomField, CustomFieldDataType, CustomFieldOption } from "@/types/custom-fields"
 import type {
   FetchOptionsParams,
   FetchOptionsResult,
@@ -104,7 +104,7 @@ export function HuemulCustomFieldFilter({
             type="select"
             value={currentValue}
             onChange={(v) => commitValue(name, String(v))}
-            options={(field.options?.length ? field.options : field.default_value ?? []).map((o) => ({
+            options={(field.options?.length ? field.options : (field.default_value as CustomFieldOption[] | null) ?? []).map((o) => ({
               value: o.label,
               label: o.label,
             }))}

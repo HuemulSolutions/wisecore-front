@@ -22,13 +22,53 @@ export interface CloneTemplateResult {
 }
 
 export interface TemplatesResponse {
-  data: { id: string; name: string; description?: string }[];
+  data: {
+    id: string;
+    name: string;
+    description?: string;
+    can_create_express?: boolean;
+    // Presentes solo cuando el listado se filtra por mostrar_en_workflow=true.
+    document_type_id?: string;
+    document_type_name?: string;
+    require_name_on_express?: boolean;
+  }[];
   page: number;
   page_size: number;
   has_next: boolean;
   total?: number;
   transaction_id: string;
   timestamp: string;
+}
+
+// Item de TemplatesResponse.data con los campos que requiere el listado de
+// "workflows disponibles" (mostrar_en_workflow=true). document_type_id es
+// obligatorio ahi: sin el no se puede llamar al endpoint express.
+export interface WorkflowTemplateItem {
+  id: string;
+  name: string;
+  description?: string;
+  can_create_express?: boolean;
+  document_type_id: string;
+  document_type_name?: string;
+  require_name_on_express?: boolean;
+}
+
+// Filtros opcionales para GET /templates/
+export interface GetTemplatesFilters {
+  document_type_id?: string | null;
+  can_create_express?: boolean | null;
+  mostrar_en_workflow?: boolean | null;
+}
+
+// POST /document_types/{document_type_id}/templates/{template_id}/express
+export interface CreateExpressBody {
+  name: string;
+  description?: string;
+}
+
+export interface CreateExpressResult {
+  id: string;
+  name: string;
 }
 
 export interface ChildDocumentExecution {

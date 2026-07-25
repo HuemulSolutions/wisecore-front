@@ -67,6 +67,7 @@ export interface AddSectionExecutionSheetProps {
   onClose: () => void
   defaultType?: 'ai' | 'manual' | 'reference'
   defaultManualInput?: string
+  documentId?: string
 }
 
 // ----------------------------------------

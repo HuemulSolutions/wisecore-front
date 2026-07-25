@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next";
-import { Mail, Plus, Star, Upload, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulCombobox } from "@/huemul/components/huemul-combobox";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -17,7 +16,6 @@ import type { FormFieldOption, SectionFormField } from "@/types/sections/core";
 import type { FetchOptionsParams, FetchOptionsResult } from "@/types/huemul/field";
 import {
   CUSTOM_FIELD_QUESTION_TYPE,
-  NUMERIC_DATA_TYPES,
   QUESTION_TYPE,
   customFieldDataTypeLabel,
   jsonbToInputValue,
@@ -26,6 +24,8 @@ import {
   writeFieldConfig,
   type FormFieldDraft,
 } from "./question-type-meta";
+import { QuestionTypePreview } from "./question-type-preview";
+import { SectionFieldSeparator } from "./section-field-separator";
 
 interface SectionQuestionTypeFieldsProps {
   field: FormFieldDraft;
@@ -35,13 +35,6 @@ interface SectionQuestionTypeFieldsProps {
   onCustomFieldChange: (customFieldId: string) => void;
   onCreateCustomField: () => void;
 }
-
-// Caja gris de vista previa (mismo estilo que el resto del builder).
-function PreviewBox({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-md bg-gray-50 p-3">{children}</div>;
-}
-
-const PREVIEW_INPUT = "h-8 text-xs bg-white";
 
 // Selector de campo personalizado: combobox async sobre el catálogo de la organización
 // + botón para crear uno nuevo sin salir del formulario. Aislado en su propio componente
@@ -188,47 +181,15 @@ export function SectionQuestionTypeFields({
   switch (qt) {
     // ── Texto / email / fecha / hora: solo preview ──────────────────────────
     case QUESTION_TYPE.shortAnswer:
-      return (
-        <PreviewBox>
-          <Input disabled placeholder={t("form.formFields.previewShortAnswer")} className={PREVIEW_INPUT} />
-        </PreviewBox>
-      );
-
     case QUESTION_TYPE.paragraph:
-      return (
-        <PreviewBox>
-          <Textarea disabled placeholder={t("form.formFields.previewParagraph")} rows={3} className="text-xs bg-white resize-none" />
-        </PreviewBox>
-      );
-
     case QUESTION_TYPE.email:
-      return (
-        <PreviewBox>
-          <div className="relative">
-            <Input disabled type="email" placeholder={t("form.formFields.previewEmail")} className={`${PREVIEW_INPUT} pr-8`} />
-            <Mail className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-          </div>
-        </PreviewBox>
-      );
-
     case QUESTION_TYPE.date:
-      return (
-        <PreviewBox>
-          <Input disabled type="date" className={PREVIEW_INPUT} />
-        </PreviewBox>
-      );
-
     case QUESTION_TYPE.time:
-      return (
-        <PreviewBox>
-          <Input disabled type="time" className={PREVIEW_INPUT} />
-        </PreviewBox>
-      );
+      return <QuestionTypePreview questionType={qt} dataType={field.data_type} />;
 
     // ── Numéricos: min/max + preview ────────────────────────────────────────
     case QUESTION_TYPE.number:
     case QUESTION_TYPE.decimal: {
-      const isDecimal = qt === QUESTION_TYPE.decimal || field.data_type === "decimal";
       return (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -249,25 +210,14 @@ export function SectionQuestionTypeFields({
               disabled={isPending}
             />
           </div>
-          <PreviewBox>
-            <Input disabled type="number" placeholder={isDecimal ? "1.2" : "0"} className={PREVIEW_INPUT} />
-          </PreviewBox>
+          <QuestionTypePreview questionType={qt} dataType={field.data_type} />
         </div>
       );
     }
 
     // ── Sí / No ─────────────────────────────────────────────────────────────
     case QUESTION_TYPE.yesNo:
-      return (
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 text-xs text-gray-500">
-            ✓ {t("form.formFields.previewYes")}
-          </span>
-          <span className="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 text-xs text-gray-500">
-            ✕ {t("form.formFields.previewNo")}
-          </span>
-        </div>
-      );
+      return <QuestionTypePreview questionType={qt} />;
 
     // ── Opción múltiple / desplegable ───────────────────────────────────────
     case QUESTION_TYPE.multipleChoice:
@@ -291,12 +241,7 @@ export function SectionQuestionTypeFields({
       };
       return (
         <div className="space-y-3">
-          <PreviewBox>
-            <div className="flex h-16 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-gray-300 bg-white text-xs text-gray-400">
-              <Upload className="size-4" />
-              {t("form.formFields.previewFileUpload")}
-            </div>
-          </PreviewBox>
+          <QuestionTypePreview questionType={qt} />
           <div className="space-y-2">
             <p className="text-xs font-medium text-gray-700">{t("form.formFields.allowedTypes")}</p>
             <div className="flex flex-wrap gap-2">
@@ -335,7 +280,6 @@ export function SectionQuestionTypeFields({
     case QUESTION_TYPE.linearScale: {
       const min = typeof field.min_value === "number" ? field.min_value : 1;
       const max = typeof field.max_value === "number" ? field.max_value : 5;
-      const steps = max > min && max - min <= 20 ? Array.from({ length: max - min + 1 }, (_, i) => min + i) : [];
       return (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -379,15 +323,7 @@ export function SectionQuestionTypeFields({
               disabled={isPending}
             />
           </div>
-          {steps.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {steps.map((n) => (
-                <span key={n} className="flex size-7 items-center justify-center rounded-md border border-gray-200 bg-white text-xs text-gray-600">
-                  {n}
-                </span>
-              ))}
-            </div>
-          )}
+          <QuestionTypePreview questionType={qt} minValue={min} maxValue={max} />
         </div>
       );
     }
@@ -408,14 +344,14 @@ export function SectionQuestionTypeFields({
             disabled={isPending}
             className="max-w-[160px]"
           />
-          <div className="flex flex-wrap items-center gap-1">
-            {Array.from({ length: stars }, (_, i) => (
-              <Star key={i} className="size-5 text-gray-300" />
-            ))}
-          </div>
+          <QuestionTypePreview questionType={qt} maxValue={stars} />
         </div>
       );
     }
+
+    // ── Etiqueta: separador visual, sin configuración ───────────────────────
+    case QUESTION_TYPE.label:
+      return <SectionFieldSeparator name={field.field_name || t("form.formFields.statement")} />;
 
     // ── Campo personalizado ─────────────────────────────────────────────────
     case CUSTOM_FIELD_QUESTION_TYPE:
@@ -430,51 +366,7 @@ export function SectionQuestionTypeFields({
       );
 
     // ── Fallback: preview genérico por data_type (slug no contemplado) ───────
-    default: {
-      if (NUMERIC_DATA_TYPES.includes(field.data_type as string)) {
-        return (
-          <PreviewBox>
-            <Input disabled type="number" placeholder={t("form.formFields.previewNumber")} className={PREVIEW_INPUT} />
-          </PreviewBox>
-        );
-      }
-      switch (field.data_type) {
-        case "bool":
-          return (
-            <PreviewBox>
-              <div className="flex items-center gap-2">
-                <span className="size-4 shrink-0 rounded border border-gray-300 bg-white" />
-                <span className="text-xs text-gray-400">{field.field_name || t("form.formFields.fieldName")}</span>
-              </div>
-            </PreviewBox>
-          );
-        case "date":
-          return (
-            <PreviewBox>
-              <Input disabled type="date" className={PREVIEW_INPUT} />
-            </PreviewBox>
-          );
-        case "time":
-          return (
-            <PreviewBox>
-              <Input disabled type="time" className={PREVIEW_INPUT} />
-            </PreviewBox>
-          );
-        case "image":
-          return (
-            <PreviewBox>
-              <div className="flex h-16 items-center justify-center rounded-md border border-dashed border-gray-300 bg-white text-xs text-gray-400">
-                {t("form.formFields.previewImage")}
-              </div>
-            </PreviewBox>
-          );
-        default:
-          return (
-            <PreviewBox>
-              <Input disabled placeholder={t("form.formFields.previewShortAnswer")} className={PREVIEW_INPUT} />
-            </PreviewBox>
-          );
-      }
-    }
+    default:
+      return <QuestionTypePreview questionType={qt} dataType={field.data_type} fieldName={field.field_name} />;
   }
 }

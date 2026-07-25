@@ -1,17 +1,26 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
-import type { TemplatesResponse, CloneTemplateRequest, CloneTemplateResult, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse } from "@/types/templates";
+import type { TemplatesResponse, CloneTemplateRequest, CloneTemplateResult, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse, GetTemplatesFilters, CreateExpressBody, CreateExpressResult } from "@/types/templates";
 
-export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse };
+export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse, GetTemplatesFilters, CreateExpressBody, CreateExpressResult };
 
-export async function getAllTemplates(organizationId: string, search?: string, page: number = 1, pageSize: number = 100): Promise<TemplatesResponse> {
+export async function getAllTemplates(organizationId: string, search?: string, page: number = 1, pageSize: number = 100, filters?: GetTemplatesFilters): Promise<TemplatesResponse> {
     const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
     });
     if (search) {
         params.set('search', search);
+    }
+    if (filters?.document_type_id) {
+        params.set('document_type_id', filters.document_type_id);
+    }
+    if (filters?.can_create_express !== undefined && filters.can_create_express !== null) {
+        params.set('can_create_express', String(filters.can_create_express));
+    }
+    if (filters?.mostrar_en_workflow !== undefined && filters.mostrar_en_workflow !== null) {
+        params.set('mostrar_en_workflow', String(filters.mostrar_en_workflow));
     }
     const response = await httpClient.get(`${backendUrl}/templates/?${params.toString()}`, {
         headers: {
@@ -196,6 +205,31 @@ export async function importTemplates(
     });
 
     const data = (await response.json()) as ImportTemplatesResponse;
+    return data.data;
+}
+
+// Crea un documento de forma express a partir de un template habilitado para
+// workflow (mostrar_en_workflow=true, can_create_express=true). El backend
+// asigna automaticamente la carpeta destino: no se envia folder_id.
+export async function createTemplateExpress(
+    documentTypeId: string,
+    templateId: string,
+    body: CreateExpressBody,
+    organizationId: string,
+): Promise<CreateExpressResult> {
+    const response = await httpClient.post(
+        `${backendUrl}/document_types/${documentTypeId}/templates/${templateId}/express`,
+        {
+            name: body.name,
+            description: body.description || null,
+        },
+        {
+            headers: {
+                'X-Org-Id': organizationId,
+            },
+        },
+    );
+    const data = await response.json();
     return data.data;
 }
 

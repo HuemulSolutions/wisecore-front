@@ -1,8 +1,8 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
-import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest } from '@/types/lifecycle';
+import type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest, AccessRuleType, AccessRuleTypeOption, AccessRuleTypesResponse, LifecycleAccessRule, CreateAccessRuleData, LifecycleAccessRuleResponse } from '@/types/lifecycle';
 
-export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest };
+export type { LifecycleStepType, LifecycleStepTypesResponse, LifecycleStepRole, LifecycleStep, LifecycleStepsResponse, UpdateLifecycleStepData, SlaUnit, SlaUnitsResponse, CreateLifecycleStepData, LifecycleStepResponse, LifecycleDocumentGrant, LifecycleDocumentGrantsResponse, GrantLifecycleDocumentRequest, GrantLifecycleDocumentResponse, RevokeLifecycleDocumentRequest, RevokeLifecycleDocumentResponse, ExternalPublishAction, ExternalPublishActionsResponse, ExternalPublishActionResponse, CreateExternalPublishActionRequest, UpdateExternalPublishActionRequest, ReorderExternalPublishActionsRequest, ExternalReviewAction, ExternalReviewActionsResponse, ExternalReviewActionResponse, CreateExternalReviewActionRequest, UpdateExternalReviewActionRequest, ReorderExternalReviewActionsRequest, AccessRuleType, AccessRuleTypeOption, AccessRuleTypesResponse, LifecycleAccessRule, CreateAccessRuleData, LifecycleAccessRuleResponse };
 
 export async function getLifecycleStepTypes(): Promise<LifecycleStepTypesResponse> {
   const response = await httpClient.fetch(`${backendUrl}/lifecycle/step-types`);
@@ -59,6 +59,31 @@ export async function createLifecycleStep(
 
 export async function deleteLifecycleStep(stepId: string): Promise<void> {
   await httpClient.delete(`${backendUrl}/lifecycle/steps/${stepId}`);
+}
+
+// ─── Access rules ─────────────────────────────────────────────────────────────
+
+export async function getAccessRuleTypes(): Promise<AccessRuleTypesResponse> {
+  const response = await httpClient.get(`${backendUrl}/lifecycle/access-rule-types`);
+  return response.json();
+}
+
+export async function addAccessRuleToStep(
+  stepId: string,
+  data: CreateAccessRuleData
+): Promise<LifecycleAccessRule[]> {
+  const response = await httpClient.post(`${backendUrl}/lifecycle/steps/${stepId}/access-rules`, data);
+  const result = (await response.json()) as LifecycleAccessRuleResponse;
+  return result.data.access_rules;
+}
+
+export async function removeAccessRuleFromStep(
+  stepId: string,
+  ruleId: string
+): Promise<LifecycleAccessRule[]> {
+  const response = await httpClient.delete(`${backendUrl}/lifecycle/steps/${stepId}/access-rules/${ruleId}`);
+  const result = (await response.json()) as LifecycleAccessRuleResponse;
+  return result.data.access_rules;
 }
 
 // ─── Document grants ─────────────────────────────────────────────────────────

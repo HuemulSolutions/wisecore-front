@@ -83,11 +83,13 @@ export interface DiagramResponse {
 }
 
 // execution_id matches diagram.execution_id OR any diagram_detail.execution_id (resolved backend-side)
+// document_id matches any diagram_detail.document_id (resolved backend-side)
 export interface GetDiagramsParams {
   page?: number
   page_size?: number
   search?: string
   execution_id?: string
+  document_id?: string
 }
 
 // Input shapes for create/update bodies — no id/diagram_id/audit fields, those are backend-assigned
