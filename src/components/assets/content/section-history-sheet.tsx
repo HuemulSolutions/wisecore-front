@@ -1,4 +1,4 @@
-import { History, Bot, FileEdit, AlertCircle, GitCompare, Zap, Copy, Check } from 'lucide-react';
+import { History, Bot, FileEdit, AlertCircle, GitCompare, Zap, Copy, Check, ClipboardList } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +57,15 @@ const CHANGE_TYPE_CONFIG: Record<
         activeBorderClass: 'border-l-amber-500',
         badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
         dotClass: 'bg-amber-400',
+    },
+    modify_form: {
+        icon: ClipboardList,
+        iconColorClass: 'text-emerald-500',
+        activeBgClass: 'bg-emerald-50',
+        activeTextClass: 'text-emerald-700',
+        activeBorderClass: 'border-l-emerald-500',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        dotClass: 'bg-emerald-400',
     },
 };
 

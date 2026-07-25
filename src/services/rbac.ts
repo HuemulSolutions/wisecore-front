@@ -1,9 +1,9 @@
 import { httpClient } from '@/lib/http-client';
 import { backendUrl } from '@/config';
 import { downloadBlobResponse } from '@/lib/blob-download';
-import type { RbacPermission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, AssignRolesData, CloneRoleData, ExportRolesBody, ImportRolesQueryParams, ImportRolesData, ImportRolesResponse } from '@/types/rbac';
+import type { RbacPermission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, UpdateRoleData, AssignRolesData, CloneRoleData, ExportRolesBody, ImportRolesQueryParams, ImportRolesData, ImportRolesResponse } from '@/types/rbac';
 
-export type { RbacPermission as Permission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, AssignRolesData, CloneRoleData, ExportRolesBody, ImportRolesQueryParams, ImportRolesData, ImportRolesResponse };
+export type { RbacPermission as Permission, PermissionWithStatus, Role, RolesResponse, PermissionsResponse, PermissionsWithStatusResponse, UserRolesResponse, RoleWithAssignment, UserAllRolesResponse, UserWithAssignment, RoleWithAllUsersResponse, CreateRoleData, UpdateRoleData, AssignRolesData, CloneRoleData, ExportRolesBody, ImportRolesQueryParams, ImportRolesData, ImportRolesResponse };
 
 // Get current organization ID from localStorage or context
 const getOrganizationId = (): string | null => {
@@ -133,8 +133,8 @@ export const getRolePermissions = async (roleId: string, search?: string, pageSi
   return result;
 };
 
-// Update role permissions using PATCH endpoint
-export const updateRole = async (roleId: string, data: { add_permissions: string[], remove_permissions: string[] }): Promise<Role> => {
+// Update role (name/description/permissions diff/position hierarchy) using PATCH endpoint
+export const updateRole = async (roleId: string, data: UpdateRoleData): Promise<Role> => {
   const response = await httpClient.patch(`${backendUrl}/rbac/roles/${roleId}`, data, {
     headers: getHeaders(),
   });

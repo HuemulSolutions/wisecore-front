@@ -9,7 +9,10 @@ import {
   BlockSelectionPlugin,
   useBlockSelected,
 } from '@platejs/selection/react';
-import { setCellBackground } from '@platejs/table';
+import {
+  isSelectingCell as isSelectingCellFn,
+  setCellBackground,
+} from '@platejs/table';
 import {
   TablePlugin,
   TableProvider,
@@ -106,11 +109,8 @@ export const TableElement = withHOC(
       'isSelectionAreaVisible'
     );
     const hasControls = !readOnly && !isSelectionAreaVisible;
-    const {
-      isSelectingCell,
-      marginLeft,
-      props: tableProps,
-    } = useTableElement();
+    const { marginLeft, props: tableProps } = useTableElement();
+    const isSelectingCell = useEditorSelector(isSelectingCellFn, []);
 
     const isSelectingTable = useBlockSelected(props.element.id as string);
 

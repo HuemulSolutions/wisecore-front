@@ -1,6 +1,7 @@
 // Lifecycle step component props for the asset type configuration module
 import type { HTMLAttributes } from 'react'
 import type { AssetTypeWithRoles } from './asset-types'
+import type { AccessRuleType, AccessRuleTypeOption } from '@/types/lifecycle'
 
 // ----------------------------------------
 // Config Step
@@ -70,6 +71,11 @@ export interface AssetLifecycleSheetProps {
 // Edit Step
 // ----------------------------------------
 
+export interface EditStepCardAccessRule {
+  rule_type: AccessRuleType
+  source_step_id: string | null
+}
+
 export interface EditStepCardData {
   id: string
   name: string
@@ -81,6 +87,7 @@ export interface EditStepCardData {
   ownerCanExecute: boolean
   roleIds: string[]
   roleNames: Record<string, string>
+  accessRules: EditStepCardAccessRule[]
 }
 
 export interface EditStepContentProps {
@@ -95,6 +102,9 @@ export interface EditStepCardProps {
   stepType: string
   slaUnitOptions: { value: string; label: string }[]
   allRoles: { id: string; name: string }[]
+  accessRuleTypeOptions: AccessRuleTypeOption[]
+  /** Steps of this document type earlier in the pipeline than this card — candidates for step_actor_manager's source_step_id. */
+  earlierStepOptions: { value: string; label: string }[]
   onChange: (updated: Partial<EditStepCardData>) => void
   onDelete: () => void
   onSave: () => Promise<void>

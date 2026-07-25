@@ -21,6 +21,7 @@ export const diagramQueryKeys = {
     pageSize: number,
     search?: string,
     executionId?: string,
+    documentId?: string,
   ) =>
     [
       ...diagramQueryKeys.listBase(),
@@ -29,6 +30,7 @@ export const diagramQueryKeys = {
       pageSize,
       search ?? '',
       executionId ?? '',
+      documentId ?? '',
     ] as const,
 }
 
@@ -40,21 +42,23 @@ export interface UseDiagramsOptions {
   pageSize?: number
   search?: string
   executionId?: string
+  documentId?: string
 }
 
 // ─── List query ───────────────────────────────────────────────────────────────
 
 export function useDiagrams(organizationId: string, options: UseDiagramsOptions = {}) {
-  const { enabled = true, page = 1, pageSize = 100, search, executionId } = options
+  const { enabled = true, page = 1, pageSize = 100, search, executionId, documentId } = options
 
   return useQuery({
-    queryKey: diagramQueryKeys.list(organizationId, page, pageSize, search, executionId),
+    queryKey: diagramQueryKeys.list(organizationId, page, pageSize, search, executionId, documentId),
     queryFn: () =>
       getDiagrams(organizationId, {
         page,
         page_size: pageSize,
         search,
         execution_id: executionId,
+        document_id: documentId,
       }),
     enabled: enabled && !!organizationId,
     staleTime: 2 * 60 * 1000,

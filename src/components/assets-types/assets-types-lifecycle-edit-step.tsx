@@ -23,18 +23,29 @@ import { HuemulButton } from "@/huemul/components/huemul-button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   useLifecycleSteps,
+  useAllLifecycleSteps,
   useLifecycleMutations,
   useLifecycleSlaUnits,
+  useLifecycleAccessRuleTypes,
 } from "@/hooks/useLifecycle"
 import { useRoles } from "@/hooks/useRbac"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { LifecycleReviewActionsSection } from "./assets-types-lifecycle-review-actions"
-import type { LifecycleStep } from "@/services/lifecycle"
+import type { LifecycleStep, AccessRuleType } from "@/services/lifecycle"
 import type { EditStepCardData, EditStepContentProps, EditStepCardProps } from '@/types/assets'
 
 export type { EditStepCardData, EditStepContentProps } from '@/types/assets'
+
+// Pipeline order used to restrict step_actor_manager's source_step_id to steps
+// that are genuinely earlier — mirrors the backend's own validation so the
+// picker doesn't offer choices the API would reject.
+const PIPELINE_ORDER = ["create", "edit", "review", "approve", "publish", "archive"]
+
+function pipelineIndex(type: string): number {
+  return PIPELINE_ORDER.indexOf(type)
+}
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
@@ -52,6 +63,10 @@ export function stepToCard(step: LifecycleStep): EditStepCardData {
     roleNames: Object.fromEntries(
       step.step_roles.map((r) => [r.role_id, r.role_name ?? r.role_id])
     ),
+    accessRules: (step.access_rules ?? []).map((r) => ({
+      rule_type: r.rule_type,
+      source_step_id: r.source_step_id,
+    })),
   }
 }
 
@@ -62,6 +77,8 @@ function EditStepCard({
   stepType,
   slaUnitOptions,
   allRoles,
+  accessRuleTypeOptions,
+  earlierStepOptions,
   onChange,
   onDelete,
   onSave,
@@ -76,9 +93,49 @@ function EditStepCard({
   const [isSaving, setIsSaving] = useState(false)
   const [snapshot, setSnapshot] = useState<EditStepCardData | null>(null)
   const [isExpanded, setIsExpanded] = useState(true)
+  const [pendingRuleType, setPendingRuleType] = useState<AccessRuleType | "">("")
+  const [pendingSourceStepId, setPendingSourceStepId] = useState("")
 
   const assignedRoles = allRoles.filter((r) => card.roleIds.includes(r.id))
   const availableRoles = allRoles.filter((r) => !card.roleIds.includes(r.id))
+  // Non-repeatable rule types already present can't be added again (backend
+  // rejects exact rule_type+source_step_id duplicates); step_actor_manager can
+  // repeat with a different source step, so it stays selectable.
+  const addedSimpleRuleTypes = new Set(
+    card.accessRules.filter((r) => r.rule_type !== "step_actor_manager").map((r) => r.rule_type)
+  )
+  const availableRuleTypeOptions = accessRuleTypeOptions.filter(
+    (o) => !addedSimpleRuleTypes.has(o.value)
+  )
+  // Prefer the i18n label so options follow the active language; fall back to
+  // the backend-provided label only when no translation key exists.
+  const ruleTypeLabel = (ruleType: AccessRuleType) =>
+    t(`lifecycle.accessRuleTypes.${ruleType}`, {
+      defaultValue: accessRuleTypeOptions.find((o) => o.value === ruleType)?.label ?? ruleType,
+    })
+  const sourceStepLabel = (sourceStepId: string | null) =>
+    sourceStepId ? earlierStepOptions.find((o) => o.value === sourceStepId)?.label ?? sourceStepId : null
+
+  const handleAddAccessRule = () => {
+    if (!pendingRuleType) return
+    if (pendingRuleType === "step_actor_manager" && !pendingSourceStepId) return
+    onChange({
+      accessRules: [
+        ...card.accessRules,
+        {
+          rule_type: pendingRuleType,
+          source_step_id: pendingRuleType === "step_actor_manager" ? pendingSourceStepId : null,
+        },
+      ],
+    })
+    setPendingRuleType("")
+    setPendingSourceStepId("")
+  }
+
+  const handleRemoveAccessRule = (index: number) => {
+    onChange({ accessRules: card.accessRules.filter((_, i) => i !== index) })
+  }
+
   const ro = !isEditing
   const stepAction = t(`lifecycle.stepActions.${stepType}`, { defaultValue: stepType })
 
@@ -356,6 +413,82 @@ function EditStepCard({
                       </div>
                     )}
                   </HuemulField>
+
+                  {/* Additional access rules — creator/manager-based access (OR'd with roles above) */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    <span className={cn("text-sm font-medium leading-snug", ro && "opacity-50")}>{t("lifecycle.accessRules.title")}</span>
+                    <div className="flex items-center gap-2">
+                      <HuemulField
+                        type="select"
+                        label=""
+                        name={`access-rule-type-${card.id}`}
+                        value={pendingRuleType}
+                        options={availableRuleTypeOptions.map((o) => ({ value: o.value, label: ruleTypeLabel(o.value) }))}
+                        placeholder={t("lifecycle.accessRules.addPlaceholder")}
+                        onChange={(v) => {
+                          setPendingRuleType((v as AccessRuleType) || "")
+                          setPendingSourceStepId("")
+                        }}
+                        disabled={ro}
+                        className="flex-1"
+                      />
+                      {pendingRuleType === "step_actor_manager" && (
+                        <HuemulField
+                          type="select"
+                          label=""
+                          name={`access-rule-source-${card.id}`}
+                          value={pendingSourceStepId}
+                          options={earlierStepOptions}
+                          placeholder={t("lifecycle.accessRules.sourceStepPlaceholder")}
+                          onChange={(v) => setPendingSourceStepId(String(v ?? ""))}
+                          disabled={ro}
+                          className="flex-1"
+                        />
+                      )}
+                      <HuemulButton
+                        icon={Plus}
+                        variant="outline"
+                        size="icon"
+                        onClick={handleAddAccessRule}
+                        disabled={
+                          ro || !pendingRuleType ||
+                          (pendingRuleType === "step_actor_manager" && !pendingSourceStepId)
+                        }
+                        tooltip={t("lifecycle.accessRules.add")}
+                      />
+                    </div>
+                    {pendingRuleType === "step_actor_manager" && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("lifecycle.accessRules.stepActorManagerNote")}
+                      </p>
+                    )}
+                    {card.accessRules.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {card.accessRules.map((rule, index) => (
+                          <Badge
+                            key={`${rule.rule_type}-${rule.source_step_id ?? "none"}-${index}`}
+                            variant="secondary"
+                            className="flex items-center gap-1 pr-1.5"
+                          >
+                            <span className="text-xs">
+                              {ruleTypeLabel(rule.rule_type)}
+                              {sourceStepLabel(rule.source_step_id) && ` (${sourceStepLabel(rule.source_step_id)})`}
+                            </span>
+                            {!ro && (
+                              <button
+                                type="button"
+                                className="rounded-full hover:text-destructive hover:cursor-pointer transition-colors"
+                                onClick={() => handleRemoveAccessRule(index)}
+                                aria-label={`Remove ${ruleTypeLabel(rule.rule_type)}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </>
@@ -400,8 +533,10 @@ function SortableEditStepCard(
 export function EditStepContent({ documentTypeId, stepType, onEditingChange, organizationId }: EditStepContentProps) {
   const { t } = useTranslation(["asset-types", "common"])
   const { data, isLoading } = useLifecycleSteps(documentTypeId, stepType, true)
+  const { data: allStepsData } = useAllLifecycleSteps(documentTypeId, true)
   const { data: rolesData } = useRoles(true, 1, 1000)
   const { data: slaUnitsData } = useLifecycleSlaUnits()
+  const { data: accessRuleTypesData } = useLifecycleAccessRuleTypes()
   const { updateStep, createStep, deleteStep } = useLifecycleMutations(
     documentTypeId,
     stepType
@@ -412,6 +547,17 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
   const slaUnitOptions = (slaUnitsData?.data ?? []).map((u) => ({
     value: u.value,
     label: t(`lifecycle.slaUnits.${u.value}`, { defaultValue: u.label }),
+  }))
+  const accessRuleTypeOptions = accessRuleTypesData?.data ?? []
+
+  // Steps of other, pipeline-earlier types (e.g. "review" steps when this is "approve") —
+  // candidates for step_actor_manager's source_step_id alongside same-type cards before this one.
+  const crossTypeEarlierSteps = (allStepsData?.data?.steps ?? []).filter(
+    (s) => s.type !== stepType && pipelineIndex(s.type) !== -1 && pipelineIndex(s.type) < pipelineIndex(stepType)
+  )
+  const crossTypeEarlierStepOptions = crossTypeEarlierSteps.map((s) => ({
+    value: s.id,
+    label: s.name ?? t(`lifecycle.stepTypes.${s.type}`, { defaultValue: s.type }),
   }))
 
   const [localSteps, setLocalSteps] = useState<EditStepCardData[]>([])
@@ -551,7 +697,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
             strategy={verticalListSortingStrategy}
           >
             <div className="flex flex-col gap-3 pb-2">
-              {localSteps.map((card) => (
+              {localSteps.map((card, index) => (
                 <SortableEditStepCard
                   key={card.id}
                   id={card.id}
@@ -560,19 +706,27 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
                   organizationId={organizationId}
                   slaUnitOptions={slaUnitOptions}
                   allRoles={allRoles}
+                  accessRuleTypeOptions={accessRuleTypeOptions}
+                  earlierStepOptions={[
+                    ...crossTypeEarlierStepOptions,
+                    ...localSteps.slice(0, index).map((s) => ({
+                      value: s.id,
+                      label: s.name || t("lifecycle.newGroupName"),
+                    })),
+                  ]}
                   onChange={(updated) => handleCardChange(card.id, updated)}
                   onDelete={() => setDeleteConfirmId(card.id)}
                   canDelete={!((stepType === "edit" || stepType === "approve") && localSteps.length <= 1)}
                   onEditingChange={(editing) => onEditingChange?.(editing)}
                   onSave={async () => {
                     const currentCard = localSteps.find((c) => c.id === card.id)!
-                    const index = localSteps.findIndex((c) => c.id === card.id)
+                    const cardIndex = localSteps.findIndex((c) => c.id === card.id)
                     const isAutomatic = currentCard.mode === "automatic"
                     await updateStep.mutateAsync({
                       stepId: currentCard.id,
                       data: {
                         name: currentCard.name || undefined,
-                        order: index + 1,
+                        order: cardIndex + 1,
                         mode: currentCard.mode,
                         sla_value: !isAutomatic && currentCard.hasSla
                           ? Number(currentCard.slaValue) || null
@@ -584,6 +738,7 @@ export function EditStepContent({ documentTypeId, stepType, onEditingChange, org
                         ...(!isAutomatic && currentCard.accessType !== "all" && currentCard.accessType !== "owner" && {
                           role_ids: currentCard.roleIds,
                         }),
+                        access_rules: currentCard.accessRules,
                       },
                     })
                   }}

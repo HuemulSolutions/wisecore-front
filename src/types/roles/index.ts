@@ -69,6 +69,12 @@ export interface RoleFormFieldsProps {
   nameLabel?: string
   descriptionLabel?: string
   includeTextarea?: boolean
+  isPosition: boolean
+  onIsPositionChange: (isPosition: boolean) => void
+  parentRoleId: string | null
+  onParentRoleIdChange: (parentRoleId: string | null) => void
+  /** Position roles available as parent — already excludes the role being edited. */
+  positionRoleOptions: { id: string; name: string }[]
 }
 
 export interface PermissionSelectorProps {

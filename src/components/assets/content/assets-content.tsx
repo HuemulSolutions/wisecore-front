@@ -24,6 +24,8 @@ import { DocumentAccessControl } from "@/components/assets/content/assets-access
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulExpandableText } from "@/huemul/components/huemul-expandable-text";
 import { AssetsNotificationsSheet } from "@/components/assets/content/assets-notifications-sheet";
+import { LifecycleHistorySheet } from "@/components/assets/content/lifecycle-history-sheet";
+import { AssetDiagramsSheet } from "@/components/assets/content/asset-diagrams-sheet";
 
 import {
   DropdownMenu,
@@ -79,6 +81,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { computeFrontendPermissions } from '@/hooks/useDocumentAccess';
 import type { ContentSection, FrontendPermissions, LibraryContentProps, LifecyclePermissions } from '@/types/assets';
+import type { FormValuesSectionPayload } from '@/types/sections/core';
 import { CustomFieldsList } from './assets-custom-fields-list';
 import { SectionIndexContext } from '@/contexts/section-index-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
@@ -165,7 +168,7 @@ export function AssetContent({
   const navigate = useOrgNavigate();
   const isMobile = useIsMobile();
   const { selectedOrganizationId } = useOrganization();
-  const { canCreate, canAccessTemplates, canAccessAssets } = useUserPermissions();
+  const { canCreate, canAccessTemplates, canAccessAssets, canAccessDiagrams } = useUserPermissions();
   const { handleCreateAsset: openCreateAssetDialog } = useNavKnowledgeActions();
   const { guardedAction } = useOptionalEditingGuard();
   const { isOpen: isGlobalPanelOpen } = useGlobalPanel();
@@ -634,6 +637,8 @@ export function AssetContent({
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
+  const [isLifecycleHistorySheetOpen, setIsLifecycleHistorySheetOpen] = useState(false);
+  const [isDiagramsSheetOpen, setIsDiagramsSheetOpen] = useState(false);
 
   // Sidebar and sheets
   const [activeTab, setActiveTab] = useState<'toc' | 'custom-fields'>('toc');
@@ -840,8 +845,29 @@ export function AssetContent({
   const selectedFileIdRef = useRef(selectedFile?.id);
   selectedFileIdRef.current = selectedFile?.id;
 
-  const handleSectionUpdate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFileIdRef.current] });
+  // Con payload (autoguardado de formularios): parchea en el caché solo las secciones
+  // form devueltas por el PATCH /form_values, sin refetch de /documents/{id}/content
+  // (que traería también las secciones ai/manual/reference sin necesidad).
+  // Sin payload (resto de ediciones de sección): comportamiento previo, invalida y refetch.
+  const handleSectionUpdate = useCallback((payload?: FormValuesSectionPayload[]) => {
+    const fileId = selectedFileIdRef.current;
+    if (payload?.length) {
+      const formFieldsBySectionId = new Map(payload.map((p) => [p.section_execution_id, p.form_fields]));
+      queryClient.setQueriesData(
+        { queryKey: ['document-content', fileId] },
+        (old: { content?: ContentSection[] } | undefined) => {
+          if (!old?.content || !Array.isArray(old.content)) return old;
+          return {
+            ...old,
+            content: old.content.map((s) =>
+              formFieldsBySectionId.has(s.id) ? { ...s, form_fields: formFieldsBySectionId.get(s.id) } : s,
+            ),
+          };
+        },
+      );
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['document-content', fileId] });
   }, [queryClient]);
 
   // Al cerrar el sheet de secciones, refrescar el contenido del asset.
@@ -2575,6 +2601,9 @@ export function AssetContent({
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
+                            onOpenLifecycleHistory={() => setIsLifecycleHistorySheetOpen(true)}
+                            canAccessDiagrams={canAccessDiagrams}
+                            onOpenDiagrams={() => setIsDiagramsSheetOpen(true)}
                             onOpenPermissions={() => setIsPermissionsSheetOpen(true)}
                             onOpenSections={() => setIsSectionSheetOpen(true)}
                             onOpenDependencies={() => setIsDependenciesSheetOpen(true)}
@@ -3493,6 +3522,7 @@ export function AssetContent({
         }}
         afterFromSectionId={afterFromSectionId}
         existingSections={sectionOptionsForExecutionDialog}
+        documentId={selectedFile?.id}
         onSubmit={handleSectionExecutionSubmit}
         isPending={createSectionExecutionMutation.isPending}
         onClose={() => {
@@ -3818,6 +3848,23 @@ export function AssetContent({
         executionId={selectedExecutionId}
         organizationId={selectedOrganizationId ?? ''}
         allExecutions={allExecutions}
+      />
+
+      {/* Lifecycle History Sheet */}
+      <LifecycleHistorySheet
+        open={isLifecycleHistorySheetOpen}
+        onOpenChange={setIsLifecycleHistorySheetOpen}
+        executionId={selectedExecutionId || documentContent?.execution_id || ''}
+        organizationId={selectedOrganizationId ?? ''}
+        allExecutions={allExecutions ?? []}
+      />
+
+      {/* Related Diagrams Sheet */}
+      <AssetDiagramsSheet
+        open={isDiagramsSheetOpen}
+        onOpenChange={setIsDiagramsSheetOpen}
+        documentId={selectedFile?.id ?? ''}
+        organizationId={selectedOrganizationId ?? ''}
       />
     </>
   );

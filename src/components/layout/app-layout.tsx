@@ -179,6 +179,12 @@ const navigationItems = [
     icon: Zap,
     orgScoped: true,
   },
+  {
+    title: "Workflow",
+    url: "/workflow",
+    icon: Workflow,
+    orgScoped: true,
+  },
 ]
 
 export default function AppLayout() {
@@ -455,6 +461,9 @@ export default function AppLayout() {
           break
         case "Advanced":
           shouldShowItem = canAccessSectionExecutions || isOrgAdmin
+          break
+        case "Workflow":
+          shouldShowItem = canAccessAssets || isOrgAdmin
           break
         default:
           shouldShowItem = true

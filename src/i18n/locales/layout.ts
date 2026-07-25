@@ -6,6 +6,7 @@ const translations = {
     templates: { en: "Templates", es: "Plantillas" },
     advanced: { en: "Advanced", es: "Avanzado" },
     media: { en: "Media", es: "Media" },
+    workflow: { en: "Workflow", es: "Workflow" },
     navigationMenuTitle: { en: "Navigation", es: "Navegación" },
   },
   header: {

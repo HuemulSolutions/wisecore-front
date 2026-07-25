@@ -1,4 +1,4 @@
-import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History } from 'lucide-react';
+import { MoreVertical, Edit, Bot, Copy, Trash2, Play, FastForward, Loader2, GitCompare, History, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { memo, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -27,8 +27,8 @@ import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
 import { useTranslation } from 'react-i18next';
-import { AssetFormSection } from '@/components/assets/content/asset-form-section';
-import { isFieldAnswerable } from '@/components/sections/question-type-meta';
+import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
+import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
 import type { SectionExecutionProps } from '@/types/assets';
 export type { SectionExecutionProps } from '@/types/assets';
 
@@ -66,6 +66,10 @@ function SectionExecutionInner({
     );
     const [isAiEditDialogOpen, setIsAiEditDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    // Ref al form de la sección: el botón Enviar/Cancelar vive en la barra de acciones de acá
+    // arriba, pero la lógica de guardado/validación sigue en AssetFormSection.
+    const formSectionRef = useRef<AssetFormSectionHandle>(null);
+    const [isFormSaving, setIsFormSaving] = useState(false);
     const [aiPreview, setAiPreview] = useState<string | null>(null);
     const [isAiSuggestionActive, setIsAiSuggestionActive] = useState(
         sectionExecution.ai_suggestion_status === 'pending'
@@ -98,7 +102,7 @@ function SectionExecutionInner({
     const [executionConfigOpen, setExecutionConfigOpen] = useState(false);
     const [localExecutionMode, setLocalExecutionMode] = useState<'single' | 'from'>('single');
     const isMobile = useIsMobile();
-    const { t } = useTranslation(["assets", "common"]);
+    const { t } = useTranslation(["assets", "common", "sections"]);
     const isExecutionApproved = executionStatus === 'approved';
     
     // Determine which actions are available based on section type
@@ -222,7 +226,18 @@ function SectionExecutionInner({
 
     const handleCopy = async () => {
         try {
-            const contentToCopy = displayedContent;
+            const contentToCopy = sectionType === 'form'
+                ? (sectionExecution.form_fields ?? [])
+                    .filter(isFieldVisible)
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                    .map((field) =>
+                        // Etiqueta es un separador visual, no una pregunta: solo el título, sin "campo: valor".
+                        field.question_type === QUESTION_TYPE.label
+                            ? formatFieldValueForCopy(field, t)
+                            : `${field.field_name}: ${formatFieldValueForCopy(field, t)}`,
+                    )
+                    .join('\n')
+                : displayedContent;
             await navigator.clipboard.writeText(contentToCopy);
             toast.success(t('section.contentCopied'));
         } catch (error) {
@@ -419,7 +434,31 @@ function SectionExecutionInner({
                             />
                         )}
                     </div>
-                    
+
+                    {/* Edición de formulario: Cancelar/Enviar reemplazan las acciones normales, Copiar se mantiene */}
+                    {isEditing && sectionType === 'form' && (
+                        <div className="flex items-center gap-1">
+                            <HuemulButton
+                                variant="ghost"
+                                size="sm"
+                                icon={Copy}
+                                iconClassName="h-3.5 w-3.5 text-gray-600"
+                                className="h-7 w-7 hover:bg-gray-100"
+                                tooltip={t('section.copyContent')}
+                                onClick={handleCopy}
+                            />
+                            <HuemulButton
+                                variant="outline"
+                                size="sm"
+                                icon={Eye}
+                                loading={isFormSaving}
+                                disabled={isFormSaving}
+                                label={isFormSaving ? t('common:saving') : t('sections:form.fill.doneEditing')}
+                                onClick={() => formSectionRef.current?.exit()}
+                            />
+                        </div>
+                    )}
+
                     {!isEditing && (
                     <>
                         {/* Desktop: Direct Action Buttons */}
@@ -770,6 +809,7 @@ function SectionExecutionInner({
                 /* Form section: render fillable/read-only form instead of the Plate editor */
                 <div className={`${readyToEdit ? 'pt-4' : 'pt-1'} pr-2 w-full`}>
                     <AssetFormSection
+                        ref={formSectionRef}
                         sectionExecutionId={sectionExecution.id}
                         formFields={sectionExecution.form_fields ?? []}
                         status={status}
@@ -781,6 +821,7 @@ function SectionExecutionInner({
                         responderName={responderName}
                         respondedAt={respondedAt}
                         onUpdate={onUpdate}
+                        onSavingChange={setIsFormSaving}
                     />
                 </div>
             ) : (

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getRoles, createRole, getPermissions, getRolePermissions, getUserRoles, getUserAllRoles, assignRolesToUser, updateRole, deleteRole, getRoleWithAllUsers, assignUsersToRole, cloneRole } from "@/services/rbac"
+import type { UpdateRoleData } from "@/types/rbac"
 
 // Query keys
 export const rbacQueryKeys = {
@@ -96,7 +97,7 @@ export function useRoleMutations() {
   })
 
   const updateRoleMutation = useMutation({
-    mutationFn: ({ roleId, data }: { roleId: string; data: any }) => 
+    mutationFn: ({ roleId, data }: { roleId: string; data: UpdateRoleData }) =>
       updateRole(roleId, data),
     meta: { successMessage: 'Role updated successfully' },
     onSuccess: () => {
