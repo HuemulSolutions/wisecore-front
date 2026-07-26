@@ -128,4 +128,29 @@ i18n
     defaultNS: 'common',
   })
 
+// Mantiene <html lang> alineado con el idioma real que i18next eligió, y
+// reafirma el opt-out de traducción automática. index.html ya declara
+// lang="es" + translate="no" + <meta name="google" content="notranslate">,
+// pero eso solo cubre el HTML servido; esto lo mantiene correcto cuando el
+// detector ('navigator' primero) resuelve un idioma distinto. Un <html lang>
+// desalineado del contenido real es lo que dispara el traductor del
+// navegador, que reparenta nodos de texto (<font>) y provoca
+// "NotFoundError: Failed to execute 'removeChild'" cuando React intenta
+// actualizar ese subárbol — se ejecuta a nivel de módulo (antes de
+// createRoot en main.tsx) para llegar antes del primer paint.
+function syncDocumentLang(lng?: string) {
+  const base = (lng ?? 'en').split('-')[0] as (typeof supportedLanguages)[number]
+  const resolved = supportedLanguages.includes(base) ? base : 'en'
+  const html = document.documentElement
+  html.lang = resolved
+  html.setAttribute('translate', 'no')
+  html.classList.add('notranslate')
+  if (/\btranslated-(ltr|rtl)\b/.test(html.className)) {
+    console.warn('[wisecore] pagina traducida por el navegador')
+  }
+}
+
+syncDocumentLang(i18n.resolvedLanguage ?? i18n.language)
+i18n.on('languageChanged', syncDocumentLang)
+
 export default i18n

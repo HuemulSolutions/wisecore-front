@@ -182,6 +182,10 @@ export function useChatbot({
   const isFirstMessageRef = useRef(true);
   // Guard against duplicate send while creating conversation
   const isSendingRef = useRef(false);
+  // Bumped on every reset so in-flight async work (createConversation awaits)
+  // started before the reset can detect it's stale and bail out instead of
+  // writing state for a conversation that belongs to the previous org.
+  const generationRef = useRef(0);
 
   // ── Load existing conversation ──────────────────────────────
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
@@ -279,6 +283,7 @@ export function useChatbot({
       const trimmed = content.trim();
       if (!trimmed || isSendingRef.current) return;
       isSendingRef.current = true;
+      const generation = generationRef.current;
 
       let activeConversationId = conversationId;
 
@@ -286,6 +291,13 @@ export function useChatbot({
       if (!activeConversationId) {
         try {
           const conv = await createConversation();
+          // A reset (e.g. switching organizations) happened while this await
+          // was in flight — this conversation belongs to the previous org,
+          // don't let it leak into the freshly reset state.
+          if (generation !== generationRef.current) {
+            isSendingRef.current = false;
+            return;
+          }
           activeConversationId = conv.id;
           setConversationId(conv.id);
 
@@ -297,6 +309,11 @@ export function useChatbot({
           isSendingRef.current = false;
           return; // Global error handler will show toast
         }
+      }
+
+      if (generation !== generationRef.current) {
+        isSendingRef.current = false;
+        return;
       }
 
       // Add optimistic messages
@@ -333,10 +350,20 @@ export function useChatbot({
     [conversationId, references, queryClient, selectedLlmId, selectedOrganizationId, sendMutation, workingContext, workingContextItems]
   );
 
-  const startNewConversation = useCallback(
+  const resetSendMutation = sendMutation.reset;
+
+  // Resets all conversation state in place. Used both as the public "new
+  // conversation" action and internally by ChatbotProvider when the active
+  // organization changes (see chatbot-context.tsx) — the latter used to be a
+  // full remount via `key={organizationId}`, which tore down the whole
+  // AppLayout subtree (including open Radix portals) on every org switch.
+  // Bumping generationRef invalidates any in-flight sendMessage() awaits so
+  // they can't write a previous-org conversation into the freshly reset state.
+  const resetChatbot = useCallback(
     () => {
-      // Reset all state — conversation will be created lazily on first message.
+      // Conversation will be created lazily on first message.
       // References are passed via the `references` prop and re-sent on every message.
+      generationRef.current += 1;
       setConversationId(null);
       setConversationTitle(null);
       setMessages([]);
@@ -345,8 +372,9 @@ export function useChatbot({
       setIsLoadingConversation(false);
       isFirstMessageRef.current = true;
       isSendingRef.current = false;
+      resetSendMutation();
     },
-    []
+    [resetSendMutation]
   );
 
   const loadConversation = useCallback(
@@ -390,7 +418,8 @@ export function useChatbot({
     isTyping: isPolling,
 
     sendMessage,
-    startNewConversation,
+    startNewConversation: resetChatbot,
+    resetChatbot,
     loadConversation,
 
     isSending: sendMutation.isPending,

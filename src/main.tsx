@@ -6,6 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import '@/i18n'
 import { Toaster } from "@/components/ui/sonner"
 import { queryClient } from '@/lib/query-client';
+import { AppErrorBoundary } from '@/components/error-boundary/app-error-boundary'
 import './index.css'                       // Tailwind (globals)
 import '@mdxeditor/editor/style.css'       // CSS del MDXEditor
 import './mdx-editor.css'
@@ -18,14 +19,17 @@ window.addEventListener('error', (event) => {
     event.error?.message?.includes('listener indicated an asynchronous response') ||
     event.message?.includes('runtime.lastError') ||
     event.message?.includes('message channel closed') ||
-    event.message?.includes('listener indicated an asynchronous response') ||
-    event.filename?.includes('extension') ||
-    event.filename === ''
+    event.message?.includes('listener indicated an asynchronous response')
   ) {
     event.preventDefault();
     event.stopPropagation();
     return false;
   }
+  // No suprimir nada más: en particular, event.filename === '' o
+  // event.filename?.includes('extension') se suprimían antes sin loguear,
+  // lo que tapaba errores legítimos re-lanzados por React (p.ej. el
+  // NotFoundError de removeChild que rompe la app al cambiar de org).
+  console.warn('[window.error]', event.message, event.filename);
 });
 
 // Suprimir promesas rechazadas de extensiones
@@ -83,9 +87,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <Toaster richColors />
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AppErrorBoundary>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AppErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,
 )

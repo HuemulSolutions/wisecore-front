@@ -37,6 +37,7 @@ export function ChatbotProvider({
   executionId,
   documentId,
   initialReferences,
+  resetKey = null,
 }: ChatbotProviderProps) {
   const [fallbackReferences, setFallbackReferences] = useState<ConversationReference[] | undefined>(() =>
     buildReferences(executionId, documentId, initialReferences)
@@ -113,6 +114,39 @@ export function ChatbotProvider({
   }, [fallbackReferences, referenceSources]);
 
   const chatbotState = useChatbot({ references, selectedLlmId, workingContextItems });
+
+  // --- Reset en sitio al cambiar de organización -----------------------------
+  // Antes app-layout hacía <ChatbotProvider key={selectedOrganizationId}>, lo
+  // que destruía TODO el subárbol del layout (header, providers, <Outlet/> y
+  // los portales de Radix con su animación de salida a medias) en el mismo
+  // commit en que se cerraba el diálogo de selección de organización. Eso
+  // amplificaba un desync de DOM externo (traductor del navegador) en un
+  // "NotFoundError: removeChild" que dejaba la app en blanco. Resetear en
+  // sitio deja el árbol host intacto y solo toca estado — no hay `key` que
+  // volver a introducir aquí.
+  const previousResetKeyRef = useRef(resetKey);
+  const { resetChatbot } = chatbotState;
+
+  useEffect(() => {
+    if (previousResetKeyRef.current === resetKey) return;
+    previousResetKeyRef.current = resetKey;
+
+    setFallbackReferences(buildReferences(executionId, documentId, initialReferences));
+    setIsOpen(false);
+    setIsExpanded(false);
+    setInputValue('');
+    setView('chat');
+    setSelectedLlmId(undefined);
+    setWorkingContextItems([]);
+    setCurrentPageContext(null);
+    sourceOrderRef.current = 0;
+    // OJO: `referenceSources` NO se limpia aquí a propósito. Es un registro
+    // cuyo dueño son los hijos montados (useChatbotScreenContext más abajo);
+    // vaciarlo desde el padre dejaría huérfanas registraciones vivas cuyo
+    // efecto no va a re-ejecutarse. Los hijos se desregistran solos al
+    // desmontarse con el cambio de ruta.
+    resetChatbot();
+  }, [resetKey, executionId, documentId, initialReferences, resetChatbot]);
 
   const value = useMemo<ChatbotContextValue>(
     () => ({

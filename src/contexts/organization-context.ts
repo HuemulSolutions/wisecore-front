@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { httpClient } from '@/lib/http-client';
 import { queryClient } from '@/lib/query-client';
 import type { UserOrganization } from '@/types/users';
@@ -21,6 +21,10 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const [organizationToken, setOrganizationTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [requiresOrganizationSelection, setRequiresOrganizationSelection] = useState(false);
+  // Set right before setSelectedOrganizationId during an org switch, so the
+  // 1s auth-token poll below can't call resetOrganizationContext() (and its
+  // queryClient.clear()) in the middle of that transition — see setter below.
+  const isSwitchingOrgRef = useRef(false);
 
   const resetOrganizationContext = () => {
     setSelectedOrganizationIdState(null);
@@ -85,6 +89,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     
     // También verificar periódicamente si el token fue removido
     const checkAuthToken = () => {
+      if (isSwitchingOrgRef.current) return; // an org switch is landing right now, don't race it
       const token = localStorage.getItem('auth_token');
       if (!token && selectedOrganizationId) {
         resetOrganizationContext();
@@ -106,6 +111,12 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       localStorage.removeItem('selectedOrganizationId');
       httpClient.setOrganizationId(null);
     } else {
+      // Guard the 1s auth-token poll above from firing resetOrganizationContext()
+      // (and its queryClient.clear()) while this switch is still landing —
+      // auth_token/organizationToken can briefly look inconsistent mid-switch.
+      isSwitchingOrgRef.current = true;
+      setTimeout(() => { isSwitchingOrgRef.current = false; }, 2000);
+
       setSelectedOrganizationIdState(id);
       localStorage.setItem('selectedOrganizationId', id);
       httpClient.setOrganizationId(id);

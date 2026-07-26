@@ -488,8 +488,6 @@ export default function AppLayout() {
     isSwitchingOrg
   ])
 
-  const chatbotProviderKey = selectedOrganizationId ?? 'no-org'
-
   // Purge the entire query cache whenever the active organization changes.
   // Org-scoped query keys are inconsistent across the codebase (some include
   // organizationId, most don't — e.g. ['document-content', docId]), and the
@@ -512,11 +510,21 @@ export default function AppLayout() {
     }
 
     queryClient.cancelQueries() // stop in-flight requests still carrying the old X-Org-Id
-    queryClient.clear() // supersedes the old removeQueries(['chatbot'])-only purge
+    // Drop inactive cache entries outright (nothing is mounted to re-render them
+    // stale), and invalidate the rest so mounted useQuery hooks refetch under
+    // the new X-Org-Id instead of rendering stale data with zero request.
+    // A full queryClient.clear() here used to drop every ACTIVE query to
+    // `undefined` in the same commit that <ChatbotProvider> remounted the
+    // whole layout via `key` — that double blast was the biggest single
+    // burst of DOM deletions in the app on every org switch. The remount is
+    // gone (see ChatbotProvider's resetKey), and this makes the purge itself
+    // gentler too.
+    queryClient.removeQueries({ type: 'inactive' })
+    queryClient.invalidateQueries()
   }, [queryClient, selectedOrganizationId])
 
   return (
-    <ChatbotProvider key={chatbotProviderKey}>
+    <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
       <GlobalPanelProvider>
       <TooltipProvider>
         <EditingGuardProvider>

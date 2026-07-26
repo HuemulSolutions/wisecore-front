@@ -392,9 +392,12 @@ export function useAssetNavigation({
       // instead of redirecting to the asset root.
       const urlDroveChange = urlOrgId === selectedOrganizationId;
       
-      if (!urlDroveChange && stripOrgPrefix(location.pathname) !== '/asset') {
+      if (!urlDroveChange && stripOrgPrefix(location.pathname).startsWith('/asset')) {
         setIsUpdatingUrl(true);
-        navigate('/asset', { replace: true });
+        // Prefixed with the org id — an unprefixed '/asset' only matches the
+        // app's catch-all route (App.tsx RootRedirect), triggering a second,
+        // competing navigation on top of app-layout's context→URL sync.
+        navigate(`/${selectedOrganizationId}/asset`, { replace: true });
         setTimeout(() => setIsUpdatingUrl(false), 200);
       }
       // else: shared URL-driven switch — the "Initialize from URL" effect will

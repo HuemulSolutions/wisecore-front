@@ -15,6 +15,8 @@ export interface UseChatbotReturn {
   isTyping: boolean;
   sendMessage: (content: string) => void;
   startNewConversation: () => void;
+  /** Internal alias of startNewConversation used by ChatbotProvider's org-change reset. */
+  resetChatbot: () => void;
   loadConversation: (conversationId: string) => void;
   isSending: boolean;
   isLoadingConversation: boolean;

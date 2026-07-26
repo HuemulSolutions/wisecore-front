@@ -13,5 +13,6 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1600, // Increase limit to 1.6MB to reduce warnings
+    sourcemap: 'hidden', // stacks legibles en prod sin exponer el fuente al público
   }
 })
