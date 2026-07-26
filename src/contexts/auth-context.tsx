@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
+import { queryClient } from '@/lib/query-client';
 import type { User } from '@/types/users';
 import type { AuthContextType, AuthProviderProps } from '@/types/auth'
 export type { AuthContextType }
@@ -77,6 +78,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     httpClient.setLoginToken(null);
     httpClient.setOrganizationToken(null);
     httpClient.setOrganizationId(null);
+    // Purge cached data so it can't leak into the next session in this tab
+    // (e.g. a different user logging in right after, or the same user
+    // logging back into a different organization).
+    queryClient.clear();
   };
 
   const updateUser = (updatedUser: User) => {

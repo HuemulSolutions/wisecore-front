@@ -490,16 +490,29 @@ export default function AppLayout() {
 
   const chatbotProviderKey = selectedOrganizationId ?? 'no-org'
 
+  // Purge the entire query cache whenever the active organization changes.
+  // Org-scoped query keys are inconsistent across the codebase (some include
+  // organizationId, most don't — e.g. ['document-content', docId]), and the
+  // invalidateQueries predicates elsewhere only cover a hardcoded allowlist
+  // of key fragments that doesn't even match those keys. A stale document's
+  // cached content (2min staleTime / 5min gcTime, refetchOnMount: false) can
+  // otherwise render under the wrong organization with zero network request.
+  // clear() is opt-out by design so new query keys are covered for free.
   useEffect(() => {
-    if (previousChatbotOrgRef.current === selectedOrganizationId) {
+    const previousOrg = previousChatbotOrgRef.current
+    if (previousOrg === selectedOrganizationId) {
       return
     }
 
     previousChatbotOrgRef.current = selectedOrganizationId
 
-    queryClient.removeQueries({
-      queryKey: ['chatbot'],
-    })
+    if (previousOrg === null) {
+      // Initial mount — nothing cached yet for a previous org to purge.
+      return
+    }
+
+    queryClient.cancelQueries() // stop in-flight requests still carrying the old X-Org-Id
+    queryClient.clear() // supersedes the old removeQueries(['chatbot'])-only purge
   }, [queryClient, selectedOrganizationId])
 
   return (

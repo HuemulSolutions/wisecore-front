@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { httpClient } from '@/lib/http-client';
+import { queryClient } from '@/lib/query-client';
 import type { UserOrganization } from '@/types/users';
 import type { OrganizationContextType, OrganizationProviderProps } from '@/types/organizations'
 export type { OrganizationContextType }
@@ -30,6 +31,9 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     localStorage.removeItem('organizationToken');
     httpClient.setOrganizationToken(null);
     httpClient.setOrganizationId(null);
+    // This path runs on logout (detected via storage event / polling) — purge
+    // cached data so it doesn't leak into whatever session comes next in this tab.
+    queryClient.clear();
   };
 
   const setOrganizationToken = (token: string | null) => {

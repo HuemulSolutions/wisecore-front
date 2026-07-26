@@ -800,10 +800,14 @@ export function NavKnowledgeContent() {
     return () => { cancelled = true }
   }, [committedSearch, selectedOrganizationId])
 
-  // Extract active asset ID from URL (pattern: /:orgId/asset/:assetId)
+  // Extract active asset ID from URL (pattern: /asset/<folder>/.../<assetId>).
+  // The asset (if present) is always the LAST segment — buildUrlPath puts
+  // breadcrumb folders first and the file id last.
   const activeAssetId = React.useMemo(() => {
-    const match = location.pathname.match(/\/asset\/([^/]+)/)
-    return match ? match[1] : null
+    const match = location.pathname.match(/\/asset(\/[^?]*)?/)
+    if (!match) return null
+    const segments = (match[1] ?? '').split('/').filter(Boolean)
+    return segments.length > 0 ? segments[segments.length - 1] : null
   }, [location.pathname])
 
   // Always reflects the current asset in the URL — used by both initial load and refresh
@@ -843,18 +847,39 @@ export function NavKnowledgeContent() {
       try {
         const isRoot = folderId === null
         const focusAssetId = isRoot ? activeAssetIdRef.current : null
+        // Tracks whether the focused-tree branch actually ran. Starts optimistic
+        // and gets demoted to false if the focus asset turns out to be invalid
+        // (stale id, deleted asset, or leftover from another organization).
+        let focusedRootLoad = isRoot && !!focusAssetId
 
         let content: LibraryContent
-        if (isRoot && focusAssetId) {
-          content = await getLibraryContent(
-            selectedOrganizationId,
-            undefined,
-            rootPageRef.current,
-            rootPageSizeRef.current,
-            undefined,
-            undefined,
-            focusAssetId,
-          )
+        if (focusedRootLoad) {
+          try {
+            content = await getLibraryContent(
+              selectedOrganizationId,
+              undefined,
+              rootPageRef.current,
+              rootPageSizeRef.current,
+              undefined,
+              undefined,
+              focusAssetId!,
+            )
+          } catch (focusError) {
+            if (!ApiError.isApiError(focusError) || focusError.statusCode !== 404) {
+              throw focusError
+            }
+            // The focused asset doesn't exist / isn't reachable in this org
+            // (e.g. leftover id from a previous org, or a deleted document).
+            // That's a focus failure, not a folder-load failure — fall back to
+            // a normal root load instead of emptying the whole tree.
+            content = await getLibraryContent(
+              selectedOrganizationId,
+              undefined,
+              rootPageRef.current,
+              rootPageSizeRef.current,
+            )
+            focusedRootLoad = false
+          }
         } else if (isRoot) {
           content = await getLibraryContent(
             selectedOrganizationId,
@@ -894,7 +919,7 @@ export function NavKnowledgeContent() {
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
-          if (isRoot && focusAssetId) {
+          if (focusedRootLoad) {
             content.folders.forEach((f) => newMap.set(f.id, f.parent_folder_id))
             content.assets.forEach((a) => newMap.set(a.id, a.folder_id))
           } else {
@@ -904,7 +929,7 @@ export function NavKnowledgeContent() {
           return newMap
         })
 
-        if (isRoot && focusAssetId) {
+        if (focusedRootLoad) {
           return buildFocusedTree(content)
         }
 
