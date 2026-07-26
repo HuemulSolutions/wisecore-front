@@ -51,6 +51,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
       cascadeSelection,
       isNodeExpandable,
       renderNodeSuffix,
+      preserveExpandedOnRefresh,
     },
     ref,
   ) => {
@@ -148,6 +149,7 @@ export const FileTree = forwardRef<FileTreeRef, AssetFileTreeProps>(
         cascadeSelection={cascadeSelection}
         isNodeExpandable={isNodeExpandable ? (node) => isNodeExpandable(node as FileNode) : undefined}
         renderNodeSuffix={renderNodeSuffix ? (node) => renderNodeSuffix(node as FileNode) : undefined}
+        preserveExpandedOnRefresh={preserveExpandedOnRefresh}
         isSectionHeader={(node) => {
           const fileNode = node as FileNode
           return !!fileNode.isSystem || !!fileNode.isRootGroup

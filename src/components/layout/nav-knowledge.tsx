@@ -47,20 +47,6 @@ import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
 import type { LibraryContentFolderType } from "@/types/folders"
 
-// Orden fijo de las carpetas raíz del sistema, independiente del nombre (editable por el usuario).
-const ROOT_FOLDER_ORDER: Record<string, number> = {
-  personal: 0,
-  global: 1,
-  forms: 2,
-  grupal: 3,
-  sin_carpeta: 4,
-}
-
-function rootFolderSortKey(folderType: LibraryContentFolderType | null | undefined): number {
-  if (!folderType) return Number.MAX_SAFE_INTEGER
-  return ROOT_FOLDER_ORDER[folderType] ?? Number.MAX_SAFE_INTEGER
-}
-
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
 function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
   if (node.folder_type === "area") {
@@ -151,6 +137,12 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
     if (parent?.isExpanded && parent.children) {
       parent.children.push(assetNode)
     }
+  }
+
+  // Una carpeta expandida por el backend refleja lo que realmente llegó:
+  // sin esto queda hasChildren:true con children:[] y refresh() la da por cargada.
+  for (const node of folderMap.values()) {
+    if (node.children) node.hasChildren = node.children.length > 0
   }
 
   const rootFolderNodes = folders
@@ -916,7 +908,7 @@ export function NavKnowledgeContent() {
           return buildFocusedTree(content)
         }
 
-        let folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
+        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
           id: item.id,
           name: item.name,
           type: 'folder',
@@ -926,12 +918,6 @@ export function NavKnowledgeContent() {
           isRootGroup: isRoot && isRootGroupFolderNode(item.folder_type, item.parent_folder_id),
           access_levels: item.access_levels,
         }))
-
-        if (isRoot) {
-          folderNodes = [...folderNodes].sort(
-            (a, b) => rootFolderSortKey(a.folder_type) - rootFolderSortKey(b.folder_type)
-          )
-        }
 
         const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
           id: item.id,
@@ -1284,6 +1270,7 @@ export function NavKnowledgeContent() {
           showBorder={false}
           showRefreshButton={false}
           alwaysShowMenuActions={true}
+          preserveExpandedOnRefresh={!activeAssetId}
           renderLeafIcon={(node) => {
             const fileNode = node as FileNode
             const color = fileNode.document_type?.color

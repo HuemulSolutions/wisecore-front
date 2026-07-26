@@ -108,6 +108,10 @@ export interface AssetFileTreeProps {
   cascadeSelection?: boolean
   isNodeExpandable?: (node: FileNode) => boolean
   renderNodeSuffix?: (node: FileNode) => React.ReactNode
+  // Al refrescar, recargar las carpetas que el usuario expandió a mano.
+  // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
+  // solo queda expandido lo que venga marcado en esa respuesta.
+  preserveExpandedOnRefresh?: boolean
 }
 
 export interface FileTreeRef extends HuemulFileTreeRef {}

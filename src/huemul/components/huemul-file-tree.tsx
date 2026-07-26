@@ -60,6 +60,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       isNodeExpandable,
       renderNodeSuffix,
       isSectionHeader,
+      preserveExpandedOnRefresh = true,
     },
     ref,
   ) => {
@@ -227,6 +228,10 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         }
 
         const rootData = onRefreshProp ? await onRefreshProp() : await onLoadChildren(initialFolderId)
+        if (!preserveExpandedOnRefresh) {
+          setNodes(rootData)
+          return
+        }
         const refreshedNodes = await reloadExpandedFolders(rootData)
         setNodes(refreshedNodes)
       } catch (error) {
@@ -234,7 +239,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
       } finally {
         setIsLoading(false)
       }
-    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, isExpandable])
+    }, [onLoadChildren, onRefreshProp, expandedFolders, initialFolderId, isExpandable, preserveExpandedOnRefresh])
 
     useImperativeHandle(ref, () => ({ refresh }))
 
