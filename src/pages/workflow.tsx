@@ -7,7 +7,7 @@ import { Workflow as WorkflowIcon, Loader2, ShieldAlert } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
-import { useWorkflowTemplates, useCreateTemplateExpress } from "@/hooks/useWorkflowTemplates"
+import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { PageHeader } from "@/huemul/components/huemul-page-header"
@@ -69,7 +69,11 @@ export default function WorkflowPage() {
 
   const items = workflowsResponse?.data ?? []
 
-  const { data: templateItems = [], isLoading: isLoadingTemplates } = useWorkflowTemplates(
+  const {
+    data: templateItems = [],
+    isLoading: isLoadingTemplates,
+    refetch: refetchTemplates,
+  } = useWorkflowTemplates(
     selectedOrganizationId ?? "",
     { enabled: !!selectedOrganizationId && !!organizationToken && canAccessAssets },
   )
@@ -109,7 +113,9 @@ export default function WorkflowPage() {
             showRefresh
             onRefresh={() => {
               queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
+              queryClient.invalidateQueries({ queryKey: workflowTemplateQueryKeys.listBase() })
               refetch()
+              refetchTemplates()
             }}
             isLoading={isFetching}
             hasError={!!error}
