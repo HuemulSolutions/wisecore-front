@@ -1,4 +1,4 @@
-import { QueryClient, MutationCache } from '@tanstack/react-query';
+import { QueryClient, MutationCache, QueryCache } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { ApiError } from '@/types/api-error';
@@ -20,7 +20,23 @@ const mutationCache = new MutationCache({
   },
 });
 
+const queryCache = new QueryCache({
+  onError: (error, query) => {
+    // Solo fallo de primera carga: si ya hay datos en cache, este error es
+    // un refetch en background (staleTime vencido, refocus, etc.) y no debe
+    // interrumpir con un toast — la UI que consume el query decide cómo
+    // mostrarlo (loading state, error state propio).
+    if (query.state.data !== undefined) return;
+    // Opt-out por query para páginas con su propio error state
+    // (content-error-state.tsx, auth-types-error-state.tsx, etc.)
+    if (query.meta?.showErrorToast === false) return;
+
+    handleApiError(error);
+  },
+});
+
 export const queryClient = new QueryClient({
+  queryCache,
   mutationCache,
   defaultOptions: {
     queries: {

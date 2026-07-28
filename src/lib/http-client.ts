@@ -138,16 +138,20 @@ export const httpClient = {
 
         // Handle 401 specifically - only logout for token issues, not permission issues
         if (response.status === 401 && onUnauthorized) {
-          const isRolePermissionError = 
+          const isRolePermissionError =
             apiError.code === 'FORBIDDEN' ||
             apiError.code === 'INSUFFICIENT_PERMISSIONS' ||
             apiError.detail.includes('no tiene ningún rol') ||
             apiError.detail.includes('no permission') ||
             apiError.detail.includes('insufficient privileges') ||
             apiError.detail.includes('access denied');
-          
+
           if (!isRolePermissionError) {
             onUnauthorized();
+            // Marca que este error ya disparó logout/redirect, para que
+            // error-utils no intente mostrar un toast sobre algo que ya
+            // está siendo manejado (ver handleApiError).
+            apiError.handled = true;
           }
         }
 

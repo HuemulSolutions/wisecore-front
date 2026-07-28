@@ -7,6 +7,7 @@ import '@/i18n'
 import { Toaster } from "@/components/ui/sonner"
 import { queryClient } from '@/lib/query-client';
 import { AppErrorBoundary } from '@/components/error-boundary/app-error-boundary'
+import { ErrorDetailsDialog } from '@/components/error-boundary/error-details-dialog'
 import './index.css'                       // Tailwind (globals)
 import '@mdxeditor/editor/style.css'       // CSS del MDXEditor
 import './mdx-editor.css'
@@ -87,6 +88,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <Toaster richColors />
+      <ErrorDetailsDialog />
       <AppErrorBoundary>
         <BrowserRouter>
           <App />

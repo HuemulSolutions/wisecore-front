@@ -38,6 +38,7 @@ import subscriptions from './locales/subscriptions'
 import notifications from './locales/notifications'
 import roleFolder from './locales/role-folder'
 import workflow from './locales/workflow'
+import errorDetails from './locales/error-details'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -95,6 +96,7 @@ const modules = {
   notifications,
   'role-folder': roleFolder,
   workflow,
+  'error-details': errorDetails,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const
