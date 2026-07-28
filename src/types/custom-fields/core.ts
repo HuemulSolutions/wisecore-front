@@ -1,3 +1,5 @@
+import type { FormFieldConfig } from '@/types/sections/core';
+
 export type CustomFieldDataType =
   | "string"
   | "int"
@@ -15,6 +17,11 @@ export interface CustomFieldOption {
   label: string;
 }
 
+export interface CustomFieldQuestionType {
+  question_type: string;
+  data_type: CustomFieldDataType;
+}
+
 export interface CustomField {
   id: string;
   data_type: CustomFieldDataType;
@@ -28,7 +35,7 @@ export interface CustomField {
   question_type: string;
   required: boolean;
   order: number;
-  default_value: CustomFieldOption[] | null;
+  default_value: CustomFieldOption[] | FormFieldConfig | null;
   min_value: unknown | null;
   max_value: unknown | null;
   options?: CustomFieldOption[];
@@ -58,12 +65,11 @@ export interface ApiResponse<T> {
 export interface CreateCustomFieldRequest {
   name: string;
   description: string;
-  data_type: string;
   masc: string;
-  question_type?: string;
+  question_type: string;
   required?: boolean;
   order?: number;
-  default_value?: CustomFieldOption[] | null;
+  default_value?: CustomFieldOption[] | FormFieldConfig | null;
   min_value?: unknown | null;
   max_value?: unknown | null;
 }
@@ -71,12 +77,11 @@ export interface CreateCustomFieldRequest {
 export interface UpdateCustomFieldRequest {
   name?: string;
   description?: string;
-  data_type?: string;
   masc?: string;
   question_type?: string;
   required?: boolean;
   order?: number;
-  default_value?: CustomFieldOption[] | null;
+  default_value?: CustomFieldOption[] | FormFieldConfig | null;
   min_value?: unknown | null;
   max_value?: unknown | null;
 }

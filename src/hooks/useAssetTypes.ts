@@ -109,8 +109,8 @@ export function useAssetTypeMutations() {
   })
 
   const linkTemplateMutation = useMutation({
-    mutationFn: ({ documentTypeId, templateId }: { documentTypeId: string; templateId: string }) =>
-      linkTemplateToDocumentType(documentTypeId, templateId),
+    mutationFn: ({ documentTypeId, templateId, body }: { documentTypeId: string; templateId: string; body?: DocumentTypeTemplateLinkBody }) =>
+      linkTemplateToDocumentType(documentTypeId, templateId, body),
     meta: { successMessage: 'Template linked successfully' },
     onSuccess: (_data, { documentTypeId }) => {
       queryClient.invalidateQueries({ queryKey: assetTypeQueryKeys.templates(documentTypeId) })

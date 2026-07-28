@@ -67,6 +67,22 @@ export interface EditingDiagram {
   snapshotMediaId: string | null
 }
 
+// Free-standing canvas decorations — not tied to an asset. Persisted as Diagram `texts`:
+// a "text" has no border, a "container" is a bordered box whose `content` is its title
+// (the backend rejects blank `content`, so a container can't be an empty box).
+export type CanvasElementKind = 'text' | 'container'
+
+// A text/container element to seed the canvas with on mount, at an explicit saved
+// position/size (used to reopen a previously-saved Diagram for editing).
+export interface InitialCanvasElement {
+  kind: CanvasElementKind
+  content: string
+  color: string
+  position: { x: number; y: number }
+  width: number
+  height: number
+}
+
 export interface RelationshipsCanvasProps {
   organizationId: string
   documentTypes: DocumentType[]
@@ -76,6 +92,8 @@ export interface RelationshipsCanvasProps {
   initialNodes?: InitialCanvasNode[]
   // Saved relationships to draw as edges between `initialNodes` (already resolved by the backend).
   initialRelationships?: InitialCanvasRelationship[]
+  // Saved text/container elements to seed the canvas with on mount.
+  initialElements?: InitialCanvasElement[]
   editingDiagram?: EditingDiagram
 }
 

@@ -29,7 +29,7 @@ export function RolesTable({
       render: (role) => (
         <div className="flex flex-col gap-0">
           <div className="flex items-center gap-1">
-            <Shield className="w-2 h-2 text-primary flex-shrink-0" />
+            <Shield className="w-2 h-2 text-primary shrink-0" />
             <span className="text-xs font-medium text-foreground leading-tight">{role.name}</span>
           </div>
           {role.description && (

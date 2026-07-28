@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { Edit3 } from "lucide-react"
-import { useRolePermissions, useRoleMutations } from "@/hooks/useRbac"
+import { useRolePermissions, useRoleMutations, useRoles } from "@/hooks/useRbac"
 import PermissionSelector from "./roles-permission-selector"
 import RoleFormFields from "./roles-form-fields"
 import type { EditRoleSheetProps } from '@/types/roles'
@@ -14,12 +14,17 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
   const [description, setDescription] = useState('')
   const [permissions, setPermissions] = useState<string[]>([])
   const [search, setSearch] = useState('')
-  
+  const [isPosition, setIsPosition] = useState(false)
+  const [parentRoleId, setParentRoleId] = useState<string | null>(null)
+  const [initialParentRoleId, setInitialParentRoleId] = useState<string | null>(null)
+
   // Only fetch permissions with status when the sheet is actually open
   const { data: rolePermissionsResponse, isLoading: rolePermissionsLoading } = useRolePermissions(role?.id || '', open, search)
+  const { data: rolesResponse } = useRoles(open, 1, 1000)
   const { updateRole } = useRoleMutations()
 
   const allPermissions = Array.isArray(rolePermissionsResponse?.data?.permissions) ? rolePermissionsResponse.data.permissions : []
+  const positionRoleOptions = (rolesResponse?.data ?? []).filter((r) => r.is_position && r.id !== role?.id)
 
   // Reset form when role changes or dialog opens
   useEffect(() => {
@@ -27,7 +32,10 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
       // Reset form state
       setName(role.name || '')
       setDescription(role.description || '')
-      
+      setIsPosition(Boolean(role.is_position))
+      setParentRoleId(role.parent_role_id ?? null)
+      setInitialParentRoleId(role.parent_role_id ?? null)
+
       // Initialize permissions from role data initially - ensure permissions array exists
       // If permissions array is not available, start with empty array and rely on API call
       if (Array.isArray(role.permissions)) {
@@ -41,6 +49,9 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
       setDescription('')
       setPermissions([])
       setSearch('')
+      setIsPosition(false)
+      setParentRoleId(null)
+      setInitialParentRoleId(null)
     }
   }, [role, open])
   
@@ -58,11 +69,22 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
     const currentPermissions = allPermissions.filter(p => p.assigned).map(p => p.id)
     const add_permissions = permissions.filter(pId => !currentPermissions.includes(pId))
     const remove_permissions = currentPermissions.filter(pId => !permissions.includes(pId))
+    const clearedParent = !isPosition || parentRoleId === null
+    const shouldClearParent = clearedParent && initialParentRoleId !== null
 
     await new Promise<void>((resolve, reject) => {
       updateRole.mutate({
         roleId: role.id,
-        data: { name, description, add_permissions, remove_permissions },
+        data: {
+          name,
+          description,
+          add_permissions,
+          remove_permissions,
+          is_position: isPosition,
+          ...(shouldClearParent
+            ? { clear_parent_role: true }
+            : { parent_role_id: isPosition ? parentRoleId : null }),
+        },
       }, {
         onSuccess: () => resolve(),
         onError: (error) => reject(error),
@@ -104,6 +126,11 @@ export default function EditRoleSheet({ role, open, onOpenChange }: EditRoleShee
             nameLabel="Role Name"
             descriptionLabel="Description"
             includeTextarea={false}
+            isPosition={isPosition}
+            onIsPositionChange={setIsPosition}
+            parentRoleId={parentRoleId}
+            onParentRoleIdChange={setParentRoleId}
+            positionRoleOptions={positionRoleOptions}
           />
         </div>
 

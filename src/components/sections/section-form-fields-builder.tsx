@@ -243,7 +243,12 @@ export function SectionFormFieldsBuilder({
                 const isDuplicate = value.some(
                   (f, i) => i !== index && f.field_id.trim() && f.field_id.trim() === field.field_id.trim(),
                 );
-                const availableDependencyFields = [...value.slice(0, index), ...earlierSectionsFields];
+                // Etiqueta es puramente visual — no tiene valor sobre el cual condicionar, se excluye
+                // como target de depends_on.
+                const availableDependencyFields = [
+                  ...value.slice(0, index),
+                  ...earlierSectionsFields,
+                ].filter((f) => f.question_type !== QUESTION_TYPE.label);
                 return (
                   <SectionFormFieldCard
                     key={field.__key}

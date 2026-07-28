@@ -39,6 +39,7 @@ export interface SectionFormField {
 // `section_form_id` referencia la definición (SectionFormField.id) para hacer el join.
 export interface FormFieldValue {
   id: string;
+  section_execution_id?: string;
   section_form_id: string;
   field_id?: string;
   field_name: string;
@@ -57,6 +58,15 @@ export interface FormFieldValue {
   // Calculados por el backend a partir de depends_on/show_when_inactive y las respuestas actuales.
   is_visible?: boolean;
   can_answer?: boolean;
+}
+
+// Respuesta de PATCH /section_executions/{id}/form_values: agrupada por sección
+// tipo form afectada (la editada + toda sección form cuyas preguntas dependan,
+// directa o indirectamente, de un valor que cambió). Nunca incluye secciones
+// ai/manual/reference (esos tipos no tienen form_fields).
+export interface FormValuesSectionPayload {
+  section_execution_id: string;
+  form_fields: FormFieldValue[];
 }
 
 // Una opción de opcion_multiple / lista_desplegable.

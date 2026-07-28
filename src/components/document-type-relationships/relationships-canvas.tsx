@@ -25,9 +25,12 @@ import {
 import "@xyflow/react/dist/style.css"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { GitMerge, Trash2, Workflow } from "lucide-react"
+import { GitMerge, Square, Trash2, Type, Workflow } from "lucide-react"
 import { toast } from "sonner"
 import { MemoizedAssetTypeNode, type AssetTypeNodeData } from "./asset-type-node"
+import { MemoizedTextNode, type CanvasElementNodeData } from "./text-node"
+import { MemoizedContainerNode } from "./container-node"
+import { ElementPanel } from "./element-panel"
 import { MemoizedRelationshipEdge, type RelationshipEdgeData } from "./relationship-edge"
 import { RelationshipCreateDialog, RelationshipEditDialog } from "./relationship-dialogs"
 import { ExecutionRelationshipCreateDialog, ExecutionRelationshipEditDialog, ExecutionPickerDialog, executionLabel } from "./execution-relationship-dialogs"
@@ -50,15 +53,25 @@ import type {
   DocumentTypeRelationship,
   InitialCanvasNode,
   InitialCanvasRelationship,
+  InitialCanvasElement,
+  CanvasElementKind,
   PendingConnection,
   RelationshipsCanvasProps,
 } from "@/types/document-type-relationships"
 import type { ExecutionRelationship, ExecutionRelationshipSubitem } from "@/types/execution-relationships"
 import type { Diagram } from "@/types/diagrams"
+import { buildInitialCanvasElements } from "@/lib/diagram-utils"
 import { cn } from "@/lib/utils"
 
 const NODE_TYPES = {
   assetType: MemoizedAssetTypeNode,
+  text: MemoizedTextNode,
+  container: MemoizedContainerNode,
+}
+
+const DEFAULT_ELEMENT_COLOR: Record<CanvasElementKind, string> = {
+  text: "#0f172a",
+  container: "#94a3b8",
 }
 
 const EDGE_TYPES = {
@@ -171,6 +184,7 @@ function RelationshipsCanvasFlow({
   mode = 'document-type',
   initialNodes,
   initialRelationships,
+  initialElements,
   editingDiagram: editingDiagramProp,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
@@ -194,6 +208,7 @@ function RelationshipsCanvasFlow({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [showSaveDiagramDialog, setShowSaveDiagramDialog] = useState(false)
+  const [saveAsNewDiagram, setSaveAsNewDiagram] = useState(false)
   const [showLoadDiagramSheet, setShowLoadDiagramSheet] = useState(false)
   const [editingDiagram, setEditingDiagram] = useState(editingDiagramProp)
 
@@ -614,9 +629,77 @@ function RelationshipsCanvasFlow({
     [setNodes, handleRemoveNode],
   )
 
+  // ─── Free-standing text/container elements (not tied to an asset) ─────────
+  const handleUpdateElementContent = useCallback(
+    (id: string, content: string) => {
+      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, content } } : n)))
+    },
+    [setNodes],
+  )
+
+  const handleUpdateElementColor = useCallback(
+    (id: string, color: string) => {
+      setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, color } } : n)))
+    },
+    [setNodes],
+  )
+
+  const createElementNode = useCallback(
+    (kind: CanvasElementKind, position: { x: number; y: number }, content?: string, color?: string, width?: number, height?: number) => {
+      const id = `${kind}-${Math.random().toString(36).slice(2, 9)}`
+      const node: Node<CanvasElementNodeData> = {
+        id,
+        type: kind,
+        position,
+        ...(kind === "container" ? { style: { width: width ?? 240, height: height ?? 160 } } : {}),
+        data: {
+          id,
+          kind,
+          content: content ?? (kind === "container" ? t("elementPanel.defaultContainerTitle") : t("elementPanel.defaultTextContent")),
+          color: color ?? DEFAULT_ELEMENT_COLOR[kind],
+          onContentChange: handleUpdateElementContent,
+          onColorChange: handleUpdateElementColor,
+          onRemove: handleRemoveNode,
+        },
+      }
+      setNodes((nds) => [...nds, node])
+      return id
+    },
+    [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, t],
+  )
+
+  // In-canvas toolbar entry point: adds the element at the current viewport's
+  // center — needed because the drag palette (AssetTypeSidebar) isn't mounted on
+  // every screen that embeds this canvas (e.g. the executions canvas, diagram edit sheet).
+  const addElementAtCenter = useCallback(
+    (kind: CanvasElementKind) => {
+      const rect = containerRef.current?.getBoundingClientRect()
+      const center = rect
+        ? screenToFlowPosition({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 })
+        : { x: 0, y: 0 }
+      const jitter = (getNodes().length % 8) * 12
+      createElementNode(kind, { x: center.x + jitter, y: center.y + jitter })
+    },
+    [screenToFlowPosition, createElementNode, getNodes],
+  )
+
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
+
+      const elementRaw = e.dataTransfer.getData("application/canvas-element")
+      if (elementRaw) {
+        let element: { kind: CanvasElementKind }
+        try {
+          element = JSON.parse(elementRaw)
+        } catch {
+          return
+        }
+        const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        createElementNode(element.kind, position)
+        return
+      }
+
       const raw = e.dataTransfer.getData("application/document-type")
       if (!raw) return
 
@@ -657,7 +740,7 @@ function RelationshipsCanvasFlow({
         },
       ])
     },
-    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleLoadRelationshipsCanvasOnly, handleRemoveNode, mode],
+    [getNodes, screenToFlowPosition, setNodes, handleLoadRelationships, handleLoadRelationshipsCanvasOnly, handleRemoveNode, mode, createElementNode],
   )
 
   // ─── Connect → open create dialog ──────────────────────────────────────────
@@ -1333,15 +1416,39 @@ function RelationshipsCanvasFlow({
     seedRelationshipEdges(seeded, relationships)
   }, [nodesInitialized, nodes, seedRelationshipEdges])
 
+  // ─── Seed free-standing text/container elements at explicit saved positions ──
+  const seedElementNodes = useCallback((elementsToSeed: InitialCanvasElement[]) => {
+    const seeded: Node<CanvasElementNodeData>[] = elementsToSeed.map((el) => {
+      const id = `${el.kind}-${Math.random().toString(36).slice(2, 9)}`
+      return {
+        id,
+        type: el.kind,
+        position: el.position,
+        ...(el.kind === "container" ? { style: { width: el.width, height: el.height } } : {}),
+        data: {
+          id,
+          kind: el.kind,
+          content: el.content,
+          color: el.color,
+          onContentChange: handleUpdateElementContent,
+          onColorChange: handleUpdateElementColor,
+          onRemove: handleRemoveNode,
+        },
+      }
+    })
+    setNodes((nds) => [...nds, ...seeded])
+  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode])
+
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.
   const hasSeededInitialNodesRef = useRef(false)
   useEffect(() => {
-    if (hasSeededInitialNodesRef.current || !initialNodes?.length) return
+    if (hasSeededInitialNodesRef.current || (!initialNodes?.length && !initialElements?.length)) return
     hasSeededInitialNodesRef.current = true
-    seedCanvasNodes(initialNodes, initialRelationships)
+    if (initialNodes?.length) seedCanvasNodes(initialNodes, initialRelationships)
+    if (initialElements?.length) seedElementNodes(initialElements)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialNodes])
+  }, [initialNodes, initialElements])
 
   // Picking a Diagram from LoadDiagramSheet replaces the canvas contents and
   // switches the canvas into "editing" mode for that diagram.
@@ -1358,12 +1465,24 @@ function RelationshipsCanvasFlow({
       snapshotMediaId: diagram.snapshot_media_id,
     })
     seedCanvasNodes(nodesToSeed, diagram.relationships)
-  }, [seedCanvasNodes, setNodes, setEdges])
+    if (diagram.texts?.length) seedElementNodes(buildInitialCanvasElements(diagram))
+  }, [seedCanvasNodes, seedElementNodes, setNodes, setEdges])
+
+  const openUpdateDiagramDialog = useCallback(() => {
+    setSaveAsNewDiagram(false)
+    setShowSaveDiagramDialog(true)
+  }, [])
+
+  const openSaveNewDiagramDialog = useCallback(() => {
+    setSaveAsNewDiagram(true)
+    setShowSaveDiagramDialog(true)
+  }, [])
 
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
 
-  const canSaveDiagram = isOrgAdmin || hasPermission(editingDiagram ? 'diagram:u' : 'diagram:c')
+  const canUpdateDiagram = isOrgAdmin || hasPermission('diagram:u')
+  const canCreateDiagram = isOrgAdmin || hasPermission('diagram:c')
   const canLoadDiagram = isOrgAdmin || hasPermission('diagram:u')
   const hasValidDiagramNodes = nodes.some((n) => {
     const d = n.data as AssetTypeNodeData
@@ -1398,16 +1517,45 @@ function RelationshipsCanvasFlow({
             className="border rounded-lg shadow-sm"
           />
 
+          {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
+          <Panel position="top-left">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => addElementAtCenter("container")}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+              >
+                <Square className="h-3.5 w-3.5" />
+                {t("canvas.addContainer")}
+              </button>
+              <button
+                onClick={() => addElementAtCenter("text")}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+              >
+                <Type className="h-3.5 w-3.5" />
+                {t("canvas.addText")}
+              </button>
+            </div>
+          </Panel>
+
           {nodes.length > 0 && (
             <Panel position="top-right">
               <div className="flex items-center gap-2">
-                {mode === 'execution' && canSaveDiagram && hasValidDiagramNodes && (
+                {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
                   <button
-                    onClick={() => setShowSaveDiagramDialog(true)}
+                    onClick={openUpdateDiagramDialog}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
                   >
                     <Workflow className="h-3.5 w-3.5" />
-                    {editingDiagram ? t("canvas.saveChanges") : t("canvas.saveAsDiagram")}
+                    {t("canvas.saveChanges")}
+                  </button>
+                )}
+                {mode === 'execution' && hasValidDiagramNodes && canCreateDiagram && (
+                  <button
+                    onClick={openSaveNewDiagramDialog}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                  >
+                    <Workflow className="h-3.5 w-3.5" />
+                    {t("canvas.saveAsDiagram")}
                   </button>
                 )}
                 <button
@@ -1461,6 +1609,14 @@ function RelationshipsCanvasFlow({
 
         {selectedNodeId && (() => {
           const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+          if (selectedNode?.type === "text" || selectedNode?.type === "container") {
+            return (
+              <ElementPanel
+                elementData={selectedNode.data as CanvasElementNodeData}
+                onClose={() => setSelectedNodeId(null)}
+              />
+            )
+          }
           const nodeData = selectedNode?.data as AssetTypeNodeData | undefined
           if (!nodeData) return null
           return (
@@ -1650,13 +1806,13 @@ function RelationshipsCanvasFlow({
       {mode === 'execution' && (
         <SaveAsDiagramSheet
           open={showSaveDiagramDialog}
-          onOpenChange={setShowSaveDiagramDialog}
+          onOpenChange={(o) => { setShowSaveDiagramDialog(o); if (!o) setSaveAsNewDiagram(false) }}
           organizationId={organizationId}
-          nodes={nodes as Node<AssetTypeNodeData>[]}
+          nodes={nodes as Node<AssetTypeNodeData | CanvasElementNodeData>[]}
           edges={edges as Edge<RelationshipEdgeData>[]}
           containerRef={containerRef}
           fitView={fitView}
-          diagramId={editingDiagram?.id}
+          diagramId={saveAsNewDiagram ? undefined : editingDiagram?.id}
           initialValues={editingDiagram ? {
             name: editingDiagram.name,
             description: editingDiagram.description,

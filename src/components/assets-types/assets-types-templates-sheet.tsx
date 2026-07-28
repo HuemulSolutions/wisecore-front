@@ -67,54 +67,83 @@ function TemplateRow({
   )
 }
 
-function TemplateEditSheet({
+// Sheet compartido para crear (vincular) y editar un vínculo document_type↔template.
+// `template` en modo editar trae los valores a prefillear; en modo crear viene null
+// y se usan defaults — el padre resuelve a qué template aplica el `onSave`.
+function TemplateLinkFormSheet({
+  mode,
   template,
   open,
   onOpenChange,
   onSave,
 }: {
+  mode: "create" | "edit"
   template: LinkedTemplate | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (id: string, body: DocumentTypeTemplateLinkBody) => Promise<void>
+  onSave: (body: DocumentTypeTemplateLinkBody) => Promise<void>
 }) {
   const { t } = useTranslation(["asset-types", "common"])
 
   const [relationName, setRelationName] = React.useState("")
   const [canCreateExpress, setCanCreateExpress] = React.useState(false)
   const [requireNameOnExpress, setRequireNameOnExpress] = React.useState(false)
+  const [mostrarEnWorkflow, setMostrarEnWorkflow] = React.useState(false)
+  const [orden, setOrden] = React.useState("")
 
-  // Prefill local state whenever the sheet opens for a given template — avoids
-  // showing stale form data if it was left dirty from a previous open.
+  // Prefill local state whenever the sheet opens — avoids showing stale form
+  // data if it was left dirty from a previous open. En modo crear resetea a defaults.
   React.useEffect(() => {
-    if (template && open) {
+    if (!open) return
+    if (mode === "edit" && template) {
       setRelationName(template.relation_name ?? "")
       setCanCreateExpress(template.can_create_express)
       setRequireNameOnExpress(template.require_name_on_express)
+      setMostrarEnWorkflow(template.mostrar_en_workflow)
+      setOrden(template.orden !== null ? String(template.orden) : "")
+    } else if (mode === "create") {
+      setRelationName("")
+      setCanCreateExpress(false)
+      setRequireNameOnExpress(false)
+      setMostrarEnWorkflow(false)
+      setOrden("")
     }
-  }, [template, open])
+  }, [mode, template, open])
 
   const isDirty =
-    !!template &&
-    (relationName !== (template.relation_name ?? "") ||
-      canCreateExpress !== template.can_create_express ||
-      requireNameOnExpress !== template.require_name_on_express)
+    mode === "create" ||
+    (!!template &&
+      (relationName !== (template.relation_name ?? "") ||
+        canCreateExpress !== template.can_create_express ||
+        requireNameOnExpress !== template.require_name_on_express ||
+        mostrarEnWorkflow !== template.mostrar_en_workflow ||
+        orden !== (template.orden !== null ? String(template.orden) : "")))
 
   const handleSave = () => {
-    if (!template) return Promise.resolve()
-    return onSave(template.template_id, {
+    const trimmedOrden = orden.trim()
+    return onSave({
       relation_name: relationName.trim() ? relationName.trim() : null,
       can_create_express: canCreateExpress,
       require_name_on_express: requireNameOnExpress,
+      mostrar_en_workflow: mostrarEnWorkflow,
+      orden: trimmedOrden ? Number(trimmedOrden) : null,
     })
   }
+
+  const title = mode === "create" ? t("templates.linkTitle") : t("templates.editTitle")
+  const description =
+    mode === "create"
+      ? t("templates.linkDescription")
+      : template
+        ? t("templates.editDescription", { name: template.template_name })
+        : undefined
 
   return (
     <HuemulSheet
       open={open}
       onOpenChange={onOpenChange}
-      title={t("templates.editTitle")}
-      description={template ? t("templates.editDescription", { name: template.template_name }) : undefined}
+      title={title}
+      description={description}
       icon={Pencil}
       cancelLabel={t("common:cancel")}
       saveAction={{
@@ -157,6 +186,30 @@ function TemplateEditSheet({
             onCheckedChange={setRequireNameOnExpress}
           />
         </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="edit-mostrar-en-workflow" className="text-xs font-normal">
+            {t("templates.mostrarEnWorkflow")}
+          </Label>
+          <Switch
+            id="edit-mostrar-en-workflow"
+            checked={mostrarEnWorkflow}
+            onCheckedChange={setMostrarEnWorkflow}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="edit-orden" className="text-xs text-muted-foreground font-normal">
+            {t("templates.orden")}
+          </Label>
+          <Input
+            id="edit-orden"
+            type="number"
+            value={orden}
+            onChange={(e) => setOrden(e.target.value)}
+            placeholder={t("templates.ordenPlaceholder")}
+          />
+        </div>
       </div>
     </HuemulSheet>
   )
@@ -172,6 +225,7 @@ export function AssetTypeTemplatesSheet({
   const mutations = useAssetTypeMutations()
 
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>("")
+  const [isLinkFormOpen, setIsLinkFormOpen] = React.useState(false)
   const [editTarget, setEditTarget] = React.useState<LinkedTemplate | null>(null)
   const [deleteTarget, setDeleteTarget] = React.useState<LinkedTemplate | null>(null)
 
@@ -196,14 +250,22 @@ export function AssetTypeTemplatesSheet({
 
   const handleLink = () => {
     if (!selectedTemplateId || !documentTypeId) return
-    mutations.linkTemplate.mutate(
-      { documentTypeId, templateId: selectedTemplateId },
-      { onSuccess: () => setSelectedTemplateId("") },
-    )
+    setIsLinkFormOpen(true)
   }
 
-  const handleSaveTemplate = (templateId: string, body: DocumentTypeTemplateLinkBody) => {
-    if (!documentTypeId) return Promise.resolve()
+  const handleSaveNewLink = (body: DocumentTypeTemplateLinkBody) => {
+    if (!documentTypeId || !selectedTemplateId) return Promise.resolve()
+    return new Promise<void>((resolve, reject) => {
+      mutations.linkTemplate.mutate(
+        { documentTypeId, templateId: selectedTemplateId, body },
+        { onSuccess: () => { setSelectedTemplateId(""); resolve() }, onError: (err) => reject(err) },
+      )
+    })
+  }
+
+  const handleSaveTemplate = (body: DocumentTypeTemplateLinkBody) => {
+    if (!documentTypeId || !editTarget) return Promise.resolve()
+    const templateId = editTarget.template_id
     return new Promise<void>((resolve, reject) => {
       mutations.updateTemplateLink.mutate(
         { documentTypeId, templateId, body },
@@ -307,7 +369,16 @@ export function AssetTypeTemplatesSheet({
         </div>
       </HuemulSheet>
 
-      <TemplateEditSheet
+      <TemplateLinkFormSheet
+        mode="create"
+        template={null}
+        open={isLinkFormOpen}
+        onOpenChange={setIsLinkFormOpen}
+        onSave={handleSaveNewLink}
+      />
+
+      <TemplateLinkFormSheet
+        mode="edit"
         template={editTarget}
         open={editTarget !== null}
         onOpenChange={(o) => { if (!o) setEditTarget(null) }}

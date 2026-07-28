@@ -16,9 +16,14 @@ import { handleApiError } from "@/lib/error-utils"
 import { getExecutionById } from "@/services/executions"
 import { getNodesBounds, getViewportForBounds, type Edge, type Node } from "@xyflow/react"
 import type { AssetTypeNodeData } from "./asset-type-node"
+import type { CanvasElementNodeData } from "./text-node"
 import type { RelationshipEdgeData } from "./relationship-edge"
 import { executionLabel } from "./execution-relationship-dialogs"
-import type { DiagramDetailInput, DiagramRelationshipInput } from "@/types/diagrams"
+import type { DiagramDetailInput, DiagramRelationshipInput, DiagramTextInput } from "@/types/diagrams"
+
+// The canvas mixes asset nodes with free-standing text/container elements; this
+// sheet only cares about telling them apart by `type` when building the save payload.
+type CanvasNode = Node<AssetTypeNodeData | CanvasElementNodeData>
 
 // Fixed export canvas size used to frame the captured nodes (react-flow's official
 // download-image recipe: https://reactflow.dev/examples/misc/download-image)
@@ -29,7 +34,7 @@ export interface SaveAsDiagramSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   organizationId: string
-  nodes: Node<AssetTypeNodeData>[]
+  nodes: CanvasNode[]
   edges: Edge<RelationshipEdgeData>[]
   containerRef: RefObject<HTMLDivElement | null>
   fitView: () => void
@@ -86,6 +91,14 @@ export function SaveAsDiagramSheet({
     setMainExecutionId(initialValues?.executionId ?? "")
     setMainExecutionLabel("")
   }
+
+  // The sheet stays mounted across multiple loads/saves in the same canvas session
+  // (no remount), so `initialValues` can change while it's closed — resync on open
+  // instead of relying only on the initial `useState` seed.
+  useEffect(() => {
+    if (open) reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const handleSave = () =>
     new Promise<void>((resolve, reject) => {
@@ -167,13 +180,38 @@ export function SaveAsDiagramSheet({
             execution_relationship_id: id,
           }))
 
+          // Free-standing text/container elements → Diagram `texts`. `kind` is stashed
+          // in `position` so the exact element type is reconstructed on reload. A blank
+          // `content` is filtered out — the backend rejects it (422 VALIDATION_ERROR).
+          const elementNodes = nodes.filter((n) => n.type === 'text' || n.type === 'container')
+          const texts: DiagramTextInput[] = elementNodes
+            .filter((n) => String((n.data as CanvasElementNodeData).content ?? '').trim())
+            .map((n) => {
+              const data = n.data as CanvasElementNodeData
+              const isContainer = n.type === 'container'
+              return {
+                content: data.content.trim(),
+                position: {
+                  x: n.position.x,
+                  y: n.position.y,
+                  width: n.measured?.width ?? n.width ?? 160,
+                  height: n.measured?.height ?? n.height ?? 80,
+                  kind: n.type,
+                },
+                has_border: isContainer,
+                border_type: isContainer ? 'solid' : undefined,
+                border_color: isContainer ? data.color : undefined,
+                font_color: !isContainer ? data.color : undefined,
+              }
+            })
+
           const body = {
             name,
             execution_id: mainExecutionId,
             description: description || undefined,
             snapshot_media_id: snapshotMediaId,
             details,
-            texts: [],
+            texts,
             relationships,
           }
 

@@ -15,13 +15,14 @@ export async function getDiagrams(
   organizationId: string,
   params: GetDiagramsParams = {},
 ): Promise<DiagramsResponse> {
-  const { page = 1, page_size = 100, search, execution_id } = params
+  const { page = 1, page_size = 100, search, execution_id, document_id } = params
   const query = new URLSearchParams({
     page: page.toString(),
     page_size: page_size.toString(),
   })
   if (search?.trim()) query.set('search', search.trim())
   if (execution_id) query.set('execution_id', execution_id)
+  if (document_id) query.set('document_id', document_id)
   const response = await httpClient.get(`${BASE_URL}/?${query}`, {
     headers: { 'X-Org-Id': organizationId },
   })

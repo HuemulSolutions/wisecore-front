@@ -9,7 +9,10 @@ import {
   BlockSelectionPlugin,
   useBlockSelected,
 } from '@platejs/selection/react';
-import { setCellBackground } from '@platejs/table';
+import {
+  isSelectingCell as isSelectingCellFn,
+  setCellBackground,
+} from '@platejs/table';
 import {
   TablePlugin,
   TableProvider,
@@ -106,11 +109,8 @@ export const TableElement = withHOC(
       'isSelectionAreaVisible'
     );
     const hasControls = !readOnly && !isSelectionAreaVisible;
-    const {
-      isSelectingCell,
-      marginLeft,
-      props: tableProps,
-    } = useTableElement();
+    const { marginLeft, props: tableProps } = useTableElement();
+    const isSelectingCell = useEditorSelector(isSelectingCellFn, []);
 
     const isSelectingTable = useBlockSelected(props.element.id as string);
 
@@ -176,7 +176,7 @@ function TableFloatingToolbar({
         asChild
         onOpenAutoFocus={(e) => e.preventDefault()}
         contentEditable={false}
-        className="z-[30]"
+        className="z-30"
         sideOffset={4}
         {...props}
       >
@@ -314,7 +314,7 @@ function TableBordersDropdownMenuContent(
 
   return (
     <DropdownMenuContent
-      className="min-w-[220px]"
+      className="min-w-55"
       onCloseAutoFocus={(e) => {
         e.preventDefault();
         editor.tf.focus();
@@ -561,7 +561,7 @@ export function TableCellElement({
         'h-full overflow-visible p-0',
         element.background ? 'bg-(--cellBackground)' : isHeader ? 'bg-gray-900 text-white' : 'bg-background',
         isHeader && 'text-left font-semibold *:m-0',
-        isHeader && !element.background && '[&_*]:text-white',
+        isHeader && !element.background && '**:text-white',
         !isHeader && 'align-top border-b border-gray-200',
         'before:size-full',
         selected && 'before:z-10 before:bg-brand/5',
@@ -601,7 +601,7 @@ export function TableCellElement({
             <>
               <ResizeHandle
                 {...rightProps}
-                className="-top-2 -right-1 h-[calc(100%_+_8px)] w-2"
+                className="-top-2 -right-1 h-[calc(100%+8px)] w-2"
                 data-col={colIndex}
               />
               <ResizeHandle {...bottomProps} className="-bottom-1 h-2" />

@@ -94,6 +94,8 @@ export interface LinkedTemplate {
   relation_name: string | null;
   can_create_express: boolean;
   require_name_on_express: boolean;
+  mostrar_en_workflow: boolean;
+  orden: number | null;
 }
 
 export interface DocumentTypeTemplatesResponse {
@@ -107,6 +109,8 @@ export interface DocumentTypeTemplateLinkBody {
   relation_name?: string | null;
   can_create_express?: boolean;
   require_name_on_express?: boolean;
+  mostrar_en_workflow?: boolean;
+  orden?: number | null;
 }
 
 export interface DocumentTypeTemplateLinkResponse {

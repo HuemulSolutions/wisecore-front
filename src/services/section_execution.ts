@@ -1,6 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import type { AddSectionExecutionRequest, AiSuggestionStatus, ReviewStatus, SectionHistoryChangeType, SectionHistoryEntry, SectionHistoryResponse } from "@/types/section-execution";
+import type { FormValuesSectionPayload } from "@/types/sections/core";
 
 export type { AddSectionExecutionRequest, AiSuggestionStatus, ReviewStatus, SectionHistoryChangeType, SectionHistoryEntry, SectionHistoryResponse };
 
@@ -164,7 +165,7 @@ export async function updateSectionFormValues(
     sectionExecutionId: string,
     values: { id: string; value: unknown }[],
     organizationId?: string
-) {
+): Promise<FormValuesSectionPayload[]> {
     const headers: Record<string, string> = {};
     if (organizationId) {
         headers['X-Org-Id'] = organizationId;
@@ -175,8 +176,7 @@ export async function updateSectionFormValues(
         { headers }
     );
     const data = await response.json();
-    console.log('Section form values updated:', data.data);
-    return data.data;
+    return data.data as FormValuesSectionPayload[];
 }
 
 // ─── Section History ──────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import {
   updateCustomField,
   deleteCustomField,
   getCustomFieldDataTypes,
+  getCustomFieldQuestionTypes,
 } from "@/services/custom-fields"
 import type {
   UpdateCustomFieldRequest,
@@ -20,6 +21,7 @@ export const customFieldsQueryKeys = {
   details: () => [...customFieldsQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...customFieldsQueryKeys.details(), id] as const,
   dataTypes: () => [...customFieldsQueryKeys.all, 'data-types'] as const,
+  questionTypes: () => [...customFieldsQueryKeys.all, 'question-types'] as const,
 }
 
 // Hook for fetching custom fields list
@@ -51,6 +53,16 @@ export function useCustomFieldDataTypes(options?: { enabled?: boolean }) {
     queryFn: getCustomFieldDataTypes,
     enabled: options?.enabled !== false,
     staleTime: 30 * 60 * 1000, // 30 minutes - data types don't change often
+  })
+}
+
+// Hook for fetching custom field question types (drives data_type derivation)
+export function useCustomFieldQuestionTypes(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: customFieldsQueryKeys.questionTypes(),
+    queryFn: getCustomFieldQuestionTypes,
+    enabled: options?.enabled !== false,
+    staleTime: 30 * 60 * 1000, // 30 minutes - question types don't change often
   })
 }
 

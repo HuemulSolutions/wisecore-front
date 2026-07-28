@@ -111,6 +111,11 @@ const translations = {
     description: { en: "Description", es: "Descripción" },
     roleNamePlaceholder: { en: "Enter role name", es: "Ingresa el nombre del rol" },
     descriptionPlaceholder: { en: "Enter role description", es: "Ingresa la descripción del rol" },
+    isPosition: { en: "Position role", es: "Rol de cargo" },
+    isPositionDescription: { en: "Position roles (e.g. Analyst, Area Manager) participate in the position hierarchy used to calculate \"this user's manager\".", es: "Los roles de cargo (ej. Analista, Jefe de Área) participan en la jerarquía de cargos usada para calcular \"el jefe de este usuario\"." },
+    parentRole: { en: "Reports to", es: "Depende de" },
+    parentRolePlaceholder: { en: "Select the immediate superior position", es: "Selecciona el cargo inmediatamente superior" },
+    parentRoleDescription: { en: "Leave empty if this position is at the top of its branch (no manager).", es: "Deja vacío si este cargo está en el tope de su rama (sin jefe)." },
   },
   emptyState: {
     noRolesFound: { en: "No roles found", es: "No se encontraron roles" },

@@ -5,7 +5,6 @@ import * as React from 'react';
 import type { TComboboxInputElement, TMentionElement } from 'platejs';
 import type { PlateElementProps } from 'platejs/react';
 
-import { getMentionOnSelectItem } from '@platejs/mention';
 import { IS_APPLE, KEYS } from 'platejs';
 import {
   PlateElement,
@@ -16,18 +15,18 @@ import {
 
 import { cn } from '@/lib/utils';
 import { useMounted } from '@/hooks/use-mounted';
-
+import { useEffectiveOrgId, useOrgPath } from '@/hooks/useOrgRouter';
 import {
-  InlineCombobox,
-  InlineComboboxContent,
-  InlineComboboxEmpty,
-  InlineComboboxGroup,
-  InlineComboboxInput,
-  InlineComboboxItem,
-} from './inline-combobox';
+  HuemulAssetTreePickerDialog,
+  type AssetPickerSelectMeta,
+} from '@/huemul/components/huemul-asset-tree-picker';
+
+/** Mention element referencing an asset: `value`/`key` hold the asset name/id,
+ * `color` snapshots the asset type's color at insertion time. */
+type AssetMentionElement = TMentionElement & { color?: string | null };
 
 export function MentionElement(
-  props: PlateElementProps<TMentionElement> & {
+  props: PlateElementProps<AssetMentionElement> & {
     prefix?: string;
   }
 ) {
@@ -37,6 +36,13 @@ export function MentionElement(
   const focused = useFocused();
   const mounted = useMounted();
   const readOnly = useReadOnly();
+  const buildPath = useOrgPath();
+
+  const handleOpenAsset = (event: React.MouseEvent) => {
+    if (!element.key) return;
+    event.preventDefault();
+    window.open(buildPath(`/asset/${element.key}`), '_blank');
+  };
 
   return (
     <PlateElement
@@ -49,11 +55,13 @@ export function MentionElement(
         element.children[0][KEYS.italic] === true && 'italic',
         element.children[0][KEYS.underline] === true && 'underline'
       )}
+      style={element.color ? { color: element.color } : undefined}
       attributes={{
         ...props.attributes,
         contentEditable: false,
         'data-slate-value': element.value,
         draggable: true,
+        onMouseDown: handleOpenAsset,
       }}
     >
       {mounted && IS_APPLE ? (
@@ -75,122 +83,72 @@ export function MentionElement(
   );
 }
 
-const onSelectItem = getMentionOnSelectItem();
-
 export function MentionInputElement(
   props: PlateElementProps<TComboboxInputElement>
 ) {
   const { editor, element } = props;
-  const [search, setSearch] = React.useState('');
+  const organizationId = useEffectiveOrgId();
+  const [open, setOpen] = React.useState(true);
+  // Marca si ya se insertó un mention, para que el onOpenChange(false) que el
+  // dialog dispara justo después de onSelect no borre el nodo recién insertado
+  // (ver handleOpenChange).
+  const selectedRef = React.useRef(false);
+
+  // Al cerrar sin seleccionar (Escape, click afuera), limpia el nodo
+  // mention_input huérfano. Si ya hubo selección, el dialog llama
+  // onSelect() y luego onOpenChange(false) de forma síncrona; en ese caso
+  // findPath(element) ya resuelve al mention recién insertado (mismo path),
+  // así que hay que saltar la limpieza con este guard.
+  const handleOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      setOpen(nextOpen);
+      if (!nextOpen) {
+        if (selectedRef.current) return;
+        const path = editor.api.findPath(element);
+        if (path) editor.tf.removeNodes({ at: path });
+      }
+    },
+    [editor, element]
+  );
+
+  const handleSelect = React.useCallback(
+    (id: string, label: string, meta?: AssetPickerSelectMeta) => {
+      selectedRef.current = true;
+      const path = editor.api.findPath(element);
+      if (path) {
+        editor.tf.removeNodes({ at: path });
+        editor.tf.insertNodes<AssetMentionElement>(
+          {
+            type: KEYS.mention,
+            key: id,
+            value: label,
+            color: meta?.color ?? null,
+            children: [{ text: '' }],
+          },
+          { at: path }
+        );
+        editor.tf.move({ unit: 'offset' });
+      }
+      setOpen(false);
+    },
+    [editor, element]
+  );
 
   return (
     <PlateElement {...props} as="span">
-      <InlineCombobox
-        value={search}
-        element={element}
-        setValue={setSearch}
-        showTrigger={false}
-        trigger="@"
-      >
-        <span className="inline-block rounded-md bg-muted px-1.5 py-0.5 align-baseline text-sm ring-ring focus-within:ring-2">
-          <InlineComboboxInput />
-        </span>
-
-        <InlineComboboxContent className="my-1.5">
-          <InlineComboboxEmpty>No results</InlineComboboxEmpty>
-
-          <InlineComboboxGroup>
-            {MENTIONABLES.map((item) => (
-              <InlineComboboxItem
-                key={item.key}
-                value={item.text}
-                onClick={() => onSelectItem(editor, item, search)}
-              >
-                {item.text}
-              </InlineComboboxItem>
-            ))}
-          </InlineComboboxGroup>
-        </InlineComboboxContent>
-      </InlineCombobox>
+      <span contentEditable={false}>
+        {organizationId && (
+          <HuemulAssetTreePickerDialog
+            open={open}
+            onOpenChange={handleOpenChange}
+            organizationId={organizationId}
+            mode="document"
+            onSelect={handleSelect}
+          />
+        )}
+      </span>
 
       {props.children}
     </PlateElement>
   );
 }
-
-const MENTIONABLES = [
-  { key: '0', text: 'Aayla Secura' },
-  { key: '1', text: 'Adi Gallia' },
-  {
-    key: '2',
-    text: 'Admiral Dodd Rancit',
-  },
-  {
-    key: '3',
-    text: 'Admiral Firmus Piett',
-  },
-  {
-    key: '4',
-    text: 'Admiral Gial Ackbar',
-  },
-  { key: '5', text: 'Admiral Ozzel' },
-  { key: '6', text: 'Admiral Raddus' },
-  {
-    key: '7',
-    text: 'Admiral Terrinald Screed',
-  },
-  { key: '8', text: 'Admiral Trench' },
-  {
-    key: '9',
-    text: 'Admiral U.O. Statura',
-  },
-  { key: '10', text: 'Agen Kolar' },
-  { key: '11', text: 'Agent Kallus' },
-  {
-    key: '12',
-    text: 'Aiolin and Morit Astarte',
-  },
-  { key: '13', text: 'Aks Moe' },
-  { key: '14', text: 'Almec' },
-  { key: '15', text: 'Alton Kastle' },
-  { key: '16', text: 'Amee' },
-  { key: '17', text: 'AP-5' },
-  { key: '18', text: 'Armitage Hux' },
-  { key: '19', text: 'Artoo' },
-  { key: '20', text: 'Arvel Crynyd' },
-  { key: '21', text: 'Asajj Ventress' },
-  { key: '22', text: 'Aurra Sing' },
-  { key: '23', text: 'AZI-3' },
-  { key: '24', text: 'Bala-Tik' },
-  { key: '25', text: 'Barada' },
-  { key: '26', text: 'Bargwill Tomder' },
-  { key: '27', text: 'Baron Papanoida' },
-  { key: '28', text: 'Barriss Offee' },
-  { key: '29', text: 'Baze Malbus' },
-  { key: '30', text: 'Bazine Netal' },
-  { key: '31', text: 'BB-8' },
-  { key: '32', text: 'BB-9E' },
-  { key: '33', text: 'Ben Quadinaros' },
-  { key: '34', text: 'Berch Teller' },
-  { key: '35', text: 'Beru Lars' },
-  { key: '36', text: 'Bib Fortuna' },
-  {
-    key: '37',
-    text: 'Biggs Darklighter',
-  },
-  { key: '38', text: 'Black Krrsantan' },
-  { key: '39', text: 'Bo-Katan Kryze' },
-  { key: '40', text: 'Boba Fett' },
-  { key: '41', text: 'Bobbajo' },
-  { key: '42', text: 'Bodhi Rook' },
-  { key: '43', text: 'Borvo the Hutt' },
-  { key: '44', text: 'Boss Nass' },
-  { key: '45', text: 'Bossk' },
-  {
-    key: '46',
-    text: 'Breha Antilles-Organa',
-  },
-  { key: '47', text: 'Bren Derlin' },
-  { key: '48', text: 'Brendol Hux' },
-  { key: '49', text: 'BT-1' },
-];

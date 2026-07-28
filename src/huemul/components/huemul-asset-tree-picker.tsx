@@ -33,6 +33,10 @@ interface ExecutionItem {
   document_name?: string
 }
 
+export interface AssetPickerSelectMeta {
+  color?: string | null
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function executionLabel(exec: ExecutionItem): string {
@@ -91,7 +95,7 @@ function AssetRow({
   level: number
   organizationId: string
   activeId?: string
-  onSelect: (id: string, label: string) => void
+  onSelect: (id: string, label: string, meta?: AssetPickerSelectMeta) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [executions, setExecutions] = useState<ExecutionItem[] | null>(null)
@@ -124,8 +128,8 @@ function AssetRow({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => (mode === "document" ? onSelect(asset.id, asset.name) : toggle())}
-        onKeyDown={(e) => e.key === "Enter" && (mode === "document" ? onSelect(asset.id, asset.name) : toggle())}
+        onClick={() => (mode === "document" ? onSelect(asset.id, asset.name, { color: asset.document_type?.color }) : toggle())}
+        onKeyDown={(e) => e.key === "Enter" && (mode === "document" ? onSelect(asset.id, asset.name, { color: asset.document_type?.color }) : toggle())}
         className={cn(
           "group flex items-center gap-1.5 py-0.5 px-2 rounded-md hover:bg-accent hover:cursor-pointer",
           isDocActive && "bg-accent font-medium",
@@ -179,7 +183,7 @@ function SearchFolder({
   level: number
   organizationId: string
   activeId?: string
-  onSelect: (id: string, label: string) => void
+  onSelect: (id: string, label: string, meta?: AssetPickerSelectMeta) => void
 }) {
   return (
     <div>
@@ -224,7 +228,7 @@ export interface HuemulAssetTreePickerDialogProps {
   organizationId: string
   mode: AssetPickerMode
   value?: string
-  onSelect: (id: string, label: string) => void
+  onSelect: (id: string, label: string, meta?: AssetPickerSelectMeta) => void
 }
 
 export function HuemulAssetTreePickerDialog({
@@ -244,8 +248,8 @@ export function HuemulAssetTreePickerDialog({
   const kindMap = useRef(new Map<string, NodeKind>())
 
   const handleSelect = useCallback(
-    (id: string, label: string) => {
-      onSelect(id, label)
+    (id: string, label: string, meta?: AssetPickerSelectMeta) => {
+      onSelect(id, label, meta)
       onOpenChange(false)
     },
     [onSelect, onOpenChange],
@@ -305,7 +309,7 @@ export function HuemulAssetTreePickerDialog({
     (node: HuemulTreeNode) => {
       const kind = (node.metadata?.kind as NodeKind) ?? "document"
       if (mode === "document" && kind === "document") {
-        handleSelect(node.id, node.name)
+        handleSelect(node.id, node.name, { color: node.metadata?.color as string | undefined })
       } else if (mode === "execution" && kind === "execution") {
         const docName = node.metadata?.documentName as string | undefined
         handleSelect(node.id, executionLabel({ id: node.id, name: node.name, document_name: docName }))

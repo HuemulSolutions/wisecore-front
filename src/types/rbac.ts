@@ -23,6 +23,8 @@ export interface Role {
   created_at: string;
   updated_at: string;
   users_count?: number;
+  is_position?: boolean;
+  parent_role_id?: string | null;
 }
 
 export interface RolesResponse {
@@ -70,6 +72,8 @@ export interface RoleWithAssignment {
   has_role: boolean;
   permission_num?: number;
   users_count?: number;
+  is_position?: boolean;
+  parent_role_id?: string | null;
 }
 
 export interface UserAllRolesResponse {
@@ -112,6 +116,18 @@ export interface CreateRoleData {
   name: string;
   description: string;
   permissions: string[];
+  is_position?: boolean;
+  parent_role_id?: string | null;
+}
+
+export interface UpdateRoleData {
+  name?: string;
+  description?: string;
+  add_permissions?: string[];
+  remove_permissions?: string[];
+  is_position?: boolean;
+  parent_role_id?: string | null;
+  clear_parent_role?: boolean;
 }
 
 export interface AssignRolesData {

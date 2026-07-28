@@ -1,10 +1,11 @@
 "use client"
 
 import { useTranslation } from "react-i18next"
-import { GripVertical, RefreshCw } from "lucide-react"
+import { GripVertical, RefreshCw, Square, Type } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import type { CanvasElementKind } from "@/types/document-type-relationships"
 import type {
   AssetTypeSidebarProps,
   AssetTypeDraggableItemProps,
@@ -33,6 +34,12 @@ export function AssetTypeSidebar({ items, isLoading, isFetching, page, pageSize,
         )}
       </div>
 
+      {/* Free-standing canvas elements — container / text, dropped anywhere on the canvas */}
+      <div className="p-2 space-y-1 border-b">
+        <CanvasElementDraggableItem kind="container" icon={Square} label={t("sidebar.container")} />
+        <CanvasElementDraggableItem kind="text" icon={Type} label={t("sidebar.text")} />
+      </div>
+
       {/* Scrollable list */}
       <ScrollArea className="flex-1 min-h-0" type="hover">
         <div className="p-2 space-y-1">
@@ -51,6 +58,37 @@ export function AssetTypeSidebar({ items, isLoading, isFetching, page, pageSize,
           )}
         </div>
       </ScrollArea>
+    </div>
+  )
+}
+
+function CanvasElementDraggableItem({
+  kind,
+  icon: Icon,
+  label,
+}: {
+  kind: CanvasElementKind
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+}) {
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = "copy"
+    e.dataTransfer.setData("application/canvas-element", JSON.stringify({ kind }))
+  }
+
+  return (
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-md border border-dashed bg-background",
+        "hover:bg-accent hover:cursor-grab active:cursor-grabbing",
+        "transition-colors select-none",
+      )}
+    >
+      <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <span className="text-xs font-medium truncate flex-1">{label}</span>
     </div>
   )
 }

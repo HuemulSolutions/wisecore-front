@@ -315,7 +315,7 @@ function ComboboxField({
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
         <div className="flex items-center border-b px-3">
           <Input
             placeholder={t('searchPlaceholder')}
@@ -1850,7 +1850,7 @@ export function HuemulField({
                   >
                     <span
                       className={cn(
-                        "flex size-4 shrink-0 items-center justify-center rounded-full border-1 transition-colors",
+                        "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
                         isSelected ? "border-primary" : "border-muted-foreground/50",
                       )}
                     >
@@ -1976,7 +1976,7 @@ export function HuemulField({
             ? Array.from({ length: scaleMax - scaleMin + 1 }, (_, i) => scaleMin + i)
             : [];
         return (
-          <div className="space-y-2">
+          <div className="w-fit max-w-full space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               {steps.map((n) => {
                 const selected = value === n;
