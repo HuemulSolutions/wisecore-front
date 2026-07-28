@@ -7,6 +7,7 @@ import { HuemulField } from "@/huemul/components/huemul-field";
 import { addTemplate } from "@/services/templates";
 import { AlertCircle, FileCode } from "lucide-react";
 import { getErrorMessage } from "@/lib/error-utils";
+import { logger } from "@/lib/logger";
 import type { CreateTemplateDialogProps } from '@/types/templates';
 export type { CreateTemplateDialogProps } from '@/types/templates';
 
@@ -24,7 +25,7 @@ export function CreateTemplateDialog({
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
-    console.log('🔔 [CREATE-TEMPLATE-DIALOG] Open state changed:', open);
+    logger.log('🔔 [CREATE-TEMPLATE-DIALOG] Open state changed:', open);
     if (open) {
       setNewName("");
       setNewDescription("");
@@ -35,29 +36,29 @@ export function CreateTemplateDialog({
 
   const createTemplateMutation = useMutation({
     mutationFn: (newData: { name: string; description: string; instructions: string; organization_id: string }) => {
-      console.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
+      logger.log('🚀 [CREATE-TEMPLATE-DIALOG] Starting template creation:', newData.name);
       return addTemplate(newData);
     },
     meta: { successMessage: t('create.success') },
     onSuccess: (created) => {
-      console.log('✅ [CREATE-TEMPLATE-DIALOG] Template created successfully:', created);
+      logger.log('✅ [CREATE-TEMPLATE-DIALOG] Template created successfully:', created);
       queryClient.invalidateQueries({ queryKey: ["templates", organizationId] });
       
       // Store the callback to execute after dialog closes
       const executeCallback = () => {
-        console.log('📞 [CREATE-TEMPLATE-DIALOG] Calling onTemplateCreated callback');
+        logger.log('📞 [CREATE-TEMPLATE-DIALOG] Calling onTemplateCreated callback');
         onTemplateCreated({ id: created.id, name: created.name, description: created.description });
       };
       
       // Close dialog first
-      console.log('🚪 [CREATE-TEMPLATE-DIALOG] Closing dialog');
+      logger.log('🚪 [CREATE-TEMPLATE-DIALOG] Closing dialog');
       onOpenChange(false);
       
       // Wait for dialog to fully close before executing callback
       setTimeout(executeCallback, 300);
     },
     onError: (error) => {
-      console.error("Create template error:", error);
+      logger.error("Create template error:", error);
       setError(getErrorMessage(error, t('create.errorFailed')));
     },
   });

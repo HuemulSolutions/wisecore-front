@@ -24,6 +24,7 @@ import SectionPlateEditor, { type SectionPlateEditorRef } from "@/components/pla
 import { AiEditSectionDialog } from "@/components/assets/dialogs/assets-ai-edit-section-dialog";
 import { useEditWithAi } from "@/hooks/useEditWithAi";
 import { handleApiError } from "@/lib/error-utils";
+import { logger } from "@/lib/logger";
 import type { SectionFormProps } from '@/types/sections';
 export type { SectionFormProps } from '@/types/sections';
 
@@ -189,7 +190,7 @@ export function SectionForm({
       }));
       return [...folderNodes, ...assetNodes];
     } catch (error) {
-      console.error('Error loading folder content:', error);
+      logger.error('Error loading folder content:', error);
       return [];
     }
   };
@@ -261,7 +262,7 @@ export function SectionForm({
           setPrompt(formattedText);
         },
         onError: (error) => {
-          console.error('Error generating prompt:', error);
+          logger.error('Error generating prompt:', error);
         },
         onClose: () => {
           setIsGenerating(false);
@@ -270,7 +271,7 @@ export function SectionForm({
         }
       });
     } catch (error) {
-      console.error('Error in prompt generation:', error);
+      logger.error('Error in prompt generation:', error);
       setIsGenerating(false);
       setEditorKey(prev => prev + 1);
     }

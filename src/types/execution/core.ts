@@ -97,3 +97,15 @@ export interface RollbackTargetsResponse {
   states: RollbackTarget[];
   steps: RollbackStep[];
 }
+
+export interface ExecutionVersionSuggestion {
+  major: number
+  minor: number
+  patch: number
+  based_on: string | null
+}
+
+export interface ExecutionVersionSuggestionResponse {
+  data: ExecutionVersionSuggestion
+  transaction_id: string
+}

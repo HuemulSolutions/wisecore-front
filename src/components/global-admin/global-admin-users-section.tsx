@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { handleApiError } from "@/lib/error-utils"
+import { logger } from "@/lib/logger"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HuemulTable, type HuemulTableColumn, type HuemulTableAction } from "@/huemul/components/huemul-table"
@@ -117,7 +118,7 @@ export function GlobalAdminUsersSection() {
 
   const handleMakeOrganizationAdmin = (user: User) => {
     toast.info(t('global-admin:toast.orgAdminPending', { name: `${user.name} ${user.last_name}` }))
-    console.log("Organization admin intent", user)
+    logger.log("Organization admin intent", user)
   }
 
   const translateStatusI18n = (status: string) => {

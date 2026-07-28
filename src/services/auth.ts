@@ -1,5 +1,6 @@
 import { backendUrl } from '@/config';
 import { httpClient } from '@/lib/http-client';
+import { logger } from '@/lib/logger';
 import type { User } from '@/types';
 import type { RequestCodeRequest, VerifyCodeRequest, UpdateUserRequest, AuthResponse } from '@/types/auth';
 
@@ -9,7 +10,7 @@ class AuthService {
   private baseUrl = `${backendUrl}/auth`;
 
   async requestCode(request: RequestCodeRequest): Promise<void> {
-    console.log('AuthService: Requesting code to', `${this.baseUrl}/codes`, 'with purpose:', request.purpose);
+    logger.log('AuthService: Requesting code to', `${this.baseUrl}/codes`, 'with purpose:', request.purpose);
     
     // Make request without auth token for public endpoint
     await httpClient.post(`${this.baseUrl}/codes`, {
@@ -19,7 +20,7 @@ class AuthService {
   }
 
   async verifyCode(request: VerifyCodeRequest): Promise<AuthResponse> {
-    console.log('AuthService: Verifying code to', `${this.baseUrl}/codes/verify`, 'with data:', { 
+    logger.log('AuthService: Verifying code to', `${this.baseUrl}/codes/verify`, 'with data:', { 
       email: request.email.toLowerCase(), 
       code: request.code 
     });
@@ -31,11 +32,11 @@ class AuthService {
     });
 
     const responseData = await response.json();
-    console.log('Raw verifyCode response:', responseData);
+    logger.log('Raw verifyCode response:', responseData);
     
     // Verificar si la respuesta tiene la estructura esperada
     if (!responseData.data || !responseData.data.token || !responseData.data.user) {
-      console.error('Invalid response structure:', responseData);
+      logger.error('Invalid response structure:', responseData);
       throw new Error('Invalid response from server');
     }
     
@@ -46,7 +47,7 @@ class AuthService {
   }
 
   async updateUser(userId: string, request: UpdateUserRequest): Promise<User> {
-    console.log('AuthService: Updating user', userId, 'with data:', request);
+    logger.log('AuthService: Updating user', userId, 'with data:', request);
     
     const response = await httpClient.put(`${backendUrl}/users/${userId}`, request);
 
@@ -56,7 +57,7 @@ class AuthService {
     }
 
     const responseData = await response.json();
-    console.log('Raw updateUser response:', responseData);
+    logger.log('Raw updateUser response:', responseData);
     
     // Return the updated user data
     return responseData.data || responseData;

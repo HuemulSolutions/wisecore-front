@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 
 
 export async function getAllDocumentTypes(organizationId: string, search?: string) {
@@ -14,7 +15,7 @@ export async function getAllDocumentTypes(organizationId: string, search?: strin
         },
     });
     const data = await response.json();
-    console.log('Assets types fetched:', data.data);
+    logger.log('Assets types fetched:', data.data);
     return data.data;
 }
 
@@ -26,6 +27,6 @@ export async function createDocumentType(documentTypeData: { name: string; color
     });
 
     const data = await response.json();
-    console.log('Asset type created:', data.data);
+    logger.log('Asset type created:', data.data);
     return data.data;
 }

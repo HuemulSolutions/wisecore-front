@@ -1,4 +1,5 @@
 import { httpClient } from '@/lib/http-client';
+import { logger } from '@/lib/logger';
 import type { LoginTokenPayload, OrganizationTokenPayload, PermissionAction, PermissionResource, Permission } from '@/types/jwt-utils';
 export type { LoginTokenPayload, OrganizationTokenPayload, PermissionAction, PermissionResource, Permission };
 
@@ -11,7 +12,7 @@ export function decodeJWT<T = any>(token: string): T | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
-      console.warn('Invalid JWT format');
+      logger.warn('Invalid JWT format');
       return null;
     }
     
@@ -22,7 +23,7 @@ export function decodeJWT<T = any>(token: string): T | null {
     
     return JSON.parse(decodedPayload);
   } catch (error) {
-    console.error('Error decoding JWT:', error);
+    logger.error('Error decoding JWT:', error);
     return null;
   }
 }
@@ -50,7 +51,7 @@ export function getLoginTokenInfo(): LoginTokenPayload | null {
     
     return decodeJWT<LoginTokenPayload>(loginToken);
   } catch (error) {
-    console.error('Error getting login token info:', error);
+    logger.error('Error getting login token info:', error);
     return null;
   }
 }
@@ -67,7 +68,7 @@ export function getOrganizationTokenInfo(): OrganizationTokenPayload | null {
     
     return decodeJWT<OrganizationTokenPayload>(orgToken);
   } catch (error) {
-    console.error('Error getting organization token info:', error);
+    logger.error('Error getting organization token info:', error);
     return null;
   }
 }
@@ -185,7 +186,7 @@ export function getCurrentUserInfo() {
       hasOrganizationAccess: !!orgInfo
     };
   } catch (error) {
-    console.error('Error getting current user info:', error);
+    logger.error('Error getting current user info:', error);
     return {
       loginInfo: null,
       orgInfo: null,

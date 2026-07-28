@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useOrganization } from "@/contexts/organization-context";
-import { HuemulDialog } from "@/huemul/components/huemul-dialog";
+import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { createDocumentType, updateDocumentType, getDocumentTypeById } from "@/services/document-types";
 import { Plus, Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/error-utils";
 import type { CreateDocumentTypeProps } from '@/types/assets'
+import type { CreateDocumentTypeData } from '@/types/document-types'
 
 export type { CreateDocumentTypeProps } from '@/types/assets'
 
@@ -28,6 +29,7 @@ export default function CreateDocumentType({
   const setIsDialogOpen = externalOnOpenChange || setInternalDialogOpen;
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#3B82F6");
+  const [requiresIsoStrictVersioning, setRequiresIsoStrictVersioning] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { selectedOrganizationId } = useOrganization();
 
@@ -46,6 +48,7 @@ export default function CreateDocumentType({
     if (documentTypeData?.data) {
       setName(documentTypeData.data.name);
       setSelectedColor(documentTypeData.data.color);
+      setRequiresIsoStrictVersioning(documentTypeData.data.requires_iso_strict_versioning ?? true);
     }
   }, [documentTypeData]);
 
@@ -57,7 +60,7 @@ export default function CreateDocumentType({
   }, [isDialogOpen]);
 
   const mutation = useMutation({
-    mutationFn: (documentTypeData: { name: string; color: string }) => {
+    mutationFn: (documentTypeData: CreateDocumentTypeData) => {
       if (isEditing && documentTypeId) {
         return updateDocumentType(documentTypeId, documentTypeData);
       }
@@ -81,6 +84,7 @@ export default function CreateDocumentType({
   const resetForm = () => {
     setName("");
     setSelectedColor("#3B82F6");
+    setRequiresIsoStrictVersioning(true);
     setError(null);
   };
 
@@ -95,6 +99,7 @@ export default function CreateDocumentType({
     mutation.mutate({
       name: name.trim(),
       color: selectedColor,
+      requires_iso_strict_versioning: requiresIsoStrictVersioning,
     });
   };
 
@@ -113,14 +118,13 @@ export default function CreateDocumentType({
         </span>
       )}
 
-      <HuemulDialog
+      <HuemulSheet
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         title={dialogTitle}
         description={dialogDescription}
         icon={Plus}
         maxWidth="sm:max-w-lg"
-        maxHeight="max-h-[90vh]"
         saveAction={{
           label: isEditing ? t('common:update') : t('common:create'),
           onClick: handleAccept,
@@ -154,6 +158,15 @@ export default function CreateDocumentType({
               onChange={(v) => setSelectedColor(String(v))}
             />
 
+            <HuemulField
+              type="switch"
+              label={t('form.requiresIsoStrictVersioning')}
+              description={t('form.requiresIsoStrictVersioningDescription')}
+              name="requires_iso_strict_versioning"
+              value={requiresIsoStrictVersioning}
+              onChange={(v) => setRequiresIsoStrictVersioning(v as boolean)}
+            />
+
             {error && error !== t('form.nameRequired') && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
                 {error}
@@ -161,7 +174,7 @@ export default function CreateDocumentType({
             )}
           </div>
         )}
-      </HuemulDialog>
+      </HuemulSheet>
     </>
   );
 }

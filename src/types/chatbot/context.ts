@@ -41,6 +41,11 @@ export interface ChatbotProviderProps extends PropsWithChildren {
   executionId?: string;
   documentId?: string;
   initialReferences?: ConversationReference[];
+  /**
+   * When this value changes, the provider resets its state in place instead
+   * of being remounted via `key`. Pass the active organization id.
+   */
+  resetKey?: string | null;
 }
 
 export interface ReferenceSourceState {

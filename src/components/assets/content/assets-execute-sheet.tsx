@@ -20,6 +20,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
 import { handleApiError } from "@/lib/error-utils";
+import { logger } from "@/lib/logger";
 import type { ExecuteSheetProps } from '@/types/assets';
 export type { ExecuteSheetProps } from '@/types/assets';
 
@@ -112,8 +113,8 @@ export function ExecuteSheet({
       // Necesitamos acceder a execution.id
       const executionId = executionData.execution?.id || executionData.id;
       
-      console.log('📦 Execute Sheet - Raw response:', executionData);
-      console.log('🆔 Extracted execution ID:', executionId);
+      logger.log('📦 Execute Sheet - Raw response:', executionData);
+      logger.log('🆔 Extracted execution ID:', executionId);
       
       setCurrentExecutionId(executionId);
       setHasAttemptedCreation(false);
@@ -123,7 +124,7 @@ export function ExecuteSheet({
         ? fullDocument.sections.findIndex((s: any) => s.id === selectedSectionId)
         : undefined;
       
-      console.log('🚀 Execute Sheet - Execution created:', {
+      logger.log('🚀 Execute Sheet - Execution created:', {
         executionId,
         executionType,
         selectedSectionId,
@@ -296,7 +297,7 @@ export function ExecuteSheet({
         fullDocument?.sections?.[executionContext.sectionIndex]?.id &&
         !selectedSectionId) {
       const sectionId = fullDocument.sections[executionContext.sectionIndex].id;
-      console.log('🔄 [ExecuteSheet] Updating selectedSectionId from fullDocument:', sectionId);
+      logger.log('🔄 [ExecuteSheet] Updating selectedSectionId from fullDocument:', sectionId);
       setSelectedSectionId(sectionId);
     }
   }, [isOpen, executionContext, fullDocument, selectedSectionId]);
@@ -332,7 +333,7 @@ export function ExecuteSheet({
       if ((executionType === 'single' || executionType === 'from') && !selectedSectionId) disabledReasons.push('Single/From mode without section');
       if ((executionType === 'single' || executionType === 'from') && !currentExecutionId && !selectedExecutionId) disabledReasons.push('Single/From mode without execution');
       
-      console.log('🔍 [ExecuteSheet] Estado del botón:', {
+      logger.log('🔍 [ExecuteSheet] Estado del botón:', {
         executionType,
         selectedSectionId,
         currentExecutionId,
@@ -349,9 +350,9 @@ export function ExecuteSheet({
       });
       
       if (disabledReasons.length > 0) {
-        console.log('🚫 [ExecuteSheet] Button DISABLED. Reasons:', disabledReasons);
+        logger.log('🚫 [ExecuteSheet] Button DISABLED. Reasons:', disabledReasons);
       } else {
-        console.log('✅ [ExecuteSheet] Button ENABLED');
+        logger.log('✅ [ExecuteSheet] Button ENABLED');
       }
     }
   }, [isOpen, executionType, selectedSectionId, currentExecutionId, selectedExecutionId, fullDocument?.sections, fullDocument, defaultLLM?.id, sheetSelectedLLM, executeDocumentMutation.isPending, isLoadingDefaultLLM, isLoadingFullDocument, isActuallyLoadingFullDocument, executionContext]);

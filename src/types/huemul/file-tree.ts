@@ -54,6 +54,10 @@ export interface HuemulFileTreeProps {
   // Nodos de nivel raíz que deben verse como encabezado de sección (estilo Notion):
   // sin ícono de carpeta, texto en negrita, no arrastrables.
   isSectionHeader?: (node: HuemulTreeNode) => boolean
+  // Al refrescar, recargar las carpetas que el usuario expandió a mano.
+  // En false, el resultado de onRefresh/onLoadChildren es autoritativo:
+  // solo queda expandido lo que venga marcado en esa respuesta.
+  preserveExpandedOnRefresh?: boolean
 }
 
 export interface HuemulFileTreeRef {

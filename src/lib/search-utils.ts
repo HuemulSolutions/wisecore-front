@@ -1,6 +1,7 @@
 /**
  * Utility functions for search highlighting and text processing
  */
+import { logger } from '@/lib/logger';
 
 /**
  * Simple markdown to HTML converter for basic formatting
@@ -52,7 +53,7 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
     return simpleMarkdownToHtml(fullContent);
   }
 
-  console.log('[highlightSearchMatches] Starting with:', {
+  logger.log('[highlightSearchMatches] Starting with:', {
     fullLength: fullContent.length,
     searchLength: searchContent.length
   });
@@ -71,7 +72,7 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
   const normalizedSearchContent = normalizeForComparison(searchContent);
   const normalizedFullContent = normalizeForComparison(fullContent);
   
-  console.log('[highlightSearchMatches] Normalized search (first 200 chars):', normalizedSearchContent.substring(0, 200));
+  logger.log('[highlightSearchMatches] Normalized search (first 200 chars):', normalizedSearchContent.substring(0, 200));
   
   let highlightedContent = fullContent;
   let highlightCount = 0;
@@ -90,12 +91,12 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
     }
   }
   
-  console.log('[highlightSearchMatches] Extracted', phrases.length, 'phrases');
+  logger.log('[highlightSearchMatches] Extracted', phrases.length, 'phrases');
   
   // Try to highlight each phrase
   phrases.forEach(phrase => {
     if (normalizedFullContent.includes(phrase)) {
-      console.log('[highlightSearchMatches] Found phrase:', phrase.substring(0, 50));
+      logger.log('[highlightSearchMatches] Found phrase:', phrase.substring(0, 50));
       
       // Find the actual text in the original content
       const phraseWords = phrase.split(/\s+/);
@@ -113,12 +114,12 @@ export function highlightSearchMatches(fullContent: string, searchContent: strin
       });
       
       if (before !== highlightedContent) {
-        console.log('[highlightSearchMatches] Applied highlight for phrase');
+        logger.log('[highlightSearchMatches] Applied highlight for phrase');
       }
     }
   });
 
-  console.log('[highlightSearchMatches] Total highlights applied:', highlightCount);
+  logger.log('[highlightSearchMatches] Total highlights applied:', highlightCount);
 
   return simpleMarkdownToHtml(highlightedContent);
 }

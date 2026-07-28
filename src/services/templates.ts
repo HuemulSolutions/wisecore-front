@@ -1,6 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
+import { logger } from "@/lib/logger";
 import type { TemplatesResponse, CloneTemplateRequest, CloneTemplateResult, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse, GetTemplatesFilters, CreateExpressBody, CreateExpressResult } from "@/types/templates";
 
 export type { TemplatesResponse, ChildDocumentExecution, ChildDocument, ChildDocumentFolder, ChildDocumentsResponse, ExportTemplatesBody, ImportTemplatesQueryParams, ImportTemplatesData, ImportTemplatesResponse, GetTemplatesFilters, CreateExpressBody, CreateExpressResult };
@@ -42,7 +43,7 @@ export async function addTemplate( { name, description, instructions, organizati
     });
 
     const data = await response.json();
-    console.log('Template created:', data.data);
+    logger.log('Template created:', data.data);
     return data.data;
 }
 
@@ -65,7 +66,7 @@ export async function deleteTemplate(templateId: string, organizationId: string)
     });
 
     const data = await response.json();
-    console.log('Template deleted:', data);
+    logger.log('Template deleted:', data);
     return data;
 }
 
@@ -109,7 +110,7 @@ export async function updateTemplate(
     });
 
     const data = await response.json();
-    console.log('Template updated:', data.data);
+    logger.log('Template updated:', data.data);
     return data.data;
 }
 
@@ -121,7 +122,7 @@ export async function exportTemplate(templateId: string, organizationId: string)
         },
     });
     const data = await response.json();
-    console.log('Template exported:', data.data);
+    logger.log('Template exported:', data.data);
     return data.data;
 }
 
@@ -133,7 +134,7 @@ export async function generateTemplateSections(templateId: string, organizationI
     });
 
     const data = await response.json();
-    console.log('Template sections generated:', data.data);
+    logger.log('Template sections generated:', data.data);
     return data.data;
 }
 

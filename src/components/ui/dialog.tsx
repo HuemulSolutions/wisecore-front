@@ -65,15 +65,17 @@ function DialogContent({
         onInteractOutside={(e) => {
           // Keep the dialog open when interacting with portaled overlays that render
           // outside the dialog DOM: Base UI combobox popups, sheets opened from within
-          // the dialog (e.g. the version-compare sheet), and alert dialogs. Otherwise
-          // clicking/closing them dismisses this dialog too.
+          // the dialog (e.g. the version-compare sheet), alert dialogs, and error
+          // toasts (their "Ver detalles" button, now clickable over modal layers —
+          // see sonner.tsx). Otherwise clicking/closing them dismisses this dialog too.
           const target = e.target as HTMLElement | null
           if (
             target?.closest('[data-slot="combobox-content"]') ||
             target?.closest('[data-slot="sheet-content"]') ||
             target?.closest('[data-slot="sheet-overlay"]') ||
             target?.closest('[data-slot="alert-dialog-content"]') ||
-            target?.closest('[data-slot="alert-dialog-overlay"]')
+            target?.closest('[data-slot="alert-dialog-overlay"]') ||
+            target?.closest('[data-sonner-toast]')
           ) {
             e.preventDefault()
           }

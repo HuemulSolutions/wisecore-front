@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import type { SectionFormField } from "@/types/sections/core";
 
 export async function createSection(
@@ -32,7 +33,7 @@ export async function createSection(
     });
 
     const data = await response.json();
-    console.log('Section created:', data.data);
+    logger.log('Section created:', data.data);
     return data.data;
 }
 
@@ -65,7 +66,7 @@ export async function updateSection(
     });
 
     const data = await response.json();
-    console.log('Section updated:', data.data);
+    logger.log('Section updated:', data.data);
     return data.data;
 }
 
@@ -82,7 +83,7 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     });
 
     const data = await response.json();
-    console.log('Sections reordered:', data.data);
+    logger.log('Sections reordered:', data.data);
     return data.data;
 }
 
@@ -104,7 +105,7 @@ export async function deleteSection(
         },
     });
 
-    console.log('Section deleted:', sectionId);
+    logger.log('Section deleted:', sectionId);
     return sectionId;
 }
 

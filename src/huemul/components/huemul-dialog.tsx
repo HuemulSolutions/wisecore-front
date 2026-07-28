@@ -34,6 +34,7 @@ export function HuemulDialog({
   maxWidth = "sm:max-w-lg",
   maxHeight = "max-h-[85vh]",
   className,
+  footerLeft,
   children,
 }: HuemulDialogProps) {
   // Shared helpers so every path goes through Radix's onOpenChange
@@ -129,66 +130,83 @@ export function HuemulDialog({
         </div>
 
         {/* ── Footer (sticky) ────────────────────────────────────────── */}
-        {showFooter && (
-          <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {showCancelButton && (
-              <DialogClose asChild>
-                <Button
-                  variant="outline"
-                  className="hover:cursor-pointer"
-                  onClick={() => onCancel?.()}
-                >
-                  {cancelLabel}
-                </Button>
-              </DialogClose>
-            )}
+        {showFooter && (() => {
+          const buttons = (
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              {showCancelButton && (
+                <DialogClose asChild>
+                  <Button
+                    variant="outline"
+                    className="hover:cursor-pointer"
+                    onClick={() => onCancel?.()}
+                  >
+                    {cancelLabel}
+                  </Button>
+                </DialogClose>
+              )}
 
-            {extraActions?.map((action, index) => {
-              const ActionIcon = action.icon;
-              const isLoading = action.loading || extraLoading[index];
-              return (
+              {extraActions?.map((action, index) => {
+                const ActionIcon = action.icon;
+                const isLoading = action.loading || extraLoading[index];
+                return (
+                  <Button
+                    key={action.label}
+                    variant={action.variant ?? "secondary"}
+                    disabled={action.disabled || isLoading}
+                    className={cn("hover:cursor-pointer", action.className)}
+                    onClick={() =>
+                      handleActionClick(
+                        action,
+                        (v) => setExtraLoading((prev) => ({ ...prev, [index]: v })),
+                        false,
+                      )
+                    }
+                  >
+                    {isLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      ActionIcon && <ActionIcon className="size-4" />
+                    )}
+                    {action.label}
+                  </Button>
+                );
+              })}
+
+              {saveAction && (
                 <Button
-                  key={action.label}
-                  variant={action.variant ?? "secondary"}
-                  disabled={action.disabled || isLoading}
-                  className={cn("hover:cursor-pointer", action.className)}
+                  variant={saveAction.variant ?? "default"}
+                  disabled={saveAction.disabled || saveAction.loading || saveLoading}
+                  className={cn("hover:cursor-pointer", saveAction.className)}
                   onClick={() =>
-                    handleActionClick(
-                      action,
-                      (v) => setExtraLoading((prev) => ({ ...prev, [index]: v })),
-                      false,
-                    )
+                    handleActionClick(saveAction, setSaveLoading, true)
                   }
                 >
-                  {isLoading ? (
+                  {(saveAction.loading || saveLoading) ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    ActionIcon && <ActionIcon className="size-4" />
+                    saveAction.icon && <saveAction.icon className="size-4" />
                   )}
-                  {action.label}
+                  {saveAction.label}
                 </Button>
-              );
-            })}
+              )}
+            </div>
+          );
 
-            {saveAction && (
-              <Button
-                variant={saveAction.variant ?? "default"}
-                disabled={saveAction.disabled || saveAction.loading || saveLoading}
-                className={cn("hover:cursor-pointer", saveAction.className)}
-                onClick={() =>
-                  handleActionClick(saveAction, setSaveLoading, true)
-                }
-              >
-                {(saveAction.loading || saveLoading) ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  saveAction.icon && <saveAction.icon className="size-4" />
-                )}
-                {saveAction.label}
-              </Button>
-            )}
-          </div>
-        )}
+          if (!footerLeft) {
+            return (
+              <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                {buttons}
+              </div>
+            );
+          }
+
+          return (
+            <div className="sticky bottom-0 border-t bg-background px-6 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center">{footerLeft}</div>
+              {buttons}
+            </div>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );

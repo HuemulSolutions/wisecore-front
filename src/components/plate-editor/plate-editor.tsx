@@ -119,6 +119,7 @@ import { MarkdownPlugin } from '@platejs/markdown';
 
 import { FontSizePlugin, FontColorPlugin, FontBackgroundColorPlugin } from '@platejs/basic-styles/react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import { DiscussionSync } from '@/components/plate-editor/components/discussion-sync';
 import { EditorErrorBoundary } from '@/components/plate-editor/components/editor-error-boundary';
 import { useTranslation } from 'react-i18next';
@@ -515,14 +516,14 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
         editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
       } catch (e) {
-        console.error('Failed to reset editor content:', e);
+        logger.error('Failed to reset editor content:', e);
       }
     },
     resetValue: (value: Value) => {
       try {
         editor.tf.setValue(value);
       } catch (e) {
-        console.error('Failed to reset editor value:', e);
+        logger.error('Failed to reset editor value:', e);
       }
     },
   }), [editor]);
@@ -534,7 +535,7 @@ export const PlateRichEditor = React.forwardRef<PlateRichEditorRef, PlateRichEdi
         const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(initialMarkdown);
         editor.tf.setValue(sanitizeNodes(nodes as unknown[]));
       } catch (e) {
-        console.error('Failed to deserialize initial markdown:', e);
+        logger.error('Failed to deserialize initial markdown:', e);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

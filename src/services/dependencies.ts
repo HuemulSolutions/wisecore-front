@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 
 export async function getDocumentDependencies(documentId: string, organizationId: string) {
   const response = await httpClient.get(`${backendUrl}/documents/${documentId}/dependencies`, {
@@ -8,7 +9,7 @@ export async function getDocumentDependencies(documentId: string, organizationId
     }
   });
   const data = await response.json();
-  console.log('Document dependencies fetched:', data.data);
+  logger.log('Document dependencies fetched:', data.data);
   return data.data;
 }
 
@@ -23,7 +24,7 @@ export async function addDocumentDependency(documentId: string, dependsOnDocumen
   );
 
   const data = await response.json();
-  console.log('Document dependency added:', data.data);
+  logger.log('Document dependency added:', data.data);
   return data.data;
 }
 
@@ -34,6 +35,6 @@ export async function removeDocumentDependency(documentId: string, dependencyId:
     }
   });
 
-  console.log('Document dependency removed:', dependencyId);
+  logger.log('Document dependency removed:', dependencyId);
   return dependencyId;
 }
