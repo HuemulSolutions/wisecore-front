@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { logger } from '@/lib/logger'
 
 const AUTO_RECOVER_KEY = 'wisecore:auto-recovered-at'
 const AUTO_RECOVER_WINDOW_MS = 30_000
@@ -35,9 +36,9 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Ojo: main.tsx sobreescribe console.error; usamos warn para no ser filtrados.
-    console.warn('[AppErrorBoundary]', error.name, error.message, info.componentStack)
+    logger.warn('[AppErrorBoundary]', error.name, error.message, info.componentStack)
     if (/\btranslated-(ltr|rtl)\b/.test(document.documentElement.className)) {
-      console.warn('[AppErrorBoundary] pagina traducida por el navegador detectada')
+      logger.warn('[AppErrorBoundary] pagina traducida por el navegador detectada')
     }
 
     if (!isDomDesyncError(error)) return

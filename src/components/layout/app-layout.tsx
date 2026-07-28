@@ -34,7 +34,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
 
-import { ChatbotProvider } from "@/contexts/chatbot-context"
+import { ChatbotProvider } from "@/contexts/chatbot-provider"
 import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
 import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-context"
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
@@ -45,6 +45,7 @@ import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-she
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -248,7 +249,7 @@ export default function AppLayout() {
     let cancelled = false
     isSwitchingOrgRef.current = true
     setIsSwitchingOrg(true)
-    console.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
+    logger.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
 
     generateOrganizationToken(orgId)
       .then((tokenResponse) => {
@@ -263,7 +264,7 @@ export default function AppLayout() {
         setOrganizationToken(orgToken)
         setRequiresOrganizationSelection(false)
 
-        console.log(`[OrgSync] Switched to org "${orgId}" successfully`)
+        logger.log(`[OrgSync] Switched to org "${orgId}" successfully`)
 
         // Deep link URL is already correct — clean up any saved returnUrl
         sessionStorage.removeItem('returnUrl')
@@ -296,7 +297,7 @@ export default function AppLayout() {
       })
       .catch((error) => {
         if (cancelled) return
-        console.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
+        logger.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
         // If token generation fails (user doesn't have access), redirect
         // with the current org, or show org selection dialog
         if (selectedOrganizationId) {

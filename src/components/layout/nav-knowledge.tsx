@@ -45,6 +45,7 @@ import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
 import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import type { LibraryContentFolderType } from "@/types/folders"
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
@@ -267,18 +268,18 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
-    console.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
+    logger.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
 
     // Wait for the Radix exit animation (200 ms) to finish before
     // triggering navigation, which causes a large re-render cascade
     // through PermissionsProvider.  Navigating during the animation
     // produces a visible "flash" of the dialog portal.
     setTimeout(() => {
-      console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+      logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
       fileTreeRef.current?.refresh()
       // Navigate to the newly created asset
       if (createdAsset) {
-        console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
+        logger.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
         navigateRef.current(`/asset/${createdAsset.id}`, {
           state: {
             selectedDocumentId: createdAsset.id,
@@ -287,7 +288,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
             fromFileTree: true,
           }
         })
-        console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
+        logger.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
       }
     }, 300)
   }, []) // stable — uses ref for navigate
@@ -402,7 +403,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, []) // stable — uses refs for mutable values
 
   const handleCreateAssetDialogChange = useCallback((open: boolean) => {
-    console.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
+    logger.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
     setCreateAssetDialogOpen(open)
     if (!open) {
       // Unmount the dialog component AFTER the Radix exit animation
@@ -433,7 +434,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const refreshFileTree = useCallback(() => {
-    console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+    logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
     fileTreeRef.current?.refresh()
   }, [])
 
@@ -954,7 +955,7 @@ export function NavKnowledgeContent() {
 
         return [...folderNodes, ...assetNodes]
       } catch (error) {
-        console.error("Error loading folder content:", error)
+        logger.error("Error loading folder content:", error)
         if (ApiError.isApiError(error) && (error.statusCode === 404 || error.code === 'FOLDER_NOT_FOUND')) {
           toast.error(t('knowledge.errors.folderNotAccessible'))
         } else {

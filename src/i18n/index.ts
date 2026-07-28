@@ -39,6 +39,7 @@ import notifications from './locales/notifications'
 import roleFolder from './locales/role-folder'
 import workflow from './locales/workflow'
 import errorDetails from './locales/error-details'
+import { logger } from '@/lib/logger'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
 // This helper extracts a single language from the tree so i18next can consume it.
@@ -148,7 +149,7 @@ function syncDocumentLang(lng?: string) {
   html.setAttribute('translate', 'no')
   html.classList.add('notranslate')
   if (/\btranslated-(ltr|rtl)\b/.test(html.className)) {
-    console.warn('[wisecore] pagina traducida por el navegador')
+    logger.warn('[wisecore] pagina traducida por el navegador')
   }
 }
 

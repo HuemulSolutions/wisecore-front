@@ -1,16 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChatbot } from '@/hooks/use-chatbot';
+import { ChatbotContext } from '@/contexts/chatbot-context';
 import type { ConversationReference, WorkingContextItem } from '@/types/chatbot';
 import type {
   ChatView,
   ChatbotContextValue,
   ChatbotProviderProps,
   ReferenceSourceState,
-  UseChatbotScreenContextOptions,
 } from '@/types/chatbot'
-export type { ChatView, ChatbotContextValue }
 
-const ChatbotContext = createContext<ChatbotContextValue | undefined>(undefined);
+// Solo el componente provider vive acá (separado de chatbot-context.ts) para
+// que react-refresh pueda auto-aceptar este módulo: un archivo que mezcla
+// componente + hooks no se auto-acepta, y un hot update duplicaba el contexto
+// (ver comentario en chatbot-context.ts).
 
 function buildReferences(
   executionId?: string,
@@ -212,40 +214,4 @@ export function ChatbotProvider({
   );
 
   return <ChatbotContext.Provider value={value}>{children}</ChatbotContext.Provider>;
-}
-
-export function useChatbotContext() {
-  const context = useContext(ChatbotContext);
-
-  if (context === undefined) {
-    throw new Error('useChatbotContext must be used within a ChatbotProvider');
-  }
-
-  return context;
-}
-
-export function useOptionalChatbotContext() {
-  return useContext(ChatbotContext);
-}
-
-export function useChatbotScreenContext({
-  sourceKey,
-  references,
-  enabled = true,
-  priority = 0,
-}: UseChatbotScreenContextOptions) {
-  const { registerReferenceSource, unregisterReferenceSource } = useChatbotContext();
-
-  useEffect(() => {
-    if (!enabled) {
-      unregisterReferenceSource(sourceKey);
-      return;
-    }
-
-    registerReferenceSource(sourceKey, references, priority);
-
-    return () => {
-      unregisterReferenceSource(sourceKey);
-    };
-  }, [enabled, priority, references, registerReferenceSource, sourceKey, unregisterReferenceSource]);
 }

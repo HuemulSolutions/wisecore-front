@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import { useTranslation } from "react-i18next"
 
 // ─── Default labels ───────────────────────────────────────────────────────────
@@ -184,7 +185,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         setNodes(data)
         setIsInitialized(true)
       } catch (error) {
-        console.error("Error loading initial data:", error)
+        logger.error("Error loading initial data:", error)
       } finally {
         setIsLoading(false)
         isLoadingInitialRef.current = false
@@ -217,7 +218,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
                 newNode.isExpanded = true
                 newNode.hasChildren = children.length > 0
               } catch (error) {
-                console.error(`Error reloading folder ${node.id}:`, error)
+                logger.error(`Error reloading folder ${node.id}:`, error)
                 newNode.children = []
                 newNode.isExpanded = false
               }
@@ -235,7 +236,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         const refreshedNodes = await reloadExpandedFolders(rootData)
         setNodes(refreshedNodes)
       } catch (error) {
-        console.error("Error refreshing tree:", error)
+        logger.error("Error refreshing tree:", error)
       } finally {
         setIsLoading(false)
       }
@@ -298,7 +299,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
             updateNode(node.id, { children, isExpanded: true, isLoading: false, hasChildren: children.length > 0 }, prev),
           )
         } catch (error) {
-          console.error("Error loading children:", error)
+          logger.error("Error loading children:", error)
           setNodes((prev) => updateNode(node.id, { isLoading: false }, prev))
         }
       } else {
@@ -348,7 +349,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         setCreatingNode(null)
         setNewNodeName("")
       } catch (error) {
-        console.error("Error creating node:", error)
+        logger.error("Error creating node:", error)
         setIsLoading(false)
       }
     }
@@ -367,7 +368,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
           if (onDelete) await onDelete(nodeId, nodeType)
           await refresh()
         } catch (error) {
-          console.error("Error deleting node:", error)
+          logger.error("Error deleting node:", error)
           setIsLoading(false)
         }
       }
@@ -442,7 +443,7 @@ export const HuemulFileTree = forwardRef<HuemulFileTreeRef, HuemulFileTreeProps>
         }
         await refresh()
       } catch (error) {
-        console.error("Error moving node:", error)
+        logger.error("Error moving node:", error)
         setIsLoading(false)
       } finally {
         setDraggedNode(null)

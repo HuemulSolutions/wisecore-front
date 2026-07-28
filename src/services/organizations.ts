@@ -1,18 +1,19 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import type { UserOrganization } from "@/types/users";
 import type { OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse } from '@/types/organizations';
 
 export type { OrganizationUser, OrganizationUsersResponse, SetOrganizationAdminResponse };
 
 export async function getUserOrganizations(userId: string): Promise<UserOrganization[]> {
-  console.log('getUserOrganizations called for userId:', userId);
-  console.log('Current httpClient tokens state:', httpClient.getTokensState());
-  console.log('Current localStorage state:', httpClient.getLocalStorageState());
+  logger.log('getUserOrganizations called for userId:', userId);
+  logger.log('Current httpClient tokens state:', httpClient.getTokensState());
+  logger.log('Current localStorage state:', httpClient.getLocalStorageState());
   
   const response = await httpClient.get(`${backendUrl}/users/organizations?user_id=${userId}`);
   const data = await response.json();
-  console.log('User organizations fetched:', data.data);
+  logger.log('User organizations fetched:', data.data);
   return data.data;
 }
 
@@ -24,7 +25,7 @@ export async function generateOrganizationToken(organizationId: string) {
   });
 
   const data = await response.json();
-  console.log('Organization token generated:', data);
+  logger.log('Organization token generated:', data);
   return data;
 }
 
@@ -46,7 +47,7 @@ export async function addOrganization({ name, description }: { name: string; des
   });
 
   const data = await response.json();
-  console.log('Organization created:', data.data);
+  logger.log('Organization created:', data.data);
   return data.data;
 }
 
@@ -64,7 +65,7 @@ export async function updateOrganization(
     description: description || null,
   };
 
-  // Solo incluir max_users y token_limit si están definidos
+  // Solo incluir max_users y token_limit si estÃ¡n definidos
   if (max_users !== undefined) {
     body.max_users = max_users;
   }
@@ -75,13 +76,13 @@ export async function updateOrganization(
   const response = await httpClient.patch(`${backendUrl}/organizations/${organizationId}`, body);
 
   const data = await response.json();
-  console.log('Organization updated:', data.data);
+  logger.log('Organization updated:', data.data);
   return data.data;
 }
 
 export async function deleteOrganization(organizationId: string) {
   await httpClient.delete(`${backendUrl}/organizations/${organizationId}`);
-  console.log('Organization deleted:', organizationId);
+  logger.log('Organization deleted:', organizationId);
 }
 
 // Get users of a specific organization (root admin only)

@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import type {
     LibraryContentAsset,
     LibraryContentFolder,
@@ -86,7 +87,7 @@ export async function createFolder(name: string, organizationId: string, parentI
         },
     });
     const data = await response.json();
-    console.log('Folder created:', data.data);
+    logger.log('Folder created:', data.data);
     return data.data;
 }
 
@@ -100,7 +101,7 @@ export async function editFolder(folderId: string, name: string, organizationId:
         },
     });
     const data = await response.json();
-    console.log('Folder edited:', folderId, data?.data);
+    logger.log('Folder edited:', folderId, data?.data);
     return data?.data;
 }
 
@@ -112,7 +113,7 @@ export async function deleteFolder(folderId: string, organizationId: string, del
         body: JSON.stringify({ delete_documents: deleteDocuments }),
     });
     const data = await response.json();
-    console.log('Folder deleted:', folderId, data?.data);
+    logger.log('Folder deleted:', folderId, data?.data);
     return data?.data;
 }
 
@@ -125,6 +126,6 @@ export async function moveFolder(folderId: string, newParentId: string | undefin
         },
     });
     const data = await response.json();
-    console.log('Folder moved:', folderId, 'to parent:', newParentId, data?.data);
+    logger.log('Folder moved:', folderId, 'to parent:', newParentId, data?.data);
     return data?.data;
 }

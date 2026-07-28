@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type { EventSourceMessage } from "@microsoft/fetch-event-source";
 import type { SSEEvent, GenerateStreamParams, GenerateWorkerParams, ExecuteGenerationParams, FixSectionParams, RedactPromptParams, ChatbotParams, EditWithAiParams, EditWithAiResponse } from "@/types/generate";
@@ -63,7 +64,7 @@ async function* ssePostStream(
     onclose: onClose,
     signal,
     onerror(err) {
-      console.error("SSE connection error:", err);
+      logger.error("SSE connection error:", err);
       push({ event: "error", data: (err as Error)?.message || "Connection error" });
       closed = true;
       if (resolveEvent) {
@@ -71,7 +72,7 @@ async function* ssePostStream(
       }
     },
   }).catch((err) => {
-    console.error("fetchEventSource error:", err);
+    logger.error("fetchEventSource error:", err);
     push({ event: "error", data: (err as Error)?.message || "Connection error" });
     closed = true;
     if (resolveEvent) {
@@ -149,9 +150,9 @@ export const generateDocumentWorker = async (params: GenerateWorkerParams): Prom
         }
 
         const result = await response.json();
-        console.log('Generation started successfully:', result);
+        logger.log('Generation started successfully:', result);
     } catch (error) {
-        console.error('Error starting generation:', error);
+        logger.error('Error starting generation:', error);
         throw error;
     }
 }
@@ -306,9 +307,9 @@ export const executeGeneration = async (params: ExecuteGenerationParams): Promis
         }
 
         const result = await response.json();
-        console.log('Execution started successfully:', result);
+        logger.log('Execution started successfully:', result);
     } catch (error) {
-        console.error('Error starting execution:', error);
+        logger.error('Error starting execution:', error);
         throw error;
     }
 };
@@ -366,29 +367,29 @@ export const generateDocument = async (params: GenerateStreamParams): Promise<vo
 
     try {
         for await (const event of fetchGeneration(documentId, executionId, userInstructions, organizationId, signal)) {
-            console.log('Received event:', event);
+            logger.log('Received event:', event);
             if (event.event === 'info') {
                 try {
                     const normalized = event.data.replace(/'/g, '"');
                     const info = JSON.parse(normalized);
                     const sectionId = info.section_id;
-                    console.log('Received section info:', sectionId);
+                    logger.log('Received section info:', sectionId);
                     onInfo(sectionId);
                 } catch {
-                    console.warn('Invalid info SSE:', event.data);
+                    logger.warn('Invalid info SSE:', event.data);
                 }
             } else if (event.event === 'content') {
-                console.log("Content: ", event.data);
+                logger.log("Content: ", event.data);
                 onData(event.data);
             } else if (event.event === 'error') {
-                console.error('SSE Error:', event.data);
+                logger.error('SSE Error:', event.data);
                 onError(new Event('error'));
                 break;
             }
         }
         onClose();
     } catch (error) {
-        console.error('Error generating document:', error);
+        logger.error('Error generating document:', error);
         onError(error as Event);
         onClose();
     }
@@ -443,7 +444,7 @@ async function* fetchChatbot(
 
 export const fixSection = async (params: FixSectionParams): Promise<void> => {
     if (!params) {
-        throw new TypeError("fixSection: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
+        throw new TypeError("fixSection: parÃ¡metro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
     const { instructions, content, organizationId, onData, onError, onClose } = params;
 
@@ -452,12 +453,12 @@ export const fixSection = async (params: FixSectionParams): Promise<void> => {
 
     try {
         for await (const event of fetchFixSection(instructions, content, organizationId, controller.signal)) {
-            console.log('Received event:', event);
+            logger.log('Received event:', event);
             if (event.event === 'content') {
-                console.log("Content: ", event.data);
+                logger.log("Content: ", event.data);
                 onData(event.data);
             } else if (event.event === 'error') {
-                console.error('Error SSE:', event.data);
+                logger.error('Error SSE:', event.data);
                 // Notify UI and cancel the stream immediately
                 onError(new Event('error'));
                 controller.abort();
@@ -466,7 +467,7 @@ export const fixSection = async (params: FixSectionParams): Promise<void> => {
         }
         onClose();
     } catch (error) {
-        console.error('Error en la corrección de la sección:', error);
+        logger.error('Error en la correcciÃ³n de la secciÃ³n:', error);
         onError(error as Event);
         onClose();
     }
@@ -474,7 +475,7 @@ export const fixSection = async (params: FixSectionParams): Promise<void> => {
 
 export const redactPrompt = async (params: RedactPromptParams): Promise<void> => {
     if (!params) {
-        throw new TypeError("redactPrompt: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
+        throw new TypeError("redactPrompt: parÃ¡metro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
     const { name, content, organizationId, onData, onError, onClose } = params;
 
@@ -483,12 +484,12 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
 
     try {
         for await (const event of fetchRedactPrompt(name, content, organizationId, controller.signal)) {
-            console.log('Received event:', event);
+            logger.log('Received event:', event);
             if (event.event === 'content') {
-                console.log("Content: ", event.data);
+                logger.log("Content: ", event.data);
                 onData(event.data);
             } else if (event.event === 'error') {
-                console.error('Error SSE:', event.data);
+                logger.error('Error SSE:', event.data);
                 // Notify UI and cancel the stream immediately
                 onError(new Event('error'));
                 controller.abort();
@@ -497,7 +498,7 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
         }
         onClose();
     } catch (error) {
-        console.error('Error en la redacción del prompt:', error);
+        logger.error('Error en la redacciÃ³n del prompt:', error);
         onError(error as Event);
         onClose();
     }
@@ -505,7 +506,7 @@ export const redactPrompt = async (params: RedactPromptParams): Promise<void> =>
 
 export const chatbot = async (params: ChatbotParams): Promise<void> => {
     if (!params) {
-        throw new TypeError("chatbot: parámetro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
+        throw new TypeError("chatbot: parÃ¡metro 'params' es undefined. Debes pasar un objeto con las propiedades requeridas.");
     }
     const { executionId, user_message, threadId, organizationId, onData, onThreadId, onError, onClose } = params;
 
@@ -514,15 +515,15 @@ export const chatbot = async (params: ChatbotParams): Promise<void> => {
 
     try {
         for await (const event of fetchChatbot(executionId, user_message, organizationId, threadId, controller.signal)) {
-            console.log('Received event:', event);
+            logger.log('Received event:', event);
             if (event.event === 'content') {
-                console.log("Content: ", event.data);
+                logger.log("Content: ", event.data);
                 onData(event.data);
             } else if (event.event === 'thread_id') {
-                console.log("Thread ID: ", event.data);
+                logger.log("Thread ID: ", event.data);
                 onThreadId(event.data);
             } else if (event.event === 'error') {
-                console.error('Error SSE:', event.data);
+                logger.error('Error SSE:', event.data);
                 // Notify UI and cancel the stream immediately
                 onError(new Event('error'));
                 controller.abort();
@@ -531,7 +532,7 @@ export const chatbot = async (params: ChatbotParams): Promise<void> => {
         }
         onClose();
     } catch (error) {
-        console.error('Error en el chatbot:', error);
+        logger.error('Error en el chatbot:', error);
         onError(error as Event);
         onClose();
     }

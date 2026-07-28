@@ -1,4 +1,5 @@
 import { ApiError } from '@/types/api-error';
+import { logger } from '@/lib/logger';
 
 let loginToken: string | null = null;
 let organizationToken: string | null = null;
@@ -84,8 +85,8 @@ export const httpClient = {
     // This allows root admin to access Global Admin without selecting an organization
     const tokenToUse = shouldUseLoginToken ? loginToken : (organizationToken || loginToken);
     
-    console.log(`[httpClient] ${options.method || 'GET'} ${url}`);
-    console.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
+    logger.log(`[httpClient] ${options.method || 'GET'} ${url}`);
+    logger.log(`[httpClient] Using ${shouldUseLoginToken ? 'login' : 'organization'} token:`, tokenToUse?.substring(0, 10) + '...');
     
     // Add auth token if available
     if (tokenToUse) {
@@ -98,7 +99,7 @@ export const httpClient = {
     // (permite a servicios consultar organizaciones diferentes a la seleccionada)
     if (organizationId && !isAuthEndpoint && !headers.has('X-Org-Id')) {
       headers.set('X-Org-Id', organizationId);
-      console.log(`[httpClient] Using organization ID:`, organizationId);
+      logger.log(`[httpClient] Using organization ID:`, organizationId);
     }
 
     // Ensure Content-Type is set for requests with body (except FormData)
@@ -128,7 +129,7 @@ export const httpClient = {
         const apiError = new ApiError(errorData);
         
         // Log transaction_id for debugging
-        console.error(`[API Error] Transaction ID: ${apiError.transactionId}`, {
+        logger.error(`[API Error] Transaction ID: ${apiError.transactionId}`, {
           code: apiError.code,
           message: apiError.message,
           detail: apiError.detail,
@@ -159,7 +160,7 @@ export const httpClient = {
       }
 
       // Fallback for non-standard error responses (shouldn't happen with new backend)
-      console.warn('[httpClient] Received non-standard error response:', errorData);
+      logger.warn('[httpClient] Received non-standard error response:', errorData);
       
       // Handle 401 for legacy error format
       if (response.status === 401 && onUnauthorized) {

@@ -15,6 +15,7 @@ import { uploadDocxTemplate } from "@/services/docx_template";
 import { exportExecutionCustomWord, getAvailableDocxTemplatesForExecution } from "@/services/executions";
 import { toast } from "sonner";
 import { useOrganization } from "@/contexts/organization-context";
+import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import type { CustomWordExportSheetProps } from '@/types/assets';
 export type { CustomWordExportSheetProps } from '@/types/assets';
@@ -83,7 +84,7 @@ export function CustomWordExportDialog({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+    logger.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
 
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.docx')) {
@@ -109,7 +110,7 @@ export function CustomWordExportDialog({
       if (fileInputRef.current) fileInputRef.current.value = '';
       await exportMutation.mutateAsync(uploaded.id);
     } catch (error) {
-      console.error('Error in upload and export:', error);
+      logger.error('Error in upload and export:', error);
     }
   };
 
@@ -117,7 +118,7 @@ export function CustomWordExportDialog({
     try {
       await exportMutation.mutateAsync(docxTemplateId);
     } catch (error) {
-      console.error('Error exporting with existing template:', error);
+      logger.error('Error exporting with existing template:', error);
     }
   };
 

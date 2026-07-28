@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { httpClient } from '@/lib/http-client';
 import { queryClient } from '@/lib/query-client';
+import { logger } from '@/lib/logger';
 import type { User } from '@/types/users';
 import type { AuthContextType, AuthProviderProps } from '@/types/auth'
 export type { AuthContextType }
@@ -36,9 +37,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setToken(savedToken);
         setUser(parsedUser);
         httpClient.setLoginToken(savedToken);
-        console.log('AuthContext: Restored login token from localStorage:', savedToken.substring(0, 10) + '...');
+        logger.log('AuthContext: Restored login token from localStorage:', savedToken.substring(0, 10) + '...');
       } catch (error) {
-        console.error('Error parsing saved user data:', error);
+        logger.error('Error parsing saved user data:', error);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
       }
@@ -59,13 +60,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = (authToken: string, userData: User) => {
-    console.log('AuthContext: Login called with token:', authToken.substring(0, 10) + '...', 'and user:', userData.email);
+    logger.log('AuthContext: Login called with token:', authToken.substring(0, 10) + '...', 'and user:', userData.email);
     setToken(authToken);
     setUser(userData);
     localStorage.setItem('auth_token', authToken);
     localStorage.setItem('auth_user', JSON.stringify(userData));
     httpClient.setLoginToken(authToken);
-    console.log('AuthContext: Login completed, login token set in httpClient');
+    logger.log('AuthContext: Login completed, login token set in httpClient');
   };
 
   const logout = () => {

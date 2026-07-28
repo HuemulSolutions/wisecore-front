@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { httpClient } from '@/lib/http-client';
 import { queryClient } from '@/lib/query-client';
+import { logger } from '@/lib/logger';
 import type { UserOrganization } from '@/types/users';
 import type { OrganizationContextType, OrganizationProviderProps } from '@/types/organizations'
 export type { OrganizationContextType }
@@ -41,17 +42,17 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   };
 
   const setOrganizationToken = (token: string | null) => {
-    console.log('OrganizationContext: Setting organization token:', token?.substring(0, 10) + '...');
+    logger.log('OrganizationContext: Setting organization token:', token?.substring(0, 10) + '...');
     setOrganizationTokenState(token);
     httpClient.setOrganizationToken(token);
     if (token) {
       localStorage.setItem('organizationToken', token);
-      console.log('OrganizationContext: Organization token saved to localStorage');
+      logger.log('OrganizationContext: Organization token saved to localStorage');
     } else {
       localStorage.removeItem('organizationToken');
-      console.log('OrganizationContext: Organization token removed from localStorage');
+      logger.log('OrganizationContext: Organization token removed from localStorage');
     }
-    console.log('OrganizationContext: Current httpClient tokens state:', httpClient.getTokensState());
+    logger.log('OrganizationContext: Current httpClient tokens state:', httpClient.getTokensState());
   };
 
   // Cargar organización y token guardados en localStorage al iniciar
@@ -60,15 +61,15 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     const savedOrgToken = localStorage.getItem('organizationToken');
     
     if (savedOrgId && savedOrgToken) {
-      console.log('OrganizationContext: Restoring organization from localStorage:', savedOrgId);
-      console.log('OrganizationContext: Restoring organization token:', savedOrgToken.substring(0, 10) + '...');
+      logger.log('OrganizationContext: Restoring organization from localStorage:', savedOrgId);
+      logger.log('OrganizationContext: Restoring organization token:', savedOrgToken.substring(0, 10) + '...');
       setSelectedOrganizationIdState(savedOrgId);
       setOrganizationTokenState(savedOrgToken);
       setRequiresOrganizationSelection(false);
       // Configurar httpClient con la organización y token guardados
       httpClient.setOrganizationId(savedOrgId);
       httpClient.setOrganizationToken(savedOrgToken);
-      console.log('OrganizationContext: httpClient configured with org token');
+      logger.log('OrganizationContext: httpClient configured with org token');
     } else {
       // Si no hay organización o token guardado, mostrar el dialog de selección
       setRequiresOrganizationSelection(true);

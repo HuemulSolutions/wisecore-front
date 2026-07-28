@@ -4,6 +4,7 @@ import { useOrgNavigate, stripOrgPrefix } from "@/hooks/useOrgRouter";
 import { getLibraryContent, getLibraryContentByAsset } from "@/services/folders";
 import type { BreadcrumbItem, LibraryItem, LibraryNavigationState } from "@/components/assets";
 import type { UseAssetNavigationProps, UseAssetNavigationReturn } from "@/types/assets"
+import { logger } from "@/lib/logger"
 
 /**
  * sessionStorage keys for the selected document/breadcrumb are namespaced by
@@ -168,7 +169,7 @@ export function useAssetNavigation({
           break;
         }
       } catch (error) {
-        console.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
+        logger.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
         if (hierarchy.length > 0) {
           return hierarchy;
         }
@@ -271,7 +272,7 @@ export function useAssetNavigation({
           setSelectedFile(null);
         }
       } catch (error) {
-        console.error('Error initializing from URL:', error);
+        logger.error('Error initializing from URL:', error);
         navigate('/asset', { replace: true });
       } finally {
         setIsLoadingDocument(false);
@@ -430,7 +431,7 @@ export function useAssetNavigation({
             const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
             setBreadcrumb(parsedBreadcrumb);
           } catch (error) {
-            console.error('Error parsing saved breadcrumb:', error);
+            logger.error('Error parsing saved breadcrumb:', error);
           }
         }
       }
@@ -447,17 +448,17 @@ export function useAssetNavigation({
           const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
           setBreadcrumb(parsedBreadcrumb);
         } catch (error) {
-          console.error('Error parsing saved breadcrumb:', error);
+          logger.error('Error parsing saved breadcrumb:', error);
         }
       }
-      
+
       if (savedSelectedFile) {
         try {
           const parsedSelectedFile = JSON.parse(savedSelectedFile);
           setSelectedExecutionId(null);
           setSelectedFile(parsedSelectedFile);
         } catch (error) {
-          console.error('Error parsing saved selected file:', error);
+          logger.error('Error parsing saved selected file:', error);
         }
       }
       

@@ -10,6 +10,7 @@ import { Plus } from "lucide-react"
 import { useCustomField, useCustomFieldQuestionTypes, useCustomFieldMutations } from "@/hooks/useCustomFields"
 import { getCustomFields } from "@/services/custom-fields"
 import { useOrganization } from "@/contexts/organization-context"
+import { logger } from "@/lib/logger"
 import { questionTypeLabel, QUESTION_TYPE, NUMERIC_DATA_TYPES } from "@/components/sections/question-type-meta"
 import type { CustomFieldOption } from "@/types/custom-fields"
 import type { FormFieldConfig } from "@/types/sections/core"
@@ -142,7 +143,7 @@ export function AddCustomFieldSheet({
       await uploadImageFn(entityCustomFieldId, file, selectedOrganizationId!)
       onImageUploadComplete?.()
     } catch (error) {
-      console.error("Error uploading image:", error)
+      logger.error("Error uploading image:", error)
       setFormErrors(prev => ({ ...prev, value: t('addDialog.uploadFailed') }))
       onImageUploadComplete?.()
     } finally {
@@ -329,13 +330,13 @@ export function AddCustomFieldSheet({
           if (createdEntity?.id) {
             await handleImageUpload(createdEntity.id, selectedFile)
           } else {
-            console.error(`No ${entityType} field ID returned from onAdd`)
+            logger.error(`No ${entityType} field ID returned from onAdd`)
           }
         }
 
         closeSheet()
       } catch (error) {
-        console.error(`Error adding custom field ${entityType}:`, error)
+        logger.error(`Error adding custom field ${entityType}:`, error)
       }
     } else {
       // Create new custom field only, don't add it to entity yet
@@ -372,7 +373,7 @@ export function AddCustomFieldSheet({
 
         // Don't close the sheet - let user configure source, required, etc.
       } catch (error) {
-        console.error("Error creating custom field:", error)
+        logger.error("Error creating custom field:", error)
       }
     }
   }

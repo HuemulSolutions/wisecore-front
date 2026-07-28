@@ -1,5 +1,6 @@
 ﻿import { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { handleApiError } from "@/lib/error-utils";
+import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
@@ -804,7 +805,7 @@ export function AssetContent({
     // Preserve scroll position before any changes
     preserveScrollPosition();
     
-    console.log('📥 Asset Content - Execution created received:', {
+    logger.log('📥 Asset Content - Execution created received:', {
       executionId,
       mode,
       sectionIndex,
@@ -830,13 +831,13 @@ export function AssetContent({
     if (mode === 'full' || mode === 'full-single') {
       // NEW VERSION: Don't automatically switch to the new execution
       // The user decides if they want to switch to the new version
-      console.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
+      logger.log('New version created:', executionId, 'User stays on current version:', selectedExecutionId);
       
       // Just invalidate queries to refresh execution list and show banners
       queryClient.invalidateQueries({ queryKey: ['executions', selectedFile?.id] });
     } else if (mode === 'single' || mode === 'from') {
       // EDIT EXISTING: Stay on the same version but refresh its content
-      console.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
+      logger.log('Existing version modified:', executionId, 'Refreshing current version:', selectedExecutionId);
       
       // Invalidate all related queries to refresh content
       queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
@@ -932,7 +933,7 @@ export function AssetContent({
     if (selectedFile && selectedFile.type === 'document') {
       // Si hay contenido de documento (execution exists), crear section_execution
       if (documentContent?.content && Array.isArray(documentContent.content) && selectedExecutionId) {
-        console.log(`Adding section execution after index: ${afterIndex}`);
+        logger.log(`Adding section execution after index: ${afterIndex}`);
         setNeedsFullDocument(true);
         
         // Determinar el after_from ID basado en el índice
@@ -952,7 +953,7 @@ export function AssetContent({
         setIsSectionExecutionDialogOpen(true);
       } else {
         // Si no hay execution, crear sección normal
-        console.log(`Adding section after index: ${afterIndex}`);
+        logger.log(`Adding section after index: ${afterIndex}`);
         setSectionInsertPosition(afterIndex);
         setIsDirectSectionDialogOpen(true);
       }
@@ -974,7 +975,7 @@ export function AssetContent({
       }
     }
     
-    console.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
+    logger.log('Creating section with position:', sectionInsertPosition, 'calculated order:', order);
     // Ensure we have the required fields for document sections
     const sectionData = {
       ...values,
@@ -1172,7 +1173,7 @@ export function AssetContent({
     if (currentExecutionStatus && (currentExecutionMode === 'single' || currentExecutionMode === 'from')) {
       const status = currentExecutionStatus.status;
       if (status === 'completed' || status === 'done' || status === 'failed' || status === 'cancelled') {
-        console.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
+        logger.log(`🎯 Section execution finished with status: ${status}, refreshing content but keeping feedback visible`);
         
         // Preserve scroll position before refreshing content
         preserveScrollPosition();
@@ -1196,7 +1197,7 @@ export function AssetContent({
       const status = approvingExecutionStatus.status;
       
       if (status === 'approved') {
-        console.log(`✅ Execution approved successfully: ${approvingExecutionId}`);
+        logger.log(`✅ Execution approved successfully: ${approvingExecutionId}`);
         
         // Preserve scroll position
         preserveScrollPosition();
@@ -1213,7 +1214,7 @@ export function AssetContent({
         queryClient.invalidateQueries({ queryKey: ['document', selectedFile?.id] });
       } else if (status !== 'approving') {
         // If status changed to something other than 'approving' or 'approved' (e.g., error state)
-        console.log(`⚠️ Approval process ended with unexpected status: ${status}`);
+        logger.log(`⚠️ Approval process ended with unexpected status: ${status}`);
         setApprovingExecutionId(null);
         
         // Refresh data anyway to reflect current state
@@ -1488,7 +1489,7 @@ export function AssetContent({
       !selectedExecutionId &&
       hasInitializedExecutionRef.current !== selectedFile.id
     ) {
-      console.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
+      logger.log('🔄 Syncing selectedExecutionId with loaded execution:', resolvedExecutionId);
 
       // Copy the already-loaded data to the new queryKey to prevent duplicate API call
       queryClient.setQueryData(
@@ -1524,7 +1525,7 @@ export function AssetContent({
           ['completed', 'approved', 'failed'].includes(mostRecentExecution.status) &&
           parseApiDate(mostRecentExecution.created_at) > parseApiDate(currentSelectedExecution.created_at)) {
         
-        console.log(`Auto-switching to latest completed execution: ${mostRecentExecution.id}`);
+        logger.log(`Auto-switching to latest completed execution: ${mostRecentExecution.id}`);
         setSelectedExecutionId(mostRecentExecution.id);
         
         // Force refresh of document content with the new execution
@@ -1862,7 +1863,7 @@ export function AssetContent({
     if (selectedFile) {
       try {
         await deleteDocument(selectedFile.id, selectedOrganizationId!);
-        console.log('Document deleted successfully:', selectedFile.id);
+        logger.log('Document deleted successfully:', selectedFile.id);
         toast.success(t('mutations.documentDeletedNamed', { name: selectedFile.name }));
         
         // Clear selected file
@@ -1879,7 +1880,7 @@ export function AssetContent({
           queryClient.invalidateQueries({ queryKey: ['document-content'] });
         }, 300);
       } catch (error) {
-        console.error('Error deleting document:', error);
+        logger.error('Error deleting document:', error);
         toast.error(t('mutations.documentDeleteFailed'));
       }
     }
@@ -2925,7 +2926,7 @@ export function AssetContent({
                     <ExecutionStatusBanner
                       executionId={isSelectedVersionExecuting.id}
                       onExecutionComplete={() => {
-                        console.log('🔄 Current version execution completed, refreshing content...');
+                        logger.log('🔄 Current version execution completed, refreshing content...');
                         
                         // Invalidate and refetch all relevant queries
                         queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });

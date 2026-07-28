@@ -5,6 +5,7 @@ export type { HandleApiErrorOptions }
 import i18n from '@/i18n';
 import { buildErrorReport } from '@/lib/error-report';
 import { errorReportStore } from '@/lib/error-report-store';
+import { logger } from '@/lib/logger';
 
 // Sonner por defecto descarta a los 4s; no alcanza para notar y clickear
 // un botón secundario como "Ver detalles".
@@ -55,7 +56,7 @@ export function handleApiError(
 
   if (ApiError.isApiError(error)) {
     // Log transaction ID for debugging/support
-    console.error(`[API Error] Transaction: ${error.transactionId}`, {
+    logger.error(`[API Error] Transaction: ${error.transactionId}`, {
       code: error.code,
       message: error.message,
       detail: error.detail,
@@ -107,7 +108,7 @@ export function handleApiError(
 
   // Handle standard Error objects
   if (error instanceof Error) {
-    console.error('[Error]', error.message);
+    logger.error('[Error]', error.message);
     
     if (showToast) {
       toast.error(error.message || fallbackMessage);
@@ -116,7 +117,7 @@ export function handleApiError(
   }
 
   // Handle unknown error types
-  console.error('[Unknown Error]', error);
+  logger.error('[Unknown Error]', error);
   
   if (showToast) {
     toast.error(fallbackMessage);
