@@ -49,11 +49,13 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
       <NodeResizer
         color={data.color || "#94a3b8"}
         isVisible={selected}
+        handleClassName="z-10"
+        lineClassName="z-10"
         minWidth={120}
         minHeight={80}
       />
       <div
-        className="h-full overflow-y-auto px-2 py-1 text-xs font-semibold whitespace-pre-wrap break-words select-none"
+        className="w-full px-2 py-1 text-xs font-semibold truncate select-none cursor-move"
         style={{ color: data.color || "#94a3b8" }}
         onDoubleClick={() => setIsEditingTitle(true)}
       >
