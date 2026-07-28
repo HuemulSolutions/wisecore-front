@@ -1,11 +1,11 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { ApiError } from "@/types/api-error";
-import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse } from "@/types/execution";
+import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
-export type { RollbackTarget, RollbackStep, RollbackTargetsResponse };
+export type { RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion };
 
 /** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
 function toDateParam(value: string): string {
@@ -515,6 +515,19 @@ export async function assignExecutionVersion(
         },
     });
     const data = await response.json();
+    return data.data;
+}
+
+export async function getExecutionVersionSuggestion(
+    executionId: string,
+    organizationId: string
+): Promise<ExecutionVersionSuggestion> {
+    const response = await httpClient.get(`${backendUrl}/execution/${executionId}/version/suggestion`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = (await response.json()) as ExecutionVersionSuggestionResponse;
     return data.data;
 }
 

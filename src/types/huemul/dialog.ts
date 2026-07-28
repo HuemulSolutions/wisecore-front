@@ -31,5 +31,6 @@ export interface HuemulDialogProps {
   maxWidth?: string;
   maxHeight?: string;
   className?: string;
+  footerLeft?: React.ReactNode;
   children: React.ReactNode;
 }

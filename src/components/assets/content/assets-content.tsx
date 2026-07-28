@@ -129,6 +129,12 @@ function isSectionContentEmpty(section: ContentSection): boolean {
 
 
 
+const VERSION_REQUIRED_CODE = 'VERSION_REQUIRED_FOR_APPROVAL';
+
+type PendingVersionAction =
+  | { kind: 'complete'; options?: { comment?: string; run_external_review?: boolean } }
+  | { kind: 'advance'; options?: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean } };
+
 const STAGE_COLORS: Record<string, string> = {
   create: 'bg-purple-100 text-purple-700',
   edit: 'bg-blue-100 text-blue-700',
@@ -487,30 +493,17 @@ export function AssetContent({
       setIsCheckLifecycleDialogOpen(false);
     },
     meta: { successMessage: t('lifecycle.successComplete') },
-    onError: (error) => {
+    onError: (error, variables: { comment?: string; run_external_review?: boolean } | undefined) => {
       setIsCheckLifecycleDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorComplete') });
-    },
-  });
-
-  // Mutation for assigning a semantic version to the execution
-  const assignVersionMutation = useMutation({
-    mutationFn: withRefresh(
-      async (version: { major: number; minor: number; patch: number }) => {
-        const executionId = selectedExecutionId || documentContent?.execution_id;
-        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-        return assignExecutionVersion(executionId, version, selectedOrganizationId);
-      },
-      queryClient,
-      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id]],
-    ),
-    onSuccess: () => {
-      setIsAssignVersionDialogOpen(false);
-    },
-    meta: { successMessage: t('mutations.versionAssigned') },
-    onError: (error) => {
-      setIsAssignVersionDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('mutations.failedAssignVersion') });
+      handleApiError(error, {
+        fallbackMessage: t('lifecycle.errorComplete'),
+        onErrorCode: (code) => {
+          if (code !== VERSION_REQUIRED_CODE) return false;
+          setPendingVersionAction({ kind: 'complete', options: variables });
+          setIsAssignVersionDialogOpen(true);
+          return true;
+        },
+      });
     },
   });
 
@@ -552,10 +545,48 @@ export function AssetContent({
       setIsArchiveDialogOpen(false);
     },
     meta: { successMessage: t('lifecycle.successAdvance') },
-    onError: (error) => {
+    onError: (error, variables: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean } | undefined) => {
       setIsPublishDialogOpen(false);
       setIsArchiveDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorAdvance') });
+      handleApiError(error, {
+        fallbackMessage: t('lifecycle.errorAdvance'),
+        onErrorCode: (code) => {
+          if (code !== VERSION_REQUIRED_CODE) return false;
+          setPendingVersionAction({ kind: 'advance', options: variables });
+          setIsAssignVersionDialogOpen(true);
+          return true;
+        },
+      });
+    },
+  });
+
+  // Mutation for assigning a semantic version to the execution
+  const assignVersionMutation = useMutation({
+    mutationFn: withRefresh(
+      async (version: { major: number; minor: number; patch: number }) => {
+        const executionId = selectedExecutionId || documentContent?.execution_id;
+        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
+        return assignExecutionVersion(executionId, version, selectedOrganizationId);
+      },
+      queryClient,
+      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id]],
+    ),
+    onSuccess: () => {
+      const versionedExecutionId = selectedExecutionId || documentContent?.execution_id;
+      if (versionedExecutionId) {
+        queryClient.removeQueries({ queryKey: ['execution-version-suggestion', versionedExecutionId] });
+      }
+      setIsAssignVersionDialogOpen(false);
+      const pending = pendingVersionAction;
+      setPendingVersionAction(null);
+      if (pending?.kind === 'advance') advanceLifecycleMutation.mutate(pending.options);
+      else if (pending?.kind === 'complete') checkLifecycleMutation.mutate(pending.options);
+    },
+    meta: { successMessage: t('mutations.versionAssigned') },
+    onError: (error) => {
+      setIsAssignVersionDialogOpen(false);
+      setPendingVersionAction(null);
+      handleApiError(error, { fallbackMessage: t('mutations.failedAssignVersion') });
     },
   });
 
@@ -631,6 +662,7 @@ export function AssetContent({
   const [isCheckLifecycleDialogOpen, setIsCheckLifecycleDialogOpen] = useState(false);
   const [isRejectLifecycleDialogOpen, setIsRejectLifecycleDialogOpen] = useState(false);
   const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
+  const [pendingVersionAction, setPendingVersionAction] = useState<PendingVersionAction | null>(null);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
@@ -3773,9 +3805,16 @@ export function AssetContent({
       {/* Assign Version Dialog */}
       <AssignVersionDialog
         open={isAssignVersionDialogOpen}
-        onOpenChange={(open) => { if (!assignVersionMutation.isPending) setIsAssignVersionDialogOpen(open); }}
+        onOpenChange={(open) => {
+          if (assignVersionMutation.isPending) return;
+          if (!open) setPendingVersionAction(null);
+          setIsAssignVersionDialogOpen(open);
+        }}
         onConfirm={(version) => assignVersionMutation.mutate(version)}
         isProcessing={assignVersionMutation.isPending}
+        executionId={selectedExecutionId || documentContent?.execution_id}
+        organizationId={selectedOrganizationId}
+        existingVersions={allExecutions?.map((e: { version?: string | null }) => e.version).filter((v: string | null | undefined): v is string => !!v)}
       />
 
       {/* Rename Version Dialog */}

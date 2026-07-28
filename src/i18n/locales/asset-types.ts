@@ -61,6 +61,8 @@ const translations = {
     nameRequired: { en: "Name is required", es: "El nombre es requerido" },
     errorCreating: { en: "An error occurred while creating the {{type}} type", es: "Ocurrió un error al crear el tipo de {{type}}" },
     errorUpdating: { en: "An error occurred while updating the {{type}} type", es: "Ocurrió un error al actualizar el tipo de {{type}}" },
+    requiresIsoStrictVersioning: { en: "Requires strict ISO version compliance", es: "Requiere cumplimiento estricto de versión ISO" },
+    requiresIsoStrictVersioningDescription: { en: "When enabled, a semantic version must be assigned manually before approval. When disabled, Wisecore assigns it automatically.", es: "Si está activado, se debe asignar manualmente una versión semántica antes de aprobar. Si está desactivado, Wisecore la asigna automáticamente." },
   },
   emptyState: {
     noAssetTypesFound: { en: "No asset types found", es: "No se encontraron tipos de activo" },
