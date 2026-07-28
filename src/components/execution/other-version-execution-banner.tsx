@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import type { OtherVersionExecutionBannerProps } from '@/types/other-version-execution-banner';
 
@@ -26,7 +27,7 @@ export function OtherVersionExecutionBanner({
   const { data: execution, refetch } = useQuery({
     queryKey: ['execution-status', executionId],
     queryFn: () => {
-      console.log('🔄 Fetching other version execution status for:', executionId);
+      logger.log('🔄 Fetching other version execution status for:', executionId);
       return getExecutionStatus(executionId!, selectedOrganizationId!);
     },
     enabled: !!executionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
@@ -37,12 +38,12 @@ export function OtherVersionExecutionBanner({
   useEffect(() => {
     const terminalStates = ['completed', 'failed', 'cancelled'];
     if (execution?.status && terminalStates.includes(execution.status)) {
-      console.log('🛑 Other version execution stopped polling:', execution.status);
+      logger.log('🛑 Other version execution stopped polling:', execution.status);
       setPollingInterval(false);
     } else if (execution?.status === 'running' || execution?.status === 'pending' || execution?.status === 'paused') {
       // Ensure polling is active for active states (including paused to check for resume)
       if (pollingInterval === false && !isDismissed) {
-        console.log('🔄 Restarting other version polling for active execution');
+        logger.log('🔄 Restarting other version polling for active execution');
         setPollingInterval(2000);
       }
     }
@@ -54,13 +55,13 @@ export function OtherVersionExecutionBanner({
   };
 
   const handleRefresh = () => {
-    console.log('🔄 Manual other version refresh triggered');
+    logger.log('🔄 Manual other version refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
     
     // Restart polling if it was stopped and not dismissed
     if (pollingInterval === false && !isDismissed) {
-      console.log('🔄 Restarting other version polling after manual refresh');
+      logger.log('🔄 Restarting other version polling after manual refresh');
       setPollingInterval(2000);
     }
   };

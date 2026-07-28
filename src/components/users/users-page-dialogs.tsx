@@ -4,6 +4,7 @@ import CreateUserDialog from "@/components/users/users-create-dialog"
 import AssignRolesSheet from "@/components/roles/roles-assign-sheet"
 import UserDeleteDialog from "@/components/users/users-delete-dialog"
 import RootAdminDialog from "@/components/users/users-root-admin-dialog"
+import { logger } from "@/lib/logger"
 import type { UserPageDialogsProps } from '@/types/users'
 export type { UserPageDialogsProps } from '@/types/users'
 
@@ -42,7 +43,7 @@ export default function UserPageDialogs({
         open={!!state.assigningRoleUser}
         onOpenChange={(open) => !open && onCloseDialog('assigningRoleUser')}
         onSuccess={() => {
-          console.log('Roles assigned successfully, users list will be refreshed')
+          logger.log('Roles assigned successfully, users list will be refreshed')
         }}
       />
 

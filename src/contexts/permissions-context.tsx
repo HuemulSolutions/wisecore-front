@@ -1,8 +1,9 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { 
+import {
   getCurrentUserInfo,
-  type Permission 
+  type Permission
 } from '@/lib/jwt-utils';
+import { logger } from '@/lib/logger';
 import type { PermissionsContextType, PermissionsProviderProps } from '@/types/permissions-context'
 export type { PermissionsContextType }
 
@@ -62,7 +63,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         setRoles(userInfo.roles || []);
         setIsRootAdminState(userInfo.isRootAdmin || false);
         setIsOrgAdminState(userInfo.isOrgAdmin || false);
-        console.log('Permissions refreshed:', {
+        logger.log('Permissions refreshed:', {
           permissions: userInfo.permissions,
           roles: userInfo.roles,
           isRootAdmin: userInfo.isRootAdmin,
@@ -73,7 +74,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         // valid permissions in state. This is most likely a transient race:
         // the org JWT just expired and hasn't been replaced yet. Keep the
         // existing state so route guards don't redirect the user.
-        console.warn(
+        logger.warn(
           'Permissions refresh: received empty data while session appears active. ' +
           'Retaining existing permissions to avoid spurious redirect.',
           { isAuthenticated: userInfo.isAuthenticated, hasValidData }
@@ -84,10 +85,10 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
         setRoles([]);
         setIsRootAdminState(false);
         setIsOrgAdminState(false);
-        console.log('Permissions cleared.', { forceClean, isAuthenticated: userInfo.isAuthenticated });
+        logger.log('Permissions cleared.', { forceClean, isAuthenticated: userInfo.isAuthenticated });
       }
     } catch (error) {
-      console.error('Error refreshing permissions:', error);
+      logger.error('Error refreshing permissions:', error);
       if (forceClean) {
         setPermissions([]);
         setRoles([]);
@@ -138,7 +139,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
           currentIsOrgAdmin !== isOrgAdminStateRef.current
         )
       ) {
-        console.log('Token changes detected, refreshing permissions...');
+        logger.log('Token changes detected, refreshing permissions...');
         refreshPermissions();
       }
     }, 2000);
@@ -150,7 +151,7 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'auth_token' || e.key === 'organizationToken') {
-        console.log('Storage change detected, refreshing permissions...');
+        logger.log('Storage change detected, refreshing permissions...');
         // forceClean when a token is explicitly removed (logout / org reset)
         const forceClean = e.newValue === null;
         refreshPermissions(forceClean);

@@ -14,6 +14,7 @@ import {
   NUMERIC_DATA_TYPES,
 } from "@/components/sections/question-type-meta"
 import type { CreateEditCustomFieldDialogProps, CustomFieldOption } from '@/types/custom-fields'
+import { logger } from "@/lib/logger"
 import type { FormFieldConfig } from '@/types/sections/core'
 
 export type { CreateEditCustomFieldDialogProps } from '@/types/custom-fields'
@@ -199,7 +200,7 @@ export function CreateEditCustomFieldSheet({
         onSuccess(created)
       }
     } catch (error) {
-      console.error("Error submitting custom field:", error)
+      logger.error("Error submitting custom field:", error)
     } finally {
       setIsSubmitting(false)
     }

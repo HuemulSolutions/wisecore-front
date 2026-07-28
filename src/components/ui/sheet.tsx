@@ -59,15 +59,18 @@ function SheetContent({
         onInteractOutside={(e) => {
           // Keep the sheet open when interacting with portaled overlays that
           // render outside the sheet DOM: Base UI combobox popups, alert
-          // dialogs, and nested sheets (e.g. an edit sheet opened from within
-          // this one). Otherwise clicking/cancelling them dismisses this sheet.
+          // dialogs, nested sheets (e.g. an edit sheet opened from within
+          // this one), and error toasts (their "Ver detalles" button, now
+          // clickable over modal layers — see sonner.tsx). Otherwise
+          // clicking/cancelling them dismisses this sheet.
           const target = e.target as HTMLElement | null
           if (
             target?.closest('[data-slot="combobox-content"]') ||
             target?.closest('[data-slot="alert-dialog-content"]') ||
             target?.closest('[data-slot="alert-dialog-overlay"]') ||
             target?.closest('[data-slot="sheet-content"]') ||
-            target?.closest('[data-slot="sheet-overlay"]')
+            target?.closest('[data-slot="sheet-overlay"]') ||
+            target?.closest('[data-sonner-toast]')
           ) {
             e.preventDefault()
           }

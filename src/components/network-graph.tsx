@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { getDocumentDependencies } from "@/services/dependencies"
 import { getDocumentSections } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
+import { logger } from "@/lib/logger"
 import {
   File,
   ZoomIn,
@@ -63,7 +64,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
             const sections = await getDocumentSections(doc.id, selectedOrganizationId!)
             sectionsMap[doc.id] = sections || []
           } catch (error) {
-            console.error(`Error loading data for document ${doc.id}:`, error)
+            logger.error(`Error loading data for document ${doc.id}:`, error)
             dependenciesMap[doc.id] = []
             sectionsMap[doc.id] = []
           }
@@ -75,7 +76,7 @@ export default function NetworkGraph({ documents = [] }: NetworkGraphProps) {
       setDependencyNames(namesMap)
       
       // Debug: Log sections data
-      console.log('Sections loaded for documents:', sectionsMap)
+      logger.log('Sections loaded for documents:', sectionsMap)
     }
 
     loadAllData()

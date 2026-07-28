@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import type { SectionFormField } from "@/types/sections/core";
 
 // Las secciones ahora vienen incluidas cuando obtenemos el template por ID
@@ -32,7 +33,7 @@ export async function createTemplateSection(
     });
 
     const data = await response.json();
-    console.log('Section created:', data.data);
+    logger.log('Section created:', data.data);
     return data.data;
 }
 
@@ -59,7 +60,7 @@ export async function updateTemplateSection(
         },
     });
     const data = await response.json();
-    console.log('Section updated:', data.data);
+    logger.log('Section updated:', data.data);
     return data.data;
 }
 
@@ -71,7 +72,7 @@ export async function deleteTemplateSection(sectionId: string, organizationId: s
     });
 
     const data = await response.json();
-    console.log('Section deleted:', data);
+    logger.log('Section deleted:', data);
     return data;
 }
 
@@ -92,7 +93,7 @@ export async function deleteTemplateSectionWithPropagation(
     });
 
     const data = await response.json();
-    console.log('Section deleted:', data);
+    logger.log('Section deleted:', data);
     return data;
 }
 
@@ -105,7 +106,7 @@ export async function updateSectionsOrder(sections: { section_id: string; order:
     });
 
     const data = await response.json();
-    console.log('Sections order updated:', data.data);
+    logger.log('Sections order updated:', data.data);
     return data.data;
 }
 

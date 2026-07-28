@@ -2,6 +2,7 @@ export interface DocumentType {
   id: string;
   name: string;
   color: string;
+  requires_iso_strict_versioning: boolean;
   created_at: string;
   updated_at: string;
   document_count: number;
@@ -11,6 +12,7 @@ export interface DocumentTypeDetail {
   id: string;
   name: string;
   color: string;
+  requires_iso_strict_versioning: boolean;
   created_at: string;
   updated_at: string;
   role_count: number;
@@ -32,9 +34,11 @@ export interface DocumentTypesResponse {
 export interface CreateDocumentTypeData {
   name: string;
   color: string;
+  requires_iso_strict_versioning?: boolean;
 }
 
 export interface UpdateDocumentTypeData {
   name?: string;
   color?: string;
+  requires_iso_strict_versioning?: boolean;
 }

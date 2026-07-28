@@ -11,6 +11,7 @@ import { CustomFieldValueField } from "@/components/custom-fields/custom-field-v
 import { CustomFieldInfoCard } from "@/components/custom-fields/custom-field-info-card"
 import { validateCustomFieldValue } from "@/components/custom-fields/custom-field-value-validation"
 import { QUESTION_TYPE } from "@/components/sections/question-type-meta"
+import { logger } from "@/lib/logger"
 import type { CustomFieldTemplate, CustomFieldDocument, CustomFieldOption } from "@/types/custom-fields"
 
 type CustomFieldValueEntity = CustomFieldTemplate | CustomFieldDocument
@@ -165,7 +166,7 @@ export function CustomFieldValueSheet({
     try {
       await uploadImageFn(entity.id, file, selectedOrganizationId!)
     } catch (error) {
-      console.error("Error uploading image:", error)
+      logger.error("Error uploading image:", error)
       setFormErrors(prev => ({ ...prev, value: t('addDialog.uploadFailed') }))
     } finally {
       setIsUploadingImage(false)
@@ -240,7 +241,7 @@ export function CustomFieldValueSheet({
       onUpdate(entity.id, entityData)
       closeSheet()
     } catch (error) {
-      console.error(`Error updating custom field ${entityType}:`, error)
+      logger.error(`Error updating custom field ${entityType}:`, error)
     }
   }
 

@@ -11,6 +11,7 @@ import { CustomFieldTemplateEmptyState } from "./templates-custom-field-empty-st
 import { AddCustomFieldTemplateSheet } from "./templates-custom-field-add-sheet"
 import { EditCustomFieldTemplateSheet } from "./templates-edit-custom-field-sheet"
 import type { CustomFieldTemplate } from '@/types/custom-fields'
+import { logger } from "@/lib/logger"
 import type { TemplateCustomFieldsProps } from '@/types/templates';
 export type { TemplateCustomFieldsProps } from '@/types/templates';
 
@@ -62,7 +63,7 @@ export function TemplateCustomFields({ templateId }: TemplateCustomFieldsProps) 
       refetch()
       return createdTemplate // Return the created template so the dialog can use it
     } catch (error) {
-      console.error("Error creating custom field template:", error)
+      logger.error("Error creating custom field template:", error)
       throw error // Re-throw so the dialog can handle it
     }
   }

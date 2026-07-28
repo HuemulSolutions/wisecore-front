@@ -1,6 +1,7 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { downloadBlobResponse } from "@/lib/blob-download";
+import { logger } from "@/lib/logger";
 import type { SyncDocumentsFromTemplateResponse, SyncTemplateFromDocumentResponse, ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics, DocumentStatisticsResponse, DocumentMediaUrls, DocumentMediaUrlsResponse } from "@/types/assets";
 
 export type { ImportDocumentFromFileParams, PendingAiSuggestionSection, PendingAiSuggestionExecution, DocumentWithPendingChanges, PendingChangesResponse, ExportDocumentsBody, ImportDocumentsConfigQueryParams, ImportDocumentsConfigData, ImportDocumentsConfigResponse, DocumentStatistics };
@@ -23,7 +24,7 @@ export async function getAllDocuments(organizationId: string, documentTypeId?: s
     headers,
   });
   const data = await response.json();
-  console.log('Documents fetched:', data.data);
+  logger.log('Documents fetched:', data.data);
   return data.data;
 }
 
@@ -34,7 +35,7 @@ export async function getDocumentById(documentId: string, organizationId: string
     },
   });
   const data = await response.json();
-  console.log('Document fetched:', data.data);
+  logger.log('Document fetched:', data.data);
   return data.data;
 }
 
@@ -56,7 +57,7 @@ export async function deleteDocument(documentId: string, organizationId: string)
       'X-Org-Id': organizationId,
     },
   });
-  console.log('Document deleted:', documentId);
+  logger.log('Document deleted:', documentId);
   return true;
 }
 
@@ -67,7 +68,7 @@ export async function getDocumentSections(documentId: string, organizationId: st
     },
   });
   const data = await response.json();
-  console.log('Document sections fetched:', data.data);
+  logger.log('Document sections fetched:', data.data);
   return data.data;
 }
 
@@ -84,7 +85,7 @@ export async function getDocumentSectionsConfig(documentId: string, organization
   });
 
   const data = await response.json();
-  console.log('Document sections config fetched:', data.data);
+  logger.log('Document sections config fetched:', data.data);
   return data.data;
 }
 
@@ -97,7 +98,7 @@ export async function createDocument(documentData: { name: string; description?:
   });
 
   const data = await response.json();
-  console.log('Document created:', data.data);
+  logger.log('Document created:', data.data);
   return data.data;
 }
 
@@ -113,7 +114,7 @@ export async function getDocumentContent(documentId: string, organizationId: str
     },
   });
   const data = await response.json();
-  console.log('Document content fetched:', data.data);
+  logger.log('Document content fetched:', data.data);
   return data.data;
 }
 
@@ -152,7 +153,7 @@ export async function generateDocumentStructure(documentId: string, organization
   });
 
   const data = await response.json();
-  console.log('Document structure generation initiated:', data);
+  logger.log('Document structure generation initiated:', data);
   return data;
 }
 
@@ -168,12 +169,12 @@ export async function updateDocument(
   });
 
   const data = await response.json();
-  console.log('Document updated:', data.data);
+  logger.log('Document updated:', data.data);
   return data.data;
 }
 
 export async function moveDocument(documentId: string, newParentId: string | undefined, organizationId: string) {
-  console.log('Moving document:', documentId, 'to parent:', newParentId);
+  logger.log('Moving document:', documentId, 'to parent:', newParentId);
   
   const response = await httpClient.put(`${backendUrl}/documents/${documentId}/move`, {
     folder_id: newParentId === undefined ? null : newParentId,
@@ -184,7 +185,7 @@ export async function moveDocument(documentId: string, newParentId: string | und
   });
 
   const data = await response.json();
-  console.log('Document moved:', data.data);
+  logger.log('Document moved:', data.data);
   return data.data;
 }
 
@@ -203,7 +204,7 @@ export async function createTemplateFromDocument(
     }
   );
   const data = await response.json();
-  console.log('Template created from document:', data.data);
+  logger.log('Template created from document:', data.data);
   return data.data;
 }
 
@@ -222,7 +223,7 @@ export async function syncDocumentsFromTemplate(
   });
 
   const data = await response.json();
-  console.log('Documents synced from template:', data.data);
+  logger.log('Documents synced from template:', data.data);
   return data.data;
 }
 
@@ -240,7 +241,7 @@ export async function syncTemplateFromDocument(
   });
 
   const data = await response.json();
-  console.log('Template synced from document:', data.data);
+  logger.log('Template synced from document:', data.data);
   return data.data;
 }
 
@@ -266,11 +267,11 @@ export async function importDocumentFromFile(params: ImportDocumentFromFileParam
   });
 
   const data = await response.json();
-  console.log('Document imported from file:', data.data);
+  logger.log('Document imported from file:', data.data);
   return data.data;
 }
 
-// Exporta la configuración de uno o más documentos (por execution_id, es decir versión)
+// Exporta la configuraciÃ³n de uno o mÃ¡s documentos (por execution_id, es decir versiÃ³n)
 // como archivo JSON descargable (requiere permiso asset:r).
 export async function exportDocuments(organizationId: string, body: ExportDocumentsBody): Promise<void> {
   const orgToken = httpClient.getOrganizationToken();
@@ -293,7 +294,7 @@ export async function exportDocuments(organizationId: string, body: ExportDocume
   await downloadBlobResponse(response, 'documents_export.json');
 }
 
-// Importa documentos desde un JSON de configuración exportado (requiere permisos asset:c + asset:u).
+// Importa documentos desde un JSON de configuraciÃ³n exportado (requiere permisos asset:c + asset:u).
 // Distinto de importDocumentFromFile (/documents/import-from-file), que convierte DOCX/PDF.
 export async function importDocumentsConfig(
   organizationId: string,
@@ -328,7 +329,7 @@ export async function checkDocumentLifecycle(documentId: string, organizationId:
     },
   });
   const data = await response.json();
-  console.log('Document lifecycle checked:', data.data);
+  logger.log('Document lifecycle checked:', data.data);
   return data.data;
 }
 
@@ -339,7 +340,7 @@ export async function rejectDocumentLifecycle(documentId: string, organizationId
     },
   });
   const data = await response.json();
-  console.log('Document lifecycle rejected:', data.data);
+  logger.log('Document lifecycle rejected:', data.data);
   return data.data;
 }
 

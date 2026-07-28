@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { DeleteExecutionDialog } from './execution-delete-dialog';
 import { useOrganization } from '@/contexts/organization-context';
 import { handleApiError } from '@/lib/error-utils';
+import { logger } from '@/lib/logger';
 import type { ExecutionInfoProps } from '@/types/execution';
 
 export type { ExecutionInfoProps } from '@/types/execution';
@@ -62,7 +63,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
             await deleteExecution(execution.id, selectedOrganizationId!);
             navigate(`/asset/${execution.document_id}`);
         } catch (error) {
-            console.error('Error deleting execution:', error);
+            logger.error('Error deleting execution:', error);
         } finally {
             setIsDeleting(false);
             setIsDeleteOpen(false);
@@ -72,7 +73,7 @@ export default function ExecutionInfo({ execution, onRefresh }: ExecutionInfoPro
     const handleNewExecution = () => {
         createExecution(execution.document_id!, selectedOrganizationId!)
           .then((newExec) => {
-            console.log("Execution created:", newExec);
+            logger.log("Execution created:", newExec);
             onRefresh?.();
           })
           .catch((error) => {

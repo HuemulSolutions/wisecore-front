@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getExecutionStatus } from '@/services/executions';
 import { useOrganization } from '@/contexts/organization-context';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import type { SectionRegenerationFeedbackProps } from '@/types/section-regeneration-feedback';
 
@@ -24,7 +25,7 @@ export function SectionRegenerationFeedback({
   const { data: execution, refetch } = useQuery({
     queryKey: ['execution-status', executionId],
     queryFn: () => {
-      console.log('🔄 Fetching section execution status for:', executionId);
+      logger.log('🔄 Fetching section execution status for:', executionId);
       return getExecutionStatus(executionId!, selectedOrganizationId!);
     },
     enabled: !!executionId && !!selectedOrganizationId && pollingInterval !== false,
@@ -35,26 +36,26 @@ export function SectionRegenerationFeedback({
   useEffect(() => {
     const terminalStates = ['completed', 'failed', 'cancelled'];
     if (execution?.status && terminalStates.includes(execution.status)) {
-      console.log('🛑 Section execution stopped polling:', execution.status);
+      logger.log('🛑 Section execution stopped polling:', execution.status);
       setPollingInterval(false);
     } else if (execution?.status === 'running' || execution?.status === 'pending') {
       // Ensure polling is active for active states
       if (pollingInterval === false) {
-        console.log('🔄 Restarting section polling for active execution');
+        logger.log('🔄 Restarting section polling for active execution');
         setPollingInterval(2000);
       }
     }
   }, [execution?.status, pollingInterval]);
 
   const handleRefresh = () => {
-    console.log('🔄 Manual section refresh triggered');
+    logger.log('🔄 Manual section refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
     queryClient.invalidateQueries({ queryKey: ['document-content'] });
     
     // Restart polling if it was stopped
     if (pollingInterval === false) {
-      console.log('🔄 Restarting section polling after manual refresh');
+      logger.log('🔄 Restarting section polling after manual refresh');
       setPollingInterval(2000);
     }
   };
