@@ -27,7 +27,8 @@ import {
 } from '@/components/ui/tooltip';
 import { MessageBubble } from './chatbot-bubble';
 import { ConversationList } from './conversation-list';
-import { ChatbotProvider, useChatbotContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
+import { useChatbotContext, useOptionalChatbotContext } from '@/contexts/chatbot-context';
+import { ChatbotProvider } from '@/contexts/chatbot-provider';
 import { getDefaultLLM, getAllLLMs } from '@/services/llms';
 
 import type { ChatbotProps } from '@/types/chatbot';

@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useTranslation } from 'react-i18next';
 import ProtectedComponent from '../protected-component';
+import { logger } from '@/lib/logger';
 import type { UserOrganization } from '@/types/users';
 import type { OrganizationSelectionDialogProps } from '@/types/organizations';
 export type { OrganizationSelectionDialogProps } from '@/types/organizations';
@@ -52,7 +53,7 @@ export function OrganizationSelectionDialog({ open, onOpenChange, preselectedOrg
       setSelectedOrganizationId(organizationId);
       setOrganizationToken(orgToken);
       
-      console.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
+      logger.log('Organization changed and token generated successfully:', orgToken?.substring(0, 10) + '...');
       
       // Invalidar todas las queries que dependen de la organización
       queryClient.invalidateQueries({ 

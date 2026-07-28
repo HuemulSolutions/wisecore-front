@@ -1,9 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { useOrgNavigate, stripOrgPrefix } from "@/hooks/useOrgRouter";
-import { getLibraryContent } from "@/services/folders";
+import { getLibraryContent, getLibraryContentByAsset } from "@/services/folders";
 import type { BreadcrumbItem, LibraryItem, LibraryNavigationState } from "@/components/assets";
 import type { UseAssetNavigationProps, UseAssetNavigationReturn } from "@/types/assets"
+import { logger } from "@/lib/logger"
+
+/**
+ * sessionStorage keys for the selected document/breadcrumb are namespaced by
+ * organization id — otherwise switching orgs while this hook is unmounted
+ * (e.g. the user is on /home when they switch) leaves the previous org's
+ * document "stuck": it gets silently restored under the new org next time
+ * Activos mounts.
+ */
+const navStorageKey = (orgId: string | null | undefined, name: 'breadcrumb' | 'selectedFile') =>
+  `library:${orgId ?? 'none'}:${name}`;
+
+/** Removes the pre-namespacing keys so sessions open from before this fix don't keep leaking. */
+function purgeLegacyNavStorage() {
+  sessionStorage.removeItem('library-breadcrumb');
+  sessionStorage.removeItem('library-selectedFile');
+}
 
 /**
  * Hook to manage asset navigation, URL parsing, and state synchronization
@@ -152,7 +169,7 @@ export function useAssetNavigation({
           break;
         }
       } catch (error) {
-        console.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
+        logger.error(`Error loading folder hierarchy at ${targetFolderId}:`, error);
         if (hierarchy.length > 0) {
           return hierarchy;
         }
@@ -255,7 +272,7 @@ export function useAssetNavigation({
           setSelectedFile(null);
         }
       } catch (error) {
-        console.error('Error initializing from URL:', error);
+        logger.error('Error initializing from URL:', error);
         navigate('/asset', { replace: true });
       } finally {
         setIsLoadingDocument(false);
@@ -264,9 +281,10 @@ export function useAssetNavigation({
     
     // Check if this is first load or URL change
     if (!hasRestoredRef.current) {
-      const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
-      const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
-      
+      purgeLegacyNavStorage();
+      const savedBreadcrumb = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'breadcrumb'));
+      const savedSelectedFile = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'selectedFile'));
+
       if (stripOrgPrefix(location.pathname) !== '/asset') {
         isInitializingRef.current = true;
         initializeFromUrl().finally(() => { isInitializingRef.current = false; });
@@ -275,15 +293,27 @@ export function useAssetNavigation({
           const parsed = JSON.parse(savedBreadcrumb);
           if (Array.isArray(parsed) && parsed.length > 0) setBreadcrumb(parsed);
         } catch {}
-        
+
         if (savedSelectedFile) {
           try {
             const parsedFile = JSON.parse(savedSelectedFile);
-            if (parsedFile?.id) setSelectedFile(parsedFile);
+            if (parsedFile?.id) {
+              setSelectedFile(parsedFile);
+              // Defense in depth: the restored file may be stale (deleted, or
+              // — pre-namespacing sessions — from a different org). Verify it
+              // still exists in this org before trusting its name/content.
+              const verifiedOrgId = selectedOrganizationId;
+              getLibraryContentByAsset(verifiedOrgId!, parsedFile.id).catch(() => {
+                setSelectedFile(null);
+                setBreadcrumb([]);
+                sessionStorage.removeItem(navStorageKey(verifiedOrgId, 'selectedFile'));
+                sessionStorage.removeItem(navStorageKey(verifiedOrgId, 'breadcrumb'));
+              });
+            }
           } catch {}
         }
       }
-      
+
       hasRestoredRef.current = true;
     } else {
       isInitializingRef.current = true;
@@ -295,16 +325,16 @@ export function useAssetNavigation({
    * Sync sessionStorage when breadcrumb or selectedFile changes
    */
   useEffect(() => {
-    if (hasRestoredRef.current) {
-      sessionStorage.setItem('library-breadcrumb', JSON.stringify(breadcrumb));
-      
+    if (hasRestoredRef.current && selectedOrganizationId) {
+      sessionStorage.setItem(navStorageKey(selectedOrganizationId, 'breadcrumb'), JSON.stringify(breadcrumb));
+
       if (selectedFile) {
-        sessionStorage.setItem('library-selectedFile', JSON.stringify(selectedFile));
+        sessionStorage.setItem(navStorageKey(selectedOrganizationId, 'selectedFile'), JSON.stringify(selectedFile));
       } else {
-        sessionStorage.removeItem('library-selectedFile');
+        sessionStorage.removeItem(navStorageKey(selectedOrganizationId, 'selectedFile'));
       }
     }
-  }, [breadcrumb, selectedFile]);
+  }, [breadcrumb, selectedFile, selectedOrganizationId]);
 
   /**
    * Update URL when selected file, breadcrumb, or execution changes
@@ -352,18 +382,23 @@ export function useAssetNavigation({
       setSelectedSectionId(null);
       hasRestoredRef.current = false;
       lastProcessedUrlRef.current = '';
-      
-      sessionStorage.removeItem('library-breadcrumb');
-      sessionStorage.removeItem('library-selectedFile');
-      
+
+      // Clear the PREVIOUS org's keys — the new org's keys (if any, from an
+      // earlier visit) are handled by the namespaced restore path above.
+      sessionStorage.removeItem(navStorageKey(prevOrganizationIdRef.current, 'breadcrumb'));
+      sessionStorage.removeItem(navStorageKey(prevOrganizationIdRef.current, 'selectedFile'));
+
       // Check if the URL orgId already matches the new org — if so, the switch
       // was driven by a shared URL and we should re-initialize from the URL
       // instead of redirecting to the asset root.
       const urlDroveChange = urlOrgId === selectedOrganizationId;
       
-      if (!urlDroveChange && stripOrgPrefix(location.pathname) !== '/asset') {
+      if (!urlDroveChange && stripOrgPrefix(location.pathname).startsWith('/asset')) {
         setIsUpdatingUrl(true);
-        navigate('/asset', { replace: true });
+        // Prefixed with the org id — an unprefixed '/asset' only matches the
+        // app's catch-all route (App.tsx RootRedirect), triggering a second,
+        // competing navigation on top of app-layout's context→URL sync.
+        navigate(`/${selectedOrganizationId}/asset`, { replace: true });
         setTimeout(() => setIsUpdatingUrl(false), 200);
       }
       // else: shared URL-driven switch — the "Initialize from URL" effect will
@@ -390,13 +425,13 @@ export function useAssetNavigation({
       if (navigationState?.breadcrumb && navigationState.breadcrumb.length > 0) {
         setBreadcrumb(navigationState.breadcrumb);
       } else if (navigationState?.restoreBreadcrumb) {
-        const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
+        const savedBreadcrumb = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'breadcrumb'));
         if (savedBreadcrumb) {
           try {
             const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
             setBreadcrumb(parsedBreadcrumb);
           } catch (error) {
-            console.error('Error parsing saved breadcrumb:', error);
+            logger.error('Error parsing saved breadcrumb:', error);
           }
         }
       }
@@ -405,31 +440,31 @@ export function useAssetNavigation({
     }
     
     if (navigationState?.fromLibrary) {
-      const savedBreadcrumb = sessionStorage.getItem('library-breadcrumb');
-      const savedSelectedFile = sessionStorage.getItem('library-selectedFile');
+      const savedBreadcrumb = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'breadcrumb'));
+      const savedSelectedFile = sessionStorage.getItem(navStorageKey(selectedOrganizationId, 'selectedFile'));
       
       if (savedBreadcrumb) {
         try {
           const parsedBreadcrumb = JSON.parse(savedBreadcrumb);
           setBreadcrumb(parsedBreadcrumb);
         } catch (error) {
-          console.error('Error parsing saved breadcrumb:', error);
+          logger.error('Error parsing saved breadcrumb:', error);
         }
       }
-      
+
       if (savedSelectedFile) {
         try {
           const parsedSelectedFile = JSON.parse(savedSelectedFile);
           setSelectedExecutionId(null);
           setSelectedFile(parsedSelectedFile);
         } catch (error) {
-          console.error('Error parsing saved selected file:', error);
+          logger.error('Error parsing saved selected file:', error);
         }
       }
       
       navigate(location.pathname, { replace: true });
     }
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, selectedOrganizationId]);
 
   return {
     breadcrumb,

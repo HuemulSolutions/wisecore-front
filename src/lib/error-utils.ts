@@ -2,6 +2,14 @@ import { toast } from 'sonner';
 import { ApiError } from '@/types/api-error';
 import type { HandleApiErrorOptions } from '@/types/error-utils'
 export type { HandleApiErrorOptions }
+import i18n from '@/i18n';
+import { buildErrorReport } from '@/lib/error-report';
+import { errorReportStore } from '@/lib/error-report-store';
+import { logger } from '@/lib/logger';
+
+// Sonner por defecto descarta a los 4s; no alcanza para notar y clickear
+// un botón secundario como "Ver detalles".
+const ERROR_TOAST_DURATION_MS = 10_000;
 
 /**
  * Centralized error handler for API errors
@@ -48,7 +56,7 @@ export function handleApiError(
 
   if (ApiError.isApiError(error)) {
     // Log transaction ID for debugging/support
-    console.error(`[API Error] Transaction: ${error.transactionId}`, {
+    logger.error(`[API Error] Transaction: ${error.transactionId}`, {
       code: error.code,
       message: error.message,
       detail: error.detail,
@@ -61,28 +69,46 @@ export function handleApiError(
       return; // Custom handler took care of it
     }
 
-    // 401 is handled by httpClient (redirects to login)
-    if (error.statusCode === 401) {
+    // Solo saltar cuando httpClient ya lo manejó (logout + redirect).
+    // No volver a adivinar aquí con el mismo heurístico de permisos: dos
+    // copias de esa heurística fue justo lo que causó que un 401 de
+    // permisos no mostrara nada (ver httpClient.fetch).
+    if (error.handled) {
       return;
     }
 
+    const report = options.showDetailsAction === false ? null : buildErrorReport(error);
+
     if (showToast) {
-      // Use the user-friendly message from the backend
-      // Optionally include detail as description when it adds useful context
-      // Guard against detail being a non-string object (some endpoints return structured objects)
-      const rawDetail = error.detail as unknown;
-      const description = showDescription && rawDetail && typeof rawDetail === 'string' && rawDetail !== error.message
-        ? rawDetail
-        : undefined;
-      toast.error(error.message, { description });
+      // Con dialog de detalles el toast se queda solo con el mensaje: el
+      // detail completo (que puede ser largo) se lee en el dialog. Sin
+      // dialog no hay otro lugar donde mostrarlo, así que ahí sí va como
+      // descripción.
+      const description =
+        !report && showDescription && error.detail && error.detail !== error.message
+          ? error.detail
+          : undefined;
+
+      toast.error(error.message, {
+        description,
+        duration: report ? ERROR_TOAST_DURATION_MS : undefined,
+        action: report
+          ? {
+              label: i18n.t('error-details:viewDetails'),
+              // Sonner descarta el toast solo después de este onClick
+              // (no llamamos preventDefault) — no hace falta toast.dismiss.
+              onClick: () => errorReportStore.open(report),
+            }
+          : undefined,
+      });
     }
-    
+
     return;
   }
 
   // Handle standard Error objects
   if (error instanceof Error) {
-    console.error('[Error]', error.message);
+    logger.error('[Error]', error.message);
     
     if (showToast) {
       toast.error(error.message || fallbackMessage);
@@ -91,7 +117,7 @@ export function handleApiError(
   }
 
   // Handle unknown error types
-  console.error('[Unknown Error]', error);
+  logger.error('[Unknown Error]', error);
   
   if (showToast) {
     toast.error(fallbackMessage);

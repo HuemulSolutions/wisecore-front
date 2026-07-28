@@ -431,7 +431,7 @@ export function SectionSheet({
                       setSelectedConfigExecutionId(value === DOCUMENT_OPTION_VALUE ? null : value)
                     }
                   >
-                    <SelectTrigger className="h-8 w-[240px] text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
+                    <SelectTrigger className="h-8 w-60 text-xs bg-white hover:border-[#4464f7] focus:border-[#4464f7] focus:ring-2 focus:ring-[#4464f7]/20 transition-colors">
                       <SelectValue placeholder={t('assetInfo.selectVersion')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -462,8 +462,9 @@ export function SectionSheet({
                         <SortableSectionSheet
                           item={section}
                           existingSections={orderedSections}
-                          onSave={(sectionId: string, sectionData: object) => {
-                            const payload = selectedConfigExecutionId
+                          onSave={(sectionId: string, sectionData: any) => {
+                            const canPropagateToExecution = sectionData?.type === 'manual' || sectionData?.type === 'form';
+                            const payload = selectedConfigExecutionId && canPropagateToExecution
                               ? { ...sectionData, propagate_to_executions: true, execution_id: selectedConfigExecutionId }
                               : sectionData;
                             updateSectionMutation.mutate({ sectionId, sectionData: payload });

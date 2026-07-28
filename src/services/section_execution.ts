@@ -1,5 +1,6 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import type { AddSectionExecutionRequest, AiSuggestionStatus, ReviewStatus, SectionHistoryChangeType, SectionHistoryEntry, SectionHistoryResponse } from "@/types/section-execution";
 import type { FormValuesSectionPayload } from "@/types/sections/core";
 
@@ -7,7 +8,7 @@ export type { AddSectionExecutionRequest, AiSuggestionStatus, ReviewStatus, Sect
 
 
 export async function modifyContent(sectionId: string, content: string, plateContent?: string[]) {
-    console.log(`Modifying content for section ID: ${sectionId}`);
+    logger.log(`Modifying content for section ID: ${sectionId}`);
     const body: { new_content: string; plate_content?: string[] } = { new_content: content };
     if (plateContent) {
         body.plate_content = plateContent;
@@ -15,7 +16,7 @@ export async function modifyContent(sectionId: string, content: string, plateCon
     const response = await httpClient.put(`${backendUrl}/section_executions/${sectionId}/modify_content`, body);
 
     const data = await response.json();
-    console.log('Section content modified:', data.data);
+    logger.log('Section content modified:', data.data);
     return data.data;
 }
 
@@ -24,16 +25,16 @@ export async function deleteSectionExec(sectionExecId: string) {
     const response = await httpClient.delete(`${backendUrl}/section_executions/${sectionExecId}`);
 
     const data = await response.json();
-    console.log('Section deleted:', data);
+    logger.log('Section deleted:', data);
     return data;
 }
 
 export async function createSectionExecution(executionId: string, sectionData: AddSectionExecutionRequest) {
-    console.log(`Creating section execution for execution ID: ${executionId}`);
+    logger.log(`Creating section execution for execution ID: ${executionId}`);
     const response = await httpClient.post(`${backendUrl}/section_executions/${executionId}`, sectionData);
 
     const data = await response.json();
-    console.log('Section execution created:', data.data);
+    logger.log('Section execution created:', data.data);
     return data.data;
 }
 
@@ -50,12 +51,12 @@ export async function linkSectionToExecution(executionId: string, sectionId: str
     );
 
     const data = await response.json();
-    console.log('Section linked to execution:', data.data);
+    logger.log('Section linked to execution:', data.data);
     return data.data;
 }
 
 export async function getSectionExecutionContent(sectionExecutionId: string, organizationId?: string) {
-    console.log(`Getting content for section execution ID: ${sectionExecutionId}`);
+    logger.log(`Getting content for section execution ID: ${sectionExecutionId}`);
     
     const headers: Record<string, string> = {};
     if (organizationId) {
@@ -67,17 +68,17 @@ export async function getSectionExecutionContent(sectionExecutionId: string, org
     });
 
     const data = await response.json();
-    console.log('Section execution content:', data.data);
+    logger.log('Section execution content:', data.data);
     
     // Extract the actual content from the response
     if (data.data && typeof data.data === 'object' && data.data.output) {
         const output = data.data.output;
-        console.log('Returning output, type:', typeof output, 'length:', output?.length || 0);
+        logger.log('Returning output, type:', typeof output, 'length:', output?.length || 0);
         return output;
     }
     
     // Fallback in case the structure is different
-    console.warn('Unexpected data structure, returning fallback:', data.data);
+    logger.warn('Unexpected data structure, returning fallback:', data.data);
     return data.data || '';
 }
 
@@ -159,7 +160,7 @@ export async function updateReviewStatus(
     );
 }
 
-// ─── Form values ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Form values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function updateSectionFormValues(
     sectionExecutionId: string,
@@ -179,7 +180,7 @@ export async function updateSectionFormValues(
     return data.data as FormValuesSectionPayload[];
 }
 
-// ─── Section History ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Section History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getSectionExecutionHistory(
     sectionExecutionId: string,

@@ -45,21 +45,8 @@ import { useOptionalEditingGuard } from "@/contexts/editing-guard-context"
 import { handleApiError } from "@/lib/error-utils"
 import { ApiError } from "@/types/api-error"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import type { LibraryContentFolderType } from "@/types/folders"
-
-// Orden fijo de las carpetas raíz del sistema, independiente del nombre (editable por el usuario).
-const ROOT_FOLDER_ORDER: Record<string, number> = {
-  personal: 0,
-  global: 1,
-  forms: 2,
-  grupal: 3,
-  sin_carpeta: 4,
-}
-
-function rootFolderSortKey(folderType: LibraryContentFolderType | null | undefined): number {
-  if (!folderType) return Number.MAX_SAFE_INTEGER
-  return ROOT_FOLDER_ORDER[folderType] ?? Number.MAX_SAFE_INTEGER
-}
 
 // Las áreas (subcarpetas de Grupal) se distinguen visualmente de una carpeta común.
 function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
@@ -151,6 +138,12 @@ function buildFocusedTree(content: LibraryContent): FileNode[] {
     if (parent?.isExpanded && parent.children) {
       parent.children.push(assetNode)
     }
+  }
+
+  // Una carpeta expandida por el backend refleja lo que realmente llegó:
+  // sin esto queda hasChildren:true con children:[] y refresh() la da por cargada.
+  for (const node of folderMap.values()) {
+    if (node.children) node.hasChildren = node.children.length > 0
   }
 
   const rootFolderNodes = folders
@@ -275,18 +268,18 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const handleAssetCreated = useCallback((createdAsset?: { id: string; name: string; type: string }) => {
-    console.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
+    logger.log('📥 [NAV-KNOWLEDGE] handleAssetCreated called:', createdAsset)
 
     // Wait for the Radix exit animation (200 ms) to finish before
     // triggering navigation, which causes a large re-render cascade
     // through PermissionsProvider.  Navigating during the animation
     // produces a visible "flash" of the dialog portal.
     setTimeout(() => {
-      console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+      logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
       fileTreeRef.current?.refresh()
       // Navigate to the newly created asset
       if (createdAsset) {
-        console.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
+        logger.log('🧭 [NAV-KNOWLEDGE] Navigating to asset:', `/asset/${createdAsset.id}`)
         navigateRef.current(`/asset/${createdAsset.id}`, {
           state: {
             selectedDocumentId: createdAsset.id,
@@ -295,7 +288,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
             fromFileTree: true,
           }
         })
-        console.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
+        logger.log('✓ [NAV-KNOWLEDGE] Navigation initiated')
       }
     }, 300)
   }, []) // stable — uses ref for navigate
@@ -410,7 +403,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, []) // stable — uses refs for mutable values
 
   const handleCreateAssetDialogChange = useCallback((open: boolean) => {
-    console.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
+    logger.log('🔄 [NAV-KNOWLEDGE] CreateAssetDialog onOpenChange:', open)
     setCreateAssetDialogOpen(open)
     if (!open) {
       // Unmount the dialog component AFTER the Radix exit animation
@@ -441,7 +434,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const refreshFileTree = useCallback(() => {
-    console.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+    logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
     fileTreeRef.current?.refresh()
   }, [])
 
@@ -808,10 +801,14 @@ export function NavKnowledgeContent() {
     return () => { cancelled = true }
   }, [committedSearch, selectedOrganizationId])
 
-  // Extract active asset ID from URL (pattern: /:orgId/asset/:assetId)
+  // Extract active asset ID from URL (pattern: /asset/<folder>/.../<assetId>).
+  // The asset (if present) is always the LAST segment — buildUrlPath puts
+  // breadcrumb folders first and the file id last.
   const activeAssetId = React.useMemo(() => {
-    const match = location.pathname.match(/\/asset\/([^/]+)/)
-    return match ? match[1] : null
+    const match = location.pathname.match(/\/asset(\/[^?]*)?/)
+    if (!match) return null
+    const segments = (match[1] ?? '').split('/').filter(Boolean)
+    return segments.length > 0 ? segments[segments.length - 1] : null
   }, [location.pathname])
 
   // Always reflects the current asset in the URL — used by both initial load and refresh
@@ -851,18 +848,39 @@ export function NavKnowledgeContent() {
       try {
         const isRoot = folderId === null
         const focusAssetId = isRoot ? activeAssetIdRef.current : null
+        // Tracks whether the focused-tree branch actually ran. Starts optimistic
+        // and gets demoted to false if the focus asset turns out to be invalid
+        // (stale id, deleted asset, or leftover from another organization).
+        let focusedRootLoad = isRoot && !!focusAssetId
 
         let content: LibraryContent
-        if (isRoot && focusAssetId) {
-          content = await getLibraryContent(
-            selectedOrganizationId,
-            undefined,
-            rootPageRef.current,
-            rootPageSizeRef.current,
-            undefined,
-            undefined,
-            focusAssetId,
-          )
+        if (focusedRootLoad) {
+          try {
+            content = await getLibraryContent(
+              selectedOrganizationId,
+              undefined,
+              rootPageRef.current,
+              rootPageSizeRef.current,
+              undefined,
+              undefined,
+              focusAssetId!,
+            )
+          } catch (focusError) {
+            if (!ApiError.isApiError(focusError) || focusError.statusCode !== 404) {
+              throw focusError
+            }
+            // The focused asset doesn't exist / isn't reachable in this org
+            // (e.g. leftover id from a previous org, or a deleted document).
+            // That's a focus failure, not a folder-load failure — fall back to
+            // a normal root load instead of emptying the whole tree.
+            content = await getLibraryContent(
+              selectedOrganizationId,
+              undefined,
+              rootPageRef.current,
+              rootPageSizeRef.current,
+            )
+            focusedRootLoad = false
+          }
         } else if (isRoot) {
           content = await getLibraryContent(
             selectedOrganizationId,
@@ -902,7 +920,7 @@ export function NavKnowledgeContent() {
         // Track parent folder for each node so we can show "Move to Root" only for non-root nodes
         setNodeParentIds((prev) => {
           const newMap = new Map(prev)
-          if (isRoot && focusAssetId) {
+          if (focusedRootLoad) {
             content.folders.forEach((f) => newMap.set(f.id, f.parent_folder_id))
             content.assets.forEach((a) => newMap.set(a.id, a.folder_id))
           } else {
@@ -912,11 +930,11 @@ export function NavKnowledgeContent() {
           return newMap
         })
 
-        if (isRoot && focusAssetId) {
+        if (focusedRootLoad) {
           return buildFocusedTree(content)
         }
 
-        let folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
+        const folderNodes: FileNode[] = (content.folders ?? []).map((item) => ({
           id: item.id,
           name: item.name,
           type: 'folder',
@@ -926,12 +944,6 @@ export function NavKnowledgeContent() {
           isRootGroup: isRoot && isRootGroupFolderNode(item.folder_type, item.parent_folder_id),
           access_levels: item.access_levels,
         }))
-
-        if (isRoot) {
-          folderNodes = [...folderNodes].sort(
-            (a, b) => rootFolderSortKey(a.folder_type) - rootFolderSortKey(b.folder_type)
-          )
-        }
 
         const assetNodes: FileNode[] = (content.assets ?? []).map((item) => ({
           id: item.id,
@@ -943,7 +955,7 @@ export function NavKnowledgeContent() {
 
         return [...folderNodes, ...assetNodes]
       } catch (error) {
-        console.error("Error loading folder content:", error)
+        logger.error("Error loading folder content:", error)
         if (ApiError.isApiError(error) && (error.statusCode === 404 || error.code === 'FOLDER_NOT_FOUND')) {
           toast.error(t('knowledge.errors.folderNotAccessible'))
         } else {
@@ -1284,6 +1296,7 @@ export function NavKnowledgeContent() {
           showBorder={false}
           showRefreshButton={false}
           alwaysShowMenuActions={true}
+          preserveExpandedOnRefresh={!activeAssetId}
           renderLeafIcon={(node) => {
             const fileNode = node as FileNode
             const color = fileNode.document_type?.color

@@ -105,6 +105,9 @@ export interface AssignVersionDialogProps {
   onOpenChange: (open: boolean) => void
   onConfirm: (version: { major: number; minor: number; patch: number }) => void
   isProcessing?: boolean
+  executionId?: string | null
+  organizationId?: string | null
+  existingVersions?: string[]
 }
 
 // ----------------------------------------

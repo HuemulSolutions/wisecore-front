@@ -8,6 +8,7 @@ import { HuemulField, HuemulFieldGroup, type FetchOptionsParams } from '@/huemul
 import { getAssetTypes } from '@/services/asset-types';
 import { getUsers } from '@/services/users';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import { Edit3 } from 'lucide-react';
 import type { EditDocumentDialogProps } from "@/types/assets";
 
@@ -63,7 +64,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
           }
         }
       } catch (e) {
-        console.error('Error loading document:', e);
+        logger.error('Error loading document:', e);
         // Si falla, usar valores proporcionados como fallback
         setDescription(currentDescription || '');
         setDocumentTypeId(currentDocumentTypeId || '');
@@ -137,7 +138,7 @@ const EditDocumentDialog: React.FC<EditDocumentDialogProps> = React.memo(({
       payload.created_by = createdBy.trim();
     }
 
-    console.log('Updating document with payload:', payload);
+    logger.log('Updating document with payload:', payload);
     mutation.mutate(payload);
   }, [name, description, internalCode, documentTypeId, createdBy, initialCreatedBy, mutation]);
 

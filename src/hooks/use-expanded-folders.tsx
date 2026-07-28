@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 import type { ExpandedFoldersContextType, ExpandedFoldersProviderProps } from '@/types/assets'
+import { logger } from '@/lib/logger';
 export type { ExpandedFoldersContextType }
 
 const ExpandedFoldersContext = createContext<ExpandedFoldersContextType | undefined>(undefined);
@@ -25,7 +26,7 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
       } else {
         newSet.add(folderId);
       }
-      console.log(`🔄 Toggled folder ${folderId}. Now expanded:`, Array.from(newSet));
+      logger.log(`🔄 Toggled folder ${folderId}. Now expanded:`, Array.from(newSet));
       return newSet;
     });
   }, []);
@@ -34,7 +35,7 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
       newSet.add(folderId);
-      console.log(`➕ Expanded folder ${folderId}. All expanded:`, Array.from(newSet));
+      logger.log(`➕ Expanded folder ${folderId}. All expanded:`, Array.from(newSet));
       return newSet;
     });
   }, []);
@@ -43,7 +44,7 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
       newSet.delete(folderId);
-      console.log(`➖ Collapsed folder ${folderId}. Remaining expanded:`, Array.from(newSet));
+      logger.log(`➖ Collapsed folder ${folderId}. Remaining expanded:`, Array.from(newSet));
       return newSet;
     });
   }, []);
@@ -53,7 +54,7 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
   }, [expandedFolders]);
 
   const clearExpanded = useCallback(() => {
-    console.log('🧹 Clearing all expanded folders');
+    logger.log('🧹 Clearing all expanded folders');
     setExpandedFolders(new Set());
   }, []);
 
@@ -74,7 +75,7 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
   }, []);
 
   const reExpandFolders = useCallback(async (folderIds: string[], loadChildren: (folderId: string) => Promise<any>, onChildrenLoaded?: (folderId: string, children: any[]) => void) => {
-    console.log('🔄 Re-expanding folders after refresh:', folderIds);
+    logger.log('🔄 Re-expanding folders after refresh:', folderIds);
     setIsReExpanding(true);
     
     try {
@@ -82,21 +83,21 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
       setExpandedFolders(prev => {
         const newSet = new Set(prev);
         folderIds.forEach(id => newSet.add(id));
-        console.log('📁 Restored expanded state for all folders:', Array.from(newSet));
+        logger.log('📁 Restored expanded state for all folders:', Array.from(newSet));
         return newSet;
       });
 
       // Luego, cargar el contenido de cada carpeta
       for (const folderId of folderIds) {
         try {
-          console.log(`🔄 Loading children for folder: ${folderId}`);
+          logger.log(`🔄 Loading children for folder: ${folderId}`);
           const loadedChildren = await loadChildren(folderId);
-          console.log(`✅ Re-expanded folder ${folderId} with ${loadedChildren.length} children`);
+          logger.log(`✅ Re-expanded folder ${folderId} with ${loadedChildren.length} children`);
           
           // Notificar que los children se han cargado usando callbacks registrados
           const callback = childrenLoadedCallbacks.get(folderId);
           if (callback && loadedChildren) {
-            console.log(`🔄 Notifying component for folder ${folderId} with ${loadedChildren.length} children`);
+            logger.log(`🔄 Notifying component for folder ${folderId} with ${loadedChildren.length} children`);
             callback(loadedChildren);
           }
           
@@ -105,7 +106,7 @@ export const ExpandedFoldersProvider = ({ children }: ExpandedFoldersProviderPro
             onChildrenLoaded(folderId, loadedChildren);
           }
         } catch (error) {
-          console.error(`❌ Failed to re-expand folder ${folderId}:`, error);
+          logger.error(`❌ Failed to re-expand folder ${folderId}:`, error);
           // Si falla cargar una carpeta, la removemos del estado expandido
           setExpandedFolders(prev => {
             const newSet = new Set(prev);

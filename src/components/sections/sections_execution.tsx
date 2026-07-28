@@ -17,6 +17,7 @@ import { deleteSectionExec, modifyContent } from '@/services/section_execution';
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import type { SectionExecutionProps } from '@/types/sections';
 export type { SectionExecutionProps } from '@/types/sections';
@@ -33,7 +34,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
     const [isAiProcessing, setIsAiProcessing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    console.log('SectionExecution Props:', { sectionExecution });
+    logger.log('SectionExecution Props:', { sectionExecution });
 
     const handleSave = async (sectionId: string, newContent: string) => {
         try {
@@ -172,7 +173,7 @@ export default function SectionExecution({ sectionExecution, onUpdate, readyToEd
                                         setAiPreview(prev => (prev ?? '') + normalized);
                                     },
                                     onError: (e: Event) => {
-                                        console.error('AI edit error', e);
+                                        logger.error('AI edit error', e);
                                         setIsAiProcessing(false);
                                     },
                                     onClose: () => {

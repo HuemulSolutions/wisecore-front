@@ -6,6 +6,7 @@ import { getExecutionStatus, getExecutionSectionsStatus } from '@/services/execu
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import type { SectionExecutionFeedbackProps } from '@/types/sections';
 
@@ -28,7 +29,7 @@ export function SectionExecutionFeedback({
   const [isDismissed, setIsDismissed] = useState(false);
   const [executionFailed, setExecutionFailed] = useState(false);
 
-  console.log('🎯 SectionExecutionFeedback rendered with:', { 
+  logger.log('🎯 SectionExecutionFeedback rendered with:', { 
     executionId, 
     sectionId,
     sectionIndex, 
@@ -39,12 +40,12 @@ export function SectionExecutionFeedback({
 
   // Log when polling interval changes
   useEffect(() => {
-    console.log('⏱️ Polling interval changed to:', pollingInterval);
+    logger.log('⏱️ Polling interval changed to:', pollingInterval);
   }, [pollingInterval]);
 
   // Poll sections status
   const queryEnabled = !!executionId && !!selectedOrganizationId && pollingInterval !== false;
-  console.log('🔧 Query enabled check:', { 
+  logger.log('🔧 Query enabled check:', { 
     queryEnabled,
     hasExecutionId: !!executionId, 
     hasOrgId: !!selectedOrganizationId, 
@@ -54,7 +55,7 @@ export function SectionExecutionFeedback({
   const { data: sectionsStatus, refetch } = useQuery({
     queryKey: ['execution-sections-status', executionId],
     queryFn: () => {
-      console.log('🔄 [SECTIONS_STATUS] Fetching sections status for execution:', executionId);
+      logger.log('🔄 [SECTIONS_STATUS] Fetching sections status for execution:', executionId);
       return getExecutionSectionsStatus(executionId!, selectedOrganizationId!);
     },
     enabled: queryEnabled && !isDismissed,
@@ -65,10 +66,10 @@ export function SectionExecutionFeedback({
   // Log sections data structure
   useEffect(() => {
     if (sectionsStatus?.sections) {
-      console.log('📋 Sections array received:');
-      console.log('  Total sections:', sectionsStatus.sections.length);
-      console.log('  Looking for sectionIndex:', sectionIndex, '(0-based, so order should be', sectionIndex + 1, ')');
-      console.log('  Section orders:', sectionsStatus.sections.map((s: any) => ({ order: s.order, name: s.name, status: s.status })));
+      logger.log('📋 Sections array received:');
+      logger.log('  Total sections:', sectionsStatus.sections.length);
+      logger.log('  Looking for sectionIndex:', sectionIndex, '(0-based, so order should be', sectionIndex + 1, ')');
+      logger.log('  Section orders:', sectionsStatus.sections.map((s: any) => ({ order: s.order, name: s.name, status: s.status })));
     }
   }, [sectionsStatus, sectionIndex]);
 
@@ -82,14 +83,14 @@ export function SectionExecutionFeedback({
   // Log status changes
   useEffect(() => {
     if (currentSectionStatus) {
-      console.log('✅ Section status found:', {
+      logger.log('✅ Section status found:', {
         sectionIndex,
         targetOrder,
         status: currentSectionStatus.status,
         name: currentSectionStatus.name
       });
     } else if (sectionsStatus?.sections) {
-      console.log('⚠️ Could not find section with order:', {
+      logger.log('⚠️ Could not find section with order:', {
         targetOrder,
         sectionIndex,
         availableOrders: sectionsStatus.sections.map((s: any) => ({ order: s.order, name: s.name }))
@@ -117,12 +118,12 @@ export function SectionExecutionFeedback({
     }
 
     if (relevantSectionsDone) {
-      console.log(`🛑 Relevant sections completed (mode: ${executionMode}), stopping polling`);
+      logger.log(`🛑 Relevant sections completed (mode: ${executionMode}), stopping polling`);
       setPollingInterval(false);
 
       // Show toast only once but don't dismiss banner automatically
       if (!hasShownCompletedToast) {
-        console.log('✅ Section execution completed!');
+        logger.log('✅ Section execution completed!');
         toast.success(
           executionMode === 'single' 
             ? t('sectionFeedback.toast.successSingle') 
@@ -138,7 +139,7 @@ export function SectionExecutionFeedback({
   const { data: executionStatus } = useQuery({
     queryKey: ['execution-status', executionId],
     queryFn: () => {
-      console.log('🔄 [STATUS] Fetching overall execution status for:', executionId);
+      logger.log('🔄 [STATUS] Fetching overall execution status for:', executionId);
       return getExecutionStatus(executionId!, selectedOrganizationId!);
     },
     enabled: !!executionId && !!selectedOrganizationId && pollingInterval !== false && !isDismissed,
@@ -154,18 +155,18 @@ export function SectionExecutionFeedback({
 
     // Only stop polling on errors, not on completion (sections handle completion)
     if (errorStates.includes(overallStatus)) {
-      console.log(`❌ Execution ${overallStatus}, stopping polling`);
+      logger.log(`❌ Execution ${overallStatus}, stopping polling`);
       setPollingInterval(false);
 
       if (!hasShownCompletedToast) {
         if (overallStatus === 'failed') {
-          console.log('❌ Section execution failed!');
+          logger.log('❌ Section execution failed!');
           setExecutionFailed(true);
           toast.error(t('sectionFeedback.toast.failed'));
           setHasShownCompletedToast(true);
           onComplete?.();
         } else if (overallStatus === 'cancelled') {
-          console.log('🚫 Section execution cancelled!');
+          logger.log('🚫 Section execution cancelled!');
           toast.info(t('sectionFeedback.toast.cancelled'));
           setHasShownCompletedToast(true);
           onComplete?.();
@@ -175,27 +176,27 @@ export function SectionExecutionFeedback({
   }, [executionStatus?.status, hasShownCompletedToast, onComplete]);
 
   const handleRefresh = () => {
-    console.log('🔄 Manual section refresh triggered');
+    logger.log('🔄 Manual section refresh triggered');
     refetch();
     queryClient.invalidateQueries({ queryKey: ['execution-sections-status', executionId] });
     queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
     
     // Restart polling if it was stopped
     if (pollingInterval === false && !isDismissed) {
-      console.log('🔄 Restarting section polling after manual refresh');
+      logger.log('🔄 Restarting section polling after manual refresh');
       setPollingInterval(2000);
     }
   };
 
   const handleDismiss = () => {
-    console.log('❌ Section feedback dismissed by user');
+    logger.log('❌ Section feedback dismissed by user');
     setIsDismissed(true);
     setPollingInterval(false);
     onDismiss?.();
   };
 
   // Log section status
-  console.log('📊 Section feedback decision:', {
+  logger.log('📊 Section feedback decision:', {
     currentSectionStatus: currentSectionStatus?.status,
     isDismissed,
     willShow: !isDismissed && currentSectionStatus && currentSectionStatus.status !== null
@@ -203,7 +204,7 @@ export function SectionExecutionFeedback({
 
   // Don't show if dismissed or no status yet
   if (isDismissed || !currentSectionStatus || currentSectionStatus.status === null) {
-    console.log('❌ SectionExecutionFeedback: Not showing feedback - dismissed:', isDismissed, 'status:', currentSectionStatus?.status || 'no status');
+    logger.log('❌ SectionExecutionFeedback: Not showing feedback - dismissed:', isDismissed, 'status:', currentSectionStatus?.status || 'no status');
     return null;
   }
 

@@ -1,11 +1,12 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { logger } from "@/lib/logger";
 import { ApiError } from "@/types/api-error";
-import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse } from "@/types/execution";
+import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
-export type { RollbackTarget, RollbackStep, RollbackTargetsResponse };
+export type { RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion };
 
 /** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
 function toDateParam(value: string): string {
@@ -79,31 +80,31 @@ export async function getAllExecutions(
 }
 
 export async function getExecutionsByDocumentId(documentId: string, organizationId: string) {
-    console.log(`Fetching executions for document ID: ${documentId}`);
+    logger.log(`Fetching executions for document ID: ${documentId}`);
     const response = await httpClient.get(`${backendUrl}/documents/${documentId}/executions`, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
-    console.log(`Fetched ${data.data.length} executions for document ID: ${documentId}`);
+    logger.log(`Fetched ${data.data.length} executions for document ID: ${documentId}`);
     return data.data;
 }
 
 export async function getExecutionById(executionId: string, organizationId: string) {
-    console.log(`Fetching execution with ID: ${executionId}`);
+    logger.log(`Fetching execution with ID: ${executionId}`);
     const response = await httpClient.get(`${backendUrl}/execution/${executionId}`, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
-    console.log('Execution fetched:', data.data);
+    logger.log('Execution fetched:', data.data);
     return data.data;
 }
 
 export async function getExecutionStatus(executionId: string, organizationId: string) {
-    console.log(`Fetching execution status with ID: ${executionId}`);
+    logger.log(`Fetching execution status with ID: ${executionId}`);
     const response = await httpClient.get(`${backendUrl}/execution/${executionId}/status`, {
         headers: {
             'X-Org-Id': organizationId,
@@ -111,12 +112,12 @@ export async function getExecutionStatus(executionId: string, organizationId: st
     });
     
     const data = await response.json();
-    console.log('Execution status fetched:', data);
+    logger.log('Execution status fetched:', data);
     return data.data || data; // Handle both data.data and direct data response
 }
 
 export async function getExecutionSectionsStatus(executionId: string, organizationId: string) {
-    console.log(`Fetching sections status for execution ID: ${executionId}`);
+    logger.log(`Fetching sections status for execution ID: ${executionId}`);
     const response = await httpClient.get(`${backendUrl}/execution/${executionId}/sections_status`, {
         headers: {
             'X-Org-Id': organizationId,
@@ -124,12 +125,12 @@ export async function getExecutionSectionsStatus(executionId: string, organizati
     });
     
     const data = await response.json();
-    console.log('Sections status fetched:', data.data);
+    logger.log('Sections status fetched:', data.data);
     return data.data;
 }
 
 export async function createExecution(documentId: string, organizationId: string) {
-    console.log(`Creating execution for document ID: ${documentId}`);
+    logger.log(`Creating execution for document ID: ${documentId}`);
     const response = await httpClient.post(`${backendUrl}/execution/${documentId}`, {}, {
         headers: {
             'X-Org-Id': organizationId,
@@ -137,7 +138,7 @@ export async function createExecution(documentId: string, organizationId: string
     });
 
     const data = await response.json();
-    console.log('Execution created:', data.data);
+    logger.log('Execution created:', data.data);
     return data.data;
 }
 
@@ -158,7 +159,7 @@ export async function executeDocument({
     startSectionId?: string;
     executionId?: string;
 }) {
-    console.log(`Executing document with ID: ${documentId}`);
+    logger.log(`Executing document with ID: ${documentId}`);
     
     const requestBody: Record<string, unknown> = {
         document_id: documentId,
@@ -190,26 +191,26 @@ export async function executeDocument({
     });
 
     const data = await response.json();
-    console.log('Document execution started:', data.data);
+    logger.log('Document execution started:', data.data);
     return data.data;
 }
 
 
 export async function deleteExecution(executionId: string, organizationId: string) {
-    console.log(`Deleting execution with ID: ${executionId}`);
+    logger.log(`Deleting execution with ID: ${executionId}`);
     const response = await httpClient.delete(`${backendUrl}/execution/${executionId}`, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
-    console.log('Execution deleted:', data);
+    logger.log('Execution deleted:', data);
     return data;
 }
 
 
 export async function updateLLM(executionId: string, llmId: string, organizationId: string) {
-    console.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
+    logger.log(`Updating LLM for execution ID: ${executionId} with LLM ID: ${llmId}`);
     const response = await httpClient.put(`${backendUrl}/execution/update_llm/${executionId}`, { llm_id: llmId }, {
         headers: {
             'X-Org-Id': organizationId,
@@ -217,7 +218,7 @@ export async function updateLLM(executionId: string, llmId: string, organization
     });
 
     const data = await response.json();
-    console.log('LLM updated for execution:', data.data);
+    logger.log('LLM updated for execution:', data.data);
     return data.data;
 }
 
@@ -236,7 +237,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
         excel: 'xlsx'
     };
         
-    console.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
+    logger.log(`Exporting execution to ${exportType} for ID: ${executionId}`);
     
     // Usar fetch nativo para tener acceso completo a los headers
     const orgToken = httpClient.getOrganizationToken();
@@ -248,7 +249,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     });
     
     if (!response.ok) {
-        throw new Error(`Error al exportar la ejecución a ${exportType}`);
+        throw new Error(`Error al exportar la ejecuciÃ³n a ${exportType}`);
     }
 
     // Obtener el contenido del archivo y el nombre del archivo desde los headers
@@ -280,7 +281,7 @@ async function exportExecutionFile(executionId: string, exportType: 'markdown' |
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
     
-    console.log(`Execution exported successfully as: ${filename}`);
+    logger.log(`Execution exported successfully as: ${filename}`);
     return { success: true };
 }
 
@@ -357,38 +358,38 @@ export async function exportExecutionToExcel(executionId: string, organizationId
 }
 
 export async function approveExecution(executionId: string, organizationId: string) {
-    console.log(`Approving execution with ID: ${executionId}`);
+    logger.log(`Approving execution with ID: ${executionId}`);
     const response = await httpClient.post(`${backendUrl}/execution/${executionId}/approve`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
-    console.log('Execution approved:', data.data);
+    logger.log('Execution approved:', data.data);
     return data.data;
 }
 
 export async function disapproveExecution(executionId: string, organizationId: string) {
-    console.log(`Disapproving execution with ID: ${executionId}`);
+    logger.log(`Disapproving execution with ID: ${executionId}`);
     const response = await httpClient.post(`${backendUrl}/execution/${executionId}/dissapprove`, {}, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
-    console.log('Execution disapproved:', data.data);
+    logger.log('Execution disapproved:', data.data);
     return data.data;
 }
 
 export async function cloneExecution(executionId: string, organizationId: string) {
-    console.log(`Cloning execution with ID: ${executionId}`);
+    logger.log(`Cloning execution with ID: ${executionId}`);
     const response = await httpClient.post(`${backendUrl}/execution/${executionId}/clone`, undefined, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
     const data = await response.json();
-    console.log('Execution cloned:', data.data);
+    logger.log('Execution cloned:', data.data);
     return data.data;
 }
 
@@ -402,7 +403,7 @@ export async function cloneExecutionToNewDocument(
         folder_id?: string;
     } = {},
 ) {
-    console.log(`Cloning execution with ID: ${executionId} to new document`);
+    logger.log(`Cloning execution with ID: ${executionId} to new document`);
     const body: Record<string, string> = { mode: 'new_document' };
     if (options.name) body.name = options.name;
     if (options.internal_code) body.internal_code = options.internal_code;
@@ -414,7 +415,7 @@ export async function cloneExecutionToNewDocument(
         },
     });
     const data = await response.json();
-    console.log('Execution cloned to new document:', data.data);
+    logger.log('Execution cloned to new document:', data.data);
     return data.data;
 }
 
@@ -515,6 +516,19 @@ export async function assignExecutionVersion(
         },
     });
     const data = await response.json();
+    return data.data;
+}
+
+export async function getExecutionVersionSuggestion(
+    executionId: string,
+    organizationId: string
+): Promise<ExecutionVersionSuggestion> {
+    const response = await httpClient.get(`${backendUrl}/execution/${executionId}/version/suggestion`, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = (await response.json()) as ExecutionVersionSuggestionResponse;
     return data.data;
 }
 

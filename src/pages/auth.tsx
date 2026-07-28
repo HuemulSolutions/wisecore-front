@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { LoginForm } from "@/components/auth/auth-login-form"
 import { OTPForm } from "@/components/auth/auth-otp-form"
 import { useAuth } from "@/contexts/auth-context"
+import { logger } from "@/lib/logger"
 
 type AuthStep = 'login' | 'otp'
 
@@ -39,7 +40,7 @@ export function AuthPage() {
 
   const handleAuthSuccess = () => {
     // The auth context will handle the redirect via the useEffect above
-    console.log('Authentication successful')
+    logger.log('Authentication successful')
   }
 
   return (

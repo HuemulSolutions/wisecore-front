@@ -7,6 +7,7 @@ import { getTemplateChildDocuments } from "@/services/templates"
 import type { ChildDocumentFolder, ChildDocument } from "@/services/templates"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import { logger } from "@/lib/logger"
 import type { AssetSelectionPanelProps, FolderGroupProps, DocumentRowProps, ExecutionRowProps } from '@/types/assets'
 
 export type { AssetSelectionPanelProps } from '@/types/assets'
@@ -39,7 +40,7 @@ export function AssetSelectionPanel({ templateId, onExecute, isExecuting, execut
         setFolders(res.data)
         setExpandedFolders(new Set(res.data.map((f) => f.folder_id ?? "__no_folder__")))
       })
-      .catch(console.error)
+      .catch(logger.error)
       .finally(() => setIsLoading(false))
   }, [templateId, selectedOrganizationId])
 

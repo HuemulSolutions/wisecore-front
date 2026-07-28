@@ -2,6 +2,7 @@ import { useState } from 'react'
 import MdxEditor from './mdx-editor'
 import { Button } from '@/components/ui/button'
 import { Check, X, Loader2 } from 'lucide-react'
+import { logger } from '@/lib/logger'
 import type { EditorProps } from '@/types/editor'
 export type { EditorProps } from '@/types/editor'
 
@@ -12,7 +13,7 @@ export default function Editor({ sectionId, content, onSave, onCancel, isSaving 
     const handleSave = () => dirty && !isSaving && onSave(sectionId, value)
     const handleCancel = () => !isSaving && onCancel()
     const handleError = (payload: { error: string; source: string }) => {
-        console.error('MDXEditor error:', payload);
+        logger.error('MDXEditor error:', payload);
         setError(payload.error);
     }
 

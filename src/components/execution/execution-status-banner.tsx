@@ -8,6 +8,7 @@ import { useExecutionPolling } from '@/hooks/useExecutionPolling';
 import { useOrganization } from '@/contexts/organization-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 import type { ExecutionStatusBannerProps } from '@/types/execution';
 
 export type { ExecutionStatusBannerProps } from '@/types/execution';
@@ -17,7 +18,7 @@ export function ExecutionStatusBanner({
   onExecutionComplete,
   className
 }: ExecutionStatusBannerProps) {
-  console.log('ExecutionStatusBanner rendering with executionId:', executionId);
+  logger.log('ExecutionStatusBanner rendering with executionId:', executionId);
   
   const { selectedOrganizationId } = useOrganization();
   const queryClient = useQueryClient();
@@ -29,7 +30,7 @@ export function ExecutionStatusBanner({
     enabled: !!executionId && !!selectedOrganizationId,
     pollingInterval: 3000,
     onStatusChange: (status, executionData) => {
-      console.log('Banner - Execution status changed:', status, executionData);
+      logger.log('Banner - Execution status changed:', status, executionData);
       
       try {
         // Invalidate related queries when status changes to ensure UI consistency
@@ -60,7 +61,7 @@ export function ExecutionStatusBanner({
           stopPolling();
         }
       } catch (error) {
-        console.error('Error in status change handler:', error);
+        logger.error('Error in status change handler:', error);
       }
     }
   });
@@ -68,7 +69,7 @@ export function ExecutionStatusBanner({
   // Use polling data as the primary source of truth
   const currentExecution = execution;
 
-  console.log('Banner - Current execution:', currentExecution?.status, 'ID:', currentExecution?.id);
+  logger.log('Banner - Current execution:', currentExecution?.status, 'ID:', currentExecution?.id);
   
   // Handle polling errors
   useEffect(() => {
@@ -79,7 +80,7 @@ export function ExecutionStatusBanner({
 
   // Don't show banner if no execution or if execution is in final successful state
   if (!currentExecution || ['completed', 'approved'].includes(currentExecution.status)) {
-    console.log('Banner hidden - no execution or final state:', currentExecution?.status);
+    logger.log('Banner hidden - no execution or final state:', currentExecution?.status);
     return null;
   }
 

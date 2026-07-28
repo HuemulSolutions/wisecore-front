@@ -34,7 +34,7 @@ import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
 
-import { ChatbotProvider } from "@/contexts/chatbot-context"
+import { ChatbotProvider } from "@/contexts/chatbot-provider"
 import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
 import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-context"
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
@@ -45,6 +45,7 @@ import { SubscriptionsSheet } from "@/components/subscriptions/subscriptions-she
 import { NotificationsSheet } from "@/components/notifications/notifications-sheet"
 import { useUnreadNotificationsCount } from "@/hooks/useUnreadNotificationsCount"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -248,7 +249,7 @@ export default function AppLayout() {
     let cancelled = false
     isSwitchingOrgRef.current = true
     setIsSwitchingOrg(true)
-    console.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
+    logger.log(`[OrgSync] URL orgId "${orgId}" differs from context "${selectedOrganizationId}", switching...`)
 
     generateOrganizationToken(orgId)
       .then((tokenResponse) => {
@@ -263,7 +264,7 @@ export default function AppLayout() {
         setOrganizationToken(orgToken)
         setRequiresOrganizationSelection(false)
 
-        console.log(`[OrgSync] Switched to org "${orgId}" successfully`)
+        logger.log(`[OrgSync] Switched to org "${orgId}" successfully`)
 
         // Deep link URL is already correct — clean up any saved returnUrl
         sessionStorage.removeItem('returnUrl')
@@ -296,7 +297,7 @@ export default function AppLayout() {
       })
       .catch((error) => {
         if (cancelled) return
-        console.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
+        logger.error(`[OrgSync] Failed to switch to org "${orgId}":`, error)
         // If token generation fails (user doesn't have access), redirect
         // with the current org, or show org selection dialog
         if (selectedOrganizationId) {
@@ -488,22 +489,43 @@ export default function AppLayout() {
     isSwitchingOrg
   ])
 
-  const chatbotProviderKey = selectedOrganizationId ?? 'no-org'
-
+  // Purge the entire query cache whenever the active organization changes.
+  // Org-scoped query keys are inconsistent across the codebase (some include
+  // organizationId, most don't — e.g. ['document-content', docId]), and the
+  // invalidateQueries predicates elsewhere only cover a hardcoded allowlist
+  // of key fragments that doesn't even match those keys. A stale document's
+  // cached content (2min staleTime / 5min gcTime, refetchOnMount: false) can
+  // otherwise render under the wrong organization with zero network request.
+  // clear() is opt-out by design so new query keys are covered for free.
   useEffect(() => {
-    if (previousChatbotOrgRef.current === selectedOrganizationId) {
+    const previousOrg = previousChatbotOrgRef.current
+    if (previousOrg === selectedOrganizationId) {
       return
     }
 
     previousChatbotOrgRef.current = selectedOrganizationId
 
-    queryClient.removeQueries({
-      queryKey: ['chatbot'],
-    })
+    if (previousOrg === null) {
+      // Initial mount — nothing cached yet for a previous org to purge.
+      return
+    }
+
+    queryClient.cancelQueries() // stop in-flight requests still carrying the old X-Org-Id
+    // Drop inactive cache entries outright (nothing is mounted to re-render them
+    // stale), and invalidate the rest so mounted useQuery hooks refetch under
+    // the new X-Org-Id instead of rendering stale data with zero request.
+    // A full queryClient.clear() here used to drop every ACTIVE query to
+    // `undefined` in the same commit that <ChatbotProvider> remounted the
+    // whole layout via `key` — that double blast was the biggest single
+    // burst of DOM deletions in the app on every org switch. The remount is
+    // gone (see ChatbotProvider's resetKey), and this makes the purge itself
+    // gentler too.
+    queryClient.removeQueries({ type: 'inactive' })
+    queryClient.invalidateQueries()
   }, [queryClient, selectedOrganizationId])
 
   return (
-    <ChatbotProvider key={chatbotProviderKey}>
+    <ChatbotProvider resetKey={selectedOrganizationId ?? 'no-org'}>
       <GlobalPanelProvider>
       <TooltipProvider>
         <EditingGuardProvider>

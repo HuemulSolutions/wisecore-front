@@ -8,5 +8,9 @@ declare module '@tanstack/react-query' {
       /** Set to false to suppress the automatic success toast (default: true when successMessage is set). */
       showSuccessToast?: boolean
     }
+    queryMeta: {
+      /** Set to false to suppress the automatic error toast on first-load failure (default: true). */
+      showErrorToast?: boolean
+    }
   }
 }

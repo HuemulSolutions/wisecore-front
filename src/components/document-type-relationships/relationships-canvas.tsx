@@ -78,6 +78,15 @@ const EDGE_TYPES = {
   relationship: MemoizedRelationshipEdge,
 }
 
+// Los contenedores son agrupadores visuales, no nodos `group` de React Flow: deben quedar
+// siempre por debajo para que un clic dentro de uno llegue al nodo que está encima, y un clic
+// en su zona vacía lo tome a él. Los contenedores más grandes van más abajo, así un contenedor
+// anidado sigue siendo seleccionable.
+const CONTAINER_Z_BASE = 0
+const CONTAINER_Z_MAX = 50
+const EDGE_Z = 60
+const NODE_Z = 100
+
 // Vertical offset (px) to separate N parallel edges centered around the handle.
 // e.g. N=2: [-7, +7]  N=3: [-14, 0, +14]  N=4: [-21, -7, +7, +21]
 const PARALLEL_SPACING = 14
@@ -207,6 +216,33 @@ function RelationshipsCanvasFlow({
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  // Deriva el zIndex de render sin tocar el state: los contenedores van siempre debajo de los
+  // demás nodos (más grandes primero, para que uno anidado siga siendo seleccionable), y las
+  // aristas quedan por encima de los contenedores para poder clickearlas aunque los crucen.
+  const layeredNodes = useMemo(() => {
+    const containerAreas = nodes
+      .filter((n) => n.type === "container")
+      .map((n) => ({
+        id: n.id,
+        area:
+          (n.measured?.width ?? (n.style?.width as number) ?? 0) *
+          (n.measured?.height ?? (n.style?.height as number) ?? 0),
+      }))
+      .sort((a, b) => b.area - a.area)
+    const containerZ = new Map(
+      containerAreas.map((c, i) => [c.id, CONTAINER_Z_BASE + Math.min(i, CONTAINER_Z_MAX)]),
+    )
+    return nodes.map((n) => {
+      const z = n.type === "container" ? (containerZ.get(n.id) ?? CONTAINER_Z_BASE) : NODE_Z
+      return n.zIndex === z ? n : { ...n, zIndex: z }
+    })
+  }, [nodes])
+
+  const layeredEdges = useMemo(
+    () => edges.map((e) => (e.zIndex === EDGE_Z ? e : { ...e, zIndex: EDGE_Z })),
+    [edges],
+  )
   const [showSaveDiagramDialog, setShowSaveDiagramDialog] = useState(false)
   const [saveAsNewDiagram, setSaveAsNewDiagram] = useState(false)
   const [showLoadDiagramSheet, setShowLoadDiagramSheet] = useState(false)
@@ -1493,8 +1529,8 @@ function RelationshipsCanvasFlow({
     <>
       <div ref={containerRef} className="flex h-full w-full">
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={layeredNodes}
+          edges={layeredEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -1506,6 +1542,7 @@ function RelationshipsCanvasFlow({
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
+          elevateNodesOnSelect={false}
           fitView
           deleteKeyCode="Delete"
           className="flex-1 h-full bg-muted/10"

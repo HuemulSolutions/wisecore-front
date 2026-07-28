@@ -26,6 +26,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useOptionalEditingGuard } from '@/contexts/editing-guard-context';
 import { toast } from 'sonner';
 import { handleApiError } from '@/lib/error-utils';
+import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { AssetFormSection, type AssetFormSectionHandle } from '@/components/assets/content/asset-form-section';
 import { QUESTION_TYPE, formatFieldValueForCopy, isFieldAnswerable, isFieldVisible } from '@/components/sections/question-type-meta';
@@ -200,7 +201,7 @@ function SectionExecutionInner({
                 }
             }, 100);
         } catch (e) {
-            console.error('Error saving content', e);
+            logger.error('Error saving content', e);
         } finally {
             setIsSaving(false);
         }
@@ -241,7 +242,7 @@ function SectionExecutionInner({
             await navigator.clipboard.writeText(contentToCopy);
             toast.success(t('section.contentCopied'));
         } catch (error) {
-            console.error('Error copying to clipboard:', error);
+            logger.error('Error copying to clipboard:', error);
             toast.error(t('section.copyFailed'));
         }
     };
@@ -773,7 +774,7 @@ function SectionExecutionInner({
                         sectionIndex={sectionIndex}
                         executionMode={executionMode}
                         onComplete={() => {
-                            console.log('🎯 Section execution feedback completed');
+                            logger.log('🎯 Section execution feedback completed');
                             onUpdate?.();
                         }}
                     />

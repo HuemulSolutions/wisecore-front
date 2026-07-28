@@ -200,6 +200,22 @@ const translations = {
     patch: { en: "Patch", es: "Parche" },
     assigning: { en: "Assigning…", es: "Asignando…" },
     submitLabel: { en: "Assign Version", es: "Asignar Versión" },
+    basedOn: { en: "Suggested based on v{{version}}", es: "Sugerida en base a v{{version}}" },
+    basedOnNone: { en: "First approved version of this asset", es: "Primera versión aprobada de este activo" },
+    loadingSuggestion: { en: "Calculating suggestion…", es: "Calculando sugerencia…" },
+    era: { en: "was {{value}}", es: "era {{value}}" },
+    resultLabel: { en: "Result", es: "Resultado" },
+    validation: {
+      isNewer: { en: "Is later than the current version ({{version}})", es: "Es posterior a la versión actual ({{version}})" },
+      isNewerFail: { en: "Must be later than the current version ({{version}})", es: "Debe ser posterior a la versión actual ({{version}})" },
+      isUnique: { en: "No other version has this number", es: "No existe otra versión con este número" },
+      isUniqueFail: { en: "A version with this number already exists", es: "Ya existe una versión con este número" },
+    },
+    hint: {
+      major: { en: "Bumping major = breaking changes vs. previous content", es: "Subir mayor = cambios incompatibles con lo anterior" },
+      minor: { en: "Bumping minor = you added content and the previous content is still valid", es: "Subir menor = agregaste contenido y lo anterior sigue válido" },
+      patch: { en: "Bumping patch = minor fixes, no content added", es: "Subir patch = correcciones menores, sin agregar contenido" },
+    },
   },
   emptyState: {
     noOrganization: {

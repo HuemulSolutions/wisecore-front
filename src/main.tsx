@@ -1,57 +1,18 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 import '@/i18n'
 import { Toaster } from "@/components/ui/sonner"
-import { ApiError } from '@/types/api-error';
-import { handleApiError } from '@/lib/error-utils';
+import { queryClient } from '@/lib/query-client';
+import { logger } from '@/lib/logger';
+import { AppErrorBoundary } from '@/components/error-boundary/app-error-boundary'
+import { ErrorDetailsDialog } from '@/components/error-boundary/error-details-dialog'
 import './index.css'                       // Tailwind (globals)
 import '@mdxeditor/editor/style.css'       // CSS del MDXEditor
-import './mdx-editor.css'   
+import './mdx-editor.css'
 import App from './App.tsx'
-
-const mutationCache = new MutationCache({
-  onSuccess: (_data, _variables, _context, mutation) => {
-    const meta = mutation.meta;
-    if (meta?.successMessage && meta?.showSuccessToast !== false) {
-      toast.success(meta.successMessage);
-    }
-  },
-});
-
-const queryClient = new QueryClient({
-  mutationCache,
-  defaultOptions: {
-    queries: {
-      // Optimizaciones para reducir re-fetches innecesarios
-      staleTime: 2 * 60 * 1000, // 2 minutos - datos considerados frescos
-      gcTime: 5 * 60 * 1000, // 5 minutos - tiempo en cache
-      refetchOnWindowFocus: false, // No re-fetch al enfocar ventana
-      refetchOnMount: false, // No re-fetch al montar si hay datos frescos
-      retry: (failureCount, error: unknown) => {
-        // No reintentar errores del cliente (4xx)
-        if (ApiError.isApiError(error) && error.statusCode >= 400 && error.statusCode < 500) {
-          return false;
-        }
-        // Fallback para errores no-ApiError con status
-        if (error && typeof error === 'object' && 'status' in error) {
-          const status = (error as { status: number }).status;
-          if (status >= 400 && status < 500) {
-            return false;
-          }
-        }
-        return failureCount < 3;
-      },
-    },
-    mutations: {
-      retry: false, // No reintentar mutaciones por defecto
-      onError: (error) => handleApiError(error), // Manejo global de errores (overrideable per-mutation)
-    },
-  },
-});
 
 // Suprimir errores de extensiones del navegador
 window.addEventListener('error', (event) => {
@@ -60,14 +21,17 @@ window.addEventListener('error', (event) => {
     event.error?.message?.includes('listener indicated an asynchronous response') ||
     event.message?.includes('runtime.lastError') ||
     event.message?.includes('message channel closed') ||
-    event.message?.includes('listener indicated an asynchronous response') ||
-    event.filename?.includes('extension') ||
-    event.filename === ''
+    event.message?.includes('listener indicated an asynchronous response')
   ) {
     event.preventDefault();
     event.stopPropagation();
     return false;
   }
+  // No suprimir nada más: en particular, event.filename === '' o
+  // event.filename?.includes('extension') se suprimían antes sin loguear,
+  // lo que tapaba errores legítimos re-lanzados por React (p.ej. el
+  // NotFoundError de removeChild que rompe la app al cambiar de org).
+  logger.warn('[window.error]', event.message, event.filename);
 });
 
 // Suprimir promesas rechazadas de extensiones
@@ -107,7 +71,9 @@ if (typeof (window as any).chrome !== 'undefined' && (window as any).chrome.runt
 }
 
 // Suprimir logs de console.error relacionados con extensiones
+// eslint-disable-next-line no-console
 const originalConsoleError = console.error;
+// eslint-disable-next-line no-console
 console.error = function(...args) {
   const message = args.join(' ');
   if (
@@ -125,9 +91,12 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <Toaster richColors />
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ErrorDetailsDialog />
+      <AppErrorBoundary>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AppErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,
 )

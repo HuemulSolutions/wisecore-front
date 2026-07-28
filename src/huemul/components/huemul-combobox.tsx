@@ -19,6 +19,7 @@ import {
   useComboboxAnchor,
 } from "@/components/ui/combobox"
 import { InputGroupAddon } from "@/components/ui/input-group"
+import { logger } from "@/lib/logger"
 import type { HuemulComboboxOption, HuemulComboboxProps } from "@/types/huemul"
 
 export type { HuemulComboboxOption, HuemulComboboxProps } from "@/types/huemul"
@@ -177,7 +178,7 @@ export function HuemulCombobox({
         setHasMore(result.hasMore)
         setPage(pageNum)
       } catch (err) {
-        console.error("HuemulCombobox: error fetching options:", err)
+        logger.error("HuemulCombobox: error fetching options:", err)
       } finally {
         setIsLoading(false)
         setIsLoadingMore(false)
