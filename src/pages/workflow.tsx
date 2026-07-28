@@ -69,11 +69,7 @@ export default function WorkflowPage() {
 
   const items = workflowsResponse?.data ?? []
 
-  const {
-    data: templateItems = [],
-    isLoading: isLoadingTemplates,
-    refetch: refetchTemplates,
-  } = useWorkflowTemplates(
+  const { data: templateItems = [], isLoading: isLoadingTemplates } = useWorkflowTemplates(
     selectedOrganizationId ?? "",
     { enabled: !!selectedOrganizationId && !!organizationToken && canAccessAssets },
   )
@@ -114,8 +110,6 @@ export default function WorkflowPage() {
             onRefresh={() => {
               queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
               queryClient.invalidateQueries({ queryKey: workflowTemplateQueryKeys.listBase() })
-              refetch()
-              refetchTemplates()
             }}
             isLoading={isFetching}
             hasError={!!error}
