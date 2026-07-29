@@ -38,6 +38,9 @@ interface ExecutionItem {
   name: string
   document_name?: string
   version?: string | null
+  version_major?: number | null
+  version_minor?: number | null
+  version_patch?: number | null
 }
 
 export interface AssetPickerSelectMeta {
