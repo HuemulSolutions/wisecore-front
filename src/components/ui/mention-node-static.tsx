@@ -8,7 +8,10 @@ import { SlateElement } from 'platejs/static';
 
 import { cn } from '@/lib/utils';
 
-type AssetMentionElement = TMentionElement & { color?: string | null };
+type AssetMentionElement = TMentionElement & {
+  color?: string | null;
+  executionId?: string | null;
+};
 
 export function MentionElementStatic(
   props: SlateElementProps<AssetMentionElement> & {

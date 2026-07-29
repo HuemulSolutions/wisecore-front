@@ -15,6 +15,7 @@ import {
 
 import { getLibraryContent } from "@/services/folders"
 import { getExecutionsByDocumentId } from "@/services/executions"
+import { getExecutionDisplayLabel } from "@/components/assets/content/utils/version-utils"
 import { HuemulDialog } from "./huemul-dialog"
 import { HuemulFileTree } from "./huemul-file-tree"
 import { Input } from "@/components/ui/input"
@@ -23,7 +24,12 @@ import { cn } from "@/lib/utils"
 import type { HuemulTreeNode } from "@/types/huemul"
 import type { LibraryContent, LibraryContentFolder, LibraryContentAsset } from "@/types/folders"
 
-export type AssetPickerMode = "document" | "execution"
+/**
+ * - "document": solo se puede elegir el documento (asset), sin drill-down.
+ * - "execution": el documento solo es expandible, hay que elegir una ejecucion puntual (uso estricto, ej. save-as-diagram-sheet).
+ * - "document-with-version": permite elegir el documento directo (sin version fija) o expandir y elegir una ejecucion puntual.
+ */
+export type AssetPickerMode = "document" | "execution" | "document-with-version"
 
 type NodeKind = "folder" | "document" | "execution"
 
@@ -31,16 +37,28 @@ interface ExecutionItem {
   id: string
   name: string
   document_name?: string
+  version?: string | null
 }
 
 export interface AssetPickerSelectMeta {
   color?: string | null
+  documentId?: string
+  documentName?: string
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+function isExecutionMode(mode: AssetPickerMode): boolean {
+  return mode === "execution" || mode === "document-with-version"
+}
+
+function isDocumentMode(mode: AssetPickerMode): boolean {
+  return mode === "document" || mode === "document-with-version"
+}
+
 function executionLabel(exec: ExecutionItem): string {
-  return exec.document_name ? `${exec.name} · ${exec.document_name}` : exec.name
+  const label = getExecutionDisplayLabel(exec)
+  return exec.document_name ? `${exec.document_name} · ${label}` : label
 }
 
 function leafIconFor(node: HuemulTreeNode) {
@@ -102,7 +120,7 @@ function AssetRow({
   const [loading, setLoading] = useState(false)
 
   async function toggle() {
-    if (mode !== "execution") return
+    if (!isExecutionMode(mode)) return
     if (expanded) {
       setExpanded(false)
       return
@@ -121,51 +139,62 @@ function AssetRow({
     }
   }
 
-  const isDocActive = mode === "document" && activeId === asset.id
+  const isDocActive = isDocumentMode(mode) && activeId === asset.id
+  const docMeta: AssetPickerSelectMeta = { color: asset.document_type?.color }
 
   return (
     <div>
       <div
         role="button"
         tabIndex={0}
-        onClick={() => (mode === "document" ? onSelect(asset.id, asset.name, { color: asset.document_type?.color }) : toggle())}
-        onKeyDown={(e) => e.key === "Enter" && (mode === "document" ? onSelect(asset.id, asset.name, { color: asset.document_type?.color }) : toggle())}
+        onClick={() => (isDocumentMode(mode) ? onSelect(asset.id, asset.name, docMeta) : undefined)}
+        onKeyDown={(e) => e.key === "Enter" && isDocumentMode(mode) && onSelect(asset.id, asset.name, docMeta)}
         className={cn(
           "group flex items-center gap-1.5 py-0.5 px-2 rounded-md hover:bg-accent hover:cursor-pointer",
           isDocActive && "bg-accent font-medium",
         )}
         style={{ paddingLeft: `${level * 12 + 6}px` }}
       >
-        {mode === "execution" ? (
-          loading ? (
-            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-          ) : expanded ? (
-            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-          )
-        ) : null}
+        {isExecutionMode(mode) && (
+          <button
+            type="button"
+            aria-label="toggle"
+            onClick={(e) => { e.stopPropagation(); toggle() }}
+            className="shrink-0 hover:cursor-pointer"
+          >
+            {loading ? (
+              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
+            ) : expanded ? (
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+          </button>
+        )}
         <File className="h-3.5 w-3.5 shrink-0" style={{ color: asset.document_type?.color || "currentColor" }} />
         <p className="text-sm truncate">{asset.name}</p>
       </div>
 
-      {mode === "execution" && expanded && executions && executions.map((exec) => (
-        <div
-          key={exec.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => onSelect(exec.id, executionLabel({ ...exec, document_name: asset.name }))}
-          onKeyDown={(e) => e.key === "Enter" && onSelect(exec.id, executionLabel({ ...exec, document_name: asset.name }))}
-          className={cn(
-            "group flex items-center gap-1.5 py-0.5 px-2 rounded-md hover:bg-accent hover:cursor-pointer",
-            activeId === exec.id && "bg-accent font-medium",
-          )}
-          style={{ paddingLeft: `${(level + 1) * 12 + 6}px` }}
-        >
-          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <p className="text-sm truncate">{exec.name}</p>
-        </div>
-      ))}
+      {isExecutionMode(mode) && expanded && executions && executions.map((exec) => {
+        const execMeta: AssetPickerSelectMeta = { color: asset.document_type?.color, documentId: asset.id, documentName: asset.name }
+        return (
+          <div
+            key={exec.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelect(exec.id, executionLabel({ ...exec, document_name: asset.name }), execMeta)}
+            onKeyDown={(e) => e.key === "Enter" && onSelect(exec.id, executionLabel({ ...exec, document_name: asset.name }), execMeta)}
+            className={cn(
+              "group flex items-center gap-1.5 py-0.5 px-2 rounded-md hover:bg-accent hover:cursor-pointer",
+              activeId === exec.id && "bg-accent font-medium",
+            )}
+            style={{ paddingLeft: `${(level + 1) * 12 + 6}px` }}
+          >
+            <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <p className="text-sm truncate">{getExecutionDisplayLabel(exec)}</p>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -257,18 +286,20 @@ export function HuemulAssetTreePickerDialog({
 
   // ── Browse mode ──
   const loadChildren = useCallback(
-    async (folderId: string | null): Promise<HuemulTreeNode[]> => {
+    async (folderId: string | null, node?: HuemulTreeNode): Promise<HuemulTreeNode[]> => {
       if (!organizationId) return []
       const kind = folderId ? kindMap.current.get(folderId) : "folder"
 
-      // Expanding a document → load its executions (execution mode only).
+      // Expanding a document → load its executions (execution / document-with-version modes).
       if (folderId && kind === "document") {
+        const documentName = node?.name
+        const color = node?.metadata?.color as string | null | undefined
         const data = (await getExecutionsByDocumentId(folderId, organizationId)) as ExecutionItem[]
         return (data ?? []).map((exec) => ({
           id: exec.id,
-          name: exec.name,
+          name: getExecutionDisplayLabel(exec) || exec.name,
           type: "execution",
-          metadata: { kind: "execution", documentName: exec.document_name },
+          metadata: { kind: "execution", documentId: folderId, documentName, version: exec.version, color },
         }))
       }
 
@@ -281,7 +312,7 @@ export function HuemulAssetTreePickerDialog({
 
       const assetNodes: HuemulTreeNode[] = (content.assets ?? []).map((a) => {
         kindMap.current.set(a.id, "document")
-        if (mode === "execution") {
+        if (isExecutionMode(mode)) {
           // Documents are expandable (their executions are the leaves).
           return {
             id: a.id,
@@ -310,9 +341,27 @@ export function HuemulAssetTreePickerDialog({
       const kind = (node.metadata?.kind as NodeKind) ?? "document"
       if (mode === "document" && kind === "document") {
         handleSelect(node.id, node.name, { color: node.metadata?.color as string | undefined })
-      } else if (mode === "execution" && kind === "execution") {
-        const docName = node.metadata?.documentName as string | undefined
-        handleSelect(node.id, executionLabel({ id: node.id, name: node.name, document_name: docName }))
+      } else if (isExecutionMode(mode) && kind === "execution") {
+        const documentId = node.metadata?.documentId as string | undefined
+        const documentName = node.metadata?.documentName as string | undefined
+        const color = node.metadata?.color as string | null | undefined
+        // node.name is already the version-priority label (set in loadChildren).
+        const label = documentName ? `${documentName} · ${node.name}` : node.name
+        handleSelect(node.id, label, { documentId, documentName, color })
+      }
+    },
+    [mode, handleSelect],
+  )
+
+  // Only relevant in document-with-version mode: a document row's main area is
+  // rendered as an expandable "folder" node (its executions are the leaves), so
+  // HuemulFileTree never routes it through onFileClick. This lets clicking the
+  // row body (not the expand chevron) select the document itself, unversioned.
+  const handleFolderClick = useCallback(
+    (node: HuemulTreeNode) => {
+      const kind = (node.metadata?.kind as NodeKind) ?? "folder"
+      if (mode === "document-with-version" && kind === "document") {
+        handleSelect(node.id, node.name, { color: node.metadata?.color as string | undefined })
       }
     },
     [mode, handleSelect],
@@ -429,6 +478,7 @@ export function HuemulAssetTreePickerDialog({
               key={mode}
               onLoadChildren={loadChildren}
               onFileClick={handleFileClick}
+              onFolderClick={handleFolderClick}
               activeNodeId={value}
               folderType="folder"
               showCreateButtons={false}
