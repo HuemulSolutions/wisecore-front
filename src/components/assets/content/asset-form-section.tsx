@@ -44,8 +44,6 @@ interface AssetFormSectionProps {
   isEditing: boolean;
   /** El padre sale del modo edición (tras el flush final de "Dejar de editar"). */
   onExitEditing: () => void;
-  responderName?: string;
-  respondedAt?: string;
   /**
    * Refresca el contenido del asset tras guardar. Cuando el autoguardado o el flush
    * final trae la respuesta del PATCH /form_values, se pasa el payload (agrupado por
@@ -96,8 +94,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   canInteract,
   isEditing,
   onExitEditing,
-  responderName,
-  respondedAt,
   onUpdate,
   onSavingChange,
 }, ref) {
@@ -700,19 +696,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         })}
       </div>
 
-      {/* Footer: solo info de quien respondió, en modo lectura */}
-      {!editing && responderName && (
-        <div className="mt-5 border-t border-gray-100 pt-3">
-          <span className="text-xs text-gray-400">
-            {respondedAt
-              ? t("form.fill.respondedBy", {
-                  name: responderName,
-                  date: new Date(respondedAt).toLocaleString(),
-                })
-              : responderName}
-          </span>
-        </div>
-      )}
     </div>
   );
 });

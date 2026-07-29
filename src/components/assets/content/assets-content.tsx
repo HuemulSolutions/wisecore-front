@@ -3318,11 +3318,6 @@ export function AssetContent({
                                     form_fields: section.form_fields,
                                   }}
                                   status={section.status}
-                                  responderName={
-                                    documentContent?.updated_by_user
-                                      ? `${documentContent.updated_by_user.name ?? ''} ${documentContent.updated_by_user.last_name ?? ''}`.trim()
-                                      : undefined
-                                  }
                                   onUpdate={handleSectionUpdate}
                                   readyToEdit={showEditorActions}
                                   sectionIndex={index}

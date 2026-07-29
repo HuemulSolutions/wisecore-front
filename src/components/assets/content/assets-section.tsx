@@ -48,8 +48,6 @@ function SectionExecutionInner({
     sectionType = 'ai',
     sectionName,
     status,
-    responderName,
-    respondedAt,
     canEditSections = false,
     onCreateSectionFromSelection,
     // onCopyLink,
@@ -819,8 +817,6 @@ function SectionExecutionInner({
                         canInteract={readyToEdit && canEditSections}
                         isEditing={isEditing}
                         onExitEditing={handleCancelEdit}
-                        responderName={responderName}
-                        respondedAt={respondedAt}
                         onUpdate={onUpdate}
                         onSavingChange={setIsFormSaving}
                     />

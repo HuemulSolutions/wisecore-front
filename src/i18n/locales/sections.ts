@@ -174,7 +174,6 @@ const translations = {
       editResponses: { en: "Edit responses", es: "Editar respuestas" },
       statusPending: { en: "Pending", es: "Pendiente" },
       statusResponded: { en: "Responded", es: "Respondido" },
-      respondedBy: { en: "Responded by {{name}} · {{date}}", es: "Respondido por {{name}} · {{date}}" },
       fileUploading: { en: "Uploading file...", es: "Subiendo archivo..." },
       fileUploadError: { en: "Could not upload the file", es: "No se pudo subir el archivo" },
       fileTypeNotAllowed: { en: "File type not allowed. Allowed: {{types}}", es: "Tipo de archivo no permitido. Permitidos: {{types}}" },
