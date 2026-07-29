@@ -624,6 +624,12 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
   return (
     <div className="w-full">
+      {editing && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          {t("form.fill.autoSaveHint")}
+        </div>
+      )}
       <div className="space-y-5">
         {displayedFields.map((field, index) => {
           const isExiting = exitingFieldIds.has(field.id);
