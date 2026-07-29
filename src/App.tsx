@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/auth-context";
 import { OrganizationProvider } from "./contexts/organization-context";
@@ -5,30 +6,33 @@ import { PermissionsProvider } from "./contexts/permissions-context";
 import { ProtectedRoute } from "./components/auth/auth-protected-route";
 import { ProtectedRoute as PermissionProtectedRoute } from "./components/auth/auth-protected-route-with-permissions";
 import AppLayout from "./components/layout/app-layout";
+import { HuemulAppLoading } from "./huemul/components/huemul-app-loading";
 import Home from "./pages/home";
-import Templates from "./pages/templates";
-import SearchPage from "./pages/search";
-
-import Organizations from "./pages/organizations";
-// import Library from "./pages/library"; // Hidden - library functionality disabled
-import Assets from "./pages/assets";
-import Graph from "./pages/graph";
-import ModelsPage from "./pages/models";
-import AuthTypes from "./pages/auth-types";
-import UsersPage from "./pages/users";
-import Roles from "./pages/roles";
-import AssetTypesPage from "./pages/assets-types";
-import CustomFieldsPage from "./pages/custom-fields";
-import CanvasPage from "./pages/canvas";
-import DiagramsPage from "./pages/diagrams";
-import GlobalAdminPage from "./pages/global-admin";
-import AdvancedPage from "./pages/advanced";
-import ExternalSystemsPage from "./pages/external-systems";
-import DocumentTypeRelationshipsPage from "./pages/document-type-relationships";
-import MediaPage from "./pages/media";
 import { RootRedirect } from "./components/organization/root-redirect";
-import HuemulLayoutDemoPage from "./pages/huemul-layout-demo";
-import WorkflowPage from "./pages/workflow";
+
+// Páginas cargadas de forma perezosa: cada una se descarga solo cuando el
+// usuario navega a su ruta, en vez de entrar todas al bundle inicial.
+const Templates = lazy(() => import("./pages/templates"));
+const SearchPage = lazy(() => import("./pages/search"));
+const Organizations = lazy(() => import("./pages/organizations"));
+// import Library from "./pages/library"; // Hidden - library functionality disabled
+const Assets = lazy(() => import("./pages/assets"));
+const Graph = lazy(() => import("./pages/graph"));
+const ModelsPage = lazy(() => import("./pages/models"));
+const AuthTypes = lazy(() => import("./pages/auth-types"));
+const UsersPage = lazy(() => import("./pages/users"));
+const Roles = lazy(() => import("./pages/roles"));
+const AssetTypesPage = lazy(() => import("./pages/assets-types"));
+const CustomFieldsPage = lazy(() => import("./pages/custom-fields"));
+const CanvasPage = lazy(() => import("./pages/canvas"));
+const DiagramsPage = lazy(() => import("./pages/diagrams"));
+const GlobalAdminPage = lazy(() => import("./pages/global-admin"));
+const AdvancedPage = lazy(() => import("./pages/advanced"));
+const ExternalSystemsPage = lazy(() => import("./pages/external-systems"));
+const DocumentTypeRelationshipsPage = lazy(() => import("./pages/document-type-relationships"));
+const MediaPage = lazy(() => import("./pages/media"));
+const HuemulLayoutDemoPage = lazy(() => import("./pages/huemul-layout-demo"));
+const WorkflowPage = lazy(() => import("./pages/workflow"));
 
 export default function App() {
   return (
@@ -36,6 +40,7 @@ export default function App() {
       <OrganizationProvider>
         <PermissionsProvider>
           <ProtectedRoute>
+            <Suspense fallback={<HuemulAppLoading />}>
             <Routes>
           {/* Root redirect — sends user to /:orgId/home */}
           <Route path="/" element={<RootRedirect />} />
@@ -157,6 +162,7 @@ export default function App() {
           {/* Catch-all: redirect unknown paths to root */}
           <Route path="*" element={<RootRedirect />} />
             </Routes>
+            </Suspense>
         </ProtectedRoute>
         </PermissionsProvider>
       </OrganizationProvider>

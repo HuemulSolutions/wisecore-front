@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow } from "lucide-react"
-import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
 import { useQueryClient } from "@tanstack/react-query"
@@ -27,6 +27,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { OrganizationSelectionDialog } from "@/components/organization/organization-selection-dialog"
 import { OrganizationSwitcher } from "@/components/organization/organization-switcher"
@@ -98,7 +99,9 @@ function GlobalPanelOutlet() {
 
   const outletPanel = (
     <ResizablePanel order={side === "left" ? 2 : 1} defaultSize={isOpen ? 100 - defaultSize : 100} minSize={30} className="overflow-auto">
-      <Outlet />
+      <Suspense fallback={<PageSkeleton />}>
+        <Outlet />
+      </Suspense>
     </ResizablePanel>
   )
 
