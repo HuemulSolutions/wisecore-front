@@ -44,6 +44,8 @@ const translations = {
     parentEmpty: { en: "Select…", es: "Seleccionar…" },
     currentAsset: { en: "Current asset", es: "Asset actual" },
     currentVersion: { en: "Current version", es: "Versión actual" },
+    modeAsset: { en: "Asset", es: "Asset" },
+    modeVersion: { en: "Version", es: "Versión" },
   },
   templateTab: {
     title: { en: "Files", es: "Archivos" },

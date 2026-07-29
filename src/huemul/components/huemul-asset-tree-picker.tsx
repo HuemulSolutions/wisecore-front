@@ -273,6 +273,10 @@ export function HuemulAssetTreePickerDialog({
   const [committedSearch, setCommittedSearch] = useState("")
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchData, setSearchData] = useState<LibraryContent | null>(null)
+  // Submodo elegido por el usuario cuando mode === "document-with-version":
+  // "document" = solo elige el asset, "execution" = solo elige una versión puntual.
+  const [subMode, setSubMode] = useState<"document" | "execution">("document")
+  const effectiveMode: AssetPickerMode = mode === "document-with-version" ? subMode : mode
   // Tracks how to load each node's children in browse mode (folder vs document).
   const kindMap = useRef(new Map<string, NodeKind>())
 
@@ -290,7 +294,7 @@ export function HuemulAssetTreePickerDialog({
       if (!organizationId) return []
       const kind = folderId ? kindMap.current.get(folderId) : "folder"
 
-      // Expanding a document → load its executions (execution / document-with-version modes).
+      // Expanding a document → load its executions (execution mode).
       if (folderId && kind === "document") {
         const documentName = node?.name
         const color = node?.metadata?.color as string | null | undefined
@@ -312,7 +316,7 @@ export function HuemulAssetTreePickerDialog({
 
       const assetNodes: HuemulTreeNode[] = (content.assets ?? []).map((a) => {
         kindMap.current.set(a.id, "document")
-        if (isExecutionMode(mode)) {
+        if (isExecutionMode(effectiveMode)) {
           // Documents are expandable (their executions are the leaves).
           return {
             id: a.id,
@@ -333,15 +337,15 @@ export function HuemulAssetTreePickerDialog({
 
       return [...folderNodes, ...assetNodes]
     },
-    [organizationId, mode],
+    [organizationId, effectiveMode],
   )
 
   const handleFileClick = useCallback(
     (node: HuemulTreeNode) => {
       const kind = (node.metadata?.kind as NodeKind) ?? "document"
-      if (mode === "document" && kind === "document") {
+      if (effectiveMode === "document" && kind === "document") {
         handleSelect(node.id, node.name, { color: node.metadata?.color as string | undefined })
-      } else if (isExecutionMode(mode) && kind === "execution") {
+      } else if (isExecutionMode(effectiveMode) && kind === "execution") {
         const documentId = node.metadata?.documentId as string | undefined
         const documentName = node.metadata?.documentName as string | undefined
         const color = node.metadata?.color as string | null | undefined
@@ -350,21 +354,7 @@ export function HuemulAssetTreePickerDialog({
         handleSelect(node.id, label, { documentId, documentName, color })
       }
     },
-    [mode, handleSelect],
-  )
-
-  // Only relevant in document-with-version mode: a document row's main area is
-  // rendered as an expandable "folder" node (its executions are the leaves), so
-  // HuemulFileTree never routes it through onFileClick. This lets clicking the
-  // row body (not the expand chevron) select the document itself, unversioned.
-  const handleFolderClick = useCallback(
-    (node: HuemulTreeNode) => {
-      const kind = (node.metadata?.kind as NodeKind) ?? "folder"
-      if (mode === "document-with-version" && kind === "document") {
-        handleSelect(node.id, node.name, { color: node.metadata?.color as string | undefined })
-      }
-    },
-    [mode, handleSelect],
+    [effectiveMode, handleSelect],
   )
 
   // ── Search mode ──
@@ -413,6 +403,30 @@ export function HuemulAssetTreePickerDialog({
       maxWidth="sm:max-w-xl"
     >
       <div className="flex flex-col gap-3">
+        {mode === "document-with-version" && (
+          <div className="inline-flex w-fit rounded-md border bg-muted p-0.5">
+            {(["document", "execution"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  if (subMode === m) return
+                  setSubMode(m)
+                  clearSearch()
+                }}
+                className={cn(
+                  "rounded-sm px-3 py-1 text-sm font-medium hover:cursor-pointer",
+                  subMode === m ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m === "document"
+                  ? t("picker.modeAsset", { defaultValue: "Asset" })
+                  : t("picker.modeVersion", { defaultValue: "Versión" })}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -453,7 +467,7 @@ export function HuemulAssetTreePickerDialog({
                   <SearchFolder
                     key={node.folder.id}
                     node={node}
-                    mode={mode}
+                    mode={effectiveMode}
                     level={0}
                     organizationId={organizationId}
                     activeId={value}
@@ -464,7 +478,7 @@ export function HuemulAssetTreePickerDialog({
                   <AssetRow
                     key={asset.id}
                     asset={asset}
-                    mode={mode}
+                    mode={effectiveMode}
                     level={0}
                     organizationId={organizationId}
                     activeId={value}
@@ -475,10 +489,9 @@ export function HuemulAssetTreePickerDialog({
             )
           ) : (
             <HuemulFileTree
-              key={mode}
+              key={effectiveMode}
               onLoadChildren={loadChildren}
               onFileClick={handleFileClick}
-              onFolderClick={handleFolderClick}
               activeNodeId={value}
               folderType="folder"
               showCreateButtons={false}
