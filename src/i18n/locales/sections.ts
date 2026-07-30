@@ -163,7 +163,7 @@ const translations = {
       saveError: { en: "Could not save responses", es: "No se pudieron guardar las respuestas" },
       autoSaved: { en: "Changes saved", es: "Cambios guardados" },
       autoSaveError: { en: "Could not save changes", es: "No se pudieron guardar los cambios" },
-      autoSaveHint: { en: "Changes are saved automatically", es: "Los cambios se guardan automáticamente" },
+      autoSaveHint: { en: "Changes are saved automatically when you leave a field", es: "Los cambios se guardan automáticamente al salir de cada campo" },
       savedField: { en: "Saved", es: "Guardado" },
       triggerHint: { en: "Your answer may show or hide other questions", es: "Tu respuesta puede mostrar u ocultar otras preguntas" },
       recalculating: { en: "Updating form...", es: "Actualizando formulario..." },

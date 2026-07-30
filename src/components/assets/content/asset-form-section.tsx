@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,6 @@ import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input";
 import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
 import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
-import { useDebounce } from "@/hooks/use-debounce";
 import { updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
@@ -21,6 +20,7 @@ import {
   hasAnswer,
   isFieldAnswerable,
   isFieldVisible,
+  isFreeTextField,
   normalizeSelectionValue,
   questionTypeLabel,
   readFieldConfig,
@@ -180,28 +180,57 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     onSavingChange?.(isSaving);
   }, [isSaving, onSavingChange]);
 
-  // Auto-guarda (debounced) cualquier campo respondible que cambie — no solo los "disparadores"
-  // de depends_on — para que el valor quede persistido sin depender del botón Enviar. Cuando el
-  // campo es disparador, esto además hace que el backend recalcule is_visible/can_answer y el
-  // usuario vea aparecer/ocultarse los campos dependientes. El front NUNCA decide por su cuenta
-  // si un campo se muestra/habilita — solo refleja lo que el backend recalcula tras esto.
-  const debouncedAnswers = useDebounce(answers, 500);
-  useEffect(() => {
-    if (!editing || uploadingFields.size > 0 || isSaving) return;
+  // Refs de lectura fresca para los disparadores del autoguardado (timers/eventos DOM, no
+  // renders) — evitan cerrar sobre estado desactualizado sin tener que recrear los timers
+  // en cada cambio de estado.
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const isSavingRef = useRef(isSaving);
+  isSavingRef.current = isSaving;
+  const uploadingCountRef = useRef(uploadingFields.size);
+  uploadingCountRef.current = uploadingFields.size;
+  // ids con un PATCH ya en vuelo — evita reenviar el mismo campo si el blur y el timer de
+  // commit (widgets atómicos) caen casi al mismo tiempo.
+  const inFlightIdsRef = useRef<Set<string>>(new Set());
+  const commitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleAutosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const COMMIT_DELAY_MS = 400;
+  const IDLE_AUTOSAVE_MS = 10_000;
+
+  // Auto-guarda cualquier campo respondible que haya cambiado desde el último guardado — no
+  // solo los "disparadores" de depends_on — para que el valor quede persistido sin depender
+  // del botón Enviar. Cuando el campo es disparador, esto además hace que el backend recalcule
+  // is_visible/can_answer y el usuario vea aparecer/ocultarse los campos dependientes. El
+  // front NUNCA decide por su cuenta si un campo se muestra/habilita — solo refleja lo que el
+  // backend recalcula tras esto.
+  //
+  // A diferencia del debounce anterior (un PATCH por tick de tipeo), esto se dispara solo en
+  // eventos discretos: blur de un campo de texto libre, cambio de un widget atómico
+  // (coalescido 400ms), inactividad de 10s sin salir del campo, abandono de la página, o el
+  // flush final al salir de edición — ver ia context correspondiente.
+  const flushDirtyFields = useCallback(() => {
+    if (!editingRef.current || uploadingCountRef.current > 0 || isSavingRef.current) return;
+
+    const currentAnswers = answersRef.current;
     const changed = sortedFields.filter(
-      (f) => isFieldAnswerable(f) && !valuesEqual(debouncedAnswers[f.id], lastSavedAnswersRef.current[f.id]),
+      (f) =>
+        isFieldAnswerable(f) &&
+        !inFlightIdsRef.current.has(f.id) &&
+        !valuesEqual(currentAnswers[f.id], lastSavedAnswersRef.current[f.id]),
     );
     if (changed.length === 0) return;
 
     // Valida formato/rango (min/max, entero, email) antes de autoguardar. Un campo inválido
     // no se envía — se marca su error inline y se reintenta solo cuando el usuario lo corrija
-    // (queda "changed" en el próximo tick porque no se actualiza lastSavedAnswersRef). Los
+    // (queda "changed" en el próximo flush porque no se actualiza lastSavedAnswersRef). Los
     // demás campos cambiados del mismo lote sí se guardan. required no se valida acá (no
     // bloquea el autosave, solo bloquea salir de edición en handleDoneEditing).
     const invalidErrors: Record<string, string> = {};
     const valid = changed.filter((f) => {
-      const err = validateFormFieldValue(f, debouncedAnswers[f.id]);
+      const err = validateFormFieldValue(f, currentAnswers[f.id]);
       if (!err) return true;
       invalidErrors[f.id] = t(`form.fill.${err.key}`, err.params);
       return false;
@@ -212,15 +241,16 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     if (valid.length === 0) return;
 
     const ids = valid.map((f) => f.id);
+    ids.forEach((id) => inFlightIdsRef.current.add(id));
     setSavingFieldIds((prev) => new Set([...prev, ...ids]));
     // Toast reutilizable: mismo id por sección, se actualiza in-place (loading -> success/error)
-    // en vez de apilar un toast por cada campo/tick de autosave.
+    // en vez de apilar un toast por cada campo/flush de autosave.
     const toastId = `form-autosave-${sectionExecutionId}`;
     toast.loading(t("common:saving"), { id: toastId });
-    const values = valid.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
+    const values = valid.map((f) => ({ id: f.id, value: currentAnswers[f.id] ?? null }));
     updateSectionFormValues(sectionExecutionId, values, organizationId)
       .then((payload) => {
-        for (const f of valid) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
+        for (const f of valid) lastSavedAnswersRef.current[f.id] = currentAnswers[f.id];
         onUpdate?.(payload);
         toast.success(t("form.fill.autoSaved"), { id: toastId });
         setSavedFieldIds((prev) => new Set([...prev, ...ids]));
@@ -237,19 +267,88 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         });
       })
       .catch(() => {
-        // Best-effort: si falla, se reintenta en el próximo cambio o al guardar con el botón.
+        // Best-effort: si falla, se reintenta en el próximo flush o al guardar con el botón.
         toast.error(t("form.fill.autoSaveError"), { id: toastId });
       })
       .finally(() => {
+        ids.forEach((id) => inFlightIdsRef.current.delete(id));
         setSavingFieldIds((prev) => {
           const next = new Set(prev);
           ids.forEach((id) => next.delete(id));
           return next;
         });
       });
-  }, [debouncedAnswers, editing, isSaving, onUpdate, organizationId, sectionExecutionId, sortedFields, t, uploadingFields]);
+  }, [onUpdate, organizationId, sectionExecutionId, sortedFields, t]);
 
-  const setAnswer = (fieldId: string, value: unknown) => {
+  const clearAutosaveTimers = useCallback(() => {
+    if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
+    if (idleAutosaveTimeoutRef.current) clearTimeout(idleAutosaveTimeoutRef.current);
+    commitTimeoutRef.current = null;
+    idleAutosaveTimeoutRef.current = null;
+  }, []);
+
+  // Red de seguridad: si el usuario sigue escribiendo un campo de texto libre sin salir de
+  // él por más de IDLE_AUTOSAVE_MS, igual se guarda — evita perder trabajo largo antes de un
+  // blur o un cierre de página.
+  useEffect(() => {
+    if (!editing) return;
+    const hasFreeTextDirty = sortedFields.some(
+      (f) =>
+        isFieldAnswerable(f) &&
+        isFreeTextField(f) &&
+        !valuesEqual(answers[f.id], lastSavedAnswersRef.current[f.id]),
+    );
+    if (!hasFreeTextDirty) return;
+
+    if (idleAutosaveTimeoutRef.current) clearTimeout(idleAutosaveTimeoutRef.current);
+    idleAutosaveTimeoutRef.current = setTimeout(() => {
+      flushDirtyFields();
+    }, IDLE_AUTOSAVE_MS);
+    return () => {
+      if (idleAutosaveTimeoutRef.current) clearTimeout(idleAutosaveTimeoutRef.current);
+    };
+  }, [answers, editing, flushDirtyFields, sortedFields]);
+
+  // Flush best-effort al abandonar la pestaña/ventana con un campo aún enfocado (blur nunca
+  // llega si el usuario cierra o cambia de app).
+  useEffect(() => {
+    if (!editing) return;
+    const handlePageHide = () => flushDirtyFields();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushDirtyFields();
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [editing, flushDirtyFields]);
+
+  // flushDirtyFields se recrea si cambian sus deps (sortedFields, onUpdate, etc.) — el ref
+  // asegura que el flush de desmontaje de abajo siempre llame a la versión más reciente y no
+  // quede colgado de la del primer render.
+  const flushDirtyFieldsRef = useRef(flushDirtyFields);
+  flushDirtyFieldsRef.current = flushDirtyFields;
+
+  // Cancela timers pendientes y hace un último flush al desmontar (p.ej. el panel de
+  // workflow desmonta la sección con key={currentSection.id} al cambiar de paso).
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimers();
+      flushDirtyFieldsRef.current();
+    };
+  }, [clearAutosaveTimers]);
+
+  const handleFieldBlur = (field: FormFieldValue) => (e: React.FocusEvent<HTMLDivElement>) => {
+    // React onBlur == focusout: burbujea. Si el foco sigue dentro del mismo contenedor
+    // (input → botón interno del widget) no es una salida real del campo.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    if (!isFreeTextField(field)) return;
+    flushDirtyFields();
+  };
+
+  const setAnswer = (fieldId: string, value: unknown, opts?: { commit?: boolean }) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
     setFieldErrors((prev) => {
       if (!prev[fieldId]) return prev;
@@ -257,6 +356,16 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       delete next[fieldId];
       return next;
     });
+
+    // Widgets atómicos: un cambio ya es un valor completo (no hay "a medio escribir"), así
+    // que se guarda por cambio en vez de esperar un blur — coalescido para no disparar un
+    // PATCH por cada click de una selección múltiple rápida.
+    if (opts?.commit) {
+      if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
+      commitTimeoutRef.current = setTimeout(() => {
+        flushDirtyFields();
+      }, COMMIT_DELAY_MS);
+    }
   };
 
   // URL a mostrar para un campo de archivo: la subida nueva (filePreviews) o la URL original del backend.
@@ -274,14 +383,17 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const isBrokenFileField = (field: FormFieldValue): boolean =>
     !filePreviews[field.id] && isMediaToken(answers[field.id]);
 
-  // Sale del modo edición. Los valores ya quedan persistidos por el auto-guardado
-  // mientras se escribe; acá se hace un flush best-effort de lo que pudiera seguir
-  // pendiente dentro de la ventana del debounce (por ej. si el usuario sale justo
-  // después de tipear). Antes de salir, bloquea si queda algún obligatorio sin
+  // Sale del modo edición. La mayoría de los valores ya quedan persistidos por el
+  // auto-guardado (al blur de un campo de texto, al cambiar un widget atómico, o por la red
+  // de seguridad de inactividad); acá se cancelan esos timers y se hace un flush autoritativo
+  // de lo que pudiera seguir pendiente (por ej. si el usuario sale justo después de tipear,
+  // sin llegar a disparar un blur). Antes de salir, bloquea si queda algún obligatorio sin
   // responder o algún valor con error de formato/rango — al ser obligatorio debe
   // contestarse sí o sí; no toca review_status, eso lo controla el selector de la
   // barra de acciones.
   const handleDoneEditing = async () => {
+    clearAutosaveTimers();
+
     if (uploadingFields.size > 0) {
       toast.error(t("form.fill.fileUploading_block"));
       return;
@@ -403,7 +515,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
               level: "document",
               parent_id: documentId,
             });
-            setAnswer(field.id, `{{MEDIA:${media.id}}}`);
+            setAnswer(field.id, `{{MEDIA:${media.id}}}`, { commit: true });
             setFilePreviews((prev) => ({ ...prev, [field.id]: media.current_version?.download_url ?? "" }));
           } catch {
             setFieldErrors((prev) => ({ ...prev, [field.id]: t("form.fill.fileUploadError") }));
@@ -467,7 +579,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
             dataType={field.data_type}
             placeholder={PLACEHOLDER_BY_QUESTION_TYPE[field.question_type ?? ""]}
             value={value as HuemulQuestionInputValue}
-            onChange={(v) => setAnswer(field.id, v)}
+            onChange={(v) => setAnswer(field.id, v, { commit: !isFreeTextField(field) })}
             options={readFieldOptions(field)}
             min={typeof field.min_value === "number" ? field.min_value : undefined}
             max={typeof field.max_value === "number" ? field.max_value : undefined}
@@ -651,6 +763,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           // Campo cuya respuesta puede mostrar/ocultar otras preguntas (referenciado en algún depends_on).
           const isTriggerField =
             editing && !!field.field_id && triggerFieldIds.has(field.field_id) && isFieldAnswerable(field);
+          const isEditableField = editing && isFieldAnswerable(field);
           return (
             <div
               key={field.id || index}
@@ -660,6 +773,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                   ? "pointer-events-none animate-out fade-out slide-out-to-top-2 duration-200"
                   : "animate-in fade-in slide-in-from-top-2 duration-300",
               )}
+              onBlur={isEditableField ? handleFieldBlur(field) : undefined}
             >
               <label className="flex items-baseline gap-1.5 text-sm font-semibold text-gray-900">
                 <span>
@@ -680,7 +794,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                   </span>
                 )}
               </label>
-              {editing && isFieldAnswerable(field)
+              {isEditableField
                 ? renderInput(field)
                 : editing && isFieldVisible(field) && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
                   ? renderInput(field, { disabled: true })
