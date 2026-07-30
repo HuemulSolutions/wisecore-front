@@ -1,12 +1,13 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3 } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
+import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
@@ -54,6 +55,8 @@ export function WorkflowDetailPanel({
   const [nameValue, setNameValue] = React.useState("")
   const [descriptionValue, setDescriptionValue] = React.useState("")
   const [isFormSaving, setIsFormSaving] = React.useState(false)
+  const [isEditSheetOpen, setIsEditSheetOpen] = React.useState(false)
+  const [editedAsset, setEditedAsset] = React.useState<{ name: string; internalCode?: string } | null>(null)
   const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
 
   const documentId = row?.document_id ?? createdDoc?.id ?? null
@@ -69,6 +72,7 @@ export function WorkflowDetailPanel({
     setStep(0)
     setNameValue("")
     setDescriptionValue("")
+    setEditedAsset(null)
   }, [row?.execution_id, template?.id])
 
   const handleCreateWithName = () => {
@@ -149,8 +153,8 @@ export function WorkflowDetailPanel({
     }
   }, [isLastStep, handleFinish])
 
-  const documentName = row?.document_name ?? createdDoc?.name ?? template?.name
-  const internalCode = row?.internal_code
+  const documentName = editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name
+  const internalCode = editedAsset?.internalCode ?? row?.internal_code
 
   return (
     <div className="flex h-full flex-col">
@@ -165,14 +169,26 @@ export function WorkflowDetailPanel({
             </div>
           )}
         </div>
-        <HuemulButton
-          variant="ghost"
-          size="sm"
-          icon={X}
-          tooltip={t("panel.close")}
-          onClick={onClose}
-          className="h-8 w-8 p-0 shrink-0"
-        />
+        <div className="flex items-center gap-1 shrink-0">
+          {documentId && !needsNameStep && (
+            <HuemulButton
+              variant="ghost"
+              size="sm"
+              icon={Edit3}
+              tooltip={t("panel.edit")}
+              onClick={() => setIsEditSheetOpen(true)}
+              className="h-8 w-8 p-0"
+            />
+          )}
+          <HuemulButton
+            variant="ghost"
+            size="sm"
+            icon={X}
+            tooltip={t("panel.close")}
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+          />
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-4">
@@ -259,6 +275,17 @@ export function WorkflowDetailPanel({
             onClick={() => formSectionRef.current?.exit()}
           />
         </div>
+      )}
+
+      {documentId && (
+        <WorkflowAssetEditSheet
+          open={isEditSheetOpen}
+          onOpenChange={setIsEditSheetOpen}
+          documentId={documentId}
+          currentName={documentName ?? ""}
+          currentInternalCode={internalCode}
+          onUpdated={(newName, newInternalCode) => setEditedAsset({ name: newName, internalCode: newInternalCode })}
+        />
       )}
     </div>
   )

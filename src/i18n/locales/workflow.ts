@@ -22,6 +22,7 @@ const translations = {
     sectionNotFound: { en: "Section not found in the document content", es: "No se encontró la sección en el contenido del documento" },
     loadError: { en: "Failed to load the form fields", es: "Error al cargar los campos del formulario" },
     close: { en: "Close", es: "Cerrar" },
+    edit: { en: "Edit asset", es: "Editar activo" },
   },
   availableTemplates: {
     title: { en: "Available workflows", es: "Workflows disponibles" },
