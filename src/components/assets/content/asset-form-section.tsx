@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input";
 import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
 import { handleApiError } from "@/lib/error-utils";
@@ -120,8 +121,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
-  // URL de descarga de archivos recién subidos (para previsualizar; el placeholder no es una URL)
-  const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
+  // Metadatos de archivos recién subidos en esta sesión (para previsualizar; el
+  // placeholder {{MEDIA:id}} guardado como respuesta no es una URL). name/contentType
+  // vienen del archivo real elegido por el usuario, no de field.data_type — ese último
+  // siempre es "image" para carga_de_archivos en el catálogo de question_types.
+  const [filePreviews, setFilePreviews] = useState<Record<string, { url: string; name: string; contentType: string }>>({});
   // ids de campos con un auto-guardado en curso — pinta el loader junto al campo respectivo
   // (en vez de un spinner global en una barra) mientras se espera la respuesta del PATCH.
   const [savingFieldIds, setSavingFieldIds] = useState<Set<string>>(new Set());
@@ -375,12 +379,14 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     }
   };
 
-  // URL a mostrar para un campo de archivo: la subida nueva (filePreviews) o la URL original del backend.
-  const fileDisplayUrl = (field: FormFieldValue): string | null => {
+  // Metadatos a mostrar para un campo de archivo: la subida nueva (filePreviews, con
+  // nombre/mime reales) o solo la URL original del backend (recarga de página — el
+  // backend únicamente resuelve el token a una URL firmada, sin metadatos del archivo).
+  const fileDisplayMeta = (field: FormFieldValue): { url: string; name?: string; contentType?: string } | null => {
     const preview = filePreviews[field.id];
     if (preview) return preview;
     const v = answers[field.id];
-    if (typeof v === "string" && v.startsWith("http")) return v;
+    if (typeof v === "string" && v.startsWith("http")) return { url: v };
     return null;
   };
 
@@ -537,7 +543,14 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
               parent_id: documentId,
             });
             setAnswer(field.id, `{{MEDIA:${media.id}}}`, { commit: true });
-            setFilePreviews((prev) => ({ ...prev, [field.id]: media.current_version?.download_url ?? "" }));
+            setFilePreviews((prev) => ({
+              ...prev,
+              [field.id]: {
+                url: media.current_version?.download_url ?? "",
+                name: file.name,
+                contentType: media.current_version?.content_type ?? file.type,
+              },
+            }));
           } catch {
             setFieldErrors((prev) => ({ ...prev, [field.id]: t("form.fill.fileUploadError") }));
           } finally {
@@ -545,7 +558,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           }
         };
 
-        const currentUrl = fileDisplayUrl(field);
+        const currentMeta = fileDisplayMeta(field);
         const isBroken = isBrokenFileField(field);
 
         return (
@@ -555,21 +568,14 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                 <FileX className="h-3.5 w-3.5" />
                 {t("form.fill.fileUnavailable")}
               </p>
-            ) : currentUrl && (
-              field.data_type === "image" ? (
-                <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
-                  <img src={currentUrl} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
-                </a>
-              ) : (
-                <a
-                  href={currentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800"
-                >
-                  {t("form.fill.fileDownload")}
-                </a>
-              )
+            ) : currentMeta && (
+              <HuemulFilePreview
+                url={currentMeta.url}
+                fileName={currentMeta.name}
+                contentType={currentMeta.contentType}
+                alt={field.field_name}
+                downloadLabel={t("form.fill.fileDownload")}
+              />
             )}
             <HuemulField
               type="file"
@@ -667,34 +673,27 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           </span>
         );
       }
-      const url = fileDisplayUrl(field);
-      if (!url) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
-      if (field.data_type === "image") {
-        return (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
-            <img src={url} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
-          </a>
-        );
-      }
+      const meta = fileDisplayMeta(field);
+      if (!meta) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
       return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800"
-        >
-          {t("form.fill.fileDownload")}
-        </a>
+        <HuemulFilePreview
+          url={meta.url}
+          fileName={meta.name}
+          contentType={meta.contentType}
+          alt={field.field_name}
+          downloadLabel={t("form.fill.fileDownload")}
+        />
       );
     }
 
     if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) {
       if (field.data_type === "image") {
-        const url = String(value);
         return (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
-            <img src={url} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
-          </a>
+          <HuemulFilePreview
+            url={String(value)}
+            alt={field.field_name}
+            downloadLabel={t("form.fill.fileDownload")}
+          />
         );
       }
       if (field.data_type === "url") {
