@@ -36,7 +36,7 @@ import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useAuth } from "@/contexts/auth-context"
 
 import { ChatbotProvider } from "@/contexts/chatbot-provider"
-import { NavKnowledgeProvider } from "@/components/layout/nav-knowledge"
+import { NavKnowledgeProvider } from "@/contexts/nav-knowledge-provider"
 import { GlobalPanelProvider, useGlobalPanel } from "@/contexts/global-panel-context"
 import { WisyToggle } from "@/components/layout/global-panel-toggle"
 import { LlmConfigBanner } from "@/components/layout/llm-config-banner"

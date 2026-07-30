@@ -75,7 +75,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import SectionExecution from "./assets-section";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
-import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
+import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
