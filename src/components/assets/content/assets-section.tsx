@@ -817,6 +817,8 @@ function SectionExecutionInner({
                         canInteract={readyToEdit && canEditSections}
                         isEditing={isEditing}
                         onExitEditing={handleCancelEdit}
+                        reviewStatus={reviewStatus}
+                        onReviewStatusChange={setReviewStatus}
                         onUpdate={onUpdate}
                         onSavingChange={setIsFormSaving}
                     />

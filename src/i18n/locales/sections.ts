@@ -161,6 +161,7 @@ const translations = {
       saving: { en: "Saving...", es: "Guardando..." },
       saved: { en: "Responses saved", es: "Respuestas guardadas" },
       saveError: { en: "Could not save responses", es: "No se pudieron guardar las respuestas" },
+      reviewStatusUpdateFailed: { en: "Could not update the review status", es: "No se pudo actualizar el estado de revisión" },
       autoSaved: { en: "Changes saved", es: "Cambios guardados" },
       autoSaveError: { en: "Could not save changes", es: "No se pudieron guardar los cambios" },
       autoSaveHint: { en: "Changes are saved automatically when you leave a field", es: "Los cambios se guardan automáticamente al salir de cada campo" },

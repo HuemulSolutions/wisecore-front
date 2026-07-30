@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
+import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
@@ -14,6 +15,7 @@ import type { AssetContentResponse, ContentSection } from "@/types/assets"
 import type { WorkflowItem } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
 import type { FormValuesSectionPayload } from "@/types/sections/core"
+import type { ReviewStatus } from "@/types/section-execution"
 
 interface WorkflowDetailPanelProps {
   /** Fila existente seleccionada en la tabla. */
@@ -113,6 +115,26 @@ export function WorkflowDetailPanel({
     [queryClient, documentId],
   )
 
+  // review_status es puramente visual: al terminar de responder el paso (handleDoneEditing
+  // dentro de AssetFormSection) queda en 'finished'. Se parchea igual que form_fields —sin
+  // refetch— para que el badge del header refleje el cambio al volver con "Atrás".
+  const handleReviewStatusChange = React.useCallback(
+    (sectionExecutionId: string, status: ReviewStatus) => {
+      if (!documentId) return
+      queryClient.setQueriesData(
+        { queryKey: ["document-content", documentId] },
+        (old: { content?: ContentSection[] } | undefined) => {
+          if (!old?.content || !Array.isArray(old.content)) return old
+          return {
+            ...old,
+            content: old.content.map((s) => (s.id === sectionExecutionId ? { ...s, review_status: status } : s)),
+          }
+        },
+      )
+    },
+    [queryClient, documentId],
+  )
+
   const handleFinish = React.useCallback(() => {
     queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
     onClose()
@@ -137,7 +159,10 @@ export function WorkflowDetailPanel({
           <p className="truncate text-sm font-semibold">{documentName}</p>
           {internalCode && <p className="truncate text-xs font-mono text-muted-foreground">{internalCode}</p>}
           {currentSection?.section_name && (
-            <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-xs text-muted-foreground">{currentSection.section_name}</p>
+              <HuemulReviewStatusBadge status={currentSection.review_status as ReviewStatus | null} sectionType="form" />
+            </div>
           )}
         </div>
         <HuemulButton
@@ -207,6 +232,8 @@ export function WorkflowDetailPanel({
             canInteract
             isEditing
             onExitEditing={goNext}
+            reviewStatus={currentSection.review_status as ReviewStatus | null}
+            onReviewStatusChange={(status) => handleReviewStatusChange(currentSection.id, status)}
             onUpdate={handleSectionUpdate}
             onSavingChange={setIsFormSaving}
           />
