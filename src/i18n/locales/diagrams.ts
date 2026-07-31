@@ -43,6 +43,7 @@ const translations = {
       en: "This document isn't part of any diagram yet.",
       es: "Este documento aún no forma parte de ningún diagrama.",
     },
+    createAction: { en: "New diagram", es: "Nuevo diagrama" },
   },
   emptyState: {
     accessDeniedDescription: {

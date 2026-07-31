@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AssetContent } from "@/components/assets";
@@ -16,7 +16,7 @@ import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
 import { RelationshipsCanvas } from "@/components/document-type-relationships";
-import { DiagramCanvas } from "@/components/diagrams";
+import { DiagramCanvas, NewDiagramCanvas } from "@/components/diagrams";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 
 /**
@@ -35,14 +35,25 @@ function AssetsContent() {
 
   // Deep-link into an existing diagram: /asset?diagram=<id> forces relations mode
   // on so the diagram opens in-place (with the asset tree available to edit it).
+  // /asset?diagram=new does the same but opens a blank canvas to create one
+  // (optionally seeded via ?seedAsset=&seedExecution=, see AssetDiagramsSheet).
   // Turning relations mode back off (checkbox in the tree kebab) drops the param.
   const [searchParams, setSearchParams] = useSearchParams();
-  const diagramId = searchParams.get('diagram');
+  const diagramParam = searchParams.get('diagram');
+  const isNewDiagram = diagramParam === 'new';
+  const diagramId = isNewDiagram ? null : diagramParam;
+  // seedAsset/seedExecution only matter on the very first render of the "new
+  // diagram" deep link — useAssetNavigation's URL rewrites drop unknown query
+  // params, so this is captured once instead of re-read from searchParams.
+  const [diagramSeed] = useState(() => ({
+    assetId: searchParams.get('seedAsset') ?? undefined,
+    executionId: searchParams.get('seedExecution') ?? undefined,
+  }));
   const wasRelationsModeRef = useRef(isRelationsMode);
   useEffect(() => {
     const wasOn = wasRelationsModeRef.current;
     wasRelationsModeRef.current = isRelationsMode;
-    if (!diagramId) return;
+    if (!diagramParam) return;
     if (!isRelationsMode) {
       if (wasOn) {
         setSearchParams((prev) => {
@@ -54,7 +65,7 @@ function AssetsContent() {
         setIsRelationsMode(true);
       }
     }
-  }, [diagramId, isRelationsMode, setIsRelationsMode, setSearchParams]);
+  }, [diagramParam, isRelationsMode, setIsRelationsMode, setSearchParams]);
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -131,6 +142,12 @@ function AssetsContent() {
                     key={diagramId}
                     organizationId={selectedOrganizationId}
                     diagramId={diagramId}
+                  />
+                ) : isRelationsMode && isNewDiagram ? (
+                  <NewDiagramCanvas
+                    organizationId={selectedOrganizationId}
+                    seedAssetId={diagramSeed.assetId}
+                    seedExecutionId={diagramSeed.executionId}
                   />
                 ) : isRelationsMode ? (
                   <RelationshipsCanvas

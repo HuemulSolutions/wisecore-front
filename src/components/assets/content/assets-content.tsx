@@ -3900,6 +3900,7 @@ export function AssetContent({
         onOpenChange={setIsDiagramsSheetOpen}
         documentId={selectedFile?.id ?? ''}
         organizationId={selectedOrganizationId ?? ''}
+        executionId={selectedExecutionId || documentContent?.execution_id || ''}
       />
     </>
   );
