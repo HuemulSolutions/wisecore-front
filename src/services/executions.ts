@@ -1,17 +1,13 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
+import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
 import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
 export type { RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion };
-
-/** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
-function toDateParam(value: string): string {
-  return value.slice(0, 10);
-}
 
 export async function getAllExecutions(
   organizationId: string,

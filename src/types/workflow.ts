@@ -32,6 +32,26 @@ export interface GetWorkflowsParams {
   page_size?: number
   search?: string
   document_type_id?: string | null
+  created_by?: string | null
+  owner_scope?: "me" | null
+  lifecycle_state?: ExecutionLifecycleState | null
+  has_pending_ai_suggestion?: boolean | null
+  has_unresolved_comments?: boolean | null
+  expiring_soon?: boolean | null
+  template_id?: string | null
+  custom_field_filter?: string[]
+  expiration_date?: string | null
+  expiration_date_from?: string | null
+  expiration_date_to?: string | null
+  estimated_publication_date?: string | null
+  estimated_publication_date_from?: string | null
+  estimated_publication_date_to?: string | null
+  review_date?: string | null
+  review_date_from?: string | null
+  review_date_to?: string | null
+  audit_date?: string | null
+  audit_date_from?: string | null
+  audit_date_to?: string | null
 }
 
 export interface UseWorkflowsOptions extends Omit<GetWorkflowsParams, "page_size"> {
