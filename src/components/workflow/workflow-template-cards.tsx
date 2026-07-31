@@ -105,8 +105,12 @@ export function WorkflowTemplateCards({
                   onStart(item)
                 }
               }}
-              className="group gap-0 overflow-hidden py-0 hover:cursor-pointer hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
+              className="group relative gap-0 overflow-hidden py-0 hover:cursor-pointer hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
             >
+              <div
+                className="absolute inset-y-0 left-0 w-1"
+                style={{ backgroundColor: item.document_type_color || "transparent" }}
+              />
               <div className="flex flex-col gap-1 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.name}>
