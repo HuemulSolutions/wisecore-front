@@ -29,6 +29,7 @@ const translations = {
   },
   columns: {
     internalCode: { en: "Code", es: "Código" },
+    documentName: { en: "Asset", es: "Activo" },
     template: { en: "Workflow", es: "Workflow" },
     lifecycleState: { en: "State", es: "Estado" },
     progress: { en: "Progress", es: "Progreso" },

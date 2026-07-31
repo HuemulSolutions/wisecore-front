@@ -147,7 +147,7 @@ export function WorkflowDetailPanel({
     [queryClient, documentId],
   )
 
-  const handleFinish = React.useCallback(() => {
+  const handleClose = React.useCallback(() => {
     queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
     onClose()
   }, [queryClient, onClose])
@@ -155,11 +155,11 @@ export function WorkflowDetailPanel({
   // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
   const goNext = React.useCallback(() => {
     if (isLastStep) {
-      handleFinish()
+      handleClose()
     } else {
       setStep((s) => s + 1)
     }
-  }, [isLastStep, handleFinish])
+  }, [isLastStep, handleClose])
 
   const documentName = editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name
   const internalCode = editedAsset?.internalCode ?? row?.internal_code
@@ -204,7 +204,7 @@ export function WorkflowDetailPanel({
             size="sm"
             icon={X}
             tooltip={t("panel.close")}
-            onClick={onClose}
+            onClick={handleClose}
             className="h-8 w-8 p-0"
           />
         </div>
