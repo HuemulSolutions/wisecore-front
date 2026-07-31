@@ -34,7 +34,7 @@ export function WorkflowTemplateCards({
     return (
       <div className={GRID_CLASSNAME}>
         {Array.from({ length: pageSize }).map((_, i) => (
-          <Skeleton key={i} className="h-14 rounded-xl" />
+          <Skeleton key={i} className="h-20 rounded-xl" />
         ))}
       </div>
     )
@@ -107,14 +107,21 @@ export function WorkflowTemplateCards({
               }}
               className="group gap-0 overflow-hidden py-0 hover:cursor-pointer hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 transition-colors"
             >
-              <div className="flex items-center gap-3 px-4 py-3">
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.name}>
-                  {item.name}
-                </p>
-                <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary">
-                  {t("availableTemplates.start")}
-                  <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-                </span>
+              <div className="flex flex-col gap-1 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={item.name}>
+                    {item.name}
+                  </p>
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary">
+                    {t("availableTemplates.start")}
+                    <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </div>
+                {item.description && (
+                  <p className="line-clamp-3 text-xs text-muted-foreground" title={item.description}>
+                    {item.description}
+                  </p>
+                )}
               </div>
             </Card>
           ))}
