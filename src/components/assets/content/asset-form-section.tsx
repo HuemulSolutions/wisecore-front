@@ -27,9 +27,9 @@ import {
   questionTypeLabel,
   readFieldConfig,
   readFieldOptions,
-  resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
+import { FormFieldAnswerValue } from "@/components/sections/form-field-answer-value";
 import { validateFormFieldValue } from "@/components/sections/validate-form-field-value";
 
 interface AssetFormSectionProps {
@@ -132,6 +132,9 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   // ids con "Guardado" transitorio recién confirmado — se limpian solos a los 1.5s.
   const [savedFieldIds, setSavedFieldIds] = useState<Set<string>>(new Set());
   const savedTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Nodos de cada campo, poblados por el ref callback del loop de render — usado solo para
+  // hacer scroll al primer campo con error al intentar avanzar (handleDoneEditing).
+  const fieldNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     const timeouts = savedTimeoutsRef.current;
@@ -442,6 +445,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         ...Object.fromEntries(missing.map((f) => [f.id, t("form.fill.fieldRequired")])),
       }));
       toast.error(t("form.fill.requiredFieldsPending"));
+      // Salta al primer campo con error (respeta el orden de sortedFields, no el de detección).
+      const firstErrorId = sortedFields.find((f) => invalidErrors[f.id] || missing.some((m) => m.id === f.id))?.id;
+      if (firstErrorId) {
+        fieldNodesRef.current.get(firstErrorId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       return;
     }
 
@@ -597,7 +605,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
       case CUSTOM_FIELD_QUESTION_TYPE:
         // Solo lectura: el valor se gestiona en los custom fields del documento
-        return renderReadOnly(field);
+        return <FormFieldAnswerValue field={field} value={value} filePreview={filePreviews[field.id]} />;
 
       default:
         return (
@@ -617,137 +625,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           />
         );
     }
-  };
-
-  // ── Render del valor en solo lectura ───────────────────────────────────────
-  const renderReadOnly = (field: FormFieldValue) => {
-    const value = answers[field.id];
-
-    if (!hasAnswer(value)) {
-      return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
-    }
-
-    if (field.question_type === QUESTION_TYPE.yesNo) {
-      return (
-        <span className="text-sm text-gray-800">
-          {value ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
-        </span>
-      );
-    }
-
-    if (field.question_type === QUESTION_TYPE.rating) {
-      return (
-        <HuemulField
-          type="rating"
-          label=""
-          max={typeof field.max_value === "number" ? field.max_value : 5}
-          value={value as number}
-          disabled
-        />
-      );
-    }
-
-    if (field.question_type === QUESTION_TYPE.paragraph) {
-      return <p className="whitespace-pre-wrap text-sm text-gray-800">{String(value)}</p>;
-    }
-
-    if (
-      field.question_type === QUESTION_TYPE.multipleChoice ||
-      field.question_type === QUESTION_TYPE.dropdown
-    ) {
-      const options = readFieldOptions(field);
-      return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
-    }
-
-    if (field.question_type === QUESTION_TYPE.dropdownMultiple) {
-      const options = readFieldOptions(field);
-      return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
-    }
-
-    if (field.question_type === QUESTION_TYPE.fileUpload) {
-      if (isBrokenFileField(field)) {
-        return (
-          <span className="flex items-center gap-1.5 text-sm italic text-gray-400">
-            <FileX className="h-3.5 w-3.5" />
-            {t("form.fill.fileUnavailable")}
-          </span>
-        );
-      }
-      const meta = fileDisplayMeta(field);
-      if (!meta) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
-      return (
-        <HuemulFilePreview
-          url={meta.url}
-          fileName={meta.name}
-          contentType={meta.contentType}
-          alt={field.field_name}
-          downloadLabel={t("form.fill.fileDownload")}
-        />
-      );
-    }
-
-    if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) {
-      if (field.data_type === "image") {
-        return (
-          <HuemulFilePreview
-            url={String(value)}
-            alt={field.field_name}
-            downloadLabel={t("form.fill.fileDownload")}
-          />
-        );
-      }
-      if (field.data_type === "url") {
-        const url = String(value);
-        return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800 break-all"
-          >
-            {url}
-          </a>
-        );
-      }
-      if (field.data_type === "bool") {
-        const isYes = value === true || value === "true" || value === 1;
-        return (
-          <span className="text-sm text-gray-800">
-            {isYes ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
-          </span>
-        );
-      }
-      if (field.data_type === "list") {
-        const options = readFieldOptions(field);
-        return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
-      }
-      // date / time / numéricos / string → caen al manejo genérico de abajo
-    }
-
-    if (
-      field.question_type === QUESTION_TYPE.date ||
-      (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value))
-    ) {
-      const dateOnly = (value as string).split("T")[0];
-      const [year, month, day] = dateOnly.split("-").map(Number);
-      const date = new Date(year, month - 1, day);
-      const formatted = date.toLocaleDateString(navigator.language || "es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-      return <span className="text-sm text-gray-800">{formatted}</span>;
-    }
-
-    if (
-      (field.question_type === QUESTION_TYPE.time || field.data_type === "time") &&
-      typeof value === "string"
-    ) {
-      // Mostrar HH:MM (sin segundos)
-      return <span className="text-sm text-gray-800">{value.slice(0, 5)}</span>;
-    }
-
-    return <span className="text-sm text-gray-800">{String(value)}</span>;
   };
 
   return (
@@ -787,6 +664,10 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           return (
             <div
               key={field.id || index}
+              ref={(node) => {
+                if (node) fieldNodesRef.current.set(field.id, node);
+                else fieldNodesRef.current.delete(field.id);
+              }}
               className={cn(
                 "space-y-2",
                 isExiting
@@ -818,7 +699,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                 ? renderInput(field)
                 : editing && isFieldVisible(field) && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
                   ? renderInput(field, { disabled: true })
-                  : renderReadOnly(field)}
+                  : <FormFieldAnswerValue field={field} value={answers[field.id]} filePreview={filePreviews[field.id]} />}
               {isTriggerField && (
                 <p className="flex items-center gap-1 text-xs text-gray-400">
                   <Info className="h-3 w-3 shrink-0" />

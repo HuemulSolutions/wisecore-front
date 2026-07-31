@@ -520,6 +520,7 @@ export default function SortableSectionSheet({
         isTemplateSection={isTemplateSection}
         documentId={documentId}
         templateId={templateId}
+        executionId={currentExecutionId || undefined}
       />
     </div>
   );

@@ -45,4 +45,5 @@ export interface EditSectionFormProps {
   isTemplateSection?: boolean;
   documentId?: string;
   templateId?: string;
+  executionId?: string;
 }

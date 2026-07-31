@@ -32,8 +32,9 @@ export function SectionForm({
   mode,
   editorType = 'rich',
   formId = 'section-form',
-  documentId, 
-  templateId, 
+  documentId,
+  templateId,
+  executionId,
   item,
   onSubmit, 
   isPending = false, 
@@ -286,6 +287,7 @@ export function SectionForm({
         prompt: instruction,
         sectionId: item?.id,
         templateId,
+        executionId,
         organizationId: selectedOrganizationId!,
       });
       setPromptBeforeAiEdit(previousPrompt);
