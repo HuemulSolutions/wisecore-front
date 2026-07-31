@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
-import { Workflow as WorkflowIcon, Loader2, ShieldAlert } from "lucide-react"
+import { RefreshCw, Loader2, ShieldAlert } from "lucide-react"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
@@ -11,7 +11,7 @@ import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKe
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
-import { PageHeader } from "@/huemul/components/huemul-page-header"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
 import { HuemulFilterChips } from "@/huemul/components/huemul-filter-chips"
 import { HuemulFilterPanel } from "@/huemul/components/huemul-filter-panel"
@@ -32,6 +32,7 @@ export default function WorkflowPage() {
   const { t } = useTranslation("workflow")
   const { t: tAssets } = useTranslation("assets")
   const { t: tFilters } = useTranslation("huemul-filters")
+  const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessAssets, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
@@ -95,7 +96,7 @@ export default function WorkflowPage() {
         toolbar: true,
         label: t("filters.search"),
         placeholder: t("filters.searchPlaceholder"),
-        inputClassName: "w-56",
+        inputClassName: "w-full min-w-0",
       },
       {
         key: "lifecycleState",
@@ -282,20 +283,6 @@ export default function WorkflowPage() {
   return (
     <>
       <HuemulPageLayout
-        header={
-          <PageHeader
-            icon={WorkflowIcon}
-            title={t("header.title")}
-            showRefresh
-            onRefresh={() => {
-              queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
-              queryClient.invalidateQueries({ queryKey: workflowTemplateQueryKeys.listBase() })
-            }}
-            isLoading={isFetching}
-            hasError={!!error}
-          />
-        }
-        headerClassName="p-2 sm:p-4 md:p-4 lg:p-6 pb-0 sm:pb-0 md:pb-0 lg:pb-0"
         columns={[
           {
             content: (
@@ -314,47 +301,70 @@ export default function WorkflowPage() {
             collapsible: true,
           },
           {
-            content: (
-              <div className="flex flex-col h-full overflow-hidden p-2 sm:p-4 md:p-4 lg:p-6 pt-0 sm:pt-0 md:pt-0 lg:pt-0 gap-4">
-                <div className="shrink-0 flex items-center gap-2">
+            // Header propio de la columna: el mockup requiere que los paneles
+            // laterales lleguen al tope, por eso no se usa el header full-width
+            // del layout (ver HuemulPageLayout `header` prop).
+            header: {
+              content: (
+                <div className="flex items-center gap-2 border-b bg-background px-2 py-1.5 sm:px-4 md:px-4 lg:px-6">
+                  <h1 className="min-w-0 truncate text-sm font-semibold text-foreground">
+                    {t("header.title")}
+                  </h1>
                   <HuemulFilterButton
                     count={activeCount}
                     open={filtersOpen}
                     onToggle={() => setFiltersOpen(!filtersOpen)}
+                    className="h-8 shrink-0 px-2 text-xs"
                   />
                   <HuemulFilterInline
                     filters={filterDefs}
                     values={values}
                     onChange={handleFilterChange}
                     onSelectedLabel={setSelectedLabel}
+                    className="min-w-0 flex-1"
+                  />
+                  <HuemulButton
+                    variant="outline"
+                    size="sm"
+                    icon={RefreshCw}
+                    iconClassName="w-3 h-3 mr-1 text-muted-foreground"
+                    label={tCommon("refresh")}
+                    loading={isFetching}
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: workflowQueryKeys.listBase() })
+                      queryClient.invalidateQueries({ queryKey: workflowTemplateQueryKeys.listBase() })
+                    }}
+                    className="ml-auto h-8 shrink-0 px-2 text-xs"
                   />
                 </div>
+              ),
+            },
+            content: (
+              <div className="flex flex-col h-full overflow-hidden p-2 sm:p-4 md:p-4 lg:p-6 gap-4">
                 <HuemulFilterChips
                   chips={chips}
                   onRemove={handleChipRemove}
                   onClearAll={handleClearAll}
                 />
-                <div className="shrink-0 min-w-0">
-                  <WorkflowTemplateCards
-                    items={templateItems}
-                    isLoading={isLoadingTemplates}
-                    onStart={(item) => {
-                      setSelectedRow(null)
-                      setExpressDoc(null)
-                      setExpressTemplate(item)
-                      if (!item.require_name_on_express) {
-                        createExpress
-                          .mutateAsync({
-                            documentTypeId: item.document_type_id,
-                            templateId: item.id,
-                            body: { name: "" },
-                          })
-                          .then(setExpressDoc)
-                          .catch(() => {})
-                      }
-                    }}
-                  />
-                </div>
+                <WorkflowTemplateCards
+                  items={templateItems}
+                  isLoading={isLoadingTemplates}
+                  onStart={(item) => {
+                    setSelectedRow(null)
+                    setExpressDoc(null)
+                    setExpressTemplate(item)
+                    if (!item.require_name_on_express) {
+                      createExpress
+                        .mutateAsync({
+                          documentTypeId: item.document_type_id,
+                          templateId: item.id,
+                          body: { name: "" },
+                        })
+                        .then(setExpressDoc)
+                        .catch(() => {})
+                    }
+                  }}
+                />
                 <div className="flex-1 min-h-0">
                   <WorkflowTable
                     data={items}

@@ -50,6 +50,8 @@ const translations = {
   availableTemplates: {
     title: { en: "Available workflows", es: "Workflows disponibles" },
     start: { en: "Start", es: "Iniciar" },
+    hide: { en: "Hide", es: "Ocultar" },
+    show: { en: "Show", es: "Mostrar" },
   },
   expressSheet: {
     title: { en: "Start workflow", es: "Iniciar workflow" },
