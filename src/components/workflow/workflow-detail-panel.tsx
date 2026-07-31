@@ -1,13 +1,14 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3 } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3, History } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
+import { WorkflowPreviousAnswersSheet } from "@/components/workflow/workflow-previous-answers-sheet"
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
@@ -56,6 +57,7 @@ export function WorkflowDetailPanel({
   const [descriptionValue, setDescriptionValue] = React.useState("")
   const [isFormSaving, setIsFormSaving] = React.useState(false)
   const [isEditSheetOpen, setIsEditSheetOpen] = React.useState(false)
+  const [isAnswersSheetOpen, setIsAnswersSheetOpen] = React.useState(false)
   const [editedAsset, setEditedAsset] = React.useState<{ name: string; internalCode?: string } | null>(null)
   const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
 
@@ -73,6 +75,7 @@ export function WorkflowDetailPanel({
     setNameValue("")
     setDescriptionValue("")
     setEditedAsset(null)
+    setIsAnswersSheetOpen(false)
   }, [row?.execution_id, template?.id])
 
   const handleCreateWithName = () => {
@@ -96,6 +99,11 @@ export function WorkflowDetailPanel({
   )
   const currentSection = formSections[step]
   const isLastStep = step >= formSections.length - 1
+  // Solo secciones YA respondidas: el autoguardado de la sección actual flushea recién al
+  // desmontarse (key={currentSection.id}), así que su valor más reciente puede no estar en
+  // el caché todavía. Memoizado: handleSectionUpdate/handleReviewStatusChange parchean el
+  // caché en cada autoguardado, lo que recrea `data` (y por ende `formSections`) en cada render.
+  const previousSections = React.useMemo(() => formSections.slice(0, step), [formSections, step])
 
   // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
   // sin refetch de /content — mismo patrón que assets-content.tsx.
@@ -170,6 +178,17 @@ export function WorkflowDetailPanel({
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {documentId && !needsNameStep && formSections.length > 0 && (
+            <HuemulButton
+              variant="ghost"
+              size="sm"
+              icon={History}
+              tooltip={step === 0 ? t("wizard.answers.tooltipDisabled") : t("wizard.answers.tooltip")}
+              disabled={step === 0}
+              onClick={() => setIsAnswersSheetOpen(true)}
+              className="h-8 w-8 p-0"
+            />
+          )}
           {documentId && !needsNameStep && (
             <HuemulButton
               variant="ghost"
@@ -287,6 +306,13 @@ export function WorkflowDetailPanel({
           onUpdated={(newName, newInternalCode) => setEditedAsset({ name: newName, internalCode: newInternalCode })}
         />
       )}
+
+      <WorkflowPreviousAnswersSheet
+        open={isAnswersSheetOpen}
+        onOpenChange={setIsAnswersSheetOpen}
+        sections={previousSections}
+        onGoToStep={(i) => setStep(i)}
+      />
     </div>
   )
 }

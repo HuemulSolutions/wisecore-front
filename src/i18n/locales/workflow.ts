@@ -42,6 +42,17 @@ const translations = {
     finish: { en: "Finish", es: "Finalizar" },
     creating: { en: "Creating...", es: "Creando..." },
     noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
+    answers: {
+      tooltip: { en: "Review previous answers", es: "Consultar respuestas anteriores" },
+      tooltipDisabled: { en: "No previous steps yet", es: "Todavía no hay pasos anteriores" },
+      title: { en: "Previous answers", es: "Respuestas anteriores" },
+      description: { en: "Read-only view of the steps you already completed", es: "Vista de solo lectura de los pasos que ya completaste" },
+      stepLabel: { en: "Step {{number}}", es: "Paso {{number}}" },
+      answeredCount: { en: "{{answered}}/{{total}} answered", es: "{{answered}}/{{total}} respondidas" },
+      missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
+      empty: { en: "You haven't completed any step yet", es: "Todavía no completaste ningún paso" },
+      goToStep: { en: "Go to this step", es: "Ir a este paso" },
+    },
   },
 }
 
