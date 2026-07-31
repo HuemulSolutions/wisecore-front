@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ChevronRight } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { WorkflowTemplateItem } from "@/types/templates"
@@ -9,28 +9,42 @@ import type { WorkflowTemplateItem } from "@/types/templates"
 interface WorkflowTemplateCardsProps {
   items: WorkflowTemplateItem[]
   isLoading?: boolean
+  page: number
+  pageSize: number
+  hasNext: boolean
+  onPageChange: (page: number) => void
   onStart: (item: WorkflowTemplateItem) => void
 }
 
 const GRID_CLASSNAME = "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
 
-export function WorkflowTemplateCards({ items, isLoading, onStart }: WorkflowTemplateCardsProps) {
+export function WorkflowTemplateCards({
+  items,
+  isLoading,
+  page,
+  pageSize,
+  hasNext,
+  onPageChange,
+  onStart,
+}: WorkflowTemplateCardsProps) {
   const { t } = useTranslation("workflow")
   const [visible, setVisible] = useState(true)
 
   if (isLoading) {
     return (
       <div className={GRID_CLASSNAME}>
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: pageSize }).map((_, i) => (
           <Skeleton key={i} className="h-14 rounded-xl" />
         ))}
       </div>
     )
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && page <= 1) {
     return null
   }
+
+  const showNav = page > 1 || hasNext
 
   return (
     <section className="flex shrink-0 flex-col gap-2 min-w-0">
@@ -38,9 +52,35 @@ export function WorkflowTemplateCards({ items, isLoading, onStart }: WorkflowTem
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           {t("availableTemplates.title")}
         </p>
-        <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs tabular-nums">
-          {items.length}
-        </Badge>
+
+        {visible && showNav && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("availableTemplates.previousPage")}
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:cursor-pointer disabled:opacity-40"
+            >
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums select-none">
+              {page}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("availableTemplates.nextPage")}
+              onClick={() => onPageChange(page + 1)}
+              disabled={!hasNext}
+              className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:cursor-pointer disabled:opacity-40"
+            >
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
@@ -55,7 +95,7 @@ export function WorkflowTemplateCards({ items, isLoading, onStart }: WorkflowTem
         <div className={GRID_CLASSNAME}>
           {items.map((item) => (
             <Card
-              key={item.id}
+              key={`${item.id}-${item.document_type_id}`}
               role="button"
               tabIndex={0}
               onClick={() => onStart(item)}

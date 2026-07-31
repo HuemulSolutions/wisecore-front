@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
 import { RefreshCw, Loader2, ShieldAlert } from "lucide-react"
@@ -10,6 +10,7 @@ import { useWorkflows, workflowQueryKeys } from "@/hooks/useWorkflows"
 import { useWorkflowTemplates, useCreateTemplateExpress, workflowTemplateQueryKeys } from "@/hooks/useWorkflowTemplates"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { useHuemulFilters } from "@/hooks/useHuemulFilters"
+import { useGridColumns } from "@/hooks/useGridColumns"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulFilterButton } from "@/huemul/components/huemul-filter-button"
@@ -250,10 +251,26 @@ export default function WorkflowPage() {
 
   const items = workflowsResponse?.data ?? []
 
-  const { data: templateItems = [], isLoading: isLoadingTemplates } = useWorkflowTemplates(
+  const templateColumns = useGridColumns()
+  const templatesPageSize = templateColumns * 2
+  const [templatesPage, setTemplatesPage] = useState(1)
+
+  useEffect(() => {
+    setTemplatesPage(1)
+  }, [templatesPageSize])
+
+  const { data: templatesResponse, isLoading: isLoadingTemplates } = useWorkflowTemplates(
     selectedOrganizationId ?? "",
-    { enabled: !!selectedOrganizationId && !!organizationToken && canAccessAssets },
+    {
+      enabled: !!selectedOrganizationId && !!organizationToken && canAccessAssets,
+    },
   )
+  const allTemplateItems = templatesResponse?.items ?? []
+  const templateItems = allTemplateItems.slice(
+    (templatesPage - 1) * templatesPageSize,
+    templatesPage * templatesPageSize,
+  )
+  const templatesHasNext = templatesPage * templatesPageSize < allTemplateItems.length
 
   if (isLoadingPermissions) {
     return (
@@ -349,6 +366,10 @@ export default function WorkflowPage() {
                 <WorkflowTemplateCards
                   items={templateItems}
                   isLoading={isLoadingTemplates}
+                  page={templatesPage}
+                  pageSize={templatesPageSize}
+                  hasNext={templatesHasNext}
+                  onPageChange={setTemplatesPage}
                   onStart={(item) => {
                     setSelectedRow(null)
                     setExpressDoc(null)

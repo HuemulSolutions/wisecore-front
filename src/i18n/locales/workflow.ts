@@ -53,6 +53,8 @@ const translations = {
     start: { en: "Start", es: "Iniciar" },
     hide: { en: "Hide", es: "Ocultar" },
     show: { en: "Show", es: "Mostrar" },
+    previousPage: { en: "Previous workflows", es: "Workflows anteriores" },
+    nextPage: { en: "Next workflows", es: "Workflows siguientes" },
   },
   expressSheet: {
     title: { en: "Start workflow", es: "Iniciar workflow" },
