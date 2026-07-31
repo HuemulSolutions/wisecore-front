@@ -6,7 +6,7 @@ import { Workflow, AlertCircle } from "lucide-react";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDiagrams } from "@/hooks/useDiagrams";
-import { DiagramEditSheet } from "@/components/diagrams";
+import { DiagramViewSheet } from "@/components/diagrams";
 import { formatApiDateTime } from "@/lib/utils";
 import type { Diagram } from "@/types/diagrams";
 
@@ -96,7 +96,7 @@ export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizatio
         )}
       </HuemulSheet>
 
-      <DiagramEditSheet
+      <DiagramViewSheet
         open={!!selectedDiagramId}
         onOpenChange={(o) => { if (!o) setSelectedDiagramId(null); }}
         diagramId={selectedDiagramId}

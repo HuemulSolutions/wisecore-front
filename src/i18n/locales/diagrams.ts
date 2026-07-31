@@ -30,6 +30,7 @@ const translations = {
     title: { en: "Diagram", es: "Diagrama" },
     loadingError: { en: "Failed to load the diagram.", es: "Error al cargar el diagrama." },
     notFound: { en: "Diagram not found.", es: "Diagrama no encontrado." },
+    editAction: { en: "Edit", es: "Editar" },
   },
   relatedSheet: {
     title: { en: "Related Diagrams", es: "Diagramas Relacionados" },

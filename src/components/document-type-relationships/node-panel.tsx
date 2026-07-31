@@ -35,6 +35,7 @@ interface NodePanelProps {
   executionId?: string
   organizationId?: string
   onSelectExecution?: (nodeId: string, executionId: string, executionName: string) => void
+  readOnly?: boolean
 }
 
 export function NodePanel({
@@ -51,6 +52,7 @@ export function NodePanel({
   executionId,
   organizationId,
   onSelectExecution,
+  readOnly = false,
 }: NodePanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const [isLoadingRelationships, setIsLoadingRelationships] = useState(false)
@@ -137,8 +139,8 @@ export function NodePanel({
           </div>
         </div>
 
-        {/* Version selector — execution mode only */}
-        {isExecutionMode && (
+        {/* Version selector — execution mode only, hidden in read-only view */}
+        {isExecutionMode && !readOnly && (
           <div className="space-y-2">
             {isLoadingExecutions ? (
               <div className="space-y-1.5">
@@ -175,7 +177,8 @@ export function NodePanel({
           </div>
         )}
 
-        {/* Actions */}
+        {/* Actions — hidden entirely in read-only view when there's nothing to show */}
+        {(onLoadRelationships || onLoadRelationshipsCanvasOnly || (nodeActions && nodeActions.length > 0)) && (
         <div className="space-y-2">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             {t("nodePanel.actions")}
@@ -272,6 +275,7 @@ export function NodePanel({
             })}
           </div>
         </div>
+        )}
       </div>
     </div>
   )

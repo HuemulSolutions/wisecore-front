@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AssetContent } from "@/components/assets";
 import { AssetEmptyContent } from "@/components/assets/content/assets-empty-content";
@@ -15,6 +16,7 @@ import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useGlobalPanel } from "@/contexts/global-panel-context";
 import { RelationshipsCanvas } from "@/components/document-type-relationships";
+import { DiagramCanvas } from "@/components/diagrams";
 import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 
 /**
@@ -26,10 +28,33 @@ function AssetsContent() {
   const { selectedOrganizationId, organizationToken } = useOrganization();
   const refreshFileTree = useNavKnowledgeRefresh();
   const { isOpen: isWisyOpen } = useGlobalPanel();
-  const { isRelationsMode } = useNavKnowledgeMode();
+  const { isRelationsMode, setIsRelationsMode } = useNavKnowledgeMode();
   const { data: docTypesResponse } = useDocumentTypes();
   const documentTypes = docTypesResponse?.data ?? [];
   const { page, pageSize, hasNext, hasPrevious, setPage } = useNavKnowledgePagination();
+
+  // Deep-link into an existing diagram: /asset?diagram=<id> forces relations mode
+  // on so the diagram opens in-place (with the asset tree available to edit it).
+  // Turning relations mode back off (checkbox in the tree kebab) drops the param.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const diagramId = searchParams.get('diagram');
+  const wasRelationsModeRef = useRef(isRelationsMode);
+  useEffect(() => {
+    const wasOn = wasRelationsModeRef.current;
+    wasRelationsModeRef.current = isRelationsMode;
+    if (!diagramId) return;
+    if (!isRelationsMode) {
+      if (wasOn) {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('diagram');
+          return next;
+        }, { replace: true });
+      } else {
+        setIsRelationsMode(true);
+      }
+    }
+  }, [diagramId, isRelationsMode, setIsRelationsMode, setSearchParams]);
 
   // Asset navigation (URL parsing, breadcrumb, selected file)
   const {
@@ -101,7 +126,13 @@ function AssetsContent() {
           {
             content: (
               <div ref={scrollContainerRef} className="h-full bg-white">
-                {isRelationsMode ? (
+                {isRelationsMode && diagramId ? (
+                  <DiagramCanvas
+                    key={diagramId}
+                    organizationId={selectedOrganizationId}
+                    diagramId={diagramId}
+                  />
+                ) : isRelationsMode ? (
                   <RelationshipsCanvas
                     organizationId={selectedOrganizationId}
                     documentTypes={documentTypes}

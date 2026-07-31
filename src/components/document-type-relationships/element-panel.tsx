@@ -9,11 +9,12 @@ import type { CanvasElementNodeData } from "./text-node"
 interface ElementPanelProps {
   elementData: CanvasElementNodeData
   onClose: () => void
+  readOnly?: boolean
 }
 
 // Editing panel for free-standing text/container elements — mirrors NodePanel's
 // layout so the right-side panel stays visually consistent across selection types.
-export function ElementPanel({ elementData, onClose }: ElementPanelProps) {
+export function ElementPanel({ elementData, onClose, readOnly = false }: ElementPanelProps) {
   const { t } = useTranslation("document-type-relationships")
   const isContainer = elementData.kind === "container"
 
@@ -57,6 +58,7 @@ export function ElementPanel({ elementData, onClose }: ElementPanelProps) {
           value={content}
           onChange={(v) => handleContentChange(String(v))}
           required
+          disabled={readOnly}
         />
 
         <HuemulField
@@ -65,20 +67,23 @@ export function ElementPanel({ elementData, onClose }: ElementPanelProps) {
           name="element_color"
           value={elementData.color}
           onChange={(v) => elementData.onColorChange?.(elementData.id, String(v))}
+          disabled={readOnly}
         />
 
-        <div className="space-y-2">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-            {t("nodePanel.actions")}
-          </p>
-          <button
-            onClick={() => { elementData.onRemove?.(elementData.id); onClose() }}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground w-full hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5 shrink-0" />
-            <span>{t("node.removeFromCanvas")}</span>
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              {t("nodePanel.actions")}
+            </p>
+            <button
+              onClick={() => { elementData.onRemove?.(elementData.id); onClose() }}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground w-full hover:bg-destructive/10 hover:text-destructive hover:cursor-pointer transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5 shrink-0" />
+              <span>{t("node.removeFromCanvas")}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

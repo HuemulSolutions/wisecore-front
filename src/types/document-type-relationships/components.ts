@@ -95,6 +95,10 @@ export interface RelationshipsCanvasProps {
   // Saved text/container elements to seed the canvas with on mount.
   initialElements?: InitialCanvasElement[]
   editingDiagram?: EditingDiagram
+  // View-only mode: no dragging, connecting, resizing, inline editing, or toolbars —
+  // just pan/zoom and the informational side panels. Used by the diagram viewer sheet;
+  // real editing happens back on the assets page in relations mode.
+  readOnly?: boolean
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
