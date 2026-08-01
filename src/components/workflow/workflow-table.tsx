@@ -48,6 +48,11 @@ export function WorkflowTable({
       render: (item) => cell(item, <span className="font-mono text-xs">{item.internal_code}</span>),
     },
     {
+      key: "documentName",
+      label: t("columns.documentName"),
+      render: (item) => cell(item, <span className="truncate">{item.document_name}</span>),
+    },
+    {
       key: "template",
       label: t("columns.template"),
       render: (item) => cell(item, <span>{item.template_name}</span>),

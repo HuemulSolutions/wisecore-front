@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { useTranslation } from "react-i18next";
 import { useOrgNavigate } from "@/hooks/useOrgRouter";
 // Import necesario para el icono Plus
-import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Check, Undo2, Lock, Tag, Globe, Archive, RotateCcw, Settings2, Bell, Sparkles } from "lucide-react";
+import { File, Loader2, Download, Trash2, FileText, FileCode, FileSpreadsheet, Plus, Play, List, FolderTree, FileIcon, Zap, CheckCircle, Clock, Eye, Copy, FileX, BetweenHorizontalStart, AlertCircle, RefreshCw, Pencil, Lock, Settings2, Bell, Sparkles } from "lucide-react";
 import { Empty, EmptyIcon, EmptyTitle, EmptyDescription, EmptyActions } from "@/components/ui/empty";
 import {
   ResizableHandle,
@@ -35,18 +35,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LifecycleCommentDialog } from "@/components/ui/lifecycle-comment-dialog";
-import { LifecycleReviewDialog } from "@/components/ui/lifecycle-review-dialog";
-import { LifecyclePublishDialog } from "@/components/ui/lifecycle-publish-dialog";
-import { LifecycleRollbackDialog } from "@/components/ui/lifecycle-rollback-dialog";
-
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } from "@/services/assets";
 import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
-import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, completeExecutionLifecycleStep, rejectExecutionLifecycle, assignExecutionVersion, advanceExecutionLifecycle, restoreExecutionLifecycle, updateExecutionName, runExternalPublish, getExecutionById } from "@/services/executions";
+import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
 import { getDefaultLLM } from "@/services/llms";
-import { useExternalReviewActions } from "@/hooks/useLifecycle";
+import { useLifecycleActions } from "@/hooks/useLifecycleActions";
+import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge";
+import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions";
+import { HuemulLifecycleDialogs } from "@/huemul/components/huemul-lifecycle-dialogs";
 import { createSection, updateSectionsOrder } from "@/services/section";
 import { getTemplateById } from "@/services/templates";
 import { getCustomFieldDocumentsByDocument, createCustomFieldDocument, updateCustomFieldDocument, deleteCustomFieldDocument } from "@/services/custom-fieldds-documents";
@@ -57,7 +55,6 @@ import { AddSectionDialog } from "@/components/assets/dialogs/assets-add-section
 import { AddSectionExecutionSheet } from "@/components/assets/dialogs/assets-add-section-execution-sheet";
 import { CreateTemplateDialog } from "@/components/templates/templates-create-dialog";
 import { CreateTemplateFromDocumentDialog } from "@/components/assets/dialogs/assets-create-template-from-document-dialog";
-import { AssignVersionDialog } from "@/components/assets/dialogs/assets-assign-version-dialog";
 import { RenameVersionDialog } from "@/components/assets/dialogs/assets-rename-version-dialog";
 import { CloneToNewDocumentDialog } from "@/components/assets/dialogs/assets-clone-to-new-document-dialog";
 import { ContentDeleteDialog } from "@/components/assets/dialogs/assets-content-delete-dialog";
@@ -75,7 +72,7 @@ import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import SectionExecution from "./assets-section";
 import { formatApiDateTime, parseApiDate } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
-import { useNavKnowledgeActions } from "@/components/layout/nav-knowledge";
+import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -129,25 +126,6 @@ function isSectionContentEmpty(section: ContentSection): boolean {
 }
 
 
-
-const VERSION_REQUIRED_CODE = 'VERSION_REQUIRED_FOR_APPROVAL';
-
-type PendingVersionAction =
-  | { kind: 'complete'; options?: { comment?: string; run_external_review?: boolean } }
-  | { kind: 'advance'; options?: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean } };
-
-const STAGE_COLORS: Record<string, string> = {
-  create: 'bg-purple-100 text-purple-700',
-  edit: 'bg-blue-100 text-blue-700',
-  review: 'bg-amber-100 text-amber-700',
-  approve: 'bg-orange-100 text-orange-700',
-  approved: 'bg-orange-100 text-orange-700',
-  publish: 'bg-green-100 text-green-700',
-  published: 'bg-green-100 text-green-700',
-  archive: 'bg-gray-100 text-gray-600',
-  archived: 'bg-gray-100 text-gray-600',
-  view: 'bg-slate-100 text-slate-600',
-};
 
 /**
  * AssetContent Component
@@ -477,153 +455,6 @@ export function AssetContent({
     meta: { successMessage: t('mutations.customFieldDeleted') },
   });
 
-  // Mutation for checking (advancing) execution lifecycle
-  const checkLifecycleMutation = useMutation({
-    mutationFn: withRefresh(
-      async (options?: { comment?: string; run_external_review?: boolean }) => {
-        const executionId = selectedExecutionId || documentContent?.execution_id;
-        const stepId = documentContent?.lifecycle_status?.current_step_id;
-        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-        if (!stepId) throw new Error('Missing step ID');
-        return completeExecutionLifecycleStep(executionId, stepId, selectedOrganizationId, options);
-      },
-      queryClient,
-      () => [['document-content', selectedFile?.id], ['document', selectedFile?.id]],
-    ),
-    onSuccess: () => {
-      setIsCheckLifecycleDialogOpen(false);
-    },
-    meta: { successMessage: t('lifecycle.successComplete') },
-    onError: (error, variables: { comment?: string; run_external_review?: boolean } | undefined) => {
-      setIsCheckLifecycleDialogOpen(false);
-      handleApiError(error, {
-        fallbackMessage: t('lifecycle.errorComplete'),
-        onErrorCode: (code) => {
-          if (code !== VERSION_REQUIRED_CODE) return false;
-          setPendingVersionAction({ kind: 'complete', options: variables });
-          setIsAssignVersionDialogOpen(true);
-          return true;
-        },
-      });
-    },
-  });
-
-  // Mutation for rejecting (going back) execution lifecycle
-  const rejectLifecycleMutation = useMutation({
-    mutationFn: withRefresh(
-      async (options?: { comment: string; target_state?: string; target_step_id?: string }) => {
-        const executionId = selectedExecutionId || documentContent?.execution_id;
-        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-        return rejectExecutionLifecycle(executionId, selectedOrganizationId, options);
-      },
-      queryClient,
-      () => [['document-content', selectedFile?.id], ['document', selectedFile?.id], ['rollback-targets']],
-    ),
-    onSuccess: () => {
-      setIsRejectLifecycleDialogOpen(false);
-    },
-    meta: { successMessage: t('lifecycle.successReturn') },
-    onError: (error) => {
-      setIsRejectLifecycleDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorReturn') });
-    },
-  });
-
-  // Mutation for advancing lifecycle (publish / archive)
-  const advanceLifecycleMutation = useMutation({
-    mutationFn: withRefresh(
-      async (options?: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean }) => {
-        preserveScrollPosition();
-        const executionId = selectedExecutionId || documentContent?.execution_id;
-        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-        return advanceExecutionLifecycle(executionId, selectedOrganizationId, options);
-      },
-      queryClient,
-      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id]],
-    ),
-    onSuccess: () => {
-      setIsPublishDialogOpen(false);
-      setIsArchiveDialogOpen(false);
-    },
-    meta: { successMessage: t('lifecycle.successAdvance') },
-    onError: (error, variables: { comment?: string; skip_published?: boolean; publish_step_id?: string; run_external_publish?: boolean } | undefined) => {
-      setIsPublishDialogOpen(false);
-      setIsArchiveDialogOpen(false);
-      handleApiError(error, {
-        fallbackMessage: t('lifecycle.errorAdvance'),
-        onErrorCode: (code) => {
-          if (code !== VERSION_REQUIRED_CODE) return false;
-          setPendingVersionAction({ kind: 'advance', options: variables });
-          setIsAssignVersionDialogOpen(true);
-          return true;
-        },
-      });
-    },
-  });
-
-  // Mutation for assigning a semantic version to the execution
-  const assignVersionMutation = useMutation({
-    mutationFn: withRefresh(
-      async (version: { major: number; minor: number; patch: number }) => {
-        const executionId = selectedExecutionId || documentContent?.execution_id;
-        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-        return assignExecutionVersion(executionId, version, selectedOrganizationId);
-      },
-      queryClient,
-      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id]],
-    ),
-    onSuccess: () => {
-      const versionedExecutionId = selectedExecutionId || documentContent?.execution_id;
-      if (versionedExecutionId) {
-        queryClient.removeQueries({ queryKey: ['execution-version-suggestion', versionedExecutionId] });
-      }
-      setIsAssignVersionDialogOpen(false);
-      const pending = pendingVersionAction;
-      setPendingVersionAction(null);
-      if (pending?.kind === 'advance') advanceLifecycleMutation.mutate(pending.options);
-      else if (pending?.kind === 'complete') checkLifecycleMutation.mutate(pending.options);
-    },
-    meta: { successMessage: t('mutations.versionAssigned') },
-    onError: (error) => {
-      setIsAssignVersionDialogOpen(false);
-      setPendingVersionAction(null);
-      handleApiError(error, { fallbackMessage: t('mutations.failedAssignVersion') });
-    },
-  });
-
-  // Mutation for restoring an archived execution back to in_approval
-  const restoreLifecycleMutation = useMutation({
-    mutationFn: withRefresh(
-      async (options?: { comment?: string }) => {
-        const executionId = selectedExecutionId || documentContent?.execution_id;
-        if (!executionId || !selectedOrganizationId) throw new Error('Missing execution or organization');
-        return restoreExecutionLifecycle(executionId, selectedOrganizationId, options);
-      },
-      queryClient,
-      () => [['document-content', selectedFile?.id], ['executions', selectedFile?.id], ['document', selectedFile?.id], ['rollback-targets']],
-    ),
-    onSuccess: () => {
-      setIsRestoreDialogOpen(false);
-    },
-    meta: { successMessage: t('lifecycle.successRestore') },
-    onError: (error) => {
-      setIsRestoreDialogOpen(false);
-      handleApiError(error, { fallbackMessage: t('lifecycle.errorRestore') });
-    },
-  });
-
-  // Mutation for manual re-trigger of external publish
-  const runExternalPublishMutation = useMutation({
-    mutationFn: async () => {
-      const executionId = selectedExecutionId || documentContent?.execution_id;
-      const stepId = documentContent?.lifecycle_status?.current_step_id;
-      if (!executionId || !stepId || !selectedOrganizationId) throw new Error('Missing execution, step or organization');
-      return runExternalPublish(executionId, selectedOrganizationId, stepId);
-    },
-    meta: { successMessage: t('lifecycle.successRerunExternalPublish') },
-    onError: (error) => handleApiError(error, { fallbackMessage: t('lifecycle.errorRerunExternalPublish') }),
-  });
-
   // Helper function to preserve scroll position
   const preserveScrollPosition = () => {
     scrollRestoration.saveScrollPosition();
@@ -660,13 +491,6 @@ export function AssetContent({
   const [isCloneToNewDocumentDialogOpen, setIsCloneToNewDocumentDialogOpen] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isDisapproveDialogOpen, setIsDisapproveDialogOpen] = useState(false);
-  const [isCheckLifecycleDialogOpen, setIsCheckLifecycleDialogOpen] = useState(false);
-  const [isRejectLifecycleDialogOpen, setIsRejectLifecycleDialogOpen] = useState(false);
-  const [isAssignVersionDialogOpen, setIsAssignVersionDialogOpen] = useState(false);
-  const [pendingVersionAction, setPendingVersionAction] = useState<PendingVersionAction | null>(null);
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
-  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-  const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
   const [isRenameVersionDialogOpen, setIsRenameVersionDialogOpen] = useState(false);
   const [executionToRename, setExecutionToRename] = useState<{ id: string; name: string } | null>(null);
   const [isNotificationsSheetOpen, setIsNotificationsSheetOpen] = useState(false);
@@ -1052,39 +876,6 @@ export function AssetContent({
     staleTime: 30000, // Cache for 30 seconds
   });
 
-  // Whether the current lifecycle step (edit/review) has an external system
-  // configured — if so, it must run automatically and the user cannot skip it.
-  const canHaveExternalReview =
-    documentContent?.lifecycle_status?.state === 'draft' ||
-    documentContent?.lifecycle_status?.state === 'in_review';
-  const { data: externalReviewActionsData } = useExternalReviewActions(
-    selectedOrganizationId!,
-    documentContent?.lifecycle_status?.current_step_id ?? '',
-    isCheckLifecycleDialogOpen && canHaveExternalReview && !!documentContent?.lifecycle_status?.current_step_id,
-  );
-  const hasExternalReview = (externalReviewActionsData?.data ?? []).some((a) => a.is_enabled);
-
-  // Whether the current lifecycle step is the approval step — shows the
-  // AI-generated "change summary" instead of a plain comment box.
-  const isApprovalStep = documentContent?.lifecycle_status?.state === 'in_approval';
-  const approvalExecutionId = selectedExecutionId || documentContent?.execution_id;
-  const changeSummaryQuery = useQuery({
-    queryKey: ['execution-change-summary', approvalExecutionId],
-    queryFn: () => getExecutionById(approvalExecutionId!, selectedOrganizationId!),
-    enabled: isCheckLifecycleDialogOpen && isApprovalStep && !!approvalExecutionId && !!selectedOrganizationId,
-    refetchInterval: (query) => (query.state.data?.change_summary_status === 'pending' ? 3000 : false),
-  });
-  const isChangeSummaryLoading =
-    isApprovalStep &&
-    (changeSummaryQuery.isLoading || changeSummaryQuery.data?.change_summary_status === 'pending');
-
-  const handleViewChanges = () => {
-    const previousExecutionId = changeSummaryQuery.data?.previous_execution_id;
-    if (!previousExecutionId || !approvalExecutionId) return;
-    setVersionCompareOverride({ left: previousExecutionId, right: approvalExecutionId });
-    setIsVersionCompareSheetOpen(true);
-  };
-
   // Lightweight periodic refresh of media download URLs (images/files embedded in
   // the content), so a tab left open longer than the backend's SAS TTL doesn't end
   // up with broken media. Cadence is derived from the backend's own ttl_seconds.
@@ -1307,6 +1098,23 @@ export function AssetContent({
     () => computeFrontendPermissions(lifecyclePermissions, documentContent?.lifecycle_status),
     [lifecyclePermissions, documentContent?.lifecycle_status]
   );
+
+  // Execution lifecycle transitions (complete/return, publish, archive, restore,
+  // assign version, re-run external publish) — shared controller also used by
+  // WorkflowDetailPanel, see useLifecycleActions.
+  const lifecycle = useLifecycleActions({
+    documentId: selectedFile?.id,
+    executionId: selectedExecutionId || documentContent?.execution_id,
+    organizationId: selectedOrganizationId,
+    lifecycleStatus: documentContent?.lifecycle_status,
+    lifecyclePermissions,
+    extraRefreshKeys: () => [['document', selectedFile?.id], ['executions', selectedFile?.id]],
+    onBeforeAdvance: () => preserveScrollPosition(),
+    onViewChanges: (previousExecutionId, currentExecutionId) => {
+      setVersionCompareOverride({ left: previousExecutionId, right: currentExecutionId });
+      setIsVersionCompareSheetOpen(true);
+    },
+  });
 
   // Whether the reader/editor toggle is available: only in "edit" stage with create/edit permissions.
   // In all other stages (review, approve, publish, archive) the user stays in reader mode.
@@ -2047,114 +1855,8 @@ export function AssetContent({
                     </div>
                     {documentContent?.lifecycle_status && (
                       <div className="flex items-center gap-1.5 flex-wrap bg-gray-50 px-2 py-1 rounded-lg">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
-                        </span>
-                        {documentContent.lifecycle_status.current_group && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            {documentContent.lifecycle_status.current_group}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('content.assignVersion')}
-                              icon={Tag}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-[#4464f7] border-[#4464f7] hover:bg-blue-50 hover:cursor-pointer"
-                              loading={assignVersionMutation.isPending}
-                              tooltip={t('content.assignVersionTooltip')}
-                              onClick={() => setIsAssignVersionDialogOpen(true)}
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_rollback && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.return')}
-                              icon={Undo2}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={rejectLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipReturn')}
-                              onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_advance && (
-                            <HuemulButton
-                              variant="default"
-                              size="sm"
-                              label={t('lifecycle.complete')}
-                              icon={Check}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 hover:cursor-pointer"
-                              loading={checkLifecycleMutation.isPending}
-                              disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                              tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                              onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
-                            <HuemulButton
-                              variant="default"
-                              size="sm"
-                              label={t('lifecycle.publish')}
-                              icon={Globe}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipPublish')}
-                              onClick={() => setIsPublishDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.archive')}
-                              icon={Archive}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipArchive')}
-                              onClick={() => setIsArchiveDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'archived' && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.restore')}
-                              icon={RotateCcw}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={restoreLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipRestore')}
-                              onClick={() => setIsRestoreDialogOpen(true)}
-                            />
-                          )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'published' && (
-                            <HuemulButton
-                              variant="outline"
-                              size="sm"
-                              label={t('lifecycle.rerunExternalPublish')}
-                              icon={RefreshCw}
-                              iconPosition="left"
-                              iconClassName="h-3 w-3"
-                              className="h-6 text-xs px-2 text-gray-600 hover:cursor-pointer"
-                              loading={runExternalPublishMutation.isPending}
-                              onClick={() => runExternalPublishMutation.mutate()}
-                            />
-                          )}
-                        </div>
+                        <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
+                        <HuemulLifecycleActions controller={lifecycle} variant="compact" showRerunExternalPublish />
                       </div>
                     )}
                   </div>
@@ -2624,13 +2326,13 @@ export function AssetContent({
                             hasDocumentContent={!!documentContent?.content}
                             isTocSidebarOpen={isTocSidebarOpen}
                             canCompareVersions={selectedFile.type === 'document' && allExecutions?.length > 1}
-                            onAssignVersion={() => setIsAssignVersionDialogOpen(true)}
+                            onAssignVersion={() => lifecycle.setIsAssignVersionDialogOpen(true)}
                             onCompareVersions={() => setIsVersionCompareSheetOpen(true)}
-                            onRejectLifecycle={() => setIsRejectLifecycleDialogOpen(true)}
-                            onCheckLifecycle={() => setIsCheckLifecycleDialogOpen(true)}
-                            onPublish={() => setIsPublishDialogOpen(true)}
-                            onArchive={() => setIsArchiveDialogOpen(true)}
-                            onRestore={() => setIsRestoreDialogOpen(true)}
+                            onRejectLifecycle={() => lifecycle.setIsRejectDialogOpen(true)}
+                            onCheckLifecycle={() => lifecycle.setIsCheckDialogOpen(true)}
+                            onPublish={() => lifecycle.setIsPublishDialogOpen(true)}
+                            onArchive={() => lifecycle.setIsArchiveDialogOpen(true)}
+                            onRestore={() => lifecycle.setIsRestoreDialogOpen(true)}
                             onRefresh={handleRefreshContent}
                             onToggleToc={() => setIsTocSidebarOpen((prev) => !prev)}
                             onOpenInfo={() => setIsInfoSheetOpen(true)}
@@ -2651,13 +2353,13 @@ export function AssetContent({
                             onExportVersion={handleExportVersion}
                             onDeleteVersion={() => openDeleteDialog('execution')}
                             onDeleteDocument={() => openDeleteDialog('document')}
-                            isRerunningExternalPublish={runExternalPublishMutation.isPending}
-                            onRerunExternalPublish={() => runExternalPublishMutation.mutate()}
+                            isRerunningExternalPublish={lifecycle.runExternalPublishMutation.isPending}
+                            onRerunExternalPublish={() => lifecycle.runExternalPublishMutation.mutate()}
                           />
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Metadata Row - date/badges left, lifecycle buttons right (both modes) */}
                     <div className="flex items-center justify-between gap-2">
                       {/* Left: date + stage badges */}
@@ -2675,107 +2377,12 @@ export function AssetContent({
                         {documentContent?.lifecycle_status && (
                           <>
                             <span className="text-gray-400">•</span>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STAGE_COLORS[documentContent.lifecycle_status.stage] ?? 'bg-gray-100 text-gray-600'}`}>
-                              {t(`lifecycle.stageLabels.${documentContent.lifecycle_status.stage}`, { defaultValue: documentContent.lifecycle_status.stage })}
-                            </span>
-                            {documentContent.lifecycle_status.current_group && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                {documentContent.lifecycle_status.current_group}
-                              </span>
-                            )}
+                            <HuemulLifecycleStageBadge status={documentContent.lifecycle_status} />
                           </>
                         )}
                       </div>
                       {/* Right: lifecycle action buttons - always at end of line in both modes */}
-                      {documentContent?.lifecycle_status && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          {lifecyclePermissions?.approve && (documentContent.lifecycle_status.version_required || documentContent.lifecycle_status.state === 'in_approval') && !documentContent.lifecycle_status.version && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('content.assignVersion')}
-                              icon={Tag}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={assignVersionMutation.isPending}
-                              tooltip={t('content.assignVersionTooltip')}
-                              onClick={() => setIsAssignVersionDialogOpen(true)}
-                              className="h-7 px-2.5 text-[#4464f7] hover:bg-blue-50 hover:text-[#3451e6] hover:cursor-pointer transition-colors text-xs font-medium"
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_rollback && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.return')}
-                              icon={Undo2}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={rejectLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipReturn')}
-                              onClick={() => setIsRejectLifecycleDialogOpen(true)}
-                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
-                            />
-                          )}
-                          {documentContent.lifecycle_status.can_advance && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.complete')}
-                              icon={Check}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={checkLifecycleMutation.isPending}
-                              disabled={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version}
-                              tooltip={documentContent.lifecycle_status.version_required && !documentContent.lifecycle_status.version ? t('content.assignVersionBeforeComplete') : documentContent.lifecycle_status.will_advance_phase ? t('lifecycle.tooltipCompletePhase') : t('lifecycle.tooltipComplete')}
-                              onClick={() => setIsCheckLifecycleDialogOpen(true)}
-                              className="h-7 px-2.5 bg-[#4464f7] text-white hover:bg-[#3451e6] hover:text-white hover:cursor-pointer transition-colors text-xs font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          )}
-                          {lifecyclePermissions?.publish && documentContent.lifecycle_status.state === 'approved' && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.publish')}
-                              icon={Globe}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipPublish')}
-                              onClick={() => setIsPublishDialogOpen(true)}
-                              className="h-7 px-2.5 bg-green-600 text-white hover:bg-green-700 hover:cursor-pointer transition-colors text-xs font-medium rounded-md"
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && (documentContent.lifecycle_status.state === 'approved' || documentContent.lifecycle_status.state === 'published') && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.archive')}
-                              icon={Archive}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={advanceLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipArchive')}
-                              onClick={() => setIsArchiveDialogOpen(true)}
-                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
-                            />
-                          )}
-                          {lifecyclePermissions?.archive && documentContent.lifecycle_status.state === 'archived' && (
-                            <HuemulButton
-                              size="sm"
-                              variant="ghost"
-                              label={t('lifecycle.restore')}
-                              icon={RotateCcw}
-                              iconPosition="left"
-                              iconClassName="h-3.5 w-3.5"
-                              loading={restoreLifecycleMutation.isPending}
-                              tooltip={t('lifecycle.tooltipRestore')}
-                              onClick={() => setIsRestoreDialogOpen(true)}
-                              className="h-7 px-2.5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 hover:cursor-pointer transition-colors text-xs font-medium"
-                            />
-                          )}
-                        </div>
-                      )}
+                      <HuemulLifecycleActions controller={lifecycle} variant="row" />
                     </div>
 
                   </div>
@@ -3318,11 +2925,6 @@ export function AssetContent({
                                     form_fields: section.form_fields,
                                   }}
                                   status={section.status}
-                                  responderName={
-                                    documentContent?.updated_by_user
-                                      ? `${documentContent.updated_by_user.name ?? ''} ${documentContent.updated_by_user.last_name ?? ''}`.trim()
-                                      : undefined
-                                  }
                                   onUpdate={handleSectionUpdate}
                                   readyToEdit={showEditorActions}
                                   sectionIndex={index}
@@ -3616,86 +3218,11 @@ export function AssetContent({
         onAction={() => disapproveMutation.mutateAsync()}
       />
 
-      {/* Lifecycle Check (Advance) Confirmation AlertDialog */}
-      <LifecycleReviewDialog
-        open={isCheckLifecycleDialogOpen}
-        onOpenChange={(open) => !checkLifecycleMutation.isPending && setIsCheckLifecycleDialogOpen(open)}
-        title={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateTitle') : t('lifecycle.advanceStepTitle')}
-        description={
-          documentContent?.lifecycle_status?.will_advance_phase
-            ? t('lifecycle.advanceStateDescription')
-            : t('lifecycle.advanceStepDescription')
-        }
-        onConfirm={(data) => checkLifecycleMutation.mutate(data)}
-        confirmLabel={documentContent?.lifecycle_status?.will_advance_phase ? t('lifecycle.advanceStateConfirm') : t('lifecycle.advanceStepConfirm')}
-        hasExternalReview={hasExternalReview}
-        isProcessing={checkLifecycleMutation.isPending}
-        isApprovalStep={isApprovalStep}
-        changeSummary={changeSummaryQuery.data?.change_summary ?? null}
-        changeSummaryStatus={changeSummaryQuery.data?.change_summary_status ?? null}
-        changeSummaryError={changeSummaryQuery.data?.change_summary_error ?? null}
-        canViewChanges={!!changeSummaryQuery.data?.previous_execution_id}
-        isSummaryLoading={isChangeSummaryLoading}
-        onViewChanges={handleViewChanges}
-      />
-
-      {/* Lifecycle Reject (Go Back) Dialog */}
-      <LifecycleRollbackDialog
-        open={isRejectLifecycleDialogOpen}
-        onOpenChange={(open) => !rejectLifecycleMutation.isPending && setIsRejectLifecycleDialogOpen(open)}
-        executionId={selectedExecutionId || documentContent?.execution_id || null}
-        organizationId={selectedOrganizationId!}
-        onConfirm={(options) => rejectLifecycleMutation.mutate(options)}
-        isProcessing={rejectLifecycleMutation.isPending}
-      />
-
-      {/* Publish Confirmation Dialog */}
-      <LifecyclePublishDialog
-        open={isPublishDialogOpen}
-        onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsPublishDialogOpen(open)}
-        onConfirm={({ comment, run_external_publish }) =>
-          advanceLifecycleMutation.mutate({
-            comment,
-            publish_step_id: documentContent?.lifecycle_status?.current_step_id ?? undefined,
-            run_external_publish: run_external_publish || undefined,
-          })
-        }
-        isProcessing={advanceLifecycleMutation.isPending}
-      />
-
-      {/* Archive Confirmation AlertDialog */}
-      <LifecycleCommentDialog
-        open={isArchiveDialogOpen}
-        onOpenChange={(open) => !advanceLifecycleMutation.isPending && setIsArchiveDialogOpen(open)}
-        title={t('lifecycle.archiveTitle')}
-        description={
-          documentContent?.lifecycle_status?.state === 'approved'
-            ? t('lifecycle.archiveFromApprovedDescription')
-            : t('lifecycle.archiveDescription')
-        }
-        onConfirm={(comment) => advanceLifecycleMutation.mutate({
-          comment,
-          skip_published: documentContent?.lifecycle_status?.state === 'approved',
-        })}
-        confirmLabel={t('lifecycle.archiveConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
-        isProcessing={advanceLifecycleMutation.isPending}
-        variant="destructive"
-      />
-
-      {/* Restore Confirmation Dialog */}
-      <LifecycleCommentDialog
-        open={isRestoreDialogOpen}
-        onOpenChange={(open) => !restoreLifecycleMutation.isPending && setIsRestoreDialogOpen(open)}
-        title={t('lifecycle.restoreTitle')}
-        description={t('lifecycle.restoreDescription')}
-        onConfirm={(comment) => restoreLifecycleMutation.mutate({ comment })}
-        confirmLabel={t('lifecycle.restoreConfirm')}
-        commentLabel={t('lifecycle.commentLabel')}
-        commentPlaceholder={t('lifecycle.commentPlaceholder')}
-        isProcessing={restoreLifecycleMutation.isPending}
-        variant="destructive"
+      <HuemulLifecycleDialogs
+        controller={lifecycle}
+        executionId={selectedExecutionId || documentContent?.execution_id}
+        organizationId={selectedOrganizationId}
+        existingVersions={allExecutions?.map((e: { version?: string | null }) => e.version).filter((v: string | null | undefined): v is string => !!v)}
       />
 
       <EditDocumentDialog
@@ -3803,21 +3330,6 @@ export function AssetContent({
         }}
       />
 
-      {/* Assign Version Dialog */}
-      <AssignVersionDialog
-        open={isAssignVersionDialogOpen}
-        onOpenChange={(open) => {
-          if (assignVersionMutation.isPending) return;
-          if (!open) setPendingVersionAction(null);
-          setIsAssignVersionDialogOpen(open);
-        }}
-        onConfirm={(version) => assignVersionMutation.mutate(version)}
-        isProcessing={assignVersionMutation.isPending}
-        executionId={selectedExecutionId || documentContent?.execution_id}
-        organizationId={selectedOrganizationId}
-        existingVersions={allExecutions?.map((e: { version?: string | null }) => e.version).filter((v: string | null | undefined): v is string => !!v)}
-      />
-
       {/* Rename Version Dialog */}
       <RenameVersionDialog
         open={isRenameVersionDialogOpen}
@@ -3905,6 +3417,7 @@ export function AssetContent({
         onOpenChange={setIsDiagramsSheetOpen}
         documentId={selectedFile?.id ?? ''}
         organizationId={selectedOrganizationId ?? ''}
+        executionId={selectedExecutionId || documentContent?.execution_id || ''}
       />
     </>
   );

@@ -100,3 +100,14 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+
+// Oculta el splash inline de index.html una vez que React pintó el primer
+// frame real. Doble rAF: el primero corre antes del paint, el segundo ya
+// después, evitando un parpadeo blanco entre el splash y el contenido.
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const splash = document.getElementById('app-splash')
+  if (!splash) return
+  splash.classList.add('is-hidden')
+  splash.addEventListener('transitionend', () => splash.remove(), { once: true })
+  setTimeout(() => splash.remove(), 600) // red de seguridad
+}))

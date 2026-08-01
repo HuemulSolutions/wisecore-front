@@ -100,14 +100,11 @@ export const PermissionsProvider = ({ children }: PermissionsProviderProps) => {
     }
   }, []);
 
-  // Efecto para cargar permisos iniciales con un pequeño delay
+  // Efecto para cargar permisos iniciales.
+  // getCurrentUserInfo() lee el JWT de localStorage de forma síncrona, no
+  // depende de que otros contextos terminen de montar.
   useEffect(() => {
-    // Pequeño delay para asegurar que otros contextos estén listos
-    const timer = setTimeout(() => {
-      refreshPermissions();
-    }, 50);
-    
-    return () => clearTimeout(timer);
+    refreshPermissions();
   }, []);
 
   // Efecto para escuchar cambios en los tokens

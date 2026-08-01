@@ -68,6 +68,7 @@ export interface EditWithAiParams {
   prompt: string;
   templateId?: string;
   sectionId?: string;
+  executionId?: string;
   llmId?: string;
   organizationId: string;
 }

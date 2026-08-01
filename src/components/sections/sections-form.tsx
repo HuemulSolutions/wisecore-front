@@ -32,8 +32,9 @@ export function SectionForm({
   mode,
   editorType = 'rich',
   formId = 'section-form',
-  documentId, 
-  templateId, 
+  documentId,
+  templateId,
+  executionId,
   item,
   onSubmit, 
   isPending = false, 
@@ -286,6 +287,7 @@ export function SectionForm({
         prompt: instruction,
         sectionId: item?.id,
         templateId,
+        executionId,
         organizationId: selectedOrganizationId!,
       });
       setPromptBeforeAiEdit(previousPrompt);
@@ -591,7 +593,7 @@ export function SectionForm({
                 onChange={(e) => handlePromptChange(e.target.value)}
                 disabled={isPending || isGenerating}
                 rows={20}
-                className="text-sm resize-none min-h-[250px] max-h-[250px]"
+                className="text-sm resize-none min-h-62.5 max-h-62.5"
               />
             ) : (
               <SectionPlateEditor
@@ -612,7 +614,7 @@ export function SectionForm({
               />
             )}
 
-            <div className="min-h-[20px]">
+            <div className="min-h-5">
               {isGenerating && (
                 <div className="text-xs text-blue-600 flex items-center gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -791,7 +793,7 @@ export function SectionForm({
                   <span className="text-sm text-gray-500">{t('form.reference.previewLoading')}</span>
                 </div>
               ) : sectionPreview?.content ? (
-                <div className="border rounded-md p-4 bg-white max-h-[400px] overflow-y-auto">
+                <div className="border rounded-md p-4 bg-white max-h-100 overflow-y-auto">
                   <Markdown>{sectionPreview.content}</Markdown>
                 </div>
               ) : (
@@ -869,7 +871,7 @@ export function SectionForm({
       )}
 
       {/* Validation Messages */}
-      <div className="min-h-[32px]">
+      <div className="min-h-8">
         {type === "ai" && name && !prompt && !isGenerating && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
             💡 {t('form.validation.aiHint')}

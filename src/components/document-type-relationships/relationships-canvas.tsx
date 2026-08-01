@@ -195,6 +195,7 @@ function RelationshipsCanvasFlow({
   initialRelationships,
   initialElements,
   editingDiagram: editingDiagramProp,
+  readOnly = false,
 }: RelationshipsCanvasProps) {
   const { t } = useTranslation("document-type-relationships")
   const { screenToFlowPosition, getNodes, getEdges, fitView } = useReactFlow()
@@ -204,15 +205,17 @@ function RelationshipsCanvasFlow({
   const containerRef = useRef<HTMLDivElement>(null)
 
   // ─── Relationship permissions ───────────────────────────────────────────────
+  // `readOnly` overrides every write permission below — the viewer never mutates
+  // canvas or backend state regardless of what the user is actually allowed to do.
   const canListRelationships = isOrgAdmin || hasAnyPermission(['asset_type_relationship:l', 'asset_type_relationship:r'])
-  const canCreateRelationship = isOrgAdmin || hasPermission('asset_type_relationship:c')
-  const canUpdateRelationship = isOrgAdmin || hasPermission('asset_type_relationship:u')
-  const canDeleteRelationship = isOrgAdmin || hasPermission('asset_type_relationship:d')
+  const canCreateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:c'))
+  const canUpdateRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:u'))
+  const canDeleteRelationship = !readOnly && (isOrgAdmin || hasPermission('asset_type_relationship:d'))
 
   const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
-  const canCreateExecRelationship = isOrgAdmin || hasPermission('execution_relationship:c')
-  const canUpdateExecRelationship = isOrgAdmin || hasPermission('execution_relationship:u')
-  const canDeleteExecRelationship = isOrgAdmin || hasPermission('execution_relationship:d')
+  const canCreateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:c'))
+  const canUpdateExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:u'))
+  const canDeleteExecRelationship = !readOnly && (isOrgAdmin || hasPermission('execution_relationship:d'))
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -1429,9 +1432,11 @@ function RelationshipsCanvasFlow({
           executionName: n.executionName,
           name: n.name,
           color: n.color,
-          onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
-          onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
-          onRemove: handleRemoveNode,
+          ...(readOnly ? { readOnly: true } : {
+            onLoadRelationships: (id: string) => handleLoadExecRelRef.current?.(id),
+            onLoadRelationshipsCanvasOnly: (id: string) => handleLoadExecRelCanvasOnlyRef.current?.(id),
+            onRemove: handleRemoveNode,
+          }),
         },
       }
       return { canvasNodeId, node }
@@ -1439,7 +1444,7 @@ function RelationshipsCanvasFlow({
 
     setNodes((nds) => [...nds, ...seeded.map((s) => s.node)])
     pendingEdgeSeedRef.current = { seeded, relationships }
-  }, [setNodes, handleRemoveNode])
+  }, [setNodes, handleRemoveNode, readOnly])
 
   // Flush any pending edge seed once react-flow reports the current nodes are
   // initialized (measured). Depends on `nodes` too (not just the boolean) so a
@@ -1466,14 +1471,16 @@ function RelationshipsCanvasFlow({
           kind: el.kind,
           content: el.content,
           color: el.color,
-          onContentChange: handleUpdateElementContent,
-          onColorChange: handleUpdateElementColor,
-          onRemove: handleRemoveNode,
+          ...(readOnly ? { readOnly: true } : {
+            onContentChange: handleUpdateElementContent,
+            onColorChange: handleUpdateElementColor,
+            onRemove: handleRemoveNode,
+          }),
         },
       }
     })
     setNodes((nds) => [...nds, ...seeded])
-  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode])
+  }, [setNodes, handleUpdateElementContent, handleUpdateElementColor, handleRemoveNode, readOnly])
 
   // Guarded by a ref (not just the effect dep array) so it only seeds once even if
   // the parent re-renders and passes a new `initialNodes` array reference.
@@ -1517,9 +1524,9 @@ function RelationshipsCanvasFlow({
   const sourceDocType = pendingConnection ? docTypeMap.get(pendingConnection.sourceId) : undefined
   const targetDocType = pendingConnection ? docTypeMap.get(pendingConnection.targetId) : undefined
 
-  const canUpdateDiagram = isOrgAdmin || hasPermission('diagram:u')
-  const canCreateDiagram = isOrgAdmin || hasPermission('diagram:c')
-  const canLoadDiagram = isOrgAdmin || hasPermission('diagram:u')
+  const canUpdateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
+  const canCreateDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:c'))
+  const canLoadDiagram = !readOnly && (isOrgAdmin || hasPermission('diagram:u'))
   const hasValidDiagramNodes = nodes.some((n) => {
     const d = n.data as AssetTypeNodeData
     return !!d.assetId && !!d.executionId
@@ -1533,18 +1540,20 @@ function RelationshipsCanvasFlow({
           edges={layeredEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onConnectEnd={onConnectEnd}
+          onConnect={readOnly ? undefined : onConnect}
+          onConnectEnd={readOnly ? undefined : onConnectEnd}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
+          onDrop={readOnly ? undefined : handleDrop}
+          onDragOver={readOnly ? undefined : handleDragOver}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           elevateNodesOnSelect={false}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
           fitView
-          deleteKeyCode="Delete"
+          deleteKeyCode={readOnly ? null : "Delete"}
           className="flex-1 h-full bg-muted/10"
         >
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
@@ -1555,26 +1564,28 @@ function RelationshipsCanvasFlow({
           />
 
           {/* Always available — not gated on the drag palette, which isn't mounted on every screen */}
-          <Panel position="top-left">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => addElementAtCenter("container")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-              >
-                <Square className="h-3.5 w-3.5" />
-                {t("canvas.addContainer")}
-              </button>
-              <button
-                onClick={() => addElementAtCenter("text")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
-              >
-                <Type className="h-3.5 w-3.5" />
-                {t("canvas.addText")}
-              </button>
-            </div>
-          </Panel>
+          {!readOnly && (
+            <Panel position="top-left">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => addElementAtCenter("container")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                  {t("canvas.addContainer")}
+                </button>
+                <button
+                  onClick={() => addElementAtCenter("text")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border bg-background text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:cursor-pointer transition-colors shadow-sm"
+                >
+                  <Type className="h-3.5 w-3.5" />
+                  {t("canvas.addText")}
+                </button>
+              </div>
+            </Panel>
+          )}
 
-          {nodes.length > 0 && (
+          {!readOnly && nodes.length > 0 && (
             <Panel position="top-right">
               <div className="flex items-center gap-2">
                 {mode === 'execution' && hasValidDiagramNodes && editingDiagram && canUpdateDiagram && (
@@ -1651,6 +1662,7 @@ function RelationshipsCanvasFlow({
               <ElementPanel
                 elementData={selectedNode.data as CanvasElementNodeData}
                 onClose={() => setSelectedNodeId(null)}
+                readOnly={readOnly}
               />
             )
           }
@@ -1675,6 +1687,7 @@ function RelationshipsCanvasFlow({
               executionId={nodeData.executionId}
               organizationId={organizationId}
               onSelectExecution={handleSelectExecution}
+              readOnly={readOnly}
             />
           )
         })()}

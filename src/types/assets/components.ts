@@ -149,10 +149,6 @@ export interface SectionExecutionProps {
   sectionName?: string
   /** Estado de la sección (ej. "pending"). Para type="form" decide responder vs solo lectura */
   status?: string
-  /** Nombre del autor a mostrar en el footer de un formulario respondido (aprox. nivel documento) */
-  responderName?: string
-  /** Fecha (ISO) a mostrar en el footer de un formulario respondido */
-  respondedAt?: string
   canEditSections?: boolean
   onCreateSectionFromSelection?: (selectedMarkdown: string) => void
   onCopyLink?: () => void

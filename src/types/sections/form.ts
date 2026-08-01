@@ -18,6 +18,7 @@ export interface SectionFormProps {
   formId?: string;
   documentId?: string;
   templateId?: string;
+  executionId?: string;
   item?: SectionItem;
   onSubmit: (values: any) => void;
   isPending?: boolean;

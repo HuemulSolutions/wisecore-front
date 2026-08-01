@@ -1,16 +1,17 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulFilePreview } from "@/huemul/components/huemul-file-preview";
 import { HuemulQuestionInput } from "@/huemul/components/huemul-question-input";
 import type { HuemulQuestionInputValue } from "@/huemul/components/huemul-question-input";
 import { handleApiError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
-import { useDebounce } from "@/hooks/use-debounce";
-import { updateSectionFormValues } from "@/services/section_execution";
+import { updateReviewStatus, updateSectionFormValues } from "@/services/section_execution";
 import { uploadMedia } from "@/services/media";
 import type { FormFieldValue, FormValuesSectionPayload } from "@/types/sections/core";
+import type { ReviewStatus } from "@/types/section-execution";
 import { isMediaToken } from "@/lib/plate-media-utils";
 import { Check, FileX, Info, Loader2 } from "lucide-react";
 import {
@@ -21,13 +22,14 @@ import {
   hasAnswer,
   isFieldAnswerable,
   isFieldVisible,
+  isFreeTextField,
   normalizeSelectionValue,
   questionTypeLabel,
   readFieldConfig,
   readFieldOptions,
-  resolveOptionLabels,
 } from "@/components/sections/question-type-meta";
 import { SectionFieldSeparator } from "@/components/sections/section-field-separator";
+import { FormFieldAnswerValue } from "@/components/sections/form-field-answer-value";
 import { validateFormFieldValue } from "@/components/sections/validate-form-field-value";
 
 interface AssetFormSectionProps {
@@ -44,8 +46,10 @@ interface AssetFormSectionProps {
   isEditing: boolean;
   /** El padre sale del modo edición (tras el flush final de "Dejar de editar"). */
   onExitEditing: () => void;
-  responderName?: string;
-  respondedAt?: string;
+  /** Estado actual de revisión — evita repetir el PATCH si ya está en 'finished'. */
+  reviewStatus?: ReviewStatus | null;
+  /** Notifica al padre que review_status pasó a 'finished' tras el flush final. */
+  onReviewStatusChange?: (status: ReviewStatus) => void;
   /**
    * Refresca el contenido del asset tras guardar. Cuando el autoguardado o el flush
    * final trae la respuesta del PATCH /form_values, se pasa el payload (agrupado por
@@ -96,8 +100,8 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   canInteract,
   isEditing,
   onExitEditing,
-  responderName,
-  respondedAt,
+  reviewStatus,
+  onReviewStatusChange,
   onUpdate,
   onSavingChange,
 }, ref) {
@@ -117,14 +121,20 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
-  // URL de descarga de archivos recién subidos (para previsualizar; el placeholder no es una URL)
-  const [filePreviews, setFilePreviews] = useState<Record<string, string>>({});
+  // Metadatos de archivos recién subidos en esta sesión (para previsualizar; el
+  // placeholder {{MEDIA:id}} guardado como respuesta no es una URL). name/contentType
+  // vienen del archivo real elegido por el usuario, no de field.data_type — ese último
+  // siempre es "image" para carga_de_archivos en el catálogo de question_types.
+  const [filePreviews, setFilePreviews] = useState<Record<string, { url: string; name: string; contentType: string }>>({});
   // ids de campos con un auto-guardado en curso — pinta el loader junto al campo respectivo
   // (en vez de un spinner global en una barra) mientras se espera la respuesta del PATCH.
   const [savingFieldIds, setSavingFieldIds] = useState<Set<string>>(new Set());
   // ids con "Guardado" transitorio recién confirmado — se limpian solos a los 1.5s.
   const [savedFieldIds, setSavedFieldIds] = useState<Set<string>>(new Set());
   const savedTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Nodos de cada campo, poblados por el ref callback del loop de render — usado solo para
+  // hacer scroll al primer campo con error al intentar avanzar (handleDoneEditing).
+  const fieldNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     const timeouts = savedTimeoutsRef.current;
@@ -184,28 +194,57 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     onSavingChange?.(isSaving);
   }, [isSaving, onSavingChange]);
 
-  // Auto-guarda (debounced) cualquier campo respondible que cambie — no solo los "disparadores"
-  // de depends_on — para que el valor quede persistido sin depender del botón Enviar. Cuando el
-  // campo es disparador, esto además hace que el backend recalcule is_visible/can_answer y el
-  // usuario vea aparecer/ocultarse los campos dependientes. El front NUNCA decide por su cuenta
-  // si un campo se muestra/habilita — solo refleja lo que el backend recalcula tras esto.
-  const debouncedAnswers = useDebounce(answers, 500);
-  useEffect(() => {
-    if (!editing || uploadingFields.size > 0 || isSaving) return;
+  // Refs de lectura fresca para los disparadores del autoguardado (timers/eventos DOM, no
+  // renders) — evitan cerrar sobre estado desactualizado sin tener que recrear los timers
+  // en cada cambio de estado.
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const isSavingRef = useRef(isSaving);
+  isSavingRef.current = isSaving;
+  const uploadingCountRef = useRef(uploadingFields.size);
+  uploadingCountRef.current = uploadingFields.size;
+  // ids con un PATCH ya en vuelo — evita reenviar el mismo campo si el blur y el timer de
+  // commit (widgets atómicos) caen casi al mismo tiempo.
+  const inFlightIdsRef = useRef<Set<string>>(new Set());
+  const commitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleAutosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const COMMIT_DELAY_MS = 400;
+  const IDLE_AUTOSAVE_MS = 10_000;
+
+  // Auto-guarda cualquier campo respondible que haya cambiado desde el último guardado — no
+  // solo los "disparadores" de depends_on — para que el valor quede persistido sin depender
+  // del botón Enviar. Cuando el campo es disparador, esto además hace que el backend recalcule
+  // is_visible/can_answer y el usuario vea aparecer/ocultarse los campos dependientes. El
+  // front NUNCA decide por su cuenta si un campo se muestra/habilita — solo refleja lo que el
+  // backend recalcula tras esto.
+  //
+  // A diferencia del debounce anterior (un PATCH por tick de tipeo), esto se dispara solo en
+  // eventos discretos: blur de un campo de texto libre, cambio de un widget atómico
+  // (coalescido 400ms), inactividad de 10s sin salir del campo, abandono de la página, o el
+  // flush final al salir de edición — ver ia context correspondiente.
+  const flushDirtyFields = useCallback(() => {
+    if (!editingRef.current || uploadingCountRef.current > 0 || isSavingRef.current) return;
+
+    const currentAnswers = answersRef.current;
     const changed = sortedFields.filter(
-      (f) => isFieldAnswerable(f) && !valuesEqual(debouncedAnswers[f.id], lastSavedAnswersRef.current[f.id]),
+      (f) =>
+        isFieldAnswerable(f) &&
+        !inFlightIdsRef.current.has(f.id) &&
+        !valuesEqual(currentAnswers[f.id], lastSavedAnswersRef.current[f.id]),
     );
     if (changed.length === 0) return;
 
     // Valida formato/rango (min/max, entero, email) antes de autoguardar. Un campo inválido
     // no se envía — se marca su error inline y se reintenta solo cuando el usuario lo corrija
-    // (queda "changed" en el próximo tick porque no se actualiza lastSavedAnswersRef). Los
+    // (queda "changed" en el próximo flush porque no se actualiza lastSavedAnswersRef). Los
     // demás campos cambiados del mismo lote sí se guardan. required no se valida acá (no
     // bloquea el autosave, solo bloquea salir de edición en handleDoneEditing).
     const invalidErrors: Record<string, string> = {};
     const valid = changed.filter((f) => {
-      const err = validateFormFieldValue(f, debouncedAnswers[f.id]);
+      const err = validateFormFieldValue(f, currentAnswers[f.id]);
       if (!err) return true;
       invalidErrors[f.id] = t(`form.fill.${err.key}`, err.params);
       return false;
@@ -216,15 +255,16 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     if (valid.length === 0) return;
 
     const ids = valid.map((f) => f.id);
+    ids.forEach((id) => inFlightIdsRef.current.add(id));
     setSavingFieldIds((prev) => new Set([...prev, ...ids]));
     // Toast reutilizable: mismo id por sección, se actualiza in-place (loading -> success/error)
-    // en vez de apilar un toast por cada campo/tick de autosave.
+    // en vez de apilar un toast por cada campo/flush de autosave.
     const toastId = `form-autosave-${sectionExecutionId}`;
     toast.loading(t("common:saving"), { id: toastId });
-    const values = valid.map((f) => ({ id: f.id, value: debouncedAnswers[f.id] ?? null }));
+    const values = valid.map((f) => ({ id: f.id, value: currentAnswers[f.id] ?? null }));
     updateSectionFormValues(sectionExecutionId, values, organizationId)
       .then((payload) => {
-        for (const f of valid) lastSavedAnswersRef.current[f.id] = debouncedAnswers[f.id];
+        for (const f of valid) lastSavedAnswersRef.current[f.id] = currentAnswers[f.id];
         onUpdate?.(payload);
         toast.success(t("form.fill.autoSaved"), { id: toastId });
         setSavedFieldIds((prev) => new Set([...prev, ...ids]));
@@ -241,19 +281,88 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         });
       })
       .catch(() => {
-        // Best-effort: si falla, se reintenta en el próximo cambio o al guardar con el botón.
+        // Best-effort: si falla, se reintenta en el próximo flush o al guardar con el botón.
         toast.error(t("form.fill.autoSaveError"), { id: toastId });
       })
       .finally(() => {
+        ids.forEach((id) => inFlightIdsRef.current.delete(id));
         setSavingFieldIds((prev) => {
           const next = new Set(prev);
           ids.forEach((id) => next.delete(id));
           return next;
         });
       });
-  }, [debouncedAnswers, editing, isSaving, onUpdate, organizationId, sectionExecutionId, sortedFields, t, uploadingFields]);
+  }, [onUpdate, organizationId, sectionExecutionId, sortedFields, t]);
 
-  const setAnswer = (fieldId: string, value: unknown) => {
+  const clearAutosaveTimers = useCallback(() => {
+    if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
+    if (idleAutosaveTimeoutRef.current) clearTimeout(idleAutosaveTimeoutRef.current);
+    commitTimeoutRef.current = null;
+    idleAutosaveTimeoutRef.current = null;
+  }, []);
+
+  // Red de seguridad: si el usuario sigue escribiendo un campo de texto libre sin salir de
+  // él por más de IDLE_AUTOSAVE_MS, igual se guarda — evita perder trabajo largo antes de un
+  // blur o un cierre de página.
+  useEffect(() => {
+    if (!editing) return;
+    const hasFreeTextDirty = sortedFields.some(
+      (f) =>
+        isFieldAnswerable(f) &&
+        isFreeTextField(f) &&
+        !valuesEqual(answers[f.id], lastSavedAnswersRef.current[f.id]),
+    );
+    if (!hasFreeTextDirty) return;
+
+    if (idleAutosaveTimeoutRef.current) clearTimeout(idleAutosaveTimeoutRef.current);
+    idleAutosaveTimeoutRef.current = setTimeout(() => {
+      flushDirtyFields();
+    }, IDLE_AUTOSAVE_MS);
+    return () => {
+      if (idleAutosaveTimeoutRef.current) clearTimeout(idleAutosaveTimeoutRef.current);
+    };
+  }, [answers, editing, flushDirtyFields, sortedFields]);
+
+  // Flush best-effort al abandonar la pestaña/ventana con un campo aún enfocado (blur nunca
+  // llega si el usuario cierra o cambia de app).
+  useEffect(() => {
+    if (!editing) return;
+    const handlePageHide = () => flushDirtyFields();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushDirtyFields();
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [editing, flushDirtyFields]);
+
+  // flushDirtyFields se recrea si cambian sus deps (sortedFields, onUpdate, etc.) — el ref
+  // asegura que el flush de desmontaje de abajo siempre llame a la versión más reciente y no
+  // quede colgado de la del primer render.
+  const flushDirtyFieldsRef = useRef(flushDirtyFields);
+  flushDirtyFieldsRef.current = flushDirtyFields;
+
+  // Cancela timers pendientes y hace un último flush al desmontar (p.ej. el panel de
+  // workflow desmonta la sección con key={currentSection.id} al cambiar de paso).
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimers();
+      flushDirtyFieldsRef.current();
+    };
+  }, [clearAutosaveTimers]);
+
+  const handleFieldBlur = (field: FormFieldValue) => (e: React.FocusEvent<HTMLDivElement>) => {
+    // React onBlur == focusout: burbujea. Si el foco sigue dentro del mismo contenedor
+    // (input → botón interno del widget) no es una salida real del campo.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    if (!isFreeTextField(field)) return;
+    flushDirtyFields();
+  };
+
+  const setAnswer = (fieldId: string, value: unknown, opts?: { commit?: boolean }) => {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
     setFieldErrors((prev) => {
       if (!prev[fieldId]) return prev;
@@ -261,14 +370,26 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       delete next[fieldId];
       return next;
     });
+
+    // Widgets atómicos: un cambio ya es un valor completo (no hay "a medio escribir"), así
+    // que se guarda por cambio en vez de esperar un blur — coalescido para no disparar un
+    // PATCH por cada click de una selección múltiple rápida.
+    if (opts?.commit) {
+      if (commitTimeoutRef.current) clearTimeout(commitTimeoutRef.current);
+      commitTimeoutRef.current = setTimeout(() => {
+        flushDirtyFields();
+      }, COMMIT_DELAY_MS);
+    }
   };
 
-  // URL a mostrar para un campo de archivo: la subida nueva (filePreviews) o la URL original del backend.
-  const fileDisplayUrl = (field: FormFieldValue): string | null => {
+  // Metadatos a mostrar para un campo de archivo: la subida nueva (filePreviews, con
+  // nombre/mime reales) o solo la URL original del backend (recarga de página — el
+  // backend únicamente resuelve el token a una URL firmada, sin metadatos del archivo).
+  const fileDisplayMeta = (field: FormFieldValue): { url: string; name?: string; contentType?: string } | null => {
     const preview = filePreviews[field.id];
     if (preview) return preview;
     const v = answers[field.id];
-    if (typeof v === "string" && v.startsWith("http")) return v;
+    if (typeof v === "string" && v.startsWith("http")) return { url: v };
     return null;
   };
 
@@ -278,14 +399,31 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   const isBrokenFileField = (field: FormFieldValue): boolean =>
     !filePreviews[field.id] && isMediaToken(answers[field.id]);
 
-  // Sale del modo edición. Los valores ya quedan persistidos por el auto-guardado
-  // mientras se escribe; acá se hace un flush best-effort de lo que pudiera seguir
-  // pendiente dentro de la ventana del debounce (por ej. si el usuario sale justo
-  // después de tipear). Antes de salir, bloquea si queda algún obligatorio sin
+  // Sale del modo edición. La mayoría de los valores ya quedan persistidos por el
+  // auto-guardado (al blur de un campo de texto, al cambiar un widget atómico, o por la red
+  // de seguridad de inactividad); acá se cancelan esos timers y se hace un flush autoritativo
+  // de lo que pudiera seguir pendiente (por ej. si el usuario sale justo después de tipear,
+  // sin llegar a disparar un blur). Antes de salir, bloquea si queda algún obligatorio sin
   // responder o algún valor con error de formato/rango — al ser obligatorio debe
-  // contestarse sí o sí; no toca review_status, eso lo controla el selector de la
-  // barra de acciones.
+  // contestarse sí o sí. Si todo pasa, marca review_status='finished' (estado puramente
+  // visual): el usuario terminó de responder, sea desde assets ("Dejar de editar") o desde
+  // el wizard de workflow ("Siguiente"/"Finalizar"), ambos disparan este mismo handler.
+  const finishAndExit = async () => {
+    if (reviewStatus !== "finished") {
+      try {
+        await updateReviewStatus(sectionExecutionId, "finished", organizationId);
+        onReviewStatusChange?.("finished");
+      } catch (error) {
+        // Estado visual: no bloquea la salida de edición ni el avance del wizard.
+        handleApiError(error, { fallbackMessage: t("form.fill.reviewStatusUpdateFailed") });
+      }
+    }
+    onExitEditing();
+  };
+
   const handleDoneEditing = async () => {
+    clearAutosaveTimers();
+
     if (uploadingFields.size > 0) {
       toast.error(t("form.fill.fileUploading_block"));
       return;
@@ -307,6 +445,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         ...Object.fromEntries(missing.map((f) => [f.id, t("form.fill.fieldRequired")])),
       }));
       toast.error(t("form.fill.requiredFieldsPending"));
+      // Salta al primer campo con error (respeta el orden de sortedFields, no el de detección).
+      const firstErrorId = sortedFields.find((f) => invalidErrors[f.id] || missing.some((m) => m.id === f.id))?.id;
+      if (firstErrorId) {
+        fieldNodesRef.current.get(firstErrorId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       return;
     }
 
@@ -314,7 +457,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
       (f) => isFieldAnswerable(f) && !valuesEqual(answers[f.id], lastSavedAnswersRef.current[f.id]),
     );
     if (changed.length === 0) {
-      onExitEditing();
+      await finishAndExit();
       return;
     }
 
@@ -330,7 +473,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     } finally {
       setIsSaving(false);
     }
-    onExitEditing();
+    await finishAndExit();
   };
 
   // El padre (barra de acciones de assets-section.tsx) dispara "Dejar de editar" a través de esta ref.
@@ -407,8 +550,15 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
               level: "document",
               parent_id: documentId,
             });
-            setAnswer(field.id, `{{MEDIA:${media.id}}}`);
-            setFilePreviews((prev) => ({ ...prev, [field.id]: media.current_version?.download_url ?? "" }));
+            setAnswer(field.id, `{{MEDIA:${media.id}}}`, { commit: true });
+            setFilePreviews((prev) => ({
+              ...prev,
+              [field.id]: {
+                url: media.current_version?.download_url ?? "",
+                name: file.name,
+                contentType: media.current_version?.content_type ?? file.type,
+              },
+            }));
           } catch {
             setFieldErrors((prev) => ({ ...prev, [field.id]: t("form.fill.fileUploadError") }));
           } finally {
@@ -416,7 +566,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           }
         };
 
-        const currentUrl = fileDisplayUrl(field);
+        const currentMeta = fileDisplayMeta(field);
         const isBroken = isBrokenFileField(field);
 
         return (
@@ -426,21 +576,14 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                 <FileX className="h-3.5 w-3.5" />
                 {t("form.fill.fileUnavailable")}
               </p>
-            ) : currentUrl && (
-              field.data_type === "image" ? (
-                <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
-                  <img src={currentUrl} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
-                </a>
-              ) : (
-                <a
-                  href={currentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800"
-                >
-                  {t("form.fill.fileDownload")}
-                </a>
-              )
+            ) : currentMeta && (
+              <HuemulFilePreview
+                url={currentMeta.url}
+                fileName={currentMeta.name}
+                contentType={currentMeta.contentType}
+                alt={field.field_name}
+                downloadLabel={t("form.fill.fileDownload")}
+              />
             )}
             <HuemulField
               type="file"
@@ -462,7 +605,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
 
       case CUSTOM_FIELD_QUESTION_TYPE:
         // Solo lectura: el valor se gestiona en los custom fields del documento
-        return renderReadOnly(field);
+        return <FormFieldAnswerValue field={field} value={value} filePreview={filePreviews[field.id]} />;
 
       default:
         return (
@@ -471,7 +614,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
             dataType={field.data_type}
             placeholder={PLACEHOLDER_BY_QUESTION_TYPE[field.question_type ?? ""]}
             value={value as HuemulQuestionInputValue}
-            onChange={(v) => setAnswer(field.id, v)}
+            onChange={(v) => setAnswer(field.id, v, { commit: !isFreeTextField(field) })}
             options={readFieldOptions(field)}
             min={typeof field.min_value === "number" ? field.min_value : undefined}
             max={typeof field.max_value === "number" ? field.max_value : undefined}
@@ -484,146 +627,14 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     }
   };
 
-  // ── Render del valor en solo lectura ───────────────────────────────────────
-  const renderReadOnly = (field: FormFieldValue) => {
-    const value = answers[field.id];
-
-    if (!hasAnswer(value)) {
-      return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
-    }
-
-    if (field.question_type === QUESTION_TYPE.yesNo) {
-      return (
-        <span className="text-sm text-gray-800">
-          {value ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
-        </span>
-      );
-    }
-
-    if (field.question_type === QUESTION_TYPE.rating) {
-      return (
-        <HuemulField
-          type="rating"
-          label=""
-          max={typeof field.max_value === "number" ? field.max_value : 5}
-          value={value as number}
-          disabled
-        />
-      );
-    }
-
-    if (field.question_type === QUESTION_TYPE.paragraph) {
-      return <p className="whitespace-pre-wrap text-sm text-gray-800">{String(value)}</p>;
-    }
-
-    if (
-      field.question_type === QUESTION_TYPE.multipleChoice ||
-      field.question_type === QUESTION_TYPE.dropdown
-    ) {
-      const options = readFieldOptions(field);
-      return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
-    }
-
-    if (field.question_type === QUESTION_TYPE.dropdownMultiple) {
-      const options = readFieldOptions(field);
-      return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
-    }
-
-    if (field.question_type === QUESTION_TYPE.fileUpload) {
-      if (isBrokenFileField(field)) {
-        return (
-          <span className="flex items-center gap-1.5 text-sm italic text-gray-400">
-            <FileX className="h-3.5 w-3.5" />
-            {t("form.fill.fileUnavailable")}
-          </span>
-        );
-      }
-      const url = fileDisplayUrl(field);
-      if (!url) return <span className="text-sm italic text-gray-400">{t("form.fill.noAnswer")}</span>;
-      if (field.data_type === "image") {
-        return (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
-            <img src={url} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
-          </a>
-        );
-      }
-      return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800"
-        >
-          {t("form.fill.fileDownload")}
-        </a>
-      );
-    }
-
-    if (field.question_type === CUSTOM_FIELD_QUESTION_TYPE) {
-      if (field.data_type === "image") {
-        const url = String(value);
-        return (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
-            <img src={url} alt={field.field_name} className="max-h-48 rounded border border-gray-200 object-contain" />
-          </a>
-        );
-      }
-      if (field.data_type === "url") {
-        const url = String(value);
-        return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-blue-600 underline underline-offset-2 hover:text-blue-800 break-all"
-          >
-            {url}
-          </a>
-        );
-      }
-      if (field.data_type === "bool") {
-        const isYes = value === true || value === "true" || value === 1;
-        return (
-          <span className="text-sm text-gray-800">
-            {isYes ? t("form.formFields.previewYes") : t("form.formFields.previewNo")}
-          </span>
-        );
-      }
-      if (field.data_type === "list") {
-        const options = readFieldOptions(field);
-        return <span className="text-sm text-gray-800">{resolveOptionLabels(value, options).join(", ")}</span>;
-      }
-      // date / time / numéricos / string → caen al manejo genérico de abajo
-    }
-
-    if (
-      field.question_type === QUESTION_TYPE.date ||
-      (typeof value === "string" && /^\d{4}-\d{2}-\d{2}(T|$)/.test(value))
-    ) {
-      const dateOnly = (value as string).split("T")[0];
-      const [year, month, day] = dateOnly.split("-").map(Number);
-      const date = new Date(year, month - 1, day);
-      const formatted = date.toLocaleDateString(navigator.language || "es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-      return <span className="text-sm text-gray-800">{formatted}</span>;
-    }
-
-    if (
-      (field.question_type === QUESTION_TYPE.time || field.data_type === "time") &&
-      typeof value === "string"
-    ) {
-      // Mostrar HH:MM (sin segundos)
-      return <span className="text-sm text-gray-800">{value.slice(0, 5)}</span>;
-    }
-
-    return <span className="text-sm text-gray-800">{String(value)}</span>;
-  };
-
   return (
     <div className="w-full">
+      {editing && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          {t("form.fill.autoSaveHint")}
+        </div>
+      )}
       <div className="space-y-5">
         {displayedFields.map((field, index) => {
           const isExiting = exitingFieldIds.has(field.id);
@@ -649,15 +660,21 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           // Campo cuya respuesta puede mostrar/ocultar otras preguntas (referenciado en algún depends_on).
           const isTriggerField =
             editing && !!field.field_id && triggerFieldIds.has(field.field_id) && isFieldAnswerable(field);
+          const isEditableField = editing && isFieldAnswerable(field);
           return (
             <div
               key={field.id || index}
+              ref={(node) => {
+                if (node) fieldNodesRef.current.set(field.id, node);
+                else fieldNodesRef.current.delete(field.id);
+              }}
               className={cn(
                 "space-y-2",
                 isExiting
                   ? "pointer-events-none animate-out fade-out slide-out-to-top-2 duration-200"
                   : "animate-in fade-in slide-in-from-top-2 duration-300",
               )}
+              onBlur={isEditableField ? handleFieldBlur(field) : undefined}
             >
               <label className="flex items-baseline gap-1.5 text-sm font-semibold text-gray-900">
                 <span>
@@ -678,11 +695,11 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
                   </span>
                 )}
               </label>
-              {editing && isFieldAnswerable(field)
+              {isEditableField
                 ? renderInput(field)
                 : editing && isFieldVisible(field) && field.question_type !== CUSTOM_FIELD_QUESTION_TYPE
                   ? renderInput(field, { disabled: true })
-                  : renderReadOnly(field)}
+                  : <FormFieldAnswerValue field={field} value={answers[field.id]} filePreview={filePreviews[field.id]} />}
               {isTriggerField && (
                 <p className="flex items-center gap-1 text-xs text-gray-400">
                   <Info className="h-3 w-3 shrink-0" />
@@ -694,19 +711,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
         })}
       </div>
 
-      {/* Footer: solo info de quien respondió, en modo lectura */}
-      {!editing && responderName && (
-        <div className="mt-5 border-t border-gray-100 pt-3">
-          <span className="text-xs text-gray-400">
-            {respondedAt
-              ? t("form.fill.respondedBy", {
-                  name: responderName,
-                  date: new Date(respondedAt).toLocaleString(),
-                })
-              : responderName}
-          </span>
-        </div>
-      )}
     </div>
   );
 });

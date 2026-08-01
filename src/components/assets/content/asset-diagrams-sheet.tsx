@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Workflow, AlertCircle } from "lucide-react";
+import { Workflow, AlertCircle, Plus } from "lucide-react";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDiagrams } from "@/hooks/useDiagrams";
-import { DiagramEditSheet } from "@/components/diagrams";
+import { DiagramViewSheet } from "@/components/diagrams";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useOrgPath } from "@/hooks/useOrgRouter";
 import { formatApiDateTime } from "@/lib/utils";
 import type { Diagram } from "@/types/diagrams";
 
@@ -15,6 +17,7 @@ export interface AssetDiagramsSheetProps {
   onOpenChange: (open: boolean) => void;
   documentId: string;
   organizationId: string;
+  executionId?: string;
 }
 
 function DiagramRow({ diagram, documentId, onClick }: { diagram: Diagram; documentId: string; onClick: () => void }) {
@@ -44,9 +47,11 @@ function ListSkeleton() {
   );
 }
 
-export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizationId }: AssetDiagramsSheetProps) {
+export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizationId, executionId }: AssetDiagramsSheetProps) {
   const { t } = useTranslation("diagrams");
   const [selectedDiagramId, setSelectedDiagramId] = useState<string | null>(null);
+  const { isOrgAdmin, hasPermission } = useUserPermissions();
+  const buildPath = useOrgPath();
 
   const { data, isLoading, isError } = useDiagrams(organizationId, {
     enabled: open && !!documentId,
@@ -55,6 +60,15 @@ export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizatio
   });
 
   const diagrams = data?.data ?? [];
+
+  const canCreate = isOrgAdmin || hasPermission("diagram:c");
+
+  const handleCreate = () => {
+    if (!documentId) return;
+    const params = new URLSearchParams({ diagram: "new", seedAsset: documentId });
+    if (executionId) params.set("seedExecution", executionId);
+    window.open(buildPath(`/asset?${params}`), "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -65,6 +79,12 @@ export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizatio
         description={t("relatedSheet.description")}
         icon={Workflow}
         showFooter={false}
+        extraActions={canCreate && documentId ? [{
+          label: t("relatedSheet.createAction"),
+          icon: Plus,
+          position: "header",
+          onClick: handleCreate,
+        }] : undefined}
       >
         {isLoading && <ListSkeleton />}
 
@@ -96,7 +116,7 @@ export function AssetDiagramsSheet({ open, onOpenChange, documentId, organizatio
         )}
       </HuemulSheet>
 
-      <DiagramEditSheet
+      <DiagramViewSheet
         open={!!selectedDiagramId}
         onOpenChange={(o) => { if (!o) setSelectedDiagramId(null); }}
         diagramId={selectedDiagramId}

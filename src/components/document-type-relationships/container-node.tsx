@@ -46,18 +46,20 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
       )}
       style={{ borderColor: data.color || "#94a3b8" }}
     >
-      <NodeResizer
-        color={data.color || "#94a3b8"}
-        isVisible={selected}
-        handleClassName="z-10"
-        lineClassName="z-10"
-        minWidth={120}
-        minHeight={80}
-      />
+      {!data.readOnly && (
+        <NodeResizer
+          color={data.color || "#94a3b8"}
+          isVisible={selected}
+          handleClassName="z-10"
+          lineClassName="z-10"
+          minWidth={120}
+          minHeight={80}
+        />
+      )}
       <div
         className="w-full px-2 py-1 text-xs font-semibold truncate select-none cursor-move"
         style={{ color: data.color || "#94a3b8" }}
-        onDoubleClick={() => setIsEditingTitle(true)}
+        onDoubleClick={() => { if (!data.readOnly) setIsEditingTitle(true) }}
       >
         {isEditingTitle ? (
           <input
@@ -77,6 +79,10 @@ export function ContainerNode({ data, selected }: NodeProps<ContainerNodeType>) 
       </div>
     </div>
   )
+
+  if (data.readOnly) {
+    return nodeContent
+  }
 
   return (
     <ContextMenu>
