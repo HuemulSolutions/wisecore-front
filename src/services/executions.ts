@@ -3,7 +3,7 @@ import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
 import { toDateParam } from "@/lib/date-params";
 import { ApiError } from "@/types/api-error";
-import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse } from "@/types/execution";
+import type { ExecutionsResponse, GetExecutionsParams, RollbackTarget, RollbackStep, RollbackTargetsResponse, ExecutionVersionSuggestion, ExecutionVersionSuggestionResponse, ExecutionSectionsStatusResponse } from "@/types/execution";
 import type { AvailableDocxTemplate, AvailableDocxTemplatesResponse } from "@/types/docx-templates";
 import type { CompleteLifecycleStepResponse } from "@/types/lifecycle";
 
@@ -112,17 +112,17 @@ export async function getExecutionStatus(executionId: string, organizationId: st
     return data.data || data; // Handle both data.data and direct data response
 }
 
-export async function getExecutionSectionsStatus(executionId: string, organizationId: string) {
+export async function getExecutionSectionsStatus(executionId: string, organizationId: string): Promise<ExecutionSectionsStatusResponse> {
     logger.log(`Fetching sections status for execution ID: ${executionId}`);
     const response = await httpClient.get(`${backendUrl}/execution/${executionId}/sections_status`, {
         headers: {
             'X-Org-Id': organizationId,
         },
     });
-    
+
     const data = await response.json();
     logger.log('Sections status fetched:', data.data);
-    return data.data;
+    return data.data as ExecutionSectionsStatusResponse;
 }
 
 export async function createExecution(documentId: string, organizationId: string) {

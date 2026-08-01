@@ -40,6 +40,7 @@ import { getDocumentContent, deleteDocument, getDocumentById, exportDocuments } 
 import { useDocumentMediaUrls } from "@/hooks/useDocumentMediaUrls";
 import { MediaUrlProvider } from "@/contexts/media-url-context";
 import { exportExecutionToMarkdown, exportExecutionToWord, exportExecutionToExcel, executeDocument, approveExecution, disapproveExecution, cloneExecution, cloneExecutionToNewDocument, deleteExecution, updateExecutionName } from "@/services/executions";
+import { useSectionsExecutionStatus } from './hooks/useSectionsExecutionStatus';
 import { getDefaultLLM } from "@/services/llms";
 import { useLifecycleActions } from "@/hooks/useLifecycleActions";
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge";
@@ -619,6 +620,8 @@ export function AssetContent({
       setSectionExecutionId(null);
       setDismissedExecutionBanners(new Set());
       setExecutionContext(null);
+      doneSnapshotRef.current.clear();
+      refreshedOrdersRef.current.clear();
     }
   }, [selectedFile?.id, selectedExecutionId]);
 
@@ -643,7 +646,9 @@ export function AssetContent({
     setCurrentExecutionId(executionId);
     setCurrentExecutionMode(mode);
     setCurrentSectionIndex(sectionIndex);
-    
+    doneSnapshotRef.current.clear();
+    refreshedOrdersRef.current.clear();
+
     // Force reset of execution status queries to ensure fresh data for new execution
     // resetQueries will refetch immediately for any mounted components with these queries
     queryClient.resetQueries({ queryKey: ['execution-status', executionId] });
@@ -856,15 +861,17 @@ export function AssetContent({
   // Fetch document content when a document is selected
   // Note: The backend automatically returns the approved execution or the latest one if none is approved
   // When selectedExecutionId is provided, it fetches that specific historical version
-  const { 
-    data: documentContent, 
+  const {
+    data: documentContent,
     isLoading: isLoadingContent,
+    isFetching: isFetchingContent,
+    dataUpdatedAt: contentUpdatedAt,
     isError: isContentError,
     error: contentError,
     refetch: refetchContent
   } = useQuery({
-    queryKey: selectedExecutionId 
-      ? ['document-content', selectedFile?.id, selectedExecutionId] 
+    queryKey: selectedExecutionId
+      ? ['document-content', selectedFile?.id, selectedExecutionId]
       : ['document-content', selectedFile?.id],
     queryFn: () => getDocumentContent(selectedFile!.id, selectedOrganizationId!, selectedExecutionId || undefined),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId,
@@ -938,6 +945,57 @@ export function AssetContent({
     },
     refetchOnWindowFocus: false,
   });
+
+  // Poll per-section status so each section's skeleton/content reflects its own progress
+  // instead of the overall execution status (which only turns terminal once every
+  // section in the batch is done). Same query key used by SectionExecutionFeedback
+  // (mounted as a passive subscriber below), so React Query shares the fetch instead
+  // of duplicating it.
+  const {
+    sections: executionSections,
+    getSectionStatus: getSectionExecutionStatus,
+    isSectionInScope,
+  } = useSectionsExecutionStatus({
+    executionId: currentExecutionId,
+    executionMode: currentExecutionMode,
+    startSectionIndex: currentSectionIndex,
+    poll: true,
+    overallStatus: currentExecutionStatus?.status,
+  });
+
+  // Snapshot of contentUpdatedAt taken the instant a section is first seen as 'done'.
+  // Until document-content refetches with data NEWER than that snapshot, the cached
+  // body for that section is still the old/empty one — keep its skeleton up to avoid
+  // a flash of stale content between the "done" banner and the real regenerated text.
+  const doneSnapshotRef = useRef<Map<number, number>>(new Map());
+  // Orders already invalidated for the current execution, so a tick where several
+  // sections finish together triggers a single document-content refetch, not one per section.
+  const refreshedOrdersRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!executionSections?.length) return;
+    const newlyDone = executionSections.filter(
+      (s) => s.status === 'done' && !refreshedOrdersRef.current.has(s.order),
+    );
+    if (!newlyDone.length) return;
+
+    newlyDone.forEach((s) => {
+      refreshedOrdersRef.current.add(s.order);
+      if (!doneSnapshotRef.current.has(s.order)) {
+        doneSnapshotRef.current.set(s.order, contentUpdatedAt);
+      }
+    });
+
+    preserveScrollPosition();
+    queryClient.invalidateQueries({ queryKey: ['document-content', selectedFile?.id] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [executionSections, selectedFile?.id, queryClient]);
+
+  const isAwaitingFreshContent = useCallback((index: number) => {
+    const snapshot = doneSnapshotRef.current.get(index + 1);
+    if (snapshot === undefined) return false;
+    return isFetchingContent || contentUpdatedAt <= snapshot;
+  }, [isFetchingContent, contentUpdatedAt]);
 
   // Poll approving execution status to detect when approval completes
   const { data: approvingExecutionStatus } = useQuery({
@@ -2903,9 +2961,11 @@ export function AssetContent({
                               
                               {documentContent.content.map((section: ContentSection, index: number) => {
                           const realSectionId = section.section_id;
-                          
-                          // In reader mode, hide sections with empty content
-                          if (isViewMode && section.section_type !== 'form' && isSectionContentEmpty(section)) {
+
+                          // In reader mode, hide sections with empty content — except sections
+                          // in scope of an in-progress 'single'/'from' execution: there the empty
+                          // content is transient and must show skeleton + feedback, not disappear.
+                          if (isViewMode && section.section_type !== 'form' && !isSectionInScope(index) && isSectionContentEmpty(section)) {
                             return null;
                           }
                           
@@ -2935,18 +2995,14 @@ export function AssetContent({
                                       : (selectedExecutionId || undefined)
                                   }
                                   executionStatus={
-                                    (currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from'))
-                                      ? (currentExecutionStatus?.status || 'running')
+                                    isSectionInScope(index)
+                                      ? (isAwaitingFreshContent(index)
+                                          ? 'running'
+                                          : (getSectionExecutionStatus(index) || currentExecutionStatus?.status || 'running'))
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}
-                                  showExecutionFeedback={
-                                    !!(currentExecutionId && (currentExecutionMode === 'single' || currentExecutionMode === 'from') && (
-                                      currentExecutionMode === 'single'
-                                        ? index === currentSectionIndex
-                                        : currentSectionIndex !== undefined && index >= currentSectionIndex
-                                    ))
-                                  }
+                                  showExecutionFeedback={isSectionInScope(index)}
                                   onExecutionStart={(executionIdForSection) => {
                                     if (executionIdForSection) {
                                       setSectionExecutionId(executionIdForSection);
