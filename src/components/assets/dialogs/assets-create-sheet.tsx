@@ -195,7 +195,19 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
         }}
       >
         <form id="create-asset-form" onSubmit={handleSubmit} className="grid gap-6">
-          {/* 1 · Asset type */}
+          {/* 1 · Asset name */}
+          <HuemulField
+            type="text"
+            label={t('form.assetName')}
+            name="name"
+            required
+            value={name}
+            onChange={(v) => setName(String(v))}
+            placeholder={t('form.assetNamePlaceholder')}
+            disabled={disabled}
+          />
+
+          {/* 2 · Asset type */}
           <HuemulField
             type="async-combobox"
             label={t('form.assetType')}
@@ -218,7 +230,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
             }
           />
 
-          {/* 2 · Initial content */}
+          {/* 3 · Initial content */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium leading-snug">{t('create.initialContentLabel')}</span>
             <div className="grid grid-cols-2 gap-3">
@@ -256,19 +268,7 @@ function CreateAssetSheetInner({ open, onOpenChange, folderId, onAssetCreated }:
             />
           )}
 
-          {/* 4 · Asset name */}
-          <HuemulField
-            type="text"
-            label={t('form.assetName')}
-            name="name"
-            required
-            value={name}
-            onChange={(v) => setName(String(v))}
-            placeholder={t('form.assetNamePlaceholder')}
-            disabled={disabled}
-          />
-
-          {/* 5 · Internal code + description */}
+          {/* 4 · Internal code + description */}
           <div className="grid grid-cols-2 gap-4">
             <HuemulField
               type="text"
