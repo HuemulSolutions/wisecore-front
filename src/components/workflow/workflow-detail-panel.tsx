@@ -10,9 +10,13 @@ import { AssetFormSection, type AssetFormSectionHandle } from "@/components/asse
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
 import { WorkflowPreviousAnswersSheet } from "@/components/workflow/workflow-previous-answers-sheet"
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
+import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
+import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
+import { HuemulLifecycleDialogs } from "@/huemul/components/huemul-lifecycle-dialogs"
 import { getDocumentContent } from "@/services/assets"
 import { useOrganization } from "@/contexts/organization-context"
 import { workflowQueryKeys } from "@/hooks/useWorkflows"
+import { useLifecycleActions } from "@/hooks/useLifecycleActions"
 import type { AssetContentResponse, ContentSection } from "@/types/assets"
 import type { WorkflowItem } from "@/types/workflow"
 import type { WorkflowTemplateItem, CreateExpressResult } from "@/types/templates"
@@ -62,6 +66,9 @@ export function WorkflowDetailPanel({
   const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
 
   const documentId = row?.document_id ?? createdDoc?.id ?? null
+  // Fija la ejecución a mostrar (fila ya existente). Para un express recién creado
+  // no hay `row` todavía, así que el fetch trae la ejecución por defecto del
+  // documento — una vez cargada, `lifecycleExecutionId` abajo la toma de `data`.
   const executionId = row?.execution_id
 
   const nameRequired = !!template?.require_name_on_express
@@ -164,6 +171,18 @@ export function WorkflowDetailPanel({
   const documentName = editedAsset?.name ?? row?.document_name ?? createdDoc?.name ?? template?.name
   const internalCode = editedAsset?.internalCode ?? row?.internal_code
 
+  // Ciclo de vida del documento (completar/devolver, publicar, archivar, restaurar,
+  // asignar versión, re-lanzar publish externo) — mismo controlador que assets-content.tsx.
+  const lifecycleExecutionId = executionId ?? data?.execution_id
+  const lifecycle = useLifecycleActions({
+    documentId,
+    executionId: lifecycleExecutionId,
+    organizationId: selectedOrganizationId,
+    lifecycleStatus: data?.lifecycle_status,
+    lifecyclePermissions: data?.lifecycle_permissions,
+    extraRefreshKeys: () => [workflowQueryKeys.listBase()],
+  })
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 border-b p-4 shrink-0">
@@ -209,6 +228,13 @@ export function WorkflowDetailPanel({
           />
         </div>
       </div>
+
+      {data?.lifecycle_status && !needsNameStep && (
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-2 shrink-0 flex-wrap">
+          <HuemulLifecycleStageBadge status={data.lifecycle_status} />
+          <HuemulLifecycleActions controller={lifecycle} variant="row" showRerunExternalPublish />
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto p-4">
         {needsNameStep ? (
@@ -312,6 +338,13 @@ export function WorkflowDetailPanel({
         onOpenChange={setIsAnswersSheetOpen}
         sections={previousSections}
         onGoToStep={(i) => setStep(i)}
+      />
+
+      <HuemulLifecycleDialogs
+        controller={lifecycle}
+        executionId={lifecycleExecutionId}
+        organizationId={selectedOrganizationId}
+        existingVersions={data?.executions?.map((e) => e.version).filter((v): v is string => !!v)}
       />
     </div>
   )
