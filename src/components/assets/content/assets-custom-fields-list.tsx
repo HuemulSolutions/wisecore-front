@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,7 @@ export function CustomFieldsList({
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
-  const { t } = useTranslation(["assets", "common"]);
+  const { t } = useTranslation(["assets", "common", "custom-fields"]);
 
   const formatCalendarDate = (dateValue: string) => {
     const normalizedDate = dateValue.split('T')[0];
@@ -266,11 +267,22 @@ export function CustomFieldsList({
                       <span className="text-xs text-destructive shrink-0">*</span>
                     )}
                   </div>
-                  {field.source && (
-                    <span className="text-xs text-muted-foreground capitalize shrink-0">
-                      {field.source}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {field.from_template && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs px-1.5 py-0 font-normal"
+                        title={t('custom-fields:badges.fromTemplateTooltip')}
+                      >
+                        {t('custom-fields:badges.fromTemplate')}
+                      </Badge>
+                    )}
+                    {field.source && (
+                      <span className="text-xs text-muted-foreground">
+                        {t(`custom-fields:sources.${field.source}`, { defaultValue: field.source })}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5 min-w-0">
                   {isUploadingThisField && field.data_type === 'image' ? (
