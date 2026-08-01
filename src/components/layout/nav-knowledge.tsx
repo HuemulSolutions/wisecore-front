@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileTree, type FileTreeRef } from "@/components/assets/content/assets-file-tree"
+import { FileTree } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
 import { useLocation } from "react-router-dom"
 import { useOrganization } from "@/contexts/organization-context"
