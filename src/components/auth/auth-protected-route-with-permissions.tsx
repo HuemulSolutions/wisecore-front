@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useOrganization } from '@/contexts/organization-context';
 import { AuthPage } from '@/pages/auth';
+import { PageSkeleton } from '@/components/ui/page-skeleton';
 import type { Permission } from '@/lib/jwt-utils';
 import type { ProtectedRouteWithPermissionsProps as ProtectedRouteProps } from '@/types/auth'
 
@@ -72,13 +73,10 @@ export function ProtectedRoute({
   // yet (e.g. deep-link OrgSync is in progress), wait before checking perms.
   const orgTokenPending = !!orgId && orgId !== '_' && !organizationToken;
 
-  // Mostrar loading mientras se cargan datos
+  // Mostrar loading mientras se cargan datos. El header ya está montado
+  // (AppLayout), así que solo el cuerpo muestra el skeleton.
   if (authLoading || permissionsLoading || orgTokenPending) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   // Si no está autenticado, mostrar página de login

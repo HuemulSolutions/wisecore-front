@@ -22,8 +22,12 @@ import {
 } from '@/huemul/components/huemul-asset-tree-picker';
 
 /** Mention element referencing an asset: `value`/`key` hold the asset name/id,
- * `color` snapshots the asset type's color at insertion time. */
-type AssetMentionElement = TMentionElement & { color?: string | null };
+ * `color` snapshots the asset type's color at insertion time.
+ * `executionId` is set when the mention was pinned to a specific version. */
+type AssetMentionElement = TMentionElement & {
+  color?: string | null;
+  executionId?: string | null;
+};
 
 export function MentionElement(
   props: PlateElementProps<AssetMentionElement> & {
@@ -41,7 +45,8 @@ export function MentionElement(
   const handleOpenAsset = (event: React.MouseEvent) => {
     if (!element.key) return;
     event.preventDefault();
-    window.open(buildPath(`/asset/${element.key}`), '_blank');
+    const query = element.executionId ? `?execution=${encodeURIComponent(element.executionId)}` : '';
+    window.open(buildPath(`/asset/${element.key}${query}`), '_blank');
   };
 
   return (
@@ -117,10 +122,14 @@ export function MentionInputElement(
       const path = editor.api.findPath(element);
       if (path) {
         editor.tf.removeNodes({ at: path });
+        // meta.documentId is only set when a specific version (execution) was
+        // picked; in that case `id` is the execution id, not the document id.
+        const isVersioned = !!meta?.documentId;
         editor.tf.insertNodes<AssetMentionElement>(
           {
             type: KEYS.mention,
-            key: id,
+            key: isVersioned ? meta!.documentId! : id,
+            executionId: isVersioned ? id : null,
             value: label,
             color: meta?.color ?? null,
             children: [{ text: '' }],
@@ -142,7 +151,7 @@ export function MentionInputElement(
             open={open}
             onOpenChange={handleOpenChange}
             organizationId={organizationId}
-            mode="document"
+            mode="document-with-version"
             onSelect={handleSelect}
           />
         )}

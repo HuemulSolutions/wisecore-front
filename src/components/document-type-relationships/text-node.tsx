@@ -21,6 +21,8 @@ export interface CanvasElementNodeData {
   onContentChange?: (id: string, content: string) => void
   onColorChange?: (id: string, color: string) => void
   onRemove?: (id: string) => void
+  // View-only mode: no resize, no inline editing, no context menu.
+  readOnly?: boolean
   [key: string]: unknown
 }
 
@@ -53,7 +55,7 @@ export function TextNode({ data, selected }: NodeProps<TextNodeType>) {
         "transition-shadow",
         selected ? "ring-2 ring-primary/40" : "",
       )}
-      onDoubleClick={() => setIsEditing(true)}
+      onDoubleClick={() => { if (!data.readOnly) setIsEditing(true) }}
     >
       {isEditing ? (
         <textarea
@@ -78,6 +80,10 @@ export function TextNode({ data, selected }: NodeProps<TextNodeType>) {
       )}
     </div>
   )
+
+  if (data.readOnly) {
+    return nodeContent
+  }
 
   return (
     <ContextMenu>

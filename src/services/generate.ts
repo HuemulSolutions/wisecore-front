@@ -251,10 +251,14 @@ export const editWithAi = async (params: EditWithAiParams): Promise<string> => {
         throw new TypeError("editWithAi: parameter 'params' is undefined. You must pass an object with the required properties.");
     }
 
-    const { text, prompt, templateId, sectionId, llmId, organizationId } = params;
+    const { text, prompt, templateId, sectionId, executionId, llmId, organizationId } = params;
 
     const payload: Record<string, unknown> = { text, prompt };
-    if (templateId) payload.template_id = templateId;
+    if (templateId) {
+        payload.template_id = templateId;
+    } else if (executionId) {
+        payload.execution_id = executionId;
+    }
     if (sectionId) payload.section_id = sectionId;
     if (llmId) payload.llm_id = llmId;
 

@@ -165,6 +165,30 @@ export const jsonbToInputValue = (v: unknown): string | number =>
 export const SINGLE_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.multipleChoice, QUESTION_TYPE.dropdown];
 export const MULTI_SELECT_QUESTION_TYPES: string[] = [QUESTION_TYPE.dropdownMultiple];
 
+// question_types cuyo valor se escribe carácter por carácter: el autoguardado espera a que
+// el campo pierda el foco (no hay "valor a medio hacer" en los demás, donde un click ya es
+// un valor completo). Ver ia context/question-type-input-guide.md.
+export const FREE_TEXT_QUESTION_TYPES: string[] = [
+  QUESTION_TYPE.shortAnswer,
+  QUESTION_TYPE.paragraph,
+  QUESTION_TYPE.email,
+  QUESTION_TYPE.number,
+  QUESTION_TYPE.decimal,
+];
+
+// data_types que HuemulQuestionInput resuelve con un widget atómico en su fallback
+// (question_type nulo/legacy) — todo lo demás del fallback es un input de texto.
+const ATOMIC_FALLBACK_DATA_TYPES = ["bool", "date", "time", "datetime", "list"];
+
+// Clasifica un campo como texto libre (guardado al blur) o atómico (guardado al cambiar).
+// Default para question_type desconocido/legacy: texto libre — es el camino seguro.
+export const isFreeTextField = (field: { question_type?: string | null; data_type?: string | null }): boolean =>
+  FREE_TEXT_QUESTION_TYPES.includes(field.question_type ?? "")
+    ? true
+    : !field.question_type || !Object.values(QUESTION_TYPE).includes(field.question_type as never)
+      ? !ATOMIC_FALLBACK_DATA_TYPES.includes(field.data_type ?? "")
+      : false;
+
 // Extrae los ids seleccionados de un value de selección, descartando los objetos-opción
 // (el backend inicializa value = default_value en campos sin responder, y default_value
 // para estos question_types es el array de opciones de config, no una respuesta). La

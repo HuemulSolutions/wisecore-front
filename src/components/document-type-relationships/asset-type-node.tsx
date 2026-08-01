@@ -24,10 +24,17 @@ export interface AssetTypeNodeData {
   onLoadRelationships?: (documentTypeId: string) => Promise<void> | void
   onLoadRelationshipsCanvasOnly?: (documentTypeId: string) => Promise<void> | void
   onRemove?: (id: string) => void
+  // View-only mode: hides the context menu. Connection handles stay mounted
+  // (just invisible/inert) — ReactFlow needs their handleBounds to position
+  // edges; unmounting them breaks edge rendering entirely (error 008).
+  readOnly?: boolean
   [key: string]: unknown
 }
 
 type AssetTypeNodeType = Node<AssetTypeNodeData, "assetType">
+
+const handleClass = "!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
+const handleReadOnlyClass = "!opacity-0 !pointer-events-none"
 
 export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) {
   const { t } = useTranslation("document-type-relationships")
@@ -52,21 +59,24 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
           <AlertCircle className="h-2.5 w-2.5 text-white" />
         </div>
       )}
-      {/* Floating handles — source on all 4 sides so edges attach to nearest point */}
-      <Handle type="source" position={Position.Top}    id="top"
-        className="!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
+      {/* Floating handles — source on all 4 sides so edges attach to nearest point.
+          Always mounted, even in readOnly: ReactFlow only computes handleBounds
+          from handles present in the DOM, and edges need those bounds to be
+          positioned at all. In readOnly they're just made invisible/inert. */}
+      <Handle type="source" position={Position.Top}    id="top"    isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
         style={{ borderColor: data.color || "#94a3b8" }}
       />
-      <Handle type="source" position={Position.Right}  id="right"
-        className="!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
+      <Handle type="source" position={Position.Right}  id="right"  isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
         style={{ borderColor: data.color || "#94a3b8" }}
       />
-      <Handle type="source" position={Position.Bottom} id="bottom"
-        className="!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
+      <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
         style={{ borderColor: data.color || "#94a3b8" }}
       />
-      <Handle type="source" position={Position.Left}   id="left"
-        className="!w-3 !h-3 !border-2 !bg-background transition-colors hover:!bg-primary/20"
+      <Handle type="source" position={Position.Left}   id="left"   isConnectable={!data.readOnly}
+        className={cn(handleClass, data.readOnly && handleReadOnlyClass)}
         style={{ borderColor: data.color || "#94a3b8" }}
       />
 
@@ -94,7 +104,7 @@ export function AssetTypeNode({ data, selected }: NodeProps<AssetTypeNodeType>) 
     </div>
   )
 
-  if (!data.onLoadRelationships && !data.onLoadRelationshipsCanvasOnly) {
+  if (data.readOnly || (!data.onLoadRelationships && !data.onLoadRelationshipsCanvasOnly)) {
     return nodeContent
   }
 

@@ -152,7 +152,7 @@ function InlineTextControl({
         if (e.key === "Enter") onChange(def.key, draft);
       }}
       placeholder={def.placeholder}
-      className="w-auto"
+      className="min-w-0 flex-1"
       inputClassName={cn("h-8 text-xs", def.inputClassName ?? "w-48")}
     />
   );

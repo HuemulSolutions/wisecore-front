@@ -1,13 +1,9 @@
 import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
+import { toDateParam } from "@/lib/date-params";
 import type { SearchType, SearchResultSection, SearchResultExecution, ServiceSearchResultDocument, SearchResponse, SearchParams } from "@/types/search";
 
 export type { SearchType, SearchResultSection, SearchResultExecution, ServiceSearchResultDocument as SearchResultDocument, SearchResponse, SearchParams };
-
-/** Converts an ISO datetime string to a plain YYYY-MM-DD date string required by the API. */
-function toDateParam(value: string): string {
-  return value.slice(0, 10);
-}
 
 export async function search({
     query,
