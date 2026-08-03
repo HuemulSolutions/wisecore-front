@@ -1,14 +1,14 @@
 import * as React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3, History } from "lucide-react"
+import { X, AlertCircle, Loader2, ChevronLeft, ChevronRight, Check, Edit3, ListChecks, RefreshCw } from "lucide-react"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AssetFormSection, type AssetFormSectionHandle } from "@/components/assets/content/asset-form-section"
 import { WorkflowAssetEditSheet } from "@/components/workflow/workflow-asset-edit-sheet"
-import { WorkflowPreviousAnswersSheet } from "@/components/workflow/workflow-previous-answers-sheet"
+import { WorkflowSectionsSummary } from "@/components/workflow/workflow-sections-summary"
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge"
 import { HuemulLifecycleStageBadge } from "@/huemul/components/huemul-lifecycle-stage-badge"
 import { HuemulLifecycleActions } from "@/huemul/components/huemul-lifecycle-actions"
@@ -53,15 +53,18 @@ export function WorkflowDetailPanel({
   onClose,
 }: WorkflowDetailPanelProps) {
   const { t } = useTranslation(["workflow", "sections"])
+  const { t: tCommon } = useTranslation("common")
   const { selectedOrganizationId } = useOrganization()
   const queryClient = useQueryClient()
 
-  const [step, setStep] = React.useState(0)
+  // null = pantalla de resumen de secciones; number = paso del wizard (índice en formSections).
+  // Solo una fila ya existente (`row`) tiene algo que resumir — un express recién iniciado
+  // arranca directo en el paso 0.
+  const [step, setStep] = React.useState<number | null>(row ? null : 0)
   const [nameValue, setNameValue] = React.useState("")
   const [descriptionValue, setDescriptionValue] = React.useState("")
   const [isFormSaving, setIsFormSaving] = React.useState(false)
   const [isEditSheetOpen, setIsEditSheetOpen] = React.useState(false)
-  const [isAnswersSheetOpen, setIsAnswersSheetOpen] = React.useState(false)
   const [editedAsset, setEditedAsset] = React.useState<{ name: string; internalCode?: string } | null>(null)
   const formSectionRef = React.useRef<AssetFormSectionHandle>(null)
 
@@ -78,18 +81,17 @@ export function WorkflowDetailPanel({
   // Resetea el paso/formulario de nombre cada vez que cambia el origen (otra fila u otro template).
   // La creación del documento (createdDoc) la controla el padre.
   React.useEffect(() => {
-    setStep(0)
+    setStep(row ? null : 0)
     setNameValue("")
     setDescriptionValue("")
     setEditedAsset(null)
-    setIsAnswersSheetOpen(false)
   }, [row?.execution_id, template?.id])
 
   const handleCreateWithName = () => {
     onSubmitName?.(nameValue.trim(), descriptionValue.trim() || undefined)
   }
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ["document-content", documentId, executionId],
     queryFn: () =>
       getDocumentContent(documentId ?? "", selectedOrganizationId ?? "", executionId) as Promise<
@@ -100,17 +102,17 @@ export function WorkflowDetailPanel({
     retry: 0,
   })
 
+  const handleRefresh = React.useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["document-content", documentId] })
+  }, [queryClient, documentId])
+
   const formSections = React.useMemo(
     () => (data?.content ?? []).filter((s) => s.section_type === "form"),
     [data],
   )
-  const currentSection = formSections[step]
-  const isLastStep = step >= formSections.length - 1
-  // Solo secciones YA respondidas: el autoguardado de la sección actual flushea recién al
-  // desmontarse (key={currentSection.id}), así que su valor más reciente puede no estar en
-  // el caché todavía. Memoizado: handleSectionUpdate/handleReviewStatusChange parchean el
-  // caché en cada autoguardado, lo que recrea `data` (y por ende `formSections`) en cada render.
-  const previousSections = React.useMemo(() => formSections.slice(0, step), [formSections, step])
+  // step === null → pantalla de resumen (ver WorkflowSectionsSummary), sin sección "actual".
+  const currentSection = step !== null ? formSections[step] : undefined
+  const isLastStep = step !== null && step >= formSections.length - 1
 
   // Autoguardado (PATCH /form_values): parchea en el caché solo la sección devuelta,
   // sin refetch de /content — mismo patrón que assets-content.tsx.
@@ -160,11 +162,12 @@ export function WorkflowDetailPanel({
   }, [queryClient, onClose])
 
   // AssetFormSection ya validó (required/formato) y guardó antes de llamar esto.
+  // Solo se invoca mientras se está respondiendo un paso (step !== null).
   const goNext = React.useCallback(() => {
     if (isLastStep) {
       handleClose()
     } else {
-      setStep((s) => s + 1)
+      setStep((s) => (s ?? -1) + 1)
     }
   }, [isLastStep, handleClose])
 
@@ -201,10 +204,20 @@ export function WorkflowDetailPanel({
             <HuemulButton
               variant="ghost"
               size="sm"
-              icon={History}
-              tooltip={step === 0 ? t("wizard.answers.tooltipDisabled") : t("wizard.answers.tooltip")}
-              disabled={step === 0}
-              onClick={() => setIsAnswersSheetOpen(true)}
+              icon={RefreshCw}
+              tooltip={tCommon("refresh")}
+              loading={isFetching}
+              onClick={handleRefresh}
+              className="h-8 w-8 p-0"
+            />
+          )}
+          {documentId && !needsNameStep && formSections.length > 0 && step !== null && (
+            <HuemulButton
+              variant="ghost"
+              size="sm"
+              icon={ListChecks}
+              tooltip={t("wizard.summary.tooltip")}
+              onClick={() => setStep(null)}
               className="h-8 w-8 p-0"
             />
           )}
@@ -282,6 +295,8 @@ export function WorkflowDetailPanel({
           </div>
         ) : formSections.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("wizard.noFormSections")}</p>
+        ) : step === null ? (
+          <WorkflowSectionsSummary sections={formSections} onGoToSection={setStep} />
         ) : (
           <AssetFormSection
             key={currentSection.id}
@@ -301,15 +316,17 @@ export function WorkflowDetailPanel({
         )}
       </div>
 
-      {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && (
+      {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && step !== null && (
         <div className="flex items-center justify-between gap-2 border-t p-4 shrink-0">
           <HuemulButton
             variant="outline"
             size="sm"
             icon={ChevronLeft}
             label={t("wizard.back")}
-            disabled={step === 0 || isFormSaving}
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            // En el origen "fila de la tabla" el paso 0 vuelve al resumen; un express nuevo
+            // no tiene resumen (nunca hubo `row`), así que ahí el botón queda deshabilitado.
+            disabled={(step === 0 && !row) || isFormSaving}
+            onClick={() => setStep((s) => (s === 0 ? (row ? null : 0) : Math.max(0, (s ?? 1) - 1)))}
           />
           <HuemulButton
             size="sm"
@@ -332,13 +349,6 @@ export function WorkflowDetailPanel({
           onUpdated={(newName, newInternalCode) => setEditedAsset({ name: newName, internalCode: newInternalCode })}
         />
       )}
-
-      <WorkflowPreviousAnswersSheet
-        open={isAnswersSheetOpen}
-        onOpenChange={setIsAnswersSheetOpen}
-        sections={previousSections}
-        onGoToStep={(i) => setStep(i)}
-      />
 
       <HuemulLifecycleDialogs
         controller={lifecycle}
