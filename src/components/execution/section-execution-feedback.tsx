@@ -14,10 +14,6 @@ export type { SectionExecutionFeedbackProps } from '@/types/sections';
 
 export function SectionExecutionFeedback({
   executionId,
-  // Kept in the props contract for callers (matches the section being fed back on);
-  // matching against the status endpoint is done by 'order' via sectionIndex, not this id.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sectionId,
   sectionIndex,
   executionMode,
   onComplete,
