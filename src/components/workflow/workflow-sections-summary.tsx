@@ -4,9 +4,7 @@ import { ArrowRight, Eye } from "lucide-react";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { HuemulReviewStatusBadge } from "@/huemul/components/huemul-review-status-badge";
 import { Card } from "@/components/ui/card";
-import { WorkflowProgressBar } from "@/components/workflow/workflow-progress-bar";
 import { WorkflowSectionAnswersSheet } from "@/components/workflow/workflow-section-answers-sheet";
-import { computeSectionStats } from "@/components/workflow/workflow-section-stats";
 import type { ContentSection } from "@/types/assets";
 import type { ReviewStatus } from "@/types/section-execution";
 
@@ -42,10 +40,8 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
         {sections.map((section, index) => {
-          const { questions, answeredCount } = computeSectionStats(section);
           const answered = section.review_status === "finished";
           const styles = STATUS_STYLES[answered ? "answered" : "pending"];
-          const pct = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
           return (
             <Card key={section.id} className="relative flex-row items-start gap-3 overflow-hidden p-4">
@@ -61,7 +57,6 @@ export function WorkflowSectionsSummary({ sections, onGoToSection }: WorkflowSec
                   <p className="text-sm font-semibold text-foreground">{section.section_name}</p>
                   <HuemulReviewStatusBadge status={section.review_status as ReviewStatus | null} sectionType="form" />
                 </div>
-                <WorkflowProgressBar percentage={pct} trackClassName="w-24" showLabel={false} />
               </div>
 
               <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
