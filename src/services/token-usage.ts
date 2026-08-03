@@ -26,7 +26,7 @@ export async function getTokenUsageStats(
   organizationId: string,
   params: GetTokenUsageStatsParams = {},
 ): Promise<TokenUsageStats> {
-  const query = buildParams(params)
+  const query = buildParams({ ...params })
   const response = await httpClient.get(`${BASE_URL}/stats?${query}`, {
     headers: { 'X-Org-Id': organizationId },
   })
