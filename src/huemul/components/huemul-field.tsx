@@ -1569,6 +1569,7 @@ export function HuemulField({
   className,
   inputClassName,
   autoFocus,
+  autoComplete,
   inline,
   labelFirst,
   fetchOptions,
@@ -2138,7 +2139,7 @@ export function HuemulField({
             readOnly={readOnly}
             required={required}
             autoFocus={autoFocus}
-            autoComplete="off"
+            autoComplete={autoComplete ?? "off"}
             min={min}
             max={max}
             step={step}

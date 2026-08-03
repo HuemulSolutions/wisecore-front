@@ -451,7 +451,7 @@ export function AddCustomFieldSheet({
                   onChange={(v) => setSelectedSource(String(v))}
                   disabled={isLoadingSources}
                   options={sources.map((source) => ({
-                    label: source.charAt(0).toUpperCase() + source.slice(1),
+                    label: t(`sources.${source}`, { defaultValue: source }),
                     value: source,
                   }))}
                   inputClassName="flex-col gap-2"

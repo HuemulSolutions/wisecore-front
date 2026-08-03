@@ -22,6 +22,10 @@ export interface CustomFieldDocument {
   value_list: string[] | null;
   options?: CustomFieldOption[];
   source: CustomFieldDocumentSource;
+  /** true si el campo fue copiado desde un custom field del template al crear el documento. */
+  from_template: boolean;
+  /** Id del custom field del template de origen; null si el campo se agregó directo en el asset. */
+  custom_field_template_id: string | null;
   created_at: string;
   updated_at: string;
   data_type: string;

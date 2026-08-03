@@ -54,3 +54,15 @@ export interface UseExecutionStateProps {
   selectedExecutionId: string | null
   setSelectedExecutionId: (id: string | null) => void
 }
+
+export type ExecutionSectionStatusValue = 'pending' | 'generating' | 'running' | 'done' | 'failed' | null
+
+export interface ExecutionSectionStatusItem {
+  order: number
+  name?: string
+  status: ExecutionSectionStatusValue
+}
+
+export interface ExecutionSectionsStatusResponse {
+  sections: ExecutionSectionStatusItem[]
+}

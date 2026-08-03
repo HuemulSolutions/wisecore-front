@@ -25,6 +25,14 @@ const translations = {
     url: { en: "URL", es: "URL" },
     list: { en: "List", es: "Lista" },
   },
+  sources: {
+    manual: { en: "Manual", es: "Manual" },
+    inferred: { en: "Inferred", es: "Inferido" },
+  },
+  badges: {
+    fromTemplate: { en: "From template", es: "Desde plantilla" },
+    fromTemplateTooltip: { en: "This field comes from the asset's template", es: "Este campo proviene de la plantilla del activo" },
+  },
   actions: {
     editCustomField: { en: "Edit Custom Field", es: "Editar Campo Personalizado" },
     deleteCustomField: { en: "Delete Custom Field", es: "Eliminar Campo Personalizado" },
