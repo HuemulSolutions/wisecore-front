@@ -772,8 +772,10 @@ function SectionExecutionInner({
                         sectionIndex={sectionIndex}
                         executionMode={executionMode}
                         onComplete={() => {
+                            // Content refresh is owned by AssetContent (a single invalidate per
+                            // polling tick, shared across all sections finishing together);
+                            // this banner only needs to know completion happened, not re-trigger it.
                             logger.log('🎯 Section execution feedback completed');
-                            onUpdate?.();
                         }}
                     />
                 </div>

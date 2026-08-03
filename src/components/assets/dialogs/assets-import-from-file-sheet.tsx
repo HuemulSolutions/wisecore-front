@@ -150,7 +150,18 @@ export function ImportAssetFromFileSheet({
       }}
     >
       <div className="grid gap-6">
-        {/* 1 · Asset type */}
+        {/* 1 · Asset name */}
+        <HuemulField
+          type="text"
+          label={t('form.assetName')}
+          name="name"
+          required
+          value={name}
+          onChange={(v) => setName(String(v))}
+          placeholder={t('form.assetNamePlaceholder')}
+        />
+
+        {/* 2 · Asset type */}
         <HuemulField
           type="async-combobox"
           label={t('form.assetType')}
@@ -164,7 +175,7 @@ export function ImportAssetFromFileSheet({
           placeholder={t('form.assetTypePlaceholder')}
         />
 
-        {/* 2 · File + force import (grouped as a pair) */}
+        {/* 3 · File + force import (grouped as a pair) */}
         <div className="flex flex-col gap-3">
           <HuemulField
             type="file"
@@ -186,18 +197,7 @@ export function ImportAssetFromFileSheet({
           />
         </div>
 
-        {/* 3 · Asset name */}
-        <HuemulField
-          type="text"
-          label={t('form.assetName')}
-          name="name"
-          required
-          value={name}
-          onChange={(v) => setName(String(v))}
-          placeholder={t('form.assetNamePlaceholder')}
-        />
-
-        {/* 4 · Internal code + description */}
+        {/* 3 · Internal code + description */}
         <div className="grid grid-cols-2 gap-4">
           <HuemulField
             type="text"
