@@ -37,7 +37,7 @@ export function WorkflowSectionAnswersSheet({
 
   const { fields, questions, answeredCount } = section
     ? computeSectionStats(section)
-    : { fields: [], questions: [], answeredCount: 0, missingRequired: 0 };
+    : { fields: [], questions: [], answeredCount: 0 };
 
   const handleCopy = React.useCallback(async () => {
     if (!section) return;
