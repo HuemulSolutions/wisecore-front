@@ -39,33 +39,6 @@ export function computeSectionStats(section: ContentSection): SectionStats {
   return { fields, questions, answeredCount, missingRequired };
 }
 
-export interface SummaryTotals {
-  sectionsAnswered: number;
-  sectionsTotal: number;
-  questionsAnswered: number;
-  questionsTotal: number;
-  missingRequired: number;
-}
-
-// Agregados de todas las secciones, para el strip de métricas del resumen. sectionsAnswered
-// usa review_status === 'finished' — la misma señal que HuemulReviewStatusBadge — para que
-// el strip nunca contradiga el badge de cada tarjeta.
-export function computeSummaryTotals(sections: ContentSection[]): SummaryTotals {
-  return sections.reduce<SummaryTotals>(
-    (totals, section) => {
-      const { questions, answeredCount, missingRequired } = computeSectionStats(section);
-      return {
-        sectionsAnswered: totals.sectionsAnswered + (section.review_status === "finished" ? 1 : 0),
-        sectionsTotal: totals.sectionsTotal + 1,
-        questionsAnswered: totals.questionsAnswered + answeredCount,
-        questionsTotal: totals.questionsTotal + questions.length,
-        missingRequired: totals.missingRequired + missingRequired,
-      };
-    },
-    { sectionsAnswered: 0, sectionsTotal: 0, questionsAnswered: 0, questionsTotal: 0, missingRequired: 0 },
-  );
-}
-
 // Texto plano para copiar al portapapeles — mismo formateo que "Copiar" en
 // asset-form-section.tsx / assets-section.tsx (ver handleCopy, assets-section.tsx:226-246):
 // campos visibles, ordenados por `order`, `etiqueta` solo con el título, el resto
