@@ -58,6 +58,8 @@ const translations = {
   },
   expressSheet: {
     title: { en: "Start workflow", es: "Iniciar workflow" },
+    welcomeTitle: { en: "Let's start: {{template}}", es: "Empecemos: {{template}}" },
+    welcomeDescription: { en: "Give this new asset a name (and optionally a description) so it's easy to identify later.", es: "Dale un nombre a este nuevo activo (y opcionalmente una descripción) para que sea fácil de identificar más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },

@@ -242,6 +242,12 @@ export function WorkflowDetailPanel({
       <div className="flex-1 overflow-auto p-4">
         {needsNameStep ? (
           <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-foreground">
+                {t("expressSheet.welcomeTitle", { template: template?.name })}
+              </p>
+              <p className="text-xs text-muted-foreground">{t("expressSheet.welcomeDescription")}</p>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="workflow-express-name" className="text-xs text-muted-foreground font-normal">
                 {t("expressSheet.name")}
