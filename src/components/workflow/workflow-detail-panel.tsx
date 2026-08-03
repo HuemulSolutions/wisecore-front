@@ -211,16 +211,6 @@ export function WorkflowDetailPanel({
               className="h-8 w-8 p-0"
             />
           )}
-          {documentId && !needsNameStep && formSections.length > 0 && step !== null && (
-            <HuemulButton
-              variant="ghost"
-              size="sm"
-              icon={ListChecks}
-              tooltip={t("wizard.summary.tooltip")}
-              onClick={() => setStep(null)}
-              className="h-8 w-8 p-0"
-            />
-          )}
           {documentId && !needsNameStep && (
             <HuemulButton
               variant="ghost"
@@ -318,16 +308,26 @@ export function WorkflowDetailPanel({
 
       {!needsNameStep && documentId && !isLoading && !error && formSections.length > 0 && step !== null && (
         <div className="flex items-center justify-between gap-2 border-t p-4 shrink-0">
-          <HuemulButton
-            variant="outline"
-            size="sm"
-            icon={ChevronLeft}
-            label={t("wizard.back")}
-            // En el origen "fila de la tabla" el paso 0 vuelve al resumen; un express nuevo
-            // no tiene resumen (nunca hubo `row`), así que ahí el botón queda deshabilitado.
-            disabled={(step === 0 && !row) || isFormSaving}
-            onClick={() => setStep((s) => (s === 0 ? (row ? null : 0) : Math.max(0, (s ?? 1) - 1)))}
-          />
+          <div className="flex items-center gap-2">
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              icon={ListChecks}
+              label={t("wizard.summary.tooltip")}
+              disabled={isFormSaving}
+              onClick={() => setStep(null)}
+            />
+            <HuemulButton
+              variant="outline"
+              size="sm"
+              icon={ChevronLeft}
+              label={t("wizard.back")}
+              // En el origen "fila de la tabla" el paso 0 vuelve al resumen; un express nuevo
+              // no tiene resumen (nunca hubo `row`), así que ahí el botón queda deshabilitado.
+              disabled={(step === 0 && !row) || isFormSaving}
+              onClick={() => setStep((s) => (s === 0 ? (row ? null : 0) : Math.max(0, (s ?? 1) - 1)))}
+            />
+          </div>
           <HuemulButton
             size="sm"
             icon={isLastStep ? Check : ChevronRight}
