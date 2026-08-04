@@ -58,6 +58,8 @@ const translations = {
   },
   expressSheet: {
     title: { en: "Start workflow", es: "Iniciar workflow" },
+    welcomeTitle: { en: "Let's start: {{template}}", es: "Empecemos: {{template}}" },
+    welcomeDescription: { en: "Give this new asset a name (and optionally a description) so it's easy to identify later.", es: "Dale un nombre a este nuevo activo (y opcionalmente una descripción) para que sea fácil de identificar más adelante." },
     name: { en: "Name", es: "Nombre" },
     namePlaceholder: { en: "e.g. Ergonomic chairs purchase", es: "Ej: Compra de sillas ergonómicas" },
     description: { en: "Description", es: "Descripción" },
@@ -70,16 +72,17 @@ const translations = {
     finish: { en: "Finish", es: "Finalizar" },
     creating: { en: "Creating...", es: "Creando..." },
     noFormSections: { en: "This template has no form sections", es: "Este template no tiene secciones de formulario" },
-    answers: {
-      tooltip: { en: "Review previous answers", es: "Consultar respuestas anteriores" },
-      tooltipDisabled: { en: "No previous steps yet", es: "Todavía no hay pasos anteriores" },
-      title: { en: "Previous answers", es: "Respuestas anteriores" },
-      description: { en: "Read-only view of the steps you already completed", es: "Vista de solo lectura de los pasos que ya completaste" },
+    summary: {
+      tooltip: { en: "Back to summary", es: "Volver al resumen" },
       stepLabel: { en: "Step {{number}}", es: "Paso {{number}}" },
       answeredCount: { en: "{{answered}}/{{total}} answered", es: "{{answered}}/{{total}} respondidas" },
       missingRequired: { en: "{{count}} required pending", es: "{{count}} obligatorias pendientes" },
-      empty: { en: "You haven't completed any step yet", es: "Todavía no completaste ningún paso" },
-      goToStep: { en: "Go to this step", es: "Ir a este paso" },
+      goToSection: { en: "Go to section", es: "Ir a la sección" },
+      noAnswers: { en: "No answers in this section yet", es: "Esta sección aún no tiene respuestas" },
+      viewAnswers: { en: "View answers", es: "Ver respuestas" },
+      sectionsAnswered: { en: "{{answered}} of {{total}} sections answered", es: "{{answered}} de {{total}} secciones respondidas" },
+      questionsCount: { en: "{{answered}}/{{total}} questions", es: "{{answered}}/{{total}} preguntas" },
+      copy: { en: "Copy answers", es: "Copiar respuestas" },
     },
   },
 }

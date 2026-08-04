@@ -18,6 +18,8 @@ import {
   PathApi,
 } from 'platejs';
 
+import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+
 const insertList = (editor: PlateEditor, type: string) => {
   editor.tf.insertNodes(
     editor.api.create.block({
@@ -43,6 +45,11 @@ const insertBlockMap: Record<
   [KEYS.table]: (editor) =>
     editor.getTransforms(TablePlugin).insert.table({}, { select: true }),
   [KEYS.toc]: (editor) => insertToc(editor, { select: true }),
+  [MERMAID_KEY]: (editor) =>
+    editor.tf.insertNodes(
+      { type: MERMAID_KEY, code: '', children: [{ text: '' }] },
+      { select: true }
+    ),
 };
 
 const insertInlineMap: Record<

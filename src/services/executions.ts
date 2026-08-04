@@ -99,6 +99,18 @@ export async function getExecutionById(executionId: string, organizationId: stri
     return data.data;
 }
 
+export async function generateExecutionSummary(executionId: string, organizationId: string) {
+    logger.log(`Generating content summary for execution ID: ${executionId}`);
+    const response = await httpClient.post(`${backendUrl}/execution/${executionId}/generate_summary`, {}, {
+        headers: {
+            'X-Org-Id': organizationId,
+        },
+    });
+    const data = await response.json();
+    logger.log('Content summary generation queued:', data.data);
+    return data.data;
+}
+
 export async function getExecutionStatus(executionId: string, organizationId: string) {
     logger.log(`Fetching execution status with ID: ${executionId}`);
     const response = await httpClient.get(`${backendUrl}/execution/${executionId}/status`, {

@@ -5,12 +5,16 @@ import {
   Calendar,
   Info,
   Save,
+  Sparkles,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { HuemulSheet } from '@/huemul/components/huemul-sheet';
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
-import { getExecutionById, updateExecutionName, updateExecutionBusinessDates } from '@/services/executions';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getExecutionById, updateExecutionName, updateExecutionBusinessDates, generateExecutionSummary } from '@/services/executions';
 import { formatApiDateTime, parseApiDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -36,6 +40,10 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Statuses in which the execution content is finalized and the backend
+// accepts POST /execution/{id}/generate_summary (otherwise it returns 409).
+const SUMMARY_READY_STATUSES = ['completed', 'approving', 'approved'];
+
 function toInputDate(isoDate?: string | null): string {
   if (!isoDate) return '';
   try {
@@ -53,14 +61,15 @@ function ExecutionDetail({
   canEdit,
   onSaved,
 }: ExecutionDetailProps) {
-  const { t } = useTranslation('assets');
+  const { t } = useTranslation(['assets', 'common']);
   const queryClient = useQueryClient();
 
-  const { data: execution, isLoading } = useQuery({
+  const { data: execution, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['execution-detail', executionId],
     queryFn: () => getExecutionById(executionId, organizationId),
     enabled: !!executionId && !!organizationId,
     staleTime: 30000,
+    refetchInterval: (query) => (query.state.data?.summary_status === 'pending' ? 3000 : false),
   });
 
   const [form, setForm] = useState<EditFormState>({
@@ -121,6 +130,14 @@ function ExecutionDetail({
       onSaved();
     },
     meta: { successMessage: t('versionManagement.datesSaved') },
+  });
+
+  const summaryMutation = useMutation({
+    mutationFn: () => generateExecutionSummary(executionId, organizationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['execution-detail', executionId] });
+    },
+    meta: { successMessage: t('versionManagement.contentSummary.queued') },
   });
 
   const handleNameChange = (value: string | number | boolean) => {
@@ -207,6 +224,87 @@ function ExecutionDetail({
             </>
           )}
         </div>
+      </div>
+
+      {/* Content summary (AI-generated) */}
+      <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-2 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-muted-foreground shrink-0" />
+            <span className="font-medium text-foreground">{t('versionManagement.contentSummary.title')}</span>
+          </div>
+          <HuemulButton
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            icon={RefreshCw}
+            tooltip={t('common:refresh')}
+            loading={isFetching}
+            onClick={() => refetch()}
+          />
+        </div>
+
+        {execution.summary_status === 'pending' || summaryMutation.isPending ? (
+          <div className="flex items-center gap-2 text-muted-foreground py-1">
+            <Loader2 className="size-4 animate-spin" />
+            {t('versionManagement.contentSummary.generating')}
+          </div>
+        ) : execution.summary_status === 'failed' ? (
+          <>
+            <Alert variant="destructive">
+              <AlertDescription>
+                {execution.summary_error || t('versionManagement.contentSummary.failed')}
+              </AlertDescription>
+            </Alert>
+            {SUMMARY_READY_STATUSES.includes(execution.status) ? (
+              <HuemulButton
+                size="sm"
+                icon={Sparkles}
+                label={t('versionManagement.contentSummary.retry')}
+                onClick={() => summaryMutation.mutate()}
+                requiredAccess="edit"
+                resource="version"
+                checkGlobalPermissions
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('versionManagement.contentSummary.notReady')}</p>
+            )}
+          </>
+        ) : execution.summary_status === 'completed' ? (
+          <>
+            <p className="text-sm whitespace-pre-wrap">{execution.summary}</p>
+            {SUMMARY_READY_STATUSES.includes(execution.status) && (
+              <HuemulButton
+                size="sm"
+                variant="outline"
+                icon={Sparkles}
+                label={t('versionManagement.contentSummary.regenerate')}
+                className="self-end"
+                onClick={() => summaryMutation.mutate()}
+                requiredAccess="edit"
+                resource="version"
+                checkGlobalPermissions
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">{t('versionManagement.contentSummary.empty')}</p>
+            {SUMMARY_READY_STATUSES.includes(execution.status) ? (
+              <HuemulButton
+                size="sm"
+                icon={Sparkles}
+                label={t('versionManagement.contentSummary.generate')}
+                onClick={() => summaryMutation.mutate()}
+                requiredAccess="edit"
+                resource="version"
+                checkGlobalPermissions
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('versionManagement.contentSummary.notReady')}</p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Name field */}

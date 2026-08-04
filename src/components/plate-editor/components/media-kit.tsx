@@ -13,6 +13,8 @@ import {
 import { KEYS } from 'platejs';
 import { createPlatePlugin } from 'platejs/react';
 
+import { MERMAID_KEY } from '@/lib/plate-mermaid-utils';
+
 import { AudioElement } from '@/components/ui/media-audio-node';
 import { MediaEmbedElement } from '@/components/ui/media-embed-node';
 import { FileElement } from '@/components/ui/media-file-node';
@@ -89,7 +91,7 @@ export const MediaKit = [
   CaptionPlugin.configure({
     options: {
       query: {
-        allow: [KEYS.img, KEYS.video, KEYS.audio, KEYS.file, KEYS.mediaEmbed],
+        allow: [KEYS.img, KEYS.video, KEYS.audio, KEYS.file, KEYS.mediaEmbed, MERMAID_KEY],
       },
     },
   }),

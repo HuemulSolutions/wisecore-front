@@ -692,6 +692,18 @@ const translations = {
     auditDate: { en: "Audit Date", es: "Fecha de Auditoría" },
     saveDates: { en: "Save Dates", es: "Guardar Fechas" },
     datesSaved: { en: "Business dates saved successfully!", es: "¡Fechas de negocio guardadas correctamente!" },
+    contentSummary: {
+      title: { en: "Content summary", es: "Resumen del contenido" },
+      description: { en: "AI-generated summary of the full document, used by the assistant and search.", es: "Resumen generado por IA del documento completo, usado por el asistente y la búsqueda." },
+      generating: { en: "Generating summary...", es: "Generando resumen..." },
+      empty: { en: "This version has no summary yet.", es: "Esta versión todavía no tiene resumen." },
+      generate: { en: "Generate summary", es: "Generar resumen" },
+      regenerate: { en: "Regenerate", es: "Regenerar" },
+      retry: { en: "Retry", es: "Reintentar" },
+      failed: { en: "Could not generate the summary.", es: "No se pudo generar el resumen." },
+      notReady: { en: "The version must be finalized to generate the summary.", es: "La versión debe estar finalizada para generar el resumen." },
+      queued: { en: "Summary generation started.", es: "Generación del resumen iniciada." },
+    },
   },
   lifecycleHistory: {
     moreOptionsItem: { en: "Lifecycle history", es: "Historial de ciclo de vida" },

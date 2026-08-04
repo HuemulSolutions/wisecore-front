@@ -23,6 +23,9 @@ export function useUserPermissions() {
       isRootAdmin: false,
       isOrgAdmin: false,
       isLoading: false,
+      // No provider in this tree (e.g. Plate editor portals) — don't block
+      // consumers waiting on this flag.
+      hasLoadedPermissionsOnce: true,
       hasPermission: () => false,
       hasAnyPermission: () => false,
       hasAllPermissions: () => false,
@@ -38,6 +41,7 @@ export function useUserPermissions() {
     isRootAdmin,
     isOrgAdmin,
     isLoading,
+    hasLoadedPermissionsOnce,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
@@ -198,6 +202,7 @@ export function useUserPermissions() {
     isRootAdmin,
     isOrgAdmin,
     isLoading,
+    hasLoadedPermissionsOnce,
 
     // Funciones básicas
     hasPermission,
