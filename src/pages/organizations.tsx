@@ -118,7 +118,6 @@ export default function Organizations() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ["organizations"] })
-      toast.success(t('common:dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -145,7 +144,7 @@ export default function Organizations() {
             organizationCount={organizationsResponse?.total || organizations.length}
             onCreateOrganization={() => updateState({ showCreateDialog: true })}
             onRefresh={handleRefresh}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || isFetching}
             searchTerm={state.searchTerm}
             onSearchChange={(value: string) => {
               updateState({ searchTerm: value })

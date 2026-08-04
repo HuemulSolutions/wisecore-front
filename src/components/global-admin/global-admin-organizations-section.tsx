@@ -115,7 +115,6 @@ export function GlobalAdminOrganizationsSection() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ["organizations"] })
-      toast.success(t('common:dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -135,7 +134,7 @@ export function GlobalAdminOrganizationsSection() {
             { label: "", value: organizationsResponse?.total ?? organizations.length }
           ]}
           onRefresh={handleRefresh}
-          isLoading={isRefreshing}
+          isLoading={isRefreshing || isFetching}
           primaryAction={isRootAdmin ? {
             label: t('header.createOrganization'),
             icon: Plus,

@@ -151,7 +151,6 @@ export function TemplateContent({
           isMobile={isMobile}
           hasNoSections={!orderedSections || orderedSections.length === 0}
           isGenerating={isGenerating}
-          isRefreshing={isFetching}
           activeTab={activeTab}
           onToggleSidebar={onToggleSidebar}
           onAddSection={() => setIsAddingSectionOpen(true)}
@@ -159,10 +158,6 @@ export function TemplateContent({
           onEdit={() => setIsEditDialogOpen(true)}
           onDelete={() => setIsDeleteDialogOpen(true)}
           onInfo={() => setIsInfoSheetOpen(true)}
-          onRefresh={() => {
-            queryClient.invalidateQueries({ queryKey: ['template', selectedTemplate?.id] });
-            onRefresh();
-          }}
         />
 
         {/* Content Section */}
@@ -223,17 +218,22 @@ export function TemplateContent({
                   
                   {/* Action Icons */}
                   <div className="flex items-center gap-1 mr-2">
-                    <HuemulButton
-                      icon={RefreshCw}
-                      iconClassName="h-4 w-4 text-gray-600"
-                      variant="ghost"
-                      size="sm"
-                      loading={isFetching}
-                      disabled={isGenerating}
-                      tooltip={`${t('common:refresh')} ${activeTab === 'custom-fields' ? t('templates:content.customFieldsTab').toLowerCase() : t('templates:content.sectionsTab').toLowerCase()}`}
-                      className="h-8 w-8 p-0 hover:bg-gray-100"
-                      onClick={() => { refetch(); }}
-                    />
+                    {/* La pestaña "Secciones" usa los mismos datos del template (sin query propia),
+                        así que es la única que se refresca desde aquí; custom-fields/media/docx
+                        ya llevan su propio strip de refresh (§3 refresh-button-guide). */}
+                    {activeTab === 'sections' && (
+                      <HuemulButton
+                        icon={RefreshCw}
+                        iconClassName="h-4 w-4 text-gray-600"
+                        variant="ghost"
+                        size="sm"
+                        loading={isFetching}
+                        disabled={isGenerating}
+                        tooltip={t('common:refresh')}
+                        className="h-8 w-8 p-0 hover:bg-gray-100"
+                        onClick={() => { refetch(); }}
+                      />
+                    )}
                     {canCreate && (
                       <HuemulButton
                         icon={Copy}

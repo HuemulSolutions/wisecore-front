@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -225,18 +226,16 @@ export function CustomFieldsList({
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
         <div className="flex gap-1">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onRefresh} 
-            disabled={isRefreshing}
-            className={`hover:cursor-pointer h-7 w-7 p-0 ${
-              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            title={t('customFieldsList.refreshCustomFields')}
-          >
-            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          <HuemulButton
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            icon={RefreshCw}
+            iconClassName="h-3 w-3"
+            tooltip={t('customFieldsList.refreshCustomFields')}
+            loading={isRefreshing}
+            onClick={onRefresh}
+          />
           {canEdit && (
             <Button
               size="sm"

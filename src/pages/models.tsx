@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
@@ -429,7 +428,6 @@ export default function Models() {
         queryClient.invalidateQueries({ queryKey: ['embeddingSupportedProviders'] }),
         queryClient.invalidateQueries({ queryKey: ['embeddingProvider'] }),
       ])
-      toast.success(t('common:dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -468,7 +466,7 @@ export default function Models() {
             onRefresh={handleRefresh}
             configuredProviders={hasError ? 0 : allProvidersList.length}
             totalModels={hasError ? 0 : llms.length}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || fetchingLLMs}
           />
         }
         headerClassName="p-6 md:p-8 pb-0 md:pb-0"

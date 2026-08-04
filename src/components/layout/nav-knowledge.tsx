@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { HuemulButton } from "@/huemul/components/huemul-button"
 import { Input } from "@/components/ui/input"
 import { FileTree } from "@/components/assets/content/assets-file-tree"
 import type { FileNode } from "@/types/assets"
@@ -57,6 +58,16 @@ export function NavKnowledgeHeader() {
   const { selectedOrganizationId } = useOrganization()
   const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
   const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
+  const [isRefreshingTree, setIsRefreshingTree] = useState(false)
+
+  const handleRefreshTree = async () => {
+    setIsRefreshingTree(true)
+    try {
+      await fileTreeRef.current?.refresh()
+    } finally {
+      setIsRefreshingTree(false)
+    }
+  }
 
   const canCreateAsset = canCreate('asset')
   const canCreateFolder = canCreate('folder')
@@ -90,14 +101,16 @@ export function NavKnowledgeHeader() {
           >
             {isSearchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </Button>
-          <Button
+          <HuemulButton
             variant="ghost"
             size="icon"
-            className="h-6 w-6 hover:cursor-pointer"
-            onClick={() => fileTreeRef.current?.refresh()}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+            className="h-6 w-6"
+            icon={RefreshCw}
+            iconClassName="h-4 w-4"
+            tooltip={t('common:refresh')}
+            loading={isRefreshingTree}
+            onClick={handleRefreshTree}
+          />
           {hasAnyCreatePermission && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -792,6 +805,8 @@ export function NavKnowledgeContent() {
           showCreateButtons={false}
           initialFolderId={null}
           showBorder={false}
+          // El refresh ya lo ofrece el botón del header de la sección (NavKnowledgeHeader) —
+          // un solo control por contenedor.
           showRefreshButton={false}
           alwaysShowMenuActions={true}
           preserveExpandedOnRefresh={!activeAssetId}

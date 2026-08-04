@@ -1558,7 +1558,6 @@ export function AssetContent({
     setIsRefreshingCustomFields(true);
     try {
       await queryClient.refetchQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
-      toast.success(t('mutations.customFieldsRefreshed'));
     } finally {
       setIsRefreshingCustomFields(false);
     }

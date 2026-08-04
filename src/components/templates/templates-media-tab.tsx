@@ -2,12 +2,10 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
 import { RefreshCw, Plus } from "lucide-react"
-import { toast } from "sonner"
 
 import { useMediaList, mediaQueryKeys } from "@/hooks/useMedia"
 import { useMediaViewMode } from "@/hooks/useMediaViewMode"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { handleApiError } from "@/lib/error-utils"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 import { HuemulButton } from "@/huemul/components/huemul-button"
 import { HuemulPagination } from "@/huemul/components/huemul-pagination"
@@ -63,9 +61,6 @@ export function TemplateMediaTab({
     try {
       await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.listBase() })
       await refetch()
-      toast.success(t("media:refreshSuccess"))
-    } catch (error) {
-      handleApiError(error, { fallbackMessage: t("media:refreshError") })
     } finally {
       setIsRefreshing(false)
     }

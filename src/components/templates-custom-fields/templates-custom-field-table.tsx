@@ -55,6 +55,8 @@ export function CustomFieldTemplateTable({
   onEditContentCustomFieldTemplate,
   onDeleteCustomFieldTemplate,
   pagination,
+  isLoading,
+  isFetching,
 }: CustomFieldTemplateTableProps) {
   const { t } = useTranslation(['templates', 'common', 'custom-fields'])
   const { t: tSections } = useTranslation('sections')
@@ -243,6 +245,8 @@ export function CustomFieldTemplateTable({
         getRowKey={(template) => template.id.toString()}
         footerStats={footerStats}
         maxHeight="max-h-[600px]"
+        isLoading={isLoading}
+        isFetching={isFetching}
         pagination={pagination ? {
           page: pagination.page,
           pageSize: pagination.pageSize,
