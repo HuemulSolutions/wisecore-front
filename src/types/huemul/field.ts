@@ -65,6 +65,8 @@ export interface HuemulFieldProps {
   readOnly?: boolean;
   options?: HuemulFieldOption[];
   groupedOptions?: HuemulFieldOptionGroup[];
+  /** Si se define, agrega un ítem "sin valor" (select: primero; radio: último) que al elegirlo hace onChange(""). Solo aplica a type="select"/"radio". */
+  emptyOptionLabel?: string;
   accept?: string;
   multiple?: boolean;
   onFileChange?: (files: FileList | null) => void;

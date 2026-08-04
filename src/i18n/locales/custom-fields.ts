@@ -122,6 +122,7 @@ const translations = {
     saveNew: { en: "Create & Add Field", es: "Crear y Agregar Campo" },
     valuePlaceholderList: { en: "Select an option", es: "Selecciona una opción" },
     valuePlaceholderListMultiple: { en: "Select one or more options", es: "Selecciona una o más opciones" },
+    noValueOption: { en: "No value", es: "Sin valor" },
     valueRequired: { en: "This field is required", es: "Este campo es requerido" },
     invalidInteger: { en: "Enter a valid integer", es: "Ingresa un número entero válido" },
     invalidDecimal: { en: "Enter a valid decimal number", es: "Ingresa un número decimal válido" },
