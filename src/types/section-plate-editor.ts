@@ -6,6 +6,15 @@ export interface SectionPlateEditorRef {
   getValue: () => Value;
   resetContent: (markdown: string) => void;
   resetValue: (value: Value) => void;
+  /**
+   * Renders + uploads a fresh snapshot for every Mermaid diagram whose code changed
+   * since its last snapshot, writes the resulting media reference back into the live
+   * editor value, and returns it. Call this before getMarkdown()/getValue() when
+   * persisting, so the serialized markdown/plate_content reference the freshest
+   * snapshot instead of a stale or missing one. No-op (current value unchanged) when
+   * the editor wasn't given an organizationId to upload with.
+   */
+  ensureMermaidSnapshots: () => Promise<{ value: Value; failed: number }>;
 }
 
 export interface SectionPlateEditorProps {

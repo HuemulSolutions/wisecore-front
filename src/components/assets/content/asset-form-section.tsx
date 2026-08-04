@@ -257,16 +257,15 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
     const ids = valid.map((f) => f.id);
     ids.forEach((id) => inFlightIdsRef.current.add(id));
     setSavingFieldIds((prev) => new Set([...prev, ...ids]));
-    // Toast reutilizable: mismo id por sección, se actualiza in-place (loading -> success/error)
-    // en vez de apilar un toast por cada campo/flush de autosave.
+    // Sin toast de loading/success: el indicador inline por campo (spinner/check junto al
+    // label, más abajo en el render) ya cubre ese feedback sin taparse con botones del wizard
+    // (p.ej. "Siguiente", misma esquina bottom-right donde aparecen los toasts de sonner).
     const toastId = `form-autosave-${sectionExecutionId}`;
-    toast.loading(t("common:saving"), { id: toastId });
     const values = valid.map((f) => ({ id: f.id, value: currentAnswers[f.id] ?? null }));
     updateSectionFormValues(sectionExecutionId, values, organizationId)
       .then((payload) => {
         for (const f of valid) lastSavedAnswersRef.current[f.id] = currentAnswers[f.id];
         onUpdate?.(payload);
-        toast.success(t("form.fill.autoSaved"), { id: toastId });
         setSavedFieldIds((prev) => new Set([...prev, ...ids]));
         ids.forEach((id) => {
           clearTimeout(savedTimeoutsRef.current[id]);

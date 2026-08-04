@@ -1,9 +1,24 @@
 import { ApiError } from '@/types/api-error';
 import { logger } from '@/lib/logger';
 
-let loginToken: string | null = null;
-let organizationToken: string | null = null;
-let organizationId: string | null = null;
+// AuthProvider/OrganizationProvider restauran estos tokens en useEffect, que
+// corre después del primer commit; jwt-utils los lee de forma síncrona (en el
+// primer render) para calcular permisos. Sin esta hidratación, ese primer
+// render ve una sesión "vacía" y dispara redirects espurios (ver
+// permissions-context.tsx). Hidratar acá desde localStorage evita la carrera.
+function readStored(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+const storedOrgToken = readStored('organizationToken');
+const storedOrgId = readStored('selectedOrganizationId');
+// Sólo se considera válida la org cuando están AMBOS, igual que el restore
+// de OrganizationProvider — así httpClient y el contexto nunca discrepan.
+const hasStoredOrg = !!storedOrgToken && !!storedOrgId;
+
+let loginToken: string | null = readStored('auth_token');
+let organizationToken: string | null = hasStoredOrg ? storedOrgToken : null;
+let organizationId: string | null = hasStoredOrg ? storedOrgId : null;
 let onUnauthorized: (() => void) | null = null;
 
 export const httpClient = {

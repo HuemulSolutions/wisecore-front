@@ -58,6 +58,7 @@ export function ProtectedRoute({
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const {
     isLoading: permissionsLoading,
+    hasLoadedPermissionsOnce,
     isRootAdmin,
     isOrgAdmin,
     hasPermission,
@@ -73,9 +74,17 @@ export function ProtectedRoute({
   // yet (e.g. deep-link OrgSync is in progress), wait before checking perms.
   const orgTokenPending = !!orgId && orgId !== '_' && !organizationToken;
 
+  // There's an org token but PermissionsProvider hasn't resolved a valid
+  // (non-empty) permissions read yet — e.g. right after a hard deep-link
+  // load, before its polling loop catches up. Without this, an empty-but-
+  // not-"loading" permissions read gets treated as "denied" below and
+  // bounces the user to /home. See http-client.ts hydration for the actual
+  // root-cause fix; this is defense in depth.
+  const permissionsNeverLoaded = !hasLoadedPermissionsOnce && !!organizationToken;
+
   // Mostrar loading mientras se cargan datos. El header ya está montado
   // (AppLayout), así que solo el cuerpo muestra el skeleton.
-  if (authLoading || permissionsLoading || orgTokenPending) {
+  if (authLoading || permissionsLoading || orgTokenPending || permissionsNeverLoaded) {
     return <PageSkeleton />;
   }
 

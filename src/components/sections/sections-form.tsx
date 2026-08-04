@@ -317,7 +317,7 @@ export function SectionForm({
     markDirty();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validar según el tipo
@@ -341,6 +341,10 @@ export function SectionForm({
         submitData.prompt = prompt.trim();
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
+        // Rasterize + upload any changed Mermaid diagram before reading markdown, so
+        // the diagram references a real snapshot instead of getting lost (this form
+        // only persists markdown, not plate_content).
+        await manualEditorRef.current?.ensureMermaidSnapshots?.();
         const md = manualEditorRef.current?.getMarkdown?.() || "";
         if (md.trim()) {
           if (templateId) {
@@ -384,6 +388,10 @@ export function SectionForm({
         submitData.prompt = prompt.trim();
         submitData.dependencies = selectedDependencies.map(dep => dep.id);
       } else if (type === "manual") {
+        // Rasterize + upload any changed Mermaid diagram before reading markdown, so
+        // the diagram references a real snapshot instead of getting lost (this form
+        // only persists markdown, not plate_content).
+        await manualEditorRef.current?.ensureMermaidSnapshots?.();
         const md = manualEditorRef.current?.getMarkdown?.() || "";
         if (md.trim()) {
           if (isTemplateSection) {

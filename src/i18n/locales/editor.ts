@@ -24,6 +24,7 @@ const translations = {
     todo: { en: "Todo", es: "Pendiente" },
     editingMode: { en: "Editing mode", es: "Modo de edición" },
     insertMediaReference: { en: "Insert Media Reference", es: "Insertar referencia de media" },
+    insertMermaid: { en: "Insert Diagram (Mermaid)", es: "Insertar diagrama (Mermaid)" },
   },
   turnInto: {
     label: { en: "Turn into", es: "Convertir en" },
@@ -167,10 +168,21 @@ const translations = {
       table: { en: "Table", es: "Tabla" },
       blockquote: { en: "Blockquote", es: "Cita" },
       image: { en: "Image", es: "Imagen" },
+      mermaid: { en: "Diagram (Mermaid)", es: "Diagrama (Mermaid)" },
       tableOfContents: { en: "Table of contents", es: "Tabla de contenidos" },
       date: { en: "Date", es: "Fecha" },
       mediaReference: { en: "Media Reference", es: "Referencia de media" },
     },
+  },
+  mermaid: {
+    placeholder: { en: "Enter Mermaid code…", es: "Escribe el código Mermaid…" },
+    emptyPreview: { en: "Diagram preview will appear here", es: "La vista previa del diagrama aparecerá aquí" },
+    renderError: { en: "Invalid Mermaid syntax", es: "Sintaxis Mermaid inválida" },
+    captionPlaceholder: { en: "Write a caption...", es: "Escribe una leyenda..." },
+    delete: { en: "Delete", es: "Eliminar" },
+    snapshotFailed_one: { en: "Couldn't generate the snapshot for {{count}} diagram. It will be missing from Word/Markdown exports.", es: "No se pudo generar la instantánea de {{count}} diagrama. Faltará en las exportaciones a Word/Markdown." },
+    snapshotFailed_other: { en: "Couldn't generate the snapshot for {{count}} diagrams. They will be missing from Word/Markdown exports.", es: "No se pudo generar la instantánea de {{count}} diagramas. Faltarán en las exportaciones a Word/Markdown." },
+    snapshotFailed: { en: "Couldn't generate the snapshot for {{count}} diagrams. They will be missing from Word/Markdown exports.", es: "No se pudo generar la instantánea de {{count}} diagramas. Faltarán en las exportaciones a Word/Markdown." },
   },
 }
 
