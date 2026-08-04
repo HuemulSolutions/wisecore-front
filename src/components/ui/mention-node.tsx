@@ -41,12 +41,21 @@ export function MentionElement(
   const mounted = useMounted();
   const readOnly = useReadOnly();
   const buildPath = useOrgPath();
+  const effectiveOrgId = useEffectiveOrgId();
 
   const handleOpenAsset = (event: React.MouseEvent) => {
     if (!element.key) return;
+    // Solo botón izquierdo — este es onMouseDown (dispara con cualquier
+    // botón, incluido el derecho) porque el nodo también es draggable y
+    // onClick no llega a tiempo para prevenir el drag.
+    if (event.button !== 0) return;
+    // Sin org resuelta (SectionPlateEditor montado fuera de la página de
+    // assets, o contexto todavía sin hidratar) buildPath cae al centinela
+    // '_', lo que termina rebotando a /home sin volver. Mejor no abrir nada.
+    if (effectiveOrgId === '_') return;
     event.preventDefault();
     const query = element.executionId ? `?execution=${encodeURIComponent(element.executionId)}` : '';
-    window.open(buildPath(`/asset/${element.key}${query}`), '_blank');
+    window.open(buildPath(`/asset/${element.key}${query}`), '_blank', 'noopener,noreferrer');
   };
 
   return (
