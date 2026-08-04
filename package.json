@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "changelog": "node scripts/generate-changelog.mjs",
+    "changelog:full": "node scripts/generate-changelog.mjs --full"
   },
   "dependencies": {
     "@ariakit/react": "^0.4.21",
