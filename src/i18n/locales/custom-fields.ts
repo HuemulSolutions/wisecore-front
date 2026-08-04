@@ -62,6 +62,17 @@ const translations = {
     title: { en: "Danger Zone", es: "Zona de Peligro" },
   },
   form: {
+    eyebrow: { en: "Custom Field", es: "Campo Personalizado" },
+    section: {
+      definition: { en: "Definition", es: "Definición" },
+      settings: { en: "{{type}} Settings", es: "Ajustes de {{type}}" },
+      settingsGeneric: { en: "Settings", es: "Ajustes" },
+      preview: { en: "Preview", es: "Vista previa" },
+    },
+    requiredLabel: { en: "Required answer", es: "Respuesta obligatoria" },
+    requiredDescription: { en: "The form cannot be submitted without this field.", es: "No se podrá enviar el formulario sin este campo." },
+    nameHelper: { en: "This is the label shown to whoever fills out the form.", es: "Es la etiqueta que verá quien complete el formulario." },
+    maskHelper: { en: "Use # for digits and A for letters. Applied as the user types.", es: "Usa # para dígitos y A para letras. Se aplica mientras el usuario escribe." },
     namePlaceholder: { en: "Enter custom field name", es: "Ingresa el nombre del campo personalizado" },
     descriptionPlaceholder: { en: "Enter custom field description", es: "Ingresa la descripción del campo personalizado" },
     maskLabel: { en: "Mask (Optional)", es: "Máscara (Opcional)" },

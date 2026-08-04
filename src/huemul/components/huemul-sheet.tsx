@@ -54,6 +54,7 @@ export function HuemulSheet({
   open,
   onOpenChange,
   title,
+  eyebrow,
   description,
   icon: Icon,
   iconClassName,
@@ -147,6 +148,11 @@ export function HuemulSheet({
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
         <SheetHeader className="px-6 pt-6 pb-4 space-y-1.5">
+          {eyebrow && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {eyebrow}
+            </p>
+          )}
           <div className="flex items-center gap-2">
             {Icon && (
               <Icon

@@ -30,6 +30,8 @@ export interface CustomFieldFormFieldsProps {
   onMaxValueChange: (value: number | null) => void
   config: FormFieldConfig
   onConfigChange: (patch: Partial<FormFieldConfig>) => void
+  required: boolean
+  onRequiredChange: (value: boolean) => void
   errors?: {
     name?: string
     description?: string

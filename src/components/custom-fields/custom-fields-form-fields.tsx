@@ -1,5 +1,6 @@
 import { HuemulField } from '@/huemul/components/huemul-field';
 import { HuemulButton } from '@/huemul/components/huemul-button';
+import { Separator } from '@/components/ui/separator';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { QUESTION_TYPE, NUMERIC_DATA_TYPES, jsonbToInputValue } from '@/components/sections/question-type-meta';
@@ -11,6 +12,19 @@ const FILE_TYPE_OPTIONS = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'csv'];
 
 export type { CustomFieldFormFieldsProps } from '@/types/custom-fields';
 
+function SectionHeader({ number, label }: { number: number; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-semibold text-blue-700">
+        {number}
+      </span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default function CustomFieldFormFields({
   name,
   description,
@@ -21,6 +35,7 @@ export default function CustomFieldFormFields({
   minValue,
   maxValue,
   config,
+  required,
   onNameChange,
   onDescriptionChange,
   onMascChange,
@@ -29,6 +44,7 @@ export default function CustomFieldFormFields({
   onMinValueChange,
   onMaxValueChange,
   onConfigChange,
+  onRequiredChange,
   questionTypes,
   formatQuestionType,
   errors = {},
@@ -54,36 +70,60 @@ export default function CustomFieldFormFields({
 
   const MASK_APPLICABLE_TYPES = ['string', 'int', 'decimal', 'url']
 
-  return (
-    <div className="space-y-4">
-      <HuemulField
-        type="text"
-        label={t('common:name')}
-        name="name"
-        placeholder={t('form.namePlaceholder')}
-        value={name}
-        onChange={(v) => onNameChange(String(v))}
-        disabled={disabled}
-        error={errors.name}
-        required
-      />
-      <HuemulField
-        type="select"
-        label={t('form.questionTypeSelectLabel')}
-        name="question_type"
-        placeholder={t('form.questionTypeSelectPlaceholder')}
-        value={questionType}
-        onChange={(v) => onQuestionTypeChange(String(v))}
-        disabled={disabled || loadingQuestionTypes}
-        error={errors.question_type}
-        required
-        options={questionTypes.map((qt) => ({
-          label: formatQuestionType(qt.question_type),
-          value: qt.question_type,
-        }))}
-      />
+  const settingsSectionLabel = questionType
+    ? t('form.section.settings', { type: formatQuestionType(questionType) })
+    : t('form.section.settingsGeneric')
 
-      {dataType === 'list' && (
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <SectionHeader number={1} label={t('form.section.definition')} />
+        <HuemulField
+          type="text"
+          label={t('common:name')}
+          name="name"
+          placeholder={t('form.namePlaceholder')}
+          description={t('form.nameHelper')}
+          value={name}
+          onChange={(v) => onNameChange(String(v))}
+          disabled={disabled}
+          error={errors.name}
+          required
+        />
+        <HuemulField
+          type="select"
+          label={t('form.questionTypeSelectLabel')}
+          name="question_type"
+          placeholder={t('form.questionTypeSelectPlaceholder')}
+          value={questionType}
+          onChange={(v) => onQuestionTypeChange(String(v))}
+          disabled={disabled || loadingQuestionTypes}
+          error={errors.question_type}
+          required
+          options={questionTypes.map((qt) => ({
+            label: formatQuestionType(qt.question_type),
+            value: qt.question_type,
+          }))}
+        />
+        <div className="rounded-lg border p-3">
+          <HuemulField
+            type="switch"
+            label={t('form.requiredLabel')}
+            description={t('form.requiredDescription')}
+            value={required}
+            onChange={(v) => onRequiredChange(Boolean(v))}
+            labelFirst
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <SectionHeader number={2} label={settingsSectionLabel} />
+
+        {dataType === 'list' && (
         <div className="space-y-2">
           <p className="text-sm font-medium">
             {t('form.listOptionsLabel')}
@@ -265,38 +305,45 @@ export default function CustomFieldFormFields({
         </div>
       )}
 
-      <CustomFieldPreview
-        name={name}
-        dataType={dataType}
-        questionType={questionType}
-        options={options}
-        minValue={minValue}
-        maxValue={maxValue}
-      />
+        {MASK_APPLICABLE_TYPES.includes(dataType) && (
+          <HuemulField
+            type="text"
+            label={t('form.maskLabel')}
+            name="masc"
+            placeholder={t('form.maskPlaceholder')}
+            description={t('form.maskHelper')}
+            value={masc}
+            onChange={(v) => onMascChange(String(v))}
+            disabled={disabled}
+          />
+        )}
 
-      {MASK_APPLICABLE_TYPES.includes(dataType) && (
         <HuemulField
-          type="text"
-          label={t('form.maskLabel')}
-          name="masc"
-          placeholder={t('form.maskPlaceholder')}
-          value={masc}
-          onChange={(v) => onMascChange(String(v))}
+          type="textarea"
+          label={t('columns.description')}
+          name="description"
+          placeholder={t('form.descriptionPlaceholder')}
+          rows={3}
+          value={description}
+          onChange={(v) => onDescriptionChange(String(v))}
           disabled={disabled}
+          error={errors.description}
         />
-      )}
+      </div>
 
-      <HuemulField
-        type="textarea"
-        label={t('columns.description')}
-        name="description"
-        placeholder={t('form.descriptionPlaceholder')}
-        rows={3}
-        value={description}
-        onChange={(v) => onDescriptionChange(String(v))}
-        disabled={disabled}
-        error={errors.description}
-      />
+      <Separator />
+
+      <div className="space-y-4">
+        <SectionHeader number={3} label={t('form.section.preview')} />
+        <CustomFieldPreview
+          name={name}
+          dataType={dataType}
+          questionType={questionType}
+          options={options}
+          minValue={minValue}
+          maxValue={maxValue}
+        />
+      </div>
     </div>
   );
 }
