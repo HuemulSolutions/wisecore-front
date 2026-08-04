@@ -56,12 +56,10 @@ const translations = {
   },
   deleteDialog: {
     title: { en: "Delete Custom Field", es: "Eliminar Campo Personalizado" },
-    description: { en: "Are you sure you want to delete this custom field? This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar este campo personalizado? Esta acción no se puede deshacer." },
-    descriptionLabel: { en: "Description", es: "Descripción" },
-    dataTypeLabel: { en: "Data Type", es: "Tipo de Dato" },
-    maskLabel: { en: "Mask", es: "Máscara" },
-    warningTitle: { en: "Warning", es: "Advertencia" },
-    warningMessage: { en: "Deleting this custom field will remove it from all assets that currently use it. Any data stored in this field will be lost permanently.", es: "Eliminar este campo personalizado lo quitará de todos los activos que actualmente lo usan. Cualquier dato almacenado en este campo se perderá permanentemente." },
+    description: { en: "Are you sure you want to delete this custom field? It will be removed from all assets that currently use it and any data stored in it will be lost permanently. This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar este campo personalizado? Se quitará de todos los activos que actualmente lo usan y cualquier dato almacenado en él se perderá permanentemente. Esta acción no se puede deshacer." },
+  },
+  dangerZone: {
+    title: { en: "Danger Zone", es: "Zona de Peligro" },
   },
   form: {
     namePlaceholder: { en: "Enter custom field name", es: "Ingresa el nombre del campo personalizado" },

@@ -3,8 +3,6 @@ export * from './api-error'
 export * from './assets'
 export * from './auth'
 export * from './custom-fields'
-// Resolve name conflict: both ./assets and ./custom-fields export DeleteCustomFieldDialogProps
-export type { DeleteCustomFieldDialogProps } from './assets'
 export * from './data-table'
 export * from './embedding-provider'
 export * from './llm-provider'

@@ -25,7 +25,6 @@ export default function CustomFieldsPage() {
     searchTerm: "",
     editingCustomField: null,
     showCreateDialog: false,
-    deletingCustomField: null,
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [page, setPage] = useState(1)
@@ -92,10 +91,6 @@ export default function CustomFieldsPage() {
     updateState({ editingCustomField: customField })
   }
 
-  const handleDeleteCustomField = (customField: CustomField) => {
-    updateState({ deletingCustomField: customField })
-  }
-
   const handleClearFilters = () => {
     updateState({ searchTerm: "" })
   }
@@ -140,7 +135,6 @@ export default function CustomFieldsPage() {
               <CustomFieldTable
                 customFields={filteredCustomFields}
                 onEditCustomField={handleEditCustomField}
-                onDeleteCustomField={handleDeleteCustomField}
                 canManage={isRootAdmin}
                 isLoading={isTableLoading}
                 isFetching={isTableFetching}

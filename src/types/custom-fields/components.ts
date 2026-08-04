@@ -87,7 +87,6 @@ export interface CustomFieldPageHeaderProps {
 export interface CustomFieldTableProps {
   customFields: CustomField[]
   onEditCustomField: (customField: CustomField) => void
-  onDeleteCustomField: (customField: CustomField) => void
   pagination?: HuemulTablePagination
   canManage?: boolean
   isLoading?: boolean
