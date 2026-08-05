@@ -39,6 +39,7 @@ const translations = {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },
     newAsset: { en: "New Asset", es: "Nuevo Activo" },
     importAsset: { en: "New Asset from File", es: "Nuevo Activo desde Archivo" },
+    importAssetFromExternal: { en: "New Asset from External System", es: "Nuevo Activo desde Sistema Externo" },
     importConfig: { en: "Import portable", es: "Importar portable" },
     newFolder: { en: "New Folder", es: "Nueva Carpeta" },
     newGroupFolder: { en: "New Group Folder", es: "Nueva Carpeta Grupal" },

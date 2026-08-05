@@ -8,6 +8,7 @@ import { deleteFolder } from "@/services/folders"
 import { deleteDocument } from "@/services/assets"
 import { CreateAssetSheet } from "@/components/assets/dialogs/assets-create-sheet"
 import { ImportAssetFromFileSheet } from "@/components/assets/dialogs/assets-import-from-file-sheet"
+import { ImportAssetFromExternalSheet } from "@/components/assets/dialogs/assets-import-from-external-sheet"
 import { ImportConfigSheet } from "@/components/assets/dialogs/assets-import-config-sheet"
 import { CreateFolderSheet } from "@/components/assets/dialogs/assets-create-folder-sheet"
 import { DeleteFolderDialog } from "@/components/assets/dialogs/assets-delete-folder-dialog"
@@ -36,6 +37,8 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
   const [importAssetDialogOpen, setImportAssetDialogOpen] = useState(false)
   const [renderImportAssetDialog, setRenderImportAssetDialog] = useState(false)
+  const [importExternalDialogOpen, setImportExternalDialogOpen] = useState(false)
+  const [renderImportExternalDialog, setRenderImportExternalDialog] = useState(false)
   const [importConfigDialogOpen, setImportConfigDialogOpen] = useState(false)
   const [renderImportConfigDialog, setRenderImportConfigDialog] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
@@ -87,6 +90,12 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     setCurrentFolderId(folderId)
     setRenderImportAssetDialog(true)
     setImportAssetDialogOpen(true)
+  }, [])
+
+  const handleImportAssetFromExternal = useCallback((folderId?: string) => {
+    setCurrentFolderId(folderId)
+    setRenderImportExternalDialog(true)
+    setImportExternalDialogOpen(true)
   }, [])
 
   const handleImportConfig = useCallback(() => {
@@ -264,6 +273,13 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     }
   }, [])
 
+  const handleImportExternalDialogChange = useCallback((open: boolean) => {
+    setImportExternalDialogOpen(open)
+    if (!open) {
+      setTimeout(() => setRenderImportExternalDialog(false), 300)
+    }
+  }, [])
+
   const handleImportConfigDialogChange = useCallback((open: boolean) => {
     setImportConfigDialogOpen(open)
     if (!open) {
@@ -282,7 +298,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet
@@ -296,6 +312,14 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
         <ImportAssetFromFileSheet
           open={importAssetDialogOpen}
           onOpenChange={handleImportAssetDialogChange}
+          folderId={currentFolderId}
+          onAssetCreated={handleAssetCreated}
+        />
+      )}
+      {renderImportExternalDialog && (
+        <ImportAssetFromExternalSheet
+          open={importExternalDialogOpen}
+          onOpenChange={handleImportExternalDialogChange}
           folderId={currentFolderId}
           onAssetCreated={handleAssetCreated}
         />

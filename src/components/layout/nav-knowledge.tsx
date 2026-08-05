@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical } from "lucide-react"
+import { Plus, File, Folder, FolderOpen, FolderPlus, FolderKanban, Users, Share2, RefreshCw, Edit, Trash2, FileUp, FileJson, Search, X, FolderUp, ShieldCheck, Network, MoreVertical, Sparkles } from "lucide-react"
 import { useOrgNavigate } from "@/hooks/useOrgRouter"
 import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -56,7 +56,7 @@ function renderKnowledgeFolderIcon(node: FileNode, isExpanded: boolean) {
 export function NavKnowledgeHeader() {
   const { t } = useTranslation('layout')
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, setCommittedSearch, isRelationsMode, setIsRelationsMode } = useNavKnowledge()
   const { canCreate, isOrgAdmin, hasAnyPermission, canManageGroupFolders } = useUserPermissions()
   const [isRefreshingTree, setIsRefreshingTree] = useState(false)
 
@@ -73,6 +73,12 @@ export function NavKnowledgeHeader() {
   const canCreateFolder = canCreate('folder')
   // POST /folder/ con parent_folder_id: "root" requiere folder:c y (is_org_admin o folder:manage_groups).
   const canCreateGroupFolder = canCreateFolder && canManageGroupFolders
+  // Requiere poder listar AMBOS catálogos: sin systems no hay cascada, sin functionalities no hay qué elegir.
+  const canBrowseExternalCatalog =
+    isOrgAdmin ||
+    (hasAnyPermission(['external_system:l', 'external_system:r']) &&
+      hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
+  const canImportFromExternal = canCreateAsset && canBrowseExternalCatalog
   const hasAnyCreatePermission = canCreateAsset || canCreateFolder
   const canListExecRelationships = isOrgAdmin || hasAnyPermission(['execution_relationship:l', 'execution_relationship:r'])
 
@@ -139,6 +145,17 @@ export function NavKnowledgeHeader() {
                   >
                     <FileUp className="mr-2 h-4 w-4" />
                     {t('knowledge.importAsset')}
+                  </DropdownMenuItem>
+                )}
+                {canImportFromExternal && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setTimeout(() => handleImportAssetFromExternal(), 0)
+                    }}
+                    className="hover:cursor-pointer"
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {t('knowledge.importAssetFromExternal')}
                   </DropdownMenuItem>
                 )}
                 {canCreateAsset && (
@@ -219,13 +236,18 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
   const [nodeParentIds, setNodeParentIds] = useState<Map<string, string | null>>(new Map())
   const previousOrgId = React.useRef<string | null>(null)
-  const { canCreate, canUpdate, canDelete, isOrgAdmin, canAccessRoleFolders, canManageGroupFolders } = useUserPermissions()
+  const { canCreate, canUpdate, canDelete, isOrgAdmin, hasAnyPermission, canAccessRoleFolders, canManageGroupFolders } = useUserPermissions()
+  // Requiere poder listar AMBOS catálogos: sin systems no hay cascada, sin functionalities no hay qué elegir.
+  const canBrowseExternalCatalog =
+    isOrgAdmin ||
+    (hasAnyPermission(['external_system:l', 'external_system:r']) &&
+      hasAnyPermission(['external_functionality:l', 'external_functionality:r']))
   const { guardedAction } = useOptionalEditingGuard()
 
   // Refs so handleLoadChildren callback stays stable while always reading latest values
@@ -578,6 +600,20 @@ export function NavKnowledgeContent() {
       show: (node) => {
         if (node.type !== "folder") return false
         if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
+        return canCreate('asset') || node.access_levels?.includes('create') || false
+      },
+      variant: "default",
+    },
+    {
+      label: t('knowledge.importAssetFromExternal'),
+      icon: <Sparkles className="h-4 w-4" />,
+      onClick: async (nodeId) => {
+        handleImportAssetFromExternal(nodeId)
+      },
+      show: (node) => {
+        if (node.type !== "folder") return false
+        if (node.folder_type === 'grupal' || node.folder_type === 'forms') return false
+        if (!canBrowseExternalCatalog) return false
         return canCreate('asset') || node.access_levels?.includes('create') || false
       },
       variant: "default",
