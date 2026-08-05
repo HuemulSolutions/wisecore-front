@@ -5,7 +5,7 @@ import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Trash2 } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
@@ -286,6 +286,7 @@ export function CreateEditCustomFieldSheet({
         cancelLabel={t('common:cancel', 'Cancel')}
         saveAction={{
           label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
+          icon: isEditing ? undefined : Plus,
           onClick: handleSave,
           closeOnSuccess: false,
         }}

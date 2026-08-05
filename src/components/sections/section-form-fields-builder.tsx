@@ -228,9 +228,8 @@ export function SectionFormFieldsBuilder({
           disabled={isPending}
           className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
           icon={Plus}
-        >
-          {t("form.formFields.addQuestion")}
-        </HuemulButton>
+          label={t("form.formFields.addQuestion")}
+        />
       </div>
 
       {value.length === 0 ? (
@@ -271,6 +270,19 @@ export function SectionFormFieldsBuilder({
             </div>
           </SortableContext>
         </DndContext>
+      )}
+
+      {value.length > 0 && (
+        <HuemulButton
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={addField}
+          disabled={isPending}
+          className="h-7 text-xs border-[#4464f7] text-[#4464f7] hover:bg-[#4464f7] hover:text-white"
+          icon={Plus}
+          label={t("form.formFields.addQuestion")}
+        />
       )}
 
       <CreateEditCustomFieldSheet
