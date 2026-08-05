@@ -339,7 +339,7 @@ export function SectionQuestionTypeFields({
             label={t("form.formFields.starCount")}
             value={String(stars)}
             onChange={(v) => onUpdate({ max_value: Number(v) })}
-            options={[3, 4, 5, 10].map((n) => ({ value: String(n), label: String(n) }))}
+            options={[3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ value: String(n), label: String(n) }))}
             selectSize="sm"
             disabled={isPending}
             className="max-w-[160px]"
