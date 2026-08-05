@@ -228,6 +228,8 @@ const translations = {
       scaleTo: { en: "to", es: "a" },
       maxFiles: { en: "Max. files", es: "Máx. archivos" },
       maxSize: { en: "Max. size", es: "Tamaño máximo" },
+      allowedTypes: { en: "Allowed file types", es: "Tipos de archivo permitidos" },
+      allowedTypesHint: { en: "Select the formats this question accepts", es: "Selecciona los formatos que acepta esta pregunta" },
       starCount: { en: "Number of stars", es: "Número de estrellas" },
       customFieldHint: { en: "Select a field from the organization's catalog or create a new one", es: "Selecciona un campo del catálogo de la organización o crea uno nuevo" },
       questionTypeLabels: {
