@@ -611,6 +611,10 @@ const translations = {
     supportedFormats: { en: "Supported formats: PDF, DOCX", es: "Formatos admitidos: PDF, DOCX" },
     executionFailed: { en: "Execution Failed", es: "Ejecución Fallida" },
     executionFailedDescription: { en: "The AI couldn't generate content for this asset. Please try again or check your sections configuration.", es: "La IA no pudo generar contenido para este activo. Intenta de nuevo o verifica la configuración de tus secciones." },
+    executionFailedMissingDependencyDescription: {
+      en: "Generation failed because a section it depends on has no content yet. Generate or fill in that section and try again.",
+      es: "La generación falló porque una sección de la que depende aún no tiene contenido. Genera o completa esa sección y vuelve a intentar.",
+    },
     retrying: { en: "Retrying...", es: "Reintentando..." },
     retryExecution: { en: "Retry Execution", es: "Reintentar Ejecución" },
     editSections: { en: "Edit Sections", es: "Editar Secciones" },

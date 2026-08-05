@@ -89,6 +89,7 @@ import { useGlobalPanel } from '@/contexts/global-panel-context';
 // Utilities and hooks
 import { SectionSeparator } from './components/SectionSeparator';
 import { withRefresh } from '@/lib/query-utils';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
@@ -2780,7 +2781,9 @@ export function AssetContent({
                                       
                                       {/* Description */}
                                       <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
-                                        {t('content.executionFailedDescription')}
+                                        {isMissingDependencyFailure(selectedExecutionInfo?.status_message)
+                                          ? t('content.executionFailedMissingDependencyDescription')
+                                          : t('content.executionFailedDescription')}
                                       </p>
                                       
                                       {/* Action Buttons */}

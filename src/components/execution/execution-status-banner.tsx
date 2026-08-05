@@ -9,6 +9,7 @@ import { useOrganization } from '@/contexts/organization-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import type { ExecutionStatusBannerProps } from '@/types/execution';
 
 export type { ExecutionStatusBannerProps } from '@/types/execution';
@@ -53,7 +54,11 @@ export function ExecutionStatusBanner({
             queryClient.invalidateQueries({ queryKey: ['execution-status', executionId] });
           }, 100);
         } else if (status === 'failed') {
-          toast.error(t('toast.generationFailed'));
+          toast.error(
+            isMissingDependencyFailure(executionData?.status_message)
+              ? t('toast.missingDependency')
+              : t('toast.generationFailed'),
+          );
           stopPolling();
         } else if (status === 'import_failed') {
           const message = executionData?.status_message || executionData?.error || t('toast.importFailed');
@@ -173,6 +178,8 @@ export function ExecutionStatusBanner({
     const text = key ? t(`banner.status.${key}`) : status;
     const description = status === 'import_failed'
       ? (currentExecution?.status_message || currentExecution?.error || t(`banner.description.importFailed`))
+      : status === 'failed' && isMissingDependencyFailure(currentExecution?.status_message)
+      ? t('banner.description.missingDependency')
       : t(`banner.description.${key || 'default'}`);
     return { ...style, text, description };
   };
