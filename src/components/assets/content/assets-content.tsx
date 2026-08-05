@@ -998,6 +998,22 @@ export function AssetContent({
     return isFetchingContent || contentUpdatedAt <= snapshot;
   }, [isFetchingContent, contentUpdatedAt]);
 
+  // El polling de execution-sections-status se corta apenas el status GLOBAL
+  // (currentExecutionStatus) entra en un estado terminal, lo que puede dejar
+  // cacheado un status de sección no terminal (p.ej. 'generating') si la
+  // sección falló pero su status individual no llegó a reflejarlo a tiempo.
+  // Si el status global ya es failed/cancelled y la sección no tiene un
+  // status terminal propio, usamos el global para que el skeleton no quede
+  // colgado mientras el banner de fallo ya se muestra.
+  const getEffectiveSectionExecutionStatus = useCallback((index: number) => {
+    if (isAwaitingFreshContent(index)) return 'running';
+    const sectionStatus = getSectionExecutionStatus(index);
+    const overallStatus = currentExecutionStatus?.status;
+    if (sectionStatus === 'done' || sectionStatus === 'failed') return sectionStatus;
+    if (overallStatus === 'failed' || overallStatus === 'cancelled') return overallStatus;
+    return sectionStatus || overallStatus || 'running';
+  }, [isAwaitingFreshContent, getSectionExecutionStatus, currentExecutionStatus?.status]);
+
   // Poll approving execution status to detect when approval completes
   const { data: approvingExecutionStatus } = useQuery({
     queryKey: ['execution-status', approvingExecutionId],
@@ -2998,9 +3014,7 @@ export function AssetContent({
                                   }
                                   executionStatus={
                                     isSectionInScope(index)
-                                      ? (isAwaitingFreshContent(index)
-                                          ? 'running'
-                                          : (getSectionExecutionStatus(index) || currentExecutionStatus?.status || 'running'))
+                                      ? getEffectiveSectionExecutionStatus(index)
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}
