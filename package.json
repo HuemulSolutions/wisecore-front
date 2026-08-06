@@ -102,6 +102,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.6.1",
     "react-tweet": "^3.3.0",
+    "recharts": "^3.10.1",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
