@@ -14,6 +14,8 @@ interface TokenCreateSheetProps {
   organizationId: string
 }
 
+const DURATION_DAYS_OPTIONS = [15, 30, 60, 90, 180] as const
+
 const INITIAL_FORM: CreateTokenRequest = {
   name: "",
   duration_days: 180,
@@ -21,6 +23,10 @@ const INITIAL_FORM: CreateTokenRequest = {
 
 export function TokenCreateSheet({ open, onOpenChange, organizationId }: TokenCreateSheetProps) {
   const { t } = useTranslation(["tokens", "common"])
+  const durationOptions = DURATION_DAYS_OPTIONS.map((days) => ({
+    value: String(days),
+    label: t("list.durationDays", { count: days }),
+  }))
   const [formData, setFormData] = useState<CreateTokenRequest>(INITIAL_FORM)
   const [createdToken, setCreatedToken] = useState<CreateTokenResult | null>(null)
   const [copied, setCopied] = useState(false)
@@ -123,12 +129,12 @@ export function TokenCreateSheet({ open, onOpenChange, organizationId }: TokenCr
           required
         />
         <HuemulField
-          type="number"
+          type="select"
           label={t("create.durationLabel")}
           name="duration_days"
-          value={formData.duration_days}
+          value={String(formData.duration_days)}
+          options={durationOptions}
           onChange={(v) => handleChange("duration_days", Number(v))}
-          placeholder={t("create.durationPlaceholder")}
           required
         />
       </HuemulFieldGroup>
