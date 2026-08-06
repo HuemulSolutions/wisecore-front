@@ -236,7 +236,7 @@ export function NavKnowledgeContent() {
   const navigate = useOrgNavigate()
   const location = useLocation()
   const { selectedOrganizationId } = useOrganization()
-  const { fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
+  const { fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleCreateFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, committedSearch, rootPage, rootPageSize, setHasNextRootPage, isRelationsMode } = useNavKnowledge()
   const [folderNames, setFolderNames] = useState<Map<string, string>>(new Map())
   const [documentNames, setDocumentNames] = useState<Map<string, string>>(new Map())
   const [documentTypeIds, setDocumentTypeIds] = useState<Map<string, string>>(new Map())
@@ -377,7 +377,10 @@ export function NavKnowledgeContent() {
 
       try {
         const isRoot = folderId === null
-        const focusAssetId = isRoot ? activeAssetIdRef.current : null
+        const focusAssetId = isRoot ? (pendingFocusAssetIdRef.current ?? activeAssetIdRef.current) : null
+        // Consumo único — no debe reusarse en refrescos posteriores no
+        // relacionados, ni siquiera si esta carga falla.
+        if (isRoot && pendingFocusAssetIdRef.current) pendingFocusAssetIdRef.current = null
         // Tracks whether the focused-tree branch actually ran. Starts optimistic
         // and gets demoted to false if the focus asset turns out to be invalid
         // (stale id, deleted asset, or leftover from another organization).

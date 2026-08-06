@@ -3,6 +3,7 @@ import type { FileTreeRef } from "@/components/assets/content/assets-file-tree"
 
 export interface NavKnowledgeContextValue {
   fileTreeRef: RefObject<FileTreeRef | null>
+  pendingFocusAssetIdRef: RefObject<string | null>
   handleCreateAsset: (folderId?: string) => void
   handleImportAsset: (folderId?: string) => void
   handleImportAssetFromExternal: (folderId?: string) => void

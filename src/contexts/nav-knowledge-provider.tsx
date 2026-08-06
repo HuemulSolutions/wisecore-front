@@ -33,6 +33,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   const { t } = useTranslation('layout')
   const navigate = useOrgNavigate()
   const fileTreeRef = useRef<FileTreeRef>(null)
+  const pendingFocusAssetIdRef = useRef<string | null>(null)
   const [createAssetDialogOpen, setCreateAssetDialogOpen] = useState(false)
   const [renderCreateAssetDialog, setRenderCreateAssetDialog] = useState(false)
   const [importAssetDialogOpen, setImportAssetDialogOpen] = useState(false)
@@ -128,6 +129,13 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
     // produces a visible "flash" of the dialog portal.
     setTimeout(() => {
       logger.log('🔄 [NAV-KNOWLEDGE] Refreshing file tree')
+      // El refresh corre antes de que navigate() actualice la URL, así que
+      // activeAssetIdRef (derivado de location.pathname) todavía apunta al
+      // asset viejo. Este override deja que handleLoadChildren pida el
+      // focus_asset_id correcto sin depender de esa carrera.
+      if (createdAsset) {
+        pendingFocusAssetIdRef.current = createdAsset.id
+      }
       fileTreeRef.current?.refresh()
       // Navigate to the newly created asset
       if (createdAsset) {
@@ -298,7 +306,7 @@ export function NavKnowledgeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <NavKnowledgeContext.Provider value={{ fileTreeRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
+    <NavKnowledgeContext.Provider value={{ fileTreeRef, pendingFocusAssetIdRef, handleCreateAsset, handleImportAsset, handleImportAssetFromExternal, handleImportConfig, handleCreateFolder, handleCreateGroupFolder, handleShareFolder, handleDeleteFolder, handleEditFolder, handleDeleteDocument, handleEditDocument, handleOpenAssetLifecycle, refreshFileTree, isSearchOpen, setIsSearchOpen, searchTerm, setSearchTerm, committedSearch, setCommittedSearch, rootPage, rootPageSize, hasNextRootPage, setRootPage, setRootPageSize, setHasNextRootPage, isRelationsMode, setIsRelationsMode }}>
       {children}
       {renderCreateAssetDialog && (
         <CreateAssetSheet
