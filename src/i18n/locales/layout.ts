@@ -15,6 +15,7 @@ const translations = {
     updateProfile: { en: "Update Profile", es: "Actualizar Perfil" },
     notifications: { en: "Notifications", es: "Notificaciones" },
     mySubscriptions: { en: "My Subscriptions", es: "Mis Suscripciones" },
+    apiTokens: { en: "API Tokens", es: "Tokens de API" },
     signOut: { en: "Sign out", es: "Cerrar sesión" },
   },
   settings: {

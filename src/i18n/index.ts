@@ -40,6 +40,7 @@ import roleFolder from './locales/role-folder'
 import workflow from './locales/workflow'
 import errorDetails from './locales/error-details'
 import tokenUsage from './locales/token-usage'
+import tokens from './locales/tokens'
 import { logger } from '@/lib/logger'
 
 // Each module defines translations per-key: { myKey: { en: "...", es: "..." } }
@@ -100,6 +101,7 @@ const modules = {
   workflow,
   'error-details': errorDetails,
   'token-usage': tokenUsage,
+  tokens,
 } as const
 
 const supportedLanguages = ['en', 'es'] as const

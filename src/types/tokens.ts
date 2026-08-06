@@ -38,6 +38,17 @@ export interface CreateTokenRequest {
   duration_days: number
 }
 
+export interface CreateTokenResult {
+  token: string
+  metadata: Token
+}
+
+export interface CreateTokenResponse {
+  data: CreateTokenResult
+  transaction_id: string
+  timestamp: string
+}
+
 export interface UseTokensOptions {
   enabled?: boolean
   page?: number

@@ -6,6 +6,8 @@ import type {
   TokensResponse,
   GetTokensParams,
   CreateTokenRequest,
+  CreateTokenResult,
+  CreateTokenResponse,
 } from '@/types/tokens'
 
 const BASE_URL = `${backendUrl}/tokens`
@@ -41,11 +43,11 @@ export async function getToken(
 export async function createToken(
   organizationId: string,
   body: CreateTokenRequest,
-): Promise<Token> {
+): Promise<CreateTokenResult> {
   const response = await httpClient.post(`${BASE_URL}/`, body, {
     headers: { 'X-Org-Id': organizationId },
   })
-  const data = (await response.json()) as TokenResponse
+  const data = (await response.json()) as CreateTokenResponse
   return data.data
 }
 
