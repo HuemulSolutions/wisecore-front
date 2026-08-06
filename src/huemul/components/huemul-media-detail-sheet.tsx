@@ -277,20 +277,15 @@ export function HuemulMediaDetailSheet({
             {canDelete && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {t("detail.dangerZone")}
-                  </p>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="hover:cursor-pointer"
-                    onClick={() => setDeleteMediaOpen(true)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                    {t("detail.deleteMedia")}
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 hover:cursor-pointer"
+                  onClick={() => setDeleteMediaOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  {t("detail.deleteMedia")}
+                </Button>
               </>
             )}
           </div>
