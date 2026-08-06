@@ -345,6 +345,8 @@ export default function SearchPage() {
 
   const header = (
     <div className="flex flex-col gap-3">
+      {/* Sin refresh: la query solo corre con búsqueda activa (`enabled`);
+          el botón Search de abajo ya la re-ejecuta. */}
       <PageHeader icon={Search} title={t("page.title")} showRefresh={false} className="!mb-0 !space-y-0" />
 
       {/* Full-width search row */}

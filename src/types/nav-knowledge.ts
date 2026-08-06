@@ -5,6 +5,7 @@ export interface NavKnowledgeContextValue {
   fileTreeRef: RefObject<FileTreeRef | null>
   handleCreateAsset: (folderId?: string) => void
   handleImportAsset: (folderId?: string) => void
+  handleImportAssetFromExternal: (folderId?: string) => void
   handleImportConfig: () => void
   handleCreateFolder: (folderId?: string) => void
   handleCreateGroupFolder: () => void

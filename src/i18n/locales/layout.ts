@@ -15,6 +15,7 @@ const translations = {
     updateProfile: { en: "Update Profile", es: "Actualizar Perfil" },
     notifications: { en: "Notifications", es: "Notificaciones" },
     mySubscriptions: { en: "My Subscriptions", es: "Mis Suscripciones" },
+    apiTokens: { en: "API Tokens", es: "Tokens de API" },
     signOut: { en: "Sign out", es: "Cerrar sesión" },
   },
   settings: {
@@ -33,12 +34,14 @@ const translations = {
     models: { en: "Models", es: "Modelos" },
     authTypes: { en: "Auth Types", es: "Tipos de Autenticación" },
     externalSystems: { en: "External Systems", es: "Sistemas Externos" },
+    tokenUsage: { en: "Usage & costs", es: "Uso y costos" },
     advanced: { en: "Advanced", es: "Avanzado" },
   },
   knowledge: {
     sectionTitle: { en: "Knowledge", es: "Conocimiento" },
     newAsset: { en: "New Asset", es: "Nuevo Activo" },
     importAsset: { en: "New Asset from File", es: "Nuevo Activo desde Archivo" },
+    importAssetFromExternal: { en: "New Asset from External System", es: "Nuevo Activo desde Sistema Externo" },
     importConfig: { en: "Import portable", es: "Importar portable" },
     newFolder: { en: "New Folder", es: "Nueva Carpeta" },
     newGroupFolder: { en: "New Group Folder", es: "Nueva Carpeta Grupal" },

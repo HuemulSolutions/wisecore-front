@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
-import { PenLine, Plus } from "lucide-react"
+import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { Plus, Trash2 } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
 
@@ -27,6 +30,7 @@ export function CreateEditCustomFieldSheet({
   customFieldMutations,
 }: CreateEditCustomFieldDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -36,6 +40,7 @@ export function CreateEditCustomFieldSheet({
     min_value: null as number | null,
     max_value: null as number | null,
     config: {} as FormFieldConfig,
+    required: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -72,6 +77,7 @@ export function CreateEditCustomFieldSheet({
           min_value: typeof customField.min_value === 'number' ? customField.min_value : null,
           max_value: typeof customField.max_value === 'number' ? customField.max_value : null,
           config: readFieldConfig(customField),
+          required: customField.required,
         })
       } else {
         setFormData({
@@ -83,6 +89,7 @@ export function CreateEditCustomFieldSheet({
           min_value: null,
           max_value: null,
           config: {},
+          required: false,
         })
       }
       setErrors({})
@@ -182,6 +189,7 @@ export function CreateEditCustomFieldSheet({
             name: formData.name,
             description: formData.description,
             masc: formData.masc || undefined,
+            required: formData.required,
             // Partial PATCH: only send question_type if the user picked one, so legacy
             // fields (question_type: null) keep their existing data_type untouched.
             ...(formData.question_type && { question_type: formData.question_type }),
@@ -195,6 +203,7 @@ export function CreateEditCustomFieldSheet({
           description: formData.description,
           masc: formData.masc || "",
           question_type: formData.question_type,
+          required: formData.required,
           ...getTypeSpecificPayload(),
         })
         onSuccess(created)
@@ -259,53 +268,93 @@ export function CreateEditCustomFieldSheet({
     setFormData(prev => ({ ...prev, config: { ...prev.config, ...patch } }))
   }
 
+  const handleRequiredChange = (value: boolean) => {
+    setFormData(prev => ({ ...prev, required: value }))
+  }
+
   const formatQuestionType = (questionType: string) => questionTypeLabel(questionType, tSections)
 
   return (
-    <HuemulSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isEditing ? t('editDialog.title') : t('createDialog.title')}
-      description={
-        isEditing
-          ? t('editDialog.description')
-          : t('createDialog.description')
-      }
-      icon={isEditing ? PenLine : Plus}
-      maxWidth="sm:max-w-lg"
-      cancelLabel={t('common:cancel', 'Cancel')}
-      saveAction={{
-        label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
-        onClick: handleSave,
-        closeOnSuccess: false,
-      }}
-    >
-      <div className="space-y-4">
-        <CustomFieldFormFields
-          name={formData.name}
-          description={formData.description}
-          dataType={dataType}
-          masc={formData.masc}
-          questionType={formData.question_type}
-          options={formData.options}
-          minValue={formData.min_value}
-          maxValue={formData.max_value}
-          config={formData.config}
-          onNameChange={(value) => handleInputChange("name", value)}
-          onDescriptionChange={(value) => handleInputChange("description", value)}
-          onMascChange={(value) => handleInputChange("masc", value)}
-          onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
-          onOptionsChange={handleOptionsChange}
-          onMinValueChange={(value) => handleNumericChange('min_value', value)}
-          onMaxValueChange={(value) => handleNumericChange('max_value', value)}
-          onConfigChange={handleConfigChange}
-          questionTypes={questionTypes}
-          formatQuestionType={formatQuestionType}
-          errors={errors}
-          disabled={isSubmitting}
-          loadingQuestionTypes={loadingQuestionTypes}
+    <>
+      <HuemulSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        title={isEditing && customField ? customField.name : t('createDialog.title')}
+        eyebrow={t('form.eyebrow')}
+        description={isEditing ? undefined : t('createDialog.description')}
+        maxWidth="sm:max-w-xl"
+        cancelLabel={t('common:cancel', 'Cancel')}
+        saveAction={{
+          label: isEditing ? t('editDialog.saveLabel') : t('createDialog.saveLabel'),
+          icon: isEditing ? undefined : Plus,
+          onClick: handleSave,
+          closeOnSuccess: false,
+        }}
+      >
+        <div className="space-y-4">
+          <CustomFieldFormFields
+            name={formData.name}
+            description={formData.description}
+            dataType={dataType}
+            masc={formData.masc}
+            questionType={formData.question_type}
+            options={formData.options}
+            minValue={formData.min_value}
+            maxValue={formData.max_value}
+            config={formData.config}
+            required={formData.required}
+            onNameChange={(value) => handleInputChange("name", value)}
+            onDescriptionChange={(value) => handleInputChange("description", value)}
+            onMascChange={(value) => handleInputChange("masc", value)}
+            onQuestionTypeChange={(value) => handleInputChange("question_type", value)}
+            onOptionsChange={handleOptionsChange}
+            onMinValueChange={(value) => handleNumericChange('min_value', value)}
+            onMaxValueChange={(value) => handleNumericChange('max_value', value)}
+            onConfigChange={handleConfigChange}
+            onRequiredChange={handleRequiredChange}
+            questionTypes={questionTypes}
+            formatQuestionType={formatQuestionType}
+            errors={errors}
+            disabled={isSubmitting}
+            loadingQuestionTypes={loadingQuestionTypes}
+          />
+
+          {isEditing && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {t('dangerZone.title')}
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="hover:cursor-pointer"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  {t('actions.deleteCustomField')}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </HuemulSheet>
+
+      {isEditing && (
+        <HuemulAlertDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title={t('deleteDialog.title')}
+          description={t('deleteDialog.description')}
+          actionLabel={t('actions.deleteCustomField')}
+          actionIcon={Trash2}
+          onAction={async () => {
+            await customFieldMutations.delete.mutateAsync(customField!.id)
+            onOpenChange(false)
+          }}
         />
-      </div>
-    </HuemulSheet>
+      )}
+    </>
   )
 }

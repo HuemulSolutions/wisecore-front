@@ -23,7 +23,7 @@ export function CustomFieldPageHeader({
       icon={Settings2}
       title={t('header.title')}
       badges={[
-        { label: "", value: isLoading ? "..." : customFieldCount }
+        { label: "", value: customFieldCount }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}

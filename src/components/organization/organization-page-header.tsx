@@ -22,7 +22,7 @@ export function OrganizationPageHeader({
       icon={Building2}
       title={t('organizations:header.title')}
       badges={[
-        { label: "", value: isLoading ? "..." : organizationCount }
+        { label: "", value: organizationCount }
       ]}
       onRefresh={onRefresh}
       isLoading={isLoading}

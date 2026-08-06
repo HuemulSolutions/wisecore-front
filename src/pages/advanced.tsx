@@ -325,6 +325,7 @@ export default function AdvancedPage() {
   const pageHeader = !isHome ? (
     <div className="px-6 py-3">
       <div className="-mb-6">
+        {/* Sin refresh: esta página no fetchea datos propios, cada panel hijo tiene el suyo. */}
         <PageHeader icon={sectionIcon} title={sectionTitle} showRefresh={false} />
       </div>
       <p className="text-sm text-muted-foreground">{sectionDescription}</p>

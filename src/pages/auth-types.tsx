@@ -6,7 +6,6 @@ import { useTableLoadingState } from "@/hooks/useTableLoadingState"
 import { CreateAuthTypeDialog } from "@/components/auth-types/auth-types-create-dialog"
 import { EditAuthTypeDialog } from "@/components/auth-types/auth-types-edit-dialog"
 import { DeleteAuthTypeDialog } from "@/components/auth-types/auth-types-delete-dialog"
-import { toast } from "sonner"
 import type { AuthType } from "@/services/auth-types"
 
 import { AuthTypesSearch } from "@/components/auth-types/auth-types-search"
@@ -76,7 +75,6 @@ export default function AuthTypes() {
     setIsRefreshing(true)
     try {
       await refetch()
-      toast.success(t('dataRefreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -94,7 +92,7 @@ export default function AuthTypes() {
               setPage(1)
             }}
             authTypesCount={error ? 0 : authTypes.length}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || isFetching}
             onRefresh={handleRefresh}
             onCreateClick={() => setIsCreateDialogOpen(true)}
             hasError={!!error}

@@ -89,6 +89,7 @@ import { useGlobalPanel } from '@/contexts/global-panel-context';
 // Utilities and hooks
 import { SectionSeparator } from './components/SectionSeparator';
 import { withRefresh } from '@/lib/query-utils';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { ContentErrorState } from './content-error-state';
 // TODO: Integrate these hooks gradually to replace inline mutations
 // import { useDocumentMutations } from './hooks/useDocumentMutations';
@@ -997,6 +998,22 @@ export function AssetContent({
     return isFetchingContent || contentUpdatedAt <= snapshot;
   }, [isFetchingContent, contentUpdatedAt]);
 
+  // El polling de execution-sections-status se corta apenas el status GLOBAL
+  // (currentExecutionStatus) entra en un estado terminal, lo que puede dejar
+  // cacheado un status de sección no terminal (p.ej. 'generating') si la
+  // sección falló pero su status individual no llegó a reflejarlo a tiempo.
+  // Si el status global ya es failed/cancelled y la sección no tiene un
+  // status terminal propio, usamos el global para que el skeleton no quede
+  // colgado mientras el banner de fallo ya se muestra.
+  const getEffectiveSectionExecutionStatus = useCallback((index: number) => {
+    if (isAwaitingFreshContent(index)) return 'running';
+    const sectionStatus = getSectionExecutionStatus(index);
+    const overallStatus = currentExecutionStatus?.status;
+    if (sectionStatus === 'done' || sectionStatus === 'failed') return sectionStatus;
+    if (overallStatus === 'failed' || overallStatus === 'cancelled') return overallStatus;
+    return sectionStatus || overallStatus || 'running';
+  }, [isAwaitingFreshContent, getSectionExecutionStatus, currentExecutionStatus?.status]);
+
   // Poll approving execution status to detect when approval completes
   const { data: approvingExecutionStatus } = useQuery({
     queryKey: ['execution-status', approvingExecutionId],
@@ -1558,7 +1575,6 @@ export function AssetContent({
     setIsRefreshingCustomFields(true);
     try {
       await queryClient.refetchQueries({ queryKey: ['custom-field-documents', selectedFile?.id] });
-      toast.success(t('mutations.customFieldsRefreshed'));
     } finally {
       setIsRefreshingCustomFields(false);
     }
@@ -2781,7 +2797,9 @@ export function AssetContent({
                                       
                                       {/* Description */}
                                       <p className="text-base text-red-800/90 mb-6 leading-relaxed max-w-full mx-auto">
-                                        {t('content.executionFailedDescription')}
+                                        {isMissingDependencyFailure(selectedExecutionInfo?.status_message)
+                                          ? t('content.executionFailedMissingDependencyDescription')
+                                          : t('content.executionFailedDescription')}
                                       </p>
                                       
                                       {/* Action Buttons */}
@@ -2996,9 +3014,7 @@ export function AssetContent({
                                   }
                                   executionStatus={
                                     isSectionInScope(index)
-                                      ? (isAwaitingFreshContent(index)
-                                          ? 'running'
-                                          : (getSectionExecutionStatus(index) || currentExecutionStatus?.status || 'running'))
+                                      ? getEffectiveSectionExecutionStatus(index)
                                       : selectedExecutionInfo?.status
                                   }
                                   executionMode={currentExecutionMode}

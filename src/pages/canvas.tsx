@@ -2,12 +2,10 @@
 
 import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useTranslation } from "react-i18next"
 import { useOrganization } from "@/contexts/organization-context"
 import { useUserPermissions } from "@/hooks/useUserPermissions"
 import { useCanvasList, canvasQueryKeys } from "@/hooks/useCanvas"
 import { useTableLoadingState } from "@/hooks/useTableLoadingState"
-import { toast } from "sonner"
 import { HuemulPageLayout } from "@/huemul/components/huemul-page-layout"
 import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE_OPTIONS } from "@/huemul/constants"
 
@@ -33,7 +31,6 @@ export default function CanvasPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
-  const { t } = useTranslation(['canvas', 'common'])
   const { selectedOrganizationId, organizationToken } = useOrganization()
   const { canAccessCanvas, isOrgAdmin, hasPermission, isLoading: isLoadingPermissions } = useUserPermissions()
   const queryClient = useQueryClient()
@@ -80,7 +77,6 @@ export default function CanvasPage() {
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: canvasQueryKeys.listBase() })
-      toast.success(t('common:dataRefreshed', 'Data refreshed'))
     } finally {
       setIsRefreshing(false)
     }
@@ -94,7 +90,7 @@ export default function CanvasPage() {
             canvasCount={items.length}
             onCreateCanvas={() => updateState({ showCreateDialog: true })}
             onRefresh={handleRefresh}
-            isLoading={isRefreshing}
+            isLoading={isRefreshing || isFetching}
             searchTerm={state.searchTerm}
             onSearchChange={(value) => {
               updateState({ searchTerm: value })

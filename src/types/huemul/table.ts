@@ -76,4 +76,12 @@ export interface HuemulTableProps<T> {
   selectedKeys?: Set<string>
   /** Callback con el nuevo Set de keys seleccionadas. Requerido si `selectable`. */
   onSelectionChange?: (keys: Set<string>) => void
+  /** Cuándo una fila puede expandirse (muestra el chevron). Default: todas, si `renderExpanded` está presente. */
+  isExpandable?: (item: T) => boolean
+  /** Contenido de la fila expandida, renderizado en un `<TableCell colSpan>` bajo la fila. */
+  renderExpanded?: (item: T) => ReactNode
+  /** Keys (según `getRowKey`) actualmente expandidas. Requerido si `renderExpanded`. */
+  expandedKeys?: Set<string>
+  /** Callback con el nuevo Set de keys expandidas. Requerido si `renderExpanded`. */
+  onExpandedChange?: (keys: Set<string>) => void
 }

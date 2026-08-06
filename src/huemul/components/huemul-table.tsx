@@ -1,5 +1,5 @@
 import * as React from "react"
-import { MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw, Loader2 } from "lucide-react"
+import { MoreVertical, Inbox, ArrowUp, ArrowDown, ChevronsUpDown, AlertCircle, RefreshCw, Loader2, ChevronRight } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import type {
@@ -44,6 +44,7 @@ import { useTranslation } from "react-i18next"
 const MIN_COL_WIDTH = 80
 const ACTIONS_COL_WIDTH = 100
 const SELECT_COL_WIDTH = 48
+const EXPAND_COL_WIDTH = 40
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -69,10 +70,27 @@ export function HuemulTable<T>({
   selectable = false,
   selectedKeys,
   onSelectionChange,
+  isExpandable,
+  renderExpanded,
+  expandedKeys,
+  onExpandedChange,
 }: HuemulTableProps<T>) {
   const { t } = useTranslation("common")
 
   const hasActions = !!actions && actions.length > 0
+  const hasExpand = !!renderExpanded
+  const expanded = expandedKeys ?? new Set<string>()
+
+  const toggleExpanded = React.useCallback(
+    (key: string) => {
+      if (!onExpandedChange) return
+      const next = new Set(expanded)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      onExpandedChange(next)
+    },
+    [onExpandedChange, expanded],
+  )
 
   // ── Selección de filas ─────────────────────────────────────────────────────
   const selected = selectedKeys ?? new Set<string>()
@@ -113,8 +131,20 @@ export function HuemulTable<T>({
   const totalWidth = React.useMemo(() => {
     if (!resizable) return undefined
     const cols = columns.reduce((sum, col) => sum + getWidth(col.key), 0)
-    return cols + (hasActions ? ACTIONS_COL_WIDTH : 0) + (selectable ? SELECT_COL_WIDTH : 0)
-  }, [resizable, columns, getWidth, hasActions, selectable])
+    return (
+      cols +
+      (hasActions ? ACTIONS_COL_WIDTH : 0) +
+      (selectable ? SELECT_COL_WIDTH : 0) +
+      (hasExpand ? EXPAND_COL_WIDTH : 0)
+    )
+  }, [resizable, columns, getWidth, hasActions, selectable, hasExpand])
+
+  const colSpan =
+    columns.length +
+    (hasExpand ? 1 : 0) +
+    (selectable ? 1 : 0) +
+    (resizable ? 1 : 0) +
+    (hasActions ? 1 : 0)
 
   // Arrastre del borde derecho de una cabecera. Usa pointer capture para seguir
   // el cursor aunque salga del handle.
@@ -221,6 +251,7 @@ export function HuemulTable<T>({
         >
           {resizable && (
             <colgroup>
+              {hasExpand && <col style={{ width: EXPAND_COL_WIDTH }} />}
               {selectable && <col style={{ width: SELECT_COL_WIDTH }} />}
               {columns.map((col) => (
                 <col
@@ -237,6 +268,7 @@ export function HuemulTable<T>({
           {/* ── Header ── */}
           <TableHeader className="sticky top-0 z-20 bg-muted">
             <TableRow className="border-b border-border hover:bg-transparent">
+              {hasExpand && <TableHead aria-hidden className="h-auto px-1 py-3 w-[1%]" />}
               {selectable && (
                 <TableHead className="h-auto px-4 py-3 w-[1%] whitespace-nowrap">
                   <Checkbox
@@ -313,6 +345,7 @@ export function HuemulTable<T>({
             {isLoading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i} className="bg-background hover:bg-background">
+                    {hasExpand && <TableCell className="px-1 py-3" />}
                     {selectable && (
                       <TableCell className="px-4 py-3">
                         <Skeleton className="h-4 w-4 rounded-lg" />
@@ -348,9 +381,27 @@ export function HuemulTable<T>({
                     (isSelected
                       ? "bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))] group-hover:bg-[color-mix(in_srgb,var(--primary)_10%,var(--card))]"
                       : "bg-background group-hover:bg-[color-mix(in_srgb,var(--muted)_30%,var(--card))]")
+                  const canExpand = hasExpand && (isExpandable?.(item) ?? true)
+                  const isExpanded = canExpand && expanded.has(key)
 
                   return (
-                    <TableRow key={key} className={cn("group", rowExtraClass || "bg-background hover:bg-muted/30")} data-selected={isSelected || undefined}>
+                    <React.Fragment key={key}>
+                    <TableRow className={cn("group", rowExtraClass || "bg-background hover:bg-muted/30")} data-selected={isSelected || undefined}>
+                      {hasExpand && (
+                        <TableCell className="px-1 py-3" onClick={(e) => e.stopPropagation()}>
+                          {canExpand && (
+                            <button
+                              type="button"
+                              onClick={() => toggleExpanded(key)}
+                              aria-expanded={isExpanded}
+                              aria-label={isExpanded ? t("collapseRow") : t("expandRow")}
+                              className="flex h-5 w-5 items-center justify-center rounded hover:bg-muted hover:cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
+                            </button>
+                          )}
+                        </TableCell>
+                      )}
                       {selectable && (
                         <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
@@ -446,6 +497,14 @@ export function HuemulTable<T>({
                         </TableCell>
                       )}
                     </TableRow>
+                    {isExpanded && (
+                      <TableRow className="hover:bg-transparent bg-muted/20">
+                        <TableCell colSpan={colSpan} className="p-0">
+                          {renderExpanded!(item)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </React.Fragment>
                   )
                 })}
           </TableBody>

@@ -530,6 +530,7 @@ export function AddCustomFieldSheet({
               minValue={newMinValue}
               maxValue={newMaxValue}
               config={newConfig}
+              required={isRequired}
               onNameChange={(value) => handleNewCustomFieldInputChange("name", value)}
               onDescriptionChange={(value) => handleNewCustomFieldInputChange("description", value)}
               onMascChange={(value) => handleNewCustomFieldInputChange("masc", value)}
@@ -562,6 +563,7 @@ export function AddCustomFieldSheet({
               onMinValueChange={setNewMinValue}
               onMaxValueChange={setNewMaxValue}
               onConfigChange={(patch) => setNewConfig(prev => ({ ...prev, ...patch }))}
+              onRequiredChange={setIsRequired}
               questionTypes={questionTypes}
               formatQuestionType={formatQuestionType}
               errors={formErrors}

@@ -172,6 +172,10 @@ export function useUserPermissions() {
     return hasAnyPermission(['diagram:r', 'diagram:l', 'diagram:c', 'diagram:u', 'diagram:d']) || isOrgAdmin;
   }, [hasAnyPermission, isOrgAdmin]);
 
+  const canAccessTokenUsage = useMemo(() => {
+    return hasAnyPermission(['token_usage:r', 'token_usage:l']) || isOrgAdmin;
+  }, [hasAnyPermission, isOrgAdmin]);
+
   // Función para verificar múltiples permisos de un recurso
   const hasResourceAccess = useMemo(() => {
     return (resource: string, actions: string[] = ['r']) => {
@@ -241,6 +245,7 @@ export function useUserPermissions() {
     canAccessExternalSecrets,
     canAccessCanvas,
     canAccessDiagrams,
+    canAccessTokenUsage,
 
     // Funciones de utilidad
     hasResourceAccess,

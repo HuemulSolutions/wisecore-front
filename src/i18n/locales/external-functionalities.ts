@@ -54,6 +54,15 @@ const translations = {
     objectivePlaceholder: { en: "Select objective", es: "Seleccionar objetivo" },
     executionTypePlaceholder: { en: "Select execution type", es: "Seleccionar tipo de ejecución" },
     functionalityClassPlaceholder: { en: "Select class", es: "Seleccionar clase" },
+    bodyHelpSecret: { en: "resolves an external secret.", es: "resuelve un secreto externo." },
+    bodyHelpInput: {
+      en: "becomes a form field when importing an asset from an external system.",
+      es: "se convierte en un campo del formulario al importar un activo desde un sistema externo.",
+    },
+    bodyHelpUnavailable: {
+      en: "not available when the objective is \"Import Asset\" — the document doesn't exist yet at call time.",
+      es: "no disponibles cuando el objetivo es \"Importar Activo\": el documento aún no existe al momento de la llamada.",
+    },
   },
   create: {
     title: { en: "Add Functionality", es: "Agregar Funcionalidad" },

@@ -8,6 +8,11 @@ import type {
   TokenUsageStatsResponse,
   GetTokenUsageListParams,
   GetTokenUsageStatsParams,
+  TokenUsageSummary,
+  TokenUsageSummaryResponse,
+  GetTokenUsageSummaryParams,
+  TokenUsageByUserListResponse,
+  GetTokenUsageByUserParams,
 } from '@/types/token-usage'
 
 const BASE_URL = `${backendUrl}/token-usage`
@@ -57,4 +62,28 @@ export async function getTokenUsage(
   return data.data
 }
 
-export type { TokenUsage, TokenUsageStats, TokenUsageListResponse }
+export async function getTokenUsageSummary(
+  organizationId: string,
+  params: GetTokenUsageSummaryParams = {},
+): Promise<TokenUsageSummary> {
+  const query = buildParams({ ...params })
+  const response = await httpClient.get(`${BASE_URL}/summary?${query}`, {
+    headers: { 'X-Org-Id': organizationId },
+  })
+  const data = (await response.json()) as TokenUsageSummaryResponse
+  return data.data
+}
+
+export async function getTokenUsageByUser(
+  organizationId: string,
+  params: GetTokenUsageByUserParams = {},
+): Promise<TokenUsageByUserListResponse> {
+  const { page = 1, page_size = 20, ...filters } = params
+  const query = buildParams({ page, page_size, ...filters })
+  const response = await httpClient.get(`${BASE_URL}/by-user?${query}`, {
+    headers: { 'X-Org-Id': organizationId },
+  })
+  return response.json() as Promise<TokenUsageByUserListResponse>
+}
+
+export type { TokenUsage, TokenUsageStats, TokenUsageListResponse, TokenUsageSummary, TokenUsageByUserListResponse }

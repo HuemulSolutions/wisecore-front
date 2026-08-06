@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import type { CustomFieldDocument } from '@/types/custom-fields';
 import type { CustomFieldsListProps } from '@/types/assets';
 export type { CustomFieldsListProps } from '@/types/assets';
 import { useTranslation } from "react-i18next";
+import { MULTI_SELECT_QUESTION_TYPES } from "@/components/sections/question-type-meta";
 
 export function CustomFieldsList({ 
   customFields, 
@@ -98,9 +100,14 @@ export function CustomFieldsList({
   }
 
   const formatValue = (field: CustomFieldDocument) => {
-    // If no value is set, show "Vacío" — a multi-select list stores its data in
-    // value_list, so it must not be short-circuited by the generic value check.
-    const hasListValues = field.data_type === 'list' && (field.value_list?.length ?? 0) > 0;
+    // If no value is set, show "Vacío" — a list field's real selection can live in
+    // value_list (legacy) or selected_option/selected_options (backend-resolved), so it
+    // must not be short-circuited by the generic value check.
+    const hasListValues = field.data_type === 'list' && (
+      (field.value_list?.length ?? 0) > 0 ||
+      (field.selected_options?.length ?? 0) > 0 ||
+      !!field.selected_option
+    );
     if (!hasListValues && (!field.value || (typeof field.value === 'string' && field.value.trim() === ''))) {
       return 'customFieldsList.empty';
     }
@@ -128,10 +135,22 @@ export function CustomFieldsList({
         }
         return String(field.value);
       case 'list': {
-        if (field.value_list && field.value_list.length > 0) {
-          return field.value_list
-            .map(id => field.options?.find(o => o.id === id)?.label ?? id)
-            .join(', ')
+        const isMulti = MULTI_SELECT_QUESTION_TYPES.includes(field.question_type ?? '')
+
+        if (isMulti) {
+          if (field.selected_options && field.selected_options.length > 0) {
+            return field.selected_options.map(o => o.label).join(', ')
+          }
+          if (field.value_list && field.value_list.length > 0) {
+            return field.value_list
+              .map(id => field.options?.find(o => o.id === id)?.label ?? id)
+              .join(', ')
+          }
+          return 'customFieldsList.empty'
+        }
+
+        if (field.selected_option) {
+          return field.selected_option.label
         }
         const optionId = field.value_identifier
         if (!optionId) return 'customFieldsList.empty'
@@ -225,18 +244,16 @@ export function CustomFieldsList({
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
         <div className="flex gap-1">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onRefresh} 
-            disabled={isRefreshing}
-            className={`hover:cursor-pointer h-7 w-7 p-0 ${
-              isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            title={t('customFieldsList.refreshCustomFields')}
-          >
-            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          <HuemulButton
+            size="sm"
+            variant="outline"
+            className="h-7 w-7 p-0"
+            icon={RefreshCw}
+            iconClassName="h-3 w-3"
+            tooltip={t('customFieldsList.refreshCustomFields')}
+            loading={isRefreshing}
+            onClick={onRefresh}
+          />
           {canEdit && (
             <Button
               size="sm"

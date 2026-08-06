@@ -7,6 +7,7 @@ import { useSectionsExecutionStatus } from '@/components/assets/content/hooks/us
 import { useOrganization } from '@/contexts/organization-context';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { isMissingDependencyFailure } from '@/lib/execution-failure-message';
 import { Button } from '@/components/ui/button';
 import type { SectionExecutionFeedbackProps } from '@/types/sections';
 
@@ -91,7 +92,11 @@ export function SectionExecutionFeedback({
       if (!hasShownCompletedToast) {
         if (overallStatus === 'failed') {
           setExecutionFailed(true);
-          toast.error(t('sectionFeedback.toast.failed'));
+          toast.error(
+            isMissingDependencyFailure(executionStatus?.status_message)
+              ? t('sectionFeedback.toast.missingDependency')
+              : t('sectionFeedback.toast.failed'),
+          );
           setHasShownCompletedToast(true);
           onComplete?.();
         } else if (overallStatus === 'cancelled') {
@@ -130,7 +135,9 @@ export function SectionExecutionFeedback({
       return {
         icon: <XCircle className="h-5 w-5 text-red-600" />,
         text: t('sectionFeedback.status.failed'),
-        description: t('sectionFeedback.description.failed'),
+        description: isMissingDependencyFailure(executionStatus?.status_message)
+          ? t('sectionFeedback.description.missingDependency')
+          : t('sectionFeedback.description.failed'),
         bgColor: 'bg-red-50',
         borderColor: 'border-red-200',
         textColor: 'text-red-800'
