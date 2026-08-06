@@ -87,6 +87,9 @@ export default function CustomFieldFormFields({
           options={options}
           minValue={minValue}
           maxValue={maxValue}
+          minLabel={config.min_label}
+          maxLabel={config.max_label}
+          required={required}
         />
       </div>
 

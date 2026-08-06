@@ -92,7 +92,6 @@ const translations = {
     minMaxInvalid: { en: "Minimum value must be less than or equal to the maximum", es: "El valor mínimo debe ser menor o igual al máximo" },
     allowedTypesLabel: { en: "Allowed file types", es: "Tipos de archivo permitidos" },
     preview: {
-      label: { en: "Preview", es: "Vista previa" },
       unnamedLabel: { en: "Field preview", es: "Vista previa del campo" },
     },
   },

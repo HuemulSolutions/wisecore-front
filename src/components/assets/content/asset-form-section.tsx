@@ -19,6 +19,7 @@ import {
   MULTI_SELECT_QUESTION_TYPES,
   QUESTION_TYPE,
   SINGLE_SELECT_QUESTION_TYPES,
+  getQuestionTypePlaceholder,
   hasAnswer,
   isFieldAnswerable,
   isFieldVisible,
@@ -492,16 +493,6 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
   // El mapeo question_type/data_type → widget vive en HuemulQuestionInput (único, compartido
   // con la entrada de valor de custom fields) — acá solo se resuelven placeholders de i18n
   // y los dos casos que no delega: carga de archivos (upload propio) y custom_field (solo lectura).
-  const PLACEHOLDER_BY_QUESTION_TYPE: Partial<Record<string, string>> = {
-    [QUESTION_TYPE.shortAnswer]: t("form.formFields.previewShortAnswer"),
-    [QUESTION_TYPE.paragraph]: t("form.formFields.previewLongAnswer"),
-    [QUESTION_TYPE.email]: t("form.formFields.previewEmail"),
-    [QUESTION_TYPE.number]: "0",
-    [QUESTION_TYPE.decimal]: "1.2",
-    [QUESTION_TYPE.dropdown]: t("form.fill.selectOption"),
-    [QUESTION_TYPE.dropdownMultiple]: t("form.fill.selectOptions"),
-  };
-
   const renderInput = (field: FormFieldValue, opts?: { disabled?: boolean }) => {
     const cfg = readFieldConfig(field);
     const value = answers[field.id];
@@ -611,7 +602,7 @@ export const AssetFormSection = forwardRef<AssetFormSectionHandle, AssetFormSect
           <HuemulQuestionInput
             questionType={field.question_type}
             dataType={field.data_type}
-            placeholder={PLACEHOLDER_BY_QUESTION_TYPE[field.question_type ?? ""]}
+            placeholder={getQuestionTypePlaceholder(field.question_type, t)}
             value={value as HuemulQuestionInputValue}
             onChange={(v) => setAnswer(field.id, v, { commit: !isFreeTextField(field) })}
             options={readFieldOptions(field)}
