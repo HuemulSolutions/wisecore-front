@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { History, CheckCircle2, ArrowRightCircle, Undo2, AlertCircle } from "lucide-react";
+import { History, CheckCircle2, ArrowRightCircle, Undo2, AlertCircle, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
+import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -169,7 +170,7 @@ export function LifecycleHistorySheet({
   organizationId,
   allExecutions,
 }: LifecycleHistorySheetProps) {
-  const { t } = useTranslation("assets");
+  const { t } = useTranslation(["assets", "common"]);
 
   const sortedExecutions = useMemo(
     () => [...(allExecutions ?? [])].sort(
@@ -185,7 +186,7 @@ export function LifecycleHistorySheet({
     if (open) setViewExecutionId(executionId);
   }, [open, executionId]);
 
-  const { data, isLoading, isError } = useExecutionEvents(organizationId, viewExecutionId, {
+  const { data, isLoading, isError, isFetching, refetch } = useExecutionEvents(organizationId, viewExecutionId, {
     enabled: open,
   });
 
@@ -216,6 +217,17 @@ export function LifecycleHistorySheet({
       iconClassName="text-blue-600"
       showFooter={false}
       maxWidth="sm:max-w-xl"
+      headerExtra={
+        <HuemulButton
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          icon={RefreshCw}
+          tooltip={t("common:refresh")}
+          loading={isFetching}
+          onClick={() => refetch()}
+        />
+      }
     >
       <div className="flex flex-col gap-5">
         {sortedExecutions.length > 1 && (
