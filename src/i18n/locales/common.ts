@@ -27,6 +27,8 @@ const translations = {
   previous: { en: "Previous", es: "Anterior" },
   next: { en: "Next", es: "Siguiente" },
   actions: { en: "Actions", es: "Acciones" },
+  expandRow: { en: "Expand row", es: "Expandir fila" },
+  collapseRow: { en: "Collapse row", es: "Contraer fila" },
   name: { en: "Name", es: "Nombre" },
   created: { en: "Created", es: "Creado" },
   updated: { en: "Updated", es: "Actualizado" },

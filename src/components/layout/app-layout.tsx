@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow } from "lucide-react"
+import { Home, Search, LayoutTemplate, BookText, Settings, LogOut, User, Menu, Zap, FileStack, Settings2, LayoutPanelTop, Building2, ShieldCheck, Shield, Users, Blocks, Network, Check, Image, Bell, BellRing, Workflow, Coins } from "lucide-react"
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react"
 import { useTranslation } from "react-i18next"
 import { useOrgPath, stripOrgPrefix } from "@/hooks/useOrgRouter"
@@ -229,6 +229,7 @@ export default function AppLayout() {
     canAccessCanvas,
     canAccessDiagrams,
     canAccessExternalSystems,
+    canAccessTokenUsage,
     // hasPermission,
     hasAnyPermission,
   } = useUserPermissions()
@@ -393,7 +394,7 @@ export default function AppLayout() {
   // NOTA: isOrgAdmin hace bypass de permisos, isRootAdmin NO
   const hasAssetManagementAccess = canAccessDocumentTypes || isOrgAdmin || canAccessCanvas || canAccessDiagrams
   const canAccessOrganizations = isOrgAdmin || hasAnyPermission(['organization:l', 'organization:r'])
-  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || isOrgAdmin || isRootAdmin
+  const hasAdministrationAccess = canAccessUsers || canAccessRoles || canAccessModels || canAccessOrganizations || canAccessExternalSystems || canAccessTokenUsage || isOrgAdmin || isRootAdmin
   const hasSettingsAccess = hasAssetManagementAccess || hasAdministrationAccess || isRootAdmin || !!organizationToken
 
   // Generate initials from user name
@@ -642,7 +643,7 @@ export default function AppLayout() {
                 const isSettingsActive = (path: string) => currentPath === path || currentPath.startsWith(path + '/')
                 const isAnySettingsActive = [
                   '/asset-types', '/custom-fields', '/canvas', '/diagrams', '/media',
-                  '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems'
+                  '/organizations', '/global-admin', '/users', '/roles', '/models', '/auth-types', '/external-systems', '/token-usage'
                 ].some(isSettingsActive)
 
                 const settingsItemClass = (path: string) => cn(
@@ -791,6 +792,15 @@ export default function AppLayout() {
                               <Network className={settingsIconClass('/external-systems')} />
                               <span className="flex-1">{t('settings.externalSystems')}</span>
                               {isSettingsActive('/external-systems') && <Check className="h-3.5 w-3.5 ml-auto" />}
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
+                        {(canAccessTokenUsage || isOrgAdmin) && (
+                          <DropdownMenuItem asChild>
+                            <Link to={buildPath("/token-usage")} className={settingsItemClass('/token-usage')}>
+                              <Coins className={settingsIconClass('/token-usage')} />
+                              <span className="flex-1">{t('settings.tokenUsage')}</span>
+                              {isSettingsActive('/token-usage') && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </Link>
                           </DropdownMenuItem>
                         )}

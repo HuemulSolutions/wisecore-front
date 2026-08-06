@@ -33,6 +33,7 @@ const translations = {
     models: { en: "Models", es: "Modelos" },
     authTypes: { en: "Auth Types", es: "Tipos de Autenticación" },
     externalSystems: { en: "External Systems", es: "Sistemas Externos" },
+    tokenUsage: { en: "Usage & costs", es: "Uso y costos" },
     advanced: { en: "Advanced", es: "Avanzado" },
   },
   knowledge: {
