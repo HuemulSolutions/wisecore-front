@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from "react"
 import { HuemulSheet } from "@/huemul/components/huemul-sheet"
 import { HuemulAlertDialog } from "@/huemul/components/huemul-alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2 } from "lucide-react"
 import CustomFieldFormFields from "@/components/custom-fields/custom-fields-form-fields"
 import { useTranslation } from "react-i18next"
@@ -290,6 +289,22 @@ export function CreateEditCustomFieldSheet({
           onClick: handleSave,
           closeOnSuccess: false,
         }}
+        footerLeft={isEditing ? (
+          <>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {t('dangerZone.title')}
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="hover:cursor-pointer"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              {t('actions.deleteCustomField')}
+            </Button>
+          </>
+        ) : undefined}
       >
         <div className="space-y-4">
           <CustomFieldFormFields
@@ -318,26 +333,6 @@ export function CreateEditCustomFieldSheet({
             disabled={isSubmitting}
             loadingQuestionTypes={loadingQuestionTypes}
           />
-
-          {isEditing && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {t('dangerZone.title')}
-                </p>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="hover:cursor-pointer"
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                  {t('actions.deleteCustomField')}
-                </Button>
-              </div>
-            </>
-          )}
         </div>
       </HuemulSheet>
 

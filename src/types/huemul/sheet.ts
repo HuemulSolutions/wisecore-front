@@ -33,5 +33,6 @@ export interface HuemulSheetProps {
   className?: string;
   bodyClassName?: string;
   headerExtra?: ReactNode;
+  footerLeft?: ReactNode;
   children: ReactNode;
 }
