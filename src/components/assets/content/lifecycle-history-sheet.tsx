@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { History, CheckCircle2, ArrowRightCircle, Undo2, AlertCircle, RefreshCw } from "lucide-react";
+import { History, CheckCircle2, ArrowRightCircle, ArrowRight, Undo2, AlertCircle, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HuemulSheet } from "@/huemul/components/huemul-sheet";
 import { HuemulField } from "@/huemul/components/huemul-field";
 import { HuemulButton } from "@/huemul/components/huemul-button";
+import { HuemulLifecycleBadge } from "@/huemul/components/huemul-lifecycle-badge";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -13,6 +14,20 @@ import { useExecutionEvents } from "@/hooks/useExecutionLifecycle";
 import { getExecutionDisplayLabel } from "./utils/version-utils";
 import type { ExecutionEvent, ExecutionEventType, LifecycleStepKind } from "@/types/execution-lifecycle";
 import type { ExecutionSummary } from "@/types/assets";
+import type { ExecutionLifecycleState } from "@/types/execution";
+
+const LIFECYCLE_STATES: ExecutionLifecycleState[] = [
+  "draft",
+  "in_review",
+  "in_approval",
+  "approved",
+  "published",
+  "archived",
+];
+
+function isLifecycleState(state: string | null): state is ExecutionLifecycleState {
+  return !!state && (LIFECYCLE_STATES as string[]).includes(state);
+}
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
@@ -87,6 +102,13 @@ function EventRow({
   const showsTransition = event.from_state && event.to_state && event.from_state !== event.to_state;
   const commentIsLong = (event.comment?.length ?? 0) > 160;
 
+  const renderStatePill = (state: string | null) =>
+    isLifecycleState(state) ? (
+      <HuemulLifecycleBadge state={state} />
+    ) : (
+      <span className="text-xs font-medium text-gray-700">{stateLabel(state)}</span>
+    );
+
   return (
     <div className="flex gap-3">
       {/* Dot + connecting line */}
@@ -111,9 +133,11 @@ function EventRow({
         </div>
 
         {showsTransition && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {stateLabel(event.from_state)} → {stateLabel(event.to_state)}
-          </p>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            {renderStatePill(event.from_state)}
+            <ArrowRight className="h-3 w-3 text-gray-400 shrink-0" />
+            {renderStatePill(event.to_state)}
+          </div>
         )}
 
         <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
