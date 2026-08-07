@@ -46,7 +46,15 @@ export interface CustomFieldDocumentByDocumentParams extends PaginationParams {
 }
 
 export type CustomFieldDocumentSourcesResponse = ApiResponse<CustomFieldDocumentSource[]>;
-export type CustomFieldDocumentsResponse = ApiResponse<CustomFieldDocument[]>;
+export interface CustomFieldDocumentsResponse {
+  data: CustomFieldDocument[];
+  transaction_id: string;
+  timestamp: string;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  total?: number;
+}
 export type CustomFieldDocumentResponse = ApiResponse<CustomFieldDocument>;
 
 export interface CreateCustomFieldDocumentRequest {

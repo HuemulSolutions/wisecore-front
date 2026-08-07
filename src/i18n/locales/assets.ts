@@ -414,6 +414,7 @@ const translations = {
     editContent: { en: "Edit Content", es: "Editar Contenido" },
     editConfiguration: { en: "Edit Configuration", es: "Editar Configuración" },
     imagePreview: { en: "Image Preview", es: "Vista Previa de Imagen" },
+    ratingOutOf: { en: "{{value}} of {{max}}", es: "{{value}} de {{max}}" },
   },
   tableOfContents: {
     expand: { en: "Expand", es: "Expandir" },

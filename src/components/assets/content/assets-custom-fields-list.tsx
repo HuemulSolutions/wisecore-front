@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
+import { Plus, RefreshCw, Edit2, MoreVertical, Trash2, Loader2, SlidersHorizontal, Star, File as FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HuemulButton } from "@/huemul/components/huemul-button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { HuemulPagination } from "@/huemul/components/huemul-pagination";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,19 +17,24 @@ import type { CustomFieldDocument } from '@/types/custom-fields';
 import type { CustomFieldsListProps } from '@/types/assets';
 export type { CustomFieldsListProps } from '@/types/assets';
 import { useTranslation } from "react-i18next";
-import { MULTI_SELECT_QUESTION_TYPES } from "@/components/sections/question-type-meta";
+import { MULTI_SELECT_QUESTION_TYPES, QUESTION_TYPE } from "@/components/sections/question-type-meta";
 
-export function CustomFieldsList({ 
-  customFields, 
-  isLoading, 
-  onAdd, 
-  onEdit, 
+export function CustomFieldsList({
+  customFields,
+  isLoading,
+  onAdd,
+  onEdit,
   onEditContent,
-  onDelete, 
-  onRefresh, 
-  uploadingImageFieldId, 
+  onDelete,
+  onRefresh,
+  uploadingImageFieldId,
   isRefreshing,
   canEdit = false,
+  page,
+  pageSize,
+  totalItems,
+  hasNext,
+  onPageChange,
 }: CustomFieldsListProps) {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
@@ -99,6 +106,31 @@ export function CustomFieldsList({
     );
   }
 
+  // Resuelve las etiquetas seleccionadas de un campo de lista (single o multi),
+  // priorizando los datos ya resueltos por el backend (selected_options/selected_option)
+  // por sobre el legacy value_list/value_identifier + options.
+  const getListLabels = (field: CustomFieldDocument): string[] => {
+    const isMulti = MULTI_SELECT_QUESTION_TYPES.includes(field.question_type ?? '');
+
+    if (isMulti) {
+      if (field.selected_options && field.selected_options.length > 0) {
+        return field.selected_options.map(o => o.label);
+      }
+      if (field.value_list && field.value_list.length > 0) {
+        return field.value_list.map(id => field.options?.find(o => o.id === id)?.label ?? id);
+      }
+      return [];
+    }
+
+    if (field.selected_option) {
+      return [field.selected_option.label];
+    }
+    const optionId = field.value_identifier;
+    if (!optionId) return [];
+    const match = field.options?.find(o => o.id === optionId);
+    return [match ? match.label : optionId];
+  };
+
   const formatValue = (field: CustomFieldDocument) => {
     // If no value is set, show "Vacío" — a list field's real selection can live in
     // value_list (legacy) or selected_option/selected_options (backend-resolved), so it
@@ -135,27 +167,8 @@ export function CustomFieldsList({
         }
         return String(field.value);
       case 'list': {
-        const isMulti = MULTI_SELECT_QUESTION_TYPES.includes(field.question_type ?? '')
-
-        if (isMulti) {
-          if (field.selected_options && field.selected_options.length > 0) {
-            return field.selected_options.map(o => o.label).join(', ')
-          }
-          if (field.value_list && field.value_list.length > 0) {
-            return field.value_list
-              .map(id => field.options?.find(o => o.id === id)?.label ?? id)
-              .join(', ')
-          }
-          return 'customFieldsList.empty'
-        }
-
-        if (field.selected_option) {
-          return field.selected_option.label
-        }
-        const optionId = field.value_identifier
-        if (!optionId) return 'customFieldsList.empty'
-        const match = field.options?.find(o => o.id === optionId)
-        return match ? match.label : optionId
+        const labels = getListLabels(field)
+        return labels.length > 0 ? labels.join(', ') : 'customFieldsList.empty'
       }
       case 'number':
         if (field.value_number !== null && field.value_number !== undefined) {
@@ -225,7 +238,63 @@ export function CustomFieldsList({
         </span>
       );
     }
-    
+
+    // Special handling for list fields (single or multi select) — chips instead of comma text
+    if (field.data_type === 'list') {
+      const labels = getListLabels(field);
+      if (labels.length === 0) {
+        return <span className="text-xs text-gray-600">{t('customFieldsList.empty')}</span>;
+      }
+      return (
+        <div className="flex flex-wrap gap-1">
+          {labels.map((label, i) => (
+            <Badge
+              key={`${label}-${i}`}
+              variant="outline"
+              className="bg-blue-50 text-blue-700 border-blue-200 text-xs px-1.5 py-0 font-normal"
+            >
+              {label}
+            </Badge>
+          ))}
+        </div>
+      );
+    }
+
+    // Special handling for rating fields — compact stars + "X de Y"
+    if (field.question_type === QUESTION_TYPE.rating) {
+      const current = field.value_number ?? 0;
+      const max = field.max_value ?? 5;
+      return (
+        <div className="flex items-center gap-1">
+          <div className="flex items-center">
+            {Array.from({ length: max }, (_, i) => (
+              <Star
+                key={i}
+                className={`size-3 ${i < current ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+              />
+            ))}
+          </div>
+          <span className="text-xs text-gray-600">
+            {t('customFieldsList.ratingOutOf', { value: current, max })}
+          </span>
+        </div>
+      );
+    }
+
+    // Special handling for file fields without a real image preview — icon + filename
+    if (field.question_type === QUESTION_TYPE.fileUpload && field.data_type !== 'image') {
+      const fileName = typeof value === 'string' && value !== 'customFieldsList.empty' ? value : null;
+      if (!fileName) {
+        return <span className="text-xs text-gray-600">{t('customFieldsList.empty')}</span>;
+      }
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-gray-600">
+          <FileIcon className="size-3 shrink-0" />
+          <span className="break-words line-clamp-2">{fileName}</span>
+        </span>
+      );
+    }
+
     // For non-boolean and non-image fields, return text with proper overflow handling
     const textValue = typeof value === 'string' && value === 'customFieldsList.empty' ? t('customFieldsList.empty') : String(value);
     return (
@@ -239,9 +308,9 @@ export function CustomFieldsList({
   };
 
   return (
-    <div className="space-y-2 pt-2">
-      {/* Header with Refresh and Add buttons */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full min-h-0 pt-2">
+      {/* Header with Refresh and Add buttons — fijo, no scrollea con la lista */}
+      <div className="shrink-0 flex items-center justify-between pb-2">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
         <div className="flex gap-1">
           <HuemulButton
@@ -267,9 +336,10 @@ export function CustomFieldsList({
           )}
         </div>
       </div>
-      
+
       {/* Fields List */}
-      <div className="space-y-1.5">
+      <ScrollArea className="flex-1 min-h-0">
+      <div className="space-y-1.5 pr-2">
         {customFields.map((field) => {
           const isUploadingThisField = uploadingImageFieldId === field.id;
           return (
@@ -357,6 +427,21 @@ export function CustomFieldsList({
           );
         })}
       </div>
+      </ScrollArea>
+
+      {/* Pagination footer — fijo, fuera del scroll area */}
+      {onPageChange && page !== undefined && pageSize !== undefined && (
+        <div className="shrink-0 pt-2">
+          <HuemulPagination
+            page={page}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            hasNext={hasNext}
+            hasPrevious={page > 1}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
 
       {/* Image preview dialog */}
       <ImagePreviewDialog

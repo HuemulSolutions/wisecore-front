@@ -101,6 +101,9 @@ import { VersionSelectorDropdown } from './assets-version-selector';
 import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
 
+// Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
+const CUSTOM_FIELDS_PAGE_SIZE = 8;
+
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
   if (!node || typeof node !== 'object') return '';
@@ -530,6 +533,7 @@ export function AssetContent({
   useEffect(() => {
     setNeedsFullDocument(false);
     setNeedsDefaultLLM(false);
+    setCustomFieldsPage(1);
   }, [selectedFile?.id]);
   
   // ============================================================================
@@ -594,7 +598,8 @@ export function AssetContent({
   const [isDeletingCustomFieldDocument, setIsDeletingCustomFieldDocument] = useState(false);
   const [uploadingImageFieldId, setUploadingImageFieldId] = useState<string | null>(null);
   const [isRefreshingCustomFields, setIsRefreshingCustomFields] = useState(false);
-  
+  const [customFieldsPage, setCustomFieldsPage] = useState(1);
+
   // Restore scroll position after mode toggle causes layout shifts (sections/separators appear or disappear)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -918,14 +923,15 @@ export function AssetContent({
 
   // Fetch custom fields for the document
   const { data: customFieldsData, isLoading: isLoadingCustomFields } = useQuery({
-    queryKey: ['custom-field-documents', selectedFile?.id],
+    queryKey: ['custom-field-documents', selectedFile?.id, customFieldsPage, CUSTOM_FIELDS_PAGE_SIZE],
     queryFn: () => getCustomFieldDocumentsByDocument({
       document_id: selectedFile!.id,
-      page: 1,
-      page_size: 100
+      page: customFieldsPage,
+      page_size: CUSTOM_FIELDS_PAGE_SIZE
     }),
     enabled: selectedFile?.type === 'document' && !!selectedFile?.id && !!selectedOrganizationId && activeTab === 'custom-fields',
     staleTime: 60000, // Cache for 1 minute
+    placeholderData: (prev) => prev,
   });
 
   // Poll current execution status for 'single' and 'from' modes to detect completion
@@ -3161,12 +3167,14 @@ export function AssetContent({
                   </div>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
-                {activeTab === 'toc' ? (
+              {activeTab === 'toc' ? (
+                <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
                   <TableOfContents items={tocItems} />
-                ) : (
-                  <CustomFieldsList 
-                    customFields={customFieldsData?.data || []} 
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 overflow-hidden px-2 pb-2">
+                  <CustomFieldsList
+                    customFields={customFieldsData?.data || []}
                     isLoading={isLoadingCustomFields}
                     onAdd={handleAddCustomFieldDocument}
                     onEdit={handleEditCustomFieldDocument}
@@ -3176,9 +3184,14 @@ export function AssetContent({
                     uploadingImageFieldId={uploadingImageFieldId}
                     isRefreshing={isRefreshingCustomFields}
                     canEdit={frontendPermissions.canEditSections}
+                    page={customFieldsPage}
+                    pageSize={CUSTOM_FIELDS_PAGE_SIZE}
+                    totalItems={customFieldsData?.total}
+                    hasNext={customFieldsData?.has_next}
+                    onPageChange={setCustomFieldsPage}
                   />
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </ResizablePanel>
         </>
