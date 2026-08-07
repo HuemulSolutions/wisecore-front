@@ -27,6 +27,7 @@ import {
   testLLMConnection
 } from '@/services/llms'
 import { testImageGenerationConnection } from '@/services/image-generation'
+import { resolveConnectionTests } from '@/lib/llm-capabilities'
 import {
   getSupportedEmbeddingProviders,
   getEmbeddingProvider,
@@ -35,6 +36,7 @@ import {
   deleteEmbeddingProvider,
   testEmbeddingProviderConnection,
 } from '@/services/embedding-provider'
+import { toast } from 'sonner'
 import { handleApiError } from '@/lib/error-utils'
 import { 
   ModelsHeader,
@@ -212,16 +214,31 @@ export default function Models() {
     },
   })
 
-  const testLLMConnectionMutation = useMutation({
-    mutationFn: testLLMConnection,
-    meta: { successMessage: t('toast.connectionSuccessful') },
-    onError: (error) => handleApiError(error, { fallbackMessage: t('errors.connectionFailed') }),
-  })
-
-  const testImageGenerationMutation = useMutation({
-    mutationFn: testImageGenerationConnection,
-    meta: { successMessage: t('toast.connectionSuccessful') },
-    onError: (error) => handleApiError(error, { fallbackMessage: t('errors.connectionFailed') }),
+  // Un modelo multimodal (text_output + image_output) corre ambos tests;
+  // el mensaje de éxito depende de cuántos corrieron, así que no usamos
+  // meta.successMessage (ver query-client.ts) sino toast.success acá mismo.
+  const testModelConnectionMutation = useMutation({
+    mutationFn: async (model: LLM) => {
+      const kinds = resolveConnectionTests(model)
+      const results = await Promise.allSettled(
+        kinds.map((kind) =>
+          kind === 'image' ? testImageGenerationConnection() : testLLMConnection(model.id)
+        )
+      )
+      return kinds.map((kind, i) => ({ kind, result: results[i] }))
+    },
+    onSuccess: (outcomes) => {
+      const failed = outcomes.filter((o) => o.result.status === 'rejected')
+      if (failed.length === 0) {
+        toast.success(outcomes.length > 1 ? t('toast.connectionSuccessfulAll') : t('toast.connectionSuccessful'))
+        return
+      }
+      failed.forEach(({ kind, result }) =>
+        handleApiError((result as PromiseRejectedResult).reason, {
+          fallbackMessage: t(kind === 'image' ? 'errors.imageConnectionFailed' : 'errors.chatConnectionFailed'),
+        })
+      )
+    },
   })
 
   const createEmbeddingProviderMutation = useMutation({
@@ -370,16 +387,9 @@ export default function Models() {
 
   const handleTestModel = (model: LLM) => {
     setTestingModelId(model.id)
-    const onSettled = () => setTestingModelId(null)
-    // Los modelos con capability image_output no tienen endpoint de chat/completions
-    // (siempre dan 404 en /llms/{id}/test_connection). El backend expone en su lugar
-    // /image-generation/test_connection, que resuelve automáticamente el LLM de
-    // imágenes de la organización (no admite elegir cuál, aunque haya varios).
-    if (model.capabilities?.includes('image_output')) {
-      testImageGenerationMutation.mutate(undefined, { onSettled })
-    } else {
-      testLLMConnectionMutation.mutate(model.id, { onSettled })
-    }
+    testModelConnectionMutation.mutate(model, {
+      onSettled: () => setTestingModelId(null),
+    })
   }
 
   const confirmDeleteProvider = async () => {

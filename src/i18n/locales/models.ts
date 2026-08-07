@@ -23,6 +23,7 @@ const translations = {
     modelDeleted: { en: "Model deleted successfully", es: "Modelo eliminado exitosamente" },
     defaultModelUpdated: { en: "Default model updated successfully", es: "Modelo predeterminado actualizado exitosamente" },
     connectionSuccessful: { en: "Connection successful", es: "Conexión exitosa" },
+    connectionSuccessfulAll: { en: "Chat and image generation connections successful", es: "Conexión de chat y generación de imágenes exitosa" },
     embeddingProviderConfigured: { en: "Embeddings provider configured successfully", es: "Proveedor de embeddings configurado exitosamente" },
     embeddingProviderUpdated: { en: "Embeddings provider updated successfully", es: "Proveedor de embeddings actualizado exitosamente" },
     embeddingProviderDeleted: { en: "Embeddings provider deleted successfully", es: "Proveedor de embeddings eliminado exitosamente" },
@@ -35,6 +36,8 @@ const translations = {
     errorLoadingModels: { en: "There was an error loading the models. Please try again.", es: "Hubo un error al cargar los modelos. Por favor, inténtalo de nuevo." },
     failedToLoadProviderDetails: { en: "Failed to load provider details", es: "Error al cargar los detalles del proveedor" },
     connectionFailed: { en: "Connection test failed", es: "La prueba de conexión falló" },
+    chatConnectionFailed: { en: "Chat connection test failed", es: "La prueba de conexión de chat falló" },
+    imageConnectionFailed: { en: "Image generation connection test failed", es: "La prueba de conexión de generación de imágenes falló" },
   },
   emptyState: {
     noProviders: { en: "No providers configured", es: "No hay proveedores configurados" },
