@@ -34,6 +34,7 @@ const translations = {
     errorLoadingData: { en: "There was an error loading the data. Please try again.", es: "Hubo un error al cargar los datos. Por favor, inténtalo de nuevo." },
     errorLoadingModels: { en: "There was an error loading the models. Please try again.", es: "Hubo un error al cargar los modelos. Por favor, inténtalo de nuevo." },
     failedToLoadProviderDetails: { en: "Failed to load provider details", es: "Error al cargar los detalles del proveedor" },
+    connectionFailed: { en: "Connection test failed", es: "La prueba de conexión falló" },
   },
   emptyState: {
     noProviders: { en: "No providers configured", es: "No hay proveedores configurados" },
@@ -73,6 +74,12 @@ const translations = {
     technicalNameLabel: { en: "Technical Name", es: "Nombre Técnico" },
     technicalNamePlaceholder: { en: "e.g., gpt-4-turbo-preview", es: "ej., gpt-4-turbo-preview" },
     technicalNameDescription: { en: "Use the exact model name as specified by the provider's API documentation.", es: "Usa el nombre exacto del modelo según la documentación de la API del proveedor." },
+    technicalNameHelp: {
+      azure_ai_foundry: {
+        en: "Supported values: FLUX-1.1-pro, FLUX.1-Kontext-pro, FLUX.2-pro, FLUX.2-flex. Any other value will fail.",
+        es: "Valores soportados: FLUX-1.1-pro, FLUX.1-Kontext-pro, FLUX.2-pro, FLUX.2-flex. Cualquier otro valor fallará.",
+      },
+    },
     capabilitiesLabel: { en: "Capabilities", es: "Capacidades" },
     providerLabel: { en: "Provider", es: "Proveedor" },
     providerPlaceholder: { en: "Select a provider...", es: "Selecciona un proveedor..." },
@@ -98,6 +105,13 @@ const translations = {
     deploymentPlaceholder: { en: "Enter deployment name...", es: "Ingresa el nombre del deployment..." },
     createProvider: { en: "Create Provider", es: "Crear Proveedor" },
     getCredentials: { en: "Get credentials", es: "Obtener credenciales" },
+    viewDocs: { en: "View documentation", es: "Ver documentación" },
+    keyHelp: {
+      google_vertex_ai: {
+        en: "Paste the full service account JSON, not a plain API key — Vertex AI does not support simple API key authentication.",
+        es: "Pega el JSON completo de la service account, no una clave API simple — Vertex AI no admite autenticación por API key.",
+      },
+    },
   },
   editProviderDialog: {
     title: { en: "Edit Provider - {{name}}", es: "Editar Proveedor - {{name}}" },

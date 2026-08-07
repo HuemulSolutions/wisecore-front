@@ -18,14 +18,15 @@ import {
   updateProvider, 
   deleteProvider,
 } from '@/services/llm-provider'
-import { 
-  getLLMs, 
-  createLLM, 
-  updateLLMModel, 
-  deleteLLM, 
+import {
+  getLLMs,
+  createLLM,
+  updateLLMModel,
+  deleteLLM,
   setDefaultLLM,
   testLLMConnection
 } from '@/services/llms'
+import { testImageGenerationConnection } from '@/services/image-generation'
 import {
   getSupportedEmbeddingProviders,
   getEmbeddingProvider,
@@ -34,6 +35,7 @@ import {
   deleteEmbeddingProvider,
   testEmbeddingProviderConnection,
 } from '@/services/embedding-provider'
+import { handleApiError } from '@/lib/error-utils'
 import { 
   ModelsHeader,
   ModelsLoadingState, 
@@ -213,6 +215,13 @@ export default function Models() {
   const testLLMConnectionMutation = useMutation({
     mutationFn: testLLMConnection,
     meta: { successMessage: t('toast.connectionSuccessful') },
+    onError: (error) => handleApiError(error, { fallbackMessage: t('errors.connectionFailed') }),
+  })
+
+  const testImageGenerationMutation = useMutation({
+    mutationFn: testImageGenerationConnection,
+    meta: { successMessage: t('toast.connectionSuccessful') },
+    onError: (error) => handleApiError(error, { fallbackMessage: t('errors.connectionFailed') }),
   })
 
   const createEmbeddingProviderMutation = useMutation({
@@ -248,6 +257,7 @@ export default function Models() {
   const testEmbeddingProviderMutation = useMutation({
     mutationFn: testEmbeddingProviderConnection,
     meta: { successMessage: t('toast.connectionSuccessful') },
+    onError: (error) => handleApiError(error, { fallbackMessage: t('errors.connectionFailed') }),
     onSettled: () => {
       setIsTestingEmbeddingProvider(false)
     },
@@ -360,9 +370,16 @@ export default function Models() {
 
   const handleTestModel = (model: LLM) => {
     setTestingModelId(model.id)
-    testLLMConnectionMutation.mutate(model.id, {
-      onSettled: () => setTestingModelId(null),
-    })
+    const onSettled = () => setTestingModelId(null)
+    // Los modelos con capability image_output no tienen endpoint de chat/completions
+    // (siempre dan 404 en /llms/{id}/test_connection). El backend expone en su lugar
+    // /image-generation/test_connection, que resuelve automáticamente el LLM de
+    // imágenes de la organización (no admite elegir cuál, aunque haya varios).
+    if (model.capabilities?.includes('image_output')) {
+      testImageGenerationMutation.mutate(undefined, { onSettled })
+    } else {
+      testLLMConnectionMutation.mutate(model.id, { onSettled })
+    }
   }
 
   const confirmDeleteProvider = async () => {
@@ -829,7 +846,7 @@ export default function Models() {
           }
         }}
         model={editingModel}
-        providers={!editingModel ? allProvidersList.map((p: any) => ({ id: p.id, name: p.name })) : undefined}
+        providers={!editingModel ? allProvidersList.map((p: any) => ({ id: p.id, name: p.name, type: p.type })) : undefined}
         isCreating={createLLMMutation.isPending}
         isUpdating={updateLLMMutation.isPending}
         onSubmit={editingModel ? handleUpdateModel : handleCreateModel}

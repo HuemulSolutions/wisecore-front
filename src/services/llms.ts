@@ -76,7 +76,9 @@ export async function updateExecutionLLM(executionId: string, llmId: string) {
 export async function testLLMConnection(llmId: string): Promise<{ ok: boolean }> {
     const response = await httpClient.post(`${backendUrl}/llms/${llmId}/test_connection`, {});
     const data = await response.json();
-    return data.data || data;
+    const result = data.data || data;
+    if (!result?.ok) throw new Error();
+    return result;
 }
 
 export async function getLlmConfigurationStatus(organizationId: string): Promise<LlmConfigurationStatusData> {

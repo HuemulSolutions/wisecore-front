@@ -68,6 +68,10 @@ export function ModelDialog({
   }
 
   const resolvedProviderName = providerName ?? providers?.find(p => p.id === selectedProviderId)?.name
+  const resolvedProviderType = providers?.find(p => p.id === selectedProviderId)?.type ?? model?.provider?.type
+  const technicalNameHelp = resolvedProviderType
+    ? t(`modelDialog.technicalNameHelp.${resolvedProviderType}`, { defaultValue: t('modelDialog.technicalNameDescription') })
+    : t('modelDialog.technicalNameDescription')
 
   const isFormValid =
     displayName.trim() !== '' &&
@@ -120,7 +124,7 @@ export function ModelDialog({
           placeholder={t('modelDialog.technicalNamePlaceholder')}
           value={technicalName}
           onChange={(v) => setTechnicalName(String(v))}
-          description={t('modelDialog.technicalNameDescription')}
+          description={technicalNameHelp}
           disabled={isSubmitting}
           required
         />
