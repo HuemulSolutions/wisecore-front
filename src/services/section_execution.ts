@@ -2,7 +2,7 @@ import { backendUrl } from "@/config";
 import { httpClient } from "@/lib/http-client";
 import { logger } from "@/lib/logger";
 import type { AddSectionExecutionRequest, AiSuggestionStatus, ReviewStatus, SectionHistoryChangeType, SectionHistoryEntry, SectionHistoryResponse } from "@/types/section-execution";
-import type { FormValuesSectionPayload } from "@/types/sections/core";
+import type { FormAnswerPayload, FormValuesSectionPayload } from "@/types/sections/core";
 
 export type { AddSectionExecutionRequest, AiSuggestionStatus, ReviewStatus, SectionHistoryChangeType, SectionHistoryEntry, SectionHistoryResponse };
 
@@ -178,6 +178,25 @@ export async function updateSectionFormValues(
     );
     const data = await response.json();
     return data.data as FormValuesSectionPayload[];
+}
+
+export async function answerSectionFormQuestion(
+    sectionExecutionId: string,
+    id: string,
+    value: unknown,
+    organizationId?: string
+): Promise<FormAnswerPayload> {
+    const headers: Record<string, string> = {};
+    if (organizationId) {
+        headers['X-Org-Id'] = organizationId;
+    }
+    const response = await httpClient.patch(
+        `${backendUrl}/section_executions/${sectionExecutionId}/form_answer`,
+        { id, value },
+        { headers }
+    );
+    const data = await response.json();
+    return data.data as FormAnswerPayload;
 }
 
 // â”€â”€â”€ Section History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
