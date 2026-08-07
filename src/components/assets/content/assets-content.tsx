@@ -3147,24 +3147,24 @@ export function AssetContent({
                     <button
                       onClick={() => setActiveTab('toc')}
                       className={cn(
-                        "flex items-center justify-center text-xs h-7 px-2 rounded-md transition-all truncate hover:cursor-pointer",
+                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
                         activeTab === 'toc'
                           ? "bg-background border border-border shadow-sm text-foreground font-medium"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {t('content.contentTab')}
+                      <span className="line-clamp-2 text-center leading-tight">{t('content.contentTab')}</span>
                     </button>
                     <button
                       onClick={() => setActiveTab('custom-fields')}
                       className={cn(
-                        "flex items-center justify-center text-xs h-7 px-2 rounded-md transition-all truncate hover:cursor-pointer",
+                        "flex items-center justify-center text-xs py-1.5 px-2 rounded-md transition-all hover:cursor-pointer",
                         activeTab === 'custom-fields'
                           ? "bg-background border border-border shadow-sm text-foreground font-medium"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {t('content.customFieldsTab')}
+                      <span className="line-clamp-2 text-center leading-tight">{t('content.customFieldsTab')}</span>
                     </button>
                   </div>
                 </div>
