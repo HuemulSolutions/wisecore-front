@@ -358,7 +358,11 @@ export function CreateEditCustomFieldSheet({
             if (!nextOpen) setUsage(null)
           }}
           title={t('deleteDialog.title')}
-          description={usage ? t('deleteDialog.inUseDescription', { usage: buildUsageText(usage) }) : t('deleteDialog.description')}
+          description={t('deleteDialog.description')}
+          alert={usage ? {
+            title: t('deleteDialog.inUseAlertTitle'),
+            description: t('deleteDialog.inUseAlertDescription', { usage: buildUsageText(usage) }),
+          } : undefined}
           actionLabel={usage ? t('deleteDialog.forceConfirm') : t('actions.deleteCustomField')}
           actionIcon={Trash2}
           onAction={async () => {

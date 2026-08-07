@@ -16,4 +16,15 @@ export interface HuemulAlertDialogProps {
   cancelLabel?: string;
   successDelay?: number;
   className?: string;
+  /**
+   * Bloque de alerta destacado que se renderiza sobre la descripción.
+   * Uso típico: el primer intento de borrado falló porque la entidad está en
+   * uso y hay que re-confirmar con `force`. Sin esto, el error obligaría a
+   * reemplazar la `description` y el dialog se leería como otro dialog.
+   */
+  alert?: {
+    title?: string;
+    description?: React.ReactNode;
+    icon?: LucideIcon;
+  };
 }

@@ -61,7 +61,8 @@ const translations = {
     inUseTemplatesPlural: { en: "{{count}} templates", es: "{{count}} plantillas" },
     inUseDocuments: { en: "{{count}} document", es: "{{count}} documento" },
     inUseDocumentsPlural: { en: "{{count}} documents", es: "{{count}} documentos" },
-    inUseDescription: { en: "This field is in use in {{usage}}. If you delete it, it will be removed from them and any stored values will be lost permanently. This action cannot be undone.", es: "Este campo está en uso en {{usage}}. Si lo eliminas, se quitará de ellos y los valores guardados se perderán permanentemente. Esta acción no se puede deshacer." },
+    inUseAlertTitle: { en: "This field is in use", es: "Este campo está en uso" },
+    inUseAlertDescription: { en: "It is in use in {{usage}}. If you continue, it will be removed from them and its stored values will be lost.", es: "Está en uso en {{usage}}. Si continúas, se quitará de ellos y sus valores guardados se perderán." },
     forceConfirm: { en: "Delete anyway", es: "Eliminar de todas formas" },
   },
   form: {
