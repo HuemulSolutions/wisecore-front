@@ -69,7 +69,7 @@ export function CustomFieldsList({
   
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="flex flex-col h-full min-h-0 space-y-3 px-3 py-3">
         <div className="flex items-center justify-between">
           <div className="h-4 w-24 bg-muted rounded animate-pulse" />
           <Button size="sm" variant="outline" disabled>
@@ -88,7 +88,7 @@ export function CustomFieldsList({
 
   if (!customFields || customFields.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 px-4 text-center gap-4">
+      <div className="flex flex-col h-full min-h-0 items-center justify-center py-10 px-4 text-center gap-4">
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted">
           <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
         </div>
@@ -308,9 +308,9 @@ export function CustomFieldsList({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 pt-2">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header with Refresh and Add buttons — fijo, no scrollea con la lista */}
-      <div className="shrink-0 flex items-center justify-between pb-2">
+      <div className="shrink-0 flex items-center justify-between px-3 pt-3 pb-2">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('customFieldsList.title')}</h4>
         <div className="flex gap-1">
           <HuemulButton
@@ -339,7 +339,7 @@ export function CustomFieldsList({
 
       {/* Fields List */}
       <ScrollArea className="flex-1 min-h-0">
-      <div className="space-y-1.5 pr-2">
+      <div className="space-y-1.5 px-3 pb-2">
         {customFields.map((field) => {
           const isUploadingThisField = uploadingImageFieldId === field.id;
           return (
@@ -429,10 +429,13 @@ export function CustomFieldsList({
       </div>
       </ScrollArea>
 
-      {/* Pagination footer — fijo, fuera del scroll area */}
+      {/* Pagination footer — fijo, fuera del scroll area, banda gris a sangre */}
       {onPageChange && page !== undefined && pageSize !== undefined && (
-        <div className="shrink-0 pt-2">
+        <div className="shrink-0 border-t border-border bg-muted/50 px-3 py-2">
           <HuemulPagination
+            variant="bare"
+            labelPosition="start"
+            showFirstLast={false}
             page={page}
             pageSize={pageSize}
             totalItems={totalItems}

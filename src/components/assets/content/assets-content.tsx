@@ -71,7 +71,7 @@ import { toast } from "sonner";
 import EditDocumentDialog from "@/components/assets/dialogs/assets-edit-dialog";
 import { useExecutionsByDocumentId } from "@/hooks/useExecutionsByDocumentId";
 import SectionExecution from "./assets-section";
-import { formatApiDateTime, parseApiDate } from "@/lib/utils";
+import { formatApiDateTime, parseApiDate, cn } from "@/lib/utils";
 import { CustomWordExportDialog } from "@/components/assets/dialogs/assets-export-custom.word-dialog";
 import { useNavKnowledgeActions } from "@/contexts/nav-knowledge-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -102,7 +102,7 @@ import { ViewModeToggle } from './assets-view-mode-toggle';
 import { MoreOptionsDropdown } from './assets-more-options-dropdown';
 
 // Tamaño de página del listado de campos personalizados en el panel lateral (angosto).
-const CUSTOM_FIELDS_PAGE_SIZE = 8;
+const CUSTOM_FIELDS_PAGE_SIZE = 100;
 
 /** Recursively extract all text from a Plate JSON node. */
 function extractPlateText(node: unknown): string {
@@ -3140,58 +3140,61 @@ export function AssetContent({
         <>
           <ResizableHandle/>
           <ResizablePanel defaultSize={20}>
-            <div className="flex flex-col h-full bg-white border-l">
-              <div className="flex flex-col pt-3">
-                <div className="px-2 pb-2">
-                  <div className="grid w-full grid-cols-2 h-8 bg-gray-50 rounded-md p-0.5">
-                    <button 
+            <div className="h-full p-2">
+              <div className="flex flex-col h-full min-h-0 bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                {/* Header con tabs — banda gris a sangre */}
+                <div className="shrink-0 bg-muted/50 border-b border-border px-3 py-2.5">
+                  <div className="grid w-full grid-cols-2 gap-1">
+                    <button
                       onClick={() => setActiveTab('toc')}
-                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                        activeTab === 'toc' 
-                          ? 'bg-white shadow-sm text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={cn(
+                        "flex items-center justify-center text-xs h-7 px-2 rounded-md transition-all truncate hover:cursor-pointer",
+                        activeTab === 'toc'
+                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
                       {t('content.contentTab')}
                     </button>
-                    <button 
+                    <button
                       onClick={() => setActiveTab('custom-fields')}
-                      className={`text-xs py-1 px-1 h-6 rounded-sm transition-all truncate hover:cursor-pointer ${
-                        activeTab === 'custom-fields' 
-                          ? 'bg-white shadow-sm text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={cn(
+                        "flex items-center justify-center text-xs h-7 px-2 rounded-md transition-all truncate hover:cursor-pointer",
+                        activeTab === 'custom-fields'
+                          ? "bg-background border border-border shadow-sm text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
                       {t('content.customFieldsTab')}
                     </button>
                   </div>
                 </div>
+                {activeTab === 'toc' ? (
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2">
+                    <TableOfContents items={tocItems} />
+                  </div>
+                ) : (
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CustomFieldsList
+                      customFields={customFieldsData?.data || []}
+                      isLoading={isLoadingCustomFields}
+                      onAdd={handleAddCustomFieldDocument}
+                      onEdit={handleEditCustomFieldDocument}
+                      onEditContent={handleEditCustomFieldDocumentContent}
+                      onDelete={handleDeleteCustomFieldDocument}
+                      onRefresh={handleRefreshCustomFields}
+                      uploadingImageFieldId={uploadingImageFieldId}
+                      isRefreshing={isRefreshingCustomFields}
+                      canEdit={frontendPermissions.canEditSections}
+                      page={customFieldsPage}
+                      pageSize={CUSTOM_FIELDS_PAGE_SIZE}
+                      totalItems={customFieldsData?.total}
+                      hasNext={customFieldsData?.has_next}
+                      onPageChange={setCustomFieldsPage}
+                    />
+                  </div>
+                )}
               </div>
-              {activeTab === 'toc' ? (
-                <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
-                  <TableOfContents items={tocItems} />
-                </div>
-              ) : (
-                <div className="flex-1 min-h-0 overflow-hidden px-2 pb-2">
-                  <CustomFieldsList
-                    customFields={customFieldsData?.data || []}
-                    isLoading={isLoadingCustomFields}
-                    onAdd={handleAddCustomFieldDocument}
-                    onEdit={handleEditCustomFieldDocument}
-                    onEditContent={handleEditCustomFieldDocumentContent}
-                    onDelete={handleDeleteCustomFieldDocument}
-                    onRefresh={handleRefreshCustomFields}
-                    uploadingImageFieldId={uploadingImageFieldId}
-                    isRefreshing={isRefreshingCustomFields}
-                    canEdit={frontendPermissions.canEditSections}
-                    page={customFieldsPage}
-                    pageSize={CUSTOM_FIELDS_PAGE_SIZE}
-                    totalItems={customFieldsData?.total}
-                    hasNext={customFieldsData?.has_next}
-                    onPageChange={setCustomFieldsPage}
-                  />
-                </div>
-              )}
             </div>
           </ResizablePanel>
         </>
