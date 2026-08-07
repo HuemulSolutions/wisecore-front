@@ -182,7 +182,7 @@ export function HuemulPagination({
             value={pageSize.toString()}
             onValueChange={(v) => { onPageSizeChange(Number(v)) }}
           >
-            <SelectTrigger className="h-7 w-[72px] text-xs hover:cursor-pointer">
+            <SelectTrigger className="h-7 w-18 text-xs hover:cursor-pointer">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

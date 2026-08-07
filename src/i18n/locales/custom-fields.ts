@@ -57,6 +57,12 @@ const translations = {
   deleteDialog: {
     title: { en: "Delete Custom Field", es: "Eliminar Campo Personalizado" },
     description: { en: "Are you sure you want to delete this custom field? It will be removed from all assets that currently use it and any data stored in it will be lost permanently. This action cannot be undone.", es: "¿Estás seguro de que deseas eliminar este campo personalizado? Se quitará de todos los activos que actualmente lo usan y cualquier dato almacenado en él se perderá permanentemente. Esta acción no se puede deshacer." },
+    inUseTemplates: { en: "{{count}} template", es: "{{count}} plantilla" },
+    inUseTemplatesPlural: { en: "{{count}} templates", es: "{{count}} plantillas" },
+    inUseDocuments: { en: "{{count}} document", es: "{{count}} documento" },
+    inUseDocumentsPlural: { en: "{{count}} documents", es: "{{count}} documentos" },
+    inUseDescription: { en: "This field is in use in {{usage}}. If you delete it, it will be removed from them and any stored values will be lost permanently. This action cannot be undone.", es: "Este campo está en uso en {{usage}}. Si lo eliminas, se quitará de ellos y los valores guardados se perderán permanentemente. Esta acción no se puede deshacer." },
+    forceConfirm: { en: "Delete anyway", es: "Eliminar de todas formas" },
   },
   form: {
     eyebrow: { en: "Custom Field", es: "Campo Personalizado" },

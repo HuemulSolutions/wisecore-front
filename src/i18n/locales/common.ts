@@ -70,6 +70,7 @@ const translations = {
   loadingMore: { en: "Loading more...", es: "Cargando más..." },
   noMoreResults: { en: "No more results", es: "No hay más resultados" },
   retry: { en: "Try again", es: "Reintentar" },
+  and: { en: "and", es: "y" },
   pagination: {
     itemsPerPage: { en: "Items per page:", es: "Elementos por página:" },
     page: { en: "Page", es: "Página" },

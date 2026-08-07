@@ -290,7 +290,7 @@ export function CustomFieldsList({
       return (
         <span className="flex items-center gap-1.5 text-xs text-gray-600">
           <FileIcon className="size-3 shrink-0" />
-          <span className="break-words line-clamp-2">{fileName}</span>
+          <span className="wrap-break-word line-clamp-2">{fileName}</span>
         </span>
       );
     }
@@ -299,7 +299,7 @@ export function CustomFieldsList({
     const textValue = typeof value === 'string' && value === 'customFieldsList.empty' ? t('customFieldsList.empty') : String(value);
     return (
       <span 
-        className="text-xs text-gray-600 break-words line-clamp-2" 
+        className="text-xs text-gray-600 wrap-break-word line-clamp-2" 
         title={textValue.length > 50 ? textValue : undefined}
       >
         {textValue}
@@ -347,7 +347,7 @@ export function CustomFieldsList({
               <div className="flex-1 min-w-0 mr-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-1.5 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-foreground break-words line-clamp-2" title={field.name || t('customFieldsList.unknownField')}>
+                    <span className="text-xs font-medium text-foreground wrap-break-word line-clamp-2" title={field.name || t('customFieldsList.unknownField')}>
                       {field.name || t('customFieldsList.unknownField')}
                     </span>
                     {field.required && (
