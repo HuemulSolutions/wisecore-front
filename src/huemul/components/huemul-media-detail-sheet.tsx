@@ -260,7 +260,7 @@ export function HuemulMediaDetailSheet({
             <HuemulInfoDisplay>
               <HuemulInfoGroup layout="grid-2">
                 {isEditingInfo ? (
-                  <HuemulField type="text" label={t("detail.name")} value={editName} onChange={setEditName} />
+                  <HuemulField type="text" label={t("detail.name")} value={editName} onChange={(value) => setEditName(String(value))} />
                 ) : (
                   <HuemulInfoItem label={t("detail.name")} value={displayedName} />
                 )}
@@ -272,7 +272,7 @@ export function HuemulMediaDetailSheet({
               </HuemulInfoGroup>
               {isEditingInfo ? (
                 <HuemulInfoGroup>
-                  <HuemulField type="textarea" label={t("detail.summary")} value={editSummary} onChange={setEditSummary} rows={3} />
+                  <HuemulField type="textarea" label={t("detail.summary")} value={editSummary} onChange={(value) => setEditSummary(String(value))} rows={3} />
                 </HuemulInfoGroup>
               ) : (
                 displayedSummary && (
