@@ -63,7 +63,6 @@ export default function MediaPage() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
-  const [hasGenerated, setHasGenerated] = useState(false)
   const [pinnedMediaIds, setPinnedMediaIds] = useState<string[]>([])
   const [viewMode, setViewMode] = useMediaViewMode()
 
@@ -110,20 +109,6 @@ export default function MediaPage() {
       await refetch()
     } finally {
       setIsRefreshing(false)
-    }
-  }
-
-  const handleGenerateOpenChange = async (v: boolean) => {
-    setGenerateOpen(v)
-    if (!v && hasGenerated) {
-      setHasGenerated(false)
-      if (level !== "organization") {
-        toast.info(t("generate.hiddenByFilters"))
-      }
-      // Invalida a mano (en vez de handleRefresh) para no limpiar el pin recién fijado.
-      await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.pickerBase() })
-      await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.listBase() })
-      await refetch()
     }
   }
 
@@ -288,11 +273,16 @@ export default function MediaPage() {
 
     <HuemulMediaGenerateSheet
       open={generateOpen}
-      onOpenChange={handleGenerateOpenChange}
+      onOpenChange={setGenerateOpen}
       organizationId={selectedOrganizationId}
       onGenerated={(img) => {
-        setHasGenerated(true)
+        if (level !== "organization" && pinnedMediaIds.length === 0) {
+          toast.info(t("generate.hiddenByFilters"))
+        }
         setPinnedMediaIds((prev) => [img.media_id, ...prev])
+      }}
+      onDiscarded={(mediaId) => {
+        setPinnedMediaIds((prev) => prev.filter((id) => id !== mediaId))
       }}
     />
   </>

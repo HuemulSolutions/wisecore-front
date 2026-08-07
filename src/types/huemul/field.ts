@@ -71,6 +71,10 @@ export interface HuemulFieldProps {
   multiple?: boolean;
   onFileChange?: (files: FileList | null) => void;
   rows?: number;
+  /** Límite duro de caracteres (aplica a type "text" y "textarea"). */
+  maxLength?: number;
+  /** Muestra contador "n/maxLength" a la derecha del label. Requiere maxLength. */
+  showCharCount?: boolean;
   min?: number;
   max?: number;
   step?: number;

@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Sparkles, Download, AlertCircle, ImageOff, Loader2 } from "lucide-react"
+import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, RefreshCw, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { useImageGenerationMutations } from "@/hooks/useImageGeneration"
+import { useMediaMutations } from "@/hooks/useMedia"
 import { getMediaDownloadUrl } from "@/services/media"
-import { getErrorMessage } from "@/lib/error-utils"
+import { getErrorMessage, handleApiError } from "@/lib/error-utils"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulField } from "./huemul-field"
+import { HuemulButton } from "./huemul-button"
+import { HuemulAspectRatioSelector } from "./huemul-aspect-ratio-selector"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { IMAGE_ASPECT_RATIOS, type ImageAspectRatio, type GeneratedImage } from "@/types/image-generation"
@@ -20,12 +23,20 @@ const RATIO_KEY: Record<ImageAspectRatio, string> = {
   "3:4": "tall",
 }
 
+const PROMPT_MAX_LENGTH = 400
+
 export interface HuemulMediaGenerateSheetProps {
   open: boolean
   onOpenChange: (v: boolean) => void
   organizationId: string
   /** Se dispara tras cada generación exitosa (para fijar la imagen en la galería). */
   onGenerated?: (image: GeneratedImage) => void
+  /**
+   * Se dispara tras descartar una imagen: la media ya fue borrada en el
+   * backend y quitada del historial local. El padre debe desfijar el pin
+   * correspondiente en la galería.
+   */
+  onDiscarded?: (mediaId: string) => void
 }
 
 export function HuemulMediaGenerateSheet({
@@ -33,8 +44,10 @@ export function HuemulMediaGenerateSheet({
   onOpenChange,
   organizationId,
   onGenerated,
+  onDiscarded,
 }: HuemulMediaGenerateSheetProps) {
   const { t } = useTranslation("media")
+  const { t: tCommon } = useTranslation("common")
   const [prompt, setPrompt] = useState("")
   const [aspectRatio, setAspectRatio] = useState<ImageAspectRatio>("1:1")
   const [history, setHistory] = useState<GeneratedImage[]>([])
@@ -44,6 +57,7 @@ export function HuemulMediaGenerateSheet({
   const [elapsed, setElapsed] = useState(0)
   const openRef = useRef(open)
   const { generateImage } = useImageGenerationMutations(organizationId)
+  const { deleteMedia } = useMediaMutations(organizationId)
   const isPending = generateImage.isPending
 
   useEffect(() => { openRef.current = open }, [open])
@@ -62,20 +76,63 @@ export function HuemulMediaGenerateSheet({
     setSelected(null)
     setPreviewUrl(null)
     setPreviewFailed(false)
+    setElapsed(0)
     generateImage.reset()
+    deleteMedia.reset()
+  }
+
+  function selectImage(img: GeneratedImage) {
+    setSelected(img)
+    setPreviewUrl(img.url)
+    setPreviewFailed(false)
   }
 
   async function handleGenerate() {
     const trimmed = prompt.trim()
-    if (!trimmed) return
-    const img = await generateImage.mutateAsync({ prompt: trimmed, aspect_ratio: aspectRatio })
-    if (!openRef.current) return // el usuario cerró el sheet mientras generaba
-    setHistory((prev) => [img, ...prev])
-    setSelected(img)
-    setPreviewUrl(img.url)
-    setPreviewFailed(false)
-    toast.success(t("generate.success"))
-    onGenerated?.(img)
+    if (!trimmed || isPending) return
+    try {
+      const img = await generateImage.mutateAsync({ prompt: trimmed, aspect_ratio: aspectRatio })
+      if (!openRef.current) return // el usuario cerró el sheet mientras generaba
+      setHistory((prev) => [img, ...prev])
+      selectImage(img)
+      toast.success(t("generate.success"))
+      onGenerated?.(img)
+    } catch {
+      // El error ya se muestra en el lienzo vía generateImage.isError.
+      // Captura obligatoria: HuemulButton no propaga el catch al padre.
+    }
+  }
+
+  async function handleDiscard() {
+    if (!selected || deleteMedia.isPending) return
+    const mediaId = selected.media_id
+    try {
+      await deleteMedia.mutateAsync(mediaId)
+    } catch (err) {
+      handleApiError(err, { fallbackMessage: t("generate.discardError") })
+      return
+    }
+    const rest = history.filter((img) => img.media_id !== mediaId)
+    setHistory(rest)
+    if (rest.length) {
+      selectImage(rest[0])
+    } else {
+      setSelected(null)
+      setPreviewUrl(null)
+      setPreviewFailed(false)
+    }
+    onDiscarded?.(mediaId)
+    toast.success(t("generate.discardSuccess"))
+  }
+
+  function handleDownload() {
+    if (!selected || !previewUrl) return
+    const a = document.createElement("a")
+    a.href = previewUrl
+    a.download = selected.file_identifier
+    a.target = "_blank"
+    a.rel = "noopener noreferrer"
+    a.click()
   }
 
   async function handlePreviewError() {
@@ -90,132 +147,187 @@ export function HuemulMediaGenerateSheet({
     }
   }
 
-  const previewAspectRatio = (selected?.aspect_ratio ?? aspectRatio).replace(":", " / ")
+  const currentRatio = selected?.aspect_ratio ?? aspectRatio
+  const [rw, rh] = currentRatio.split(":").map(Number)
+  const canvasBoxStyle = {
+    aspectRatio: `${rw} / ${rh}`,
+    width: `min(100cqw, calc(100cqh * ${rw} / ${rh}))`,
+  }
 
   return (
     <HuemulSheet
       open={open}
       onOpenChange={(v) => { onOpenChange(v); if (!v) reset() }}
       title={t("generate.title")}
-      description={t("generate.description")}
       icon={Sparkles}
-      maxWidth="sm:max-w-lg"
-      saveAction={{
-        label: history.length ? t("generate.regenerate") : t("generate.submit"),
-        icon: Sparkles,
-        onClick: handleGenerate,
-        disabled: !prompt.trim(),
-        closeOnSuccess: false,
-      }}
-      extraActions={
-        selected && previewUrl
-          ? [{
-              label: t("generate.download"),
-              icon: Download,
-              position: "header" as const,
-              closeOnSuccess: false,
-              onClick: () => {
-                const a = document.createElement("a")
-                a.href = previewUrl
-                a.download = selected.file_identifier
-                a.target = "_blank"
-                a.rel = "noopener noreferrer"
-                a.click()
-              },
-            }]
-          : []
-      }
+      showFooter={false}
+      maxWidth="sm:max-w-5xl"
+      className="w-full sm:w-3/4"
+      bodyClassName="flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:flex-row lg:overflow-hidden"
     >
-      <div className="flex flex-col gap-4">
-        <HuemulField
-          type="textarea"
-          label={t("generate.prompt")}
-          value={prompt}
-          onChange={(v) => setPrompt(String(v ?? ""))}
-          placeholder={t("generate.promptPlaceholder")}
-          helpText={t("generate.promptHelp")}
-          rows={4}
-          disabled={isPending}
-          autoFocus
-        />
+      {/* ── Columna izquierda: controles ─────────────────────────── */}
+      <aside className="flex w-full shrink-0 flex-col border-b lg:w-95 lg:min-h-0 lg:border-b-0 lg:border-r">
+        <div className="flex flex-col gap-6 px-6 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <HuemulField
+            type="textarea"
+            label={t("generate.prompt")}
+            value={prompt}
+            onChange={(v) => setPrompt(String(v ?? ""))}
+            placeholder={t("generate.promptPlaceholder")}
+            helpText={t("generate.promptHelp")}
+            maxLength={PROMPT_MAX_LENGTH}
+            showCharCount
+            rows={6}
+            inputClassName="min-h-32 max-h-64 resize-none"
+            disabled={isPending}
+            autoFocus
+          />
 
-        <HuemulField
-          type="select"
-          label={t("generate.aspectRatio")}
-          value={aspectRatio}
-          onChange={(v) => setAspectRatio(v as ImageAspectRatio)}
-          disabled={isPending}
-          options={IMAGE_ASPECT_RATIOS.map((ratio) => ({
-            value: ratio,
-            label: t(`generate.ratios.${RATIO_KEY[ratio]}`),
-          }))}
-        />
+          <HuemulAspectRatioSelector
+            label={t("generate.format")}
+            value={aspectRatio}
+            onChange={setAspectRatio}
+            disabled={isPending}
+            columns={3}
+            options={IMAGE_ASPECT_RATIOS.map((ratio) => ({
+              value: ratio,
+              label: ratio,
+              title: t(`generate.ratios.${RATIO_KEY[ratio]}`),
+            }))}
+          />
+        </div>
 
-        {/* Preview */}
-        <div
-          className="rounded-lg border bg-muted flex items-center justify-center overflow-hidden mx-auto w-full max-h-80"
-          style={{ aspectRatio: previewAspectRatio }}
-        >
-          {isPending ? (
-            <div className="relative w-full h-full flex flex-col items-center justify-center gap-2 text-center px-4">
-              <Skeleton className="absolute inset-0" />
-              <Loader2 className="h-6 w-6 animate-spin text-primary relative z-10" />
-              <p className="text-xs font-medium relative z-10">{t("generate.generating")}</p>
-              <p className="text-xs text-muted-foreground relative z-10">
-                {t("generate.elapsed", { seconds: elapsed })}
-              </p>
-              <p className="text-[11px] text-muted-foreground relative z-10">{t("generate.generatingHint")}</p>
+        <div className="shrink-0 space-y-2 border-t bg-background px-6 py-4">
+          <HuemulButton
+            icon={Sparkles}
+            label={history.length ? t("generate.regenerate") : t("generate.submit")}
+            onClick={handleGenerate}
+            disabled={!prompt.trim()}
+            loading={isPending}
+            className="w-full"
+          />
+          <p className="text-center text-[11px] leading-snug text-muted-foreground">
+            {t("generate.savedNote")}
+          </p>
+        </div>
+      </aside>
+
+      {/* ── Columna derecha: lienzo ───────────────────────────────── */}
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-muted/40">
+        <div className="flex min-h-80 flex-1 flex-col items-center justify-center gap-3 p-6 lg:min-h-0">
+          <div className="flex min-h-0 w-full flex-1 items-center justify-center @container-size">
+            {isPending ? (
+              <div style={canvasBoxStyle} className="relative overflow-hidden rounded-xl border bg-card shadow-sm">
+                <Skeleton className="absolute inset-0 rounded-none" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+                  <Loader2 className="size-7 animate-spin text-primary" />
+                  <p className="text-sm font-medium">{t("generate.generating")}</p>
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    {t("generate.elapsed", { seconds: elapsed })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">{t("generate.generatingHint")}</p>
+                </div>
+              </div>
+            ) : generateImage.isError ? (
+              <div className="flex max-w-sm flex-col items-center gap-3 px-8 text-center">
+                <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertCircle className="size-6 text-destructive" />
+                </div>
+                <p className="text-sm font-medium text-destructive">{t("generate.error")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {getErrorMessage(generateImage.error, t("generate.error"))}
+                </p>
+                <HuemulButton
+                  size="sm"
+                  variant="outline"
+                  icon={RefreshCw}
+                  label={tCommon("tryAgain")}
+                  onClick={handleGenerate}
+                />
+              </div>
+            ) : previewUrl ? (
+              <img
+                src={previewUrl}
+                alt={t("generate.previewAlt")}
+                className="max-h-full max-w-full rounded-xl border bg-card object-contain shadow-sm"
+                onError={handlePreviewError}
+              />
+            ) : previewFailed ? (
+              <div className="flex flex-col items-center gap-3 px-8 text-center text-muted-foreground">
+                <ImageOff className="size-6" />
+                <p className="text-xs">{t("generate.previewExpired")}</p>
+                <HuemulButton
+                  size="sm"
+                  variant="outline"
+                  icon={RefreshCw}
+                  label={t("generate.reloadPreview")}
+                  onClick={handlePreviewError}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 px-8 text-center">
+                <div className="flex size-14 items-center justify-center rounded-2xl border border-dashed bg-background/60">
+                  <ImageIcon className="size-6 text-muted-foreground/70" />
+                </div>
+                <p className="text-sm text-muted-foreground">{t("generate.emptyPreview")}</p>
+                <p className="text-xs text-muted-foreground/80">{t("generate.emptyHint")}</p>
+              </div>
+            )}
+          </div>
+
+          {selected && previewUrl && !isPending && (
+            <div className="flex shrink-0 items-center justify-center gap-2">
+              <HuemulButton
+                variant="outline"
+                size="sm"
+                icon={Download}
+                label={t("generate.download")}
+                onClick={handleDownload}
+              />
+              <HuemulButton
+                variant="ghost"
+                size="sm"
+                icon={Trash2}
+                label={t("generate.discard")}
+                loading={deleteMedia.isPending}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={handleDiscard}
+              />
             </div>
-          ) : generateImage.isError ? (
-            <div className="flex flex-col items-center gap-2 text-center px-4 text-destructive">
-              <AlertCircle className="h-6 w-6" />
-              <p className="text-xs">{getErrorMessage(generateImage.error, t("generate.error"))}</p>
-            </div>
-          ) : previewUrl ? (
-            <img
-              src={previewUrl}
-              alt={t("generate.previewAlt")}
-              className="object-contain w-full h-full"
-              onError={handlePreviewError}
-            />
-          ) : previewFailed ? (
-            <div className="flex flex-col items-center gap-2 text-center px-4 text-muted-foreground">
-              <ImageOff className="h-6 w-6" />
-              <p className="text-xs">{t("generate.previewExpired")}</p>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground text-center px-4">{t("generate.emptyPreview")}</p>
           )}
         </div>
 
-        {/* History */}
-        {history.length > 1 && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">{t("generate.history")}</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+        {/* ── Franja "Esta sesión" ──────────────────────────────── */}
+        {history.length > 0 && (
+          <div className="shrink-0 border-t bg-background/70 px-6 py-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-foreground">{t("generate.session")}</p>
+              <p className="text-xs tabular-nums text-muted-foreground">
+                {t("generate.sessionCount", { count: history.length })}
+              </p>
+            </div>
+            <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
               {history.map((img) => (
                 <button
                   key={img.media_id}
                   type="button"
+                  aria-pressed={selected?.media_id === img.media_id}
+                  onClick={() => selectImage(img)}
                   className={cn(
-                    "shrink-0 h-14 w-14 rounded-md border overflow-hidden hover:cursor-pointer",
-                    selected?.media_id === img.media_id && "ring-2 ring-primary",
+                    "size-14 shrink-0 overflow-hidden rounded-md border bg-muted transition-colors hover:cursor-pointer hover:opacity-90",
+                    "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                    selected?.media_id === img.media_id
+                      ? "border-primary ring-2 ring-primary/40"
+                      : "border-border",
                   )}
-                  onClick={() => {
-                    setSelected(img)
-                    setPreviewUrl(img.url)
-                    setPreviewFailed(false)
-                  }}
                 >
-                  <img src={img.url} alt="" className="object-cover w-full h-full" />
+                  <img src={img.url} alt="" className="size-full object-cover" />
                 </button>
               ))}
             </div>
           </div>
         )}
-
-        <p className="text-xs text-muted-foreground">{t("generate.savedNote")}</p>
-      </div>
+      </section>
     </HuemulSheet>
   )
 }
