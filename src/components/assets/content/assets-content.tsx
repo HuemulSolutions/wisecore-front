@@ -3140,8 +3140,7 @@ export function AssetContent({
         <>
           <ResizableHandle/>
           <ResizablePanel defaultSize={20}>
-            <div className="h-full p-2">
-              <div className="flex flex-col h-full min-h-0 bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+            <div className="flex flex-col h-full min-h-0 bg-card overflow-hidden">
                 {/* Header con tabs — banda gris a sangre */}
                 <div className="shrink-0 bg-muted/50 border-b border-border px-3 py-2.5">
                   <div className="grid w-full grid-cols-2 gap-1">
@@ -3195,7 +3194,6 @@ export function AssetContent({
                   </div>
                 )}
               </div>
-            </div>
           </ResizablePanel>
         </>
       )}
