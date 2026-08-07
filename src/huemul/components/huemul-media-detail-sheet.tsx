@@ -1,6 +1,6 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import { Image, Download, History, Clock, Trash2, Plus } from "lucide-react"
+import { Image, Download, History, Clock, Trash2, Plus, Pencil, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatAbsoluteDate } from "@/lib/format-relative-time"
 
@@ -9,6 +9,7 @@ import { handleApiError } from "@/lib/error-utils"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulAlertDialog } from "./huemul-alert-dialog"
 import { HuemulInfoDisplay, HuemulInfoGroup, HuemulInfoItem } from "./huemul-info-display"
+import { HuemulField } from "./huemul-field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -120,11 +121,18 @@ export function HuemulMediaDetailSheet({
   canDelete = true,
 }: HuemulMediaDetailSheetProps) {
   const { t } = useTranslation("media")
+  const { t: tCommon } = useTranslation("common")
   const [deleteMediaOpen, setDeleteMediaOpen] = useState(false)
   const [deleteVersionTarget, setDeleteVersionTarget] = useState<MediaVersion | null>(null)
   const versionFileInputRef = useRef<HTMLInputElement>(null)
 
-  const { deleteMedia, uploadMediaVersion, deleteMediaVersion } = useMediaMutations(organizationId)
+  const [isEditingInfo, setIsEditingInfo] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [editSummary, setEditSummary] = useState("")
+  const [nameOverride, setNameOverride] = useState<string | null>(null)
+  const [summaryOverride, setSummaryOverride] = useState<string | null>(null)
+
+  const { deleteMedia, patchMedia, uploadMediaVersion, deleteMediaVersion } = useMediaMutations(organizationId)
 
   const { data: versionsData, isLoading: versionsLoading } = useMediaVersions(
     organizationId,
@@ -132,10 +140,44 @@ export function HuemulMediaDetailSheet({
     { enabled: open && !!item },
   )
 
+  useEffect(() => {
+    setIsEditingInfo(false)
+    setNameOverride(null)
+    setSummaryOverride(null)
+  }, [item?.id])
+
   const versions = versionsData?.data ?? []
   const version = item?.current_version
-  const name = item?.name ?? version?.original_filename ?? item?.id ?? ""
+  const displayedName = nameOverride ?? item?.name ?? null
+  const displayedSummary = summaryOverride ?? item?.summary ?? null
+  const name = displayedName ?? version?.original_filename ?? item?.id ?? ""
   const contentType = version?.content_type
+
+  function handleStartEdit() {
+    setEditName(displayedName ?? "")
+    setEditSummary(displayedSummary ?? "")
+    setIsEditingInfo(true)
+  }
+
+  function handleCancelEdit() {
+    setIsEditingInfo(false)
+  }
+
+  async function handleSaveEdit() {
+    if (!item) return
+    try {
+      const updated = await patchMedia.mutateAsync({
+        mediaId: item.id,
+        body: { name: editName.trim(), summary: editSummary.trim() },
+      })
+      setNameOverride(updated.name)
+      setSummaryOverride(updated.summary)
+      toast.success(t("detail.editSuccess"))
+      setIsEditingInfo(false)
+    } catch (err) {
+      handleApiError(err, { fallbackMessage: t("detail.editError") })
+    }
+  }
 
   async function handleVersionUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -202,21 +244,67 @@ export function HuemulMediaDetailSheet({
             )}
 
             {/* Metadata */}
+            <div className="flex justify-end -mb-2">
+              {!isEditingInfo && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs hover:cursor-pointer"
+                  onClick={handleStartEdit}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                  {t("detail.edit")}
+                </Button>
+              )}
+            </div>
             <HuemulInfoDisplay>
               <HuemulInfoGroup layout="grid-2">
-                <HuemulInfoItem label={t("detail.name")} value={item.name} />
+                {isEditingInfo ? (
+                  <HuemulField type="text" label={t("detail.name")} value={editName} onChange={setEditName} />
+                ) : (
+                  <HuemulInfoItem label={t("detail.name")} value={displayedName} />
+                )}
                 <HuemulInfoItem label={t("detail.type")} value={item.type} />
                 <HuemulInfoItem label={t("detail.origin")} value={item.origin} />
                 <HuemulInfoItem label={t("detail.size")} value={formatBytes(version?.file_size)} />
                 <HuemulInfoItem label={t("detail.contentType")} value={contentType} variant="code" />
                 <HuemulInfoItem label={t("detail.createdAt")} value={item.created_at ? formatAbsoluteDate(item.created_at) : undefined} />
               </HuemulInfoGroup>
-              {item.summary && (
+              {isEditingInfo ? (
                 <HuemulInfoGroup>
-                  <HuemulInfoItem label={t("detail.summary")} value={item.summary} />
+                  <HuemulField type="textarea" label={t("detail.summary")} value={editSummary} onChange={setEditSummary} rows={3} />
                 </HuemulInfoGroup>
+              ) : (
+                displayedSummary && (
+                  <HuemulInfoGroup>
+                    <HuemulInfoItem label={t("detail.summary")} value={displayedSummary} />
+                  </HuemulInfoGroup>
+                )
               )}
             </HuemulInfoDisplay>
+
+            {isEditingInfo && (
+              <div className="flex items-center gap-2 justify-end -mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs hover:cursor-pointer"
+                  onClick={handleCancelEdit}
+                  disabled={patchMedia.isPending}
+                >
+                  {tCommon("cancel")}
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs hover:cursor-pointer"
+                  onClick={handleSaveEdit}
+                  disabled={patchMedia.isPending}
+                >
+                  {patchMedia.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                  {tCommon("save")}
+                </Button>
+              </div>
+            )}
 
             <Separator />
 

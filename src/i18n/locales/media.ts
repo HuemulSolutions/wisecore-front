@@ -87,6 +87,9 @@ const translations = {
     deleteMediaDescription: { en: "This file and all its versions will be permanently deleted. This action cannot be undone.", es: "Este archivo y todas sus versiones serán eliminados permanentemente. Esta acción no se puede deshacer." },
     deleteMediaConfirm: { en: "Delete", es: "Eliminar" },
     deleteMediaSuccess: { en: "Media deleted successfully", es: "Media eliminada correctamente" },
+    edit: { en: "Edit", es: "Editar" },
+    editSuccess: { en: "Media updated successfully", es: "Media actualizada correctamente" },
+    editError: { en: "Failed to update media", es: "Error al actualizar la media" },
   },
   upload: {
     title: { en: "Upload Media", es: "Subir Media" },
