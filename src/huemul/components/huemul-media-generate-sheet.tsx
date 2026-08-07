@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, RefreshCw, Loader2 } from "lucide-react"
+import { Sparkles, Download, Trash2, AlertCircle, ImageOff, Image as ImageIcon, RefreshCw, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useImageGenerationMutations } from "@/hooks/useImageGeneration"
 import { useMediaMutations } from "@/hooks/useMedia"
 import { getMediaDownloadUrl } from "@/services/media"
 import { getErrorMessage, handleApiError } from "@/lib/error-utils"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { HuemulSheet } from "./huemul-sheet"
 import { HuemulField } from "./huemul-field"
 import { HuemulButton } from "./huemul-button"
@@ -55,6 +56,7 @@ export function HuemulMediaGenerateSheet({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewFailed, setPreviewFailed] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const openRef = useRef(open)
   const { generateImage } = useImageGenerationMutations(organizationId)
   const { deleteMedia } = useMediaMutations(organizationId)
@@ -77,6 +79,7 @@ export function HuemulMediaGenerateSheet({
     setPreviewUrl(null)
     setPreviewFailed(false)
     setElapsed(0)
+    setIsFullscreen(false)
     generateImage.reset()
     deleteMedia.reset()
   }
@@ -249,8 +252,11 @@ export function HuemulMediaGenerateSheet({
               <img
                 src={previewUrl}
                 alt={t("generate.previewAlt")}
-                className="max-h-full max-w-full rounded-xl border bg-card object-contain shadow-sm"
+                role="button"
+                aria-label={t("generate.expand")}
+                className="max-h-full max-w-full cursor-zoom-in rounded-xl border bg-card object-contain shadow-sm transition-transform hover:scale-[1.01]"
                 onError={handlePreviewError}
+                onClick={() => setIsFullscreen(true)}
               />
             ) : previewFailed ? (
               <div className="flex flex-col items-center gap-3 px-8 text-center text-muted-foreground">
@@ -328,6 +334,30 @@ export function HuemulMediaGenerateSheet({
           </div>
         )}
       </section>
+
+      {previewUrl && (
+        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+          <DialogContent
+            showCloseButton={false}
+            className="top-0 left-0 flex h-screen w-screen max-w-none translate-x-0 translate-y-0 items-center justify-center gap-0 rounded-none border-0 bg-black/95 p-0 sm:max-w-none"
+          >
+            <DialogTitle className="sr-only">{t("generate.previewAlt")}</DialogTitle>
+            <img
+              src={previewUrl}
+              alt={t("generate.previewAlt")}
+              className="max-h-[95vh] max-w-[95vw] object-contain"
+            />
+            <button
+              type="button"
+              aria-label={tCommon("close")}
+              onClick={() => setIsFullscreen(false)}
+              className="fixed top-4 right-4 rounded-full bg-black/50 p-2 text-white transition-opacity hover:opacity-80"
+            >
+              <X className="size-5" />
+            </button>
+          </DialogContent>
+        </Dialog>
+      )}
     </HuemulSheet>
   )
 }

@@ -136,6 +136,7 @@ const translations = {
       es: "Podrás descargarla o pedir otra versión sin salir del panel.",
     },
     previewAlt: { en: "Generated image", es: "Imagen generada" },
+    expand: { en: "View fullscreen", es: "Ver en pantalla completa" },
     previewExpired: { en: "The preview link expired", es: "El enlace de vista previa expiró" },
     reloadPreview: { en: "Reload preview", es: "Recargar vista previa" },
     download: { en: "Download", es: "Descargar" },
