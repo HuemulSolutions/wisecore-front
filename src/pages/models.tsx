@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Settings, Radio, Star, Timer, Loader2, Building2, MessageSquare, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HuemulButton } from '@/huemul/components/huemul-button'
 import { HuemulTable } from '@/huemul/components/huemul-table'
@@ -27,7 +27,7 @@ import {
   testLLMConnection
 } from '@/services/llms'
 import { testImageGenerationConnection } from '@/services/image-generation'
-import { resolveConnectionTests } from '@/lib/llm-capabilities'
+import { resolveConnectionTests, type ConnectionTestKind } from '@/lib/llm-capabilities'
 import {
   getSupportedEmbeddingProviders,
   getEmbeddingProvider,
@@ -36,7 +36,6 @@ import {
   deleteEmbeddingProvider,
   testEmbeddingProviderConnection,
 } from '@/services/embedding-provider'
-import { toast } from 'sonner'
 import { handleApiError } from '@/lib/error-utils'
 import { 
   ModelsHeader,
@@ -214,31 +213,16 @@ export default function Models() {
     },
   })
 
-  // Un modelo multimodal (text_output + image_output) corre ambos tests;
-  // el mensaje de éxito depende de cuántos corrieron, así que no usamos
-  // meta.successMessage (ver query-client.ts) sino toast.success acá mismo.
+  // Si el modelo aplica a más de un test (multimodal), el usuario elige cuál
+  // correr desde el menú del botón; acá solo se ejecuta el `kind` elegido.
   const testModelConnectionMutation = useMutation({
-    mutationFn: async (model: LLM) => {
-      const kinds = resolveConnectionTests(model)
-      const results = await Promise.allSettled(
-        kinds.map((kind) =>
-          kind === 'image' ? testImageGenerationConnection() : testLLMConnection(model.id)
-        )
-      )
-      return kinds.map((kind, i) => ({ kind, result: results[i] }))
-    },
-    onSuccess: (outcomes) => {
-      const failed = outcomes.filter((o) => o.result.status === 'rejected')
-      if (failed.length === 0) {
-        toast.success(outcomes.length > 1 ? t('toast.connectionSuccessfulAll') : t('toast.connectionSuccessful'))
-        return
-      }
-      failed.forEach(({ kind, result }) =>
-        handleApiError((result as PromiseRejectedResult).reason, {
-          fallbackMessage: t(kind === 'image' ? 'errors.imageConnectionFailed' : 'errors.chatConnectionFailed'),
-        })
-      )
-    },
+    mutationFn: ({ model, kind }: { model: LLM; kind: ConnectionTestKind }) =>
+      kind === 'image' ? testImageGenerationConnection() : testLLMConnection(model.id),
+    meta: { successMessage: t('toast.connectionSuccessful') },
+    onError: (error, { kind }) =>
+      handleApiError(error, {
+        fallbackMessage: t(kind === 'image' ? 'errors.imageConnectionFailed' : 'errors.chatConnectionFailed'),
+      }),
   })
 
   const createEmbeddingProviderMutation = useMutation({
@@ -385,9 +369,9 @@ export default function Models() {
     })
   }
 
-  const handleTestModel = (model: LLM) => {
+  const runConnectionTest = (model: LLM, kind: ConnectionTestKind) => {
     setTestingModelId(model.id)
-    testModelConnectionMutation.mutate(model, {
+    testModelConnectionMutation.mutate({ model, kind }, {
       onSettled: () => setTestingModelId(null),
     })
   }
@@ -622,7 +606,14 @@ export default function Models() {
                     key: 'test',
                     label: t('modelActions.testConnection'),
                     icon: Radio,
-                    onClick: handleTestModel,
+                    onClick: (model) => runConnectionTest(model, resolveConnectionTests(model)[0] ?? 'chat'),
+                    items: (model) =>
+                      resolveConnectionTests(model).map((kind) => ({
+                        key: kind,
+                        label: t(kind === 'image' ? 'modelActions.testImageGeneration' : 'modelActions.testChat'),
+                        icon: kind === 'image' ? ImageIcon : MessageSquare,
+                        onClick: () => runConnectionTest(model, kind),
+                      })),
                     isLoading: (model) => testingModelId === model.id,
                     disabled: (model) => testingModelId !== null && testingModelId !== model.id,
                   },

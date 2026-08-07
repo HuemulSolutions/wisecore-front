@@ -6,6 +6,7 @@ import type {
   HuemulTableActionsMode,
   HuemulTableColumn,
   HuemulTableAction,
+  HuemulTableActionItem,
   HuemulTableEmptyState,
   HuemulTablePagination,
   HuemulTableProps,
@@ -15,6 +16,7 @@ export type {
   HuemulTableActionsMode,
   HuemulTableColumn,
   HuemulTableAction,
+  HuemulTableActionItem,
   HuemulTableEmptyState,
   HuemulTablePagination,
   HuemulTableProps,
@@ -32,6 +34,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -439,15 +444,17 @@ export function HuemulTable<T>({
                                 const ActionIcon = action.icon
                                 const loading = action.isLoading?.(item) ?? false
                                 const disabled = loading || (action.disabled?.(item) ?? false)
-                                return (
+                                const subItems = action.items?.(item) ?? []
+                                const hasMenu = subItems.length > 1
+                                const button = (
                                   <HuemulButton
-                                    key={action.key}
+                                    key={hasMenu ? undefined : action.key}
                                     variant="ghost"
                                     size="sm"
                                     icon={loading ? Loader2 : ActionIcon}
                                     tooltip={action.label}
                                     tooltipSide="top"
-                                    onClick={() => { if (!disabled) action.onClick(item) }}
+                                    onClick={() => { if (!disabled && !hasMenu) action.onClick(item) }}
                                     disabled={disabled}
                                     className={cn(
                                       "h-7 w-7 p-0",
@@ -456,6 +463,31 @@ export function HuemulTable<T>({
                                       action.className
                                     )}
                                   />
+                                )
+
+                                if (!hasMenu) return button
+
+                                return (
+                                  <DropdownMenu key={action.key}>
+                                    <DropdownMenuTrigger asChild disabled={disabled}>
+                                      {button}
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      {subItems.map((sub) => {
+                                        const SubIcon = sub.icon
+                                        return (
+                                          <DropdownMenuItem
+                                            key={sub.key}
+                                            onSelect={() => setTimeout(() => sub.onClick(item), 0)}
+                                            className="hover:cursor-pointer"
+                                          >
+                                            {SubIcon && <SubIcon className="mr-2 h-4 w-4" />}
+                                            {sub.label}
+                                          </DropdownMenuItem>
+                                        )
+                                      })}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 )
                               })}
                             </div>
@@ -474,6 +506,43 @@ export function HuemulTable<T>({
                               <DropdownMenuContent align="end" className="min-w-40">
                                 {visibleActions.map((action, idx, arr) => {
                                   const ActionIcon = action.icon
+                                  const subItems = action.items?.(item) ?? []
+                                  const hasMenu = subItems.length > 1
+
+                                  if (hasMenu) {
+                                    return (
+                                      <React.Fragment key={action.key}>
+                                        <DropdownMenuSub>
+                                          <DropdownMenuSubTrigger
+                                            className={cn(
+                                              action.destructive && "text-destructive focus:text-destructive",
+                                              action.className
+                                            )}
+                                          >
+                                            <ActionIcon className="mr-2 h-4 w-4" />
+                                            {action.label}
+                                          </DropdownMenuSubTrigger>
+                                          <DropdownMenuSubContent>
+                                            {subItems.map((sub) => {
+                                              const SubIcon = sub.icon
+                                              return (
+                                                <DropdownMenuItem
+                                                  key={sub.key}
+                                                  onSelect={() => setTimeout(() => sub.onClick(item), 0)}
+                                                  className="hover:cursor-pointer"
+                                                >
+                                                  {SubIcon && <SubIcon className="mr-2 h-4 w-4" />}
+                                                  {sub.label}
+                                                </DropdownMenuItem>
+                                              )
+                                            })}
+                                          </DropdownMenuSubContent>
+                                        </DropdownMenuSub>
+                                        {action.separator && idx < arr.length - 1 && <DropdownMenuSeparator />}
+                                      </React.Fragment>
+                                    )
+                                  }
+
                                   return (
                                     <React.Fragment key={action.key}>
                                       <DropdownMenuItem

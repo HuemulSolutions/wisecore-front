@@ -23,13 +23,15 @@ export type ConnectionTestKind = 'chat' | 'image'
 /**
  * Tests de conexión que aplican a un modelo, según sus capabilities.
  *
- * - `image_output` → también corre el test de generación de imágenes
+ * - `image_output` → habilita el test de generación de imágenes
  *   (POST /image-generation/test_connection), porque esos modelos no
  *   tienen endpoint de chat/completions (siempre 404 en /llms/{id}/test_connection).
  * - `text_output` (o sin capabilities declaradas, para no dejar el modelo
- *   sin ningún test) → corre el test de chat (POST /llms/{id}/test_connection).
+ *   sin ningún test) → habilita el test de chat (POST /llms/{id}/test_connection).
  *
- * Un modelo multimodal (text_output + image_output) corre ambos.
+ * Un modelo multimodal (text_output + image_output) ofrece ambos tests
+ * y el usuario elige cuál correr (ver menú del botón "Probar conexión"
+ * en models.tsx); si solo aplica uno, se ejecuta directo sin menú.
  */
 export function resolveConnectionTests(model: { capabilities?: string[] }): ConnectionTestKind[] {
   const kinds: ConnectionTestKind[] = []

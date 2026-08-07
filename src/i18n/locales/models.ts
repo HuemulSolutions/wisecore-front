@@ -23,7 +23,6 @@ const translations = {
     modelDeleted: { en: "Model deleted successfully", es: "Modelo eliminado exitosamente" },
     defaultModelUpdated: { en: "Default model updated successfully", es: "Modelo predeterminado actualizado exitosamente" },
     connectionSuccessful: { en: "Connection successful", es: "Conexión exitosa" },
-    connectionSuccessfulAll: { en: "Chat and image generation connections successful", es: "Conexión de chat y generación de imágenes exitosa" },
     embeddingProviderConfigured: { en: "Embeddings provider configured successfully", es: "Proveedor de embeddings configurado exitosamente" },
     embeddingProviderUpdated: { en: "Embeddings provider updated successfully", es: "Proveedor de embeddings actualizado exitosamente" },
     embeddingProviderDeleted: { en: "Embeddings provider deleted successfully", es: "Proveedor de embeddings eliminado exitosamente" },
@@ -51,6 +50,8 @@ const translations = {
   modelActions: {
     testingConnection: { en: "Testing connection...", es: "Probando conexión..." },
     testConnection: { en: "Test Connection", es: "Probar Conexión" },
+    testChat: { en: "Test chat", es: "Probar chat" },
+    testImageGeneration: { en: "Test image generation", es: "Probar generación de imágenes" },
     testing: { en: "Testing...", es: "Probando..." },
     editModel: { en: "Edit Model", es: "Editar Modelo" },
     deleteModel: { en: "Delete Model", es: "Eliminar Modelo" },
