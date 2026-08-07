@@ -336,7 +336,7 @@ function EditorToolbar() {
               {t('markdownDialog.download')}
             </button>
           </div>
-          <pre className="flex-1 overflow-auto rounded-md border bg-muted p-4 text-sm font-mono whitespace-pre-wrap break-words">
+          <pre className="flex-1 overflow-auto rounded-md border bg-muted p-4 text-sm font-mono whitespace-pre-wrap wrap-break-word">
             {markdownOutput}
           </pre>
         </DialogContent>

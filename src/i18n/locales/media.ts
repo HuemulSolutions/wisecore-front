@@ -101,6 +101,55 @@ const translations = {
     success: { en: "File uploaded successfully", es: "Archivo subido correctamente" },
     invalidImageType: { en: "Invalid image format. Allowed: {{formats}}", es: "Formato de imagen no válido. Permitidos: {{formats}}" },
   },
+  generate: {
+    button: { en: "Generate with AI", es: "Generar con IA" },
+    title: { en: "Generate image with AI", es: "Generar imagen con IA" },
+    description: {
+      en: "Describe the image you want. It will be saved to your Media library.",
+      es: "Describe la imagen que quieres. Se guardará en tu biblioteca de Media.",
+    },
+    prompt: { en: "Prompt", es: "Prompt" },
+    promptPlaceholder: {
+      en: "e.g. Minimalist illustration of a data pipeline, blue tones",
+      es: "ej. Ilustración minimalista de un pipeline de datos, en tonos azules",
+    },
+    promptHelp: {
+      en: "The prompt is stored as the media name and summary.",
+      es: "El prompt se guarda como nombre y resumen de la media.",
+    },
+    aspectRatio: { en: "Aspect ratio", es: "Relación de aspecto" },
+    ratios: {
+      square: { en: "Square (1:1)", es: "Cuadrada (1:1)" },
+      landscape: { en: "Landscape (16:9)", es: "Horizontal (16:9)" },
+      portrait: { en: "Portrait (9:16)", es: "Vertical (9:16)" },
+      standard: { en: "Standard (4:3)", es: "Estándar (4:3)" },
+      tall: { en: "Tall (3:4)", es: "Vertical clásica (3:4)" },
+    },
+    submit: { en: "Generate", es: "Generar" },
+    regenerate: { en: "Generate again", es: "Generar de nuevo" },
+    generating: { en: "Generating image…", es: "Generando imagen…" },
+    generatingHint: {
+      en: "This can take up to a minute. Keep this panel open.",
+      es: "Puede tardar hasta un minuto. Mantén este panel abierto.",
+    },
+    elapsed: { en: "{{seconds}}s elapsed", es: "{{seconds}}s transcurridos" },
+    emptyPreview: { en: "The generated image will appear here", es: "La imagen generada aparecerá aquí" },
+    previewAlt: { en: "Generated image", es: "Imagen generada" },
+    previewExpired: { en: "The preview link expired", es: "El enlace de vista previa expiró" },
+    reloadPreview: { en: "Reload preview", es: "Recargar vista previa" },
+    download: { en: "Download", es: "Descargar" },
+    history: { en: "Previous generations", es: "Generaciones anteriores" },
+    savedNote: {
+      en: "Every generation is saved to Media at organization level.",
+      es: "Cada generación se guarda en Media a nivel organización.",
+    },
+    success: { en: "Image generated and saved", es: "Imagen generada y guardada" },
+    error: { en: "Failed to generate the image", es: "Error al generar la imagen" },
+    hiddenByFilters: {
+      en: "The new image was saved at organization level; clear the filters to see it.",
+      es: "La nueva imagen se guardó a nivel organización; limpia los filtros para verla.",
+    },
+  },
 }
 
 export default translations

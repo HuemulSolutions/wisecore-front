@@ -252,7 +252,7 @@ export function HuemulMediaDetailSheet({
               {versionsLoading || uploadMediaVersion.isPending ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="aspect-[3/4] w-full rounded-lg" />
+                    <Skeleton key={i} className="aspect-3/4 w-full rounded-lg" />
                   ))}
                 </div>
               ) : versions.length === 0 ? (
